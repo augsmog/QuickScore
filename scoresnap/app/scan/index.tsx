@@ -150,23 +150,34 @@ export default function ScanScreen() {
     <View className="flex-1 bg-black">
       {/* Camera — Ready State */}
       {phase === "ready" && (
-        <CameraView ref={cameraRef} className="flex-1" facing="back">
-          {/* Close Button */}
-          <SafeAreaView edges={["top"]}>
+        <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back">
+          {/* Close Button — absolutely positioned so it doesn't affect layout */}
+          <SafeAreaView edges={["top"]} style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 }}>
             <Pressable
               onPress={() => router.back()}
-              className="m-4 w-10 h-10 rounded-full items-center justify-center"
-              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+              style={{
+                margin: 16, width: 40, height: 40, borderRadius: 20,
+                alignItems: "center", justifyContent: "center",
+                backgroundColor: "rgba(0,0,0,0.5)",
+              }}
             >
               <X size={20} color="#fff" />
             </Pressable>
           </SafeAreaView>
 
-          {/* Alignment Guide */}
-          <View className="flex-1 items-center justify-center px-8">
+          {/* Full-screen centered layout: guide frame + controls */}
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
+            {/* Instruction text above frame */}
+            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600", textAlign: "center", marginBottom: 20 }}>
+              Position scorecard{"\n"}within the frame
+            </Text>
+
+            {/* Alignment Guide Frame */}
             <View
-              className="w-full aspect-[4/3] rounded-2xl"
               style={{
+                width: "100%",
+                aspectRatio: 4 / 3,
+                borderRadius: 16,
                 borderColor: COLORS.accent,
                 borderWidth: 3,
                 borderStyle: "dashed",
@@ -196,27 +207,15 @@ export default function ScanScreen() {
                     borderTopRightRadius:
                       pos.top !== undefined && pos.right !== undefined ? 8 : 0,
                     borderBottomLeftRadius:
-                      pos.bottom !== undefined && pos.left !== undefined
-                        ? 8
-                        : 0,
+                      pos.bottom !== undefined && pos.left !== undefined ? 8 : 0,
                     borderBottomRightRadius:
-                      pos.bottom !== undefined && pos.right !== undefined
-                        ? 8
-                        : 0,
+                      pos.bottom !== undefined && pos.right !== undefined ? 8 : 0,
                   }}
                 />
               ))}
-
-              <View className="flex-1 items-center justify-center">
-                <Text className="text-white text-base font-semibold text-center">
-                  Position scorecard{"\n"}within the frame
-                </Text>
-              </View>
             </View>
-          </View>
 
-          {/* Capture Button */}
-          <SafeAreaView edges={["bottom"]} className="items-center pb-4">
+            {/* Free scan badge */}
             {!isPro && (
               <View
                 style={{
@@ -232,7 +231,7 @@ export default function ScanScreen() {
                   borderRadius: 20,
                   paddingHorizontal: 14,
                   paddingVertical: 6,
-                  marginBottom: 12,
+                  marginTop: 20,
                 }}
               >
                 <Text
@@ -251,23 +250,30 @@ export default function ScanScreen() {
                 </Text>
               </View>
             )}
+
+            {/* Capture Button */}
             <Pressable
               onPress={handleCapture}
-              className="w-20 h-20 rounded-full items-center justify-center"
               style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                alignItems: "center",
+                justifyContent: "center",
                 backgroundColor: COLORS.accent,
                 shadowColor: COLORS.accent,
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.4,
                 shadowRadius: 12,
+                marginTop: 24,
               }}
             >
               <Camera size={32} color="#000" />
             </Pressable>
-            <Text className="text-white text-xs mt-2 opacity-70">
+            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 8 }}>
               AI-powered OCR reads handwritten & printed scores
             </Text>
-          </SafeAreaView>
+          </View>
         </CameraView>
       )}
 
