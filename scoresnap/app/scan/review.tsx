@@ -36,48 +36,63 @@ interface ConcernItem {
   confidence: number;
 }
 
+// Sample data used as fallback when no OCR data is passed
+const SAMPLE_PLAYERS: ScannedPlayer[] = [
+  {
+    name: "M. Thompson",
+    scores: [4, 5, 4, 3, 5, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4],
+    confidence: Array(18).fill(0.95),
+    nameConfidence: 0.92,
+    matchedPlayerId: null,
+  },
+  {
+    name: "D.R.",
+    scores: [5, 6, 4, 4, 5, 4, 5, 6, 5, 5, 5, 4, 5, 5, 6, 4, 5, 5],
+    confidence: Array(18).fill(0.9).map((c, i) => (i === 3 || i === 11 ? 0.55 : c)),
+    nameConfidence: 0.45,
+    matchedPlayerId: null,
+  },
+  {
+    name: "Chris L",
+    scores: [4, 5, 5, 3, 4, 3, 5, 5, 4, 5, 4, 3, 5, 5, 5, 3, 4, 5],
+    confidence: Array(18).fill(0.92),
+    nameConfidence: 0.88,
+    matchedPlayerId: null,
+  },
+  {
+    name: "J. Parks",
+    scores: [5, 5, 4, 4, 6, 4, 4, 5, 5, 4, 5, 4, 6, 4, 5, 4, 5, 4],
+    confidence: Array(18).fill(0.88).map((c, i) => (i === 7 ? 0.48 : c)),
+    nameConfidence: 0.85,
+    matchedPlayerId: null,
+  },
+];
+
 export default function ScanReviewScreen() {
   const router = useRouter();
-  const { contestId, groupId } = useLocalSearchParams<{
+  const { contestId, groupId, scanData } = useLocalSearchParams<{
     contestId?: string;
     groupId?: string;
+    scanData?: string;
   }>();
 
   const contests = useContestStore((s) => s.contests);
   const importScores = useContestStore((s) => s.importScores);
   const contest = contests.find((c) => c.id === contestId);
 
-  // Simulated scan results — in production these come from ML Kit / Claude Vision
-  const [scannedPlayers, setScannedPlayers] = useState<ScannedPlayer[]>([
-    {
-      name: "M. Thompson",
-      scores: [4, 5, 4, 3, 5, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4],
-      confidence: Array(18).fill(0.95),
-      nameConfidence: 0.92,
-      matchedPlayerId: null,
-    },
-    {
-      name: "D.R.",
-      scores: [5, 6, 4, 4, 5, 4, 5, 6, 5, 5, 5, 4, 5, 5, 6, 4, 5, 5],
-      confidence: Array(18).fill(0.9).map((c, i) => (i === 3 || i === 11 ? 0.55 : c)),
-      nameConfidence: 0.45,
-      matchedPlayerId: null,
-    },
-    {
-      name: "Chris L",
-      scores: [4, 5, 5, 3, 4, 3, 5, 5, 4, 5, 4, 3, 5, 5, 5, 3, 4, 5],
-      confidence: Array(18).fill(0.92),
-      nameConfidence: 0.88,
-      matchedPlayerId: null,
-    },
-    {
-      name: "J. Parks",
-      scores: [5, 5, 4, 4, 6, 4, 4, 5, 5, 4, 5, 4, 6, 4, 5, 4, 5, 4],
-      confidence: Array(18).fill(0.88).map((c, i) => (i === 7 ? 0.48 : c)),
-      nameConfidence: 0.85,
-      matchedPlayerId: null,
-    },
-  ]);
+  // Use real OCR data from scan flow, or sample data for demo/testing
+  const initialPlayers = useMemo(() => {
+    if (scanData) {
+      try {
+        return JSON.parse(scanData) as ScannedPlayer[];
+      } catch {
+        return SAMPLE_PLAYERS;
+      }
+    }
+    return SAMPLE_PLAYERS;
+  }, [scanData]);
+
+  const [scannedPlayers, setScannedPlayers] = useState<ScannedPlayer[]>(initialPlayers);
 
   const [editingNameIdx, setEditingNameIdx] = useState<number | null>(null);
   const [showPlayerMatchModal, setShowPlayerMatchModal] = useState<number | null>(null);

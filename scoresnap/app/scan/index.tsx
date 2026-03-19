@@ -7,6 +7,7 @@ import { X, Camera, Lock, RotateCcw, Check } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "../../src/ui/theme";
 import { useScanStore } from "../../src/stores/scan-store";
+import { scanScorecard } from "../../src/services/ocr-service";
 
 type ScanPhase =
   | "ready"
@@ -60,40 +61,47 @@ export default function ScanScreen() {
     }
   }, []);
 
-  const handleConfirmPhoto = useCallback(() => {
+  const handleConfirmPhoto = useCallback(async () => {
+    if (!photoUri) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPhase("processing");
     setProgress(0);
 
-    // Simulate OCR processing
-    // In production: send photo to ML Kit on-device, then cloud fallback
-    let p = 0;
-    const interval = setInterval(() => {
-      p += Math.random() * 15 + 5;
-      if (p >= 100) {
-        clearInterval(interval);
-        setProgress(100);
+    try {
+      const result = await scanScorecard(photoUri, (p, msg) => {
+        setProgress(p);
+      });
 
-        // Only consume the scan AFTER successful processing
-        const consumed = useScan();
-        if (!consumed) {
-          setPhase("paywall");
-          return;
-        }
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setTimeout(() => {
-          router.push({
-            pathname: "/scan/review",
-            params: {
-              contestId: contestId || "",
-              photoUri: photoUri || "",
-            },
-          });
-        }, 500);
+      if (result.players.length === 0) {
+        throw new Error("No players detected in this scorecard.");
       }
-      setProgress(Math.min(p, 100));
-    }, 200);
+
+      // Only consume the scan AFTER successful processing
+      const consumed = useScan();
+      if (!consumed) {
+        setPhase("paywall");
+        return;
+      }
+
+      setProgress(100);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => {
+        router.push({
+          pathname: "/scan/review",
+          params: {
+            contestId: contestId || "",
+            photoUri: photoUri || "",
+            scanData: JSON.stringify(result.players),
+          },
+        });
+      }, 500);
+    } catch (error: any) {
+      console.error("OCR error:", error);
+      setErrorMessage(
+        error.message || "Failed to read scorecard. Please try again."
+      );
+      setPhase("error");
+    }
   }, [contestId, router, photoUri, useScan]);
 
   const handleRetake = useCallback(() => {

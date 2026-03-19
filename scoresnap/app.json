@@ -15,6 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.scoresnap.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "ScoreSnap uses the camera to scan golf scorecards"
       }
@@ -27,6 +28,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.scoresnap.app",
+      "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA"
       ]
@@ -44,7 +46,8 @@
           "cameraPermission": "ScoreSnap needs camera access to scan scorecards"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ]
   }
 }

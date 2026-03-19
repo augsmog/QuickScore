@@ -5,6 +5,7 @@ import { View, ActivityIndicator } from "react-native";
 import { ErrorBoundary } from "../src/ui/ErrorBoundary";
 import { useOnboardingStore } from "../src/stores/onboarding-store";
 import { useAuthStore } from "../src/stores/auth-store";
+import { initPurchases } from "../src/services/purchases";
 import { COLORS } from "../src/ui/theme";
 import "../global.css";
 
@@ -36,6 +37,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     initialize().catch(() => {});
+    // Initialize RevenueCat for in-app purchases
+    initPurchases().catch(() => {});
     const t = setTimeout(() => setHydrated(true), 100);
     return () => clearTimeout(t);
   }, []);
