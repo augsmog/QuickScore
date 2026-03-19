@@ -18,7 +18,8 @@ import {
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, scoreColor } from "../../src/ui/theme";
-import { useContestStore } from "../../src/stores/contest-store";
+import { useContestStore, generateId, defaultCourse } from "../../src/stores/contest-store";
+import type { Contest, ContestGroup } from "../../src/stores/contest-store";
 
 interface ScannedPlayer {
   name: string;
@@ -196,14 +197,16 @@ export default function ScanReviewScreen() {
     }
   }, [contest?.id]);
 
+  const addContest = useContestStore((s) => s.addContest);
+
   const handleCommit = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
     if (contestId && selectedGroupId) {
+      // Flow 1: Importing into existing contest
       const group = contest?.groups.find((g) => g.id === selectedGroupId);
       if (group) {
-        // Match by matched player ID, falling back to index order
         const playerScores = group.players.map((contestPlayer, i) => {
-          // Find scanned player matched to this contest player
           const matched = scannedPlayers.find(
             (sp) => sp.matchedPlayerId === contestPlayer.id
           );
@@ -216,7 +219,37 @@ export default function ScanReviewScreen() {
       }
       router.replace(`/contest/${contestId}`);
     } else {
-      router.replace("/");
+      // Flow 3: "Quick Settle" — create contest from scanned data
+      const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
+      const players = scannedPlayers.map((sp) => ({
+        id: generateId(),
+        name: sp.name,
+        handicap: 0,
+        team: null,
+        scores: sp.scores,
+      }));
+
+      const group: ContestGroup = {
+        id: generateId(),
+        name: "Group 1",
+        players,
+      };
+
+      const newContest: Contest = {
+        id: generateId(),
+        name: `${dayName} Round`,
+        course: defaultCourse("Scanned Course"),
+        status: "active",
+        betUnit: 5,
+        hasTeams: false,
+        groups: [group],
+        games: ["stroke_play", "skins"],
+        createdAt: new Date().toISOString(),
+      };
+
+      addContest(newContest);
+      // Navigate to the contest — user can add more games from there
+      router.replace(`/contest/${newContest.id}`);
     }
   };
 
@@ -518,7 +551,13 @@ export default function ScanReviewScreen() {
         >
           {lowConfCount > 0 && <AlertTriangle size={16} color="#000" />}
           <Text style={{ color: "#000", fontWeight: "700", fontSize: 15 }}>
-            {lowConfCount > 0 ? `Confirm (${lowConfCount} uncertain)` : "Confirm Scores"}
+            {contestId
+              ? lowConfCount > 0
+                ? `Confirm (${lowConfCount} uncertain)`
+                : "Confirm Scores"
+              : lowConfCount > 0
+              ? `Quick Settle (${lowConfCount} uncertain)`
+              : "Quick Settle"}
           </Text>
         </Pressable>
       </View>
