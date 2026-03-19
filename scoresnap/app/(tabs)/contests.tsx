@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, Trophy } from "lucide-react-native";
 import { COLORS } from "../../src/ui/theme";
 import { useContestStore } from "../../src/stores/contest-store";
+import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 
 export default function ContestsScreen() {
   const router = useRouter();
@@ -51,7 +52,7 @@ export default function ContestsScreen() {
                 0
               );
               return (
-                <Pressable
+                <AnimatedPressable
                   key={contest.id}
                   onPress={() => router.push(`/contest/${contest.id}`)}
                   className="rounded-2xl p-4 mb-3"
@@ -131,7 +132,7 @@ export default function ContestsScreen() {
                       </View>
                     </View>
                   )}
-                </Pressable>
+                </AnimatedPressable>
               );
             })
         )}

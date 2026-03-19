@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   Pressable,
   TextInput,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -51,6 +53,9 @@ export default function NewContestScreen() {
   const addContest = useContestStore((s) => s.addContest);
 
   const [step, setStep] = useState(1);
+
+  // Auto-generate contest name
+  const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
 
   // Step 1: Players & Course
   const [contestName, setContestName] = useState("");
@@ -105,6 +110,23 @@ export default function NewContestScreen() {
     );
   };
 
+  // Filter games by player count
+  const playerCount = players.filter((p) => p.name.trim()).length;
+  const recommendedGames = useMemo(
+    () =>
+      ALL_GAMES.filter(
+        (g) => playerCount >= g.minPlayers && playerCount <= g.maxPlayers
+      ),
+    [playerCount]
+  );
+  const incompatibleGames = useMemo(
+    () =>
+      ALL_GAMES.filter(
+        (g) => playerCount < g.minPlayers || playerCount > g.maxPlayers
+      ),
+    [playerCount]
+  );
+
   const canProceed = () => {
     if (step === 1) {
       return (
@@ -121,6 +143,9 @@ export default function NewContestScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     const course = selectedCourse || defaultCourse(courseName || "My Course");
+    const autoName = courseName
+      ? `${dayName} at ${courseName}`
+      : `${dayName} Round`;
     const validPlayers = players.filter((p) => p.name.trim());
 
     // Group players
@@ -147,7 +172,7 @@ export default function NewContestScreen() {
 
     const contest: Contest = {
       id: generateId(),
-      name: contestName || "New Contest",
+      name: contestName || autoName,
       course,
       status: "active",
       betUnit: parseFloat(betUnit) || 1,
@@ -197,6 +222,11 @@ export default function NewContestScreen() {
         ))}
       </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={60}
+      >
       <ScrollView
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
@@ -219,7 +249,7 @@ export default function NewContestScreen() {
             <TextInput
               value={contestName}
               onChangeText={setContestName}
-              placeholder="e.g. Saturday Squad Classic"
+              placeholder={courseName ? `${dayName} at ${courseName}` : `${dayName} Round`}
               placeholderTextColor={COLORS.textDim}
               className="rounded-xl px-4 py-3 text-sm mb-4"
               style={{
@@ -547,8 +577,22 @@ export default function NewContestScreen() {
               </View>
             </View>
 
-            {/* Game List */}
-            {ALL_GAMES.map((game) => {
+            {/* Recommended Games */}
+            {recommendedGames.length > 0 && (
+              <Text
+                style={{
+                  color: COLORS.accent,
+                  fontSize: 11,
+                  fontWeight: "700",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.8,
+                  marginBottom: 8,
+                }}
+              >
+                Recommended for {playerCount} players
+              </Text>
+            )}
+            {recommendedGames.map((game) => {
               const isSelected = selectedGames.includes(game.id);
               const isFree = FREE_GAME_IDS.includes(game.id);
               return (
@@ -610,6 +654,48 @@ export default function NewContestScreen() {
                 </Pressable>
               );
             })}
+
+            {/* Incompatible Games */}
+            {incompatibleGames.length > 0 && (
+              <Text
+                style={{
+                  color: COLORS.textDim,
+                  fontSize: 11,
+                  fontWeight: "700",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.8,
+                  marginTop: 12,
+                  marginBottom: 8,
+                }}
+              >
+                Requires different player count
+              </Text>
+            )}
+            {incompatibleGames.map((game) => (
+              <View
+                key={game.id}
+                className="rounded-xl p-3.5 mb-2 flex-row items-center gap-3"
+                style={{
+                  backgroundColor: COLORS.card,
+                  borderColor: COLORS.border,
+                  borderWidth: 1,
+                  opacity: 0.45,
+                }}
+              >
+                <Text className="text-2xl">{game.icon}</Text>
+                <View className="flex-1">
+                  <Text
+                    className="text-sm"
+                    style={{ color: COLORS.textDim }}
+                  >
+                    {game.name}
+                  </Text>
+                  <Text className="text-text-dim text-xs mt-0.5">
+                    {game.minPlayers}–{game.maxPlayers} players
+                  </Text>
+                </View>
+              </View>
+            ))}
           </View>
         )}
 
@@ -632,7 +718,7 @@ export default function NewContestScreen() {
               }}
             >
               {[
-                ["Contest", contestName || "New Contest"],
+                ["Contest", contestName || (courseName ? `${dayName} at ${courseName}` : `${dayName} Round`)],
                 ["Course", courseName || "My Course"],
                 [
                   "Players",
@@ -710,6 +796,7 @@ export default function NewContestScreen() {
 
         <View className="h-24" />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Bottom Navigation */}
       <View

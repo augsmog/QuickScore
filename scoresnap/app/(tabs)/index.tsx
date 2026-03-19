@@ -2,10 +2,13 @@ import { useState } from "react";
 import { View, Text, ScrollView, Pressable, Modal } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Plus, Camera, ChevronRight, X, Lock, Users } from "lucide-react-native";
+import { Plus, Camera, ChevronRight, X, Lock, Users, Zap } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { COLORS } from "../../src/ui/theme";
-import { useContestStore } from "../../src/stores/contest-store";
+import { useContestStore, generateId, defaultCourse } from "../../src/stores/contest-store";
 import { ALL_GAMES, FREE_GAME_IDS, GameTypeInfo } from "../../src/engine/types";
+import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
+import type { Contest, ContestGroup } from "../../src/stores/contest-store";
 
 const CATEGORY_COLORS: Record<string, string> = {
   Classic: COLORS.accent,
@@ -27,12 +30,42 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function HomeScreen() {
   const router = useRouter();
   const contests = useContestStore((s) => s.contests);
+  const addContest = useContestStore((s) => s.addContest);
   const activeContests = contests.filter((c) => c.status === "active");
   const completedContests = contests.filter((c) => c.status === "completed");
   const [selectedGame, setSelectedGame] = useState<GameTypeInfo | null>(null);
 
   // Group games by category for compact display
   const categories = [...new Set(ALL_GAMES.map((g) => g.category))];
+
+  const handleQuickStart = () => {
+    const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
+    const course = defaultCourse("Quick Round");
+    const players = [
+      { id: generateId(), name: "Player 1", handicap: 15, team: null, scores: new Array(18).fill(0) },
+      { id: generateId(), name: "Player 2", handicap: 18, team: null, scores: new Array(18).fill(0) },
+      { id: generateId(), name: "Player 3", handicap: 12, team: null, scores: new Array(18).fill(0) },
+      { id: generateId(), name: "Player 4", handicap: 20, team: null, scores: new Array(18).fill(0) },
+    ];
+    const group: ContestGroup = {
+      id: generateId(),
+      name: "Group 1",
+      players,
+    };
+    const contest: Contest = {
+      id: generateId(),
+      name: `${dayName} Quick Round`,
+      course,
+      status: "active",
+      betUnit: 5,
+      hasTeams: false,
+      groups: [group],
+      games: ["stroke_play", "skins"],
+      createdAt: new Date().toISOString(),
+    };
+    addContest(contest);
+    router.push(`/contest/${contest.id}`);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
@@ -52,62 +85,100 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* Scan Card — Hero CTA */}
-        <Pressable
+        {/* Scan Card — Hero CTA with gradient */}
+        <AnimatedPressable
           onPress={() => router.push("/scan")}
           style={{
             marginHorizontal: 20,
             marginBottom: 12,
             borderRadius: 20,
-            backgroundColor: COLORS.accent + "12",
-            borderColor: COLORS.accent + "44",
-            borderWidth: 1,
+            overflow: "hidden",
           }}
         >
-          <View style={{ paddingVertical: 28, paddingHorizontal: 24, flexDirection: "row", alignItems: "center" }}>
-            <View
-              style={{
-                width: 56, height: 56, borderRadius: 16, backgroundColor: COLORS.accent,
-                alignItems: "center", justifyContent: "center", marginRight: 16,
-              }}
-            >
-              <Camera size={28} color="#000" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: COLORS.text, fontWeight: "800", fontSize: 18, marginBottom: 3 }}>
-                Scan Scorecard
-              </Text>
-              <Text style={{ color: COLORS.textDim, fontSize: 13, lineHeight: 18 }}>
-                AI-powered OCR reads handwritten & printed scores instantly
-              </Text>
-            </View>
-            <ChevronRight size={20} color={COLORS.accent} />
-          </View>
-        </Pressable>
-
-        {/* New Contest — Secondary CTA */}
-        <Pressable
-          onPress={() => router.push("/contest/new")}
-          style={{
-            marginHorizontal: 20, marginBottom: 20, borderRadius: 16,
-            backgroundColor: COLORS.blue + "12", borderColor: COLORS.blue + "33", borderWidth: 1,
-            paddingVertical: 16, paddingHorizontal: 20, flexDirection: "row", alignItems: "center",
-          }}
-        >
-          <View
+          <LinearGradient
+            colors={[COLORS.accent + "08", COLORS.accent + "20"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={{
-              width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.blue,
-              alignItems: "center", justifyContent: "center", marginRight: 12,
+              borderRadius: 20,
+              borderColor: COLORS.accent + "44",
+              borderWidth: 1,
             }}
           >
-            <Plus size={20} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: COLORS.text, fontWeight: "700", fontSize: 15 }}>New Contest</Text>
-            <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Set up players, games & start scoring</Text>
-          </View>
-          <ChevronRight size={18} color={COLORS.blue} />
-        </Pressable>
+            <View style={{ paddingVertical: 28, paddingHorizontal: 24, flexDirection: "row", alignItems: "center" }}>
+              <View
+                style={{
+                  width: 56, height: 56, borderRadius: 16, backgroundColor: COLORS.accent,
+                  alignItems: "center", justifyContent: "center", marginRight: 16,
+                  shadowColor: COLORS.accent,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 12,
+                }}
+              >
+                <Camera size={28} color="#000" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: COLORS.text, fontWeight: "800", fontSize: 18, marginBottom: 3 }}>
+                  Scan Scorecard
+                </Text>
+                <Text style={{ color: COLORS.textDim, fontSize: 13, lineHeight: 18 }}>
+                  AI-powered OCR reads handwritten & printed scores instantly
+                </Text>
+              </View>
+              <ChevronRight size={20} color={COLORS.accent} />
+            </View>
+          </LinearGradient>
+        </AnimatedPressable>
+
+        {/* Quick Start + New Contest row */}
+        <View style={{ flexDirection: "row", gap: 10, marginHorizontal: 20, marginBottom: 20 }}>
+          {/* Quick Start */}
+          <AnimatedPressable
+            onPress={handleQuickStart}
+            style={{
+              flex: 1, borderRadius: 16,
+              backgroundColor: COLORS.gold + "12", borderColor: COLORS.gold + "33", borderWidth: 1,
+              paddingVertical: 14, paddingHorizontal: 14, alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.gold,
+                alignItems: "center", justifyContent: "center", marginBottom: 8,
+              }}
+            >
+              <Zap size={18} color="#000" />
+            </View>
+            <Text style={{ color: COLORS.text, fontWeight: "700", fontSize: 13, textAlign: "center" }}>Quick Start</Text>
+            <Text style={{ color: COLORS.textDim, fontSize: 11, textAlign: "center", marginTop: 2 }}>
+              4 players · Skins + Stroke · $5
+            </Text>
+          </AnimatedPressable>
+
+          {/* New Contest */}
+          <AnimatedPressable
+            onPress={() => router.push("/contest/new")}
+            style={{
+              flex: 1, borderRadius: 16,
+              backgroundColor: COLORS.blue + "12", borderColor: COLORS.blue + "33", borderWidth: 1,
+              paddingVertical: 14, paddingHorizontal: 14, alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.blue,
+                alignItems: "center", justifyContent: "center", marginBottom: 8,
+              }}
+            >
+              <Plus size={18} color="#fff" />
+            </View>
+            <Text style={{ color: COLORS.text, fontWeight: "700", fontSize: 13, textAlign: "center" }}>New Contest</Text>
+            <Text style={{ color: COLORS.textDim, fontSize: 11, textAlign: "center", marginTop: 2 }}>
+              Custom setup
+            </Text>
+          </AnimatedPressable>
+        </View>
 
         {/* Active Contests */}
         {activeContests.length > 0 && (
@@ -119,7 +190,7 @@ export default function HomeScreen() {
               </View>
             </View>
             {activeContests.map((contest) => (
-              <Pressable
+              <AnimatedPressable
                 key={contest.id}
                 onPress={() => router.push(`/contest/${contest.id}`)}
                 style={{
@@ -131,7 +202,7 @@ export default function HomeScreen() {
                 <Text style={{ color: COLORS.textDim, fontSize: 13, marginTop: 4 }}>
                   {contest.course.name} · {contest.groups.reduce((s, g) => s + g.players.length, 0)} players
                 </Text>
-              </Pressable>
+              </AnimatedPressable>
             ))}
           </View>
         )}
@@ -141,7 +212,7 @@ export default function HomeScreen() {
           <View style={{ marginBottom: 20, paddingHorizontal: 20 }}>
             <Text style={{ color: COLORS.text, fontWeight: "700", fontSize: 16, marginBottom: 10 }}>Recent Results</Text>
             {completedContests.slice(0, 3).map((contest) => (
-              <Pressable
+              <AnimatedPressable
                 key={contest.id}
                 onPress={() => router.push(`/contest/${contest.id}`)}
                 style={{
@@ -153,7 +224,7 @@ export default function HomeScreen() {
                 <Text style={{ color: COLORS.textDim, fontSize: 13, marginTop: 4 }}>
                   {contest.course.name} · {contest.createdAt.split("T")[0]}
                 </Text>
-              </Pressable>
+              </AnimatedPressable>
             ))}
           </View>
         )}
@@ -182,7 +253,7 @@ export default function HomeScreen() {
                   {games.map((game) => {
                     const isFree = FREE_GAME_IDS.includes(game.id);
                     return (
-                      <Pressable
+                      <AnimatedPressable
                         key={game.id}
                         onPress={() => setSelectedGame(game)}
                         style={{
@@ -192,9 +263,9 @@ export default function HomeScreen() {
                         }}
                       >
                         <Text style={{ fontSize: 16 }}>{game.icon}</Text>
-                        <Text style={{ color: COLORS.text, fontSize: 12, fontWeight: "500" }}>{game.name}</Text>
+                        <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: "500" }}>{game.name}</Text>
                         {!isFree && <Lock size={10} color={COLORS.gold} />}
-                      </Pressable>
+                      </AnimatedPressable>
                     );
                   })}
                 </View>

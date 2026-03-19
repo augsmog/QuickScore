@@ -169,6 +169,61 @@ export default function SettlementScreen() {
       className="flex-1 px-5 pt-3"
       showsVerticalScrollIndicator={false}
     >
+      {/* Winner Celebration Hero */}
+      {(() => {
+        const sortedNet = Object.entries(settlement.netByPlayer).sort(
+          ([, a], [, b]) => b - a
+        );
+        const [topName, topNet] = sortedNet[0] || ["", 0];
+        if (topNet > 0) {
+          return (
+            <View
+              style={{
+                backgroundColor: COLORS.accent + "12",
+                borderColor: COLORS.accent + "33",
+                borderWidth: 1,
+                borderRadius: 20,
+                padding: 20,
+                marginBottom: 16,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ fontSize: 40, marginBottom: 4 }}>🏆</Text>
+              <Text
+                style={{
+                  color: COLORS.accent,
+                  fontSize: 36,
+                  fontWeight: "800",
+                  letterSpacing: -1,
+                }}
+              >
+                +{formatMoney(topNet)}
+              </Text>
+              <Text
+                style={{
+                  color: COLORS.text,
+                  fontSize: 16,
+                  fontWeight: "700",
+                  marginTop: 4,
+                }}
+              >
+                {topName} cleaned up
+              </Text>
+              <Text
+                style={{
+                  color: COLORS.textDim,
+                  fontSize: 13,
+                  marginTop: 2,
+                }}
+              >
+                Biggest winner this round
+              </Text>
+            </View>
+          );
+        }
+        return null;
+      })()}
+
       {/* Summary Card */}
       <View
         className="rounded-2xl p-4 mb-4"

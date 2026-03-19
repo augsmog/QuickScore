@@ -39,3 +39,23 @@ export function scoreName(strokes: number, par: number): string {
 }
 
 export const RANK_COLORS = [COLORS.gold, COLORS.silver, COLORS.bronze] as const;
+
+export const RADII = {
+  sm: 8,
+  md: 14,
+  lg: 20,
+} as const;
+
+export const TYPOGRAPHY = {
+  display: { fontSize: 32, fontWeight: "800" as const, letterSpacing: -0.5 },
+  heading: { fontSize: 22, fontWeight: "700" as const, letterSpacing: -0.3 },
+  title: { fontSize: 18, fontWeight: "700" as const },
+  body: { fontSize: 15, fontWeight: "400" as const },
+  caption: { fontSize: 13, fontWeight: "500" as const },
+  label: {
+    fontSize: 11,
+    fontWeight: "700" as const,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.8,
+  },
+} as const;

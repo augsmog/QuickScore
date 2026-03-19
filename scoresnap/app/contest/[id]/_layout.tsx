@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Slot, useLocalSearchParams, useRouter, useSegments } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft, Camera } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
 import { COLORS } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 
@@ -20,11 +21,24 @@ export default function ContestLayout() {
     s.contests.find((c) => c.id === id)
   );
   const segments = useSegments();
-  // Derive active tab from URL segments instead of local state
   const lastSegment = segments[segments.length - 1];
   const activeTab = ["scorecard", "games", "settlement"].includes(lastSegment || "")
     ? lastSegment!
     : "index";
+
+  const handleTabPress = useCallback(
+    (tabKey: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (tabKey === activeTab) return;
+      // Use push for forward navigation, enabling back button to work
+      if (tabKey === "index") {
+        router.replace(`/contest/${id}`);
+      } else {
+        router.replace(`/contest/${id}/${tabKey}`);
+      }
+    },
+    [id, activeTab, router]
+  );
 
   if (!contest) {
     return (
@@ -137,7 +151,7 @@ export default function ContestLayout() {
           </View>
         )}
 
-        {/* Tabs */}
+        {/* Tabs with haptics */}
         <View
           className="flex-row rounded-xl p-1"
           style={{ backgroundColor: COLORS.card }}
@@ -145,13 +159,7 @@ export default function ContestLayout() {
           {TABS.map((tab) => (
             <Pressable
               key={tab.key}
-              onPress={() => {
-                if (tab.key === "index") {
-                  router.replace(`/contest/${id}`);
-                } else {
-                  router.replace(`/contest/${id}/${tab.key}`);
-                }
-              }}
+              onPress={() => handleTabPress(tab.key)}
               className="flex-1 rounded-lg py-2 items-center"
               style={{
                 backgroundColor:
