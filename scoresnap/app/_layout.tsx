@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator } from "react-native";
 import { ErrorBoundary } from "../src/ui/ErrorBoundary";
@@ -8,23 +8,38 @@ import { useAuthStore } from "../src/stores/auth-store";
 import { COLORS } from "../src/ui/theme";
 import "../global.css";
 
-export default function RootLayout() {
+function useProtectedRoute() {
   const hasCompletedOnboarding = useOnboardingStore(
     (s) => s.hasCompletedOnboarding
   );
-  const { isInitialized, session } = useAuthStore();
+  const { session } = useAuthStore();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    const inOnboarding = segments[0] === "onboarding";
+    const inAuth = segments[0] === "auth";
+
+    if (!hasCompletedOnboarding && !inOnboarding) {
+      router.replace("/onboarding");
+    } else if (hasCompletedOnboarding && !session && !inAuth) {
+      router.replace("/auth/sign-in");
+    } else if (hasCompletedOnboarding && session && (inOnboarding || inAuth)) {
+      router.replace("/");
+    }
+  }, [hasCompletedOnboarding, session, segments]);
+}
+
+export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    // Initialize auth (will fail gracefully if Supabase not configured)
     initialize().catch(() => {});
-    // Small delay to let Zustand stores rehydrate from AsyncStorage
     const t = setTimeout(() => setHydrated(true), 100);
     return () => clearTimeout(t);
   }, []);
 
-  // Wait for stores to rehydrate
   if (!hydrated) {
     return (
       <View
@@ -41,12 +56,11 @@ export default function RootLayout() {
     );
   }
 
-  // Determine initial route
-  const initialRoute = !hasCompletedOnboarding
-    ? "onboarding"
-    : !session
-    ? "auth/sign-in"
-    : "(tabs)";
+  return <RootLayoutNav />;
+}
+
+function RootLayoutNav() {
+  useProtectedRoute();
 
   return (
     <ErrorBoundary>
@@ -58,8 +72,11 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: COLORS.bg },
             animation: "slide_from_right",
           }}
-          initialRouteName={initialRoute}
         >
+          <Stack.Screen
+            name="(tabs)"
+            options={{ animation: "fade" }}
+          />
           <Stack.Screen
             name="onboarding"
             options={{ animation: "fade" }}
@@ -68,7 +85,6 @@ export default function RootLayout() {
             name="auth/sign-in"
             options={{ animation: "fade" }}
           />
-          <Stack.Screen name="(tabs)" />
           <Stack.Screen
             name="contest/new"
             options={{
