@@ -1,8 +1,11 @@
 import { Tabs } from "expo-router";
 import { Home, Trophy, User } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../../src/ui/theme";
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -11,9 +14,9 @@ export default function TabLayout() {
           backgroundColor: COLORS.card,
           borderTopColor: COLORS.border,
           borderTopWidth: 1,
-          paddingBottom: 8,
+          paddingBottom: Math.max(insets.bottom, 8),
           paddingTop: 8,
-          height: 60,
+          height: 60 + Math.max(insets.bottom - 8, 0),
         },
         tabBarActiveTintColor: COLORS.accent,
         tabBarInactiveTintColor: COLORS.textDim,
@@ -34,7 +37,9 @@ export default function TabLayout() {
         name="contests"
         options={{
           title: "Contests",
-          tabBarIcon: ({ color, size }) => <Trophy size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <Trophy size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

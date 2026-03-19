@@ -1,14 +1,21 @@
 import { useState, useRef, useCallback } from "react";
-import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, Image } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { X, Camera, Zap, Lock } from "lucide-react-native";
+import { X, Camera, Lock, RotateCcw, Check } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "../../src/ui/theme";
 import { useScanStore } from "../../src/stores/scan-store";
 
-type ScanPhase = "ready" | "capturing" | "processing" | "done" | "paywall";
+type ScanPhase =
+  | "ready"
+  | "capturing"
+  | "preview"
+  | "processing"
+  | "done"
+  | "paywall"
+  | "error";
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -16,13 +23,16 @@ export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<ScanPhase>("ready");
   const [progress, setProgress] = useState(0);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
-  const { hasFreeScan, useScan, getRemainingFreeScans, isPro } = useScanStore();
+  const { hasFreeScan, useScan, getRemainingFreeScans, isPro } =
+    useScanStore();
 
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current) return;
 
-    // Check scan allowance
+    // Check scan allowance BEFORE capturing
     if (!hasFreeScan()) {
       setPhase("paywall");
       return;
@@ -31,40 +41,66 @@ export default function ScanScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setPhase("capturing");
 
-    // Consume the scan
-    useScan();
-
     try {
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
         base64: false,
       });
 
-      setPhase("processing");
-
-      // Simulate OCR processing
-      // In production: send to ML Kit, then cloud fallback if needed
-      let p = 0;
-      const interval = setInterval(() => {
-        p += Math.random() * 15 + 5;
-        if (p >= 100) {
-          clearInterval(interval);
-          setProgress(100);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          setTimeout(() => {
-            // Navigate to review screen with scanned data
-            router.push({
-              pathname: "/scan/review",
-              params: { contestId: contestId || "", photoUri: photo?.uri || "" },
-            });
-          }, 500);
-        }
-        setProgress(Math.min(p, 100));
-      }, 200);
+      if (photo?.uri) {
+        setPhotoUri(photo.uri);
+        setPhase("preview"); // Show preview BEFORE processing
+      } else {
+        throw new Error("No photo captured");
+      }
     } catch (error) {
-      setPhase("ready");
+      console.error("Capture error:", error);
+      setErrorMessage("Failed to capture photo. Please try again.");
+      setPhase("error");
     }
-  }, [contestId, router]);
+  }, []);
+
+  const handleConfirmPhoto = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPhase("processing");
+    setProgress(0);
+
+    // Simulate OCR processing
+    // In production: send photo to ML Kit on-device, then cloud fallback
+    let p = 0;
+    const interval = setInterval(() => {
+      p += Math.random() * 15 + 5;
+      if (p >= 100) {
+        clearInterval(interval);
+        setProgress(100);
+
+        // Only consume the scan AFTER successful processing
+        const consumed = useScan();
+        if (!consumed) {
+          setPhase("paywall");
+          return;
+        }
+
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setTimeout(() => {
+          router.push({
+            pathname: "/scan/review",
+            params: {
+              contestId: contestId || "",
+              photoUri: photoUri || "",
+            },
+          });
+        }, 500);
+      }
+      setProgress(Math.min(p, 100));
+    }, 200);
+  }, [contestId, router, photoUri, useScan]);
+
+  const handleRetake = useCallback(() => {
+    setPhotoUri(null);
+    setPhase("ready");
+    setErrorMessage(null);
+  }, []);
 
   if (!permission) return <View className="flex-1 bg-bg" />;
 
@@ -72,10 +108,16 @@ export default function ScanScreen() {
     return (
       <SafeAreaView className="flex-1 bg-bg items-center justify-center px-8">
         <Camera size={48} color={COLORS.accent} />
-        <Text className="text-text-primary text-lg font-bold mt-4 mb-2 text-center">
+        <Text
+          className="text-lg font-bold mt-4 mb-2 text-center"
+          style={{ color: COLORS.text }}
+        >
           Camera Access Required
         </Text>
-        <Text className="text-text-dim text-sm text-center mb-6">
+        <Text
+          className="text-sm text-center mb-6"
+          style={{ color: COLORS.textDim }}
+        >
           ScoreSnap needs camera access to scan golf scorecards.
         </Text>
         <Pressable
@@ -88,7 +130,9 @@ export default function ScanScreen() {
           </Text>
         </Pressable>
         <Pressable onPress={() => router.back()} className="mt-4 p-2">
-          <Text className="text-text-dim text-sm">Go Back</Text>
+          <Text className="text-sm" style={{ color: COLORS.textDim }}>
+            Go Back
+          </Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -96,13 +140,9 @@ export default function ScanScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      {/* Camera */}
+      {/* Camera — Ready State */}
       {phase === "ready" && (
-        <CameraView
-          ref={cameraRef}
-          className="flex-1"
-          facing="back"
-        >
+        <CameraView ref={cameraRef} className="flex-1" facing="back">
           {/* Close Button */}
           <SafeAreaView edges={["top"]}>
             <Pressable
@@ -172,15 +212,29 @@ export default function ScanScreen() {
             {!isPro && (
               <View
                 style={{
-                  backgroundColor: getRemainingFreeScans() > 0 ? COLORS.accent + "22" : COLORS.warn + "22",
-                  borderColor: getRemainingFreeScans() > 0 ? COLORS.accent + "44" : COLORS.warn + "44",
-                  borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginBottom: 12,
+                  backgroundColor:
+                    getRemainingFreeScans() > 0
+                      ? COLORS.accent + "22"
+                      : COLORS.warn + "22",
+                  borderColor:
+                    getRemainingFreeScans() > 0
+                      ? COLORS.accent + "44"
+                      : COLORS.warn + "44",
+                  borderWidth: 1,
+                  borderRadius: 20,
+                  paddingHorizontal: 14,
+                  paddingVertical: 6,
+                  marginBottom: 12,
                 }}
               >
                 <Text
                   style={{
-                    color: getRemainingFreeScans() > 0 ? COLORS.accent : COLORS.warn,
-                    fontSize: 12, fontWeight: "700",
+                    color:
+                      getRemainingFreeScans() > 0
+                        ? COLORS.accent
+                        : COLORS.warn,
+                    fontSize: 12,
+                    fontWeight: "700",
                   }}
                 >
                   {getRemainingFreeScans() > 0
@@ -227,6 +281,118 @@ export default function ScanScreen() {
         </View>
       )}
 
+      {/* Photo Preview — NEW: confirm before consuming scan */}
+      {phase === "preview" && photoUri && (
+        <View className="flex-1">
+          <SafeAreaView edges={["top"]}>
+            <View
+              style={{
+                paddingHorizontal: 20,
+                paddingTop: 8,
+                paddingBottom: 12,
+              }}
+            >
+              <Text
+                style={{
+                  color: COLORS.text,
+                  fontSize: 18,
+                  fontWeight: "800",
+                }}
+              >
+                Does this look right?
+              </Text>
+              <Text
+                style={{
+                  color: COLORS.textDim,
+                  fontSize: 13,
+                  marginTop: 2,
+                }}
+              >
+                Make sure all scores are visible and in focus
+              </Text>
+            </View>
+          </SafeAreaView>
+
+          {/* Photo preview */}
+          <View
+            style={{
+              flex: 1,
+              marginHorizontal: 20,
+              borderRadius: 16,
+              overflow: "hidden",
+              borderColor: COLORS.border,
+              borderWidth: 1,
+            }}
+          >
+            <Image
+              source={{ uri: photoUri }}
+              style={{ flex: 1 }}
+              resizeMode="contain"
+            />
+          </View>
+
+          {/* Actions */}
+          <SafeAreaView edges={["bottom"]}>
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 12,
+                paddingHorizontal: 20,
+                paddingTop: 16,
+                paddingBottom: 12,
+              }}
+            >
+              <Pressable
+                onPress={handleRetake}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  backgroundColor: COLORS.card,
+                  borderColor: COLORS.border,
+                  borderWidth: 1,
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  paddingHorizontal: 20,
+                }}
+              >
+                <RotateCcw size={18} color={COLORS.textDim} />
+                <Text
+                  style={{
+                    color: COLORS.textDim,
+                    fontWeight: "600",
+                    fontSize: 15,
+                  }}
+                >
+                  Retake
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleConfirmPhoto}
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  backgroundColor: COLORS.accent,
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                }}
+              >
+                <Check size={18} color="#000" />
+                <Text
+                  style={{ color: "#000", fontWeight: "700", fontSize: 15 }}
+                >
+                  Process Scores
+                </Text>
+              </Pressable>
+            </View>
+          </SafeAreaView>
+        </View>
+      )}
+
       {/* Processing State */}
       {phase === "processing" && (
         <View className="flex-1 items-center justify-center px-12">
@@ -257,33 +423,110 @@ export default function ScanScreen() {
         </View>
       )}
 
-      {/* Paywall State — no free scans remaining */}
+      {/* Error State — NEW */}
+      {phase === "error" && (
+        <View className="flex-1 items-center justify-center px-8">
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 20,
+              backgroundColor: COLORS.danger + "18",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 20,
+            }}
+          >
+            <X size={32} color={COLORS.danger} />
+          </View>
+          <Text
+            style={{
+              color: COLORS.text,
+              fontWeight: "800",
+              fontSize: 20,
+              textAlign: "center",
+              marginBottom: 8,
+            }}
+          >
+            Scan Failed
+          </Text>
+          <Text
+            style={{
+              color: COLORS.textDim,
+              fontSize: 14,
+              textAlign: "center",
+              lineHeight: 20,
+              marginBottom: 24,
+            }}
+          >
+            {errorMessage || "Something went wrong. Please try again."}
+          </Text>
+
+          <Pressable
+            onPress={handleRetake}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              backgroundColor: COLORS.accent,
+              borderRadius: 14,
+              paddingVertical: 14,
+              paddingHorizontal: 24,
+            }}
+          >
+            <RotateCcw size={18} color="#000" />
+            <Text style={{ color: "#000", fontWeight: "700", fontSize: 15 }}>
+              Try Again
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={() => router.back()} style={{ marginTop: 16, padding: 8 }}>
+            <Text style={{ color: COLORS.textDim, fontSize: 14 }}>
+              Enter scores manually instead
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Paywall State */}
       {phase === "paywall" && (
         <View className="flex-1 items-center justify-center px-8">
           <View
             style={{
-              width: 72, height: 72, borderRadius: 20,
+              width: 72,
+              height: 72,
+              borderRadius: 20,
               backgroundColor: COLORS.gold + "22",
-              alignItems: "center", justifyContent: "center", marginBottom: 20,
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 20,
             }}
           >
             <Lock size={32} color={COLORS.gold} />
           </View>
           <Text
             style={{
-              color: COLORS.text, fontWeight: "800", fontSize: 22,
-              textAlign: "center", marginBottom: 8,
+              color: COLORS.text,
+              fontWeight: "800",
+              fontSize: 22,
+              textAlign: "center",
+              marginBottom: 8,
             }}
           >
             Unlock Unlimited Scans
           </Text>
           <Text
             style={{
-              color: COLORS.textDim, fontSize: 14, textAlign: "center",
-              lineHeight: 20, marginBottom: 28, paddingHorizontal: 12,
+              color: COLORS.textDim,
+              fontSize: 14,
+              textAlign: "center",
+              lineHeight: 20,
+              marginBottom: 28,
+              paddingHorizontal: 12,
             }}
           >
-            You've used your free scorecard scan. Upgrade to ScoreSnap Pro for unlimited AI-powered scanning plus all 25+ game modes.
+            You've used your free scorecard scan. Upgrade to ScoreSnap Pro for
+            unlimited AI-powered scanning plus all 25+ game modes.
           </Text>
 
           <Pressable
@@ -292,23 +535,26 @@ export default function ScanScreen() {
               setTimeout(() => router.push("/paywall"), 100);
             }}
             style={{
-              backgroundColor: COLORS.gold, borderRadius: 14,
-              paddingVertical: 16, paddingHorizontal: 32,
-              width: "100%", alignItems: "center", marginBottom: 12,
+              backgroundColor: COLORS.gold,
+              borderRadius: 14,
+              paddingVertical: 16,
+              paddingHorizontal: 32,
+              width: "100%",
+              alignItems: "center",
+              marginBottom: 12,
             }}
           >
             <Text style={{ color: "#000", fontWeight: "700", fontSize: 16 }}>
               Upgrade to Pro
             </Text>
-            <Text style={{ color: "#00000088", fontSize: 12, marginTop: 2 }}>
+            <Text
+              style={{ color: "#00000088", fontSize: 12, marginTop: 2 }}
+            >
               $4.99/mo or $29.99/yr
             </Text>
           </Pressable>
 
-          <Pressable
-            onPress={() => router.back()}
-            style={{ padding: 12 }}
-          >
+          <Pressable onPress={() => router.back()} style={{ padding: 12 }}>
             <Text style={{ color: COLORS.textDim, fontSize: 14 }}>
               Enter scores manually instead
             </Text>

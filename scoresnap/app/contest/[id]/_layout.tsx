@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
-import { Slot, useLocalSearchParams, useRouter } from "expo-router";
+import { Slot, useLocalSearchParams, useRouter, useSegments } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Share2, Camera } from "lucide-react-native";
+import { ChevronLeft, Camera } from "lucide-react-native";
 import { COLORS } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 
@@ -19,12 +19,36 @@ export default function ContestLayout() {
   const contest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
-  const [activeTab, setActiveTab] = useState<string>("index");
+  const segments = useSegments();
+  // Derive active tab from URL segments instead of local state
+  const lastSegment = segments[segments.length - 1];
+  const activeTab = ["scorecard", "games", "settlement"].includes(lastSegment || "")
+    ? lastSegment!
+    : "index";
 
   if (!contest) {
     return (
-      <SafeAreaView className="flex-1 bg-bg items-center justify-center">
-        <Text className="text-text-dim">Contest not found</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
+          <Text style={{ fontSize: 48, marginBottom: 16 }}>🔍</Text>
+          <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
+            Contest Not Found
+          </Text>
+          <Text style={{ color: COLORS.textDim, fontSize: 14, textAlign: "center", marginBottom: 20 }}>
+            This contest may have been deleted or doesn't exist.
+          </Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={{
+              backgroundColor: COLORS.accent,
+              borderRadius: 14,
+              paddingVertical: 12,
+              paddingHorizontal: 24,
+            }}
+          >
+            <Text style={{ color: "#000", fontWeight: "700", fontSize: 15 }}>Go Back</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
     );
   }
@@ -122,7 +146,6 @@ export default function ContestLayout() {
             <Pressable
               key={tab.key}
               onPress={() => {
-                setActiveTab(tab.key);
                 if (tab.key === "index") {
                   router.replace(`/contest/${id}`);
                 } else {

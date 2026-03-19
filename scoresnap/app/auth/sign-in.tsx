@@ -9,7 +9,7 @@ import { useAuthStore } from "../../src/stores/auth-store";
 
 export default function SignInScreen() {
   const router = useRouter();
-  const { signInWithApple, signInWithGoogle, isLoading } = useAuthStore();
+  const { signInWithApple, signInWithGoogle, skipSignIn, isLoading } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
 
   const handleAppleSignIn = async () => {
@@ -33,7 +33,7 @@ export default function SignInScreen() {
 
       if (credential.identityToken) {
         await signInWithApple(credential.identityToken, rawNonce);
-        router.replace("/");
+        router.replace("/(tabs)");
       }
     } catch (e: any) {
       if (e.code !== "ERR_REQUEST_CANCELED") {
@@ -46,11 +46,9 @@ export default function SignInScreen() {
   const handleGoogleSignIn = async () => {
     try {
       setError(null);
-      // Google Sign-In requires additional setup with expo-auth-session
-      // For now, show a placeholder
       Alert.alert(
         "Google Sign-In",
-        "Google Sign-In requires configuring OAuth credentials in your Google Cloud Console and Supabase dashboard. See the setup guide for details."
+        "Google Sign-In requires configuring OAuth credentials. Use 'Skip for now' to continue in anonymous mode."
       );
     } catch (e: any) {
       setError("Google Sign-In failed. Please try again.");
@@ -59,7 +57,8 @@ export default function SignInScreen() {
   };
 
   const handleSkip = () => {
-    router.replace("/");
+    skipSignIn();
+    router.replace("/(tabs)");
   };
 
   return (

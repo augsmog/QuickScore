@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GameType, Player, Course, HoleInfo } from "../engine/types";
 
 export interface ContestGroup {
@@ -51,86 +53,94 @@ interface ContestState {
   completeContest: (id: string) => void;
 }
 
-export const useContestStore = create<ContestState>((set, get) => ({
-  contests: [],
-  activeContestId: null,
+export const useContestStore = create<ContestState>()(
+  persist(
+    (set, get) => ({
+      contests: [],
+      activeContestId: null,
 
-  addContest: (contest) =>
-    set((state) => ({ contests: [...state.contests, contest] })),
+      addContest: (contest) =>
+        set((state) => ({ contests: [...state.contests, contest] })),
 
-  updateContest: (id, updates) =>
-    set((state) => ({
-      contests: state.contests.map((c) =>
-        c.id === id ? { ...c, ...updates } : c
-      ),
-    })),
+      updateContest: (id, updates) =>
+        set((state) => ({
+          contests: state.contests.map((c) =>
+            c.id === id ? { ...c, ...updates } : c
+          ),
+        })),
 
-  deleteContest: (id) =>
-    set((state) => ({
-      contests: state.contests.filter((c) => c.id !== id),
-      activeContestId:
-        state.activeContestId === id ? null : state.activeContestId,
-    })),
+      deleteContest: (id) =>
+        set((state) => ({
+          contests: state.contests.filter((c) => c.id !== id),
+          activeContestId:
+            state.activeContestId === id ? null : state.activeContestId,
+        })),
 
-  setActiveContest: (id) => set({ activeContestId: id }),
+      setActiveContest: (id) => set({ activeContestId: id }),
 
-  getActiveContest: () => {
-    const state = get();
-    return state.contests.find((c) => c.id === state.activeContestId);
-  },
+      getActiveContest: () => {
+        const state = get();
+        return state.contests.find((c) => c.id === state.activeContestId);
+      },
 
-  updateScore: (contestId, groupId, playerId, hole, strokes) =>
-    set((state) => ({
-      contests: state.contests.map((c) => {
-        if (c.id !== contestId) return c;
-        return {
-          ...c,
-          groups: c.groups.map((g) => {
-            if (g.id !== groupId) return g;
+      updateScore: (contestId, groupId, playerId, hole, strokes) =>
+        set((state) => ({
+          contests: state.contests.map((c) => {
+            if (c.id !== contestId) return c;
             return {
-              ...g,
-              players: g.players.map((p) => {
-                if (p.id !== playerId) return p;
-                const newScores = [...p.scores];
-                newScores[hole - 1] = strokes;
-                return { ...p, scores: newScores };
+              ...c,
+              groups: c.groups.map((g) => {
+                if (g.id !== groupId) return g;
+                return {
+                  ...g,
+                  players: g.players.map((p) => {
+                    if (p.id !== playerId) return p;
+                    const newScores = [...p.scores];
+                    newScores[hole - 1] = strokes;
+                    return { ...p, scores: newScores };
+                  }),
+                };
               }),
             };
           }),
-        };
-      }),
-    })),
+        })),
 
-  importScores: (contestId, groupId, playerScores) =>
-    set((state) => ({
-      contests: state.contests.map((c) => {
-        if (c.id !== contestId) return c;
-        return {
-          ...c,
-          groups: c.groups.map((g) => {
-            if (g.id !== groupId) return g;
+      importScores: (contestId, groupId, playerScores) =>
+        set((state) => ({
+          contests: state.contests.map((c) => {
+            if (c.id !== contestId) return c;
             return {
-              ...g,
-              players: g.players.map((p) => {
-                const imported = playerScores.find(
-                  (ps) => ps.playerId === p.id
-                );
-                if (!imported) return p;
-                return { ...p, scores: imported.scores };
+              ...c,
+              groups: c.groups.map((g) => {
+                if (g.id !== groupId) return g;
+                return {
+                  ...g,
+                  players: g.players.map((p) => {
+                    const imported = playerScores.find(
+                      (ps) => ps.playerId === p.id
+                    );
+                    if (!imported) return p;
+                    return { ...p, scores: imported.scores };
+                  }),
+                };
               }),
             };
           }),
-        };
-      }),
-    })),
+        })),
 
-  completeContest: (id) =>
-    set((state) => ({
-      contests: state.contests.map((c) =>
-        c.id === id ? { ...c, status: "completed" as const } : c
-      ),
-    })),
-}));
+      completeContest: (id) =>
+        set((state) => ({
+          contests: state.contests.map((c) =>
+            c.id === id ? { ...c, status: "completed" as const } : c
+          ),
+        })),
+    }),
+    {
+      name: "scoresnap-contests",
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
 
 // Helper to generate unique IDs
 export function generateId(): string {

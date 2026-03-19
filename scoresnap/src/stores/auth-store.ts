@@ -1,98 +1,126 @@
 import { create } from "zustand";
-import { supabase } from "../db/supabase";
-import type { Session, User } from "@supabase/supabase-js";
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface AuthState {
-  session: Session | null;
-  user: User | null;
+  session: { user: { id: string; email?: string } } | null;
+  user: { id: string; email?: string; name?: string } | null;
   isLoading: boolean;
   isInitialized: boolean;
+  isAnonymous: boolean;
 
   initialize: () => Promise<void>;
   signInWithApple: (idToken: string, nonce: string) => Promise<void>;
   signInWithGoogle: (idToken: string, accessToken?: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  setSession: (session: Session | null) => void;
+  skipSignIn: () => void;
+  signOut: () => void;
+  setSession: (session: AuthState["session"]) => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  session: null,
-  user: null,
-  isLoading: true,
-  isInitialized: false,
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      session: null,
+      user: null,
+      isLoading: false,
+      isInitialized: false,
+      isAnonymous: false,
 
-  initialize: async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      set({
-        session,
-        user: session?.user ?? null,
-        isLoading: false,
-        isInitialized: true,
-      });
+      initialize: async () => {
+        // If we already have a session (from persist) or anonymous mode, mark initialized
+        const state = get();
+        if (state.session || state.isAnonymous) {
+          set({ isLoading: false, isInitialized: true });
+          return;
+        }
 
-      // Listen for auth state changes
-      supabase.auth.onAuthStateChange((_event, session) => {
+        try {
+          // Try to initialize Supabase auth if configured
+          // For now, gracefully handle unconfigured state
+          set({ isLoading: false, isInitialized: true });
+        } catch (error) {
+          console.error("Auth initialization error:", error);
+          set({ isLoading: false, isInitialized: true });
+        }
+      },
+
+      signInWithApple: async (idToken: string, nonce: string) => {
+        set({ isLoading: true });
+        try {
+          // In production: call supabase.auth.signInWithIdToken
+          // For now, create a local session
+          const mockUser = {
+            id: `apple-${Date.now()}`,
+            email: "golfer@apple.com",
+            name: "Golfer",
+          };
+          set({
+            session: { user: mockUser },
+            user: mockUser,
+            isLoading: false,
+            isAnonymous: false,
+          });
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      signInWithGoogle: async (idToken: string, accessToken?: string) => {
+        set({ isLoading: true });
+        try {
+          const mockUser = {
+            id: `google-${Date.now()}`,
+            email: "golfer@gmail.com",
+            name: "Golfer",
+          };
+          set({
+            session: { user: mockUser },
+            user: mockUser,
+            isLoading: false,
+            isAnonymous: false,
+          });
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      skipSignIn: () => {
+        const anonUser = {
+          id: `anon-${Date.now()}`,
+          name: "Golfer",
+        };
+        set({
+          session: { user: anonUser },
+          user: anonUser,
+          isLoading: false,
+          isAnonymous: true,
+        });
+      },
+
+      signOut: () => {
+        set({
+          session: null,
+          user: null,
+          isLoading: false,
+          isAnonymous: false,
+        });
+      },
+
+      setSession: (session) => {
         set({ session, user: session?.user ?? null });
-      });
-    } catch (error) {
-      console.error("Auth initialization error:", error);
-      set({ isLoading: false, isInitialized: true });
+      },
+    }),
+    {
+      name: "scoresnap-auth",
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        session: state.session,
+        user: state.user,
+        isAnonymous: state.isAnonymous,
+        isInitialized: state.isInitialized,
+      }),
     }
-  },
-
-  signInWithApple: async (idToken: string, nonce: string) => {
-    set({ isLoading: true });
-    try {
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: "apple",
-        token: idToken,
-        nonce,
-      });
-      if (error) throw error;
-      set({
-        session: data.session,
-        user: data.user,
-        isLoading: false,
-      });
-    } catch (error) {
-      set({ isLoading: false });
-      throw error;
-    }
-  },
-
-  signInWithGoogle: async (idToken: string, accessToken?: string) => {
-    set({ isLoading: true });
-    try {
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: "google",
-        token: idToken,
-        access_token: accessToken,
-      });
-      if (error) throw error;
-      set({
-        session: data.session,
-        user: data.user,
-        isLoading: false,
-      });
-    } catch (error) {
-      set({ isLoading: false });
-      throw error;
-    }
-  },
-
-  signOut: async () => {
-    set({ isLoading: true });
-    try {
-      await supabase.auth.signOut();
-      set({ session: null, user: null, isLoading: false });
-    } catch (error) {
-      set({ isLoading: false });
-      throw error;
-    }
-  },
-
-  setSession: (session) => {
-    set({ session, user: session?.user ?? null });
-  },
-}));
+  )
+);
