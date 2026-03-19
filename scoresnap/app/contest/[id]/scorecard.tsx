@@ -201,29 +201,25 @@ export default function ScorecardScreen() {
         })}
       </ScrollView>
 
-      {/* Front 9 / Back 9 label */}
-      <View className="items-center mb-1">
+      {/* Current Hole Info — compact row */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 12,
+          paddingVertical: 8,
+          paddingHorizontal: 20,
+        }}
+      >
         <Text style={{ color: COLORS.textDim, fontSize: 10, fontWeight: "600", letterSpacing: 0.5 }}>
           {currentHole <= 9 ? "FRONT 9" : "BACK 9"}
         </Text>
-      </View>
-
-      {/* Current Hole Info */}
-      <View className="items-center mb-4">
-        <Text style={{ color: COLORS.textDim, fontSize: 12 }}>
-          HOLE {currentHole}
+        <Text style={{ color: COLORS.text, fontSize: 22, fontWeight: "800" }}>
+          Hole {currentHole} · Par {par}
         </Text>
-        <Text
-          style={{
-            color: COLORS.text,
-            fontSize: 30,
-            fontWeight: "800",
-          }}
-        >
-          Par {par}
-        </Text>
-        <Text style={{ color: COLORS.textDim, fontSize: 12 }}>
-          {contest.course.holes[currentHole - 1]?.yards || ""} yards · HCP{" "}
+        <Text style={{ color: COLORS.textDim, fontSize: 11 }}>
+          {contest.course.holes[currentHole - 1]?.yards || ""}y · HCP{" "}
           {contest.course.holes[currentHole - 1]?.hcp || ""}
         </Text>
       </View>

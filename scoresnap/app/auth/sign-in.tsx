@@ -36,10 +36,19 @@ export default function SignInScreen() {
         router.replace("/(tabs)");
       }
     } catch (e: any) {
-      if (e.code !== "ERR_REQUEST_CANCELED") {
+      if (e.code === "ERR_REQUEST_CANCELED") return;
+      // In Expo Go, Apple Sign-In isn't fully supported — skip silently
+      if (
+        e.message?.includes("unknown reason") ||
+        e.code === "ERR_CANCELED"
+      ) {
+        setError(
+          "Apple Sign-In requires a production build. Tap 'Skip for now' to continue."
+        );
+      } else {
         setError("Apple Sign-In failed. Please try again.");
-        console.error("Apple sign-in error:", e);
       }
+      console.warn("Apple sign-in error:", e);
     }
   };
 
