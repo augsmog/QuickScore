@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -161,17 +161,58 @@ export default function ScanReviewScreen() {
     setShowPlayerMatchModal(null);
   };
 
+  // Auto-match scanned players to contest players by name similarity
+  const autoMatchPlayers = useCallback(() => {
+    if (!contest) return;
+    const allContestPlayers = contest.groups.flatMap((g) => g.players);
+
+    setScannedPlayers((prev) =>
+      prev.map((sp) => {
+        if (sp.matchedPlayerId) return sp; // Already matched
+
+        // Try exact match first
+        const exact = allContestPlayers.find(
+          (cp) => cp.name.toLowerCase() === sp.name.toLowerCase()
+        );
+        if (exact) return { ...sp, matchedPlayerId: exact.id, nameConfidence: 1 };
+
+        // Try partial match (first name or last name)
+        const scannedParts = sp.name.toLowerCase().split(/[\s.]+/).filter(Boolean);
+        const partial = allContestPlayers.find((cp) => {
+          const cpParts = cp.name.toLowerCase().split(/[\s.]+/).filter(Boolean);
+          return scannedParts.some((sp) => cpParts.some((cp) => cp.startsWith(sp) || sp.startsWith(cp)));
+        });
+        if (partial) return { ...sp, matchedPlayerId: partial.id, name: partial.name, nameConfidence: 0.8 };
+
+        return sp;
+      })
+    );
+  }, [contest]);
+
+  // Run auto-match on mount when contest exists
+  useEffect(() => {
+    if (contest && scannedPlayers.some((sp) => !sp.matchedPlayerId)) {
+      autoMatchPlayers();
+    }
+  }, [contest?.id]);
+
   const handleCommit = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     if (contestId && selectedGroupId) {
       const group = contest?.groups.find((g) => g.id === selectedGroupId);
       if (group) {
-        importScores(contestId, selectedGroupId,
-          group.players.map((p, i) => ({
-            playerId: p.id,
-            scores: scannedPlayers[i]?.scores || new Array(18).fill(0),
-          }))
-        );
+        // Match by matched player ID, falling back to index order
+        const playerScores = group.players.map((contestPlayer, i) => {
+          // Find scanned player matched to this contest player
+          const matched = scannedPlayers.find(
+            (sp) => sp.matchedPlayerId === contestPlayer.id
+          );
+          return {
+            playerId: contestPlayer.id,
+            scores: matched?.scores || scannedPlayers[i]?.scores || new Array(18).fill(0),
+          };
+        });
+        importScores(contestId, selectedGroupId, playerScores);
       }
       router.replace(`/contest/${contestId}`);
     } else {
