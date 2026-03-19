@@ -1,7 +1,8 @@
-import { View, Text, ScrollView, Pressable } from "react-native";
+import { View, Text, ScrollView, Pressable, Button } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { User, Settings, Crown, BarChart3, Camera, Zap } from "lucide-react-native";
+import * as Sentry from "@sentry/react-native";
 import { COLORS } from "../../src/ui/theme";
 import { useContestStore } from "../../src/stores/contest-store";
 import { useScanStore } from "../../src/stores/scan-store";
@@ -159,6 +160,19 @@ export default function ProfileScreen() {
             <Text style={{ color: COLORS.textDim, fontSize: 18 }}>›</Text>
           </Pressable>
         ))}
+
+        {/* Sentry Test (dev only) */}
+        {__DEV__ && (
+          <View style={{ marginTop: 8, marginBottom: 8 }}>
+            <Button
+              title="Send Test Error to Sentry"
+              color={COLORS.danger}
+              onPress={() => {
+                Sentry.captureException(new Error("First error"));
+              }}
+            />
+          </View>
+        )}
 
         <View style={{ height: 32 }} />
       </ScrollView>
