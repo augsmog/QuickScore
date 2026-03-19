@@ -1,12 +1,15 @@
 /**
  * RevenueCat Purchases Service
  *
- * Handles in-app subscriptions via Apple StoreKit 2 and Google Play Billing.
- * RevenueCat also connects to Stripe for web signups.
+ * Manages in-app subscriptions via Apple StoreKit 2 and Google Play Billing.
+ * Connected to Stripe for web signups via RevenueCat dashboard.
  *
- * Products:
- * - scoresnap_monthly: $4.99/month
- * - scoresnap_annual: $29.99/year (with 7-day free trial)
+ * Products (configure in RevenueCat dashboard):
+ * - monthly:  $4.99/month
+ * - yearly:   $29.99/year (7-day free trial)
+ * - lifetime: $49.99 one-time
+ *
+ * Entitlement: "ScoreSnap Pro" (identifier: "pro")
  */
 
 import { Platform } from "react-native";
@@ -15,58 +18,64 @@ import Purchases, {
   CustomerInfo,
   PurchasesOffering,
   LOG_LEVEL,
+  PURCHASES_ERROR_CODE,
 } from "react-native-purchases";
 import { useScanStore } from "../stores/scan-store";
 
-const ENTITLEMENT_ID = "pro";
+// Entitlement ID configured in RevenueCat dashboard
+const ENTITLEMENT_ID = "ScoreSnap Pro";
+
+let isConfigured = false;
 
 /**
  * Initialize RevenueCat SDK. Call once on app start.
  */
 export async function initPurchases(userId?: string): Promise<void> {
-  const appleKey = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY;
-  const googleKey = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY;
-  const apiKey = Platform.OS === "ios" ? appleKey : googleKey;
-
-  if (!apiKey) {
-    console.warn(
-      "RevenueCat API key not configured. Purchases will be disabled."
-    );
-    return;
-  }
+  if (isConfigured) return;
 
   if (__DEV__) {
     Purchases.setLogLevel(LOG_LEVEL.DEBUG);
   }
 
-  await Purchases.configure({
-    apiKey,
-    appUserID: userId || undefined,
-  });
+  const appleKey = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY;
+  const googleKey = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY;
+  const apiKey = Platform.OS === "ios" ? appleKey : googleKey;
 
-  // Listen for subscription changes
-  Purchases.addCustomerInfoUpdateListener(handleCustomerInfoUpdate);
+  if (!apiKey) {
+    console.warn("RevenueCat API key not configured. Set EXPO_PUBLIC_REVENUECAT_APPLE_KEY or EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY in .env");
+    return;
+  }
 
-  // Check current status
   try {
+    Purchases.configure({
+      apiKey,
+      appUserID: userId || undefined,
+    });
+
+    isConfigured = true;
+
+    // Listen for subscription changes in real-time
+    Purchases.addCustomerInfoUpdateListener(handleCustomerInfoUpdate);
+
+    // Check current entitlement status
     const info = await Purchases.getCustomerInfo();
     handleCustomerInfoUpdate(info);
   } catch (e) {
-    console.warn("Failed to get initial customer info:", e);
+    console.warn("RevenueCat init failed:", e);
   }
 }
 
 /**
- * Update Pro status based on RevenueCat entitlements.
+ * Sync Pro status whenever customer info changes.
  */
 function handleCustomerInfoUpdate(info: CustomerInfo): void {
-  const isPro =
-    info.entitlements.active[ENTITLEMENT_ID] !== undefined;
+  const isPro = info.entitlements.active[ENTITLEMENT_ID] !== undefined;
   useScanStore.getState().setPro(isPro);
 }
 
 /**
  * Get current subscription offerings (pricing, packages).
+ * Returns the "default" offering configured in RevenueCat.
  */
 export async function getOfferings(): Promise<PurchasesOffering | null> {
   try {
@@ -79,21 +88,39 @@ export async function getOfferings(): Promise<PurchasesOffering | null> {
 }
 
 /**
- * Purchase a package (triggers native payment sheet).
- * Returns true if purchase succeeded.
+ * Get specific packages from the current offering.
+ */
+export async function getPackages(): Promise<{
+  monthly: PurchasesPackage | null;
+  annual: PurchasesPackage | null;
+  lifetime: PurchasesPackage | null;
+}> {
+  const offering = await getOfferings();
+  if (!offering) {
+    return { monthly: null, annual: null, lifetime: null };
+  }
+
+  return {
+    monthly: offering.monthly || null,
+    annual: offering.annual || null,
+    lifetime: offering.lifetime || null,
+  };
+}
+
+/**
+ * Purchase a package (triggers native App Store / Play Store payment sheet).
+ * Returns true if the "ScoreSnap Pro" entitlement is now active.
  */
 export async function purchasePackage(
   pkg: PurchasesPackage
 ): Promise<boolean> {
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    const isPro =
-      customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
+    const isPro = customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
     useScanStore.getState().setPro(isPro);
     return isPro;
   } catch (e: any) {
-    if (e.userCancelled) {
-      // User cancelled — not an error
+    if (e.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
       return false;
     }
     console.error("Purchase failed:", e);
@@ -102,14 +129,13 @@ export async function purchasePackage(
 }
 
 /**
- * Restore previous purchases (e.g. after reinstall).
+ * Restore previous purchases (e.g., after reinstall or new device).
  * Returns true if Pro entitlement was restored.
  */
 export async function restorePurchases(): Promise<boolean> {
   try {
     const info = await Purchases.restorePurchases();
-    const isPro =
-      info.entitlements.active[ENTITLEMENT_ID] !== undefined;
+    const isPro = info.entitlements.active[ENTITLEMENT_ID] !== undefined;
     useScanStore.getState().setPro(isPro);
     return isPro;
   } catch (e) {
@@ -119,9 +145,9 @@ export async function restorePurchases(): Promise<boolean> {
 }
 
 /**
- * Check if user currently has Pro subscription.
+ * Check if user currently has the Pro entitlement.
  */
-export async function checkSubscriptionStatus(): Promise<boolean> {
+export async function checkProStatus(): Promise<boolean> {
   try {
     const info = await Purchases.getCustomerInfo();
     return info.entitlements.active[ENTITLEMENT_ID] !== undefined;
@@ -131,12 +157,37 @@ export async function checkSubscriptionStatus(): Promise<boolean> {
 }
 
 /**
+ * Get full customer info (for Customer Center and diagnostics).
+ */
+export async function getCustomerInfo(): Promise<CustomerInfo | null> {
+  try {
+    return await Purchases.getCustomerInfo();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Identify user for cross-device subscription sync.
+ * Call after sign-in with a stable user ID.
  */
 export async function identifyUser(userId: string): Promise<void> {
   try {
     await Purchases.logIn(userId);
+    const info = await Purchases.getCustomerInfo();
+    handleCustomerInfoUpdate(info);
   } catch (e) {
     console.warn("Failed to identify user:", e);
+  }
+}
+
+/**
+ * Log out user (resets to anonymous). Call on sign-out.
+ */
+export async function logOutPurchases(): Promise<void> {
+  try {
+    await Purchases.logOut();
+  } catch (e) {
+    console.warn("Failed to log out purchases:", e);
   }
 }

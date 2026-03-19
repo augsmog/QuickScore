@@ -1,11 +1,22 @@
-import { View, Text, ScrollView, Pressable, Button } from "react-native";
+import { useState } from "react";
+import { View, Text, ScrollView, Pressable, Button, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { User, Settings, Crown, BarChart3, Camera, Zap } from "lucide-react-native";
+import {
+  User,
+  Settings,
+  Crown,
+  BarChart3,
+  Camera,
+  CreditCard,
+  HelpCircle,
+} from "lucide-react-native";
 import * as Sentry from "@sentry/react-native";
+import RevenueCatUI from "react-native-purchases-ui";
 import { COLORS } from "../../src/ui/theme";
 import { useContestStore } from "../../src/stores/contest-store";
 import { useScanStore } from "../../src/stores/scan-store";
+import { restorePurchases, getCustomerInfo } from "../../src/services/purchases";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -13,6 +24,38 @@ export default function ProfileScreen() {
   const completed = contests.filter((c) => c.status === "completed").length;
   const { scansUsed, isPro, getRemainingFreeScans } = useScanStore();
   const freeRemaining = getRemainingFreeScans();
+  const [showingCustomerCenter, setShowingCustomerCenter] = useState(false);
+
+  const handleManageSubscription = async () => {
+    try {
+      setShowingCustomerCenter(true);
+      await RevenueCatUI.presentCustomerCenter();
+    } catch (e) {
+      // Customer Center not available — show manual info
+      const info = await getCustomerInfo();
+      if (info) {
+        const activeEntitlements = Object.keys(info.entitlements.active);
+        const managementURL = info.managementURL;
+
+        if (managementURL) {
+          Alert.alert(
+            "Manage Subscription",
+            `Active: ${activeEntitlements.join(", ") || "None"}\n\nTo manage your subscription, visit your device settings.`,
+            [
+              { text: "OK" },
+            ]
+          );
+        } else {
+          Alert.alert(
+            "No Active Subscription",
+            "You don't have an active subscription to manage."
+          );
+        }
+      }
+    } finally {
+      setShowingCustomerCenter(false);
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
@@ -31,17 +74,21 @@ export default function ProfileScreen() {
           <View
             style={{
               width: 80, height: 80, borderRadius: 40,
-              backgroundColor: COLORS.accent + "22",
+              backgroundColor: isPro ? COLORS.gold + "22" : COLORS.accent + "22",
               alignItems: "center", justifyContent: "center", marginBottom: 12,
             }}
           >
-            <User size={36} color={COLORS.accent} />
+            {isPro ? (
+              <Crown size={36} color={COLORS.gold} />
+            ) : (
+              <User size={36} color={COLORS.accent} />
+            )}
           </View>
           <Text style={{ color: COLORS.text, fontWeight: "700", fontSize: 18 }}>
-            Golfer
+            {isPro ? "ScoreSnap Pro" : "Golfer"}
           </Text>
           <Text style={{ color: COLORS.textDim, fontSize: 13, marginTop: 4 }}>
-            Handicap: --
+            {isPro ? "Unlimited scans & all game modes" : "Handicap: --"}
           </Text>
         </View>
 
@@ -111,8 +158,30 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* Pro Upgrade */}
-        {!isPro && (
+        {/* Pro Upgrade or Manage Subscription */}
+        {isPro ? (
+          <Pressable
+            onPress={handleManageSubscription}
+            style={{
+              backgroundColor: COLORS.gold + "15", borderColor: COLORS.gold + "33",
+              borderWidth: 1, borderRadius: 20, padding: 20, marginBottom: 16,
+              flexDirection: "row", alignItems: "center", gap: 14,
+            }}
+          >
+            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.gold + "22", alignItems: "center", justifyContent: "center" }}>
+              <CreditCard size={22} color={COLORS.gold} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: COLORS.gold, fontWeight: "700", fontSize: 15 }}>
+                Manage Subscription
+              </Text>
+              <Text style={{ color: COLORS.textDim, fontSize: 12, marginTop: 2 }}>
+                View plan, billing, or cancel
+              </Text>
+            </View>
+            <Text style={{ color: COLORS.textDim, fontSize: 18 }}>›</Text>
+          </Pressable>
+        ) : (
           <Pressable
             onPress={() => router.push("/paywall")}
             style={{
@@ -134,7 +203,10 @@ export default function ProfileScreen() {
                 <Text style={{ color: COLORS.gold, fontSize: 12, fontWeight: "700" }}>$4.99/mo</Text>
               </View>
               <View style={{ backgroundColor: COLORS.gold + "22", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}>
-                <Text style={{ color: COLORS.gold, fontSize: 12, fontWeight: "700" }}>$29.99/yr (Save 50%)</Text>
+                <Text style={{ color: COLORS.gold, fontSize: 12, fontWeight: "700" }}>$29.99/yr</Text>
+              </View>
+              <View style={{ backgroundColor: COLORS.gold + "22", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}>
+                <Text style={{ color: COLORS.gold, fontSize: 12, fontWeight: "700" }}>$49.99 forever</Text>
               </View>
             </View>
           </Pressable>
@@ -142,11 +214,13 @@ export default function ProfileScreen() {
 
         {/* Settings Links */}
         {[
-          { icon: <Settings size={20} color={COLORS.textDim} />, label: "Settings" },
-          { icon: <BarChart3 size={20} color={COLORS.textDim} />, label: "Statistics" },
+          { icon: <Settings size={20} color={COLORS.textDim} />, label: "Settings", onPress: () => {} },
+          { icon: <BarChart3 size={20} color={COLORS.textDim} />, label: "Statistics", onPress: () => {} },
+          { icon: <HelpCircle size={20} color={COLORS.textDim} />, label: "Help & Support", onPress: () => {} },
         ].map((item) => (
           <Pressable
             key={item.label}
+            onPress={item.onPress}
             style={{
               backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1,
               borderRadius: 14, padding: 16, marginBottom: 8,
