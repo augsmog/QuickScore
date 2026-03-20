@@ -78,7 +78,7 @@ export default function HomeScreen() {
         <View style={{ alignItems: "center", marginTop: 16, marginBottom: 20, paddingHorizontal: 20 }}>
           <Text style={{ fontSize: 48, marginBottom: 4 }}>⛳</Text>
           <Text style={{ fontSize: 30, fontWeight: "800", color: COLORS.text, letterSpacing: -0.5 }}>
-            ScoreSnap
+            SnapScore
           </Text>
           <Text style={{ color: COLORS.textDim, fontSize: 14, marginTop: 2 }}>
             Scan. Score. Settle.

@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScoreSnap CMO Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #0a1628;
+            color: #e8edf5;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #1e3050;
+        }
+
+        .header-left h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #e8edf5;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+            color: #7a8ba8;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .meta-label {
+            color: #7a8ba8;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .meta-value {
+            color: #e8edf5;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .download-goal {
+            background: linear-gradient(135deg, #00d47e 0%, #00b86b 100%);
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #0a1628;
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: #111d33;
+            border: 1px solid #1e3050;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card:hover {
+            background: #162545;
+            border-color: #00d47e;
+            box-shadow: 0 8px 24px rgba(0, 212, 126, 0.15);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #00d47e;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        .kpi-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .kpi-label {
+            color: #7a8ba8;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .kpi-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #00d47e;
+            margin-bottom: 8px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .kpi-target {
+            color: #7a8ba8;
+            font-size: 13px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #1e3050;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d47e 0%, #00b86b 100%);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+
+        .progress-percent {
+            font-size: 12px;
+            color: #7a8ba8;
+            text-align: right;
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: #111d33;
+            border: 1px solid #1e3050;
+            border-radius: 12px;
+            padding: 24px;
+            position: relative;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e8edf5;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background: #00d47e;
+            border-radius: 2px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+
+        /* Table */
+        .table-card {
+            background: #111d33;
+            border: 1px solid #1e3050;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .table-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e8edf5;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .table-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background: #00d47e;
+            border-radius: 2px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        thead {
+            background: #162545;
+        }
+
+        th {
+            padding: 12px 16px;
+            text-align: left;
+            color: #7a8ba8;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #1e3050;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #1e3050;
+            color: #e8edf5;
+        }
+
+        tbody tr:hover {
+            background: #162545;
+        }
+
+        .editable-cell {
+            background: #1e3050;
+            border-radius: 4px;
+            padding: 6px 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .editable-cell:hover {
+            background: #253f5f;
+            border-color: #00d47e;
+        }
+
+        /* Experiment Status */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .status-card {
+            background: #111d33;
+            border: 1px solid #1e3050;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .status-label {
+            color: #7a8ba8;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .status-value {
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .status-active .status-value {
+            color: #00d47e;
+        }
+
+        .status-completed .status-value {
+            color: #ffd700;
+        }
+
+        .status-backlog .status-value {
+            color: #ff6b35;
+        }
+
+        /* Content Pipeline */
+        .pipeline-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .pipeline-item {
+            background: #111d33;
+            border: 1px solid #1e3050;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .pipeline-stage {
+            color: #7a8ba8;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .pipeline-count {
+            font-size: 36px;
+            font-weight: 700;
+            color: #00d47e;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding-top: 30px;
+            border-top: 1px solid #1e3050;
+            color: #7a8ba8;
+            font-size: 12px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 20px;
+            }
+
+            .header-right {
+                text-align: left;
+            }
+
+            .header-meta {
+                flex-wrap: wrap;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .kpi-value {
+                font-size: 28px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 10px 12px;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a1628;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1e3050;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #2a4060;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .kpi-card, .chart-card, .table-card, .status-card {
+            animation: fadeIn 0.6s ease forwards;
+        }
+
+        .kpi-card:nth-child(1) { animation-delay: 0s; }
+        .kpi-card:nth-child(2) { animation-delay: 0.05s; }
+        .kpi-card:nth-child(3) { animation-delay: 0.1s; }
+        .kpi-card:nth-child(4) { animation-delay: 0.15s; }
+        .kpi-card:nth-child(5) { animation-delay: 0.2s; }
+        .kpi-card:nth-child(6) { animation-delay: 0.25s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <h1>ScoreSnap CMO Dashboard</h1>
+                <div class="header-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Today</span>
+                        <span class="meta-value" id="current-date"></span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Period</span>
+                        <span class="meta-value">April - September 2026</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="download-goal">
+                    📊 Target: 100,000 Downloads by Sept 30
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <!-- Total Downloads -->
+            <div class="kpi-card">
+                <div class="kpi-label">Total Downloads</div>
+                <div class="kpi-value" id="downloads-value">0</div>
+                <div class="kpi-target">
+                    <span>Target: 100,000</span>
+                    <span id="downloads-percent">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="downloads-progress" style="width: 0%"></div>
+                </div>
+                <div class="progress-percent">On track to hit goal</div>
+            </div>
+
+            <!-- DAU/MAU Ratio -->
+            <div class="kpi-card">
+                <div class="kpi-label">DAU/MAU Ratio</div>
+                <div class="kpi-value" id="dau-mau-value">0%</div>
+                <div class="kpi-target">
+                    <span>Target: 25%</span>
+                    <span id="dau-mau-percent">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="dau-mau-progress" style="width: 0%"></div>
+                </div>
+                <div class="progress-percent">Engagement metric</div>
+            </div>
+
+            <!-- D7 Retention -->
+            <div class="kpi-card">
+                <div class="kpi-label">D7 Retention</div>
+                <div class="kpi-value" id="d7-value">0%</div>
+                <div class="kpi-target">
+                    <span>Target: 40%</span>
+                    <span id="d7-percent">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="d7-progress" style="width: 0%"></div>
+                </div>
+                <div class="progress-percent">7-day retention</div>
+            </div>
+
+            <!-- D30 Retention -->
+            <div class="kpi-card">
+                <div class="kpi-label">D30 Retention</div>
+                <div class="kpi-value" id="d30-value">0%</div>
+                <div class="kpi-target">
+                    <span>Target: 20%</span>
+                    <span id="d30-percent">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="d30-progress" style="width: 0%"></div>
+                </div>
+                <div class="progress-percent">30-day retention</div>
+            </div>
+
+            <!-- K-Factor -->
+            <div class="kpi-card">
+                <div class="kpi-label">K-Factor (Virality)</div>
+                <div class="kpi-value" id="k-factor-value">0.00</div>
+                <div class="kpi-target">
+                    <span>Target: 0.70</span>
+                    <span id="k-factor-percent">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="k-factor-progress" style="width: 0%"></div>
+                </div>
+                <div class="progress-percent">Viral growth potential</div>
+            </div>
+
+            <!-- Premium Conversion -->
+            <div class="kpi-card">
+                <div class="kpi-label">Premium Conversion</div>
+                <div class="kpi-value" id="premium-value">0%</div>
+                <div class="kpi-target">
+                    <span>Target: 5%</span>
+                    <span id="premium-percent">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="premium-progress" style="width: 0%"></div>
+                </div>
+                <div class="progress-percent">Monetization target</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <!-- Download Growth Chart -->
+            <div class="chart-card">
+                <div class="chart-title">Download Growth Projection</div>
+                <div class="chart-container">
+                    <canvas id="growthChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Channel Breakdown Donut -->
+            <div class="chart-card">
+                <div class="chart-title">Projected Installs by Channel</div>
+                <div class="chart-container">
+                    <canvas id="channelChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weekly Metrics Table -->
+        <div class="table-card">
+            <div class="table-title">Weekly Metrics</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Week</th>
+                        <th>Downloads</th>
+                        <th>DAU</th>
+                        <th>K-Factor</th>
+                        <th>Content Posts</th>
+                        <th>Influencer Activations</th>
+                        <th>App Store Conversion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Week 1 (Apr 1-7)</strong></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0.00</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0%</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Week 2 (Apr 8-14)</strong></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0.00</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0%</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Week 3 (Apr 15-21)</strong></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0.00</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0%</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Week 4 (Apr 22-28)</strong></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0.00</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0%</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Week 5 (May 1-7)</strong></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0.00</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0%</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Week 6 (May 8-14)</strong></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0.00</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0</span></td>
+                        <td><span class="editable-cell">0%</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Experiment Status -->
+        <div class="status-grid">
+            <div class="status-card status-active">
+                <div class="status-label">Active Experiments</div>
+                <div class="status-value">12</div>
+                <div style="color: #7a8ba8; font-size: 12px;">Running now</div>
+            </div>
+            <div class="status-card status-completed">
+                <div class="status-label">Completed Experiments</div>
+                <div class="status-value">8</div>
+                <div style="color: #7a8ba8; font-size: 12px;">With learnings</div>
+            </div>
+            <div class="status-card status-backlog">
+                <div class="status-label">Backlog Experiments</div>
+                <div class="status-value">24</div>
+                <div style="color: #7a8ba8; font-size: 12px;">Queued for launch</div>
+            </div>
+        </div>
+
+        <!-- Content Pipeline -->
+        <div style="margin-bottom: 30px;">
+            <h2 style="font-size: 16px; font-weight: 600; margin-bottom: 20px; color: #e8edf5;">Content Pipeline</h2>
+            <div class="pipeline-grid">
+                <div class="pipeline-item">
+                    <div class="pipeline-stage">Idea</div>
+                    <div class="pipeline-count">18</div>
+                </div>
+                <div class="pipeline-item">
+                    <div class="pipeline-stage">Scripted</div>
+                    <div class="pipeline-count">9</div>
+                </div>
+                <div class="pipeline-item">
+                    <div class="pipeline-stage">In Production</div>
+                    <div class="pipeline-count">6</div>
+                </div>
+                <div class="pipeline-item">
+                    <div class="pipeline-stage">Ready</div>
+                    <div class="pipeline-count">4</div>
+                </div>
+                <div class="pipeline-item">
+                    <div class="pipeline-stage">Published</div>
+                    <div class="pipeline-count">12</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Last Updated: <span id="last-updated"></span> | ScoreSnap CMO Dashboard v1.0</p>
+        </div>
+    </div>
+
+    <script>
+        // Set current date
+        function updateDates() {
+            const today = new Date();
+            document.getElementById('current-date').textContent = today.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            document.getElementById('last-updated').textContent = today.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        updateDates();
+
+        // KPI data and functions
+        function updateKPIs() {
+            // Sample data (placeholder zeros as requested)
+            const kpis = {
+                downloads: { current: 0, target: 100000 },
+                dauMau: { current: 0, target: 25 },
+                d7: { current: 0, target: 40 },
+                d30: { current: 0, target: 20 },
+                kFactor: { current: 0, target: 0.7 },
+                premium: { current: 0, target: 5 }
+            };
+
+            // Update Downloads
+            const dlPercent = Math.min((kpis.downloads.current / kpis.downloads.target) * 100, 100);
+            document.getElementById('downloads-value').textContent = kpis.downloads.current.toLocaleString();
+            document.getElementById('downloads-percent').textContent = dlPercent.toFixed(0) + '%';
+            document.getElementById('downloads-progress').style.width = dlPercent + '%';
+
+            // Update DAU/MAU
+            const dauPercent = Math.min((kpis.dauMau.current / kpis.dauMau.target) * 100, 100);
+            document.getElementById('dau-mau-value').textContent = kpis.dauMau.current + '%';
+            document.getElementById('dau-mau-percent').textContent = dauPercent.toFixed(0) + '%';
+            document.getElementById('dau-mau-progress').style.width = dauPercent + '%';
+
+            // Update D7 Retention
+            const d7Percent = Math.min((kpis.d7.current / kpis.d7.target) * 100, 100);
+            document.getElementById('d7-value').textContent = kpis.d7.current + '%';
+            document.getElementById('d7-percent').textContent = d7Percent.toFixed(0) + '%';
+            document.getElementById('d7-progress').style.width = d7Percent + '%';
+
+            // Update D30 Retention
+            const d30Percent = Math.min((kpis.d30.current / kpis.d30.target) * 100, 100);
+            document.getElementById('d30-value').textContent = kpis.d30.current + '%';
+            document.getElementById('d30-percent').textContent = d30Percent.toFixed(0) + '%';
+            document.getElementById('d30-progress').style.width = d30Percent + '%';
+
+            // Update K-Factor
+            const kfPercent = Math.min((kpis.kFactor.current / kpis.kFactor.target) * 100, 100);
+            document.getElementById('k-factor-value').textContent = kpis.kFactor.current.toFixed(2);
+            document.getElementById('k-factor-percent').textContent = kfPercent.toFixed(0) + '%';
+            document.getElementById('k-factor-progress').style.width = kfPercent + '%';
+
+            // Update Premium Conversion
+            const premPercent = Math.min((kpis.premium.current / kpis.premium.target) * 100, 100);
+            document.getElementById('premium-value').textContent = kpis.premium.current + '%';
+            document.getElementById('premium-percent').textContent = premPercent.toFixed(0) + '%';
+            document.getElementById('premium-progress').style.width = premPercent + '%';
+        }
+        updateKPIs();
+
+        // Download Growth Chart
+        const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
+        const targetTrajectory = [8000, 23000, 38000, 55000, 78000, 100000];
+        const actualData = [0, 0, 0, 0, 0, 0];
+
+        const growthCtx = document.getElementById('growthChart').getContext('2d');
+        const growthChart = new Chart(growthCtx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Target Trajectory',
+                        data: targetTrajectory,
+                        borderColor: '#00d47e',
+                        backgroundColor: 'rgba(0, 212, 126, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#00d47e',
+                        pointBorderColor: '#0a1628',
+                        pointBorderWidth: 2
+                    },
+                    {
+                        label: 'Actual Downloads',
+                        data: actualData,
+                        borderColor: '#ff6b35',
+                        backgroundColor: 'rgba(255, 107, 53, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#ff6b35',
+                        pointBorderColor: '#0a1628',
+                        pointBorderWidth: 2,
+                        borderDash: [5, 5]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#e8edf5',
+                            font: { size: 12, weight: '600' },
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    filler: {
+                        propagate: true
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 110000,
+                        ticks: {
+                            color: '#7a8ba8',
+                            font: { size: 12 },
+                            callback: function(value) {
+                                return (value / 1000) + 'K';
+                            }
+                        },
+                        grid: {
+                            color: '#1e3050',
+                            drawBorder: false
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#7a8ba8',
+                            font: { size: 12 }
+                        },
+                        grid: {
+                            color: '#1e3050',
+                            drawBorder: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Channel Breakdown Chart
+        const channels = ['ASO', 'Referral/Viral', 'Influencer', 'Content/Social', 'Settlement', 'PR/Earned', 'League/Tournament'];
+        const channelValues = [35000, 30000, 20000, 18000, 15000, 12000, 4000];
+        const channelColors = ['#00d47e', '#00b86b', '#00a85a', '#009949', '#008a38', '#007927', '#006816'];
+
+        const channelCtx = document.getElementById('channelChart').getContext('2d');
+        const channelChart = new Chart(channelCtx, {
+            type: 'doughnut',
+            data: {
+                labels: channels,
+                datasets: [{
+                    data: channelValues,
+                    backgroundColor: channelColors,
+                    borderColor: '#111d33',
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: '#e8edf5',
+                            font: { size: 11, weight: '600' },
+                            padding: 15,
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                return data.labels.map((label, i) => ({
+                                    text: label + ' - ' + data.datasets[0].data[i].toLocaleString(),
+                                    fillStyle: data.datasets[0].backgroundColor[i],
+                                    hidden: false,
+                                    index: i
+                                }));
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Make table cells editable
+        document.querySelectorAll('.editable-cell').forEach(cell => {
+            cell.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const currentValue = this.textContent;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentValue;
+                input.style.background = '#1e3050';
+                input.style.border = '1px solid #00d47e';
+                input.style.color = '#e8edf5';
+                input.style.padding = '4px 8px';
+                input.style.borderRadius = '4px';
+                input.style.fontSize = '14px';
+                input.style.fontFamily = 'inherit';
+
+                this.textContent = '';
+                this.appendChild(input);
+                input.focus();
+                input.select();
+
+                function saveValue() {
+                    const newValue = input.value || currentValue;
+                    cell.textContent = newValue;
+                }
+
+                input.addEventListener('blur', saveValue);
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') saveValue();
+                });
+            });
+        });
+    </script>
+</body>
+</html>

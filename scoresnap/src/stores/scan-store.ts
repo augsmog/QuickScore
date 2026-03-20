@@ -44,7 +44,7 @@ export const useScanStore = create<ScanState>()(
       setPro: (value: boolean) => set({ isPro: value }),
     }),
     {
-      name: "scoresnap-scans",
+      name: "snapscore-scans",
       storage: createJSONStorage(() => AsyncStorage),
       // Only persist scansUsed and isPro, not the methods
       partialize: (state) => ({

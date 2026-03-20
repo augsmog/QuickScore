@@ -126,7 +126,7 @@ export default function ScanScreen() {
           className="text-sm text-center mb-6"
           style={{ color: COLORS.textDim }}
         >
-          ScoreSnap needs camera access to scan golf scorecards.
+          SnapScore needs camera access to scan golf scorecards.
         </Text>
         <Pressable
           onPress={requestPermission}
@@ -539,7 +539,7 @@ export default function ScanScreen() {
               paddingHorizontal: 12,
             }}
           >
-            You've used your free scorecard scan. Upgrade to ScoreSnap Pro for
+            You've used your free scorecard scan. Upgrade to SnapScore Pro for
             unlimited AI-powered scanning plus all 25+ game modes.
           </Text>
 

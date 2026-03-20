@@ -50,7 +50,7 @@ export default function PaywallScreen() {
       try {
         // Present RevenueCat's native paywall UI
         const result = await RevenueCatUI.presentPaywallIfNeeded({
-          requiredEntitlementIdentifier: "ScoreSnap Pro",
+          requiredEntitlementIdentifier: "SnapScore Pro",
         });
 
         if (result === "PURCHASED" || result === "RESTORED") {
@@ -203,7 +203,7 @@ export default function PaywallScreen() {
           <View style={{ width: 72, height: 72, borderRadius: 20, backgroundColor: COLORS.gold + "22", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
             <Crown size={36} color={COLORS.gold} />
           </View>
-          <Text style={{ color: COLORS.text, fontWeight: "800", fontSize: 26 }}>ScoreSnap Pro</Text>
+          <Text style={{ color: COLORS.text, fontWeight: "800", fontSize: 26 }}>SnapScore Pro</Text>
           <Text style={{ color: COLORS.textDim, fontSize: 14, marginTop: 4, textAlign: "center" }}>
             Unlimited scanning. Every game mode. Full settlement.
           </Text>

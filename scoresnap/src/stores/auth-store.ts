@@ -113,7 +113,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: "scoresnap-auth",
+      name: "snapscore-auth",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         session: state.session,

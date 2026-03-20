@@ -90,7 +90,7 @@ export default function SettlementScreen() {
     }
 
     lines.push("");
-    lines.push("— via ScoreSnap ⛳");
+    lines.push("— via SnapScore ⛳");
     return lines.join("\n");
   };
 

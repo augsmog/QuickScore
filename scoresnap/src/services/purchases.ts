@@ -9,7 +9,7 @@
  * - yearly:   $29.99/year (7-day free trial)
  * - lifetime: $49.99 one-time
  *
- * Entitlement: "ScoreSnap Pro" (identifier: "pro")
+ * Entitlement: "SnapScore Pro" (identifier: "pro")
  */
 
 import { Platform } from "react-native";
@@ -23,7 +23,7 @@ import Purchases, {
 import { useScanStore } from "../stores/scan-store";
 
 // Entitlement ID configured in RevenueCat dashboard
-const ENTITLEMENT_ID = "ScoreSnap Pro";
+const ENTITLEMENT_ID = "SnapScore Pro";
 
 let isConfigured = false;
 
@@ -109,7 +109,7 @@ export async function getPackages(): Promise<{
 
 /**
  * Purchase a package (triggers native App Store / Play Store payment sheet).
- * Returns true if the "ScoreSnap Pro" entitlement is now active.
+ * Returns true if the "SnapScore Pro" entitlement is now active.
  */
 export async function purchasePackage(
   pkg: PurchasesPackage

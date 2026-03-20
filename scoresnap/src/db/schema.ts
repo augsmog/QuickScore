@@ -72,7 +72,7 @@ const MIGRATIONS = [
 ];
 
 export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
-  const db = await SQLite.openDatabaseAsync("scoresnap.db");
+  const db = await SQLite.openDatabaseAsync("snapscore.db");
 
   // Enable WAL mode for better performance
   await db.execAsync("PRAGMA journal_mode = WAL;");

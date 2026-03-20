@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "ScoreSnap",
-    "slug": "scoresnap",
+    "name": "SnapScore",
+    "slug": "snapscore",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "scheme": "scoresnap",
+    "scheme": "snapscore",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -17,7 +17,7 @@
       "bundleIdentifier": "com.scoresnap.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "ScoreSnap uses the camera to scan golf scorecards"
+        "NSCameraUsageDescription": "SnapScore uses the camera to scan golf scorecards"
       }
     },
     "android": {
@@ -43,7 +43,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "ScoreSnap needs camera access to scan scorecards"
+          "cameraPermission": "SnapScore needs camera access to scan scorecards"
         }
       ],
       "expo-secure-store",

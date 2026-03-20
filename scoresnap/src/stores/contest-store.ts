@@ -136,7 +136,7 @@ export const useContestStore = create<ContestState>()(
         })),
     }),
     {
-      name: "scoresnap-contests",
+      name: "snapscore-contests",
       storage: createJSONStorage(() => AsyncStorage),
     }
   )

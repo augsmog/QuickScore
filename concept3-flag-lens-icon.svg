@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="flagG3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d47e"/>
+      <stop offset="100%" style="stop-color:#00b86b"/>
+    </linearGradient>
+    <linearGradient id="bgG3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1f3c"/>
+      <stop offset="100%" style="stop-color:#0a1628"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bgG3)" rx="96"/>
+
+  <!-- Viewfinder -->
+  <circle cx="256" cy="250" r="130" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.15"/>
+
+  <!-- Corner brackets -->
+  <path d="M 150 150 L 150 115 L 185 115" fill="none" stroke="#00d47e" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 362 150 L 362 115 L 327 115" fill="none" stroke="#00d47e" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 150 350 L 150 385 L 185 385" fill="none" stroke="#00d47e" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 362 350 L 362 385 L 327 385" fill="none" stroke="#00d47e" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Crosshairs -->
+  <line x1="256" y1="130" x2="256" y2="175" stroke="#00d47e" stroke-width="2" opacity="0.4"/>
+  <line x1="256" y1="325" x2="256" y2="370" stroke="#00d47e" stroke-width="2" opacity="0.4"/>
+  <line x1="136" y1="250" x2="181" y2="250" stroke="#00d47e" stroke-width="2" opacity="0.4"/>
+  <line x1="331" y1="250" x2="376" y2="250" stroke="#00d47e" stroke-width="2" opacity="0.4"/>
+
+  <!-- Flag pin -->
+  <line x1="256" y1="155" x2="256" y2="365" stroke="#ffffff" stroke-width="4.5" opacity="0.9"/>
+  <!-- Flag -->
+  <path d="M 260 155 L 316 180 L 260 206 Z" fill="url(#flagG3)"/>
+  <!-- Ball -->
+  <circle cx="256" cy="365" r="10" fill="#ffffff" opacity="0.8"/>
+  <!-- Hole -->
+  <ellipse cx="256" cy="380" rx="26" ry="7" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.25"/>
+
+  <!-- Center dot -->
+  <circle cx="256" cy="250" r="5" fill="#00d47e" opacity="0.5"/>
+</svg>

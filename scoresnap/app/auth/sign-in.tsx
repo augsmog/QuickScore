@@ -76,7 +76,7 @@ export default function SignInScreen() {
         {/* Logo */}
         <Text style={{ fontSize: 64, marginBottom: 8 }}>⛳</Text>
         <Text style={{ fontSize: 34, fontWeight: "800", color: COLORS.text, letterSpacing: -0.5, marginBottom: 4 }}>
-          ScoreSnap
+          SnapScore
         </Text>
         <Text style={{ color: COLORS.textDim, fontSize: 15, marginBottom: 48, textAlign: "center" }}>
           Scan. Score. Settle.

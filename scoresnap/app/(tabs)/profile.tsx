@@ -85,7 +85,7 @@ export default function ProfileScreen() {
             )}
           </View>
           <Text style={{ color: COLORS.text, fontWeight: "700", fontSize: 18 }}>
-            {isPro ? "ScoreSnap Pro" : "Golfer"}
+            {isPro ? "SnapScore Pro" : "Golfer"}
           </Text>
           <Text style={{ color: COLORS.textDim, fontSize: 13, marginTop: 4 }}>
             {isPro ? "Unlimited scans & all game modes" : "Handicap: --"}
@@ -192,7 +192,7 @@ export default function ProfileScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 }}>
               <Crown size={24} color={COLORS.gold} />
               <Text style={{ color: COLORS.gold, fontWeight: "700", fontSize: 16 }}>
-                Upgrade to ScoreSnap Pro
+                Upgrade to SnapScore Pro
               </Text>
             </View>
             <Text style={{ color: COLORS.textDim, fontSize: 13, lineHeight: 19 }}>

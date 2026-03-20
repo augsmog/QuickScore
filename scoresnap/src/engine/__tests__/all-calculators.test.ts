@@ -1,5 +1,5 @@
 /**
- * Comprehensive ScoreSnap Calculator Test Suite
+ * Comprehensive SnapScore Calculator Test Suite
  * 200+ tests covering all 29 game types, edge cases, settlement, and OCR parsing.
  * Run with: npx tsx src/engine/__tests__/all-calculators.test.ts
  */
@@ -184,7 +184,7 @@ const realCard2 = [rikinGibson, bryanMunson, ericFox];
 
 // ─── TESTS START ────────────────────────────────────────────────────
 console.log("\n══════════════════════════════════════════════");
-console.log("  ScoreSnap Calculator Test Suite (Extended)");
+console.log("  SnapScore Calculator Test Suite (Extended)");
 console.log("══════════════════════════════════════════════\n");
 
 // ═══════════════════════════════════════════════════════════════════

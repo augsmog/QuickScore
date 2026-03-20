@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="800" height="400">
+  <defs>
+    <linearGradient id="flagGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d47e"/>
+      <stop offset="100%" style="stop-color:#00b86b"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffd700"/>
+      <stop offset="100%" style="stop-color:#f0c800"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="400" fill="#0a1628"/>
+
+  <!-- Icon: Camera viewfinder + flag -->
+  <g transform="translate(130, 100)">
+    <!-- Viewfinder outer circle -->
+    <circle cx="70" cy="90" r="65" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.2"/>
+    <circle cx="70" cy="90" r="65" fill="none" stroke="#00d47e" stroke-width="3" stroke-dasharray="12 200" stroke-dashoffset="-10"/>
+
+    <!-- Viewfinder corner marks -->
+    <path d="M 20 40 L 20 25 L 35 25" fill="none" stroke="#00d47e" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 120 40 L 120 25 L 105 25" fill="none" stroke="#00d47e" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 20 140 L 20 155 L 35 155" fill="none" stroke="#00d47e" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 120 140 L 120 155 L 105 155" fill="none" stroke="#00d47e" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Crosshair lines -->
+    <line x1="70" y1="35" x2="70" y2="55" stroke="#00d47e" stroke-width="1" opacity="0.5"/>
+    <line x1="70" y1="125" x2="70" y2="145" stroke="#00d47e" stroke-width="1" opacity="0.5"/>
+    <line x1="15" y1="90" x2="35" y2="90" stroke="#00d47e" stroke-width="1" opacity="0.5"/>
+    <line x1="105" y1="90" x2="125" y2="90" stroke="#00d47e" stroke-width="1" opacity="0.5"/>
+
+    <!-- Golf flag pin -->
+    <line x1="70" y1="55" x2="70" y2="140" stroke="#ffffff" stroke-width="2.5" opacity="0.9"/>
+    <!-- Flag -->
+    <path d="M 72 55 L 100 68 L 72 82 Z" fill="url(#flagGrad)"/>
+    <!-- Golf ball at base -->
+    <circle cx="70" cy="140" r="5" fill="#ffffff" opacity="0.8"/>
+    <!-- Hole -->
+    <ellipse cx="70" cy="148" rx="14" ry="4" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.3"/>
+
+    <!-- Focus indicator dot -->
+    <circle cx="70" cy="90" r="3" fill="#00d47e" opacity="0.6"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="310" y="172" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="62" font-weight="700" text-anchor="start" fill="#ffffff" letter-spacing="-1.5">SnapScore Golf</text>
+
+  <!-- Tagline -->
+  <text x="314" y="218" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#00d47e" letter-spacing="5" opacity="0.85">SCAN. SCORE. SETTLE.</text>
+
+  <!-- Gold accent line -->
+  <rect x="310" y="230" width="60" height="2" fill="url(#goldGrad)" rx="1" opacity="0.6"/>
+</svg>

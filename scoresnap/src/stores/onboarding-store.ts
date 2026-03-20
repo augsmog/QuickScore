@@ -16,7 +16,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       resetOnboarding: () => set({ hasCompletedOnboarding: false }),
     }),
     {
-      name: "scoresnap-onboarding",
+      name: "snapscore-onboarding",
       storage: createJSONStorage(() => AsyncStorage),
     }
   )
