@@ -1,33 +1,37 @@
-import { useState, useRef } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  Dimensions,
-  FlatList,
-  ViewToken,
-} from "react-native";
+import { useRef } from "react";
+import { View, Text, Pressable, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Camera, Trophy, Zap } from "lucide-react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  interpolateColor,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "../src/ui/theme";
 import { useOnboardingStore } from "../src/stores/onboarding-store";
+import { GolfBallScene } from "../src/ui/animations/GolfBallScene";
+import { ScanBeamScene } from "../src/ui/animations/ScanBeamScene";
+import { LeaderboardScene } from "../src/ui/animations/LeaderboardScene";
+import { AnimatedPageDots } from "../src/ui/animations/AnimatedPageDots";
+import { StaggeredText } from "../src/ui/animations/StaggeredText";
 
-const { width } = Dimensions.get("window");
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-interface OnboardingSlide {
+interface SlideData {
   id: string;
-  icon: React.ReactNode;
   title: string;
   subtitle: string;
   accent: string;
 }
 
-const slides: OnboardingSlide[] = [
+const slides: SlideData[] = [
   {
     id: "scan",
-    icon: <Camera size={48} color="#000" />,
     title: "Snap Your Scorecard",
     subtitle:
       "Point your camera at any handwritten or printed golf scorecard. AI reads every score in seconds.",
@@ -35,7 +39,6 @@ const slides: OnboardingSlide[] = [
   },
   {
     id: "settle",
-    icon: <Zap size={48} color="#000" />,
     title: "Settle Bets Instantly",
     subtitle:
       "Skins, Nassau, Wolf, and 25+ game modes calculated automatically. No more bar napkin math.",
@@ -43,7 +46,6 @@ const slides: OnboardingSlide[] = [
   },
   {
     id: "compete",
-    icon: <Trophy size={48} color="#000" />,
     title: "Track Every Round",
     subtitle:
       "Leaderboards, settlement history, and shareable scorecards. Know who owes who — always.",
@@ -51,26 +53,29 @@ const slides: OnboardingSlide[] = [
   },
 ];
 
+const ACCENT_COLORS = slides.map((s) => s.accent);
+
 export default function OnboardingScreen() {
   const router = useRouter();
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+  const scrollRef = useRef<Animated.ScrollView>(null);
+  const scrollX = useSharedValue(0);
 
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index != null) {
-        setCurrentIndex(viewableItems[0].index);
-      }
-    }
-  ).current;
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.value = event.contentOffset.x;
+    },
+  });
 
-  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
+  const goToSlide = (index: number) => {
+    scrollRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+  };
 
   const handleNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const currentIndex = Math.round(scrollX.value / SCREEN_WIDTH);
     if (currentIndex < slides.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
+      goToSlide(currentIndex + 1);
     } else {
       handleFinish();
     }
@@ -79,147 +84,230 @@ export default function OnboardingScreen() {
   const handleFinish = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     completeOnboarding();
-    router.replace("/auth/sign-in");
+    router.replace("/");
   };
 
-  const renderSlide = ({ item }: { item: OnboardingSlide }) => (
-    <View
-      style={{
-        width,
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        paddingHorizontal: 40,
-      }}
-    >
-      {/* Icon circle */}
-      <View
-        style={{
-          width: 100,
-          height: 100,
-          borderRadius: 28,
-          backgroundColor: item.accent,
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: 32,
-          shadowColor: item.accent,
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.35,
-          shadowRadius: 20,
-        }}
-      >
-        {item.icon}
-      </View>
+  // Skip button fades out on last slide
+  const skipStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollX.value,
+      [SCREEN_WIDTH * 1, SCREEN_WIDTH * 2],
+      [1, 0],
+      "clamp"
+    ),
+  }));
 
-      <Text
-        style={{
-          color: COLORS.text,
-          fontSize: 28,
-          fontWeight: "800",
-          textAlign: "center",
-          marginBottom: 12,
-          letterSpacing: -0.5,
-        }}
-      >
-        {item.title}
-      </Text>
+  // CTA button color transitions between accent colors
+  const ctaStyle = useAnimatedStyle(() => {
+    const inputRange = slides.map((_, i) => i * SCREEN_WIDTH);
+    const backgroundColor = interpolateColor(scrollX.value, inputRange, ACCENT_COLORS);
+    return { backgroundColor };
+  });
 
-      <Text
-        style={{
-          color: COLORS.textDim,
-          fontSize: 16,
-          textAlign: "center",
-          lineHeight: 24,
-        }}
-      >
-        {item.subtitle}
-      </Text>
-    </View>
-  );
+  // CTA text changes on last slide
+  const nextTextStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollX.value,
+      [SCREEN_WIDTH * 1.5, SCREEN_WIDTH * 2],
+      [1, 0],
+      "clamp"
+    ),
+  }));
+
+  const getStartedTextStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollX.value,
+      [SCREEN_WIDTH * 1.5, SCREEN_WIDTH * 2],
+      [0, 1],
+      "clamp"
+    ),
+  }));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
       {/* Skip button */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "flex-end",
-          paddingHorizontal: 20,
-          paddingTop: 8,
-        }}
+      <Animated.View
+        style={[
+          {
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            paddingHorizontal: 20,
+            paddingTop: 8,
+          },
+          skipStyle,
+        ]}
       >
         <Pressable onPress={handleFinish} style={{ padding: 8 }}>
           <Text style={{ color: COLORS.textDim, fontSize: 15 }}>Skip</Text>
         </Pressable>
-      </View>
+      </Animated.View>
 
       {/* Slides */}
-      <FlatList
-        ref={flatListRef}
-        data={slides}
-        renderItem={renderSlide}
-        keyExtractor={(item) => item.id}
+      <Animated.ScrollView
+        ref={scrollRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         bounces={false}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         style={{ flex: 1 }}
-      />
-
-      {/* Dots + Button */}
-      <View
-        style={{
-          paddingHorizontal: 24,
-          paddingBottom: 20,
-          alignItems: "center",
-        }}
       >
-        {/* Page indicators */}
-        <View
-          style={{
-            flexDirection: "row",
-            gap: 8,
-            marginBottom: 24,
-          }}
-        >
-          {slides.map((_, i) => (
-            <View
-              key={i}
+        {slides.map((slide, i) => (
+          <View
+            key={slide.id}
+            style={{
+              width: SCREEN_WIDTH,
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              paddingHorizontal: 40,
+            }}
+          >
+            {/* Animated illustration */}
+            <SlideIllustration
+              index={i}
+              scrollX={scrollX}
+              pageWidth={SCREEN_WIDTH}
+            />
+
+            {/* Title with parallax */}
+            <ParallaxText
+              scrollX={scrollX}
+              pageIndex={i}
+              pageWidth={SCREEN_WIDTH}
+              speedMultiplier={1.0}
+            >
+              <Text
+                style={{
+                  color: COLORS.text,
+                  fontSize: 28,
+                  fontWeight: "800",
+                  textAlign: "center",
+                  marginBottom: 12,
+                  letterSpacing: -0.5,
+                }}
+              >
+                {slide.title}
+              </Text>
+            </ParallaxText>
+
+            {/* Subtitle with staggered word reveal */}
+            <StaggeredText
+              text={slide.subtitle}
+              scrollX={scrollX}
+              pageIndex={i}
+              pageWidth={SCREEN_WIDTH}
               style={{
-                width: i === currentIndex ? 24 : 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor:
-                  i === currentIndex
-                    ? slides[currentIndex].accent
-                    : COLORS.border,
+                color: COLORS.textDim,
+                fontSize: 16,
+                lineHeight: 24,
+                textAlign: "center",
               }}
             />
-          ))}
+          </View>
+        ))}
+      </Animated.ScrollView>
+
+      {/* Bottom: Dots + CTA */}
+      <View style={{ paddingHorizontal: 24, paddingBottom: 20, alignItems: "center" }}>
+        {/* Animated page dots */}
+        <View style={{ marginBottom: 24 }}>
+          <AnimatedPageDots
+            scrollX={scrollX}
+            pageWidth={SCREEN_WIDTH}
+            count={slides.length}
+            colors={ACCENT_COLORS}
+          />
         </View>
 
-        {/* CTA */}
-        <Pressable
-          onPress={handleNext}
-          style={{
-            width: "100%",
-            backgroundColor: slides[currentIndex].accent,
-            borderRadius: 16,
-            paddingVertical: 16,
-            alignItems: "center",
-            shadowColor: slides[currentIndex].accent,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 12,
-          }}
-        >
-          <Text style={{ color: "#000", fontWeight: "700", fontSize: 17 }}>
-            {currentIndex === slides.length - 1 ? "Get Started" : "Next"}
-          </Text>
+        {/* CTA Button */}
+        <Pressable onPress={handleNext} style={{ width: "100%" }}>
+          <Animated.View
+            style={[
+              {
+                width: "100%",
+                borderRadius: 16,
+                paddingVertical: 16,
+                alignItems: "center",
+                justifyContent: "center",
+                shadowColor: COLORS.accent,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 12,
+              },
+              ctaStyle,
+            ]}
+          >
+            {/* Layered text for crossfade */}
+            <View style={{ position: "relative" }}>
+              <Animated.Text
+                style={[
+                  { color: "#000", fontWeight: "700", fontSize: 17 },
+                  nextTextStyle,
+                ]}
+              >
+                Next
+              </Animated.Text>
+              <Animated.Text
+                style={[
+                  {
+                    color: "#000",
+                    fontWeight: "700",
+                    fontSize: 17,
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    textAlign: "center",
+                  },
+                  getStartedTextStyle,
+                ]}
+              >
+                Get Started
+              </Animated.Text>
+            </View>
+          </Animated.View>
         </Pressable>
       </View>
     </SafeAreaView>
   );
+}
+
+/** Renders the correct animated scene for each slide index */
+function SlideIllustration({
+  index,
+  scrollX,
+  pageWidth,
+}: {
+  index: number;
+  scrollX: Animated.SharedValue<number>;
+  pageWidth: number;
+}) {
+  const scenes = [GolfBallScene, ScanBeamScene, LeaderboardScene];
+  const Scene = scenes[index];
+  return <Scene scrollX={scrollX} pageIndex={index} pageWidth={pageWidth} />;
+}
+
+/** Applies parallax translateX based on scroll position */
+function ParallaxText({
+  scrollX,
+  pageIndex,
+  pageWidth,
+  speedMultiplier,
+  children,
+}: {
+  scrollX: Animated.SharedValue<number>;
+  pageIndex: number;
+  pageWidth: number;
+  speedMultiplier: number;
+  children: React.ReactNode;
+}) {
+  const style = useAnimatedStyle(() => {
+    const offset = scrollX.value - pageIndex * pageWidth;
+    return {
+      transform: [{ translateX: -offset * (1 - speedMultiplier) }],
+    };
+  });
+
+  return <Animated.View style={style}>{children}</Animated.View>;
 }

@@ -8,6 +8,7 @@ import {
   Alert,
   Linking,
 } from "react-native";
+import { ChipStack } from "../../../src/ui/animations/ChipStack";
 import { useLocalSearchParams } from "expo-router";
 import {
   Share2,
@@ -189,26 +190,7 @@ export default function SettlementScreen() {
               }}
             >
               <Text style={{ fontSize: 40, marginBottom: 4 }}>🏆</Text>
-              <Text
-                style={{
-                  color: COLORS.accent,
-                  fontSize: 36,
-                  fontWeight: "800",
-                  letterSpacing: -1,
-                }}
-              >
-                +{formatMoney(topNet)}
-              </Text>
-              <Text
-                style={{
-                  color: COLORS.text,
-                  fontSize: 16,
-                  fontWeight: "700",
-                  marginTop: 4,
-                }}
-              >
-                {topName} cleaned up
-              </Text>
+              <ChipStack amount={topNet} playerName={`${topName} cleaned up`} />
               <Text
                 style={{
                   color: COLORS.textDim,

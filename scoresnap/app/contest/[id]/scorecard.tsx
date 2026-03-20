@@ -8,9 +8,11 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Minus, Plus, CheckCircle } from "lucide-react-native";
+import Animated, { FadeIn, FadeOut, SlideInUp, SlideInDown, Layout } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { COLORS, scoreColor } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
+import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -286,9 +288,10 @@ export default function ScorecardScreen() {
               </View>
 
               <View className="flex-row items-center justify-center gap-5">
-                <Pressable
+                <AnimatedPressable
                   onPress={() => handleScoreChange(player.id, -1)}
                   disabled={isCompleted}
+                  scaleValue={0.9}
                   className="w-14 h-14 rounded-2xl items-center justify-center"
                   style={{
                     backgroundColor: COLORS.bg,
@@ -298,10 +301,12 @@ export default function ScorecardScreen() {
                   }}
                 >
                   <Minus size={24} color={COLORS.text} />
-                </Pressable>
+                </AnimatedPressable>
 
                 <View className="items-center min-w-16">
-                  <Text
+                  <Animated.Text
+                    key={`score-${player.id}-${currentHole}-${score}`}
+                    entering={SlideInUp.duration(150).springify()}
                     style={{
                       fontSize: 36,
                       fontWeight: "800",
@@ -309,9 +314,11 @@ export default function ScorecardScreen() {
                     }}
                   >
                     {score || "–"}
-                  </Text>
+                  </Animated.Text>
                   {score > 0 && (
-                    <Text
+                    <Animated.Text
+                      key={`diff-${player.id}-${currentHole}-${diff}`}
+                      entering={FadeIn.delay(50).duration(200)}
                       style={{
                         fontSize: 12,
                         fontWeight: "600",
@@ -324,13 +331,14 @@ export default function ScorecardScreen() {
                         : diff > 0
                         ? `+${diff}`
                         : `${diff}`}
-                    </Text>
+                    </Animated.Text>
                   )}
                 </View>
 
-                <Pressable
+                <AnimatedPressable
                   onPress={() => handleScoreChange(player.id, 1)}
                   disabled={isCompleted}
+                  scaleValue={0.9}
                   className="w-14 h-14 rounded-2xl items-center justify-center"
                   style={{
                     backgroundColor: isCompleted
@@ -340,7 +348,7 @@ export default function ScorecardScreen() {
                   }}
                 >
                   <Plus size={24} color="#000" />
-                </Pressable>
+                </AnimatedPressable>
               </View>
             </View>
           );

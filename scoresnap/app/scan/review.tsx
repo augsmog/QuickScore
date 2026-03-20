@@ -20,6 +20,7 @@ import * as Haptics from "expo-haptics";
 import { COLORS, scoreColor } from "../../src/ui/theme";
 import { useContestStore, generateId, defaultCourse } from "../../src/stores/contest-store";
 import type { Contest, ContestGroup } from "../../src/stores/contest-store";
+import { ConfettiOverlay } from "../../src/ui/animations/ConfettiOverlay";
 
 interface ScannedPlayer {
   name: string;
@@ -98,6 +99,7 @@ export default function ScanReviewScreen() {
   const [editingNameIdx, setEditingNameIdx] = useState<number | null>(null);
   const [showPlayerMatchModal, setShowPlayerMatchModal] = useState<number | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState(groupId || contest?.groups[0]?.id || "");
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const pars = contest?.course.holes.map((h) => h.par) || [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4];
 
@@ -199,8 +201,11 @@ export default function ScanReviewScreen() {
 
   const addContest = useContestStore((s) => s.addContest);
 
+  const [pendingNavTarget, setPendingNavTarget] = useState<string | null>(null);
+
   const handleCommit = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setShowConfetti(true);
 
     if (contestId && selectedGroupId) {
       // Flow 1: Importing into existing contest
@@ -217,7 +222,7 @@ export default function ScanReviewScreen() {
         });
         importScores(contestId, selectedGroupId, playerScores);
       }
-      router.replace(`/contest/${contestId}`);
+      setPendingNavTarget(`/contest/${contestId}`);
     } else {
       // Flow 3: "Quick Settle" — create contest from scanned data
       const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
@@ -248,8 +253,14 @@ export default function ScanReviewScreen() {
       };
 
       addContest(newContest);
-      // Navigate to the contest — user can add more games from there
-      router.replace(`/contest/${newContest.id}`);
+      setPendingNavTarget(`/contest/${newContest.id}`);
+    }
+  };
+
+  const handleConfettiDone = () => {
+    setShowConfetti(false);
+    if (pendingNavTarget) {
+      router.replace(pendingNavTarget as any);
     }
   };
 
@@ -623,6 +634,9 @@ export default function ScanReviewScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Confetti celebration */}
+      <ConfettiOverlay visible={showConfetti} onDone={handleConfettiDone} />
     </SafeAreaView>
   );
 }
