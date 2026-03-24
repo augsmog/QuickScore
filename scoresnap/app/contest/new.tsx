@@ -492,28 +492,28 @@ export default function NewContestScreen() {
                     style={{ fontSize: 15, fontFamily: FONTS.medium, color: COLORS.text }}
                   />
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
-                    <View style={{ backgroundColor: COLORS.surfaceHighest, borderRadius: RADII.md, paddingHorizontal: 8, paddingVertical: 3 }}>
-                      <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textDim }}>
-                        HCP {player.handicap || "0"}
-                      </Text>
-                    </View>
+                    <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textDim }}>
+                      HCP
+                    </Text>
                     <TextInput
                       value={player.handicap}
                       onChangeText={(v) =>
                         updatePlayer(player.id, "handicap", v)
                       }
+                      placeholder="0"
+                      placeholderTextColor={COLORS.textDim}
                       keyboardType="numeric"
+                      maxLength={4}
                       style={{
-                        backgroundColor: COLORS.surfaceLow,
+                        backgroundColor: COLORS.surfaceHighest,
                         borderRadius: RADII.md,
-                        paddingHorizontal: 8,
-                        paddingVertical: 4,
-                        fontSize: 12,
-                        fontFamily: FONTS.medium,
-                        color: COLORS.text,
-                        width: 44,
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        fontSize: 14,
+                        fontFamily: FONTS.bold,
+                        color: COLORS.primary,
+                        width: 56,
                         textAlign: "center",
-                        display: "none",
                       }}
                     />
                     {numGroups > 1 && (
