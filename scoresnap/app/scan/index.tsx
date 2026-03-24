@@ -1,13 +1,29 @@
 import { useState, useRef, useCallback } from "react";
-import { View, Text, Pressable, Image } from "react-native";
+import { View, Text, Pressable, Image, Dimensions } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CameraView, useCameraPermissions } from "expo-camera";
-import { X, Camera, Lock, RotateCcw, Check } from "lucide-react-native";
+import { CameraView, useCameraPermissions, FlashMode } from "expo-camera";
+import {
+  X,
+  Camera,
+  Lock,
+  RotateCcw,
+  Check,
+  SwitchCamera,
+  ImageIcon,
+  Zap,
+  ZapOff,
+} from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { COLORS } from "../../src/ui/theme";
+import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import { useScanStore } from "../../src/stores/scan-store";
 import { scanScorecard } from "../../src/services/ocr-service";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const FRAME_WIDTH = SCREEN_WIDTH - 80;
+const FRAME_HEIGHT = FRAME_WIDTH * 0.75; // 4:3 aspect
+const CORNER_SIZE = 32;
+const CORNER_THICKNESS = 3;
 
 type ScanPhase =
   | "ready"
@@ -18,6 +34,8 @@ type ScanPhase =
   | "paywall"
   | "error";
 
+type FlashOption = "off" | "on" | "auto";
+
 export default function ScanScreen() {
   const router = useRouter();
   const { contestId } = useLocalSearchParams<{ contestId?: string }>();
@@ -26,6 +44,8 @@ export default function ScanScreen() {
   const [progress, setProgress] = useState(0);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [flashMode, setFlashMode] = useState<FlashOption>("off");
+  const [facing, setFacing] = useState<"back" | "front">("back");
   const cameraRef = useRef<CameraView>(null);
   const { hasFreeScan, useScan, getRemainingFreeScans, isPro } =
     useScanStore();
@@ -33,7 +53,6 @@ export default function ScanScreen() {
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current) return;
 
-    // Check scan allowance BEFORE capturing
     if (!hasFreeScan()) {
       setPhase("paywall");
       return;
@@ -50,7 +69,7 @@ export default function ScanScreen() {
 
       if (photo?.uri) {
         setPhotoUri(photo.uri);
-        setPhase("preview"); // Show preview BEFORE processing
+        setPhase("preview");
       } else {
         throw new Error("No photo captured");
       }
@@ -59,7 +78,7 @@ export default function ScanScreen() {
       setErrorMessage("Failed to capture photo. Please try again.");
       setPhase("error");
     }
-  }, []);
+  }, [hasFreeScan]);
 
   const handleConfirmPhoto = useCallback(async () => {
     if (!photoUri) return;
@@ -76,7 +95,6 @@ export default function ScanScreen() {
         throw new Error("No players detected in this scorecard.");
       }
 
-      // Only consume the scan AFTER successful processing
       const consumed = useScan();
       if (!consumed) {
         setPhase("paywall");
@@ -110,35 +128,83 @@ export default function ScanScreen() {
     setErrorMessage(null);
   }, []);
 
-  if (!permission) return <View className="flex-1 bg-bg" />;
+  const toggleFlash = useCallback(() => {
+    const modes: FlashOption[] = ["off", "on", "auto"];
+    const idx = modes.indexOf(flashMode);
+    setFlashMode(modes[(idx + 1) % modes.length]);
+  }, [flashMode]);
+
+  const toggleFacing = useCallback(() => {
+    setFacing((f) => (f === "back" ? "front" : "back"));
+  }, []);
+
+  if (!permission) return <View style={{ flex: 1, backgroundColor: COLORS.bg }} />;
 
   if (!permission.granted) {
     return (
-      <SafeAreaView className="flex-1 bg-bg items-center justify-center px-8">
-        <Camera size={48} color={COLORS.accent} />
+      <SafeAreaView
+        style={{
+          flex: 1,
+          backgroundColor: COLORS.bg,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingHorizontal: 32,
+        }}
+      >
+        <Camera size={48} color={COLORS.primary} />
         <Text
-          className="text-lg font-bold mt-4 mb-2 text-center"
-          style={{ color: COLORS.text }}
+          style={{
+            ...TYPOGRAPHY.title,
+            color: COLORS.text,
+            marginTop: 16,
+            marginBottom: 8,
+            textAlign: "center",
+          }}
         >
           Camera Access Required
         </Text>
         <Text
-          className="text-sm text-center mb-6"
-          style={{ color: COLORS.textDim }}
+          style={{
+            fontSize: 14,
+            fontFamily: FONTS.regular,
+            color: COLORS.textDim,
+            textAlign: "center",
+            marginBottom: 24,
+          }}
         >
           SnapScore needs camera access to scan golf scorecards.
         </Text>
         <Pressable
           onPress={requestPermission}
-          className="rounded-xl px-6 py-3"
-          style={{ backgroundColor: COLORS.accent }}
+          style={{
+            backgroundColor: COLORS.primary,
+            borderRadius: RADII.lg,
+            paddingHorizontal: 24,
+            paddingVertical: 14,
+            ...GLOW.primary,
+          }}
         >
-          <Text className="font-bold text-base" style={{ color: "#000" }}>
+          <Text
+            style={{
+              fontFamily: FONTS.bold,
+              fontSize: 15,
+              color: COLORS.onPrimary,
+            }}
+          >
             Grant Camera Access
           </Text>
         </Pressable>
-        <Pressable onPress={() => router.back()} className="mt-4 p-2">
-          <Text className="text-sm" style={{ color: COLORS.textDim }}>
+        <Pressable
+          onPress={() => router.back()}
+          style={{ marginTop: 16, padding: 8 }}
+        >
+          <Text
+            style={{
+              fontSize: 14,
+              fontFamily: FONTS.medium,
+              color: COLORS.textDim,
+            }}
+          >
             Go Back
           </Text>
         </Pressable>
@@ -147,73 +213,235 @@ export default function ScanScreen() {
   }
 
   return (
-    <View className="flex-1 bg-black">
+    <View style={{ flex: 1, backgroundColor: "#000" }}>
       {/* Camera — Ready State */}
       {phase === "ready" && (
-        <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back">
-          {/* Close Button — absolutely positioned so it doesn't affect layout */}
-          <SafeAreaView edges={["top"]} style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 }}>
-            <Pressable
-              onPress={() => router.back()}
-              style={{
-                margin: 16, width: 40, height: 40, borderRadius: 20,
-                alignItems: "center", justifyContent: "center",
-                backgroundColor: "rgba(0,0,0,0.5)",
-              }}
-            >
-              <X size={20} color="#fff" />
-            </Pressable>
-          </SafeAreaView>
-
-          {/* Full-screen centered layout: guide frame + controls */}
-          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
-            {/* Instruction text above frame */}
-            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600", textAlign: "center", marginBottom: 20 }}>
-              Position scorecard{"\n"}within the frame
-            </Text>
-
-            {/* Alignment Guide Frame */}
+        <CameraView
+          ref={cameraRef}
+          style={{ flex: 1 }}
+          facing={facing}
+          flash={flashMode as FlashMode}
+        >
+          {/* Header: Cancel + Flash */}
+          <SafeAreaView
+            edges={["top"]}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 10,
+            }}
+          >
             <View
               style={{
-                width: "100%",
-                aspectRatio: 4 / 3,
-                borderRadius: 16,
-                borderColor: COLORS.accent,
-                borderWidth: 3,
-                borderStyle: "dashed",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingHorizontal: 16,
+                paddingVertical: 8,
               }}
             >
-              {/* Corner guides */}
-              {[
-                { top: -2, left: -2 },
-                { top: -2, right: -2 },
-                { bottom: -2, left: -2 },
-                { bottom: -2, right: -2 },
-              ].map((pos, i) => (
+              {/* Cancel button */}
+              <Pressable
+                onPress={() => router.back()}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  borderRadius: RADII.md,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                }}
+              >
+                <X size={16} color={COLORS.text} />
+                <Text
+                  style={{
+                    ...TYPOGRAPHY.labelSm,
+                    color: COLORS.text,
+                  }}
+                >
+                  CANCEL
+                </Text>
+              </Pressable>
+
+              {/* Flash segmented control */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  borderRadius: RADII.md,
+                  overflow: "hidden",
+                }}
+              >
+                {(["off", "on", "auto"] as FlashOption[]).map((mode) => (
+                  <Pressable
+                    key={mode}
+                    onPress={() => setFlashMode(mode)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      backgroundColor:
+                        flashMode === mode
+                          ? COLORS.surfaceHigh
+                          : "transparent",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        ...TYPOGRAPHY.labelSm,
+                        color:
+                          flashMode === mode
+                            ? COLORS.primary
+                            : COLORS.textDim,
+                      }}
+                    >
+                      {mode.toUpperCase()}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </SafeAreaView>
+
+          {/* Centered Camera Content */}
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            {/* Viewfinder Frame */}
+            <View
+              style={{
+                width: FRAME_WIDTH,
+                height: FRAME_HEIGHT,
+                position: "relative",
+              }}
+            >
+              {/* Green corner brackets */}
+              {/* Top-left */}
+              <View
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: CORNER_SIZE,
+                  height: CORNER_SIZE,
+                  borderTopWidth: CORNER_THICKNESS,
+                  borderLeftWidth: CORNER_THICKNESS,
+                  borderColor: COLORS.primary,
+                  borderTopLeftRadius: 8,
+                }}
+              />
+              {/* Top-right */}
+              <View
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  width: CORNER_SIZE,
+                  height: CORNER_SIZE,
+                  borderTopWidth: CORNER_THICKNESS,
+                  borderRightWidth: CORNER_THICKNESS,
+                  borderColor: COLORS.primary,
+                  borderTopRightRadius: 8,
+                }}
+              />
+              {/* Bottom-left */}
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  width: CORNER_SIZE,
+                  height: CORNER_SIZE,
+                  borderBottomWidth: CORNER_THICKNESS,
+                  borderLeftWidth: CORNER_THICKNESS,
+                  borderColor: COLORS.primary,
+                  borderBottomLeftRadius: 8,
+                }}
+              />
+              {/* Bottom-right */}
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  right: 0,
+                  width: CORNER_SIZE,
+                  height: CORNER_SIZE,
+                  borderBottomWidth: CORNER_THICKNESS,
+                  borderRightWidth: CORNER_THICKNESS,
+                  borderColor: COLORS.primary,
+                  borderBottomRightRadius: 8,
+                }}
+              />
+
+              {/* Crosshair center */}
+              <View
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  marginLeft: -8,
+                  marginTop: -8,
+                  width: 16,
+                  height: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {/* Horizontal line */}
                 <View
-                  key={i}
                   style={{
                     position: "absolute",
-                    ...pos,
-                    width: 28,
-                    height: 28,
-                    borderColor: COLORS.accent,
-                    borderTopWidth: pos.top !== undefined ? 3 : 0,
-                    borderBottomWidth: pos.bottom !== undefined ? 3 : 0,
-                    borderLeftWidth: pos.left !== undefined ? 3 : 0,
-                    borderRightWidth: pos.right !== undefined ? 3 : 0,
-                    borderTopLeftRadius:
-                      pos.top !== undefined && pos.left !== undefined ? 8 : 0,
-                    borderTopRightRadius:
-                      pos.top !== undefined && pos.right !== undefined ? 8 : 0,
-                    borderBottomLeftRadius:
-                      pos.bottom !== undefined && pos.left !== undefined ? 8 : 0,
-                    borderBottomRightRadius:
-                      pos.bottom !== undefined && pos.right !== undefined ? 8 : 0,
+                    width: 16,
+                    height: 1.5,
+                    backgroundColor: COLORS.primary,
+                    opacity: 0.6,
                   }}
                 />
-              ))}
+                {/* Vertical line */}
+                <View
+                  style={{
+                    position: "absolute",
+                    width: 1.5,
+                    height: 16,
+                    backgroundColor: COLORS.primary,
+                    opacity: 0.6,
+                  }}
+                />
+              </View>
             </View>
+
+            {/* Text below frame */}
+            <Text
+              style={{
+                fontSize: 18,
+                fontFamily: FONTS.headline,
+                color: COLORS.text,
+                textAlign: "center",
+                marginTop: 24,
+              }}
+            >
+              Align your scorecard within the frame
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                fontFamily: FONTS.regular,
+                color: COLORS.textDim,
+                textAlign: "center",
+                marginTop: 6,
+                paddingHorizontal: 40,
+                lineHeight: 18,
+              }}
+            >
+              Ensure scores are legible for high-accuracy processing. Avoid
+              harsh glare.
+            </Text>
 
             {/* Free scan badge */}
             {!isPro && (
@@ -221,27 +449,22 @@ export default function ScanScreen() {
                 style={{
                   backgroundColor:
                     getRemainingFreeScans() > 0
-                      ? COLORS.accent + "22"
+                      ? COLORS.primary + "22"
                       : COLORS.warn + "22",
-                  borderColor:
-                    getRemainingFreeScans() > 0
-                      ? COLORS.accent + "44"
-                      : COLORS.warn + "44",
-                  borderWidth: 1,
-                  borderRadius: 20,
+                  borderRadius: RADII.full,
                   paddingHorizontal: 14,
                   paddingVertical: 6,
-                  marginTop: 20,
+                  marginTop: 12,
                 }}
               >
                 <Text
                   style={{
                     color:
                       getRemainingFreeScans() > 0
-                        ? COLORS.accent
+                        ? COLORS.primary
                         : COLORS.warn,
                     fontSize: 12,
-                    fontWeight: "700",
+                    fontFamily: FONTS.bold,
                   }}
                 >
                   {getRemainingFreeScans() > 0
@@ -250,54 +473,135 @@ export default function ScanScreen() {
                 </Text>
               </View>
             )}
+          </View>
 
-            {/* Capture Button */}
-            <Pressable
-              onPress={handleCapture}
+          {/* Bottom Controls */}
+          <SafeAreaView
+            edges={["bottom"]}
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+            }}
+          >
+            <View
               style={{
-                width: 80,
-                height: 80,
-                borderRadius: 40,
+                flexDirection: "row",
                 alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: COLORS.accent,
-                shadowColor: COLORS.accent,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.4,
-                shadowRadius: 12,
-                marginTop: 24,
+                justifyContent: "space-between",
+                paddingHorizontal: 40,
+                paddingBottom: 16,
+                paddingTop: 12,
               }}
             >
-              <Camera size={32} color="#000" />
-            </Pressable>
-            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 8 }}>
-              AI-powered OCR reads handwritten & printed scores
-            </Text>
-          </View>
+              {/* Gallery thumbnail */}
+              <Pressable
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: RADII.md,
+                  backgroundColor: COLORS.surfaceHigh,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}
+              >
+                <ImageIcon size={20} color={COLORS.textDim} />
+              </Pressable>
+
+              {/* Capture button: white circle with green ring */}
+              <Pressable
+                onPress={handleCapture}
+                style={({ pressed }) => ({
+                  width: 72,
+                  height: 72,
+                  borderRadius: 36,
+                  borderWidth: 4,
+                  borderColor: COLORS.primary,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transform: [{ scale: pressed ? 0.95 : 1 }],
+                })}
+              >
+                <View
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: 29,
+                    backgroundColor: COLORS.text,
+                  }}
+                />
+              </Pressable>
+
+              {/* Camera flip */}
+              <Pressable
+                onPress={toggleFacing}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: RADII.md,
+                  backgroundColor: COLORS.surfaceHigh,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <SwitchCamera size={20} color={COLORS.textDim} />
+              </Pressable>
+            </View>
+          </SafeAreaView>
         </CameraView>
       )}
 
       {/* Capturing State */}
       {phase === "capturing" && (
-        <View className="flex-1 items-center justify-center">
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: COLORS.bg,
+          }}
+        >
           <View
-            className="w-20 h-20 rounded-full items-center justify-center mb-5"
-            style={{ backgroundColor: COLORS.accentGlow }}
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: COLORS.primary + "22",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 20,
+              ...GLOW.primary,
+            }}
           >
-            <Camera size={36} color={COLORS.accent} />
+            <Camera size={36} color={COLORS.primary} />
           </View>
-          <Text className="text-white text-lg font-semibold">
+          <Text
+            style={{
+              fontSize: 18,
+              fontFamily: FONTS.headline,
+              color: COLORS.text,
+            }}
+          >
             Capturing...
           </Text>
-          <Text className="text-white opacity-50 text-sm mt-1">
+          <Text
+            style={{
+              fontSize: 13,
+              fontFamily: FONTS.regular,
+              color: COLORS.textDim,
+              marginTop: 4,
+            }}
+          >
             Hold steady
           </Text>
         </View>
       )}
 
-      {/* Photo Preview — NEW: confirm before consuming scan */}
+      {/* Photo Preview */}
       {phase === "preview" && photoUri && (
-        <View className="flex-1">
+        <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
           <SafeAreaView edges={["top"]}>
             <View
               style={{
@@ -308,17 +612,18 @@ export default function ScanScreen() {
             >
               <Text
                 style={{
-                  color: COLORS.text,
                   fontSize: 18,
-                  fontWeight: "800",
+                  fontFamily: FONTS.headline,
+                  color: COLORS.text,
                 }}
               >
                 Does this look right?
               </Text>
               <Text
                 style={{
-                  color: COLORS.textDim,
                   fontSize: 13,
+                  fontFamily: FONTS.regular,
+                  color: COLORS.textDim,
                   marginTop: 2,
                 }}
               >
@@ -327,15 +632,12 @@ export default function ScanScreen() {
             </View>
           </SafeAreaView>
 
-          {/* Photo preview */}
           <View
             style={{
               flex: 1,
               marginHorizontal: 20,
-              borderRadius: 16,
+              borderRadius: RADII.lg,
               overflow: "hidden",
-              borderColor: COLORS.border,
-              borderWidth: 1,
             }}
           >
             <Image
@@ -345,7 +647,6 @@ export default function ScanScreen() {
             />
           </View>
 
-          {/* Actions */}
           <SafeAreaView edges={["bottom"]}>
             <View
               style={{
@@ -363,10 +664,8 @@ export default function ScanScreen() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 6,
-                  backgroundColor: COLORS.card,
-                  borderColor: COLORS.border,
-                  borderWidth: 1,
-                  borderRadius: 14,
+                  backgroundColor: COLORS.surfaceMid,
+                  borderRadius: RADII.lg,
                   paddingVertical: 14,
                   paddingHorizontal: 20,
                 }}
@@ -375,7 +674,7 @@ export default function ScanScreen() {
                 <Text
                   style={{
                     color: COLORS.textDim,
-                    fontWeight: "600",
+                    fontFamily: FONTS.semibold,
                     fontSize: 15,
                   }}
                 >
@@ -390,14 +689,19 @@ export default function ScanScreen() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 6,
-                  backgroundColor: COLORS.accent,
-                  borderRadius: 14,
+                  backgroundColor: COLORS.primary,
+                  borderRadius: RADII.lg,
                   paddingVertical: 14,
+                  ...GLOW.primary,
                 }}
               >
-                <Check size={18} color="#000" />
+                <Check size={18} color={COLORS.onPrimary} />
                 <Text
-                  style={{ color: "#000", fontWeight: "700", fontSize: 15 }}
+                  style={{
+                    color: COLORS.onPrimary,
+                    fontFamily: FONTS.bold,
+                    fontSize: 15,
+                  }}
                 >
                   Process Scores
                 </Text>
@@ -409,23 +713,51 @@ export default function ScanScreen() {
 
       {/* Processing State */}
       {phase === "processing" && (
-        <View className="flex-1 items-center justify-center px-12">
-          <Text className="text-white text-lg font-semibold mb-5">
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 48,
+            backgroundColor: COLORS.bg,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontFamily: FONTS.headline,
+              color: COLORS.text,
+              marginBottom: 20,
+            }}
+          >
             Processing Scorecard
           </Text>
           <View
-            className="w-full h-1.5 rounded-full overflow-hidden mb-3"
-            style={{ backgroundColor: COLORS.border }}
+            style={{
+              width: "100%",
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: COLORS.surfaceHighest,
+              overflow: "hidden",
+              marginBottom: 12,
+            }}
           >
             <View
-              className="h-full rounded-full"
               style={{
+                height: "100%",
                 width: `${progress}%`,
-                backgroundColor: COLORS.accent,
+                borderRadius: 3,
+                backgroundColor: COLORS.primary,
               }}
             />
           </View>
-          <Text className="text-white opacity-50 text-sm">
+          <Text
+            style={{
+              fontSize: 13,
+              fontFamily: FONTS.regular,
+              color: COLORS.textDim,
+            }}
+          >
             {progress < 30
               ? "Detecting scorecard layout..."
               : progress < 60
@@ -437,27 +769,35 @@ export default function ScanScreen() {
         </View>
       )}
 
-      {/* Error State — NEW */}
+      {/* Error State */}
       {phase === "error" && (
-        <View className="flex-1 items-center justify-center px-8">
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 32,
+            backgroundColor: COLORS.bg,
+          }}
+        >
           <View
             style={{
               width: 72,
               height: 72,
-              borderRadius: 20,
-              backgroundColor: COLORS.danger + "18",
+              borderRadius: RADII.xl,
+              backgroundColor: COLORS.error + "18",
               alignItems: "center",
               justifyContent: "center",
               marginBottom: 20,
             }}
           >
-            <X size={32} color={COLORS.danger} />
+            <X size={32} color={COLORS.error} />
           </View>
           <Text
             style={{
-              color: COLORS.text,
-              fontWeight: "800",
               fontSize: 20,
+              fontFamily: FONTS.headline,
+              color: COLORS.text,
               textAlign: "center",
               marginBottom: 8,
             }}
@@ -466,8 +806,9 @@ export default function ScanScreen() {
           </Text>
           <Text
             style={{
-              color: COLORS.textDim,
               fontSize: 14,
+              fontFamily: FONTS.regular,
+              color: COLORS.textDim,
               textAlign: "center",
               lineHeight: 20,
               marginBottom: 24,
@@ -482,20 +823,36 @@ export default function ScanScreen() {
               flexDirection: "row",
               alignItems: "center",
               gap: 8,
-              backgroundColor: COLORS.accent,
-              borderRadius: 14,
+              backgroundColor: COLORS.primary,
+              borderRadius: RADII.lg,
               paddingVertical: 14,
               paddingHorizontal: 24,
+              ...GLOW.primary,
             }}
           >
-            <RotateCcw size={18} color="#000" />
-            <Text style={{ color: "#000", fontWeight: "700", fontSize: 15 }}>
+            <RotateCcw size={18} color={COLORS.onPrimary} />
+            <Text
+              style={{
+                color: COLORS.onPrimary,
+                fontFamily: FONTS.bold,
+                fontSize: 15,
+              }}
+            >
               Try Again
             </Text>
           </Pressable>
 
-          <Pressable onPress={() => router.back()} style={{ marginTop: 16, padding: 8 }}>
-            <Text style={{ color: COLORS.textDim, fontSize: 14 }}>
+          <Pressable
+            onPress={() => router.back()}
+            style={{ marginTop: 16, padding: 8 }}
+          >
+            <Text
+              style={{
+                color: COLORS.textDim,
+                fontSize: 14,
+                fontFamily: FONTS.medium,
+              }}
+            >
               Enter scores manually instead
             </Text>
           </Pressable>
@@ -504,12 +861,20 @@ export default function ScanScreen() {
 
       {/* Paywall State */}
       {phase === "paywall" && (
-        <View className="flex-1 items-center justify-center px-8">
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 32,
+            backgroundColor: COLORS.bg,
+          }}
+        >
           <View
             style={{
               width: 72,
               height: 72,
-              borderRadius: 20,
+              borderRadius: RADII.xl,
               backgroundColor: COLORS.gold + "22",
               alignItems: "center",
               justifyContent: "center",
@@ -520,9 +885,9 @@ export default function ScanScreen() {
           </View>
           <Text
             style={{
-              color: COLORS.text,
-              fontWeight: "800",
               fontSize: 22,
+              fontFamily: FONTS.headline,
+              color: COLORS.text,
               textAlign: "center",
               marginBottom: 8,
             }}
@@ -531,8 +896,9 @@ export default function ScanScreen() {
           </Text>
           <Text
             style={{
-              color: COLORS.textDim,
               fontSize: 14,
+              fontFamily: FONTS.regular,
+              color: COLORS.textDim,
               textAlign: "center",
               lineHeight: 20,
               marginBottom: 28,
@@ -550,7 +916,7 @@ export default function ScanScreen() {
             }}
             style={{
               backgroundColor: COLORS.gold,
-              borderRadius: 14,
+              borderRadius: RADII.lg,
               paddingVertical: 16,
               paddingHorizontal: 32,
               width: "100%",
@@ -558,18 +924,38 @@ export default function ScanScreen() {
               marginBottom: 12,
             }}
           >
-            <Text style={{ color: "#000", fontWeight: "700", fontSize: 16 }}>
+            <Text
+              style={{
+                color: COLORS.onPrimary,
+                fontFamily: FONTS.bold,
+                fontSize: 16,
+              }}
+            >
               Upgrade to Pro
             </Text>
             <Text
-              style={{ color: "#00000088", fontSize: 12, marginTop: 2 }}
+              style={{
+                color: COLORS.onPrimary + "88",
+                fontSize: 12,
+                fontFamily: FONTS.medium,
+                marginTop: 2,
+              }}
             >
               $4.99/mo or $29.99/yr
             </Text>
           </Pressable>
 
-          <Pressable onPress={() => router.back()} style={{ padding: 12 }}>
-            <Text style={{ color: COLORS.textDim, fontSize: 14 }}>
+          <Pressable
+            onPress={() => router.back()}
+            style={{ padding: 12 }}
+          >
+            <Text
+              style={{
+                color: COLORS.textDim,
+                fontSize: 14,
+                fontFamily: FONTS.medium,
+              }}
+            >
               Enter scores manually instead
             </Text>
           </Pressable>

@@ -18,9 +18,10 @@ import {
   Check,
   Lock,
   UserPlus,
+  ChevronRight,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { COLORS } from "../../src/ui/theme";
+import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import {
   useContestStore,
   generateId,
@@ -75,6 +76,10 @@ export default function NewContestScreen() {
   const [selectedGames, setSelectedGames] = useState<GameType[]>(["stroke_play"]);
   const [betUnit, setBetUnit] = useState("5");
 
+  // Step 3: Wager settings
+  const [carryover, setCarryover] = useState(false);
+  const [pressRules, setPressRules] = useState(false);
+
   const addPlayer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPlayers([
@@ -127,17 +132,27 @@ export default function NewContestScreen() {
     [playerCount]
   );
 
+  // Separate popular vs classic
+  const popularFormats = recommendedGames.filter(
+    (g) => ["stroke_play", "skins", "skins_carry", "nassau", "stableford", "best_ball", "match_play"].includes(g.id)
+  );
+  const classicFormats = recommendedGames.filter(
+    (g) => !["stroke_play", "skins", "skins_carry", "nassau", "stableford", "best_ball", "match_play"].includes(g.id)
+  );
+
   const canProceed = () => {
     if (step === 1) {
-      return (
-        players.filter((p) => p.name.trim()).length >= 2
-      );
+      return players.filter((p) => p.name.trim()).length >= 2;
     }
     if (step === 2) {
       return selectedGames.length > 0;
     }
     return true;
   };
+
+  const validPlayerCount = players.filter((p) => p.name.trim()).length;
+  const betAmount = parseFloat(betUnit) || 0;
+  const estimatedPot = betAmount * validPlayerCount * 18;
 
   const createContest = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -188,35 +203,106 @@ export default function NewContestScreen() {
     router.replace(`/contest/${contest.id}`);
   };
 
+  const renderGameCard = (game: GameTypeInfo) => {
+    const isSelected = selectedGames.includes(game.id);
+    const isFree = FREE_GAME_IDS.includes(game.id);
+    return (
+      <AnimatedPressable
+        key={game.id}
+        onPress={() => toggleGame(game.id)}
+        style={{
+          backgroundColor: isSelected ? COLORS.surfaceHigh : COLORS.surfaceMid,
+          borderRadius: RADII.lg,
+          padding: 14,
+          marginBottom: 8,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <Text style={{ fontSize: 28 }}>{game.icon}</Text>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={{ fontFamily: isSelected ? FONTS.bold : FONTS.semibold, fontSize: 15, color: COLORS.text }}>
+              {game.name}
+            </Text>
+            {!isFree && (
+              <View style={{ backgroundColor: COLORS.gold + "22", borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2, flexDirection: "row", alignItems: "center", gap: 3 }}>
+                <Lock size={9} color={COLORS.gold} />
+                <Text style={{ fontFamily: FONTS.bold, fontSize: 9, color: COLORS.gold }}>
+                  PRO
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
+            {game.desc}
+          </Text>
+          {/* Info badges */}
+          <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
+            <View style={{ backgroundColor: COLORS.secondaryContainer, borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ fontFamily: FONTS.medium, fontSize: 10, color: COLORS.textDim }}>
+                {game.minPlayers}-{game.maxPlayers} players
+              </Text>
+            </View>
+            <View style={{ backgroundColor: COLORS.secondaryContainer, borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ fontFamily: FONTS.medium, fontSize: 10, color: COLORS.textDim }}>
+                {game.category}
+              </Text>
+            </View>
+          </View>
+        </View>
+        {/* Toggle circle */}
+        <View
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: 13,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: isSelected ? COLORS.primary : "transparent",
+            borderWidth: isSelected ? 0 : 2,
+            borderColor: COLORS.surfaceHighest,
+          }}
+        >
+          {isSelected && <Check size={14} color={COLORS.onPrimary} />}
+        </View>
+      </AnimatedPressable>
+    );
+  };
+
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={["top"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* Header */}
-      <View className="px-5 pt-2 pb-3 flex-row items-center gap-3">
+      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, flexDirection: "row", alignItems: "center", gap: 12 }}>
         <AnimatedPressable
           onPress={() => (step > 1 ? setStep(step - 1) : router.back())}
-          className="rounded-xl p-2"
           style={{
-            backgroundColor: COLORS.card,
-            borderColor: COLORS.border,
-            borderWidth: 1,
+            backgroundColor: COLORS.surfaceMid,
+            borderRadius: RADII.md,
+            padding: 8,
           }}
         >
           <ChevronLeft size={20} color={COLORS.textDim} />
         </AnimatedPressable>
-        <Text className="text-text-primary text-xl font-bold flex-1">
+        <Text style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text, flex: 1 }}>
           New Contest
         </Text>
-        <Text className="text-text-dim text-sm">Step {step}/3</Text>
+        <Text style={{ fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textDim }}>
+          Step {step}/3
+        </Text>
       </View>
 
-      {/* Progress */}
-      <View className="flex-row gap-1 px-5 mb-4">
+      {/* Progress bar */}
+      <View style={{ flexDirection: "row", gap: 4, paddingHorizontal: 20, marginBottom: 16 }}>
         {[1, 2, 3].map((s) => (
           <View
             key={s}
-            className="flex-1 h-1 rounded-full"
             style={{
-              backgroundColor: s <= step ? COLORS.accent : COLORS.border,
+              flex: 1,
+              height: 3,
+              borderRadius: 2,
+              backgroundColor: s <= step ? COLORS.primary : COLORS.surfaceHighest,
             }}
           />
         ))}
@@ -228,43 +314,48 @@ export default function NewContestScreen() {
         keyboardVerticalOffset={60}
       >
       <ScrollView
-        className="flex-1 px-5"
+        style={{ flex: 1, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Step 1: Players & Course */}
+        {/* ═══════ Step 1: Players & Course ═══════ */}
         {step === 1 && (
           <View>
-            <Text className="text-xs font-bold mb-1" style={{ color: COLORS.accent }}>
-              STEP 1
-            </Text>
-            <Text className="text-text-primary text-xl font-bold mb-5">
+            <View style={{ backgroundColor: COLORS.primary + "1A", borderRadius: RADII.md, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", marginBottom: 8 }}>
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.primary, letterSpacing: 1 }}>
+                STEP 01
+              </Text>
+            </View>
+            <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
               Players & Course
             </Text>
 
             {/* Contest Name */}
-            <Text className="text-text-dim text-xs font-semibold mb-1.5">
-              Contest Name
+            <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 6 }}>
+              CONTEST NAME
             </Text>
             <TextInput
               value={contestName}
               onChangeText={setContestName}
               placeholder={courseName ? `${dayName} at ${courseName}` : `${dayName} Round`}
               placeholderTextColor={COLORS.textDim}
-              className="rounded-xl px-4 py-3 text-sm mb-4"
               style={{
-                backgroundColor: COLORS.inputBg,
-                borderColor: COLORS.border,
-                borderWidth: 1,
+                backgroundColor: COLORS.surfaceLow,
+                borderRadius: RADII.md,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                fontSize: 15,
+                fontFamily: FONTS.regular,
                 color: COLORS.text,
+                marginBottom: 16,
               }}
             />
 
             {/* Course Selection */}
-            <Text className="text-text-dim text-xs font-semibold mb-1.5">
-              Course
+            <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 6 }}>
+              COURSE
             </Text>
-            <View className="mb-4">
+            <View style={{ marginBottom: 16 }}>
               <CourseSearch
                 initialCourseName={courseName}
                 onSelect={(course, name, teeBox) => {
@@ -274,11 +365,11 @@ export default function NewContestScreen() {
                 }}
               />
               {selectedTeeBox && (
-                <View className="flex-row items-center gap-2 mt-2 px-1">
-                  <Text className="text-text-dim text-xs">
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, paddingHorizontal: 4 }}>
+                  <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim }}>
                     {selectedTeeBox.name} Tees
-                    {selectedTeeBox.totalYards > 0 ? ` · ${selectedTeeBox.totalYards} yds` : ""}
-                    {selectedTeeBox.courseRating ? ` · ${selectedTeeBox.courseRating}/${selectedTeeBox.slopeRating}` : ""}
+                    {selectedTeeBox.totalYards > 0 ? ` \u00B7 ${selectedTeeBox.totalYards} yds` : ""}
+                    {selectedTeeBox.courseRating ? ` \u00B7 ${selectedTeeBox.courseRating}/${selectedTeeBox.slopeRating}` : ""}
                   </Text>
                 </View>
               )}
@@ -286,71 +377,72 @@ export default function NewContestScreen() {
 
             {/* Teams Toggle */}
             <View
-              className="rounded-xl p-4 mb-4 flex-row items-center justify-between"
               style={{
-                backgroundColor: hasTeams ? COLORS.accentGlow : COLORS.card,
-                borderColor: hasTeams ? COLORS.accent : COLORS.border,
-                borderWidth: 1,
+                backgroundColor: hasTeams ? COLORS.primary + "15" : COLORS.surfaceMid,
+                borderRadius: RADII.lg,
+                padding: 16,
+                marginBottom: 16,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
               }}
             >
-              <View className="flex-1 mr-3">
-                <Text className="text-text-primary font-semibold text-sm">
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>
                   Team Mode
                 </Text>
-                <Text className="text-text-dim text-xs mt-0.5">
+                <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
                   Split players into two teams
                 </Text>
               </View>
               <Switch
                 value={hasTeams}
                 onValueChange={setHasTeams}
-                trackColor={{ false: COLORS.border, true: COLORS.accent }}
-                thumbColor="#fff"
+                trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
+                thumbColor={COLORS.text}
               />
             </View>
 
             {hasTeams && (
-              <View className="flex-row gap-3 mb-4">
-                <View className="flex-1">
-                  <View className="flex-row items-center gap-2 mb-1.5">
-                    <View
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: COLORS.accent }}
-                    />
-                    <Text className="text-text-dim text-xs font-semibold">
+              <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary }} />
+                    <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>
                       Team A
                     </Text>
                   </View>
                   <TextInput
                     value={teamAName}
                     onChangeText={setTeamAName}
-                    className="rounded-xl px-3 py-2.5 text-sm"
                     style={{
-                      backgroundColor: COLORS.inputBg,
-                      borderColor: COLORS.border,
-                      borderWidth: 1,
+                      backgroundColor: COLORS.surfaceLow,
+                      borderRadius: RADII.md,
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      fontSize: 14,
+                      fontFamily: FONTS.regular,
                       color: COLORS.text,
                     }}
                   />
                 </View>
-                <View className="flex-1">
-                  <View className="flex-row items-center gap-2 mb-1.5">
-                    <View
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: COLORS.blue }}
-                    />
-                    <Text className="text-text-dim text-xs font-semibold">
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.secondary }} />
+                    <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>
                       Team B
                     </Text>
                   </View>
                   <TextInput
                     value={teamBName}
                     onChangeText={setTeamBName}
-                    className="rounded-xl px-3 py-2.5 text-sm"
                     style={{
-                      backgroundColor: COLORS.inputBg,
-                      borderColor: COLORS.border,
-                      borderWidth: 1,
+                      backgroundColor: COLORS.surfaceLow,
+                      borderRadius: RADII.md,
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      fontSize: 14,
+                      fontFamily: FONTS.regular,
                       color: COLORS.text,
                     }}
                   />
@@ -359,117 +451,124 @@ export default function NewContestScreen() {
             )}
 
             {/* Players */}
-            <Text className="text-text-dim text-xs font-semibold mb-2">
+            <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
               PLAYERS
             </Text>
             {players.map((player, idx) => (
               <View
                 key={player.id}
-                className="rounded-xl p-3 mb-2 flex-row items-center gap-2"
                 style={{
-                  backgroundColor: COLORS.card,
-                  borderColor:
-                    hasTeams && player.team === "A"
-                      ? COLORS.accent + "44"
-                      : hasTeams && player.team === "B"
-                      ? COLORS.blue + "44"
-                      : COLORS.border,
-                  borderWidth: 1,
+                  backgroundColor: COLORS.surfaceMid,
+                  borderRadius: RADII.lg,
+                  padding: 12,
+                  marginBottom: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
                 }}
               >
-                <View className="flex-1 gap-2">
+                {/* Avatar */}
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: COLORS.surfaceHighest,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ fontFamily: FONTS.bold, fontSize: 14, color: COLORS.text }}>
+                    {player.name.trim() ? player.name.trim()[0].toUpperCase() : `${idx + 1}`}
+                  </Text>
+                </View>
+
+                <View style={{ flex: 1 }}>
                   <TextInput
                     value={player.name}
                     onChangeText={(v) => updatePlayer(player.id, "name", v)}
                     placeholder={`Player ${idx + 1}`}
                     placeholderTextColor={COLORS.textDim}
-                    className="text-sm"
-                    style={{ color: COLORS.text }}
+                    style={{ fontSize: 15, fontFamily: FONTS.medium, color: COLORS.text }}
                   />
-                  <View className="flex-row items-center gap-2">
-                    <Text className="text-text-dim text-xs">HCP:</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    <View style={{ backgroundColor: COLORS.surfaceHighest, borderRadius: RADII.md, paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textDim }}>
+                        HCP {player.handicap || "0"}
+                      </Text>
+                    </View>
                     <TextInput
                       value={player.handicap}
                       onChangeText={(v) =>
                         updatePlayer(player.id, "handicap", v)
                       }
                       keyboardType="numeric"
-                      className="text-xs rounded-md px-2 py-1 w-12 text-center"
                       style={{
-                        backgroundColor: COLORS.inputBg,
+                        backgroundColor: COLORS.surfaceLow,
+                        borderRadius: RADII.md,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        fontSize: 12,
+                        fontFamily: FONTS.medium,
                         color: COLORS.text,
-                        borderColor: COLORS.border,
-                        borderWidth: 1,
+                        width: 44,
+                        textAlign: "center",
+                        display: "none",
                       }}
                     />
                     {numGroups > 1 && (
-                      <>
-                        <Text className="text-text-dim text-xs ml-2">
-                          Group:
+                      <AnimatedPressable
+                        onPress={() =>
+                          updatePlayer(
+                            player.id,
+                            "groupIndex",
+                            ((player.groupIndex + 1) % numGroups) as unknown as string
+                          )
+                        }
+                        style={{
+                          backgroundColor: COLORS.surfaceHighest,
+                          borderRadius: RADII.md,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                        }}
+                      >
+                        <Text style={{ fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textDim }}>
+                          G{player.groupIndex + 1}
                         </Text>
-                        <AnimatedPressable
-                          onPress={() =>
-                            updatePlayer(
-                              player.id,
-                              "groupIndex",
-                              ((player.groupIndex + 1) % numGroups) as unknown as string
-                            )
-                          }
-                          className="rounded-md px-2 py-1"
-                          style={{
-                            backgroundColor: COLORS.inputBg,
-                            borderColor: COLORS.border,
-                            borderWidth: 1,
-                          }}
-                        >
-                          <Text className="text-xs" style={{ color: COLORS.text }}>
-                            {player.groupIndex + 1}
-                          </Text>
-                        </AnimatedPressable>
-                      </>
+                      </AnimatedPressable>
                     )}
                   </View>
                 </View>
 
                 {hasTeams && (
-                  <View className="flex-row gap-1">
+                  <View style={{ flexDirection: "row", gap: 4 }}>
                     <AnimatedPressable
                       onPress={() => updatePlayer(player.id, "team", "A")}
-                      className="w-8 h-8 rounded-lg items-center justify-center"
                       style={{
-                        backgroundColor:
-                          player.team === "A" ? COLORS.accent : "transparent",
-                        borderColor:
-                          player.team === "A" ? COLORS.accent : COLORS.border,
-                        borderWidth: 2,
+                        width: 30,
+                        height: 30,
+                        borderRadius: RADII.md,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: player.team === "A" ? COLORS.primary : COLORS.surfaceHighest,
                       }}
                     >
-                      <Text
-                        className="text-xs font-bold"
-                        style={{
-                          color: player.team === "A" ? "#000" : COLORS.textDim,
-                        }}
-                      >
+                      <Text style={{ fontFamily: FONTS.bold, fontSize: 12, color: player.team === "A" ? COLORS.onPrimary : COLORS.textDim }}>
                         A
                       </Text>
                     </AnimatedPressable>
                     <AnimatedPressable
                       onPress={() => updatePlayer(player.id, "team", "B")}
-                      className="w-8 h-8 rounded-lg items-center justify-center"
                       style={{
-                        backgroundColor:
-                          player.team === "B" ? COLORS.blue : "transparent",
-                        borderColor:
-                          player.team === "B" ? COLORS.blue : COLORS.border,
-                        borderWidth: 2,
+                        width: 30,
+                        height: 30,
+                        borderRadius: RADII.md,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: player.team === "B" ? COLORS.secondary : COLORS.surfaceHighest,
                       }}
                     >
-                      <Text
-                        className="text-xs font-bold"
-                        style={{
-                          color: player.team === "B" ? "#fff" : COLORS.textDim,
-                        }}
-                      >
+                      <Text style={{ fontFamily: FONTS.bold, fontSize: 12, color: player.team === "B" ? COLORS.bg : COLORS.textDim }}>
                         B
                       </Text>
                     </AnimatedPressable>
@@ -477,7 +576,7 @@ export default function NewContestScreen() {
                 )}
 
                 {players.length > 2 && (
-                  <AnimatedPressable onPress={() => removePlayer(player.id)} className="p-1">
+                  <AnimatedPressable onPress={() => removePlayer(player.id)} style={{ padding: 4 }}>
                     <X size={16} color={COLORS.textDim} />
                   </AnimatedPressable>
                 )}
@@ -486,25 +585,28 @@ export default function NewContestScreen() {
 
             <AnimatedPressable
               onPress={addPlayer}
-              className="rounded-xl p-3 mb-4 flex-row items-center justify-center gap-2"
               style={{
-                borderColor: COLORS.border,
-                borderWidth: 1,
-                borderStyle: "dashed",
+                borderRadius: RADII.lg,
+                padding: 14,
+                marginBottom: 16,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
               }}
             >
-              <UserPlus size={16} color={COLORS.accent} />
-              <Text className="text-sm font-semibold" style={{ color: COLORS.accent }}>
-                Add Player
+              <UserPlus size={16} color={COLORS.primary} />
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.primary }}>
+                + ADD PLAYER
               </Text>
             </AnimatedPressable>
 
             {/* Number of Groups */}
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-text-dim text-xs font-semibold">
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>
                 NUMBER OF GROUPS
               </Text>
-              <View className="flex-row items-center gap-3">
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <AnimatedPressable
                   onPress={() => {
                     if (numGroups > 1) {
@@ -512,16 +614,18 @@ export default function NewContestScreen() {
                       setNumGroups(numGroups - 1);
                     }
                   }}
-                  className="w-9 h-9 rounded-lg items-center justify-center"
                   style={{
-                    backgroundColor: COLORS.card,
-                    borderColor: COLORS.border,
-                    borderWidth: 1,
+                    width: 36,
+                    height: 36,
+                    borderRadius: RADII.md,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: COLORS.surfaceMid,
                   }}
                 >
                   <Minus size={16} color={COLORS.text} />
                 </AnimatedPressable>
-                <Text className="text-text-primary text-lg font-bold w-6 text-center">
+                <Text style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text, width: 24, textAlign: "center" }}>
                   {numGroups}
                 </Text>
                 <AnimatedPressable
@@ -529,11 +633,13 @@ export default function NewContestScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setNumGroups(numGroups + 1);
                   }}
-                  className="w-9 h-9 rounded-lg items-center justify-center"
                   style={{
-                    backgroundColor: COLORS.card,
-                    borderColor: COLORS.border,
-                    borderWidth: 1,
+                    width: 36,
+                    height: 36,
+                    borderRadius: RADII.md,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: COLORS.surfaceMid,
                   }}
                 >
                   <Plus size={16} color={COLORS.text} />
@@ -543,290 +649,277 @@ export default function NewContestScreen() {
           </View>
         )}
 
-        {/* Step 2: Games */}
+        {/* ═══════ Step 2: Game Modes ═══════ */}
         {step === 2 && (
           <View>
-            <Text className="text-xs font-bold mb-1" style={{ color: COLORS.accent }}>
-              STEP 2
-            </Text>
-            <Text className="text-text-primary text-xl font-bold mb-5">
-              Select Games
-            </Text>
-
-            {/* Bet Unit */}
-            <View className="flex-row items-center gap-3 mb-5">
-              <Text className="text-text-dim text-sm font-semibold">
-                Bet Unit:
+            <View style={{ backgroundColor: COLORS.primary + "1A", borderRadius: RADII.md, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", marginBottom: 8 }}>
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.primary, letterSpacing: 1 }}>
+                STEP 02
               </Text>
-              <View className="flex-row items-center">
-                <Text className="text-text-primary text-lg font-bold mr-1">
-                  $
-                </Text>
-                <TextInput
-                  value={betUnit}
-                  onChangeText={setBetUnit}
-                  keyboardType="numeric"
-                  className="rounded-lg px-3 py-2 text-base font-bold w-20 text-center"
-                  style={{
-                    backgroundColor: COLORS.inputBg,
-                    borderColor: COLORS.border,
-                    borderWidth: 1,
-                    color: COLORS.text,
-                  }}
-                />
-              </View>
             </View>
+            <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
+              Select Game Modes
+            </Text>
 
-            {/* Recommended Games */}
-            {recommendedGames.length > 0 && (
-              <Text
-                style={{
-                  color: COLORS.accent,
-                  fontSize: 11,
-                  fontWeight: "700",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.8,
-                  marginBottom: 8,
-                }}
-              >
-                Recommended for {playerCount} players
-              </Text>
+            {/* Popular Formats */}
+            {popularFormats.length > 0 && (
+              <>
+                <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
+                  POPULAR FORMATS
+                </Text>
+                {popularFormats.map(renderGameCard)}
+              </>
             )}
-            {recommendedGames.map((game) => {
-              const isSelected = selectedGames.includes(game.id);
-              const isFree = FREE_GAME_IDS.includes(game.id);
-              return (
-                <AnimatedPressable
-                  key={game.id}
-                  onPress={() => toggleGame(game.id)}
-                  className="rounded-xl p-3.5 mb-2 flex-row items-center gap-3"
-                  style={{
-                    backgroundColor: isSelected
-                      ? COLORS.accentGlow
-                      : COLORS.card,
-                    borderColor: isSelected
-                      ? COLORS.accent + "44"
-                      : COLORS.border,
-                    borderWidth: 1,
-                  }}
-                >
-                  <Text className="text-2xl">{game.icon}</Text>
-                  <View className="flex-1">
-                    <View className="flex-row items-center gap-2">
-                      <Text
-                        className="text-sm"
-                        style={{
-                          color: COLORS.text,
-                          fontWeight: isSelected ? "700" : "400",
-                        }}
-                      >
-                        {game.name}
-                      </Text>
-                      {!isFree && (
-                        <View
-                          className="rounded px-1.5 py-0.5 flex-row items-center gap-1"
-                          style={{ backgroundColor: COLORS.gold + "22" }}
-                        >
-                          <Lock size={10} color={COLORS.gold} />
-                          <Text
-                            className="text-[9px] font-bold"
-                            style={{ color: COLORS.gold }}
-                          >
-                            PRO
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text className="text-text-dim text-xs mt-0.5">
-                      {game.desc}
-                    </Text>
-                  </View>
-                  <View
-                    className="w-6 h-6 rounded-md items-center justify-center"
-                    style={{
-                      borderColor: isSelected ? COLORS.accent : COLORS.border,
-                      borderWidth: 2,
-                      backgroundColor: isSelected ? COLORS.accent : "transparent",
-                    }}
-                  >
-                    {isSelected && <Check size={14} color="#000" />}
-                  </View>
-                </AnimatedPressable>
-              );
-            })}
+
+            {/* Classic Formats */}
+            {classicFormats.length > 0 && (
+              <>
+                <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginTop: 12, marginBottom: 10 }}>
+                  CLASSIC FORMATS
+                </Text>
+                {classicFormats.map(renderGameCard)}
+              </>
+            )}
 
             {/* Incompatible Games */}
             {incompatibleGames.length > 0 && (
-              <Text
-                style={{
-                  color: COLORS.textDim,
-                  fontSize: 11,
-                  fontWeight: "700",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.8,
-                  marginTop: 12,
-                  marginBottom: 8,
-                }}
-              >
-                Requires different player count
-              </Text>
-            )}
-            {incompatibleGames.map((game) => (
-              <View
-                key={game.id}
-                className="rounded-xl p-3.5 mb-2 flex-row items-center gap-3"
-                style={{
-                  backgroundColor: COLORS.card,
-                  borderColor: COLORS.border,
-                  borderWidth: 1,
-                  opacity: 0.45,
-                }}
-              >
-                <Text className="text-2xl">{game.icon}</Text>
-                <View className="flex-1">
-                  <Text
-                    className="text-sm"
-                    style={{ color: COLORS.textDim }}
+              <>
+                <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginTop: 12, marginBottom: 10 }}>
+                  REQUIRES DIFFERENT PLAYER COUNT
+                </Text>
+                {incompatibleGames.map((game) => (
+                  <View
+                    key={game.id}
+                    style={{
+                      backgroundColor: COLORS.surfaceMid,
+                      borderRadius: RADII.lg,
+                      padding: 14,
+                      marginBottom: 8,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 12,
+                      opacity: 0.4,
+                    }}
                   >
-                    {game.name}
-                  </Text>
-                  <Text className="text-text-dim text-xs mt-0.5">
-                    {game.minPlayers}–{game.maxPlayers} players
-                  </Text>
-                </View>
-              </View>
-            ))}
+                    <Text style={{ fontSize: 28 }}>{game.icon}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: FONTS.medium, fontSize: 15, color: COLORS.textDim }}>
+                        {game.name}
+                      </Text>
+                      <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
+                        {game.minPlayers}-{game.maxPlayers} players
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </>
+            )}
           </View>
         )}
 
-        {/* Step 3: Review & Create */}
+        {/* ═══════ Step 3: Wager Settings ═══════ */}
         {step === 3 && (
           <View>
-            <Text className="text-xs font-bold mb-1" style={{ color: COLORS.accent }}>
-              STEP 3
-            </Text>
-            <Text className="text-text-primary text-xl font-bold mb-5">
-              Review & Create
+            <View style={{ backgroundColor: COLORS.primary + "1A", borderRadius: RADII.md, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", marginBottom: 8 }}>
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.primary, letterSpacing: 1 }}>
+                STEP 03
+              </Text>
+            </View>
+            <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
+              Wager Settings
             </Text>
 
-            <View
-              className="rounded-2xl p-4"
-              style={{
-                backgroundColor: COLORS.card,
-                borderColor: COLORS.border,
-                borderWidth: 1,
-              }}
-            >
-              {[
-                ["Contest", contestName || (courseName ? `${dayName} at ${courseName}` : `${dayName} Round`)],
-                ["Course", courseName || "My Course"],
-                [
-                  "Players",
-                  `${players.filter((p) => p.name.trim()).length} players in ${numGroups} group${numGroups > 1 ? "s" : ""}`,
-                ],
-                ...(hasTeams
-                  ? [["Teams", `${teamAName} vs ${teamBName}`]]
-                  : []),
-                [
-                  "Games",
-                  selectedGames
-                    .map(
-                      (id) =>
-                        ALL_GAMES.find((g) => g.id === id)?.icon || ""
-                    )
-                    .join(" "),
-                ],
-                ["Bet Unit", `$${betUnit}`],
-              ].map(([label, value]) => (
-                <View
-                  key={label}
-                  className="flex-row justify-between py-2"
-                  style={{
-                    borderBottomColor: COLORS.border + "22",
-                    borderBottomWidth: 1,
-                  }}
-                >
-                  <Text className="text-text-dim text-sm">{label}</Text>
-                  <Text className="text-text-primary text-sm font-semibold">
-                    {value}
-                  </Text>
-                </View>
-              ))}
+            {/* Active games chips */}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
+              {selectedGames.map((gameId) => {
+                const game = ALL_GAMES.find((g) => g.id === gameId);
+                return (
+                  <View
+                    key={gameId}
+                    style={{
+                      backgroundColor: COLORS.primary + "1A",
+                      borderRadius: RADII.md,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                    }}
+                  >
+                    <Text style={{ fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.primary }}>
+                      {game?.icon} {game?.name}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
 
-            {/* Player List Preview */}
-            <Text className="text-text-dim text-xs font-semibold mt-4 mb-2">
-              PLAYERS
+            {/* Stake per hole */}
+            <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
+              STAKE PER HOLE
             </Text>
-            {players
-              .filter((p) => p.name.trim())
-              .map((p) => (
-                <View
-                  key={p.id}
-                  className="flex-row items-center gap-2 py-1.5"
-                >
-                  {hasTeams && (
-                    <View
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{
-                        backgroundColor:
-                          p.team === "A"
-                            ? COLORS.accent
-                            : p.team === "B"
-                            ? COLORS.blue
-                            : COLORS.textDim,
-                      }}
-                    />
-                  )}
-                  <Text className="text-text-primary text-sm flex-1">
-                    {p.name}
-                  </Text>
-                  <Text className="text-text-dim text-xs">
-                    HCP {p.handicap}
-                  </Text>
-                  {numGroups > 1 && (
-                    <Text className="text-text-dim text-xs">
-                      G{p.groupIndex + 1}
-                    </Text>
-                  )}
-                </View>
-              ))}
+            <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: 24 }}>
+              <Text style={{ fontFamily: FONTS.headline, fontSize: 28, color: COLORS.textDim, marginRight: 2 }}>
+                $
+              </Text>
+              <TextInput
+                value={betUnit}
+                onChangeText={setBetUnit}
+                keyboardType="numeric"
+                style={{
+                  fontFamily: FONTS.headline,
+                  fontSize: 40,
+                  color: COLORS.text,
+                  minWidth: 60,
+                }}
+              />
+            </View>
+
+            {/* Toggle options */}
+            <View
+              style={{
+                backgroundColor: COLORS.surfaceMid,
+                borderRadius: RADII.lg,
+                padding: 16,
+                marginBottom: 10,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>
+                  Carryover
+                </Text>
+                <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
+                  Tied skins carry to next hole
+                </Text>
+              </View>
+              <Switch
+                value={carryover}
+                onValueChange={setCarryover}
+                trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
+                thumbColor={COLORS.text}
+              />
+            </View>
+
+            <View
+              style={{
+                backgroundColor: COLORS.surfaceMid,
+                borderRadius: RADII.lg,
+                padding: 16,
+                marginBottom: 20,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>
+                  Press Rules
+                </Text>
+                <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
+                  Auto-press when 2 down in Nassau
+                </Text>
+              </View>
+              <Switch
+                value={pressRules}
+                onValueChange={setPressRules}
+                trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
+                thumbColor={COLORS.text}
+              />
+            </View>
+
+            {/* Entry Fee */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textDim }}>
+                ENTRY FEE
+              </Text>
+              <Text style={{ fontFamily: FONTS.headline, fontSize: 18, color: COLORS.text }}>
+                ${betAmount}
+              </Text>
+            </View>
+
+            {/* Estimated Total Pot - Hero Card */}
+            <View
+              style={{
+                backgroundColor: COLORS.surfaceHigh,
+                borderRadius: RADII.xl,
+                padding: 24,
+                alignItems: "center",
+                marginBottom: 20,
+                ...GLOW.primaryStrong,
+              }}
+            >
+              <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 8 }}>
+                ESTIMATED TOTAL POT
+              </Text>
+              <Text style={{ fontFamily: FONTS.headline, fontSize: 48, color: COLORS.primary, marginBottom: 8 }}>
+                ${estimatedPot}
+              </Text>
+              <View style={{ flexDirection: "row", gap: 16 }}>
+                <Text style={{ fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textDim }}>
+                  {validPlayerCount} players
+                </Text>
+                <Text style={{ fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textDim }}>
+                  18 holes
+                </Text>
+              </View>
+            </View>
           </View>
         )}
 
-        <View className="h-24" />
+        <View style={{ height: 96 }} />
       </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation */}
       <View
-        className="px-5 pb-6 pt-3"
         style={{
+          paddingHorizontal: 20,
+          paddingBottom: 24,
+          paddingTop: 12,
           backgroundColor: COLORS.bg,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
+          flexDirection: "row",
+          gap: 12,
         }}
       >
+        {step > 1 && (
+          <AnimatedPressable
+            onPress={() => setStep(step - 1)}
+            style={{
+              borderRadius: RADII.lg,
+              paddingVertical: 16,
+              paddingHorizontal: 20,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.textDim }}>
+              {"\u2190"} BACK
+            </Text>
+          </AnimatedPressable>
+        )}
         <AnimatedPressable
           onPress={() => {
             if (step < 3) setStep(step + 1);
             else createContest();
           }}
           disabled={!canProceed()}
-          className="rounded-xl py-4 items-center"
           style={{
-            backgroundColor: canProceed()
-              ? step === 3
-                ? COLORS.accent
-                : COLORS.blue
-              : COLORS.border,
+            flex: 1,
+            borderRadius: RADII.lg,
+            paddingVertical: 16,
+            alignItems: "center",
+            backgroundColor: canProceed() ? COLORS.primary : COLORS.surfaceHighest,
+            ...(canProceed() && step === 3 ? GLOW.primary : {}),
           }}
         >
           <Text
-            className="font-bold text-base"
-            style={{ color: canProceed() ? "#000" : COLORS.textDim }}
+            style={{
+              fontFamily: FONTS.bold,
+              fontSize: 15,
+              color: canProceed() ? COLORS.onPrimary : COLORS.textDim,
+            }}
           >
-            {step === 3 ? "Create Contest ⛳" : "Next"}
+            {step === 3 ? "START CONTEST \u2713" : "NEXT \u2192"}
           </Text>
         </AnimatedPressable>
       </View>

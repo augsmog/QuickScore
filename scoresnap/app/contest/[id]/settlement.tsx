@@ -15,9 +15,12 @@ import {
   CheckCircle,
   ExternalLink,
   DollarSign,
+  ArrowRight,
+  FileText,
+  Trophy,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { COLORS } from "../../../src/ui/theme";
+import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 import { calculateSettlement } from "../../../src/engine/settlement";
 import { formatMoney } from "../../../src/utils/formatters";
@@ -38,13 +41,21 @@ export default function SettlementScreen() {
 
   if (!hasScores) {
     return (
-      <View className="flex-1 items-center justify-center px-8">
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingHorizontal: 32,
+          backgroundColor: COLORS.bg,
+        }}
+      >
         <Text style={{ fontSize: 48, marginBottom: 16 }}>💰</Text>
         <Text
           style={{
             color: COLORS.textDim,
             fontSize: 16,
-            fontWeight: "600",
+            fontFamily: FONTS.semibold,
             textAlign: "center",
           }}
         >
@@ -60,6 +71,14 @@ export default function SettlementScreen() {
     contest.games,
     contest.betUnit
   );
+
+  const sortedNet = Object.entries(settlement.netByPlayer).sort(
+    ([, a], [, b]) => b - a
+  );
+
+  const sessionTotal = sortedNet
+    .filter(([, net]) => net > 0)
+    .reduce((sum, [, net]) => sum + net, 0);
 
   // Generate shareable text
   const generateShareText = (): string => {
@@ -165,283 +184,436 @@ export default function SettlementScreen() {
     []
   );
 
+  const topWinner = sortedNet[0];
+  const runnersUp = sortedNet.slice(1, 3).filter(([, net]) => net > 0);
+
   return (
     <ScrollView
-      className="flex-1 px-5 pt-3"
+      style={{ flex: 1, backgroundColor: COLORS.bg }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Winner Celebration Hero */}
-      {(() => {
-        const sortedNet = Object.entries(settlement.netByPlayer).sort(
-          ([, a], [, b]) => b - a
-        );
-        const [topName, topNet] = sortedNet[0] || ["", 0];
-        if (topNet > 0) {
-          return (
-            <View
+      {/* ========== NET WINNERS HERO ========== */}
+      <View style={{ marginBottom: 24 }}>
+        {/* Section header row */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            marginBottom: 16,
+          }}
+        >
+          <Text
+            style={{
+              ...TYPOGRAPHY.headline,
+              color: COLORS.text,
+            }}
+          >
+            Net Winners
+          </Text>
+          <View style={{ alignItems: "flex-end" }}>
+            <Text
               style={{
-                backgroundColor: COLORS.accent + "12",
-                borderColor: COLORS.accent + "33",
-                borderWidth: 1,
-                borderRadius: 20,
-                padding: 20,
-                marginBottom: 16,
-                alignItems: "center",
+                ...TYPOGRAPHY.labelSm,
+                color: COLORS.textDim,
+                marginBottom: 2,
               }}
             >
-              <Text style={{ fontSize: 40, marginBottom: 4 }}>🏆</Text>
-              <ChipStack amount={topNet} playerName={`${topName} cleaned up`} />
-              <Text
-                style={{
-                  color: COLORS.textDim,
-                  fontSize: 13,
-                  marginTop: 2,
-                }}
-              >
-                Biggest winner this round
-              </Text>
-            </View>
-          );
-        }
-        return null;
-      })()}
-
-      {/* Summary Card */}
-      <View
-        className="rounded-2xl p-4 mb-4"
-        style={{
-          backgroundColor: COLORS.accent + "12",
-          borderColor: COLORS.accent + "33",
-          borderWidth: 1,
-        }}
-      >
-        <View className="flex-row items-center gap-2 mb-3">
-          <DollarSign size={16} color={COLORS.accent} />
-          <Text
-            className="font-bold text-sm"
-            style={{ color: COLORS.accent }}
-          >
-            Settlement Summary
-          </Text>
+              SESSION TOTAL
+            </Text>
+            <Text
+              style={{
+                fontFamily: FONTS.headline,
+                fontSize: 28,
+                color: COLORS.primary,
+                letterSpacing: -0.5,
+              }}
+            >
+              {formatMoney(sessionTotal)}
+            </Text>
+          </View>
         </View>
-        <Text style={{ color: COLORS.textDim, fontSize: 12, marginBottom: 12 }}>
-          Based on {contest.games.length} active game
-          {contest.games.length !== 1 ? "s" : ""} at ${contest.betUnit}
-          /unit
-        </Text>
 
-        {/* Net positions */}
-        {Object.entries(settlement.netByPlayer)
-          .sort(([, a], [, b]) => b - a)
-          .map(([name, net]) => {
-            const player = allPlayers.find((p) => p.name === name);
-            return (
-              <View
-                key={name}
-                className="flex-row justify-between items-center py-2.5"
-                style={{
-                  borderTopColor: COLORS.border + "22",
-                  borderTopWidth: 1,
-                }}
-              >
-                <View className="flex-row items-center gap-2">
-                  {player?.team && contest.hasTeams && (
-                    <View
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{
-                        backgroundColor:
-                          player.team === "A"
-                            ? COLORS.accent
-                            : COLORS.blue,
-                      }}
-                    />
-                  )}
+        {/* Top winner — full-width card */}
+        {topWinner && topWinner[1] > 0 && (
+          <View
+            style={{
+              backgroundColor: COLORS.surfaceHigh,
+              borderRadius: RADII.xl,
+              borderLeftWidth: 4,
+              borderLeftColor: COLORS.primary,
+              padding: 20,
+              marginBottom: 12,
+              ...GLOW.primary,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+                {/* Avatar circle */}
+                <View
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: RADII.full,
+                    backgroundColor: COLORS.primary + "22",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
                   <Text
                     style={{
-                      color: COLORS.text,
-                      fontSize: 14,
+                      fontFamily: FONTS.headline,
+                      fontSize: 20,
+                      color: COLORS.primary,
                     }}
                   >
-                    {name}
+                    {topWinner[0].charAt(0)}
+                  </Text>
+                </View>
+                <View>
+                  <Text
+                    style={{
+                      ...TYPOGRAPHY.labelSm,
+                      color: COLORS.gold,
+                      marginBottom: 2,
+                    }}
+                  >
+                    1ST PLACE
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: FONTS.headline,
+                      fontSize: 18,
+                      color: COLORS.text,
+                    }}
+                  >
+                    {topWinner[0]}
+                  </Text>
+                </View>
+              </View>
+              <Text
+                style={{
+                  fontFamily: FONTS.headline,
+                  fontSize: 32,
+                  color: COLORS.primary,
+                  letterSpacing: -1,
+                }}
+              >
+                +{formatMoney(topWinner[1])}
+              </Text>
+            </View>
+            <ChipStack amount={topWinner[1]} playerName={`${topWinner[0]} cleaned up`} />
+          </View>
+        )}
+
+        {/* 2nd/3rd place side-by-side */}
+        {runnersUp.length > 0 && (
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            {runnersUp.map(([name, net], idx) => (
+              <View
+                key={name}
+                style={{
+                  flex: 1,
+                  backgroundColor: COLORS.surfaceMid,
+                  borderRadius: RADII.lg,
+                  padding: 16,
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: RADII.full,
+                      backgroundColor: COLORS.secondaryContainer,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: FONTS.headline,
+                        fontSize: 14,
+                        color: COLORS.text,
+                      }}
+                    >
+                      {name.charAt(0)}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      ...TYPOGRAPHY.labelSm,
+                      color: COLORS.textDim,
+                    }}
+                  >
+                    {idx === 0 ? "2ND" : "3RD"}
                   </Text>
                 </View>
                 <Text
                   style={{
-                    fontWeight: "800",
-                    fontSize: 18,
-                    color:
-                      net > 0
-                        ? COLORS.accent
-                        : net < 0
-                        ? COLORS.danger
-                        : COLORS.textDim,
+                    fontFamily: FONTS.semibold,
+                    fontSize: 14,
+                    color: COLORS.text,
+                    marginBottom: 4,
                   }}
                 >
-                  {net > 0 ? "+" : ""}
-                  {net === 0 ? "Even" : formatMoney(net)}
+                  {name}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.headline,
+                    fontSize: 22,
+                    color: COLORS.primary,
+                  }}
+                >
+                  +{formatMoney(net)}
                 </Text>
               </View>
-            );
-          })}
-      </View>
+            ))}
+          </View>
+        )}
 
-      {/* Individual Transactions */}
-      {settlement.transactions.length > 0 && (
-        <View>
-          <Text
+        {/* Remaining players (losers / even) */}
+        {sortedNet.slice(runnersUp.length + 1).map(([name, net]) => (
+          <View
+            key={name}
             style={{
-              color: COLORS.textDim,
-              fontSize: 11,
-              fontWeight: "700",
-              textTransform: "uppercase",
-              letterSpacing: 0.8,
-              marginBottom: 8,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingVertical: 10,
+              paddingHorizontal: 4,
             }}
           >
-            Transactions
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: RADII.full,
+                  backgroundColor: COLORS.surfaceHigh,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: FONTS.medium,
+                    fontSize: 12,
+                    color: COLORS.textDim,
+                  }}
+                >
+                  {name.charAt(0)}
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontFamily: FONTS.medium,
+                  fontSize: 14,
+                  color: COLORS.text,
+                }}
+              >
+                {name}
+              </Text>
+            </View>
+            <Text
+              style={{
+                fontFamily: FONTS.headline,
+                fontSize: 18,
+                color: net < 0 ? COLORS.error : COLORS.textDim,
+              }}
+            >
+              {net === 0 ? "Even" : formatMoney(net)}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      {/* ========== SETTLEMENT LEDGER ========== */}
+      {settlement.transactions.length > 0 && (
+        <View style={{ marginBottom: 24 }}>
+          <Text
+            style={{
+              ...TYPOGRAPHY.headline,
+              color: COLORS.text,
+              marginBottom: 14,
+            }}
+          >
+            Settlement Ledger
           </Text>
+
           {settlement.transactions.map((t, i) => {
             const isSettled = settledTransactions.has(i);
             return (
               <View
                 key={i}
-                className="rounded-xl p-3 mb-2"
                 style={{
-                  backgroundColor: isSettled
-                    ? COLORS.accent + "08"
-                    : COLORS.card,
-                  borderColor: isSettled
-                    ? COLORS.accent + "33"
-                    : COLORS.border,
-                  borderWidth: 1,
-                  opacity: isSettled ? 0.7 : 1,
+                  backgroundColor: COLORS.surfaceLow,
+                  borderRadius: RADII.lg,
+                  padding: 16,
+                  marginBottom: 10,
+                  opacity: isSettled ? 0.6 : 1,
                 }}
               >
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-1">
-                    <Text
+                {/* Transaction row */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 12,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                    {/* From avatar */}
+                    <View
                       style={{
-                        color: COLORS.text,
-                        fontSize: 14,
-                        textDecorationLine: isSettled
-                          ? "line-through"
-                          : "none",
+                        width: 34,
+                        height: 34,
+                        borderRadius: RADII.full,
+                        backgroundColor: COLORS.error + "22",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
-                      <Text style={{ fontWeight: "600" }}>{t.from}</Text>
-                      <Text style={{ color: COLORS.textDim }}>
-                        {" "}
-                        owes{" "}
+                      <Text style={{ fontFamily: FONTS.bold, fontSize: 13, color: COLORS.error }}>
+                        {t.from.charAt(0)}
                       </Text>
-                      <Text style={{ fontWeight: "600" }}>{t.to}</Text>
-                    </Text>
-                    <Text
+                    </View>
+                    {/* Arrow */}
+                    <ArrowRight size={14} color={COLORS.textDim} />
+                    {/* To avatar */}
+                    <View
                       style={{
-                        color: COLORS.textDim,
-                        fontSize: 12,
-                        marginTop: 2,
+                        width: 34,
+                        height: 34,
+                        borderRadius: RADII.full,
+                        backgroundColor: COLORS.primary + "22",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
-                      {t.gameType.replace(/_/g, " ")}
-                    </Text>
+                      <Text style={{ fontFamily: FONTS.bold, fontSize: 13, color: COLORS.primary }}>
+                        {t.to.charAt(0)}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 4 }}>
+                      <Text
+                        style={{
+                          fontFamily: FONTS.medium,
+                          fontSize: 14,
+                          color: COLORS.text,
+                          textDecorationLine: isSettled ? "line-through" : "none",
+                        }}
+                      >
+                        <Text style={{ fontFamily: FONTS.semibold }}>{t.from}</Text>
+                        <Text style={{ color: COLORS.textDim }}> owes </Text>
+                        <Text style={{ fontFamily: FONTS.semibold }}>{t.to}</Text>
+                      </Text>
+                      <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
+                        {t.gameType.replace(/_/g, " ")}
+                      </Text>
+                    </View>
                   </View>
                   <Text
-                    className="font-bold text-sm"
-                    style={{ color: COLORS.accent, marginRight: 8 }}
+                    style={{
+                      fontFamily: FONTS.headline,
+                      fontSize: 18,
+                      color: COLORS.primary,
+                    }}
                   >
                     {formatMoney(t.amount)}
                   </Text>
                 </View>
 
-                {/* Actions row */}
+                {/* Action buttons */}
                 <View
                   style={{
                     flexDirection: "row",
                     gap: 8,
-                    marginTop: 8,
-                    paddingTop: 8,
-                    borderTopColor: COLORS.border + "44",
-                    borderTopWidth: 1,
                   }}
                 >
-                  {/* Mark as settled */}
+                  {/* Mark Settled toggle */}
                   <Pressable
                     onPress={() => toggleSettled(i)}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: 4,
-                      paddingVertical: 4,
-                      paddingHorizontal: 8,
-                      borderRadius: 6,
+                      gap: 6,
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: RADII.md,
                       backgroundColor: isSettled
-                        ? COLORS.accent + "22"
-                        : COLORS.bg,
+                        ? COLORS.primary + "22"
+                        : COLORS.surfaceHighest,
                     }}
                   >
                     <CheckCircle
-                      size={12}
-                      color={isSettled ? COLORS.accent : COLORS.textDim}
+                      size={14}
+                      color={isSettled ? COLORS.primary : COLORS.textDim}
                     />
                     <Text
                       style={{
-                        color: isSettled
-                          ? COLORS.accent
-                          : COLORS.textDim,
-                        fontSize: 11,
-                        fontWeight: "600",
+                        color: isSettled ? COLORS.primary : COLORS.textDim,
+                        fontFamily: FONTS.semibold,
+                        fontSize: 12,
                       }}
                     >
                       {isSettled ? "Settled" : "Mark Settled"}
                     </Text>
                   </Pressable>
 
-                  {/* Venmo link */}
+                  {/* Venmo */}
                   <Pressable
-                    onPress={() =>
-                      handleSettleVenmo(t.from, t.amount)
-                    }
+                    onPress={() => handleSettleVenmo(t.from, t.amount)}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: 4,
-                      paddingVertical: 4,
-                      paddingHorizontal: 8,
-                      borderRadius: 6,
+                      gap: 5,
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: RADII.md,
                       backgroundColor: "#3d95ce18",
                     }}
                   >
-                    <ExternalLink size={10} color="#3d95ce" />
+                    <ExternalLink size={12} color="#3d95ce" />
                     <Text
                       style={{
                         color: "#3d95ce",
-                        fontSize: 11,
-                        fontWeight: "600",
+                        fontFamily: FONTS.semibold,
+                        fontSize: 12,
                       }}
                     >
                       Venmo
                     </Text>
                   </Pressable>
 
-                  {/* Cash App link */}
+                  {/* Cash App */}
                   <Pressable
                     onPress={() => handleSettleCashApp(t.amount)}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: 4,
-                      paddingVertical: 4,
-                      paddingHorizontal: 8,
-                      borderRadius: 6,
+                      gap: 5,
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: RADII.md,
                       backgroundColor: "#00d64b18",
                     }}
                   >
-                    <ExternalLink size={10} color="#00d64b" />
+                    <ExternalLink size={12} color="#00d64b" />
                     <Text
                       style={{
                         color: "#00d64b",
-                        fontSize: 11,
-                        fontWeight: "600",
+                        fontFamily: FONTS.semibold,
+                        fontSize: 12,
                       }}
                     >
                       Cash App
@@ -454,25 +626,143 @@ export default function SettlementScreen() {
         </View>
       )}
 
-      {/* Action Buttons */}
-      <View className="flex-row gap-3 mt-4 mb-6">
-        <Pressable
-          onPress={handleShare}
-          className="flex-1 rounded-xl py-3.5 items-center flex-row justify-center gap-2"
+      {/* ========== GAME DETAILS (horizontal scroll) ========== */}
+      <View style={{ marginBottom: 24 }}>
+        <Text
           style={{
-            backgroundColor: COLORS.blue,
-            shadowColor: COLORS.blue,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 8,
+            ...TYPOGRAPHY.label,
+            color: COLORS.textDim,
+            marginBottom: 12,
           }}
         >
-          <Share2 size={16} color="#fff" />
+          Game Details
+        </Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 12 }}
+        >
+          {contest.games.map((gameType, gi) => {
+            const gameName = gameType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+            const gameResults = settlement.gameBreakdowns?.[gameType];
+            return (
+              <View
+                key={gi}
+                style={{
+                  backgroundColor: COLORS.surfaceHighest,
+                  borderRadius: RADII.xl,
+                  padding: 18,
+                  width: 200,
+                }}
+              >
+                {/* Game name badge */}
+                <View
+                  style={{
+                    alignSelf: "flex-start",
+                    backgroundColor: COLORS.primary + "18",
+                    borderRadius: RADII.md,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    marginBottom: 12,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: FONTS.semibold,
+                      fontSize: 11,
+                      color: COLORS.primary,
+                    }}
+                  >
+                    {gameName}
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontFamily: FONTS.regular,
+                    fontSize: 12,
+                    color: COLORS.textDim,
+                    marginBottom: 4,
+                  }}
+                >
+                  18 Holes
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.headline,
+                    fontSize: 24,
+                    color: COLORS.text,
+                    marginBottom: 8,
+                  }}
+                >
+                  ${contest.betUnit}/unit
+                </Text>
+                {/* Leader (first positive net player) */}
+                {sortedNet[0] && sortedNet[0][1] > 0 && (
+                  <Text
+                    style={{
+                      fontFamily: FONTS.medium,
+                      fontSize: 12,
+                      color: COLORS.primary,
+                    }}
+                  >
+                    Leader: {sortedNet[0][0]}
+                  </Text>
+                )}
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* ========== BOTTOM ACTIONS ========== */}
+      <View style={{ gap: 12 }}>
+        {/* Share Results — primary CTA */}
+        <Pressable
+          onPress={handleShare}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            backgroundColor: COLORS.primary,
+            borderRadius: RADII.lg,
+            paddingVertical: 16,
+            ...GLOW.primary,
+          }}
+        >
+          <Share2 size={18} color={COLORS.onPrimary} />
           <Text
-            className="font-bold text-sm"
-            style={{ color: "#fff" }}
+            style={{
+              fontFamily: FONTS.bold,
+              fontSize: 16,
+              color: COLORS.onPrimary,
+            }}
           >
             Share Results
+          </Text>
+        </Pressable>
+
+        {/* Export Scorecard — ghost button */}
+        <Pressable
+          onPress={handleShare}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            paddingVertical: 14,
+            borderRadius: RADII.lg,
+          }}
+        >
+          <FileText size={16} color={COLORS.primary} />
+          <Text
+            style={{
+              fontFamily: FONTS.semibold,
+              fontSize: 14,
+              color: COLORS.primary,
+            }}
+          >
+            Export Scorecard (PDF)
           </Text>
         </Pressable>
       </View>

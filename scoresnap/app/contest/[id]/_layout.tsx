@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft, Camera, Edit3 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { COLORS, RADII } from "../../../src/ui/theme";
+import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 import LeaderboardScreen from "./index";
@@ -86,10 +86,10 @@ export default function ContestLayout() {
             <ChevronLeft size={20} color={COLORS.textDim} />
           </AnimatedPressable>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: COLORS.text, fontWeight: "700", fontSize: 18 }}>
+            <Text style={{ color: COLORS.text, fontFamily: FONTS.headline, fontSize: 18 }}>
               {contest.name}
             </Text>
-            <Text style={{ color: COLORS.textDim, fontSize: 13 }}>
+            <Text style={{ color: COLORS.textDim, fontFamily: FONTS.regular, fontSize: 13 }}>
               {contest.course.name} · {allPlayers.length} players
             </Text>
           </View>
@@ -156,13 +156,13 @@ export default function ContestLayout() {
           </View>
         )}
 
-        {/* Tabs — local state, no URL routing */}
+        {/* Tabs — local state, tonal layering */}
         <View
           style={{
             flexDirection: "row",
             borderRadius: RADII.md,
             padding: 4,
-            backgroundColor: COLORS.card,
+            backgroundColor: COLORS.surfaceLow,
           }}
         >
           {TABS.map((tab) => (
@@ -175,17 +175,16 @@ export default function ContestLayout() {
                 paddingVertical: 8,
                 alignItems: "center",
                 backgroundColor:
-                  activeTab === tab.key ? COLORS.accentGlow : "transparent",
-                borderColor:
-                  activeTab === tab.key ? COLORS.accent + "44" : "transparent",
-                borderWidth: 1,
+                  activeTab === tab.key ? "rgba(91,243,147,0.10)" : "transparent",
               }}
             >
               <Text
                 style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: activeTab === tab.key ? COLORS.accent : COLORS.textDim,
+                  fontSize: 11,
+                  fontFamily: FONTS.bold,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  color: activeTab === tab.key ? COLORS.primary : "rgba(220,226,248,0.5)",
                 }}
               >
                 {tab.label}
