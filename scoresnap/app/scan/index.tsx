@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { View, Text, Pressable, Image, Dimensions } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions, FlashMode } from "expo-camera";
 import {
   X,
@@ -47,6 +47,7 @@ export default function ScanScreen() {
   const [flashMode, setFlashMode] = useState<FlashOption>("off");
   const [facing, setFacing] = useState<"back" | "front">("back");
   const cameraRef = useRef<CameraView>(null);
+  const insets = useSafeAreaInsets();
   const { hasFreeScan, useScan, getRemainingFreeScans, isPro } =
     useScanStore();
 
@@ -223,14 +224,14 @@ export default function ScanScreen() {
           flash={flashMode as FlashMode}
         >
           {/* Header: Cancel + Flash */}
-          <SafeAreaView
-            edges={["top"]}
+          <View
             style={{
               position: "absolute",
               top: 0,
               left: 0,
               right: 0,
               zIndex: 10,
+              paddingTop: insets.top + 8,
             }}
           >
             <View
@@ -303,7 +304,7 @@ export default function ScanScreen() {
                 ))}
               </View>
             </View>
-          </SafeAreaView>
+          </View>
 
           {/* Centered Camera Content */}
           <View
