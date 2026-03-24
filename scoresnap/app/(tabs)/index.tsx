@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, Modal, FlatList } from "react-native";
+import { View, Text, ScrollView, Pressable, Modal, FlatList, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Camera, ChevronRight, X, Lock, Users, HelpCircle } from "lucide-react-native";
+import { Camera, ChevronRight, X, Lock, Users, Plus } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../src/ui/theme";
 import {
@@ -11,7 +11,7 @@ import {
   defaultCourse,
   createSampleContest,
 } from "../../src/stores/contest-store";
-import { ALL_GAMES, FREE_GAME_IDS, GameTypeInfo } from "../../src/engine/types";
+import { ALL_GAMES, FREE_GAME_IDS, isGameImplemented, GameTypeInfo } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 import type { Contest, ContestGroup } from "../../src/stores/contest-store";
 import { useOnboardingStore } from "../../src/stores/onboarding-store";
@@ -20,11 +20,27 @@ export default function HomeScreen() {
   const router = useRouter();
   const contests = useContestStore((s) => s.contests);
   const addContest = useContestStore((s) => s.addContest);
+  const deleteContest = useContestStore((s) => s.deleteContest);
   const activeContests = contests.filter((c) => c.status === "active");
   const completedContests = contests.filter((c) => c.status === "completed");
   const [selectedGame, setSelectedGame] = useState<GameTypeInfo | null>(null);
   const hasSeenDemo = useOnboardingStore((s) => s.hasSeenDemo);
   const markDemoSeen = useOnboardingStore((s) => s.markDemoSeen);
+
+  const handleDeleteContest = (contest: Contest) => {
+    Alert.alert(
+      "Delete Contest",
+      `Are you sure you want to delete "${contest.name || contest.course.name}"? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteContest(contest.id),
+        },
+      ]
+    );
+  };
 
   useEffect(() => {
     if (!hasSeenDemo) {
@@ -109,7 +125,7 @@ export default function HomeScreen() {
               marginBottom: 20,
             }}
           >
-            Scan any physical scorecard and let AI read every stroke. Then settle bets across 25+ game modes.
+            Scan any physical scorecard and let AI read every stroke. Then settle bets across 8 game modes with more coming soon.
           </Text>
 
           {/* CTA Buttons Row */}
@@ -147,7 +163,7 @@ export default function HomeScreen() {
               </LinearGradient>
             </AnimatedPressable>
 
-            {/* How It Works — ghost button */}
+            {/* New Contest — ghost button */}
             <AnimatedPressable
               onPress={() => router.push("/contest/new")}
               style={{
@@ -163,7 +179,7 @@ export default function HomeScreen() {
                 backgroundColor: "transparent",
               }}
             >
-              <HelpCircle size={18} color={COLORS.primary} />
+              <Plus size={18} color={COLORS.primary} />
               <Text
                 style={{
                   fontFamily: FONTS.headline,
@@ -173,7 +189,7 @@ export default function HomeScreen() {
                   letterSpacing: 0.6,
                 }}
               >
-                How It Works
+                New Contest
               </Text>
             </AnimatedPressable>
           </View>
@@ -205,6 +221,7 @@ export default function HomeScreen() {
                 <AnimatedPressable
                   key={contest.id}
                   onPress={() => router.push(`/contest/${contest.id}`)}
+                  onLongPress={() => handleDeleteContest(contest)}
                   style={{
                     backgroundColor: COLORS.surfaceHigh,
                     borderRadius: 16,
@@ -308,7 +325,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ── 25+ Game Modes ── */}
+        {/* ── Game Modes ── */}
         <View style={{ marginBottom: 28 }}>
           <View
             style={{
@@ -325,7 +342,7 @@ export default function HomeScreen() {
                 color: COLORS.textDim,
               }}
             >
-              25+ GAME MODES
+              GAME MODES
             </Text>
             <Pressable onPress={() => setSelectedGame(ALL_GAMES[0])}>
               <Text
@@ -346,34 +363,50 @@ export default function HomeScreen() {
             contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
             data={allGameNames}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => {
-                  const game = ALL_GAMES.find((g) => g.id === item.id);
-                  if (game) setSelectedGame(game);
-                }}
-                style={{
-                  backgroundColor: COLORS.secondaryContainer,
-                  borderRadius: RADII.full,
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <Text style={{ fontSize: 14 }}>{item.icon}</Text>
-                <Text
+            renderItem={({ item }) => {
+              const implemented = isGameImplemented(item.id);
+              return (
+                <Pressable
+                  onPress={() => {
+                    const game = ALL_GAMES.find((g) => g.id === item.id);
+                    if (game) setSelectedGame(game);
+                  }}
                   style={{
-                    fontFamily: FONTS.medium,
-                    fontSize: 12,
-                    color: COLORS.secondary,
+                    backgroundColor: COLORS.secondaryContainer,
+                    borderRadius: RADII.full,
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    opacity: implemented ? 1 : 0.55,
                   }}
                 >
-                  {item.name}
-                </Text>
-              </Pressable>
-            )}
+                  <Text style={{ fontSize: 14 }}>{item.icon}</Text>
+                  <Text
+                    style={{
+                      fontFamily: FONTS.medium,
+                      fontSize: 12,
+                      color: COLORS.secondary,
+                    }}
+                  >
+                    {item.name}
+                  </Text>
+                  {!implemented && (
+                    <Text
+                      style={{
+                        fontFamily: FONTS.bold,
+                        fontSize: 8,
+                        color: COLORS.textDim,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Soon
+                    </Text>
+                  )}
+                </Pressable>
+              );
+            }}
           />
         </View>
 
@@ -399,6 +432,7 @@ export default function HomeScreen() {
                 <AnimatedPressable
                   key={contest.id}
                   onPress={() => router.push(`/contest/${contest.id}`)}
+                  onLongPress={() => handleDeleteContest(contest)}
                   style={{
                     backgroundColor: COLORS.surfaceLow,
                     borderRadius: 16,
@@ -512,7 +546,26 @@ export default function HomeScreen() {
                     >
                       {selectedGame.name}
                     </Text>
-                    {!FREE_GAME_IDS.includes(selectedGame.id) && (
+                    {!isGameImplemented(selectedGame.id) ? (
+                      <View
+                        style={{
+                          backgroundColor: COLORS.secondary + "22",
+                          borderRadius: 6,
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: FONTS.bold,
+                            color: COLORS.secondary,
+                            fontSize: 9,
+                          }}
+                        >
+                          COMING SOON
+                        </Text>
+                      </View>
+                    ) : !FREE_GAME_IDS.includes(selectedGame.id) ? (
                       <View
                         style={{
                           backgroundColor: COLORS.gold + "22",
@@ -531,7 +584,7 @@ export default function HomeScreen() {
                           PRO
                         </Text>
                       </View>
-                    )}
+                    ) : null}
                   </View>
                   <Text
                     style={{
@@ -624,38 +677,60 @@ export default function HomeScreen() {
               </ScrollView>
 
               {/* Add to Contest CTA */}
-              <AnimatedPressable
-                onPress={() => {
-                  setSelectedGame(null);
-                  router.push("/contest/new");
-                }}
-                style={{
-                  borderRadius: 14,
-                  overflow: "hidden",
-                  marginTop: 20,
-                }}
-              >
-                <LinearGradient
-                  colors={[COLORS.primary, COLORS.primaryContainer]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+              {isGameImplemented(selectedGame.id) ? (
+                <AnimatedPressable
+                  onPress={() => {
+                    setSelectedGame(null);
+                    router.push("/contest/new");
+                  }}
+                  style={{
+                    borderRadius: 14,
+                    overflow: "hidden",
+                    marginTop: 20,
+                  }}
+                >
+                  <LinearGradient
+                    colors={[COLORS.primary, COLORS.primaryContainer]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      borderRadius: 14,
+                      paddingVertical: 14,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: FONTS.headline,
+                        color: COLORS.onPrimary,
+                        fontSize: 15,
+                      }}
+                    >
+                      Play {selectedGame.name}
+                    </Text>
+                  </LinearGradient>
+                </AnimatedPressable>
+              ) : (
+                <View
                   style={{
                     borderRadius: 14,
                     paddingVertical: 14,
                     alignItems: "center",
+                    marginTop: 20,
+                    backgroundColor: COLORS.surfaceHighest,
                   }}
                 >
                   <Text
                     style={{
                       fontFamily: FONTS.headline,
-                      color: COLORS.onPrimary,
+                      color: COLORS.textDim,
                       fontSize: 15,
                     }}
                   >
-                    Play {selectedGame.name}
+                    Coming Soon
                   </Text>
-                </LinearGradient>
-              </AnimatedPressable>
+                </View>
+              )}
             </View>
           )}
         </View>

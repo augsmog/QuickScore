@@ -18,6 +18,10 @@ import { calcRabbit } from "./calculators/rabbit";
 import { calcDefender } from "./calculators/defender";
 import { calcFourBall } from "./calculators/fourball";
 import { calcScramble } from "./calculators/scramble";
+import { calcWolf } from "./calculators/wolf";
+import { calcHammer } from "./calculators/hammer";
+import { calcSnake } from "./calculators/snake";
+import { calcGreenies } from "./calculators/greenies";
 import { calcShamble } from "./calculators/shamble";
 import { calcBanker } from "./calculators/banker";
 
@@ -657,6 +661,109 @@ export function calculateSettlement(
             }
           }
         }
+        break;
+      }
+
+      case "wolf": {
+        // Wolf: per-hole, wolf+partner vs other two (or lone wolf vs field)
+        // Without auxiliary data, use calculator's approximation
+        const wolfResult = calcWolf(players, course);
+        const wolfPlayers = players.map((p) => ({
+          name: p.name,
+          net: (wolfResult.totals[p.name] || 0) * betUnit,
+        }));
+        const wolfWinners = wolfPlayers.filter((p) => p.net > 0);
+        const wolfLosers = wolfPlayers.filter((p) => p.net < 0);
+        const totalWolfWin = wolfWinners.reduce((s, p) => s + p.net, 0);
+        if (totalWolfWin > 0) {
+          for (const loser of wolfLosers) {
+            for (const winner of wolfWinners) {
+              const share = winner.net / totalWolfWin;
+              const amount = Math.abs(loser.net) * share;
+              if (amount > 0) {
+                transactions.push({
+                  from: loser.name,
+                  to: winner.name,
+                  amount: Math.round(amount * 100) / 100,
+                  gameType,
+                });
+              }
+            }
+          }
+        }
+        break;
+      }
+
+      case "hammer": {
+        // Hammer: head-to-head with doubling bets
+        const hammerResult = calcHammer(players[0], players[1], course);
+        const hammerPlayers = players.map((p) => ({
+          name: p.name,
+          net: (hammerResult.totals[p.name] || 0) * betUnit,
+        }));
+        for (const hp of hammerPlayers) {
+          if (hp.net > 0) {
+            const loser = hammerPlayers.find((p) => p.name !== hp.name);
+            if (loser) {
+              transactions.push({
+                from: loser.name,
+                to: hp.name,
+                amount: Math.abs(hp.net),
+                gameType,
+              });
+            }
+          }
+        }
+        break;
+      }
+
+      case "snake": {
+        // Snake: last 3-putter pays everyone
+        const snakeResult = calcSnake(players, course);
+        const snakeHolder = snakeResult.holder;
+        if (snakeHolder) {
+          for (const p of players) {
+            if (p.name !== snakeHolder) {
+              transactions.push({
+                from: snakeHolder,
+                to: p.name,
+                amount: betUnit,
+                gameType,
+              });
+            }
+          }
+        }
+        break;
+      }
+
+      case "greenies": {
+        // Greenies: par-3 closest to pin wins from all others
+        const greenieResult = calcGreenies(players, course);
+        const greenieWinners = Object.entries(greenieResult.totals).filter(
+          ([, v]) => v > 0
+        );
+        for (const [winnerName, wins] of greenieWinners) {
+          // Each greenie win = collect betUnit from each other player
+          for (const p of players) {
+            if (p.name !== winnerName) {
+              const amount = (wins as number) * betUnit / (players.length - 1);
+              if (amount > 0) {
+                transactions.push({
+                  from: p.name,
+                  to: winnerName,
+                  amount: Math.round(amount * 100) / 100,
+                  gameType,
+                });
+              }
+            }
+          }
+        }
+        break;
+      }
+
+      case "bingo_bango_bongo": {
+        // BBB: 3 points per hole, net points × betUnit
+        // Without auxiliary data, approximation from scores
         break;
       }
 

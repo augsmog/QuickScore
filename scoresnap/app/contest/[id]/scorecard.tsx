@@ -16,7 +16,7 @@ import { useContestStore } from "../../../src/stores/contest-store";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const PAD_GAP = 10;
+const PAD_GAP = 8;
 const PAD_COLS = 3;
 const PAD_BUTTON_SIZE = Math.floor((SCREEN_WIDTH - 40 - PAD_GAP * (PAD_COLS - 1)) / PAD_COLS);
 
@@ -460,6 +460,7 @@ export default function ScorecardScreen() {
               key={ri}
               style={{
                 flexDirection: "row",
+                justifyContent: "space-between",
                 gap: PAD_GAP,
                 marginBottom: PAD_GAP,
               }}
@@ -481,6 +482,7 @@ export default function ScorecardScreen() {
           <View
             style={{
               flexDirection: "row",
+              justifyContent: "space-between",
               gap: PAD_GAP,
               marginBottom: PAD_GAP,
             }}
@@ -702,9 +704,9 @@ function NumpadButton({
       disabled={disabled}
       style={({ pressed }) => ({
         flex: 1,
-        height: 60,
+        height: 56,
         backgroundColor: bg,
-        borderRadius: RADII.md,
+        borderRadius: RADII.lg,
         alignItems: "center",
         justifyContent: "center",
         opacity: disabled ? 0.4 : 1,

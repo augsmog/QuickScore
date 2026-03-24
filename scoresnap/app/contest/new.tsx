@@ -35,6 +35,8 @@ import type { TeeBox } from "../../src/services/course-api";
 import {
   ALL_GAMES,
   FREE_GAME_IDS,
+  IMPLEMENTED_GAME_IDS,
+  isGameImplemented,
   GameType,
   GameTypeInfo,
   Player,
@@ -107,6 +109,7 @@ export default function NewContestScreen() {
   };
 
   const toggleGame = (gameId: GameType) => {
+    if (!isGameImplemented(gameId)) return; // Coming Soon — can't select
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedGames((prev) =>
       prev.includes(gameId)
@@ -206,6 +209,8 @@ export default function NewContestScreen() {
   const renderGameCard = (game: GameTypeInfo) => {
     const isSelected = selectedGames.includes(game.id);
     const isFree = FREE_GAME_IDS.includes(game.id);
+    const isImplemented = isGameImplemented(game.id);
+    const isComingSoon = !isImplemented;
     return (
       <AnimatedPressable
         key={game.id}
@@ -218,22 +223,29 @@ export default function NewContestScreen() {
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
+          opacity: isComingSoon ? 0.5 : 1,
         }}
       >
         <Text style={{ fontSize: 28 }}>{game.icon}</Text>
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Text style={{ fontFamily: isSelected ? FONTS.bold : FONTS.semibold, fontSize: 15, color: COLORS.text }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <Text style={{ fontFamily: isSelected ? FONTS.bold : FONTS.semibold, fontSize: 15, color: isComingSoon ? COLORS.textDim : COLORS.text }}>
               {game.name}
             </Text>
-            {!isFree && (
+            {isComingSoon ? (
+              <View style={{ backgroundColor: COLORS.secondary + "22", borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2 }}>
+                <Text style={{ fontFamily: FONTS.bold, fontSize: 9, color: COLORS.secondary }}>
+                  COMING SOON
+                </Text>
+              </View>
+            ) : !isFree ? (
               <View style={{ backgroundColor: COLORS.gold + "22", borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2, flexDirection: "row", alignItems: "center", gap: 3 }}>
                 <Lock size={9} color={COLORS.gold} />
                 <Text style={{ fontFamily: FONTS.bold, fontSize: 9, color: COLORS.gold }}>
                   PRO
                 </Text>
               </View>
-            )}
+            ) : null}
           </View>
           <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
             {game.desc}
@@ -252,21 +264,25 @@ export default function NewContestScreen() {
             </View>
           </View>
         </View>
-        {/* Toggle circle */}
-        <View
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: 13,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: isSelected ? COLORS.primary : "transparent",
-            borderWidth: isSelected ? 0 : 2,
-            borderColor: COLORS.surfaceHighest,
-          }}
-        >
-          {isSelected && <Check size={14} color={COLORS.onPrimary} />}
-        </View>
+        {/* Toggle circle or Coming Soon indicator */}
+        {isComingSoon ? (
+          <View style={{ width: 26, height: 26 }} />
+        ) : (
+          <View
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 13,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: isSelected ? COLORS.primary : "transparent",
+              borderWidth: isSelected ? 0 : 2,
+              borderColor: COLORS.surfaceHighest,
+            }}
+          >
+            {isSelected && <Check size={14} color={COLORS.onPrimary} />}
+          </View>
+        )}
       </AnimatedPressable>
     );
   };

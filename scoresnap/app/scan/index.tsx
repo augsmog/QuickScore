@@ -907,7 +907,7 @@ export default function ScanScreen() {
             }}
           >
             You've used your free scorecard scan. Upgrade to SnapScore Pro for
-            unlimited AI-powered scanning plus all 25+ game modes.
+            unlimited AI-powered scanning plus all game modes.
           </Text>
 
           <Pressable
@@ -942,7 +942,7 @@ export default function ScanScreen() {
                 marginTop: 2,
               }}
             >
-              $4.99/mo or $29.99/yr
+              $2.99/mo or $19.99/yr
             </Text>
           </Pressable>
 

@@ -173,17 +173,21 @@ export default function ContestLayout() {
                 flex: 1,
                 borderRadius: RADII.sm,
                 paddingVertical: 8,
+                paddingHorizontal: 2,
                 alignItems: "center",
                 backgroundColor:
                   activeTab === tab.key ? "rgba(91,243,147,0.10)" : "transparent",
               }}
             >
               <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
                 style={{
-                  fontSize: 11,
+                  fontSize: 10,
                   fontFamily: FONTS.bold,
                   textTransform: "uppercase",
-                  letterSpacing: 0.5,
+                  letterSpacing: 0.3,
                   color: activeTab === tab.key ? COLORS.primary : "rgba(220,226,248,0.5)",
                 }}
               >

@@ -20,6 +20,16 @@ export interface Player {
   handicap: number;
   team?: "A" | "B" | null;
   scores: number[]; // 18 holes, 0 = not yet played
+  putts?: number[]; // 18 holes, 0 = not entered (for Snake)
+}
+
+// Auxiliary data for games that need per-hole input beyond scores
+export interface AuxiliaryData {
+  wolf?: { [hole: number]: { partnerId: string | null; isLoneWolf: boolean } };
+  hammer?: { [hole: number]: { hammered: boolean; hammerBy: string; accepted: boolean } };
+  snake?: { [hole: number]: string[] }; // player IDs who 3-putted
+  greenies?: { [hole: number]: string | null }; // player ID of greenie winner
+  bbb?: { [hole: number]: { bingo: string; bango: string; bongo: string } };
 }
 
 export interface GamePlayer {

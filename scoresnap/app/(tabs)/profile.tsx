@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { View, Text, ScrollView, Button, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,45 +17,115 @@ import * as Sentry from "@sentry/react-native";
 import RevenueCatUI from "react-native-purchases-ui";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
-import { useContestStore } from "../../src/stores/contest-store";
+import { useContestStore, Contest } from "../../src/stores/contest-store";
 import { useScanStore } from "../../src/stores/scan-store";
+import { useAuthStore } from "../../src/stores/auth-store";
 import { restorePurchases, getCustomerInfo } from "../../src/services/purchases";
+import { calculateSettlement } from "../../src/engine/settlement";
 
-// Mock stats data — replace with real data when stats backend is available
-const MOCK_STATS = {
-  scoringAvg: 82.4,
-  girPct: 44,
-  puttsPerRound: 31.2,
-  fwPct: 58,
-  handicap: 12.4,
-};
+/** Compute real stats from contest data */
+function computeRealStats(contests: Contest[]) {
+  const completed = contests.filter((c) => c.status === "completed");
 
-const MOCK_WAGERING_HISTORY = [
-  { emoji: "🏆", title: "Skins Match — Oakmont", amount: 45, isWin: true },
-  { emoji: "💸", title: "Nassau — Pebble Beach", amount: -20, isWin: false },
-  { emoji: "🏆", title: "Wolf — Torrey Pines", amount: 30, isWin: true },
-];
+  // Collect all player scores from completed contests
+  // We take the first player in each group as "your" scores (since we don't have user identity yet)
+  const roundScores: { total: number; coursePar: number; courseName: string; date: string }[] = [];
 
-const MOCK_COURSES = [
-  { name: "Torrey Pines South", rounds: 12 },
-  { name: "Pebble Beach GL", rounds: 4 },
-  { name: "Oakmont CC", rounds: 8 },
-];
+  for (const contest of completed) {
+    const coursePar = contest.course.holes.reduce((a, h) => a + h.par, 0);
+    for (const group of contest.groups) {
+      for (const player of group.players) {
+        const playedHoles = player.scores.filter((s) => s > 0);
+        if (playedHoles.length >= 9) {
+          // Only count rounds with at least 9 holes scored
+          const total = player.scores.reduce((a, s) => a + s, 0);
+          roundScores.push({
+            total,
+            coursePar,
+            courseName: contest.course.name,
+            date: contest.createdAt,
+          });
+        }
+      }
+    }
+  }
+
+  const totalRounds = roundScores.length;
+  const scoringAvg = totalRounds > 0
+    ? roundScores.reduce((a, r) => a + r.total, 0) / totalRounds
+    : 0;
+  const bestRound = totalRounds > 0
+    ? Math.min(...roundScores.map((r) => r.total))
+    : 0;
+  const avgVsPar = totalRounds > 0
+    ? roundScores.reduce((a, r) => a + (r.total - r.coursePar), 0) / totalRounds
+    : 0;
+
+  // Course history — count rounds per course
+  const courseMap: Record<string, number> = {};
+  for (const r of roundScores) {
+    courseMap[r.courseName] = (courseMap[r.courseName] || 0) + 1;
+  }
+  const courseHistory = Object.entries(courseMap)
+    .map(([name, rounds]) => ({ name, rounds }))
+    .sort((a, b) => b.rounds - a.rounds)
+    .slice(0, 5);
+
+  // Wagering history from settlement engine
+  const wageringHistory: { title: string; amount: number; isWin: boolean }[] = [];
+  for (const contest of completed.slice(-5)) {
+    // Settle last 5 completed contests
+    const allPlayers = contest.groups.flatMap((g) => g.players);
+    if (allPlayers.length < 2) continue;
+    try {
+      const settlement = calculateSettlement(
+        allPlayers,
+        contest.course,
+        contest.games,
+        contest.betUnit
+      );
+      // Show net for each player
+      for (const [name, net] of Object.entries(settlement.netByPlayer)) {
+        if (Math.abs(net) > 0) {
+          wageringHistory.push({
+            title: `${contest.games[0]?.replace("_", " ") || "Round"} — ${contest.course.name}`,
+            amount: net,
+            isWin: net > 0,
+          });
+        }
+      }
+    } catch {
+      // Skip if settlement fails
+    }
+  }
+
+  return {
+    totalRounds,
+    completedContests: completed.length,
+    scoringAvg,
+    bestRound,
+    avgVsPar,
+    courseHistory,
+    wageringHistory: wageringHistory.slice(0, 5),
+  };
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
   const contests = useContestStore((s) => s.contests);
-  const completed = contests.filter((c) => c.status === "completed").length;
   const { scansUsed, isPro, getRemainingFreeScans } = useScanStore();
+  const authUser = useAuthStore((s) => s.user);
   const freeRemaining = getRemainingFreeScans();
   const [showingCustomerCenter, setShowingCustomerCenter] = useState(false);
+
+  const stats = useMemo(() => computeRealStats(contests), [contests]);
+  const displayName = authUser?.name || (isPro ? "SnapScore Pro" : "Golfer");
 
   const handleManageSubscription = async () => {
     try {
       setShowingCustomerCenter(true);
       await RevenueCatUI.presentCustomerCenter();
     } catch (e) {
-      // Customer Center not available — show manual info
       const info = await getCustomerInfo();
       if (info) {
         const activeEntitlements = Object.keys(info.entitlements.active);
@@ -80,6 +150,7 @@ export default function ProfileScreen() {
   };
 
   const memberYear = new Date().getFullYear();
+  const hasData = stats.totalRounds > 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
@@ -90,18 +161,6 @@ export default function ProfileScreen() {
       >
         {/* ========== PROFILE HERO ========== */}
         <View style={{ alignItems: "center", paddingTop: 24, paddingBottom: 28 }}>
-          {/* Course HCP label */}
-          <Text
-            style={{
-              ...TYPOGRAPHY.labelSm,
-              color: COLORS.textDim,
-              marginBottom: 8,
-            }}
-          >
-            YR COURSE HCP
-          </Text>
-
-          {/* Player name */}
           <Text
             style={{
               fontFamily: FONTS.headline,
@@ -111,63 +170,100 @@ export default function ProfileScreen() {
               letterSpacing: -0.5,
             }}
           >
-            {isPro ? "SnapScore Pro" : "Golfer"}
+            {displayName}
           </Text>
 
-          {/* Location + member since */}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 20 }}>
             <MapPin size={12} color={COLORS.textDim} />
-            <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
-              Local Course
-            </Text>
-            <Text style={{ color: COLORS.surfaceHighest, fontSize: 13 }}>·</Text>
             <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
               Member since {memberYear}
             </Text>
           </View>
 
-          {/* Handicap circle */}
+          {/* Scoring Average circle (or empty state) */}
           <View
             style={{
               width: 110,
               height: 110,
               borderRadius: RADII.full,
-              backgroundColor: COLORS.primary,
+              backgroundColor: hasData ? COLORS.primary : COLORS.surfaceHigh,
               alignItems: "center",
               justifyContent: "center",
-              ...GLOW.primaryStrong,
+              ...(hasData ? GLOW.primaryStrong : {}),
             }}
           >
-            <Text
-              style={{
-                fontFamily: FONTS.headline,
-                fontSize: 48,
-                color: COLORS.onPrimary,
-                letterSpacing: -2,
-              }}
-            >
-              {MOCK_STATS.handicap.toFixed(1).split(".")[0]}
-            </Text>
-            <Text
-              style={{
-                fontFamily: FONTS.headlineMedium,
-                fontSize: 16,
-                color: COLORS.onPrimary,
-                marginTop: -6,
-              }}
-            >
-              .{MOCK_STATS.handicap.toFixed(1).split(".")[1]}
-            </Text>
+            {hasData ? (
+              <>
+                <Text
+                  style={{
+                    fontFamily: FONTS.headline,
+                    fontSize: 42,
+                    color: COLORS.onPrimary,
+                    letterSpacing: -2,
+                  }}
+                >
+                  {Math.round(stats.scoringAvg)}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.headlineMedium,
+                    fontSize: 11,
+                    color: COLORS.onPrimary,
+                    marginTop: -4,
+                  }}
+                >
+                  AVG SCORE
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text
+                  style={{
+                    fontFamily: FONTS.headline,
+                    fontSize: 24,
+                    color: COLORS.textDim,
+                  }}
+                >
+                  —
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: FONTS.headlineMedium,
+                    fontSize: 11,
+                    color: COLORS.textDim,
+                    marginTop: -2,
+                  }}
+                >
+                  NO ROUNDS
+                </Text>
+              </>
+            )}
           </View>
         </View>
 
-        {/* ========== STATS BENTO GRID ========== */}
+        {/* ========== STATS GRID ========== */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
           {[
-            { value: MOCK_STATS.scoringAvg.toFixed(1), label: "Scoring Avg", accent: COLORS.primary },
-            { value: `${MOCK_STATS.girPct}%`, label: "GIR %", accent: COLORS.primary + "bb" },
-            { value: MOCK_STATS.puttsPerRound.toFixed(1), label: "Putts/Round", accent: COLORS.primary + "88" },
-            { value: `${MOCK_STATS.fwPct}%`, label: "FW%", accent: COLORS.primary + "66" },
+            {
+              value: hasData ? stats.scoringAvg.toFixed(1) : "—",
+              label: "Scoring Avg",
+              accent: COLORS.primary,
+            },
+            {
+              value: hasData ? `${stats.avgVsPar >= 0 ? "+" : ""}${stats.avgVsPar.toFixed(1)}` : "—",
+              label: "Avg vs Par",
+              accent: COLORS.primary + "bb",
+            },
+            {
+              value: hasData ? `${stats.bestRound}` : "—",
+              label: "Best Round",
+              accent: COLORS.primary + "88",
+            },
+            {
+              value: `${stats.totalRounds}`,
+              label: "Rounds Played",
+              accent: COLORS.primary + "66",
+            },
           ].map((stat) => (
             <View
               key={stat.label}
@@ -215,36 +311,51 @@ export default function ProfileScreen() {
           >
             WAGERING HISTORY
           </Text>
-          {MOCK_WAGERING_HISTORY.map((item, i) => (
+          {stats.wageringHistory.length > 0 ? (
+            stats.wageringHistory.map((item, i) => (
+              <View
+                key={i}
+                style={{
+                  backgroundColor: COLORS.surfaceLow,
+                  borderRadius: RADII.lg,
+                  padding: 14,
+                  marginBottom: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <Text style={{ fontSize: 22 }}>{item.isWin ? "+" : "-"}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
+                    {item.title}
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontFamily: FONTS.headline,
+                    fontSize: 18,
+                    color: item.isWin ? COLORS.primary : COLORS.error,
+                  }}
+                >
+                  {item.isWin ? "+" : ""}${Math.abs(item.amount).toFixed(0)}
+                </Text>
+              </View>
+            ))
+          ) : (
             <View
-              key={i}
               style={{
                 backgroundColor: COLORS.surfaceLow,
                 borderRadius: RADII.lg,
-                padding: 14,
-                marginBottom: 8,
-                flexDirection: "row",
+                padding: 20,
                 alignItems: "center",
-                gap: 12,
               }}
             >
-              <Text style={{ fontSize: 22 }}>{item.emoji}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
-                  {item.title}
-                </Text>
-              </View>
-              <Text
-                style={{
-                  fontFamily: FONTS.headline,
-                  fontSize: 18,
-                  color: item.isWin ? COLORS.primary : COLORS.error,
-                }}
-              >
-                {item.isWin ? "+" : ""}{item.amount < 0 ? `-$${Math.abs(item.amount)}` : `$${item.amount}`}
+              <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
+                Complete a round to see your wagering history
               </Text>
             </View>
-          ))}
+          )}
         </View>
 
         {/* ========== SCAN USAGE ========== */}
@@ -319,14 +430,6 @@ export default function ProfileScreen() {
               padding: 16,
             }}
           >
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
-                Course Handicap
-              </Text>
-              <Text style={{ fontFamily: FONTS.headline, fontSize: 18, color: COLORS.primary }}>
-                {MOCK_STATS.handicap.toFixed(1)}
-              </Text>
-            </View>
             <View style={{ flexDirection: "row", gap: 20 }}>
               <View>
                 <Text style={{ fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textDim }}>Rounds</Text>
@@ -334,7 +437,7 @@ export default function ProfileScreen() {
               </View>
               <View>
                 <Text style={{ fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textDim }}>Completed</Text>
-                <Text style={{ fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text }}>{completed}</Text>
+                <Text style={{ fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text }}>{stats.completedContests}</Text>
               </View>
               <View>
                 <Text style={{ fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textDim }}>Scans</Text>
@@ -355,41 +458,56 @@ export default function ProfileScreen() {
           >
             COURSE HISTORY
           </Text>
-          {MOCK_COURSES.map((course, i) => (
+          {stats.courseHistory.length > 0 ? (
+            stats.courseHistory.map((course, i) => (
+              <View
+                key={i}
+                style={{
+                  backgroundColor: COLORS.surfaceLow,
+                  borderRadius: RADII.lg,
+                  padding: 14,
+                  marginBottom: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: RADII.md,
+                      backgroundColor: COLORS.primary + "15",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <MapPin size={15} color={COLORS.primary} />
+                  </View>
+                  <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
+                    {course.name}
+                  </Text>
+                </View>
+                <Text style={{ fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textDim }}>
+                  {course.rounds} round{course.rounds !== 1 ? "s" : ""}
+                </Text>
+              </View>
+            ))
+          ) : (
             <View
-              key={i}
               style={{
                 backgroundColor: COLORS.surfaceLow,
                 borderRadius: RADII.lg,
-                padding: 14,
-                marginBottom: 8,
-                flexDirection: "row",
+                padding: 20,
                 alignItems: "center",
-                justifyContent: "space-between",
               }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: RADII.md,
-                    backgroundColor: COLORS.primary + "15",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <MapPin size={15} color={COLORS.primary} />
-                </View>
-                <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
-                  {course.name}
-                </Text>
-              </View>
-              <Text style={{ fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textDim }}>
-                {course.rounds} rounds
+              <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
+                Your course history will appear here after your first round
               </Text>
             </View>
-          ))}
+          )}
         </View>
 
         {/* ========== PRO UPGRADE / MANAGE SUBSCRIPTION ========== */}
@@ -445,10 +563,10 @@ export default function ProfileScreen() {
               </Text>
             </View>
             <Text style={{ color: COLORS.textDim, fontFamily: FONTS.regular, fontSize: 13, lineHeight: 19 }}>
-              Unlimited scorecard scans, all 25+ game types, settlement tracking, and more.
+              Unlimited scorecard scans, all game modes, settlement tracking, and more.
             </Text>
             <View style={{ flexDirection: "row", gap: 12, marginTop: 12 }}>
-              {["$4.99/mo", "$29.99/yr", "$49.99 forever"].map((price) => (
+              {["$2.99/mo", "$19.99/yr", "$29.99 forever"].map((price) => (
                 <View
                   key={price}
                   style={{

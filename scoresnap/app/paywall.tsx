@@ -176,14 +176,14 @@ export default function PaywallScreen() {
 
   const features = [
     { icon: <Camera size={18} color={COLORS.accent} />, label: "Unlimited scorecard scans", desc: "AI-powered OCR for handwritten & printed scorecards" },
-    { icon: <Trophy size={18} color={COLORS.accent} />, label: "All 25+ game modes", desc: "Wolf, Banker, Hammer, Vegas, Nines, and more" },
+    { icon: <Trophy size={18} color={COLORS.accent} />, label: "All 8 game modes + more coming", desc: "Stroke, Skins, Nassau, Stableford, Best Ball & more" },
     { icon: <DollarSign size={18} color={COLORS.accent} />, label: "Settlement tracking", desc: "See who owes whom across all games" },
     { icon: <Zap size={18} color={COLORS.accent} />, label: "Share & export results", desc: "Send results to your group instantly" },
   ];
 
-  const annualPrice = packages.annual?.product.priceString || "$29.99";
-  const monthlyPrice = packages.monthly?.product.priceString || "$4.99";
-  const lifetimePrice = packages.lifetime?.product.priceString || "$49.99";
+  const annualPrice = packages.annual?.product.priceString || "$19.99";
+  const monthlyPrice = packages.monthly?.product.priceString || "$2.99";
+  const lifetimePrice = packages.lifetime?.product.priceString || "$29.99";
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
@@ -251,7 +251,7 @@ export default function PaywallScreen() {
             <Text style={{ color: COLORS.gold, fontWeight: "800", fontSize: 34 }}>{annualPrice}</Text>
             <Text style={{ color: COLORS.gold, fontSize: 14 }}>/year</Text>
           </View>
-          <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Just $2.50/month — less than a sleeve of balls</Text>
+          <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Just $1.67/month — less than a sleeve of balls</Text>
           <View style={{ backgroundColor: COLORS.gold, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, marginTop: 16, width: "100%", alignItems: "center" }}>
             {loading ? <ActivityIndicator color="#000" /> : (
               <Text style={{ color: "#000", fontWeight: "700", fontSize: 16 }}>Start Free Trial</Text>

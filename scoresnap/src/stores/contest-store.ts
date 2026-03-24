@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { GameType, Player, Course, HoleInfo } from "../engine/types";
+import { GameType, Player, Course, HoleInfo, AuxiliaryData } from "../engine/types";
 
 export interface ContestGroup {
   id: string;
@@ -21,6 +21,7 @@ export interface Contest {
   groups: ContestGroup[];
   games: GameType[];
   createdAt: string;
+  auxiliaryData?: AuxiliaryData;
 }
 
 interface ContestState {
@@ -51,6 +52,14 @@ interface ContestState {
   ) => void;
 
   completeContest: (id: string) => void;
+
+  // Auxiliary data for Tier 2 games (Wolf, Hammer, Snake, Greenies, BBB)
+  updateAuxiliaryData: (
+    contestId: string,
+    gameKey: keyof AuxiliaryData,
+    hole: number,
+    data: any
+  ) => void;
 }
 
 export const useContestStore = create<ContestState>()(
@@ -133,6 +142,25 @@ export const useContestStore = create<ContestState>()(
           contests: state.contests.map((c) =>
             c.id === id ? { ...c, status: "completed" as const } : c
           ),
+        })),
+
+      updateAuxiliaryData: (contestId, gameKey, hole, data) =>
+        set((state) => ({
+          contests: state.contests.map((c) => {
+            if (c.id !== contestId) return c;
+            const existing = c.auxiliaryData || {};
+            const gameData = existing[gameKey] || {};
+            return {
+              ...c,
+              auxiliaryData: {
+                ...existing,
+                [gameKey]: {
+                  ...gameData,
+                  [hole]: data,
+                },
+              },
+            };
+          }),
         })),
     }),
     {

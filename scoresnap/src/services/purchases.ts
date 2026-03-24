@@ -5,9 +5,9 @@
  * Connected to Stripe for web signups via RevenueCat dashboard.
  *
  * Products (configure in RevenueCat dashboard):
- * - monthly:  $4.99/month
- * - yearly:   $29.99/year (7-day free trial)
- * - lifetime: $49.99 one-time
+ * - monthly:  $2.99/month
+ * - yearly:   $19.99/year (7-day free trial)
+ * - lifetime: $29.99 one-time
  *
  * Entitlement: "SnapScore Pro" (identifier: "pro")
  */

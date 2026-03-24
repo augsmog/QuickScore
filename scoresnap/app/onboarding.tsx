@@ -41,7 +41,7 @@ const slides: SlideData[] = [
     id: "settle",
     title: "Settle Bets Instantly",
     subtitle:
-      "Skins, Nassau, Wolf, and 25+ game modes calculated automatically. No more bar napkin math.",
+      "Skins, Nassau, Stableford, and more game modes calculated automatically. No more bar napkin math.",
     accent: COLORS.gold,
   },
   {
@@ -240,24 +240,23 @@ export default function OnboardingScreen() {
             ]}
           >
             {/* Layered text for crossfade */}
-            <View style={{ position: "relative" }}>
+            <View style={{ position: "relative", minWidth: 120, alignItems: "center", justifyContent: "center" }}>
               <Animated.Text
                 style={[
-                  { color: "#000", fontWeight: "700", fontSize: 17 },
+                  { color: "#000", fontWeight: "700", fontSize: 17, textAlign: "center" },
                   nextTextStyle,
                 ]}
               >
                 Next
               </Animated.Text>
               <Animated.Text
+                numberOfLines={1}
                 style={[
                   {
                     color: "#000",
                     fontWeight: "700",
                     fontSize: 17,
                     position: "absolute",
-                    left: 0,
-                    right: 0,
                     textAlign: "center",
                   },
                   getStartedTextStyle,
