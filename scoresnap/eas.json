@@ -17,18 +17,28 @@
         "simulator": true
       }
     },
+    "testflight": {
+      "distribution": "store",
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "autoIncrement": true,
+      "channel": "testflight",
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
+    },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "channel": "production"
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "",
-        "ascAppId": ""
-      },
-      "android": {
-        "track": "internal"
+        "appleId": "jones.augie1@gmail.com",
+        "ascAppId": "6761034352",
+        "appleTeamId": "3357G2T3KS"
       }
     }
   }

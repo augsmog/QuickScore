@@ -1,18 +1,25 @@
 import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
-import { Slot, useLocalSearchParams, useRouter, useSegments } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Camera } from "lucide-react-native";
+import { ChevronLeft, Camera, Edit3 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { COLORS } from "../../../src/ui/theme";
+import { COLORS, RADII } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
+import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
+import LeaderboardScreen from "./index";
+import ScorecardScreen from "./scorecard";
+import GamesScreen from "./games";
+import SettlementScreen from "./settlement";
 
 const TABS = [
-  { key: "index", label: "Leaderboard" },
-  { key: "scorecard", label: "Scorecard" },
-  { key: "games", label: "Games" },
-  { key: "settlement", label: "Settlement" },
+  { key: "leaderboard", label: "Leaderboard", Screen: LeaderboardScreen },
+  { key: "scorecard", label: "Scorecard", Screen: ScorecardScreen },
+  { key: "games", label: "Games", Screen: GamesScreen },
+  { key: "settlement", label: "Settlement", Screen: SettlementScreen },
 ] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
 
 export default function ContestLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -20,24 +27,15 @@ export default function ContestLayout() {
   const contest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
-  const segments = useSegments();
-  const lastSegment = segments[segments.length - 1];
-  const activeTab = ["scorecard", "games", "settlement"].includes(lastSegment || "")
-    ? lastSegment!
-    : "index";
+  const [activeTab, setActiveTab] = useState<TabKey>("leaderboard");
 
   const handleTabPress = useCallback(
-    (tabKey: string) => {
+    (tabKey: TabKey) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (tabKey === activeTab) return;
-      // Use push for forward navigation, enabling back button to work
-      if (tabKey === "index") {
-        router.replace(`/contest/${id}`);
-      } else {
-        router.replace(`/contest/${id}/${tabKey}`);
-      }
+      setActiveTab(tabKey);
     },
-    [id, activeTab, router]
+    [activeTab]
   );
 
   if (!contest) {
@@ -51,131 +49,143 @@ export default function ContestLayout() {
           <Text style={{ color: COLORS.textDim, fontSize: 14, textAlign: "center", marginBottom: 20 }}>
             This contest may have been deleted or doesn't exist.
           </Text>
-          <Pressable
+          <AnimatedPressable
             onPress={() => router.back()}
             style={{
               backgroundColor: COLORS.accent,
-              borderRadius: 14,
+              borderRadius: RADII.md,
               paddingVertical: 12,
               paddingHorizontal: 24,
             }}
           >
             <Text style={{ color: "#000", fontWeight: "700", fontSize: 15 }}>Go Back</Text>
-          </Pressable>
+          </AnimatedPressable>
         </View>
       </SafeAreaView>
     );
   }
 
   const allPlayers = contest.groups.flatMap((g) => g.players);
+  const ActiveScreen = TABS.find((t) => t.key === activeTab)!.Screen;
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={["top"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* Header */}
-      <View className="px-5 pt-2 pb-3">
-        <View className="flex-row items-center gap-3 mb-3">
-          <Pressable
+      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <AnimatedPressable
             onPress={() => router.back()}
-            className="rounded-xl p-2"
             style={{
+              borderRadius: RADII.sm,
+              padding: 8,
               backgroundColor: COLORS.card,
               borderColor: COLORS.border,
               borderWidth: 1,
             }}
           >
             <ChevronLeft size={20} color={COLORS.textDim} />
-          </Pressable>
-          <View className="flex-1">
-            <Text className="text-text-primary font-bold text-lg">
+          </AnimatedPressable>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: COLORS.text, fontWeight: "700", fontSize: 18 }}>
               {contest.name}
             </Text>
-            <Text className="text-text-dim text-xs">
+            <Text style={{ color: COLORS.textDim, fontSize: 13 }}>
               {contest.course.name} · {allPlayers.length} players
             </Text>
           </View>
-          <Pressable
+          {contest.status === "active" && (
+            <AnimatedPressable
+              onPress={() => router.push(`/contest/${id}/edit` as any)}
+              style={{
+                borderRadius: RADII.sm,
+                padding: 8,
+                backgroundColor: COLORS.card,
+                borderColor: COLORS.border,
+                borderWidth: 1,
+              }}
+            >
+              <Edit3 size={16} color={COLORS.textDim} />
+            </AnimatedPressable>
+          )}
+          <AnimatedPressable
             onPress={() => router.push(`/scan?contestId=${id}`)}
-            className="rounded-xl p-2"
             style={{
+              borderRadius: RADII.sm,
+              padding: 8,
               backgroundColor: COLORS.accentGlow,
               borderColor: COLORS.accent + "44",
               borderWidth: 1,
             }}
           >
             <Camera size={18} color={COLORS.accent} />
-          </Pressable>
+          </AnimatedPressable>
         </View>
 
         {/* Team Score Banner */}
         {contest.hasTeams && contest.teamAName && contest.teamBName && (
           <View
-            className="rounded-xl p-3 flex-row mb-3"
-            style={{ backgroundColor: COLORS.card }}
+            style={{
+              borderRadius: RADII.md,
+              padding: 12,
+              flexDirection: "row",
+              marginBottom: 12,
+              backgroundColor: COLORS.card,
+            }}
           >
-            <View className="flex-1 items-center">
-              <Text
-                className="text-xs font-bold uppercase tracking-wider"
-                style={{ color: COLORS.accent }}
-              >
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.8, color: COLORS.accent }}>
                 {contest.teamAName}
               </Text>
-              <Text className="text-text-primary text-2xl font-extrabold mt-1">
+              <Text style={{ color: COLORS.text, fontSize: 24, fontWeight: "800", marginTop: 4 }}>
                 {allPlayers
                   .filter((p) => p.team === "A")
-                  .reduce(
-                    (s, p) => s + p.scores.reduce((a, b) => a + b, 0),
-                    0
-                  )}
+                  .reduce((s, p) => s + p.scores.reduce((a, b) => a + b, 0), 0)}
               </Text>
             </View>
-            <View
-              className="w-px mx-2"
-              style={{ backgroundColor: COLORS.border }}
-            />
-            <View className="flex-1 items-center">
-              <Text
-                className="text-xs font-bold uppercase tracking-wider"
-                style={{ color: COLORS.blue }}
-              >
+            <View style={{ width: 1, marginHorizontal: 8, backgroundColor: COLORS.border }} />
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.8, color: COLORS.blue }}>
                 {contest.teamBName}
               </Text>
-              <Text className="text-text-primary text-2xl font-extrabold mt-1">
+              <Text style={{ color: COLORS.text, fontSize: 24, fontWeight: "800", marginTop: 4 }}>
                 {allPlayers
                   .filter((p) => p.team === "B")
-                  .reduce(
-                    (s, p) => s + p.scores.reduce((a, b) => a + b, 0),
-                    0
-                  )}
+                  .reduce((s, p) => s + p.scores.reduce((a, b) => a + b, 0), 0)}
               </Text>
             </View>
           </View>
         )}
 
-        {/* Tabs with haptics */}
+        {/* Tabs — local state, no URL routing */}
         <View
-          className="flex-row rounded-xl p-1"
-          style={{ backgroundColor: COLORS.card }}
+          style={{
+            flexDirection: "row",
+            borderRadius: RADII.md,
+            padding: 4,
+            backgroundColor: COLORS.card,
+          }}
         >
           {TABS.map((tab) => (
             <Pressable
               key={tab.key}
               onPress={() => handleTabPress(tab.key)}
-              className="flex-1 rounded-lg py-2 items-center"
               style={{
+                flex: 1,
+                borderRadius: RADII.sm,
+                paddingVertical: 8,
+                alignItems: "center",
                 backgroundColor:
                   activeTab === tab.key ? COLORS.accentGlow : "transparent",
                 borderColor:
-                  activeTab === tab.key
-                    ? COLORS.accent + "44"
-                    : "transparent",
+                  activeTab === tab.key ? COLORS.accent + "44" : "transparent",
                 borderWidth: 1,
               }}
             >
               <Text
-                className="text-xs font-semibold"
                 style={{
-                  color:
-                    activeTab === tab.key ? COLORS.accent : COLORS.textDim,
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: activeTab === tab.key ? COLORS.accent : COLORS.textDim,
                 }}
               >
                 {tab.label}
@@ -185,7 +195,8 @@ export default function ContestLayout() {
         </View>
       </View>
 
-      <Slot />
+      {/* Active screen — rendered directly, no Slot/router */}
+      <ActiveScreen />
     </SafeAreaView>
   );
 }

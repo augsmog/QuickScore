@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  Pressable,
   ActivityIndicator,
   Alert,
 } from "react-native";
@@ -21,6 +20,7 @@ import {
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "../src/ui/theme";
+import { AnimatedPressable } from "../src/ui/AnimatedPressable";
 import { useScanStore } from "../src/stores/scan-store";
 import {
   getPackages,
@@ -152,12 +152,12 @@ export default function PaywallScreen() {
           <Text style={{ color: COLORS.textDim, fontSize: 14, marginTop: 8, textAlign: "center" }}>
             Unlimited scans, all game modes, and full settlement tracking.
           </Text>
-          <Pressable
+          <AnimatedPressable
             onPress={() => router.back()}
             style={{ backgroundColor: COLORS.accent, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, marginTop: 24 }}
           >
             <Text style={{ color: "#000", fontWeight: "700", fontSize: 15 }}>Back to App</Text>
-          </Pressable>
+          </AnimatedPressable>
         </View>
       </SafeAreaView>
     );
@@ -189,12 +189,12 @@ export default function PaywallScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* Close */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, flexDirection: "row", justifyContent: "flex-end" }}>
-        <Pressable
+        <AnimatedPressable
           onPress={() => router.back()}
           style={{ borderRadius: 20, padding: 8, backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1 }}
         >
           <X size={18} color={COLORS.textDim} />
-        </Pressable>
+        </AnimatedPressable>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
@@ -241,7 +241,7 @@ export default function PaywallScreen() {
         </View>
 
         {/* ─── Annual CTA (Best Value) ─── */}
-        <Pressable
+        <AnimatedPressable
           onPress={() => handlePurchase(packages.annual)}
           disabled={loading}
           style={{ borderRadius: 20, padding: 24, marginBottom: 12, alignItems: "center", backgroundColor: COLORS.gold + "15", borderColor: COLORS.gold, borderWidth: 2, opacity: loading ? 0.7 : 1 }}
@@ -258,10 +258,10 @@ export default function PaywallScreen() {
             )}
           </View>
           <Text style={{ color: COLORS.textDim, fontSize: 11, marginTop: 8 }}>7-day free trial, cancel anytime</Text>
-        </Pressable>
+        </AnimatedPressable>
 
         {/* ─── Monthly ─── */}
-        <Pressable
+        <AnimatedPressable
           onPress={() => handlePurchase(packages.monthly)}
           disabled={loading}
           style={{ borderRadius: 16, padding: 16, marginBottom: 12, alignItems: "center", backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, opacity: loading ? 0.7 : 1 }}
@@ -270,10 +270,10 @@ export default function PaywallScreen() {
             <Text style={{ color: COLORS.text, fontWeight: "800", fontSize: 22 }}>{monthlyPrice}</Text>
             <Text style={{ color: COLORS.textDim, fontSize: 13 }}>/month</Text>
           </View>
-        </Pressable>
+        </AnimatedPressable>
 
         {/* ─── Lifetime ─── */}
-        <Pressable
+        <AnimatedPressable
           onPress={() => handlePurchase(packages.lifetime)}
           disabled={loading}
           style={{ borderRadius: 16, padding: 16, marginBottom: 16, alignItems: "center", backgroundColor: COLORS.accent + "10", borderColor: COLORS.accent + "44", borderWidth: 1, opacity: loading ? 0.7 : 1 }}
@@ -287,16 +287,16 @@ export default function PaywallScreen() {
             <Text style={{ color: COLORS.textDim, fontSize: 13 }}>forever</Text>
           </View>
           <Text style={{ color: COLORS.textDim, fontSize: 11, marginTop: 4 }}>Pay once, own it for life</Text>
-        </Pressable>
+        </AnimatedPressable>
 
         {/* Restore */}
-        <Pressable onPress={handleRestore} disabled={restoring} style={{ alignItems: "center", paddingVertical: 12 }}>
+        <AnimatedPressable onPress={handleRestore} disabled={restoring} style={{ alignItems: "center", paddingVertical: 12 }}>
           {restoring ? (
             <ActivityIndicator color={COLORS.textDim} size="small" />
           ) : (
             <Text style={{ color: COLORS.textDim, fontSize: 13 }}>Restore Purchases</Text>
           )}
-        </Pressable>
+        </AnimatedPressable>
       </ScrollView>
     </SafeAreaView>
   );

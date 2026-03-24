@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, Modal } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, Camera, ChevronRight, X, Lock, Users, Zap } from "lucide-react-native";
+import { AppLogo } from "../../src/ui/AppLogo";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS } from "../../src/ui/theme";
-import { useContestStore, generateId, defaultCourse } from "../../src/stores/contest-store";
+import { useContestStore, generateId, defaultCourse, createSampleContest } from "../../src/stores/contest-store";
 import { ALL_GAMES, FREE_GAME_IDS, GameTypeInfo } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 import type { Contest, ContestGroup } from "../../src/stores/contest-store";
+import { useOnboardingStore } from "../../src/stores/onboarding-store";
 
 const CATEGORY_COLORS: Record<string, string> = {
   Classic: COLORS.accent,
@@ -34,6 +36,15 @@ export default function HomeScreen() {
   const activeContests = contests.filter((c) => c.status === "active");
   const completedContests = contests.filter((c) => c.status === "completed");
   const [selectedGame, setSelectedGame] = useState<GameTypeInfo | null>(null);
+  const hasSeenDemo = useOnboardingStore((s) => s.hasSeenDemo);
+  const markDemoSeen = useOnboardingStore((s) => s.markDemoSeen);
+
+  useEffect(() => {
+    if (!hasSeenDemo) {
+      addContest(createSampleContest());
+      markDemoSeen();
+    }
+  }, []);
 
   // Group games by category for compact display
   const categories = [...new Set(ALL_GAMES.map((g) => g.category))];
@@ -76,8 +87,8 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={{ alignItems: "center", marginTop: 16, marginBottom: 20, paddingHorizontal: 20 }}>
-          <Text style={{ fontSize: 48, marginBottom: 4 }}>⛳</Text>
-          <Text style={{ fontSize: 30, fontWeight: "800", color: COLORS.text, letterSpacing: -0.5 }}>
+          <AppLogo size={56} />
+          <Text style={{ fontSize: 30, fontWeight: "800", color: COLORS.text, letterSpacing: -0.5, marginTop: 8 }}>
             SnapScore
           </Text>
           <Text style={{ color: COLORS.textDim, fontSize: 14, marginTop: 2 }}>

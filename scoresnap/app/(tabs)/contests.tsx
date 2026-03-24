@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable } from "react-native";
+import { View, Text, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, Trophy } from "lucide-react-native";
@@ -16,7 +16,7 @@ export default function ContestsScreen() {
         <Text className="text-text-primary text-2xl font-extrabold">
           Contests
         </Text>
-        <Pressable
+        <AnimatedPressable
           onPress={() => router.push("/contest/new")}
           className="rounded-xl px-4 py-2 flex-row items-center gap-1.5"
           style={{ backgroundColor: COLORS.accent }}
@@ -25,7 +25,7 @@ export default function ContestsScreen() {
           <Text className="font-bold text-sm" style={{ color: "#000" }}>
             New
           </Text>
-        </Pressable>
+        </AnimatedPressable>
       </View>
 
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>

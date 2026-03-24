@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.scoresnap.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "SnapScore uses the camera to scan golf scorecards"
+        "NSCameraUsageDescription": "SnapScore uses the camera to scan golf scorecards",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -30,7 +31,10 @@
       "package": "com.scoresnap.app",
       "versionCode": 1,
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -55,7 +59,30 @@
           "project": "react-native",
           "organization": "august-industries"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.0"
+          },
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bf3a59c5-8098-4007-8fb2-438f89514baa"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bf3a59c5-8098-4007-8fb2-438f89514baa"
+    }
   }
 }

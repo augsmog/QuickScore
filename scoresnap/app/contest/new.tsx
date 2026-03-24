@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  Pressable,
   TextInput,
   Switch,
   KeyboardAvoidingView,
@@ -39,6 +38,7 @@ import {
   GameTypeInfo,
   Player,
 } from "../../src/engine/types";
+import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 
 interface PlayerInput {
   id: string;
@@ -192,7 +192,7 @@ export default function NewContestScreen() {
     <SafeAreaView className="flex-1 bg-bg" edges={["top"]}>
       {/* Header */}
       <View className="px-5 pt-2 pb-3 flex-row items-center gap-3">
-        <Pressable
+        <AnimatedPressable
           onPress={() => (step > 1 ? setStep(step - 1) : router.back())}
           className="rounded-xl p-2"
           style={{
@@ -202,7 +202,7 @@ export default function NewContestScreen() {
           }}
         >
           <ChevronLeft size={20} color={COLORS.textDim} />
-        </Pressable>
+        </AnimatedPressable>
         <Text className="text-text-primary text-xl font-bold flex-1">
           New Contest
         </Text>
@@ -407,7 +407,7 @@ export default function NewContestScreen() {
                         <Text className="text-text-dim text-xs ml-2">
                           Group:
                         </Text>
-                        <Pressable
+                        <AnimatedPressable
                           onPress={() =>
                             updatePlayer(
                               player.id,
@@ -425,7 +425,7 @@ export default function NewContestScreen() {
                           <Text className="text-xs" style={{ color: COLORS.text }}>
                             {player.groupIndex + 1}
                           </Text>
-                        </Pressable>
+                        </AnimatedPressable>
                       </>
                     )}
                   </View>
@@ -433,7 +433,7 @@ export default function NewContestScreen() {
 
                 {hasTeams && (
                   <View className="flex-row gap-1">
-                    <Pressable
+                    <AnimatedPressable
                       onPress={() => updatePlayer(player.id, "team", "A")}
                       className="w-8 h-8 rounded-lg items-center justify-center"
                       style={{
@@ -452,8 +452,8 @@ export default function NewContestScreen() {
                       >
                         A
                       </Text>
-                    </Pressable>
-                    <Pressable
+                    </AnimatedPressable>
+                    <AnimatedPressable
                       onPress={() => updatePlayer(player.id, "team", "B")}
                       className="w-8 h-8 rounded-lg items-center justify-center"
                       style={{
@@ -472,19 +472,19 @@ export default function NewContestScreen() {
                       >
                         B
                       </Text>
-                    </Pressable>
+                    </AnimatedPressable>
                   </View>
                 )}
 
                 {players.length > 2 && (
-                  <Pressable onPress={() => removePlayer(player.id)} className="p-1">
+                  <AnimatedPressable onPress={() => removePlayer(player.id)} className="p-1">
                     <X size={16} color={COLORS.textDim} />
-                  </Pressable>
+                  </AnimatedPressable>
                 )}
               </View>
             ))}
 
-            <Pressable
+            <AnimatedPressable
               onPress={addPlayer}
               className="rounded-xl p-3 mb-4 flex-row items-center justify-center gap-2"
               style={{
@@ -497,7 +497,7 @@ export default function NewContestScreen() {
               <Text className="text-sm font-semibold" style={{ color: COLORS.accent }}>
                 Add Player
               </Text>
-            </Pressable>
+            </AnimatedPressable>
 
             {/* Number of Groups */}
             <View className="flex-row items-center justify-between mb-4">
@@ -505,7 +505,7 @@ export default function NewContestScreen() {
                 NUMBER OF GROUPS
               </Text>
               <View className="flex-row items-center gap-3">
-                <Pressable
+                <AnimatedPressable
                   onPress={() => {
                     if (numGroups > 1) {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -520,11 +520,11 @@ export default function NewContestScreen() {
                   }}
                 >
                   <Minus size={16} color={COLORS.text} />
-                </Pressable>
+                </AnimatedPressable>
                 <Text className="text-text-primary text-lg font-bold w-6 text-center">
                   {numGroups}
                 </Text>
-                <Pressable
+                <AnimatedPressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setNumGroups(numGroups + 1);
@@ -537,7 +537,7 @@ export default function NewContestScreen() {
                   }}
                 >
                   <Plus size={16} color={COLORS.text} />
-                </Pressable>
+                </AnimatedPressable>
               </View>
             </View>
           </View>
@@ -596,7 +596,7 @@ export default function NewContestScreen() {
               const isSelected = selectedGames.includes(game.id);
               const isFree = FREE_GAME_IDS.includes(game.id);
               return (
-                <Pressable
+                <AnimatedPressable
                   key={game.id}
                   onPress={() => toggleGame(game.id)}
                   className="rounded-xl p-3.5 mb-2 flex-row items-center gap-3"
@@ -651,7 +651,7 @@ export default function NewContestScreen() {
                   >
                     {isSelected && <Check size={14} color="#000" />}
                   </View>
-                </Pressable>
+                </AnimatedPressable>
               );
             })}
 
@@ -807,7 +807,7 @@ export default function NewContestScreen() {
           borderTopWidth: 1,
         }}
       >
-        <Pressable
+        <AnimatedPressable
           onPress={() => {
             if (step < 3) setStep(step + 1);
             else createContest();
@@ -828,7 +828,7 @@ export default function NewContestScreen() {
           >
             {step === 3 ? "Create Contest ⛳" : "Next"}
           </Text>
-        </Pressable>
+        </AnimatedPressable>
       </View>
     </SafeAreaView>
   );

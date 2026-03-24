@@ -46,15 +46,23 @@ export const RADII = {
   lg: 20,
 } as const;
 
+export const FONTS = {
+  regular: "Inter_400Regular",
+  medium: "Inter_500Medium",
+  semibold: "Inter_600SemiBold",
+  bold: "Inter_700Bold",
+  extrabold: "Inter_800ExtraBold",
+} as const;
+
 export const TYPOGRAPHY = {
-  display: { fontSize: 32, fontWeight: "800" as const, letterSpacing: -0.5 },
-  heading: { fontSize: 22, fontWeight: "700" as const, letterSpacing: -0.3 },
-  title: { fontSize: 18, fontWeight: "700" as const },
-  body: { fontSize: 15, fontWeight: "400" as const },
-  caption: { fontSize: 13, fontWeight: "500" as const },
+  display: { fontSize: 32, fontFamily: FONTS.extrabold, letterSpacing: -0.5 },
+  heading: { fontSize: 22, fontFamily: FONTS.bold, letterSpacing: -0.3 },
+  title: { fontSize: 18, fontFamily: FONTS.bold },
+  body: { fontSize: 15, fontFamily: FONTS.regular },
+  caption: { fontSize: 14, fontFamily: FONTS.medium },
   label: {
-    fontSize: 11,
-    fontWeight: "700" as const,
+    fontSize: 12,
+    fontFamily: FONTS.bold,
     textTransform: "uppercase" as const,
     letterSpacing: 0.8,
   },

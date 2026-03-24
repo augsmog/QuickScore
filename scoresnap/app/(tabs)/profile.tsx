@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, ScrollView, Pressable, Button, Alert } from "react-native";
+import { View, Text, ScrollView, Button, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -14,6 +14,7 @@ import {
 import * as Sentry from "@sentry/react-native";
 import RevenueCatUI from "react-native-purchases-ui";
 import { COLORS } from "../../src/ui/theme";
+import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 import { useContestStore } from "../../src/stores/contest-store";
 import { useScanStore } from "../../src/stores/scan-store";
 import { restorePurchases, getCustomerInfo } from "../../src/services/purchases";
@@ -122,7 +123,7 @@ export default function ProfileScreen() {
             </Text>
           </View>
           {!isPro && freeRemaining === 0 && (
-            <Pressable
+            <AnimatedPressable
               onPress={() => router.push("/paywall")}
               style={{
                 backgroundColor: COLORS.gold + "22", borderRadius: 8,
@@ -130,7 +131,7 @@ export default function ProfileScreen() {
               }}
             >
               <Text style={{ color: COLORS.gold, fontSize: 11, fontWeight: "700" }}>Upgrade</Text>
-            </Pressable>
+            </AnimatedPressable>
           )}
         </View>
 
@@ -160,7 +161,7 @@ export default function ProfileScreen() {
 
         {/* Pro Upgrade or Manage Subscription */}
         {isPro ? (
-          <Pressable
+          <AnimatedPressable
             onPress={handleManageSubscription}
             style={{
               backgroundColor: COLORS.gold + "15", borderColor: COLORS.gold + "33",
@@ -180,9 +181,9 @@ export default function ProfileScreen() {
               </Text>
             </View>
             <Text style={{ color: COLORS.textDim, fontSize: 18 }}>›</Text>
-          </Pressable>
+          </AnimatedPressable>
         ) : (
-          <Pressable
+          <AnimatedPressable
             onPress={() => router.push("/paywall")}
             style={{
               backgroundColor: COLORS.gold + "15", borderColor: COLORS.gold + "33",
@@ -209,7 +210,7 @@ export default function ProfileScreen() {
                 <Text style={{ color: COLORS.gold, fontSize: 12, fontWeight: "700" }}>$49.99 forever</Text>
               </View>
             </View>
-          </Pressable>
+          </AnimatedPressable>
         )}
 
         {/* Settings Links */}
@@ -218,7 +219,7 @@ export default function ProfileScreen() {
           { icon: <BarChart3 size={20} color={COLORS.textDim} />, label: "Statistics", onPress: () => {} },
           { icon: <HelpCircle size={20} color={COLORS.textDim} />, label: "Help & Support", onPress: () => {} },
         ].map((item) => (
-          <Pressable
+          <AnimatedPressable
             key={item.label}
             onPress={item.onPress}
             style={{
@@ -232,7 +233,7 @@ export default function ProfileScreen() {
               {item.label}
             </Text>
             <Text style={{ color: COLORS.textDim, fontSize: 18 }}>›</Text>
-          </Pressable>
+          </AnimatedPressable>
         ))}
 
         {/* Sentry Test (dev only) */}

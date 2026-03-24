@@ -142,6 +142,58 @@ export const useContestStore = create<ContestState>()(
   )
 );
 
+// Create a realistic sample contest for first-time users
+export function createSampleContest(): Contest {
+  const players = [
+    {
+      id: generateId(),
+      name: "Mike T.",
+      handicap: 8,
+      team: null as "A" | "B" | null,
+      scores: [4, 5, 4, 3, 5, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4], // 75
+    },
+    {
+      id: generateId(),
+      name: "Dave R.",
+      handicap: 15,
+      team: null as "A" | "B" | null,
+      scores: [5, 6, 4, 4, 5, 3, 5, 5, 5, 5, 5, 3, 6, 5, 5, 4, 4, 5], // 84
+    },
+    {
+      id: generateId(),
+      name: "Chris L.",
+      handicap: 12,
+      team: null as "A" | "B" | null,
+      scores: [4, 5, 5, 3, 4, 4, 5, 5, 4, 5, 4, 3, 5, 5, 6, 3, 4, 4], // 78
+    },
+    {
+      id: generateId(),
+      name: "Jake P.",
+      handicap: 20,
+      team: null as "A" | "B" | null,
+      scores: [5, 6, 5, 4, 5, 4, 5, 6, 5, 5, 5, 4, 6, 5, 6, 4, 5, 5], // 88 -> mid 80s range
+    },
+  ];
+
+  const group: ContestGroup = {
+    id: generateId(),
+    name: "Group 1",
+    players,
+  };
+
+  return {
+    id: generateId(),
+    name: "Sample Round",
+    course: defaultCourse("Pine Valley GC"),
+    status: "completed",
+    betUnit: 5,
+    hasTeams: false,
+    groups: [group],
+    games: ["stroke_play", "skins", "nassau"],
+    createdAt: new Date().toISOString(),
+  };
+}
+
 // Helper to generate unique IDs
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;

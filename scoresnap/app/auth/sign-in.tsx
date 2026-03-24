@@ -6,6 +6,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import { COLORS } from "../../src/ui/theme";
 import { useAuthStore } from "../../src/stores/auth-store";
+import { AppLogo } from "../../src/ui/AppLogo";
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -74,7 +75,7 @@ export default function SignInScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
         {/* Logo */}
-        <Text style={{ fontSize: 64, marginBottom: 8 }}>⛳</Text>
+        <AppLogo size={72} />
         <Text style={{ fontSize: 34, fontWeight: "800", color: COLORS.text, letterSpacing: -0.5, marginBottom: 4 }}>
           SnapScore
         </Text>
