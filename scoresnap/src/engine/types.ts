@@ -214,3 +214,17 @@ export const ALL_GAMES: GameTypeInfo[] = [...GAME_TYPES.individual, ...GAME_TYPE
 export const FREE_GAME_IDS: GameType[] = [
   "stroke_play", "match_play", "stableford", "skins", "skins_carry", "nassau", "best_ball",
 ];
+
+/** Games with fully working calculators AND settlement integration for v1.0 */
+export const IMPLEMENTED_GAME_IDS: GameType[] = [
+  "stroke_play", "match_play", "stableford", "mod_stableford",
+  "skins", "skins_carry", "nassau", "best_ball",
+  "nassau_press", "nines", "vegas", "sixes", "closeout",
+  "quota", "chicago", "aces_deuces", "dots", "rabbit",
+  "defender", "fourball", "scramble", "shamble", "banker",
+];
+
+/** Check if a game is fully implemented (not coming soon) */
+export function isGameImplemented(id: GameType): boolean {
+  return IMPLEMENTED_GAME_IDS.includes(id);
+}
