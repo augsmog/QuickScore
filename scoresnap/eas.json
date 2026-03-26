@@ -26,12 +26,16 @@
       "channel": "testflight",
       "env": {
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
-        "SENTRY_ALLOW_FAILURE": "true"
+        "SENTRY_ALLOW_FAILURE": "true",
+        "EXPO_PUBLIC_GOLF_COURSE_API_KEY": "ADIO3YUTMVD6W6JUTKAKH6MVF4"
       }
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_GOLF_COURSE_API_KEY": "ADIO3YUTMVD6W6JUTKAKH6MVF4"
+      }
     }
   },
   "submit": {

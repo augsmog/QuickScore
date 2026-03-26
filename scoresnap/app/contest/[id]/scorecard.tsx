@@ -355,12 +355,7 @@ export default function ScorecardScreen() {
 
         {/* Group Selector (if multiple groups) */}
         {contest.groups.length > 1 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ paddingHorizontal: 20, marginBottom: 4 }}
-            contentContainerStyle={{ gap: 8 }}
-          >
+          <View style={{ flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 20, marginBottom: 4, gap: 8 }}>
             {contest.groups.map((g, gi) => (
               <Pressable
                 key={g.id}
@@ -375,6 +370,7 @@ export default function ScorecardScreen() {
                   borderRadius: RADII.md,
                   paddingHorizontal: 14,
                   paddingVertical: 6,
+                  alignSelf: "flex-start",
                 }}
               >
                 <Text
@@ -391,7 +387,7 @@ export default function ScorecardScreen() {
                 </Text>
               </Pressable>
             ))}
-          </ScrollView>
+          </View>
         )}
 
         {/* ── Player Score Steppers ── */}
@@ -406,7 +402,7 @@ export default function ScorecardScreen() {
             const displayScore = hasScore ? score : par;
             const diff = hasScore ? score - par : 0;
             const color = hasScore ? scoreColor(score, par) : COLORS.textDim;
-            const label = hasScore ? scoreName(score, par) : "tap to set par";
+            const label = hasScore ? scoreName(score, par) : "par";
             const total = player.scores.reduce((a, b) => a + b, 0);
             const holesPlayed = player.scores.filter((s) => s > 0).length;
             const totalPar = contest.course.holes
@@ -534,11 +530,11 @@ export default function ScorecardScreen() {
                       style={{
                         fontSize: 40,
                         fontFamily: FONTS.headline,
-                        color: hasScore ? color : COLORS.textDim,
+                        color: hasScore ? color : COLORS.textDim + "60",
                         lineHeight: 46,
                       }}
                     >
-                      {hasScore ? score : "–"}
+                      {hasScore ? score : par}
                     </Animated.Text>
                     <Text
                       style={{
