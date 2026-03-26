@@ -161,7 +161,7 @@ export default function ContestsScreen() {
                               }}
                             >
                               <Text style={{ fontFamily: FONTS.medium, fontSize: 11, color: COLORS.text }}>
-                                {game?.icon} {game?.name}
+                                {game?.name}
                               </Text>
                             </View>
                           );

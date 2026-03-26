@@ -90,27 +90,47 @@ export interface GameConfig {
   carryover?: boolean;
   skinsTier?: "flat" | "tiered" | "progressive"; // flat=all equal, tiered=1/2/3 by six, progressive=hole#
   birdieMultiplier?: boolean; // birdie=2x skin, eagle=3x
+  validationRule?: boolean; // must par next hole to keep carryover skin
+  teamSkins?: boolean; // best ball per team
 
   // Nassau
   pressAt?: number; // auto-press when N down (0 = manual only)
   pressThePress?: boolean; // presses can themselves be pressed
   nassauWeights?: [number, number, number]; // [front, back, overall] e.g. [1,1,2] for 5-5-10
+  alohaPressOn18?: boolean; // mandatory half-value press on hole 18
+  noPressLast?: boolean; // no new press on holes 9 and 18
+  junkNassau?: boolean; // dots/junk bets run alongside Nassau
+
+  // Wolf
+  blindWolf?: boolean; // declare solo before anyone tees off (3-4x)
+  pigVariation?: boolean; // chosen partner can refuse, forcing Lone Wolf
+  wolfCarryover?: boolean; // tied holes carry point value forward
 
   // Snake
   progressiveSnake?: boolean; // value doubles each time snake changes hands
 
   // Stableford
   jokerHoles?: number[]; // pre-declared joker holes (points doubled)
+  modifiedStableford?: boolean; // Barracuda scoring: par=0, birdie=+2, eagle=+5, bogey=-1, dbl=-3
 
   // Vegas
   birdieFlip?: boolean; // "Flip the Bird" — birdie flips opponent score
   eagleDoubles?: boolean; // eagle flips AND doubles
+  birdieBlocksBirdie?: boolean; // both teams birdie = no flip
+
+  // BBB
+  bbbBirdieDouble?: boolean; // double points for birdie on any BBB point
+  bbbChipInTriple?: boolean; // chip-in earns all three points
 
   // Sixes
   escalatingSegments?: boolean; // 1x/2x/4x segment values
+  sixesPresses?: boolean; // press rules apply within each 6-hole segment
 
   // Rabbit
   doubleRabbit?: boolean; // third bet for full-18 holder
+
+  // Match Play
+  bisqueHandicap?: boolean; // handicap strokes used at player's discretion
 
   // General
   netHandicap?: boolean; // apply handicap strokes
@@ -290,7 +310,7 @@ export const GAME_VARIATIONS: GameVariation[] = [
   {
     id: "skins_tiered",
     label: "Tiered Values",
-    desc: "Holes 1-6: 1x, 7-12: 2x, 13-18: 3x",
+    desc: "Holes 1-6: 1x, 7-12: 2x, 13-18: 3x. Back nine always financially meaningful. Many groups simply double the entire back nine.",
     configKey: "skinsTier",
     configValue: "tiered",
     appliesTo: ["skins", "skins_carry"],
@@ -299,7 +319,7 @@ export const GAME_VARIATIONS: GameVariation[] = [
   {
     id: "skins_progressive",
     label: "Progressive Values",
-    desc: "Each hole = hole number (hole 18 = 18x)",
+    desc: "Skin value increases per hole: hole 1 = 1x, hole 2 = 2x, etc. Holes 16-18 worth 16-18x each. The final three holes are worth more than the first ten combined.",
     configKey: "skinsTier",
     configValue: "progressive",
     appliesTo: ["skins", "skins_carry"],
@@ -308,49 +328,152 @@ export const GAME_VARIATIONS: GameVariation[] = [
   {
     id: "skins_birdie_mult",
     label: "Birdie/Eagle Multiplier",
-    desc: "Birdie = 2x skin, Eagle = 3x skin value",
+    desc: "A birdie wins 2x the skin value; an eagle wins 3x — only when also the outright low score. Massive incentive to attack pins on carryover holes.",
     configKey: "birdieMultiplier",
     configValue: true,
     appliesTo: ["skins", "skins_carry"],
     tag: "spicy",
+  },
+  {
+    id: "skins_validation",
+    label: "Validation Rule",
+    desc: "Win a skin from a carryover? You must make par or better on the very next hole to keep it. Fail and the skin carries over again. Prevents lucky wins from collecting accumulated skins.",
+    configKey: "validationRule",
+    configValue: true,
+    appliesTo: ["skins_carry"],
+    tag: "spicy",
+  },
+  {
+    id: "skins_team",
+    label: "Team Skins (Best Ball)",
+    desc: "Teams of 2 compete using best ball per hole. Winning team splits the skin equally. Common in pro-ams and corporate outings.",
+    configKey: "teamSkins",
+    configValue: true,
+    appliesTo: ["skins", "skins_carry"],
+    tag: "standard",
   },
 
   // ── Nassau variations ──
   {
     id: "nassau_weighted",
     label: "Weighted (5-5-10)",
-    desc: "Overall match worth double the individual nines",
+    desc: "Overall match worth double the individual nines. Emphasizes full-round consistency — you can win both nines but still lose if your margins were thin.",
     configKey: "nassauWeights",
     configValue: [1, 1, 2],
     appliesTo: ["nassau", "nassau_press"],
     tag: "standard",
   },
   {
+    id: "nassau_auto_press",
+    label: "Auto-Press at 2 Down",
+    desc: "Whenever any player/team falls 2 holes behind in any segment, a new press is automatically triggered. Most common house rule at clubs. Keeps all players invested.",
+    configKey: "pressAt",
+    configValue: 2,
+    appliesTo: ["nassau", "nassau_press"],
+    tag: "standard",
+  },
+  {
     id: "nassau_press_press",
     label: "Press the Press",
-    desc: "Presses can themselves be pressed — cascading bets",
+    desc: "A press bet can itself be pressed if the pressing team falls 2-down in that press. Creates cascading parallel bets — a $5 Nassau can have 4+ simultaneous matches running by hole 17.",
     configKey: "pressThePress",
     configValue: true,
     appliesTo: ["nassau_press"],
     tag: "spicy",
+  },
+  {
+    id: "nassau_aloha",
+    label: "Aloha Press",
+    desc: "A mandatory press on the 18th hole only, worth half the original bet. Creates one last dramatic swing regardless of match status. Popular in Hawaiian golf culture.",
+    configKey: "alohaPressOn18",
+    configValue: true,
+    appliesTo: ["nassau", "nassau_press"],
+    tag: "spicy",
+  },
+  {
+    id: "nassau_no_press_last",
+    label: "No Press on 9 and 18",
+    desc: "No new press allowed on the final hole of each nine. A one-hole press is essentially a coin flip — widely considered poor form. Some groups also exclude holes 8 and 17.",
+    configKey: "noPressLast",
+    configValue: true,
+    appliesTo: ["nassau_press"],
+    tag: "standard",
+  },
+  {
+    id: "nassau_junk",
+    label: "Junk Nassau",
+    desc: "Sandies, Barkies, Greenies, and other dots run alongside the Nassau simultaneously. Tracked separately, settled independently. You might play a $5 Nassau but settle $40 in junk.",
+    configKey: "junkNassau",
+    configValue: true,
+    appliesTo: ["nassau", "nassau_press"],
+    tag: "wild",
+  },
+
+  // ── Wolf variations ──
+  {
+    id: "wolf_blind",
+    label: "Blind Wolf",
+    desc: "Wolf declares solo before ANYONE hits — including themselves. Points triple or quadruple. Maximum risk, maximum reward. Psychologically rattles opponents.",
+    configKey: "blindWolf",
+    configValue: true,
+    appliesTo: ["wolf"],
+    tag: "wild",
+  },
+  {
+    id: "wolf_pig",
+    label: "The Pig",
+    desc: "After Wolf picks a partner, that partner can REFUSE — forcing the Wolf into Lone Wolf automatically. All bets double for that hole. Classic power move.",
+    configKey: "pigVariation",
+    configValue: true,
+    appliesTo: ["wolf"],
+    tag: "spicy",
+  },
+  {
+    id: "wolf_carryover",
+    label: "Carryover on Ties",
+    desc: "Tied holes stack the point value to the next hole, often with a doubling multiplier. Massive pressure on the hole after a push.",
+    configKey: "wolfCarryover",
+    configValue: true,
+    appliesTo: ["wolf"],
+    tag: "standard",
   },
 
   // ── Snake variations ──
   {
     id: "snake_progressive",
     label: "Progressive Snake",
-    desc: "Bet doubles every time the snake changes hands",
+    desc: "Every time the Snake changes hands, the bet doubles. 1st 3-putt = 1x, 2nd = 2x, 3rd = 4x. By hole 18, the Snake could be worth 16x+. One late 3-putt can ruin a round financially.",
     configKey: "progressiveSnake",
     configValue: true,
     appliesTo: ["snake"],
     tag: "spicy",
   },
 
+  // ── Stableford variations ──
+  {
+    id: "stableford_modified",
+    label: "Modified (Barracuda)",
+    desc: "Double bogey+ = -3, Bogey = -1, Par = 0, Birdie = +2, Eagle = +5, Albatross = +8. The PGA Tour variant. Drastically penalizes bad holes while massively rewarding eagles.",
+    configKey: "modifiedStableford",
+    configValue: true,
+    appliesTo: ["stableford"],
+    tag: "spicy",
+  },
+  {
+    id: "stableford_joker",
+    label: "Joker Holes",
+    desc: "Before the round, each player secretly selects 1-3 'joker' holes where all points are doubled. Reveal at the end. Creates pre-round strategy and post-round second-guessing.",
+    configKey: "jokerHoles",
+    configValue: [5, 12, 16],
+    appliesTo: ["stableford"],
+    tag: "wild",
+  },
+
   // ── Vegas variations ──
   {
     id: "vegas_birdie_flip",
     label: "Flip the Bird",
-    desc: "Birdie flips opposing team's score (56 → 65)",
+    desc: "Natural birdie by any team member and that team wins the hole — opposing team's score reverses (56 becomes 65). Both team members birdie = flip AND point difference doubles. The wildest single-rule mechanic in golf betting.",
     configKey: "birdieFlip",
     configValue: true,
     appliesTo: ["vegas"],
@@ -359,10 +482,39 @@ export const GAME_VARIATIONS: GameVariation[] = [
   {
     id: "vegas_eagle_doubles",
     label: "Eagle Rule",
-    desc: "Eagle flips AND doubles the point difference",
+    desc: "An eagle flips the opposing score AND doubles the resulting point difference. Both teams eagle = no flip, no double (they cancel). An eagle when already winning by 20+ points becomes 40+ after the double.",
     configKey: "eagleDoubles",
     configValue: true,
     appliesTo: ["vegas"],
+    tag: "wild",
+  },
+  {
+    id: "vegas_birdie_block",
+    label: "Birdie Blocks Birdie",
+    desc: "If BOTH teams have at least one birdie, the flip is blocked — scores stay low-first. Prevents one birdie from flipping when the other team also birdied. Important fairness mechanism.",
+    configKey: "birdieBlocksBirdie",
+    configValue: true,
+    appliesTo: ["vegas"],
+    tag: "standard",
+  },
+
+  // ── BBB variations ──
+  {
+    id: "bbb_birdie_double",
+    label: "Double Points for Birdie",
+    desc: "Any of the three points earned on a hole where the player makes birdie is worth 2 instead of 1. Creates incentive to attack rather than just park the ball. Very common house rule.",
+    configKey: "bbbBirdieDouble",
+    configValue: true,
+    appliesTo: ["bingo_bango_bongo"],
+    tag: "standard",
+  },
+  {
+    id: "bbb_chip_in_triple",
+    label: "Chip-In Triple",
+    desc: "A chip-in from off the green earns all three points simultaneously — it's first on the green (Bingo), first in the hole (Bongo), and closest (Bango) all at once. Often worth 3x value.",
+    configKey: "bbbChipInTriple",
+    configValue: true,
+    appliesTo: ["bingo_bango_bongo"],
     tag: "wild",
   },
 
@@ -370,21 +522,41 @@ export const GAME_VARIATIONS: GameVariation[] = [
   {
     id: "sixes_escalating",
     label: "Escalating Segments",
-    desc: "Front six = 1x, middle = 2x, final = 4x bet",
+    desc: "Front six = 1x, middle = 2x, final = 4x bet. The final six — where you're paired with your least-frequent partner — is the deciding stretch. Keeps everyone invested in the final holes.",
     configKey: "escalatingSegments",
     configValue: true,
     appliesTo: ["sixes"],
     tag: "standard",
+  },
+  {
+    id: "sixes_presses",
+    label: "Presses Within Sixes",
+    desc: "Standard press rules apply within each six-hole segment. Fall 2 holes down within your six = automatic press on remaining holes. Multiple presses within a single six can multiply the bet.",
+    configKey: "sixesPresses",
+    configValue: true,
+    appliesTo: ["sixes"],
+    tag: "spicy",
   },
 
   // ── Rabbit variations ──
   {
     id: "rabbit_double",
     label: "Double Rabbit",
-    desc: "Third bet for full-18 holder (front + back + overall)",
+    desc: "Three Rabbit bets: front 9, back 9, AND full 18. Holder at 18 wins the overall pot, independent of who won the nine-pots. Adds a third financial dimension.",
     configKey: "doubleRabbit",
     configValue: true,
     appliesTo: ["rabbit"],
+    tag: "spicy",
+  },
+
+  // ── Match Play variations ──
+  {
+    id: "match_bisque",
+    label: "Bisque Handicap",
+    desc: "Handicap strokes converted into 'bisques' — strokes used at your discretion on any hole, declared before playing that hole. Save bisques for your worst hole type or the most important holes.",
+    configKey: "bisqueHandicap",
+    configValue: true,
+    appliesTo: ["match_play"],
     tag: "spicy",
   },
 
@@ -392,7 +564,7 @@ export const GAME_VARIATIONS: GameVariation[] = [
   {
     id: "net_handicap",
     label: "Net (Handicap)",
-    desc: "Apply handicap strokes hole-by-hole for fair play",
+    desc: "Apply handicap strokes hole-by-hole based on stroke index for fair play across skill levels. Lower handicapper plays scratch; others receive strokes on rated holes.",
     configKey: "netHandicap",
     configValue: true,
     appliesTo: ["skins", "skins_carry", "nassau", "nassau_press", "match_play", "stableford"],

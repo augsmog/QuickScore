@@ -356,7 +356,7 @@ export default function EditContestScreen() {
                   marginBottom: 8,
                 }}
               >
-                <Text style={{ fontSize: 20 }}>{game.icon}</Text>
+                {/* icon removed */}
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
