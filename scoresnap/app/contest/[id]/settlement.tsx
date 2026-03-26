@@ -69,7 +69,8 @@ export default function SettlementScreen() {
     allPlayers,
     contest.course,
     contest.games,
-    contest.betUnit
+    contest.betUnit,
+    contest.auxiliaryData
   );
 
   const sortedNet = Object.entries(settlement.netByPlayer).sort(

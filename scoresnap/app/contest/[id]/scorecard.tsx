@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,17 +8,31 @@ import {
   Dimensions,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, ChevronRight, CheckCircle, Delete } from "lucide-react-native";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle,
+  Minus,
+  Plus,
+} from "lucide-react-native";
 import Animated, { FadeIn, SlideInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW, scoreColor, scoreName } from "../../../src/ui/theme";
+import {
+  COLORS,
+  FONTS,
+  TYPOGRAPHY,
+  RADII,
+  GLOW,
+  scoreColor,
+  scoreName,
+} from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const PAD_GAP = 8;
-const PAD_COLS = 3;
-const PAD_BUTTON_SIZE = Math.floor((SCREEN_WIDTH - 40 - PAD_GAP * (PAD_COLS - 1)) / PAD_COLS);
+import AuxiliaryPrompt, {
+  needsAuxiliaryPrompt,
+  AuxPromptResult,
+} from "../../../src/ui/AuxiliaryPrompt";
+import { HoleInfo } from "../../../src/engine/types";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,10 +42,11 @@ export default function ScorecardScreen() {
   );
   const updateScore = useContestStore((s) => s.updateScore);
   const completeContest = useContestStore((s) => s.completeContest);
+  const updateAuxiliaryData = useContestStore((s) => s.updateAuxiliaryData);
 
   const [currentHole, setCurrentHole] = useState(1);
   const [selectedGroup, setSelectedGroup] = useState(0);
-  const [selectedPlayerIndex, setSelectedPlayerIndex] = useState(0);
+  const [showAuxPrompt, setShowAuxPrompt] = useState(false);
 
   if (!contest) return null;
 
@@ -43,51 +58,117 @@ export default function ScorecardScreen() {
   const hcp = holeData?.hcp || 0;
   const isCompleted = contest.status === "completed";
 
-  const selectedPlayer = group.players[selectedPlayerIndex];
+  // Build current-hole scores map for AuxiliaryPrompt (Tier 2 games)
+  const currentPlayerScores = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of group.players) {
+      map.set(p.id, p.scores[currentHole - 1] || 0);
+    }
+    return map;
+  }, [group.players, currentHole]);
 
-  const handleNumpadPress = useCallback(
-    (value: number) => {
-      if (isCompleted || !selectedPlayer) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      updateScore(contest.id, group.id, selectedPlayer.id, currentHole, value);
-    },
-    [contest.id, group.id, selectedPlayer, currentHole, updateScore, isCompleted]
+  // Wolf rotation order
+  const wolfOrder = useMemo(
+    () => group.players.map((p) => p.id),
+    [group.players]
   );
 
-  const handleBackspace = useCallback(() => {
-    if (isCompleted || !selectedPlayer) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    updateScore(contest.id, group.id, selectedPlayer.id, currentHole, 0);
-  }, [contest.id, group.id, selectedPlayer, currentHole, updateScore, isCompleted]);
+  const currentHoleInfo: HoleInfo = holeData || {
+    num: currentHole,
+    par: 4,
+    hcp: 0,
+    yards: 0,
+  };
 
-  const handleConfirm = useCallback(() => {
-    if (isCompleted) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    // Move to next player, or next hole if last player
-    if (selectedPlayerIndex < group.players.length - 1) {
-      setSelectedPlayerIndex(selectedPlayerIndex + 1);
-    } else if (currentHole < 18) {
-      setCurrentHole(currentHole + 1);
-      setSelectedPlayerIndex(0);
-    }
-  }, [selectedPlayerIndex, group.players.length, currentHole, isCompleted]);
-
-  const handlePrevHole = useCallback(() => {
-    if (currentHole > 1) {
-      setCurrentHole(currentHole - 1);
-      setSelectedPlayerIndex(0);
+  // ── Score adjustment via +/- buttons ──
+  const adjustScore = useCallback(
+    (playerId: string, delta: number) => {
+      if (isCompleted) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      const player = group.players.find((p) => p.id === playerId);
+      if (!player) return;
+
+      const currentScore = player.scores[currentHole - 1] || 0;
+      // If no score entered yet, start from par
+      const baseScore = currentScore > 0 ? currentScore : par;
+      const newScore = Math.max(1, Math.min(15, baseScore + delta));
+
+      updateScore(contest.id, group.id, playerId, currentHole, newScore);
+    },
+    [contest.id, group, currentHole, par, updateScore, isCompleted]
+  );
+
+  // Set a player to exactly par (tap the score display)
+  const setToPar = useCallback(
+    (playerId: string) => {
+      if (isCompleted) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      updateScore(contest.id, group.id, playerId, currentHole, par);
+    },
+    [contest.id, group.id, currentHole, par, updateScore, isCompleted]
+  );
+
+  // Clear a player's score (long press the score)
+  const clearScore = useCallback(
+    (playerId: string) => {
+      if (isCompleted) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      updateScore(contest.id, group.id, playerId, currentHole, 0);
+    },
+    [contest.id, group.id, currentHole, updateScore, isCompleted]
+  );
+
+  // ── Hole Navigation ──
+  const advanceToNextHole = useCallback(() => {
+    if (currentHole < 18) {
+      setCurrentHole(currentHole + 1);
     }
   }, [currentHole]);
 
   const handleNextHole = useCallback(() => {
-    if (currentHole < 18) {
-      setCurrentHole(currentHole + 1);
-      setSelectedPlayerIndex(0);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Check if Tier 2 games need aux input before advancing
+    if (needsAuxiliaryPrompt(contest.games, currentHoleInfo, currentPlayerScores)) {
+      setShowAuxPrompt(true);
+    } else {
+      advanceToNextHole();
+    }
+  }, [contest.games, currentHoleInfo, currentPlayerScores, advanceToNextHole]);
+
+  const handlePrevHole = useCallback(() => {
+    if (currentHole > 1) {
+      setCurrentHole(currentHole - 1);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   }, [currentHole]);
+
+  // Handle Tier 2 aux prompt results
+  const handleAuxComplete = useCallback(
+    (results: AuxPromptResult) => {
+      setShowAuxPrompt(false);
+      if (results.wolf) {
+        updateAuxiliaryData(contest.id, "wolf", currentHole, results.wolf);
+      }
+      if (results.hammer) {
+        updateAuxiliaryData(contest.id, "hammer", currentHole, results.hammer);
+      }
+      if (results.snake) {
+        updateAuxiliaryData(contest.id, "snake", currentHole, results.snake);
+      }
+      if (results.greenies !== undefined) {
+        updateAuxiliaryData(contest.id, "greenies", currentHole, results.greenies);
+      }
+      advanceToNextHole();
+    },
+    [contest.id, currentHole, updateAuxiliaryData, advanceToNextHole]
+  );
+
+  const handleAuxSkip = useCallback(() => {
+    setShowAuxPrompt(false);
+    advanceToNextHole();
+  }, [advanceToNextHole]);
 
   const handleFinalizeRound = useCallback(() => {
     const allPlayers = contest.groups.flatMap((g) => g.players);
@@ -137,7 +218,7 @@ export default function ScorecardScreen() {
     completeContest(contest.id);
   };
 
-  // Calculate completion percentage
+  // Calculate completion
   const allPlayers = contest.groups.flatMap((g) => g.players);
   const totalScores = allPlayers.reduce(
     (sum, p) => sum + p.scores.filter((s) => s > 0).length,
@@ -146,6 +227,11 @@ export default function ScorecardScreen() {
   const totalExpected = allPlayers.length * 18;
   const percentComplete =
     totalExpected > 0 ? Math.round((totalScores / totalExpected) * 100) : 0;
+
+  // Check if all players on current hole have scores
+  const allScoredOnHole = group.players.every(
+    (p) => (p.scores[currentHole - 1] || 0) > 0
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -280,7 +366,6 @@ export default function ScorecardScreen() {
                 key={g.id}
                 onPress={() => {
                   setSelectedGroup(gi);
-                  setSelectedPlayerIndex(0);
                 }}
                 style={{
                   backgroundColor:
@@ -309,59 +394,49 @@ export default function ScorecardScreen() {
           </ScrollView>
         )}
 
-        {/* Player Cards */}
+        {/* ── Player Score Steppers ── */}
         <ScrollView
-          style={{ maxHeight: 220, marginTop: 8 }}
-          contentContainerStyle={{ paddingHorizontal: 20, gap: 6 }}
+          style={{ flex: 1, marginTop: 8 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12, gap: 8 }}
           showsVerticalScrollIndicator={false}
         >
           {group.players.map((player, idx) => {
-            const isSelected = idx === selectedPlayerIndex;
             const score = player.scores[currentHole - 1] || 0;
+            const hasScore = score > 0;
+            const displayScore = hasScore ? score : par;
+            const diff = hasScore ? score - par : 0;
+            const color = hasScore ? scoreColor(score, par) : COLORS.textDim;
+            const label = hasScore ? scoreName(score, par) : "tap to set par";
             const total = player.scores.reduce((a, b) => a + b, 0);
-            const color = score > 0 ? scoreColor(score, par) : COLORS.textDim;
-            const diff = score > 0 ? score - par : 0;
-            const label = score > 0 ? scoreName(score, par) : "";
+            const holesPlayed = player.scores.filter((s) => s > 0).length;
+            const totalPar = contest.course.holes
+              .slice(0, holesPlayed)
+              .reduce((a, h) => a + h.par, 0);
+            const totalToPar = total - totalPar;
 
             return (
-              <Pressable
+              <Animated.View
                 key={player.id}
-                onPress={() => {
-                  if (!isCompleted) {
-                    setSelectedPlayerIndex(idx);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                }}
+                entering={FadeIn.delay(idx * 50).duration(200)}
                 style={{
-                  backgroundColor: isSelected
-                    ? COLORS.surfaceHigh
-                    : COLORS.surfaceLow,
+                  backgroundColor: COLORS.surfaceHigh,
                   borderRadius: RADII.lg,
-                  paddingVertical: 12,
-                  paddingHorizontal: 14,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  borderLeftWidth: isSelected ? 3 : 0,
-                  borderLeftColor: isSelected ? COLORS.primary : "transparent",
+                  padding: 14,
+                  borderLeftWidth: 3,
+                  borderLeftColor: hasScore ? color : COLORS.surfaceHighest,
                   opacity: isCompleted ? 0.7 : 1,
                 }}
               >
-                <View style={{ flex: 1 }}>
-                  {isSelected && (
-                    <Animated.Text
-                      entering={FadeIn.duration(200)}
-                      style={{
-                        ...TYPOGRAPHY.labelSm,
-                        color: COLORS.primary,
-                        marginBottom: 2,
-                      }}
-                    >
-                      PLAYER {idx + 1}
-                      {idx === 0 ? " (YOU)" : ""}
-                    </Animated.Text>
-                  )}
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                {/* Player info row */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
                     {player.team && contest.hasTeams && (
                       <View
                         style={{
@@ -375,153 +450,148 @@ export default function ScorecardScreen() {
                         }}
                       />
                     )}
-                    <Text
-                      style={{
-                        fontSize: isSelected ? 17 : 14,
-                        fontFamily: isSelected ? FONTS.bold : FONTS.medium,
-                        color: isSelected ? COLORS.text : COLORS.textDim,
-                      }}
-                    >
-                      {player.name}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontFamily: FONTS.regular,
-                        color: COLORS.textDim,
-                      }}
-                    >
-                      {player.handicap} hcp
-                    </Text>
+                    <View>
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontFamily: FONTS.bold,
+                          color: COLORS.text,
+                        }}
+                      >
+                        {player.name}
+                      </Text>
+                      {holesPlayed > 0 && (
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontFamily: FONTS.medium,
+                            color: COLORS.textDim,
+                            marginTop: 1,
+                          }}
+                        >
+                          Thru {holesPlayed} — {total} (
+                          {totalToPar > 0 ? "+" : ""}
+                          {totalToPar === 0 ? "E" : totalToPar})
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                  {total > 0 && (
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontFamily: FONTS.medium,
-                        color: COLORS.textDim,
-                        marginTop: 2,
-                      }}
-                    >
-                      Thru {player.scores.filter((s) => s > 0).length} — Total{" "}
-                      {total}
-                    </Text>
-                  )}
-                </View>
-
-                {/* Score display */}
-                <View style={{ alignItems: "center", minWidth: 50 }}>
-                  <Animated.Text
-                    key={`ps-${player.id}-${currentHole}-${score}`}
-                    entering={SlideInUp.duration(150).springify()}
+                  <Text
                     style={{
-                      fontSize: isSelected ? 32 : 22,
-                      fontFamily: FONTS.headline,
-                      color: score > 0 ? color : COLORS.textDim,
+                      fontSize: 11,
+                      fontFamily: FONTS.regular,
+                      color: COLORS.textDim,
                     }}
                   >
-                    {score || "–"}
-                  </Animated.Text>
-                  {score > 0 && isSelected && (
+                    {player.handicap} hcp
+                  </Text>
+                </View>
+
+                {/* Score stepper row */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 12,
+                  }}
+                >
+                  {/* Minus button */}
+                  <Pressable
+                    onPress={() => adjustScore(player.id, -1)}
+                    disabled={isCompleted || displayScore <= 1}
+                    style={({ pressed }) => ({
+                      width: 52,
+                      height: 52,
+                      borderRadius: RADII.lg,
+                      backgroundColor: COLORS.surfaceMid,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity:
+                        isCompleted || displayScore <= 1 ? 0.3 : pressed ? 0.7 : 1,
+                      transform: [{ scale: pressed ? 0.92 : 1 }],
+                    })}
+                  >
+                    <Minus size={24} color={COLORS.text} strokeWidth={2.5} />
+                  </Pressable>
+
+                  {/* Score display — tap sets to par, long press clears */}
+                  <Pressable
+                    onPress={() => {
+                      if (!hasScore) setToPar(player.id);
+                    }}
+                    onLongPress={() => clearScore(player.id)}
+                    disabled={isCompleted}
+                    style={{
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 90,
+                    }}
+                  >
                     <Animated.Text
-                      entering={FadeIn.delay(50).duration(200)}
+                      key={`score-${player.id}-${currentHole}-${score}`}
+                      entering={SlideInUp.duration(150).springify()}
+                      style={{
+                        fontSize: 40,
+                        fontFamily: FONTS.headline,
+                        color: hasScore ? color : COLORS.textDim,
+                        lineHeight: 46,
+                      }}
+                    >
+                      {hasScore ? score : "–"}
+                    </Animated.Text>
+                    <Text
                       style={{
                         fontSize: 11,
                         fontFamily: FONTS.semibold,
-                        color,
+                        color: hasScore ? color : COLORS.textDim + "88",
                         textTransform: "uppercase",
+                        marginTop: 2,
                       }}
                     >
-                      {label}
-                    </Animated.Text>
-                  )}
+                      {hasScore
+                        ? diff === 0
+                          ? label
+                          : `${diff > 0 ? "+" : ""}${diff} (${label})`
+                        : label}
+                    </Text>
+                  </Pressable>
+
+                  {/* Plus button */}
+                  <Pressable
+                    onPress={() => adjustScore(player.id, 1)}
+                    disabled={isCompleted || displayScore >= 15}
+                    style={({ pressed }) => ({
+                      width: 52,
+                      height: 52,
+                      borderRadius: RADII.lg,
+                      backgroundColor: COLORS.surfaceMid,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity:
+                        isCompleted || displayScore >= 15
+                          ? 0.3
+                          : pressed
+                          ? 0.7
+                          : 1,
+                      transform: [{ scale: pressed ? 0.92 : 1 }],
+                    })}
+                  >
+                    <Plus size={24} color={COLORS.text} strokeWidth={2.5} />
+                  </Pressable>
                 </View>
-              </Pressable>
+              </Animated.View>
             );
           })}
         </ScrollView>
 
-        {/* Number Pad */}
+        {/* ── Bottom Controls ── */}
         <View
           style={{
-            flex: 1,
-            justifyContent: "flex-end",
             paddingHorizontal: 20,
             paddingBottom: 8,
           }}
         >
-          {/* 3x3 grid: 1-9 */}
-          {[
-            [1, 2, 3],
-            [4, 5, 6],
-            [7, 8, 9],
-          ].map((row, ri) => (
-            <View
-              key={ri}
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                gap: PAD_GAP,
-                marginBottom: PAD_GAP,
-              }}
-            >
-              {row.map((num) => (
-                <NumpadButton
-                  key={num}
-                  label={String(num)}
-                  onPress={() => handleNumpadPress(num)}
-                  bg={COLORS.surfaceHigh}
-                  textColor={COLORS.text}
-                  disabled={isCompleted}
-                />
-              ))}
-            </View>
-          ))}
-
-          {/* Bottom row: backspace, 0, confirm */}
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              gap: PAD_GAP,
-              marginBottom: PAD_GAP,
-            }}
-          >
-            <NumpadButton
-              label="backspace"
-              onPress={handleBackspace}
-              bg={COLORS.surfaceHighest}
-              textColor={COLORS.textDim}
-              icon={<Delete size={22} color={COLORS.textDim} />}
-              disabled={isCompleted}
-            />
-            <NumpadButton
-              label="0"
-              onPress={() => handleNumpadPress(0)}
-              bg={COLORS.surfaceHigh}
-              textColor={COLORS.text}
-              disabled={isCompleted}
-            />
-            <NumpadButton
-              label="confirm"
-              onPress={handleConfirm}
-              bg={COLORS.primary}
-              textColor={COLORS.onPrimary}
-              icon={
-                <Text
-                  style={{
-                    fontSize: 24,
-                    fontFamily: FONTS.bold,
-                    color: COLORS.onPrimary,
-                  }}
-                >
-                  ✓
-                </Text>
-              }
-              disabled={isCompleted}
-            />
-          </View>
-
           {/* Hole Navigation */}
           <View
             style={{
@@ -564,21 +634,28 @@ export default function ScorecardScreen() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 4,
-                backgroundColor: COLORS.surfaceMid,
+                backgroundColor: allScoredOnHole
+                  ? COLORS.primary + "22"
+                  : COLORS.surfaceMid,
                 borderRadius: RADII.md,
                 paddingVertical: 12,
+                borderWidth: allScoredOnHole ? 1 : 0,
+                borderColor: COLORS.primary + "44",
                 opacity: currentHole >= 18 ? 0.3 : 1,
               }}
             >
               <Text
                 style={{
                   ...TYPOGRAPHY.labelSm,
-                  color: COLORS.textDim,
+                  color: allScoredOnHole ? COLORS.primary : COLORS.textDim,
                 }}
               >
                 NEXT
               </Text>
-              <ChevronRight size={16} color={COLORS.textDim} />
+              <ChevronRight
+                size={16}
+                color={allScoredOnHole ? COLORS.primary : COLORS.textDim}
+              />
             </Pressable>
           </View>
 
@@ -650,7 +727,7 @@ export default function ScorecardScreen() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 8,
-                  ...( percentComplete === 100 ? GLOW.primary : {}),
+                  ...(percentComplete === 100 ? GLOW.primary : {}),
                 }}
               >
                 <CheckCircle
@@ -678,54 +755,19 @@ export default function ScorecardScreen() {
           )}
         </View>
       </SafeAreaView>
-    </View>
-  );
-}
 
-/* ── Number Pad Button ── */
-function NumpadButton({
-  label,
-  onPress,
-  bg,
-  textColor,
-  icon,
-  disabled,
-}: {
-  label: string;
-  onPress: () => void;
-  bg: string;
-  textColor: string;
-  icon?: React.ReactNode;
-  disabled?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => ({
-        flex: 1,
-        height: 56,
-        backgroundColor: bg,
-        borderRadius: RADII.lg,
-        alignItems: "center",
-        justifyContent: "center",
-        opacity: disabled ? 0.4 : 1,
-        transform: [{ scale: pressed ? 0.95 : 1 }],
-      })}
-    >
-      {icon ? (
-        icon
-      ) : (
-        <Text
-          style={{
-            fontSize: 24,
-            fontFamily: FONTS.headline,
-            color: textColor,
-          }}
-        >
-          {label}
-        </Text>
-      )}
-    </Pressable>
+      {/* Tier 2 Game Auxiliary Prompts */}
+      <AuxiliaryPrompt
+        visible={showAuxPrompt}
+        holeNumber={currentHole}
+        holeInfo={currentHoleInfo}
+        players={group.players}
+        activeGames={contest.games}
+        currentPlayerScores={currentPlayerScores}
+        wolfOrder={wolfOrder}
+        onComplete={handleAuxComplete}
+        onSkip={handleAuxSkip}
+      />
+    </View>
   );
 }

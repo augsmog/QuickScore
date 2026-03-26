@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { GameType, Player, Course, HoleInfo, AuxiliaryData } from "../engine/types";
+import { GameType, GameConfig, Player, Course, HoleInfo, AuxiliaryData } from "../engine/types";
 
 export interface ContestGroup {
   id: string;
@@ -20,6 +20,7 @@ export interface Contest {
   teamBName?: string;
   groups: ContestGroup[];
   games: GameType[];
+  gameConfig?: GameConfig;
   createdAt: string;
   auxiliaryData?: AuxiliaryData;
 }

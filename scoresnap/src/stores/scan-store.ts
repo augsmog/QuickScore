@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const FREE_SCAN_LIMIT = 1;
+const FREE_SCAN_LIMIT = 3;
 
 interface ScanState {
   scansUsed: number;

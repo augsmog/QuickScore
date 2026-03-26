@@ -82,7 +82,8 @@ function computeRealStats(contests: Contest[]) {
         allPlayers,
         contest.course,
         contest.games,
-        contest.betUnit
+        contest.betUnit,
+        contest.auxiliaryData
       );
       // Show net for each player
       for (const [name, net] of Object.entries(settlement.netByPlayer)) {
@@ -587,8 +588,8 @@ export default function ProfileScreen() {
 
         {/* ========== SETTINGS LINKS ========== */}
         {[
-          { icon: <Settings size={20} color={COLORS.textDim} />, label: "Settings", onPress: () => {} },
-          { icon: <BarChart3 size={20} color={COLORS.textDim} />, label: "Statistics", onPress: () => {} },
+          { icon: <Settings size={20} color={COLORS.textDim} />, label: "Settings", onPress: () => router.push("/settings") },
+          { icon: <BarChart3 size={20} color={COLORS.textDim} />, label: "Statistics", onPress: () => router.push("/statistics") },
           { icon: <HelpCircle size={20} color={COLORS.textDim} />, label: "Help & Support", onPress: () => {} },
         ].map((item) => (
           <AnimatedPressable

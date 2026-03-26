@@ -1,4 +1,4 @@
-import { Transaction, SettlementSummary, Player, Course, GameType } from "./types";
+import { Transaction, SettlementSummary, Player, Course, GameType, AuxiliaryData } from "./types";
 import { calcStrokePlay } from "./calculators/stroke-play";
 import { calcSkins } from "./calculators/skins";
 import { calcNassau } from "./calculators/nassau";
@@ -33,7 +33,8 @@ export function calculateSettlement(
   players: Player[],
   course: Course,
   gameTypes: GameType[],
-  betUnit: number
+  betUnit: number,
+  auxiliaryData?: AuxiliaryData
 ): SettlementSummary {
   const transactions: Transaction[] = [];
 
@@ -666,27 +667,120 @@ export function calculateSettlement(
 
       case "wolf": {
         // Wolf: per-hole, wolf+partner vs other two (or lone wolf vs field)
-        // Without auxiliary data, use calculator's approximation
-        const wolfResult = calcWolf(players, course);
-        const wolfPlayers = players.map((p) => ({
-          name: p.name,
-          net: (wolfResult.totals[p.name] || 0) * betUnit,
-        }));
-        const wolfWinners = wolfPlayers.filter((p) => p.net > 0);
-        const wolfLosers = wolfPlayers.filter((p) => p.net < 0);
-        const totalWolfWin = wolfWinners.reduce((s, p) => s + p.net, 0);
-        if (totalWolfWin > 0) {
-          for (const loser of wolfLosers) {
-            for (const winner of wolfWinners) {
-              const share = winner.net / totalWolfWin;
-              const amount = Math.abs(loser.net) * share;
-              if (amount > 0) {
-                transactions.push({
-                  from: loser.name,
-                  to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
-                  gameType,
-                });
+        if (auxiliaryData?.wolf && Object.keys(auxiliaryData.wolf).length > 0) {
+          // Use actual auxiliary data for accurate wolf settlement
+          const wolfNets: Record<string, number> = {};
+          players.forEach((p) => (wolfNets[p.name] = 0));
+          const wolfOrder = players.map((p) => p.id);
+
+          for (let hole = 1; hole <= course.holes.length; hole++) {
+            const auxHole = auxiliaryData.wolf[hole];
+            if (!auxHole) continue;
+
+            const wolfId = wolfOrder[(hole - 1) % wolfOrder.length];
+            const wolfPlayer = players.find((p) => p.id === wolfId);
+            if (!wolfPlayer) continue;
+
+            const wolfScore = wolfPlayer.scores[hole - 1] || 0;
+            if (wolfScore === 0) continue;
+
+            if (auxHole.isLoneWolf) {
+              // Lone wolf vs field — worth 2× per opponent
+              const opponents = players.filter((p) => p.id !== wolfId);
+              const opponentBest = Math.min(
+                ...opponents.map((p) => p.scores[hole - 1] || 99)
+              );
+              if (wolfScore < opponentBest) {
+                // Wolf wins 2× from each opponent
+                for (const opp of opponents) {
+                  wolfNets[wolfPlayer.name] += 2;
+                  wolfNets[opp.name] -= 2;
+                }
+              } else if (wolfScore > opponentBest) {
+                for (const opp of opponents) {
+                  wolfNets[wolfPlayer.name] -= 2;
+                  wolfNets[opp.name] += 2;
+                }
+              }
+            } else if (auxHole.partnerId) {
+              // Wolf + partner vs other two
+              const partner = players.find((p) => p.id === auxHole.partnerId);
+              if (!partner) continue;
+              const team = [wolfPlayer, partner];
+              const opponents = players.filter(
+                (p) => p.id !== wolfId && p.id !== auxHole.partnerId
+              );
+              const teamBest = Math.min(
+                ...team.map((p) => p.scores[hole - 1] || 99)
+              );
+              const oppBest = Math.min(
+                ...opponents.map((p) => p.scores[hole - 1] || 99)
+              );
+              if (teamBest < oppBest) {
+                for (const opp of opponents) {
+                  for (const tm of team) {
+                    wolfNets[tm.name] += 1;
+                    wolfNets[opp.name] -= 1;
+                  }
+                }
+              } else if (teamBest > oppBest) {
+                for (const opp of opponents) {
+                  for (const tm of team) {
+                    wolfNets[tm.name] -= 1;
+                    wolfNets[opp.name] += 1;
+                  }
+                }
+              }
+            }
+          }
+
+          // Convert nets to transactions
+          const wolfPlayers = players.map((p) => ({
+            name: p.name,
+            net: wolfNets[p.name] * betUnit,
+          }));
+          const wolfWinners = wolfPlayers.filter((p) => p.net > 0);
+          const wolfLosers = wolfPlayers.filter((p) => p.net < 0);
+          const totalWolfWin = wolfWinners.reduce((s, p) => s + p.net, 0);
+          if (totalWolfWin > 0) {
+            for (const loser of wolfLosers) {
+              for (const winner of wolfWinners) {
+                const share = winner.net / totalWolfWin;
+                const amount = Math.abs(loser.net) * share;
+                if (amount > 0) {
+                  transactions.push({
+                    from: loser.name,
+                    to: winner.name,
+                    amount: Math.round(amount * 100) / 100,
+                    gameType,
+                  });
+                }
+              }
+            }
+          }
+        } else {
+          // Fallback: use calculator's approximation
+          const wolfResult = calcWolf(players, course);
+          const wolfPlayers = players.map((p) => ({
+            name: p.name,
+            net: (wolfResult.totals[p.name] || 0) * betUnit,
+          }));
+          const wolfWinners = wolfPlayers.filter((p) => p.net > 0);
+          const wolfLosers = wolfPlayers.filter((p) => p.net < 0);
+          const totalWolfWin = wolfWinners.reduce((s, p) => s + p.net, 0);
+          if (totalWolfWin > 0) {
+            for (const loser of wolfLosers) {
+              for (const winner of wolfWinners) {
+                const share = winner.net / totalWolfWin;
+                const amount = Math.abs(loser.net) * share;
+                if (amount > 0) {
+                  transactions.push({
+                    from: loser.name,
+                    to: winner.name,
+                    amount: Math.round(amount * 100) / 100,
+                    gameType,
+                  });
+                }
               }
             }
           }
@@ -696,21 +790,67 @@ export function calculateSettlement(
 
       case "hammer": {
         // Hammer: head-to-head with doubling bets
-        const hammerResult = calcHammer(players[0], players[1], course);
-        const hammerPlayers = players.map((p) => ({
-          name: p.name,
-          net: (hammerResult.totals[p.name] || 0) * betUnit,
-        }));
-        for (const hp of hammerPlayers) {
-          if (hp.net > 0) {
-            const loser = hammerPlayers.find((p) => p.name !== hp.name);
-            if (loser) {
-              transactions.push({
-                from: loser.name,
-                to: hp.name,
-                amount: Math.abs(hp.net),
-                gameType,
-              });
+        if (auxiliaryData?.hammer && Object.keys(auxiliaryData.hammer).length > 0) {
+          // Use actual hammer data for accurate settlement
+          // Each hammer doubles the stake for that hole; base = betUnit
+          const hammerNets: Record<string, number> = {};
+          players.forEach((p) => (hammerNets[p.name] = 0));
+
+          for (let hole = 1; hole <= course.holes.length; hole++) {
+            const p1 = players[0];
+            const p2 = players[1];
+            const s1 = p1.scores[hole - 1] || 0;
+            const s2 = p2.scores[hole - 1] || 0;
+            if (s1 === 0 || s2 === 0) continue;
+
+            const auxHole = auxiliaryData.hammer[hole];
+            // Multiplier: 2× if hammer was dropped and accepted, else 1×
+            const multiplier =
+              auxHole && auxHole.hammered && auxHole.accepted ? 2 : 1;
+
+            if (s1 < s2) {
+              hammerNets[p1.name] += multiplier;
+              hammerNets[p2.name] -= multiplier;
+            } else if (s2 < s1) {
+              hammerNets[p2.name] += multiplier;
+              hammerNets[p1.name] -= multiplier;
+            }
+          }
+
+          // Convert to transactions
+          for (const p of players) {
+            if (hammerNets[p.name] > 0) {
+              const loser = players.find(
+                (o) => o.name !== p.name && hammerNets[o.name] < 0
+              );
+              if (loser) {
+                transactions.push({
+                  from: loser.name,
+                  to: p.name,
+                  amount: hammerNets[p.name] * betUnit,
+                  gameType,
+                });
+              }
+            }
+          }
+        } else {
+          // Fallback: use calculator's approximation
+          const hammerResult = calcHammer(players[0], players[1], course);
+          const hammerPlayers = players.map((p) => ({
+            name: p.name,
+            net: (hammerResult.totals[p.name] || 0) * betUnit,
+          }));
+          for (const hp of hammerPlayers) {
+            if (hp.net > 0) {
+              const loser = hammerPlayers.find((p) => p.name !== hp.name);
+              if (loser) {
+                transactions.push({
+                  from: loser.name,
+                  to: hp.name,
+                  amount: Math.abs(hp.net),
+                  gameType,
+                });
+              }
             }
           }
         }
@@ -719,17 +859,48 @@ export function calculateSettlement(
 
       case "snake": {
         // Snake: last 3-putter pays everyone
-        const snakeResult = calcSnake(players, course);
-        const snakeHolder = snakeResult.holder;
-        if (snakeHolder) {
-          for (const p of players) {
-            if (p.name !== snakeHolder) {
-              transactions.push({
-                from: snakeHolder,
-                to: p.name,
-                amount: betUnit,
-                gameType,
-              });
+        if (auxiliaryData?.snake && Object.keys(auxiliaryData.snake).length > 0) {
+          // Use actual 3-putt data — last player to 3-putt holds the snake
+          let lastThreePutter: string | null = null;
+
+          for (let hole = 1; hole <= course.holes.length; hole++) {
+            const threePutters = auxiliaryData.snake[hole];
+            if (threePutters && threePutters.length > 0) {
+              // Last person in the array for this hole gets the snake
+              // (if multiple 3-putted, last one listed holds it)
+              lastThreePutter = threePutters[threePutters.length - 1];
+            }
+          }
+
+          if (lastThreePutter) {
+            const holderPlayer = players.find((p) => p.id === lastThreePutter);
+            if (holderPlayer) {
+              for (const p of players) {
+                if (p.id !== lastThreePutter) {
+                  transactions.push({
+                    from: holderPlayer.name,
+                    to: p.name,
+                    amount: betUnit,
+                    gameType,
+                  });
+                }
+              }
+            }
+          }
+        } else {
+          // Fallback: use calculator's approximation
+          const snakeResult = calcSnake(players, course);
+          const snakeHolder = snakeResult.holder;
+          if (snakeHolder) {
+            for (const p of players) {
+              if (p.name !== snakeHolder) {
+                transactions.push({
+                  from: snakeHolder,
+                  to: p.name,
+                  amount: betUnit,
+                  gameType,
+                });
+              }
             }
           }
         }
@@ -738,22 +909,56 @@ export function calculateSettlement(
 
       case "greenies": {
         // Greenies: par-3 closest to pin wins from all others
-        const greenieResult = calcGreenies(players, course);
-        const greenieWinners = Object.entries(greenieResult.totals).filter(
-          ([, v]) => v > 0
-        );
-        for (const [winnerName, wins] of greenieWinners) {
+        if (auxiliaryData?.greenies && Object.keys(auxiliaryData.greenies).length > 0) {
+          // Use actual greenie winners from auxiliary data
+          const greenieWins: Record<string, number> = {};
+          players.forEach((p) => (greenieWins[p.name] = 0));
+
+          for (let hole = 1; hole <= course.holes.length; hole++) {
+            if (course.holes[hole - 1]?.par !== 3) continue;
+            const winnerId = auxiliaryData.greenies[hole];
+            if (winnerId) {
+              const winner = players.find((p) => p.id === winnerId);
+              if (winner) {
+                greenieWins[winner.name] = (greenieWins[winner.name] || 0) + 1;
+              }
+            }
+          }
+
           // Each greenie win = collect betUnit from each other player
-          for (const p of players) {
-            if (p.name !== winnerName) {
-              const amount = (wins as number) * betUnit / (players.length - 1);
-              if (amount > 0) {
-                transactions.push({
-                  from: p.name,
-                  to: winnerName,
-                  amount: Math.round(amount * 100) / 100,
-                  gameType,
-                });
+          for (const [winnerName, wins] of Object.entries(greenieWins)) {
+            if (wins > 0) {
+              for (const p of players) {
+                if (p.name !== winnerName) {
+                  const amount = wins * betUnit;
+                  transactions.push({
+                    from: p.name,
+                    to: winnerName,
+                    amount: Math.round(amount * 100) / 100,
+                    gameType,
+                  });
+                }
+              }
+            }
+          }
+        } else {
+          // Fallback: use calculator's approximation
+          const greenieResult = calcGreenies(players, course);
+          const greenieWinners = Object.entries(greenieResult.totals).filter(
+            ([, v]) => v > 0
+          );
+          for (const [winnerName, wins] of greenieWinners) {
+            for (const p of players) {
+              if (p.name !== winnerName) {
+                const amount = (wins as number) * betUnit / (players.length - 1);
+                if (amount > 0) {
+                  transactions.push({
+                    from: p.name,
+                    to: winnerName,
+                    amount: Math.round(amount * 100) / 100,
+                    gameType,
+                  });
+                }
               }
             }
           }

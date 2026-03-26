@@ -19,6 +19,7 @@ import {
   Lock,
   UserPlus,
   ChevronRight,
+  Info,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
@@ -39,6 +40,8 @@ import {
   isGameImplemented,
   GameType,
   GameTypeInfo,
+  GameConfig,
+  GAME_VARIATIONS,
   Player,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
@@ -78,9 +81,44 @@ export default function NewContestScreen() {
   const [selectedGames, setSelectedGames] = useState<GameType[]>(["stroke_play"]);
   const [betUnit, setBetUnit] = useState("5");
 
-  // Step 3: Wager settings
-  const [carryover, setCarryover] = useState(false);
-  const [pressRules, setPressRules] = useState(false);
+  // Step 3: Wager settings & game variations
+  const [gameConfig, setGameConfig] = useState<GameConfig>({});
+  const [expandedTooltip, setExpandedTooltip] = useState<string | null>(null);
+
+  // Filter variations to only show ones relevant to selected games
+  const applicableVariations = useMemo(
+    () =>
+      GAME_VARIATIONS.filter((v) =>
+        v.appliesTo.some((gameId) => selectedGames.includes(gameId))
+      ),
+    [selectedGames]
+  );
+
+  const valuesMatch = (a: unknown, b: unknown): boolean => {
+    if (a === b) return true;
+    if (Array.isArray(a) && Array.isArray(b))
+      return a.length === b.length && a.every((v, i) => v === b[i]);
+    return JSON.stringify(a) === JSON.stringify(b);
+  };
+
+  const toggleVariation = (variation: typeof GAME_VARIATIONS[number]) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setGameConfig((prev) => {
+      const currentVal = prev[variation.configKey];
+      // If already set to this value, remove it (toggle off)
+      if (valuesMatch(currentVal, variation.configValue)) {
+        const next = { ...prev };
+        delete next[variation.configKey];
+        return next;
+      }
+      // Otherwise set it
+      return { ...prev, [variation.configKey]: variation.configValue };
+    });
+  };
+
+  const isVariationActive = (variation: typeof GAME_VARIATIONS[number]) => {
+    return valuesMatch(gameConfig[variation.configKey], variation.configValue);
+  };
 
   const addPlayer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -129,19 +167,21 @@ export default function NewContestScreen() {
   );
   const incompatibleGames = useMemo(
     () =>
-      ALL_GAMES.filter(
-        (g) => playerCount < g.minPlayers || playerCount > g.maxPlayers
-      ),
+      ALL_GAMES
+        .filter((g) => playerCount < g.minPlayers || playerCount > g.maxPlayers)
+        .sort((a, b) => a.name.localeCompare(b.name)),
     [playerCount]
   );
 
-  // Separate popular vs classic
-  const popularFormats = recommendedGames.filter(
-    (g) => ["stroke_play", "skins", "skins_carry", "nassau", "stableford", "best_ball", "match_play"].includes(g.id)
-  );
-  const classicFormats = recommendedGames.filter(
-    (g) => !["stroke_play", "skins", "skins_carry", "nassau", "stableford", "best_ball", "match_play"].includes(g.id)
-  );
+  // Separate popular vs classic, sort alphabetically within each
+  const sortByName = (a: GameTypeInfo, b: GameTypeInfo) =>
+    a.name.localeCompare(b.name);
+  const popularFormats = recommendedGames
+    .filter((g) => ["stroke_play", "skins", "skins_carry", "nassau", "stableford", "best_ball", "match_play"].includes(g.id))
+    .sort(sortByName);
+  const classicFormats = recommendedGames
+    .filter((g) => !["stroke_play", "skins", "skins_carry", "nassau", "stableford", "best_ball", "match_play"].includes(g.id))
+    .sort(sortByName);
 
   const canProceed = () => {
     if (step === 1) {
@@ -199,6 +239,7 @@ export default function NewContestScreen() {
       teamBName: hasTeams ? teamBName : undefined,
       groups,
       games: selectedGames,
+      gameConfig: Object.keys(gameConfig).length > 0 ? gameConfig : undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -226,7 +267,6 @@ export default function NewContestScreen() {
           opacity: isComingSoon ? 0.5 : 1,
         }}
       >
-        <Text style={{ fontSize: 28 }}>{game.icon}</Text>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <Text style={{ fontFamily: isSelected ? FONTS.bold : FONTS.semibold, fontSize: 15, color: isComingSoon ? COLORS.textDim : COLORS.text }}>
@@ -347,9 +387,14 @@ export default function NewContestScreen() {
             </Text>
 
             {/* Contest Name */}
-            <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 6 }}>
-              CONTEST NAME
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>
+                CONTEST NAME
+              </Text>
+              <Text style={{ fontFamily: FONTS.medium, fontSize: 10, color: COLORS.textDim }}>
+                (optional)
+              </Text>
+            </View>
             <TextInput
               value={contestName}
               onChangeText={setContestName}
@@ -357,6 +402,8 @@ export default function NewContestScreen() {
               placeholderTextColor={COLORS.textDim}
               style={{
                 backgroundColor: COLORS.surfaceLow,
+                borderColor: COLORS.border,
+                borderWidth: 1,
                 borderRadius: RADII.md,
                 paddingHorizontal: 16,
                 paddingVertical: 14,
@@ -433,6 +480,8 @@ export default function NewContestScreen() {
                     onChangeText={setTeamAName}
                     style={{
                       backgroundColor: COLORS.surfaceLow,
+                      borderColor: COLORS.border,
+                      borderWidth: 1,
                       borderRadius: RADII.md,
                       paddingHorizontal: 12,
                       paddingVertical: 10,
@@ -454,6 +503,8 @@ export default function NewContestScreen() {
                     onChangeText={setTeamBName}
                     style={{
                       backgroundColor: COLORS.surfaceLow,
+                      borderColor: COLORS.border,
+                      borderWidth: 1,
                       borderRadius: RADII.md,
                       paddingHorizontal: 12,
                       paddingVertical: 10,
@@ -467,14 +518,21 @@ export default function NewContestScreen() {
             )}
 
             {/* Players */}
-            <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
-              PLAYERS
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>
+                PLAYERS
+              </Text>
+              <Text style={{ fontFamily: FONTS.medium, fontSize: 11, color: validPlayerCount >= 2 ? COLORS.primary : COLORS.gold }}>
+                {validPlayerCount >= 2 ? `${validPlayerCount} ready` : "Min 2 required"}
+              </Text>
+            </View>
             {players.map((player, idx) => (
               <View
                 key={player.id}
                 style={{
                   backgroundColor: COLORS.surfaceMid,
+                  borderColor: COLORS.border,
+                  borderWidth: 1,
                   borderRadius: RADII.lg,
                   padding: 12,
                   marginBottom: 8,
@@ -717,7 +775,6 @@ export default function NewContestScreen() {
                       opacity: 0.4,
                     }}
                   >
-                    <Text style={{ fontSize: 28 }}>{game.icon}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: FONTS.medium, fontSize: 15, color: COLORS.textDim }}>
                         {game.name}
@@ -760,7 +817,7 @@ export default function NewContestScreen() {
                     }}
                   >
                     <Text style={{ fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.primary }}>
-                      {game?.icon} {game?.name}
+                      {game?.name}
                     </Text>
                   </View>
                 );
@@ -788,60 +845,183 @@ export default function NewContestScreen() {
               />
             </View>
 
-            {/* Toggle options */}
-            <View
-              style={{
-                backgroundColor: COLORS.surfaceMid,
-                borderRadius: RADII.lg,
-                padding: 16,
-                marginBottom: 10,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>
-                  Carryover
+            {/* Game Variations */}
+            {applicableVariations.length > 0 && (
+              <View style={{ marginBottom: 20 }}>
+                <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
+                  GAME VARIATIONS
                 </Text>
-                <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
-                  Tied skins carry to next hole
-                </Text>
-              </View>
-              <Switch
-                value={carryover}
-                onValueChange={setCarryover}
-                trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
-                thumbColor={COLORS.text}
-              />
-            </View>
+                {applicableVariations.map((variation) => {
+                  const active = isVariationActive(variation);
+                  const tooltipOpen = expandedTooltip === variation.id;
+                  const tagColor =
+                    variation.tag === "wild"
+                      ? "#ff6b6b"
+                      : variation.tag === "spicy"
+                      ? COLORS.gold
+                      : COLORS.primary;
+                  return (
+                    <View key={variation.id} style={{ marginBottom: 8 }}>
+                      <View
+                        style={{
+                          backgroundColor: active
+                            ? COLORS.primary + "15"
+                            : COLORS.surfaceMid,
+                          borderRadius: RADII.lg,
+                          padding: 14,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 12,
+                        }}
+                      >
+                        {/* Tag indicator */}
+                        <View
+                          style={{
+                            width: 4,
+                            height: 36,
+                            borderRadius: 2,
+                            backgroundColor: tagColor,
+                          }}
+                        />
 
-            <View
-              style={{
-                backgroundColor: COLORS.surfaceMid,
-                borderRadius: RADII.lg,
-                padding: 16,
-                marginBottom: 20,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>
-                  Press Rules
-                </Text>
-                <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
-                  Auto-press when 2 down in Nassau
+                        <View style={{ flex: 1 }}>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontFamily: active
+                                  ? FONTS.bold
+                                  : FONTS.semibold,
+                                fontSize: 14,
+                                color: COLORS.text,
+                              }}
+                            >
+                              {variation.label}
+                            </Text>
+                            <View
+                              style={{
+                                backgroundColor: tagColor + "22",
+                                borderRadius: RADII.md,
+                                paddingHorizontal: 5,
+                                paddingVertical: 1,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontFamily: FONTS.bold,
+                                  fontSize: 9,
+                                  color: tagColor,
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                {variation.tag}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text
+                            style={{
+                              fontFamily: FONTS.regular,
+                              fontSize: 12,
+                              color: COLORS.textDim,
+                              marginTop: 2,
+                            }}
+                          >
+                            {variation.appliesTo
+                              .filter((g) => selectedGames.includes(g))
+                              .map(
+                                (g) =>
+                                  ALL_GAMES.find((ag) => ag.id === g)?.name || g
+                              )
+                              .join(", ")}
+                          </Text>
+                        </View>
+
+                        {/* Info tooltip button */}
+                        <AnimatedPressable
+                          onPress={() =>
+                            setExpandedTooltip(
+                              tooltipOpen ? null : variation.id
+                            )
+                          }
+                          style={{ padding: 4 }}
+                        >
+                          <Info
+                            size={18}
+                            color={
+                              tooltipOpen ? COLORS.primary : COLORS.textDim
+                            }
+                          />
+                        </AnimatedPressable>
+
+                        {/* Toggle */}
+                        <Switch
+                          value={active}
+                          onValueChange={() => toggleVariation(variation)}
+                          trackColor={{
+                            false: COLORS.surfaceHighest,
+                            true: COLORS.primary,
+                          }}
+                          thumbColor={COLORS.text}
+                        />
+                      </View>
+
+                      {/* Expanded tooltip */}
+                      {tooltipOpen && (
+                        <View
+                          style={{
+                            backgroundColor: COLORS.surfaceHigh,
+                            borderRadius: RADII.md,
+                            padding: 12,
+                            marginTop: 4,
+                            borderLeftWidth: 3,
+                            borderLeftColor: COLORS.primary,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: FONTS.regular,
+                              fontSize: 13,
+                              color: COLORS.text,
+                              lineHeight: 19,
+                            }}
+                          >
+                            {variation.desc}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {applicableVariations.length === 0 && (
+              <View
+                style={{
+                  backgroundColor: COLORS.surfaceMid,
+                  borderRadius: RADII.lg,
+                  padding: 16,
+                  marginBottom: 20,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: FONTS.regular,
+                    fontSize: 13,
+                    color: COLORS.textDim,
+                    textAlign: "center",
+                  }}
+                >
+                  No variations available for the selected game modes.
                 </Text>
               </View>
-              <Switch
-                value={pressRules}
-                onValueChange={setPressRules}
-                trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
-                thumbColor={COLORS.text}
-              />
-            </View>
+            )}
 
             {/* Entry Fee */}
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
