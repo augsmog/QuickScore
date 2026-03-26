@@ -163,7 +163,6 @@ export default function GamesScreen() {
                 marginBottom: 12,
               }}
             >
-              {/* icon removed */}
               <View style={{ flex: 1 }}>
                 <Text
                   style={{

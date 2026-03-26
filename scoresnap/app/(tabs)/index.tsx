@@ -382,7 +382,7 @@ export default function HomeScreen() {
                     opacity: implemented ? 1 : 0.55,
                   }}
                 >
-                  <Text style={{ fontSize: 14 }}>{item.icon}</Text>
+                  {/* icon removed */}
                   <Text
                     style={{
                       fontFamily: FONTS.medium,
@@ -517,18 +517,6 @@ export default function HomeScreen() {
                   marginBottom: 16,
                 }}
               >
-                <View
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 14,
-                    backgroundColor: COLORS.bg,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ fontSize: 28 }}>{selectedGame.icon}</Text>
-                </View>
                 <View style={{ flex: 1 }}>
                   <View
                     style={{
