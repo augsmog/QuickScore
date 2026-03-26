@@ -12,7 +12,7 @@
  * Entitlement: "SnapScore Pro" (identifier: "pro")
  */
 
-import { Platform } from "react-native";
+import { Platform, NativeModules } from "react-native";
 import Purchases, {
   PurchasesPackage,
   CustomerInfo,
@@ -28,10 +28,35 @@ const ENTITLEMENT_ID = "SnapScore Pro";
 let isConfigured = false;
 
 /**
+ * Check if RevenueCat native module is available.
+ * Returns false in Expo Go (no native modules) and in environments
+ * where the native SDK isn't linked.
+ */
+function isNativeModuleAvailable(): boolean {
+  try {
+    // RevenueCat registers as "RNPurchases" in the native module bridge
+    return !!(
+      NativeModules.RNPurchases ||
+      NativeModules.PurchasesHybridCommon
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Initialize RevenueCat SDK. Call once on app start.
+ * Gracefully skips in environments where the native module isn't available
+ * (Expo Go, simulators without StoreKit config, etc.).
  */
 export async function initPurchases(userId?: string): Promise<void> {
   if (isConfigured) return;
+
+  // Guard: skip entirely if native module isn't linked (Expo Go)
+  if (!isNativeModuleAvailable()) {
+    console.warn("RevenueCat native module not available (Expo Go?). Skipping purchase init.");
+    return;
+  }
 
   if (__DEV__) {
     Purchases.setLogLevel(LOG_LEVEL.DEBUG);
@@ -78,6 +103,7 @@ function handleCustomerInfoUpdate(info: CustomerInfo): void {
  * Returns the "default" offering configured in RevenueCat.
  */
 export async function getOfferings(): Promise<PurchasesOffering | null> {
+  if (!isConfigured) return null;
   try {
     const offerings = await Purchases.getOfferings();
     return offerings.current;
@@ -114,6 +140,10 @@ export async function getPackages(): Promise<{
 export async function purchasePackage(
   pkg: PurchasesPackage
 ): Promise<boolean> {
+  if (!isConfigured) {
+    console.warn("Purchases not configured — cannot purchase");
+    return false;
+  }
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     const isPro = customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
@@ -133,6 +163,10 @@ export async function purchasePackage(
  * Returns true if Pro entitlement was restored.
  */
 export async function restorePurchases(): Promise<boolean> {
+  if (!isConfigured) {
+    console.warn("Purchases not configured — cannot restore");
+    return false;
+  }
   try {
     const info = await Purchases.restorePurchases();
     const isPro = info.entitlements.active[ENTITLEMENT_ID] !== undefined;
@@ -148,6 +182,7 @@ export async function restorePurchases(): Promise<boolean> {
  * Check if user currently has the Pro entitlement.
  */
 export async function checkProStatus(): Promise<boolean> {
+  if (!isConfigured) return false;
   try {
     const info = await Purchases.getCustomerInfo();
     return info.entitlements.active[ENTITLEMENT_ID] !== undefined;
@@ -160,6 +195,7 @@ export async function checkProStatus(): Promise<boolean> {
  * Get full customer info (for Customer Center and diagnostics).
  */
 export async function getCustomerInfo(): Promise<CustomerInfo | null> {
+  if (!isConfigured) return null;
   try {
     return await Purchases.getCustomerInfo();
   } catch {
@@ -172,6 +208,7 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
  * Call after sign-in with a stable user ID.
  */
 export async function identifyUser(userId: string): Promise<void> {
+  if (!isConfigured) return;
   try {
     await Purchases.logIn(userId);
     const info = await Purchases.getCustomerInfo();
@@ -185,6 +222,7 @@ export async function identifyUser(userId: string): Promise<void> {
  * Log out user (resets to anonymous). Call on sign-out.
  */
 export async function logOutPurchases(): Promise<void> {
+  if (!isConfigured) return;
   try {
     await Purchases.logOut();
   } catch (e) {

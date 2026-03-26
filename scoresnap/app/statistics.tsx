@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { View, Text, ScrollView, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -188,9 +188,9 @@ function computeAnalytics(contests: Contest[]): Analytics {
   // Streak tracking
   let currentStreak = 0, bestStreak = 0, tempStreak = 0;
 
-  // Hole-by-hole stats (18 holes)
-  const holeAccum: { totalScore: number; count: number; par: number; bOB: number; parCount: number; bogCount: number; dbCount: number }[] =
-    Array.from({ length: 18 }, () => ({ totalScore: 0, count: 0, par: 0, bOB: 0, parCount: 0, bogCount: 0, dbCount: 0 }));
+  // Hole-by-hole stats (18 holes) — track cumulative par to handle different courses
+  const holeAccum: { totalScore: number; count: number; totalPar: number; bOB: number; parCount: number; bogCount: number; dbCount: number }[] =
+    Array.from({ length: 18 }, () => ({ totalScore: 0, count: 0, totalPar: 0, bOB: 0, parCount: 0, bogCount: 0, dbCount: 0 }));
 
   for (const round of rounds) {
     for (let i = 0; i < 18; i++) {
@@ -221,10 +221,10 @@ function computeAnalytics(contests: Contest[]): Analytics {
         tempStreak = 0;
       }
 
-      // Hole accumulation
+      // Hole accumulation — sum par per round so avg par adapts across courses
       holeAccum[i].totalScore += score;
       holeAccum[i].count++;
-      holeAccum[i].par = hole.par;
+      holeAccum[i].totalPar += hole.par;
       if (diff <= -1) holeAccum[i].bOB++;
       if (diff === 0) holeAccum[i].parCount++;
       if (diff === 1) holeAccum[i].bogCount++;
@@ -235,7 +235,7 @@ function computeAnalytics(contests: Contest[]): Analytics {
 
   const holeStats: HoleStats[] = holeAccum.map((h) => ({
     avgScore: h.count > 0 ? h.totalScore / h.count : 0,
-    par: h.par,
+    par: h.count > 0 ? Math.round(h.totalPar / h.count) : 0,
     birdieOrBetter: h.bOB,
     pars: h.parCount,
     bogeys: h.bogCount,
@@ -411,16 +411,25 @@ function DistributionBar({
 }
 
 function ScoreHistoryChart({ rounds }: { rounds: RoundData[] }) {
+  const scrollRef = useRef<ScrollView>(null);
   if (rounds.length < 2) return null;
 
-  const recent = rounds.slice(-12); // last 12 rounds
-  const scores = recent.map((r) => r.total);
+  const scores = rounds.map((r) => r.total);
   const min = Math.min(...scores) - 2;
   const max = Math.max(...scores) + 2;
   const range = max - min || 1;
-  const chartW = SCREEN_W - 64;
   const chartH = 120;
-  const stepX = chartW / (recent.length - 1);
+  const DOT_SPACING = 48; // px between data points
+  const visibleW = SCREEN_W - 96; // fits inside card padding
+  const chartW = Math.max(visibleW, (rounds.length - 1) * DOT_SPACING);
+  const stepX = rounds.length > 1 ? chartW / (rounds.length - 1) : chartW;
+
+  // Auto-scroll to end (most recent) after layout
+  const handleLayout = () => {
+    if (chartW > visibleW && scrollRef.current) {
+      scrollRef.current.scrollToEnd({ animated: false });
+    }
+  };
 
   return (
     <View style={{ marginTop: 8 }}>
@@ -439,83 +448,109 @@ function ScoreHistoryChart({ rounds }: { rounds: RoundData[] }) {
             <Text style={{ fontFamily: FONTS.medium, fontSize: 9, color: COLORS.textDim }}>{min}</Text>
           </View>
 
-          {/* Chart area */}
-          <View style={{ flex: 1, height: chartH, position: "relative" }}>
-            {/* Grid lines */}
-            {[0, 0.25, 0.5, 0.75, 1].map((pct) => (
-              <View
-                key={pct}
-                style={{
-                  position: "absolute",
-                  top: pct * chartH,
-                  left: 0,
-                  right: 0,
-                  height: 1,
-                  backgroundColor: COLORS.surfaceHigh,
-                }}
-              />
-            ))}
+          {/* Scrollable chart area */}
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={rounds.length > 8}
+            onLayout={handleLayout}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ width: chartW }}
+          >
+            <View style={{ width: chartW, height: chartH, position: "relative" }}>
+              {/* Grid lines */}
+              {[0, 0.25, 0.5, 0.75, 1].map((pct) => (
+                <View
+                  key={pct}
+                  style={{
+                    position: "absolute",
+                    top: pct * chartH,
+                    left: 0,
+                    right: 0,
+                    height: 1,
+                    backgroundColor: COLORS.surfaceHigh,
+                  }}
+                />
+              ))}
 
-            {/* Data points and lines */}
-            {scores.map((score, i) => {
-              const x = i * stepX;
-              const y = ((max - score) / range) * chartH;
-              const prevScore = i > 0 ? scores[i - 1] : score;
-              const prevY = ((max - prevScore) / range) * chartH;
+              {/* Data points */}
+              {scores.map((score, i) => {
+                const x = i * stepX;
+                const y = ((max - score) / range) * chartH;
 
-              return (
-                <View key={i}>
-                  {/* Dot */}
-                  <View
-                    style={{
-                      position: "absolute",
-                      left: x - 4,
-                      top: y - 4,
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: COLORS.primary,
-                      zIndex: 2,
-                    }}
-                  />
-                  {/* Score label */}
-                  {(i === 0 || i === scores.length - 1 || i % 3 === 0) && (
-                    <Text
+                return (
+                  <View key={i}>
+                    {/* Dot */}
+                    <View
                       style={{
                         position: "absolute",
-                        left: x - 10,
-                        top: y - 18,
-                        fontFamily: FONTS.bold,
-                        fontSize: 9,
-                        color: COLORS.primary,
-                        width: 24,
-                        textAlign: "center",
+                        left: x - 4,
+                        top: y - 4,
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: COLORS.primary,
+                        zIndex: 2,
                       }}
-                    >
-                      {score}
-                    </Text>
-                  )}
-                </View>
-              );
-            })}
-          </View>
+                    />
+                    {/* Score label — show every dot when spacing allows, otherwise every 2nd/3rd */}
+                    {(rounds.length <= 15 || i === 0 || i === scores.length - 1 || i % Math.max(1, Math.floor(rounds.length / 12)) === 0) && (
+                      <Text
+                        style={{
+                          position: "absolute",
+                          left: x - 10,
+                          top: y - 18,
+                          fontFamily: FONTS.bold,
+                          fontSize: 9,
+                          color: COLORS.primary,
+                          width: 24,
+                          textAlign: "center",
+                        }}
+                      >
+                        {score}
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* X-axis labels inside scroll */}
+            <View style={{ position: "absolute", bottom: -18, left: 0, width: chartW, flexDirection: "row" }}>
+              {rounds.map((r, i) => {
+                const showLabel = rounds.length <= 12 || i === 0 || i === rounds.length - 1 || i % Math.max(1, Math.ceil(rounds.length / 8)) === 0;
+                if (!showLabel) return null;
+                const d = new Date(r.date);
+                const x = i * stepX;
+                return (
+                  <Text
+                    key={i}
+                    style={{
+                      position: "absolute",
+                      left: x - 14,
+                      width: 28,
+                      fontFamily: FONTS.medium,
+                      fontSize: 8,
+                      color: COLORS.textDim,
+                      textAlign: "center",
+                    }}
+                  >
+                    {d.getMonth() + 1}/{d.getDate()}
+                  </Text>
+                );
+              })}
+            </View>
+          </ScrollView>
         </View>
 
-        {/* X-axis */}
-        <View style={{ flexDirection: "row", marginLeft: 28, marginTop: 6 }}>
-          {recent.map((r, i) => {
-            if (i !== 0 && i !== recent.length - 1 && recent.length > 6 && i % Math.ceil(recent.length / 4) !== 0)
-              return <View key={i} style={{ flex: 1 }} />;
-            const d = new Date(r.date);
-            return (
-              <View key={i} style={{ flex: 1, alignItems: i === 0 ? "flex-start" : i === recent.length - 1 ? "flex-end" : "center" }}>
-                <Text style={{ fontFamily: FONTS.medium, fontSize: 8, color: COLORS.textDim }}>
-                  {d.getMonth() + 1}/{d.getDate()}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+        {/* Spacer for X-axis labels below the scroll area */}
+        <View style={{ height: 18 }} />
+
+        {rounds.length > 8 && (
+          <Text style={{ fontFamily: FONTS.medium, fontSize: 9, color: COLORS.textDim, textAlign: "center", marginTop: 4 }}>
+            Swipe to see all {rounds.length} rounds
+          </Text>
+        )}
       </View>
     </View>
   );
