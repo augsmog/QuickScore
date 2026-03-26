@@ -106,7 +106,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
     const teeName = selectedTee ? `${selectedCourse.name} (${selectedTee.name})` : selectedCourse.name;
     setDisplayName(teeName);
 
-    if (selectedTee && selectedTee.holes.length >= 18) {
+    if (selectedTee && selectedTee.holes.length > 0) {
       const engineCourse = teeBoxToCourse(selectedCourse.name, selectedTee);
       onSelect(engineCourse, teeName, selectedTee);
     } else {
