@@ -6,14 +6,12 @@ import {
   Pressable,
   Share,
   Alert,
-  Linking,
 } from "react-native";
 import { ChipStack } from "../../../src/ui/animations/ChipStack";
 import { useLocalSearchParams } from "expo-router";
 import {
   Share2,
   CheckCircle,
-  ExternalLink,
   DollarSign,
   ArrowRight,
   FileText,
@@ -127,47 +125,6 @@ export default function SettlementScreen() {
       console.error("Share error:", error);
     }
   }, [contest, settlement]);
-
-  const handleSettleVenmo = useCallback(
-    (fromName: string, amount: number) => {
-      // Venmo deep link: venmo://paycharge?txn=pay&amount=X&note=Y
-      const note = encodeURIComponent(
-        `${contest.name} - ${contest.course.name}`
-      );
-      const url = `venmo://paycharge?txn=pay&amount=${amount}&note=${note}`;
-      Linking.canOpenURL(url).then((supported) => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          Alert.alert(
-            "Venmo Not Installed",
-            "Open Venmo manually to settle up."
-          );
-        }
-      });
-    },
-    [contest]
-  );
-
-  const handleSettleCashApp = useCallback(
-    (amount: number) => {
-      const note = encodeURIComponent(
-        `${contest.name} - ${contest.course.name}`
-      );
-      const url = `cashapp://cash.app/pay?amount=${amount}&note=${note}`;
-      Linking.canOpenURL(url).then((supported) => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          Alert.alert(
-            "Cash App Not Installed",
-            "Open Cash App manually to settle up."
-          );
-        }
-      });
-    },
-    [contest]
-  );
 
   const toggleSettled = useCallback(
     (index: number) => {
@@ -534,93 +491,36 @@ export default function SettlementScreen() {
                   </Text>
                 </View>
 
-                {/* Action buttons */}
-                <View
+                {/* Settle-up check */}
+                <Pressable
+                  onPress={() => toggleSettled(i)}
                   style={{
                     flexDirection: "row",
-                    gap: 8,
+                    alignItems: "center",
+                    gap: 6,
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    borderRadius: RADII.md,
+                    backgroundColor: isSettled
+                      ? COLORS.primary + "22"
+                      : COLORS.surfaceHighest,
+                    alignSelf: "flex-start",
                   }}
                 >
-                  {/* Mark Settled toggle */}
-                  <Pressable
-                    onPress={() => toggleSettled(i)}
+                  <CheckCircle
+                    size={14}
+                    color={isSettled ? COLORS.primary : COLORS.textDim}
+                  />
+                  <Text
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 6,
-                      paddingVertical: 8,
-                      paddingHorizontal: 12,
-                      borderRadius: RADII.md,
-                      backgroundColor: isSettled
-                        ? COLORS.primary + "22"
-                        : COLORS.surfaceHighest,
+                      color: isSettled ? COLORS.primary : COLORS.textDim,
+                      fontFamily: FONTS.semibold,
+                      fontSize: 12,
                     }}
                   >
-                    <CheckCircle
-                      size={14}
-                      color={isSettled ? COLORS.primary : COLORS.textDim}
-                    />
-                    <Text
-                      style={{
-                        color: isSettled ? COLORS.primary : COLORS.textDim,
-                        fontFamily: FONTS.semibold,
-                        fontSize: 12,
-                      }}
-                    >
-                      {isSettled ? "Settled" : "Mark Settled"}
-                    </Text>
-                  </Pressable>
-
-                  {/* Venmo */}
-                  <Pressable
-                    onPress={() => handleSettleVenmo(t.from, t.amount)}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 5,
-                      paddingVertical: 8,
-                      paddingHorizontal: 12,
-                      borderRadius: RADII.md,
-                      backgroundColor: "#3d95ce18",
-                    }}
-                  >
-                    <ExternalLink size={12} color="#3d95ce" />
-                    <Text
-                      style={{
-                        color: "#3d95ce",
-                        fontFamily: FONTS.semibold,
-                        fontSize: 12,
-                      }}
-                    >
-                      Venmo
-                    </Text>
-                  </Pressable>
-
-                  {/* Cash App */}
-                  <Pressable
-                    onPress={() => handleSettleCashApp(t.amount)}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 5,
-                      paddingVertical: 8,
-                      paddingHorizontal: 12,
-                      borderRadius: RADII.md,
-                      backgroundColor: "#00d64b18",
-                    }}
-                  >
-                    <ExternalLink size={12} color="#00d64b" />
-                    <Text
-                      style={{
-                        color: "#00d64b",
-                        fontFamily: FONTS.semibold,
-                        fontSize: 12,
-                      }}
-                    >
-                      Cash App
-                    </Text>
-                  </Pressable>
-                </View>
+                    {isSettled ? "Settled" : "Mark Settled"}
+                  </Text>
+                </Pressable>
               </View>
             );
           })}

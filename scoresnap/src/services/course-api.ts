@@ -36,6 +36,8 @@ export interface CourseSearchResult {
   state: string;
   country: string;
   holes: number; // 9 or 18
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface CourseDetail {
@@ -57,8 +59,12 @@ export interface CourseDetail {
  * Search for courses by name.
  */
 export async function searchCourses(query: string): Promise<CourseSearchResult[]> {
+  if (!query.trim()) return [];
   const apiKey = getApiKey();
-  if (!apiKey || !query.trim()) return [];
+  if (!apiKey) {
+    console.warn("EXPO_PUBLIC_GOLF_COURSE_API_KEY is not set — course search disabled");
+    return [];
+  }
 
   try {
     const res = await fetch(
@@ -66,23 +72,35 @@ export async function searchCourses(query: string): Promise<CourseSearchResult[]
       {
         headers: {
           Authorization: `Key ${apiKey}`,
-          "Content-Type": "application/json",
         },
       }
     );
-    if (!res.ok) return [];
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.error(`Course search HTTP ${res.status}: ${errText}`);
+      return [];
+    }
     const data = await res.json();
 
+    const courseList = Array.isArray(data)
+      ? data
+      : data.courses ?? data.results ?? data.data ?? data.clubs ?? [];
+    if (courseList.length === 0 && typeof data === "object") {
+      console.warn("Course API response keys:", Object.keys(data));
+    }
+
     // Map API response to our interface
-    return (data.courses || []).map((c: any) => {
+    return courseList.map((c: any) => {
       const loc = c.location || {};
       return {
         id: String(c.id),
-        name: c.course_name || c.club_name || c.name || "",
-        city: loc.city || c.city || "",
-        state: loc.state || c.state || c.province || "",
-        country: loc.country || c.country || "",
-        holes: c.holes || c.number_of_holes || 18,
+        name: c.courseName || c.course_name || c.club_name || c.name || "",
+        city: loc.city || c.location?.city || c.city || "",
+        state: loc.state || c.location?.state || c.state || c.province || "",
+        country: loc.country || c.location?.country || c.country || "",
+        holes: c.num_holes || c.holes || c.number_of_holes || 18,
+        latitude: loc.latitude ?? c.latitude ?? null,
+        longitude: loc.longitude ?? c.longitude ?? null,
       };
     });
   } catch (error) {
@@ -102,10 +120,12 @@ export async function getCourseDetail(courseId: string): Promise<CourseDetail | 
     const res = await fetch(`${API_BASE}/courses/${courseId}`, {
       headers: {
         Authorization: `Key ${apiKey}`,
-        "Content-Type": "application/json",
       },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`Course detail HTTP ${res.status}`);
+      return null;
+    }
     const raw = await res.json();
 
     // API wraps response in { course: { ... } }

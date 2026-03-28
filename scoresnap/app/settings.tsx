@@ -300,14 +300,16 @@ export default function SettingsScreen() {
   const handleEditNumber = (title: string, currentValue: number, onSave: (v: number) => void) => {
     Alert.prompt(
       title,
-      `Current: ${currentValue}`,
+      title.includes("Handicap")
+        ? `Current: ${currentValue >= 0 ? currentValue : "+" + Math.abs(currentValue)}\nUse negative numbers for plus handicaps (e.g. -2 for a +2)`
+        : `Current: ${currentValue}`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Save",
           onPress: (text?: string) => {
             const num = parseFloat(text || "0");
-            if (!isNaN(num) && num >= 0) onSave(num);
+            if (!isNaN(num)) onSave(num);
           },
         },
       ],
@@ -495,7 +497,7 @@ export default function SettingsScreen() {
             value={settings.defaultHandicap}
             onPress={() =>
               handleEditNumber("Default Handicap", settings.defaultHandicap, (v) =>
-                settings.updateSetting("defaultHandicap", Math.min(54, Math.max(0, v)))
+                settings.updateSetting("defaultHandicap", Math.min(54, Math.max(-10, v)))
               )
             }
           />

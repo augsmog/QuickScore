@@ -12,6 +12,8 @@ import {
   HelpCircle,
   MapPin,
   ChevronRight,
+  Clock,
+  Trophy,
 } from "lucide-react-native";
 import * as Sentry from "@sentry/react-native";
 import RevenueCatUI from "react-native-purchases-ui";
@@ -506,6 +508,104 @@ export default function ProfileScreen() {
             >
               <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
                 Your course history will appear here after your first round
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* ========== PLAYING HISTORY ========== */}
+        <View style={{ marginBottom: 24 }}>
+          <Text
+            style={{
+              ...TYPOGRAPHY.label,
+              color: COLORS.textDim,
+              marginBottom: 12,
+            }}
+          >
+            PLAYING HISTORY
+          </Text>
+          {contests.filter((c) => c.status === "completed").length > 0 ? (
+            contests
+              .filter((c) => c.status === "completed")
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 10)
+              .map((contest) => {
+                const allPlayers = contest.groups.flatMap((g) => g.players);
+                const gameLabels = contest.games
+                  .slice(0, 2)
+                  .map((g) => g.replace(/_/g, " "))
+                  .join(", ");
+                const extra = contest.games.length > 2 ? ` +${contest.games.length - 2}` : "";
+                const dateStr = new Date(contest.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                });
+
+                return (
+                  <AnimatedPressable
+                    key={contest.id}
+                    onPress={() => router.push(`/contest/${contest.id}`)}
+                    style={{
+                      backgroundColor: COLORS.surfaceLow,
+                      borderRadius: RADII.lg,
+                      padding: 14,
+                      marginBottom: 8,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: RADII.md,
+                        backgroundColor: COLORS.primary + "15",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Trophy size={18} color={COLORS.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontFamily: FONTS.semibold,
+                          fontSize: 14,
+                          color: COLORS.text,
+                          marginBottom: 2,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {contest.course.name}
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: FONTS.regular,
+                          fontSize: 12,
+                          color: COLORS.textDim,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {gameLabels}{extra} · {allPlayers.length} player{allPlayers.length !== 1 ? "s" : ""} · {dateStr}
+                      </Text>
+                    </View>
+                    <ChevronRight size={16} color={COLORS.textDim} />
+                  </AnimatedPressable>
+                );
+              })
+          ) : (
+            <View
+              style={{
+                backgroundColor: COLORS.surfaceLow,
+                borderRadius: RADII.lg,
+                padding: 20,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
+                Completed rounds will appear here
               </Text>
             </View>
           )}

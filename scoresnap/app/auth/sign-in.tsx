@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  Linking,
   KeyboardAvoidingView,
   ScrollView,
 } from "react-native";
@@ -605,22 +606,6 @@ export default function SignInScreen() {
             </View>
           )}
 
-          {/* Skip */}
-          <Pressable
-            onPress={handleSkip}
-            style={{ alignItems: "center", marginTop: 28, padding: 8 }}
-          >
-            <Text
-              style={{
-                fontFamily: FONTS.regular,
-                color: COLORS.textDim,
-                fontSize: 14,
-              }}
-            >
-              Skip for now
-            </Text>
-          </Pressable>
-
           {/* Legal */}
           <Text
             style={{
@@ -628,12 +613,19 @@ export default function SignInScreen() {
               fontSize: 11,
               fontFamily: FONTS.regular,
               textAlign: "center",
-              marginTop: 20,
+              marginTop: 28,
               lineHeight: 16,
               paddingHorizontal: 20,
             }}
           >
-            By continuing, you agree to our Terms of Service and Privacy Policy
+            By continuing, you agree to our{" "}
+            <Text onPress={() => Linking.openURL("https://august-industries.com/snapscore/terms")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
+              Terms of Service
+            </Text>{" "}
+            and{" "}
+            <Text onPress={() => Linking.openURL("https://august-industries.com/snapscore/privacy")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
+              Privacy Policy
+            </Text>
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
