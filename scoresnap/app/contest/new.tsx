@@ -30,6 +30,7 @@ import {
   Contest,
   ContestGroup,
 } from "../../src/stores/contest-store";
+import { useAuthStore } from "../../src/stores/auth-store";
 import CourseSearch from "../../src/ui/CourseSearch";
 import type { Course } from "../../src/engine/types";
 import type { TeeBox } from "../../src/services/course-api";
@@ -62,11 +63,15 @@ interface TeamInput {
 export default function NewContestScreen() {
   const router = useRouter();
   const addContest = useContestStore((s) => s.addContest);
+  const user = useAuthStore((s) => s.user);
 
   const [step, setStep] = useState(1);
 
   // Auto-generate contest name
   const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
+
+  // Auto-populate Player 1 with signed-in user's first name
+  const userFirstName = user?.firstName || user?.name?.split(" ")[0] || "";
 
   // Step 1: Players & Course
   const [contestName, setContestName] = useState("");
@@ -75,7 +80,7 @@ export default function NewContestScreen() {
   const [selectedTeeBox, setSelectedTeeBox] = useState<TeeBox | null>(null);
   const [numGroups, setNumGroups] = useState(1);
   const [players, setPlayers] = useState<PlayerInput[]>([
-    { id: generateId(), name: "", handicap: "0", team: null, groupIndex: 0 },
+    { id: generateId(), name: userFirstName, handicap: "0", team: null, groupIndex: 0 },
     { id: generateId(), name: "", handicap: "0", team: null, groupIndex: 0 },
   ]);
   const [hasTeams, setHasTeams] = useState(false);
@@ -554,12 +559,14 @@ export default function NewContestScreen() {
                 {validPlayerCount >= 2 ? `${validPlayerCount} ready` : "Min 2 required"}
               </Text>
             </View>
-            {players.map((player, idx) => (
+            {players.map((player, idx) => {
+              const nameEmpty = !player.name.trim();
+              return (
               <View
                 key={player.id}
                 style={{
                   backgroundColor: COLORS.surfaceMid,
-                  borderColor: COLORS.border,
+                  borderColor: nameEmpty ? COLORS.warn + "66" : COLORS.border,
                   borderWidth: 1,
                   borderRadius: RADII.lg,
                   padding: 12,
@@ -589,9 +596,18 @@ export default function NewContestScreen() {
                   <TextInput
                     value={player.name}
                     onChangeText={(v) => updatePlayer(player.id, "name", v)}
-                    placeholder={`Player ${idx + 1}`}
-                    placeholderTextColor={COLORS.textDim}
-                    style={{ fontSize: 15, fontFamily: FONTS.medium, color: COLORS.text }}
+                    placeholder={idx === 0 ? "Your name" : `Player ${idx + 1} name`}
+                    placeholderTextColor={nameEmpty ? COLORS.warn : COLORS.textDim}
+                    style={{
+                      fontSize: 15,
+                      fontFamily: FONTS.medium,
+                      color: COLORS.text,
+                      backgroundColor: nameEmpty ? COLORS.warn + "08" : "transparent",
+                      borderRadius: RADII.sm,
+                      paddingHorizontal: nameEmpty ? 8 : 0,
+                      paddingVertical: 2,
+                      marginHorizontal: nameEmpty ? -8 : 0,
+                    }}
                   />
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
                     <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textDim }}>
@@ -718,7 +734,8 @@ export default function NewContestScreen() {
                   </AnimatedPressable>
                 )}
               </View>
-            ))}
+            );
+            })}
 
             <AnimatedPressable
               onPress={addPlayer}
