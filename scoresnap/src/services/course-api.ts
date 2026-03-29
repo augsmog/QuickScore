@@ -4,6 +4,7 @@
  *
  * Future: GHIN integration for automatic handicap posting.
  */
+import * as Sentry from "@sentry/react-native";
 
 const API_BASE = "https://api.golfcourseapi.com/v1";
 
@@ -105,6 +106,7 @@ export async function searchCourses(query: string): Promise<CourseSearchResult[]
     });
   } catch (error) {
     console.error("Course search error:", error);
+    Sentry.captureException(error, { tags: { service: "course-api", action: "search" } });
     return [];
   }
 }
@@ -195,6 +197,7 @@ export async function getCourseDetail(courseId: string): Promise<CourseDetail | 
     };
   } catch (error) {
     console.error("Course detail error:", error);
+    Sentry.captureException(error, { tags: { service: "course-api", action: "detail" } });
     return null;
   }
 }

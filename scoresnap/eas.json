@@ -25,8 +25,6 @@
       "autoIncrement": true,
       "channel": "testflight",
       "env": {
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
-        "SENTRY_ALLOW_FAILURE": "true",
         "EXPO_PUBLIC_GOLF_COURSE_API_KEY": "ADIO3YUTMVD6W6JUTKAKH6MVF4"
       }
     },
@@ -39,6 +37,13 @@
     }
   },
   "submit": {
+    "testflight": {
+      "ios": {
+        "appleId": "jones.augie1@gmail.com",
+        "ascAppId": "6761034352",
+        "appleTeamId": "3357G2T3KS"
+      }
+    },
     "production": {
       "ios": {
         "appleId": "jones.augie1@gmail.com",

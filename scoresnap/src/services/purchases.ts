@@ -13,6 +13,7 @@
  */
 
 import { Platform, NativeModules } from "react-native";
+import * as Sentry from "@sentry/react-native";
 import Purchases, {
   PurchasesPackage,
   CustomerInfo,
@@ -109,6 +110,7 @@ export async function getOfferings(): Promise<PurchasesOffering | null> {
     return offerings.current;
   } catch (e) {
     console.error("Failed to get offerings:", e);
+    Sentry.captureException(e, { tags: { service: "purchases", action: "offerings" } });
     return null;
   }
 }
@@ -154,6 +156,7 @@ export async function purchasePackage(
       return false;
     }
     console.error("Purchase failed:", e);
+    Sentry.captureException(e, { tags: { service: "purchases", action: "purchase" } });
     throw e;
   }
 }
@@ -174,6 +177,7 @@ export async function restorePurchases(): Promise<boolean> {
     return isPro;
   } catch (e) {
     console.error("Restore failed:", e);
+    Sentry.captureException(e, { tags: { service: "purchases", action: "restore" } });
     throw e;
   }
 }

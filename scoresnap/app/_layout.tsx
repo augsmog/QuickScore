@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { Stack, useRouter, useSegments, useNavigationContainerRef } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator } from "react-native";
 import {
@@ -22,26 +22,55 @@ import { initPurchases } from "../src/services/purchases";
 import { COLORS } from "../src/ui/theme";
 import "../global.css";
 import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
 
 SplashScreen.preventAutoHideAsync();
+
+const routingInstrumentation = Sentry.reactNavigationIntegration({
+  enableTimeToInitialDisplay: true,
+});
 
 Sentry.init({
   dsn: 'https://e878c1d1d9a18b64ad7ddc2f6d2b5986@o4511068999385088.ingest.us.sentry.io/4511069003776000',
 
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
+  // Release & environment tracking
+  release: Constants.expoConfig?.version
+    ? `com.scoresnap.app@${Constants.expoConfig.version}`
+    : undefined,
+  dist: Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode?.toString(),
+  environment: __DEV__ ? "development" : "production",
 
-  // Enable Logs
+  sendDefaultPii: true,
   enableLogs: true,
 
-  // Configure Session Replay
+  // Performance tracing — capture 20% of transactions
+  tracesSampleRate: 0.2,
+  enableAutoPerformanceTracing: true,
+  enableAppStartTracking: true,
+  enableStallTracking: true,
+
+  // Session Replay
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
 
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
+  integrations: [
+    Sentry.mobileReplayIntegration(),
+    Sentry.feedbackIntegration(),
+    routingInstrumentation,
+  ],
+
+  // Filter out noise
+  beforeSend(event) {
+    // Don't send events in dev mode unless explicitly testing
+    if (__DEV__ && !event.tags?.["force_send"]) return null;
+    return event;
+  },
+
+  // Breadcrumb filtering — keep navigation, user actions, network
+  beforeBreadcrumb(breadcrumb) {
+    if (breadcrumb.category === "console" && breadcrumb.level === "debug") return null;
+    return breadcrumb;
+  },
 });
 
 function useProtectedRoute() {
@@ -67,6 +96,14 @@ function useProtectedRoute() {
 }
 
 export default Sentry.wrap(function RootLayout() {
+  const ref = useNavigationContainerRef();
+
+  useEffect(() => {
+    if (ref?.current) {
+      routingInstrumentation.registerNavigationContainer(ref);
+    }
+  }, [ref]);
+
   const initialize = useAuthStore((s) => s.initialize);
   const [hydrated, setHydrated] = useState(false);
 
@@ -81,8 +118,8 @@ export default Sentry.wrap(function RootLayout() {
   });
 
   useEffect(() => {
-    initialize().catch(() => {});
-    initPurchases().catch(() => {});
+    initialize().catch((e) => Sentry.captureException(e, { tags: { init: "auth" } }));
+    initPurchases().catch((e) => Sentry.captureException(e, { tags: { init: "purchases" } }));
     const t = setTimeout(() => setHydrated(true), 100);
     return () => clearTimeout(t);
   }, []);

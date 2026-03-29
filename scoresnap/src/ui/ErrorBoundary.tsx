@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { AlertTriangle, RotateCcw } from "lucide-react-native";
+import * as Sentry from "@sentry/react-native";
 import { COLORS } from "./theme";
 
 interface Props {
@@ -23,6 +24,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    Sentry.captureException(error, {
+      contexts: { react: { componentStack: errorInfo.componentStack } },
+    });
     console.error("ErrorBoundary caught:", error, errorInfo);
   }
 
