@@ -48,13 +48,13 @@ export default function ScanScreen() {
   const [facing, setFacing] = useState<"back" | "front">("back");
   const cameraRef = useRef<CameraView>(null);
   const insets = useSafeAreaInsets();
-  const { hasFreeScan, useScan, getRemainingFreeScans, isPro } =
+  const { canScan, useScan, getRemainingFreeScans, isPro } =
     useScanStore();
 
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current) return;
 
-    if (!hasFreeScan()) {
+    if (!canScan()) {
       setPhase("paywall");
       return;
     }
@@ -79,7 +79,7 @@ export default function ScanScreen() {
       setErrorMessage("Failed to capture photo. Please try again.");
       setPhase("error");
     }
-  }, [hasFreeScan]);
+  }, [canScan]);
 
   const handleConfirmPhoto = useCallback(async () => {
     if (!photoUri) return;
@@ -469,8 +469,8 @@ export default function ScanScreen() {
                   }}
                 >
                   {getRemainingFreeScans() > 0
-                    ? `${getRemainingFreeScans()} free scan remaining`
-                    : "No free scans left"}
+                    ? "First scan free"
+                    : "Subscribe for unlimited scans"}
                 </Text>
               </View>
             )}

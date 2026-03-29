@@ -210,7 +210,7 @@ export default function PaywallScreen() {
           {scansUsed > 0 && (
             <View style={{ marginTop: 12, backgroundColor: COLORS.warn + "15", borderColor: COLORS.warn + "33", borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 }}>
               <Text style={{ color: COLORS.warn, fontSize: 12, fontWeight: "600", textAlign: "center" }}>
-                You've used your free scan. Upgrade to keep scanning.
+                Start your 7-day free trial to unlock unlimited scorecard scanning.
               </Text>
             </View>
           )}
