@@ -69,6 +69,9 @@ interface ContestState {
     hole: number,
     data: any
   ) => void;
+
+  // Clear all data (used on sign-out)
+  resetAll: () => void;
 }
 
 export const useContestStore = create<ContestState>()(
@@ -171,6 +174,8 @@ export const useContestStore = create<ContestState>()(
             };
           }),
         })),
+
+      resetAll: () => set({ contests: [], activeContestId: null }),
     }),
     {
       name: "snapscore-contests",

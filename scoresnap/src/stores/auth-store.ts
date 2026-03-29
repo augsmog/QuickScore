@@ -169,12 +169,17 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signOut: () => {
+        // Clear auth state
         set({
           session: null,
           user: null,
           isLoading: false,
           isAnonymous: false,
         });
+        // Clear user-scoped data so next account starts fresh
+        // Import stores lazily to avoid circular dependency
+        const { useContestStore } = require("./contest-store");
+        useContestStore.getState().resetAll();
       },
 
       setSession: (session) => {

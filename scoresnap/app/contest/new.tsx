@@ -600,12 +600,18 @@ export default function NewContestScreen() {
                     <TextInput
                       value={player.handicap}
                       onChangeText={(v) => {
-                        // Allow minus sign, digits, and decimal point
-                        const cleaned = v.replace(/[^0-9.\-]/g, "");
+                        // Allow +, -, digits, and decimal point
+                        // "+" prefix means plus handicap (better than scratch) = stored as negative
+                        const cleaned = v.replace(/[^0-9.+\-]/g, "");
                         updatePlayer(player.id, "handicap", cleaned);
                       }}
                       onBlur={() => {
-                        const num = parseFloat(player.handicap) || 0;
+                        let raw = player.handicap.trim();
+                        // Convert "+2" to "-2" (plus handicap = negative number internally)
+                        if (raw.startsWith("+")) {
+                          raw = "-" + raw.slice(1);
+                        }
+                        const num = parseFloat(raw) || 0;
                         const clamped = Math.min(54, Math.max(-10, num));
                         updatePlayer(player.id, "handicap", String(clamped));
                       }}
