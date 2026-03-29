@@ -276,7 +276,7 @@ export default function SettingsScreen() {
         style: "destructive",
         onPress: () => {
           signOut();
-          router.replace("/auth");
+          router.replace("/auth/sign-in");
         },
       },
     ]);

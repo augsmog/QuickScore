@@ -649,7 +649,7 @@ export default function NewContestScreen() {
                   </View>
                 </View>
 
-                {hasTeams && (
+                {hasTeams && teams.length <= 4 && (
                   <View style={{ flexDirection: "row", gap: 3, flexWrap: "wrap" }}>
                     {teams.map((t) => {
                       const isActive = player.team === t.id;
@@ -674,6 +674,36 @@ export default function NewContestScreen() {
                       );
                     })}
                   </View>
+                )}
+
+                {hasTeams && teams.length > 4 && (
+                  <AnimatedPressable
+                    onPress={() => {
+                      const currentIdx = teams.findIndex((t) => t.id === player.team);
+                      const nextIdx = (currentIdx + 1) % (teams.length + 1);
+                      const nextTeam = nextIdx === teams.length ? null : teams[nextIdx].id;
+                      updatePlayer(player.id, "team", nextTeam);
+                    }}
+                    style={{
+                      minWidth: 36,
+                      height: 28,
+                      borderRadius: RADII.md,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingHorizontal: 8,
+                      backgroundColor: player.team ? COLORS.primary : COLORS.surfaceHighest,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: FONTS.bold,
+                        fontSize: 11,
+                        color: player.team ? COLORS.onPrimary : COLORS.textDim,
+                      }}
+                    >
+                      {player.team || "—"}
+                    </Text>
+                  </AnimatedPressable>
                 )}
 
                 {players.length > 2 && (
