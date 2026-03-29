@@ -1,7 +1,7 @@
 import { View, Text, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Trophy, Zap } from "lucide-react-native";
+import { Trophy, Plus } from "lucide-react-native";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import { useContestStore } from "../../src/stores/contest-store";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
@@ -39,9 +39,9 @@ export default function ContestsScreen() {
             gap: 6,
           }}
         >
-          <Zap size={14} color={COLORS.primary} />
+          <Plus size={14} color={COLORS.primary} />
           <Text style={{ fontFamily: FONTS.bold, fontSize: 13, color: COLORS.primary }}>
-            Live Contest
+            New Contest
           </Text>
         </AnimatedPressable>
       </View>
@@ -54,7 +54,7 @@ export default function ContestsScreen() {
               No contests yet
             </Text>
             <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, textAlign: "center", paddingHorizontal: 32, marginTop: 8 }}>
-              Tap "Live Contest" to create your first scoring contest.
+              Tap "New Contest" to create your first scoring contest.
             </Text>
           </View>
         ) : (

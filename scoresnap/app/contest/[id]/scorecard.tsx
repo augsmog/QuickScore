@@ -32,7 +32,9 @@ import AuxiliaryPrompt, {
   needsAuxiliaryPrompt,
   AuxPromptResult,
 } from "../../../src/ui/AuxiliaryPrompt";
-import { HoleInfo } from "../../../src/engine/types";
+import { HoleInfo, Player } from "../../../src/engine/types";
+import { calcNassauPress } from "../../../src/engine/calculators/nassau-press";
+import { calcSkins } from "../../../src/engine/calculators/skins";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -79,6 +81,69 @@ export default function ScorecardScreen() {
     hcp: 0,
     yards: 0,
   };
+
+  // ── Live game status (Nassau press, skins carryover, etc.) ──
+  const liveGameStatus = useMemo(() => {
+    const statuses: { label: string; detail: string; color: string }[] = [];
+    const players = group.players;
+
+    // Nassau / Nassau Press status
+    if (
+      (contest.games.includes("nassau") || contest.games.includes("nassau_press")) &&
+      players.length >= 2
+    ) {
+      const result = calcNassauPress(players[0], players[1]);
+      const isBack9 = currentHole > 9;
+      const nineStatus = isBack9 ? result.back : result.front;
+      const nineName = isBack9 ? "Back 9" : "Front 9";
+      const leader = nineStatus > 0 ? players[0].name : nineStatus < 0 ? players[1].name : null;
+
+      if (Math.abs(nineStatus) >= 1) {
+        statuses.push({
+          label: `${nineName}: ${leader?.split(" ")[0]} ${Math.abs(nineStatus)} UP`,
+          detail: "",
+          color: COLORS.primary,
+        });
+      }
+
+      if (result.presses.length > 0) {
+        statuses.push({
+          label: `PRESS! (${result.presses.length} active)`,
+          detail: `Started hole ${result.presses[result.presses.length - 1].startHole}`,
+          color: COLORS.warn,
+        });
+      }
+
+      // Detect if press is about to trigger (someone is exactly 2 down)
+      if (Math.abs(nineStatus) === 2 && result.presses.length === 0) {
+        const downPlayer = nineStatus > 0 ? players[1].name : players[0].name;
+        statuses.push({
+          label: `${downPlayer.split(" ")[0]} is 2-DOWN`,
+          detail: "Auto-press triggered!",
+          color: COLORS.error,
+        });
+      }
+    }
+
+    // Skins carryover status
+    if (
+      (contest.games.includes("skins") || contest.games.includes("skins_carry")) &&
+      players.length >= 2
+    ) {
+      const isCarry = contest.games.includes("skins_carry");
+      const result = calcSkins(players, contest.course, isCarry);
+      const carriedSkins = result.skins.filter((s) => s.winner === "Carry").length;
+      if (carriedSkins > 0) {
+        statuses.push({
+          label: `${carriedSkins} skin${carriedSkins > 1 ? "s" : ""} carrying`,
+          detail: `${carriedSkins + 1}x value next win`,
+          color: COLORS.gold,
+        });
+      }
+    }
+
+    return statuses;
+  }, [group.players, currentHole, contest.games, contest.course]);
 
   // ── Score adjustment via +/- buttons ──
   const adjustScore = useCallback(
@@ -352,6 +417,50 @@ export default function ScorecardScreen() {
             </View>
           </View>
         </View>
+
+        {/* Live Game Status Banners */}
+        {liveGameStatus.length > 0 && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 8, gap: 6 }}>
+            {liveGameStatus.map((status, i) => (
+              <Animated.View
+                key={`${status.label}-${i}`}
+                entering={FadeIn.duration(300)}
+                style={{
+                  backgroundColor: status.color + "18",
+                  borderRadius: RADII.md,
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: FONTS.bold,
+                    fontSize: 12,
+                    color: status.color,
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {status.label}
+                </Text>
+                {status.detail ? (
+                  <Text
+                    style={{
+                      fontFamily: FONTS.medium,
+                      fontSize: 11,
+                      color: status.color,
+                      opacity: 0.8,
+                    }}
+                  >
+                    {status.detail}
+                  </Text>
+                ) : null}
+              </Animated.View>
+            ))}
+          </View>
+        )}
 
         {/* Group Selector (if multiple groups) */}
         {contest.groups.length > 1 && (
