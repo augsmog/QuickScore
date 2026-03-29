@@ -18,7 +18,7 @@ export interface Player {
   id: string;
   name: string;
   handicap: number;
-  team?: "A" | "B" | null;
+  team?: string | null; // team ID/name, null = no team
   scores: number[]; // 18 holes, 0 = not yet played
   putts?: number[]; // 18 holes, 0 = not entered (for Snake)
 }
@@ -36,7 +36,7 @@ export interface GamePlayer {
   id: string;
   name: string;
   handicap: number;
-  team?: "A" | "B" | null;
+  team?: string | null;
 }
 
 // All supported game types

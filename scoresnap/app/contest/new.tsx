@@ -50,8 +50,13 @@ interface PlayerInput {
   id: string;
   name: string;
   handicap: string;
-  team: "A" | "B" | null;
+  team: string | null; // team ID, null = no team
   groupIndex: number;
+}
+
+interface TeamInput {
+  id: string;
+  name: string;
 }
 
 export default function NewContestScreen() {
@@ -74,8 +79,31 @@ export default function NewContestScreen() {
     { id: generateId(), name: "", handicap: "0", team: null, groupIndex: 0 },
   ]);
   const [hasTeams, setHasTeams] = useState(false);
-  const [teamAName, setTeamAName] = useState("Eagles");
-  const [teamBName, setTeamBName] = useState("Birdies");
+  const [teams, setTeams] = useState<TeamInput[]>([
+    { id: "A", name: "Eagles" },
+    { id: "B", name: "Birdies" },
+  ]);
+
+  const addTeam = () => {
+    if (teams.length >= 20) return;
+    const letter = String.fromCharCode(65 + teams.length); // C, D, E...
+    setTeams([...teams, { id: letter, name: `Team ${letter}` }]);
+  };
+
+  const removeTeam = (id: string) => {
+    if (teams.length <= 2) return;
+    setTeams(teams.filter((t) => t.id !== id));
+    // Unassign players from removed team
+    setPlayers(players.map((p) => p.team === id ? { ...p, team: null } : p));
+  };
+
+  const updateTeamName = (id: string, name: string) => {
+    setTeams(teams.map((t) => t.id === id ? { ...t, name } : t));
+  };
+
+  // Legacy compat
+  const teamAName = teams[0]?.name || "Eagles";
+  const teamBName = teams[1]?.name || "Birdies";
 
   // Step 2: Games
   const [selectedGames, setSelectedGames] = useState<GameType[]>(["stroke_play"]);
@@ -235,8 +263,9 @@ export default function NewContestScreen() {
       status: "active",
       betUnit: parseFloat(betUnit) || 1,
       hasTeams,
-      teamAName: hasTeams ? teamAName : undefined,
-      teamBName: hasTeams ? teamBName : undefined,
+      teams: hasTeams ? teams.map((t) => ({ id: t.id, name: t.name })) : undefined,
+      teamAName: hasTeams ? teams[0]?.name : undefined,
+      teamBName: hasTeams ? teams[1]?.name : undefined,
       groups,
       games: selectedGames,
       gameConfig: Object.keys(gameConfig).length > 0 ? gameConfig : undefined,
@@ -455,7 +484,7 @@ export default function NewContestScreen() {
                   Team Mode
                 </Text>
                 <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
-                  Split players into two teams
+                  Split players into teams (up to 20)
                 </Text>
               </View>
               <Switch
@@ -467,53 +496,52 @@ export default function NewContestScreen() {
             </View>
 
             {hasTeams && (
-              <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary }} />
-                    <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>
-                      Team A
-                    </Text>
+              <View style={{ marginBottom: 16 }}>
+                {teams.map((t, ti) => (
+                  <View key={t.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <View style={{ width: 28, height: 28, borderRadius: RADII.md, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center" }}>
+                      <Text style={{ fontFamily: FONTS.bold, fontSize: 12, color: COLORS.onPrimary }}>{t.id}</Text>
+                    </View>
+                    <TextInput
+                      value={t.name}
+                      onChangeText={(v) => updateTeamName(t.id, v)}
+                      style={{
+                        flex: 1,
+                        backgroundColor: COLORS.surfaceLow,
+                        borderRadius: RADII.md,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        fontSize: 14,
+                        fontFamily: FONTS.regular,
+                        color: COLORS.text,
+                      }}
+                    />
+                    {teams.length > 2 && (
+                      <AnimatedPressable onPress={() => removeTeam(t.id)} style={{ padding: 4 }}>
+                        <X size={14} color={COLORS.textDim} />
+                      </AnimatedPressable>
+                    )}
                   </View>
-                  <TextInput
-                    value={teamAName}
-                    onChangeText={setTeamAName}
+                ))}
+                {teams.length < 20 && (
+                  <AnimatedPressable
+                    onPress={addTeam}
                     style={{
-                      backgroundColor: COLORS.surfaceLow,
-                      borderColor: COLORS.border,
-                      borderWidth: 1,
-                      borderRadius: RADII.md,
-                      paddingHorizontal: 12,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
                       paddingVertical: 10,
-                      fontSize: 14,
-                      fontFamily: FONTS.regular,
-                      color: COLORS.text,
+                      borderRadius: RADII.md,
+                      backgroundColor: COLORS.surfaceLow,
                     }}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.secondary }} />
-                    <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>
-                      Team B
+                  >
+                    <Plus size={14} color={COLORS.primary} />
+                    <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.primary }}>
+                      Add Team ({teams.length}/20)
                     </Text>
-                  </View>
-                  <TextInput
-                    value={teamBName}
-                    onChangeText={setTeamBName}
-                    style={{
-                      backgroundColor: COLORS.surfaceLow,
-                      borderColor: COLORS.border,
-                      borderWidth: 1,
-                      borderRadius: RADII.md,
-                      paddingHorizontal: 12,
-                      paddingVertical: 10,
-                      fontSize: 14,
-                      fontFamily: FONTS.regular,
-                      color: COLORS.text,
-                    }}
-                  />
-                </View>
+                  </AnimatedPressable>
+                )}
               </View>
             )}
 
@@ -571,13 +599,20 @@ export default function NewContestScreen() {
                     </Text>
                     <TextInput
                       value={player.handicap}
-                      onChangeText={(v) =>
-                        updatePlayer(player.id, "handicap", v)
-                      }
+                      onChangeText={(v) => {
+                        // Allow minus sign, digits, and decimal point
+                        const cleaned = v.replace(/[^0-9.\-]/g, "");
+                        updatePlayer(player.id, "handicap", cleaned);
+                      }}
+                      onBlur={() => {
+                        const num = parseFloat(player.handicap) || 0;
+                        const clamped = Math.min(54, Math.max(-10, num));
+                        updatePlayer(player.id, "handicap", String(clamped));
+                      }}
                       placeholder="0"
                       placeholderTextColor={COLORS.textDim}
-                      keyboardType="numeric"
-                      maxLength={4}
+                      keyboardType="numbers-and-punctuation"
+                      maxLength={5}
                       style={{
                         backgroundColor: COLORS.surfaceHighest,
                         borderRadius: RADII.md,
@@ -585,8 +620,8 @@ export default function NewContestScreen() {
                         paddingVertical: 5,
                         fontSize: 14,
                         fontFamily: FONTS.bold,
-                        color: COLORS.primary,
-                        width: 56,
+                        color: parseFloat(player.handicap) < 0 ? COLORS.gold : COLORS.primary,
+                        width: 60,
                         textAlign: "center",
                       }}
                     />
@@ -615,37 +650,29 @@ export default function NewContestScreen() {
                 </View>
 
                 {hasTeams && (
-                  <View style={{ flexDirection: "row", gap: 4 }}>
-                    <AnimatedPressable
-                      onPress={() => updatePlayer(player.id, "team", "A")}
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: RADII.md,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: player.team === "A" ? COLORS.primary : COLORS.surfaceHighest,
-                      }}
-                    >
-                      <Text style={{ fontFamily: FONTS.bold, fontSize: 12, color: player.team === "A" ? COLORS.onPrimary : COLORS.textDim }}>
-                        A
-                      </Text>
-                    </AnimatedPressable>
-                    <AnimatedPressable
-                      onPress={() => updatePlayer(player.id, "team", "B")}
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: RADII.md,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: player.team === "B" ? COLORS.secondary : COLORS.surfaceHighest,
-                      }}
-                    >
-                      <Text style={{ fontFamily: FONTS.bold, fontSize: 12, color: player.team === "B" ? COLORS.bg : COLORS.textDim }}>
-                        B
-                      </Text>
-                    </AnimatedPressable>
+                  <View style={{ flexDirection: "row", gap: 3, flexWrap: "wrap" }}>
+                    {teams.map((t) => {
+                      const isActive = player.team === t.id;
+                      return (
+                        <AnimatedPressable
+                          key={t.id}
+                          onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}
+                          style={{
+                            minWidth: 28,
+                            height: 28,
+                            borderRadius: RADII.md,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            paddingHorizontal: 6,
+                            backgroundColor: isActive ? COLORS.primary : COLORS.surfaceHighest,
+                          }}
+                        >
+                          <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: isActive ? COLORS.onPrimary : COLORS.textDim }}>
+                            {t.id}
+                          </Text>
+                        </AnimatedPressable>
+                      );
+                    })}
                   </View>
                 )}
 

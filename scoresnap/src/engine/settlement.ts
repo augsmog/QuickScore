@@ -25,6 +25,19 @@ import { calcGreenies } from "./calculators/greenies";
 import { calcShamble } from "./calculators/shamble";
 import { calcBanker } from "./calculators/banker";
 
+/** Group players by team ID. Returns Map<teamId, Player[]> for all non-null teams. */
+function groupByTeam(players: Player[]): Map<string, Player[]> {
+  const teams = new Map<string, Player[]>();
+  for (const p of players) {
+    if (p.team) {
+      const list = teams.get(p.team) || [];
+      list.push(p);
+      teams.set(p.team, list);
+    }
+  }
+  return teams;
+}
+
 /**
  * Calculate settlement transactions for a set of games.
  * Each game type produces transactions based on its own rules.
@@ -153,29 +166,30 @@ export function calculateSettlement(
       case "best_ball": {
         // Team best ball stroke play. Losing team pays betUnit each.
         // Returns StrokePlayResult[] sorted by total (lowest first).
-        // Teams are formed from players by their team property.
-        const teamA = players.filter((p) => p.team === "A");
-        const teamB = players.filter((p) => p.team === "B");
-        if (teamA.length > 0 && teamB.length > 0) {
-          const results = calcBestBall(
-            [
-              { name: "Team A", players: teamA },
-              { name: "Team B", players: teamB },
-            ],
-            course
-          );
+        // Works with 2+ teams — winning team collects from each losing team.
+        const teams = groupByTeam(players);
+        const teamIds = Array.from(teams.keys());
+        if (teamIds.length >= 2) {
+          const teamEntries = teamIds.map((id) => ({
+            name: id,
+            players: teams.get(id)!,
+          }));
+          const results = calcBestBall(teamEntries, course);
           if (results.length >= 2 && results[0].total !== results[1].total) {
-            const winningTeamName = results[0].name;
-            const winners = winningTeamName === "Team A" ? teamA : teamB;
-            const losers = winningTeamName === "Team A" ? teamB : teamA;
-            for (const loser of losers) {
-              for (const winner of winners) {
-                transactions.push({
-                  from: loser.name,
-                  to: winner.name,
-                  amount: betUnit,
-                  gameType,
-                });
+            const winningTeamId = results[0].name;
+            const winners = teams.get(winningTeamId)!;
+            for (const tid of teamIds) {
+              if (tid === winningTeamId) continue;
+              const members = teams.get(tid)!;
+              for (const loser of members) {
+                for (const winner of winners) {
+                  transactions.push({
+                    from: loser.name,
+                    to: winner.name,
+                    amount: betUnit,
+                    gameType,
+                  });
+                }
               }
             }
           }
@@ -261,37 +275,40 @@ export function calculateSettlement(
 
       case "vegas": {
         // VegasResult: { team1Won, team2Won, holes }
-        // team1Won = total points team1 collected, team2Won = total points team2 collected
-        // Net difference divided among players on the team
-        const teamA = players.filter((p) => p.team === "A");
-        const teamB = players.filter((p) => p.team === "B");
-        if (teamA.length === 2 && teamB.length === 2) {
-          const result = calcVegas(teamA, teamB, course);
-          const net = result.team1Won - result.team2Won;
-          if (net > 0) {
-            // Team A won overall — Team B pays
-            const perPlayer = (net * betUnit) / 2;
-            for (const loser of teamB) {
-              for (const winner of teamA) {
-                transactions.push({
-                  from: loser.name,
-                  to: winner.name,
-                  amount: Math.round(perPlayer * 100) / 100,
-                  gameType,
-                });
+        // Vegas requires exactly 2 teams of 2 players each.
+        const teams = groupByTeam(players);
+        const teamIds = Array.from(teams.keys());
+        if (teamIds.length >= 2) {
+          const team1 = teams.get(teamIds[0])!;
+          const team2 = teams.get(teamIds[1])!;
+          if (team1.length === 2 && team2.length === 2) {
+            const result = calcVegas(team1, team2, course);
+            const net = result.team1Won - result.team2Won;
+            if (net > 0) {
+              // Team 1 won overall — Team 2 pays
+              const perPlayer = (net * betUnit) / 2;
+              for (const loser of team2) {
+                for (const winner of team1) {
+                  transactions.push({
+                    from: loser.name,
+                    to: winner.name,
+                    amount: Math.round(perPlayer * 100) / 100,
+                    gameType,
+                  });
+                }
               }
-            }
-          } else if (net < 0) {
-            // Team B won overall — Team A pays
-            const perPlayer = (Math.abs(net) * betUnit) / 2;
-            for (const loser of teamA) {
-              for (const winner of teamB) {
-                transactions.push({
-                  from: loser.name,
-                  to: winner.name,
-                  amount: Math.round(perPlayer * 100) / 100,
-                  gameType,
-                });
+            } else if (net < 0) {
+              // Team 2 won overall — Team 1 pays
+              const perPlayer = (Math.abs(net) * betUnit) / 2;
+              for (const loser of team1) {
+                for (const winner of team2) {
+                  transactions.push({
+                    from: loser.name,
+                    to: winner.name,
+                    amount: Math.round(perPlayer * 100) / 100,
+                    gameType,
+                  });
+                }
               }
             }
           }
@@ -530,37 +547,41 @@ export function calculateSettlement(
 
       case "fourball": {
         // FourBallResult: { team1Names, team2Names, holeResults[], finalStatus }
-        // finalStatus > 0 means team1 won. Winning team collects betUnit per player.
-        const teamA = players.filter((p) => p.team === "A");
-        const teamB = players.filter((p) => p.team === "B");
-        if (teamA.length === 2 && teamB.length === 2) {
-          const result = calcFourBall(
-            [teamA[0], teamA[1]] as [Player, Player],
-            [teamB[0], teamB[1]] as [Player, Player],
-            course
-          );
-          if (result.finalStatus > 0) {
-            // Team A (team1) won
-            for (const loser of teamB) {
-              for (const winner of teamA) {
-                transactions.push({
-                  from: loser.name,
-                  to: winner.name,
-                  amount: betUnit,
-                  gameType,
-                });
+        // finalStatus > 0 means team1 won. Fourball requires exactly 2 teams of 2.
+        const teams = groupByTeam(players);
+        const teamIds = Array.from(teams.keys());
+        if (teamIds.length >= 2) {
+          const team1 = teams.get(teamIds[0])!;
+          const team2 = teams.get(teamIds[1])!;
+          if (team1.length === 2 && team2.length === 2) {
+            const result = calcFourBall(
+              [team1[0], team1[1]] as [Player, Player],
+              [team2[0], team2[1]] as [Player, Player],
+              course
+            );
+            if (result.finalStatus > 0) {
+              // Team 1 won
+              for (const loser of team2) {
+                for (const winner of team1) {
+                  transactions.push({
+                    from: loser.name,
+                    to: winner.name,
+                    amount: betUnit,
+                    gameType,
+                  });
+                }
               }
-            }
-          } else if (result.finalStatus < 0) {
-            // Team B (team2) won
-            for (const loser of teamA) {
-              for (const winner of teamB) {
-                transactions.push({
-                  from: loser.name,
-                  to: winner.name,
-                  amount: betUnit,
-                  gameType,
-                });
+            } else if (result.finalStatus < 0) {
+              // Team 2 won
+              for (const loser of team1) {
+                for (const winner of team2) {
+                  transactions.push({
+                    from: loser.name,
+                    to: winner.name,
+                    amount: betUnit,
+                    gameType,
+                  });
+                }
               }
             }
           }
@@ -570,30 +591,31 @@ export function calculateSettlement(
 
       case "scramble": {
         // calcScramble takes teams: { name, score[] }[], returns StrokePlayResult[] sorted.
-        // Lower total wins. Losers pay betUnit each.
-        const teamA = players.filter((p) => p.team === "A");
-        const teamB = players.filter((p) => p.team === "B");
-        if (teamA.length > 0 && teamB.length > 0) {
+        // Lower total wins. Works with 2+ teams.
+        const teams = groupByTeam(players);
+        const teamIds = Array.from(teams.keys());
+        if (teamIds.length >= 2) {
           // For scramble, use the first player's scores as the team score
-          const results = calcScramble(
-            [
-              { name: "Team A", score: teamA[0].scores },
-              { name: "Team B", score: teamB[0].scores },
-            ],
-            course
-          );
+          const teamEntries = teamIds.map((id) => ({
+            name: id,
+            score: teams.get(id)![0].scores,
+          }));
+          const results = calcScramble(teamEntries, course);
           if (results.length >= 2 && results[0].total !== results[1].total) {
-            const winningTeamName = results[0].name;
-            const winners = winningTeamName === "Team A" ? teamA : teamB;
-            const losers = winningTeamName === "Team A" ? teamB : teamA;
-            for (const loser of losers) {
-              for (const winner of winners) {
-                transactions.push({
-                  from: loser.name,
-                  to: winner.name,
-                  amount: betUnit,
-                  gameType,
-                });
+            const winningTeamId = results[0].name;
+            const winners = teams.get(winningTeamId)!;
+            for (const tid of teamIds) {
+              if (tid === winningTeamId) continue;
+              const members = teams.get(tid)!;
+              for (const loser of members) {
+                for (const winner of winners) {
+                  transactions.push({
+                    from: loser.name,
+                    to: winner.name,
+                    amount: betUnit,
+                    gameType,
+                  });
+                }
               }
             }
           }
@@ -603,29 +625,30 @@ export function calculateSettlement(
 
       case "shamble": {
         // calcShamble takes teams: { name, players[] }[], returns StrokePlayResult[] sorted.
-        // Lower total wins. Losers pay betUnit each.
-        const teamA = players.filter((p) => p.team === "A");
-        const teamB = players.filter((p) => p.team === "B");
-        if (teamA.length > 0 && teamB.length > 0) {
-          const results = calcShamble(
-            [
-              { name: "Team A", players: teamA },
-              { name: "Team B", players: teamB },
-            ],
-            course
-          );
+        // Lower total wins. Works with 2+ teams.
+        const teams = groupByTeam(players);
+        const teamIds = Array.from(teams.keys());
+        if (teamIds.length >= 2) {
+          const teamEntries = teamIds.map((id) => ({
+            name: id,
+            players: teams.get(id)!,
+          }));
+          const results = calcShamble(teamEntries, course);
           if (results.length >= 2 && results[0].total !== results[1].total) {
-            const winningTeamName = results[0].name;
-            const winners = winningTeamName === "Team A" ? teamA : teamB;
-            const losers = winningTeamName === "Team A" ? teamB : teamA;
-            for (const loser of losers) {
-              for (const winner of winners) {
-                transactions.push({
-                  from: loser.name,
-                  to: winner.name,
-                  amount: betUnit,
-                  gameType,
-                });
+            const winningTeamId = results[0].name;
+            const winners = teams.get(winningTeamId)!;
+            for (const tid of teamIds) {
+              if (tid === winningTeamId) continue;
+              const members = teams.get(tid)!;
+              for (const loser of members) {
+                for (const winner of winners) {
+                  transactions.push({
+                    from: loser.name,
+                    to: winner.name,
+                    amount: betUnit,
+                    gameType,
+                  });
+                }
               }
             }
           }
