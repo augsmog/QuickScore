@@ -179,10 +179,6 @@ export default function SignInScreen() {
     }
   };
 
-  const handleSkip = () => {
-    skipSignIn();
-    router.replace("/(tabs)");
-  };
 
   // ─── Render ───
   return (
@@ -606,23 +602,12 @@ export default function SignInScreen() {
             </View>
           )}
 
-          {/* Legal */}
-          <Text
-            style={{
-              color: COLORS.textDim,
-              fontSize: 11,
-              fontFamily: FONTS.regular,
-              textAlign: "center",
-              marginTop: 28,
-              lineHeight: 16,
-              paddingHorizontal: 20,
-            }}
-          >
+          {/* Legal — tappable links (App Store requirement) */}
+          <Text style={{ color: COLORS.textDim, fontSize: 11, fontFamily: FONTS.regular, textAlign: "center", marginTop: 28, lineHeight: 16, paddingHorizontal: 20 }}>
             By continuing, you agree to our{" "}
             <Text onPress={() => Linking.openURL("https://august-industries.com/snapscore/terms")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
               Terms of Service
-            </Text>{" "}
-            and{" "}
+            </Text>{" "}and{" "}
             <Text onPress={() => Linking.openURL("https://august-industries.com/snapscore/privacy")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
               Privacy Policy
             </Text>

@@ -60,8 +60,8 @@ export interface CourseDetail {
  * Search for courses by name.
  */
 export async function searchCourses(query: string): Promise<CourseSearchResult[]> {
-  if (!query.trim()) return [];
   const apiKey = getApiKey();
+  if (!query.trim()) return [];
   if (!apiKey) {
     console.warn("EXPO_PUBLIC_GOLF_COURSE_API_KEY is not set — course search disabled");
     return [];
@@ -83,30 +83,25 @@ export async function searchCourses(query: string): Promise<CourseSearchResult[]
     }
     const data = await res.json();
 
-    const courseList = Array.isArray(data)
-      ? data
-      : data.courses ?? data.results ?? data.data ?? data.clubs ?? [];
+    // The API may return courses under different field names
+    const courseList: any[] =
+      Array.isArray(data) ? data :
+      data.courses ?? data.results ?? data.data ?? data.clubs ?? [];
+
     if (courseList.length === 0 && typeof data === "object") {
       console.warn("Course API response keys:", Object.keys(data));
     }
 
-    // Map API response to our interface
-    return courseList.map((c: any) => {
-      const loc = c.location || {};
-      return {
-        id: String(c.id),
-        name: c.courseName || c.course_name || c.club_name || c.name || "",
-        city: loc.city || c.location?.city || c.city || "",
-        state: loc.state || c.location?.state || c.state || c.province || "",
-        country: loc.country || c.location?.country || c.country || "",
-        holes: c.num_holes || c.holes || c.number_of_holes || 18,
-        latitude: loc.latitude ?? c.latitude ?? null,
-        longitude: loc.longitude ?? c.longitude ?? null,
-      };
-    });
+    return courseList.map((c: any) => ({
+      id: String(c.id),
+      name: c.name || c.club_name || c.courseName || "",
+      city: c.city || c.location?.city || "",
+      state: c.state || c.province || c.location?.state || "",
+      country: c.country || c.location?.country || "",
+      holes: c.holes || c.num_holes || 18,
+    }));
   } catch (error) {
     console.error("Course search error:", error);
-    Sentry.captureException(error, { tags: { service: "course-api", action: "search" } });
     return [];
   }
 }

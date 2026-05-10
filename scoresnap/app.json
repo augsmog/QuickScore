@@ -53,6 +53,7 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-apple-authentication",
+      "react-native-purchases",
       [
         "@sentry/react-native/expo",
         {
