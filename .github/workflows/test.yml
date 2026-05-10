@@ -1,0 +1,52 @@
+name: SnapScore Tests
+
+on:
+  push:
+    branches: [main]
+    paths: ["scoresnap/**"]
+  pull_request:
+    branches: [main]
+    paths: ["scoresnap/**"]
+
+jobs:
+  unit-tests:
+    name: Calculator Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scoresnap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - run: npm ci
+      - run: npx tsx src/engine/__tests__/all-calculators.test.ts
+      - run: npx tsx src/engine/__tests__/comprehensive-scorecard-tests.ts
+
+  e2e-tests:
+    name: Playwright E2E Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scoresnap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npx playwright test --config e2e/playwright.config.ts --reporter=github
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-artifacts
+          path: |
+            scoresnap/test-results/
+            scoresnap/playwright-report/
+          retention-days: 7
