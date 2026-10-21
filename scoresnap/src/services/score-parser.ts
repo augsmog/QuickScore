@@ -67,11 +67,36 @@ export function normalizeScore(raw: string): { value: number; confidence: number
 
 /**
  * Detect if a row of text looks like a par row (values 3-5, consistent).
+ * Par rows must:
+ * - Have 9 or 18 valid values
+ * - All values be in range 3-6 (allowing par 6 occasionally)
+ * - Sum to typical course total (60-78 for 18, 30-39 for 9)
+ * - Not be all the same value (player row of all 4s is not par)
  */
 export function isParRow(values: string[]): boolean {
   const nums = values.map((v) => parseInt(v.trim(), 10)).filter((n) => !isNaN(n));
-  if (nums.length < 6) return false;
-  return nums.every((n) => n >= 3 && n <= 5);
+  
+  // Must have at least 9 values for a full 9 holes
+  if (nums.length < 9) return false;
+  
+  // All values must be in typical par range (3-6)
+  if (!nums.every((n) => n >= 3 && n <= 6)) return false;
+  
+  // Reject rows that are all the same value (e.g., all 4s is a player row, not par)
+  const allSame = nums.every((n) => n === nums[0]);
+  if (allSame) return false;
+  
+  // Check total is in typical course par range
+  const total = nums.reduce((a, b) => a + b, 0);
+  if (nums.length >= 18) {
+    // 18 holes: typical par 70-74, allow 60-78
+    if (total < 60 || total > 78) return false;
+  } else if (nums.length >= 9) {
+    // 9 holes: typical par 35-37, allow 30-39
+    if (total < 30 || total > 39) return false;
+  }
+  
+  return true;
 }
 
 /**
@@ -124,18 +149,34 @@ export function parseScoreGrid(
   for (const row of rows) {
     if (row.length < 3) continue;
 
-    const firstCell = row[0];
-
-    // Check if this is a par row
+    const firstCell = row[0].trim();
     const scoreCells = row.slice(1);
-    if (isParRow(scoreCells) && (
-      firstCell.toLowerCase().includes("par") || isParRow(scoreCells)
-    )) {
+
+    // Check if this is a par row by looking at label first, then values
+    const hasParLabel = firstCell.toLowerCase().includes("par");
+    const valuesLookLikePar = isParRow(scoreCells);
+    
+    if (hasParLabel && valuesLookLikePar) {
+      // Strong match: labeled "Par" and values look like par
       parRow = scoreCells
         .map((v) => parseInt(v.trim(), 10))
         .filter((n) => !isNaN(n));
       holeCount = parRow.length;
       continue;
+    } else if (hasParLabel && !valuesLookLikePar) {
+      // Labeled "Par" but values don't match - skip this row (likely malformed)
+      continue;
+    } else if (!hasParLabel && valuesLookLikePar && parRow.length === 0) {
+      // No label but values look like par and we haven't found par yet
+      // Only accept this if it's in the first few rows (typical scorecard layout)
+      const rowIndex = rows.indexOf(row);
+      if (rowIndex < 5) {
+        parRow = scoreCells
+          .map((v) => parseInt(v.trim(), 10))
+          .filter((n) => !isNaN(n));
+        holeCount = parRow.length;
+        continue;
+      }
     }
 
     // Check if first cell is a player name
@@ -156,7 +197,7 @@ export function parseScoreGrid(
       }
 
       players.push({
-        name: firstCell.trim(),
+        name: firstCell,
         scores,
         confidence,
         nameConfidence: nameConfidence(firstCell),
@@ -165,9 +206,13 @@ export function parseScoreGrid(
     }
   }
 
-  // Default par if not found
+  // Use provided par values if given, otherwise use default
   if (parRow.length === 0) {
-    parRow = [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4];
+    if (parValues && parValues.length > 0) {
+      parRow = parValues;
+    } else {
+      parRow = [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4];
+    }
   }
 
   return { players, parRow, holeCount };

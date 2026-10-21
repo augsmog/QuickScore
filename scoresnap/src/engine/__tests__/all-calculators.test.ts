@@ -824,6 +824,54 @@ assert(parsed.players[0].scores[0] === 4, "Grid: first score = 4");
 assert(parsed.parRow.length >= 9, "Grid: par row detected");
 
 // ═══════════════════════════════════════════════════════════════════
+// REGRESSION TESTS FOR GS-1 & GS-2
+// ═══════════════════════════════════════════════════════════════════
+section("🐛 Regression Tests — GS-1 & GS-2");
+
+// GS-2: A row of all 4s should NOT be detected as par
+const allFoursGrid = [
+  ["Hole", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18"],
+  ["Player A", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4"],
+  ["Par", "4", "5", "4", "3", "4", "3", "4", "5", "4", "4", "4", "3", "5", "4", "5", "3", "4", "4"],
+];
+const parsedAllFours = parseScoreGrid(allFoursGrid);
+assert(parsedAllFours.players.length === 1, "GS-2: All 4s row detected as player");
+assert(parsedAllFours.players[0].name === "Player A", "GS-2: Player name correct");
+assert(parsedAllFours.players[0].scores[0] === 4, "GS-2: Player score is 4");
+assert(parsedAllFours.parRow[0] === 4 && parsedAllFours.parRow[1] === 5, "GS-2: Par row detected correctly");
+assert(!parsedAllFours.parRow.every(p => p === 4), "GS-2: Par row is not all 4s");
+
+// GS-2: A row of all 5s should also NOT be detected as par
+const allFivesGrid = [
+  ["Par", "4", "5", "4", "3", "4", "3", "4", "5", "4", "4", "4", "3", "5", "4", "5", "3", "4", "4"],
+  ["Player B", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5"],
+];
+const parsedAllFives = parseScoreGrid(allFivesGrid);
+assert(parsedAllFives.players.length === 1, "GS-2: All 5s row detected as player");
+assert(parsedAllFives.players[0].name === "Player B", "GS-2: Player name correct (all 5s)");
+assert(parsedAllFives.players[0].scores.every(s => s === 5), "GS-2: All scores are 5");
+assert(parsedAllFives.parRow[0] === 4 && parsedAllFives.parRow[1] === 5, "GS-2: Par detected correctly (not all 5s)");
+
+// GS-2: Test isParRow directly
+assert(isParRow(["4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4"]) === false, "GS-2: isParRow rejects all 4s");
+assert(isParRow(["5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5"]) === false, "GS-2: isParRow rejects all 5s");
+assert(isParRow(["4", "5", "4", "3", "4", "3", "4", "5", "4", "4", "4", "3", "5", "4", "5", "3", "4", "4"]) === true, "GS-2: isParRow accepts valid par");
+assert(isParRow(["3", "4", "5", "4", "3", "4", "3", "4", "5"]) === true, "GS-2: isParRow accepts 9-hole par");
+assert(isParRow(["2", "3", "4"]) === false, "GS-2: isParRow rejects too few values");
+assert(isParRow(["7", "8", "9", "7", "8", "9", "7", "8", "9", "7", "8", "9", "7", "8", "9", "7", "8", "9"]) === false, "GS-2: isParRow rejects non-par values");
+
+// GS-2: Test par detection with typical course totals
+const validParGrid = [
+  ["Par", "4", "5", "4", "3", "4", "3", "4", "5", "4", "4", "4", "3", "5", "4", "5", "3", "4", "4"],
+];
+const parsedValidPar = parseScoreGrid(validParGrid);
+assert(parsedValidPar.parRow.reduce((a, b) => a + b, 0) === 72, "GS-2: Valid par total is 72");
+
+// GS-1: Test that parseError is set for missing scanData (tested in UI component, not here)
+// Note: The review screen component now properly validates scanData and shows error UI
+// This is a UI-level fix that prevents SAMPLE fallback
+
+// ═══════════════════════════════════════════════════════════════════
 // MULTI-GROUP & LARGE FIELD TESTS (up to 40 players)
 // ═══════════════════════════════════════════════════════════════════
 
