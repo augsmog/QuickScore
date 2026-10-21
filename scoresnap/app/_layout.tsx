@@ -73,21 +73,31 @@ Sentry.init({
   },
 });
 
+// Offline mode: skip auth requirement (for web previews, friend testing, local development)
+// Set EXPO_PUBLIC_OFFLINE_MODE=true in .env or environment to enable
+const OFFLINE_MODE = process.env.EXPO_PUBLIC_OFFLINE_MODE === "true" || typeof window !== "undefined";
+
 function useProtectedRoute() {
   const hasCompletedOnboarding = useOnboardingStore(
     (s) => s.hasCompletedOnboarding
   );
-  const { session } = useAuthStore();
+  const { session, skipSignIn } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
+    // In offline mode, auto-create anonymous session and skip auth
+    if (OFFLINE_MODE && hasCompletedOnboarding && !session) {
+      skipSignIn();
+      return;
+    }
+
     const inOnboarding = segments[0] === "onboarding";
     const inAuth = segments[0] === "auth";
 
     if (!hasCompletedOnboarding && !inOnboarding) {
       router.replace("/onboarding");
-    } else if (hasCompletedOnboarding && !session && !inAuth) {
+    } else if (hasCompletedOnboarding && !session && !inAuth && !OFFLINE_MODE) {
       router.replace("/auth/sign-in");
     } else if (hasCompletedOnboarding && session && (inOnboarding || inAuth)) {
       router.replace("/");

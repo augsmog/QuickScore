@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { View, Text, Pressable, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -55,11 +55,22 @@ const slides: SlideData[] = [
 
 const ACCENT_COLORS = slides.map((s) => s.accent);
 
+// Auto-skip onboarding in offline mode for faster testing
+const OFFLINE_MODE = process.env.EXPO_PUBLIC_OFFLINE_MODE === "true" || typeof window !== "undefined";
+
 export default function OnboardingScreen() {
   const router = useRouter();
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
   const scrollRef = useRef<Animated.ScrollView>(null);
   const scrollX = useSharedValue(0);
+
+  // Auto-complete onboarding in offline mode
+  useEffect(() => {
+    if (OFFLINE_MODE) {
+      completeOnboarding();
+      router.replace("/");
+    }
+  }, []);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
