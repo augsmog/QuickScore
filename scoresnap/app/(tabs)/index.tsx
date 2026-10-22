@@ -1,3 +1,4 @@
+import { localDate } from "../../src/utils/local-date";
 import { useState, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, Modal, FlatList, Alert } from "react-native";
 import { useRouter } from "expo-router";
@@ -18,7 +19,13 @@ import { useOnboardingStore } from "../../src/stores/onboarding-store";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const contests = useContestStore((s) => s.contests);
+  const storedContests = useContestStore((s) => s.contests);
+  const demoMode = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
+  // Also hide demo rounds persisted before the explicit isDemo flag existed.
+  const contests = storedContests.filter((c) => demoMode || !(c.isDemo || (
+    c.name === "Sample Round" && c.course.name === "Pine Valley GC" &&
+    c.groups.flatMap((g) => g.players).map((p) => p.name).join(",") === "Mike T.,Dave R.,Chris L.,Jake P."
+  )));
   const addContest = useContestStore((s) => s.addContest);
   const deleteContest = useContestStore((s) => s.deleteContest);
   const activeContests = contests.filter((c) => c.status === "active");
@@ -43,11 +50,11 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    if (!hasSeenDemo) {
+    if (demoMode && !hasSeenDemo) {
       addContest(createSampleContest());
       markDemoSeen();
     }
-  }, []);
+  }, [demoMode, hasSeenDemo, addContest, markDemoSeen]);
 
   const handleQuickStart = () => {
     const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
@@ -461,7 +468,7 @@ export default function HomeScreen() {
                         color: COLORS.textDim,
                       }}
                     >
-                      {contest.createdAt.split("T")[0]} · {playerCount} players
+                      {localDate(contest.createdAt)} · {playerCount} players
                     </Text>
                   </View>
                   <ChevronRight size={16} color={COLORS.textDim} />

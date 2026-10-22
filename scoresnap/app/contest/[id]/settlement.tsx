@@ -144,10 +144,12 @@ export default function SettlementScreen() {
 
   const topWinner = sortedNet[0];
   const runnersUp = sortedNet.slice(1, 3).filter(([, net]) => net > 0);
+  const featuredNames = new Set([...(topWinner && topWinner[1] > 0 ? [topWinner[0]] : []), ...runnersUp.map(([name]) => name)]);
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: COLORS.bg }}
+      testID="settlement-scroll"
+      style={{ flex: 1, minHeight: 0, backgroundColor: COLORS.bg }}
       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
@@ -195,7 +197,7 @@ export default function SettlementScreen() {
 
         {/* Top winner — full-width card */}
         {topWinner && topWinner[1] > 0 && (
-          <View
+          <View testID={`settlement-player-${topWinner[0]}`}
             style={{
               backgroundColor: COLORS.surfaceHigh,
               borderRadius: RADII.xl,
@@ -277,6 +279,7 @@ export default function SettlementScreen() {
             {runnersUp.map(([name, net], idx) => (
               <View
                 key={name}
+                testID={`settlement-player-${name}`}
                 style={{
                   flex: 1,
                   backgroundColor: COLORS.surfaceMid,
@@ -339,9 +342,10 @@ export default function SettlementScreen() {
         )}
 
         {/* Remaining players (losers / even) */}
-        {sortedNet.slice(runnersUp.length + 1).map(([name, net]) => (
+        {sortedNet.filter(([name]) => !featuredNames.has(name)).map(([name, net]) => (
           <View
             key={name}
+            testID={`settlement-player-${name}`}
             style={{
               flexDirection: "row",
               justifyContent: "space-between",

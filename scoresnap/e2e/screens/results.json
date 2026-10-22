@@ -1,9 +1,14 @@
 {
-  "base": "http://localhost:8089",
+  "base": "http://127.0.0.1:8089",
   "results": [
     {
       "ok": true,
       "name": "Home screen renders from real web build",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Home has no implicit demo round",
       "detail": ""
     },
     {
@@ -18,8 +23,8 @@
     },
     {
       "ok": true,
-      "name": "Parser found exactly 2 players",
-      "detail": "[\"Augie\",\"Sam\"]"
+      "name": "Parser found exactly 4 players",
+      "detail": "[\"Augie\",\"Sam\",\"Lee\",\"Pat\"]"
     },
     {
       "ok": true,
@@ -33,7 +38,12 @@
     },
     {
       "ok": true,
-      "name": "Review screen shows both parsed players",
+      "name": "All four players have 18 scored holes",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Review screen shows parsed players",
       "detail": ""
     },
     {
@@ -44,11 +54,41 @@
     {
       "ok": true,
       "name": "Confirm returns to the contest",
-      "detail": "http://localhost:8089/contest/1792627275475-bp76ect"
+      "detail": "http://127.0.0.1:8089/contest/1792635866066-jn88vqw"
     },
     {
       "ok": true,
-      "name": "Leaderboard shows real totals (Augie 81, Sam 72)",
+      "name": "Leaderboard shows all four real totals (81, 72, 90, 108)",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Skins leaderboard contains calculated results",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Nassau leaderboard contains front, back and overall results",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement row fully reachable: Augie",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement row fully reachable: Sam",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement row fully reachable: Lee",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement row fully reachable: Pat",
       "detail": ""
     },
     {

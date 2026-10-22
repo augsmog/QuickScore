@@ -18,7 +18,7 @@ const check = (ok, name, detail = "") => {
 };
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 430, height: 932 } });
+const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(e.message));
 
@@ -35,12 +35,17 @@ const bodyText = () => page.innerText("body");
 await page.goto(BASE + "/", { waitUntil: "networkidle" });
 await vis(page.getByText(/^new contest$/i)).first().waitFor();
 check(/Precision Scoring/i.test(await bodyText()), "Home screen renders from real web build");
+check(!/Sample Round/.test(await bodyText()), "Home has no implicit demo round");
 await shot("01-home.png");
 
-// 2. Create a contest (Augie + Sam, Skins + Nassau)
+// 2. Create a foursome (Stroke Play + Skins + Nassau)
 await vis(page.getByText(/^new contest$/i)).first().click();
 await page.getByPlaceholder("Your name").fill("Augie");
 await page.getByPlaceholder("Player 2 name").fill("Sam");
+for (const [index, name] of [[3, "Lee"], [4, "Pat"]]) {
+  await vis(page.getByText(/add player/i)).first().click();
+  await page.getByPlaceholder(`Player ${index} name`).fill(name);
+}
 await shot("02-new-contest-players.png");
 await vis(page.getByText(/^next/i)).last().click();
 for (const g of ["Skins", "Nassau"]) await vis(page.getByText(g, { exact: true })).first().click();
@@ -60,6 +65,8 @@ const scorecard = [
   "Par,4,5,4,3,4,3,4,5,4,4,4,3,5,4,5,3,4,4",
   "Augie,5,6,4,3,5,4,4,6,5,4,5,3,6,4,5,3,5,4",
   "Sam,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+  "Lee,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5",
+  "Pat,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6",
 ].join("\n");
 await page.goto(`${BASE}/scan?contestId=${contestId}`, { waitUntil: "networkidle" });
 await page.getByTestId("scorecard-text-input").waitFor();
@@ -78,10 +85,11 @@ const reviewUrl = new URL(page.url());
 const scanData = JSON.parse(reviewUrl.searchParams.get("scanData") || "[]");
 const sam = scanData.find((p) => p.name === "Sam");
 const augie = scanData.find((p) => p.name === "Augie");
-check(scanData.length === 2, "Parser found exactly 2 players", JSON.stringify(scanData.map((p) => p.name)));
+check(scanData.length === 4, "Parser found exactly 4 players", JSON.stringify(scanData.map((p) => p.name)));
 check(sam && sam.scores.length === 18 && sam.scores.every((s) => s === 4), "GS-2: all-4s row is parsed as player Sam (18 x 4), not as par");
 check(augie && augie.scores.reduce((a, b) => a + b, 0) === 81, "Augie's real scores parsed (total 81)", augie ? String(augie.scores) : "missing");
-check(/Sam/.test(reviewText) && /Augie/.test(reviewText), "Review screen shows both parsed players");
+check(scanData.every(p => p.scores.length === 18 && p.scores.every(s => s > 0)), "All four players have 18 scored holes");
+check(/Sam/.test(reviewText) && /Augie/.test(reviewText), "Review screen shows parsed players");
 check(!/Thompson|Chris L|J\. Parks|D\.R\./.test(reviewText), "GS-1: review shows no old sample players");
 await shot("07-review-parsed-scorecard.png");
 
@@ -92,10 +100,24 @@ await page.waitForTimeout(2500);
 check(page.url().startsWith(contestUrl), "Confirm returns to the contest", page.url());
 await shot("08-contest-leaderboard.png");
 const lb = await bodyText();
-check(/81/.test(lb) && /72/.test(lb), "Leaderboard shows real totals (Augie 81, Sam 72)");
+check(["81", "72", "90", "108"].every(total => lb.includes(total)), "Leaderboard shows all four real totals (81, 72, 90, 108)");
 for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "10-games.png"], [/^settlement$/i, "11-settlement.png"]]) {
   await vis(page.getByText(tab)).first().click();
   await page.waitForTimeout(1500);
+  if (file === "10-games.png") {
+    const games = await bodyText();
+    check(/Skins/.test(games) && /\d+ skins/.test(games), "Skins leaderboard contains calculated results");
+    check(/Nassau/.test(games) && /Front 9/.test(games) && /Back 9/.test(games) && /Overall/.test(games) && /\d+ up/.test(games), "Nassau leaderboard contains front, back and overall results");
+  }
+  if (file === "11-settlement.png") {
+    for (const name of ["Augie", "Sam", "Lee", "Pat"]) {
+      const row = page.getByTestId(`settlement-player-${name}`);
+      await row.scrollIntoViewIfNeeded();
+      const box = await row.boundingBox();
+      check(box && box.y >= 0 && box.y + box.height <= 844, `Settlement row fully reachable: ${name}`);
+    }
+    await page.getByTestId("settlement-scroll").evaluate(el => { el.scrollTop = 0; });
+  }
   await shot(file);
 }
 check(/\$/.test(await bodyText()), "Settlement screen shows money results");

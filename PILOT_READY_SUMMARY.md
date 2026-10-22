@@ -13,7 +13,7 @@
 
 ### 2. Complete Game Implementation
 - ✅ **All 29 side games fully implemented**
-- ✅ 755 engine tests passing (+129 scorecard scenario checks)
+- ✅ 761 engine checks passing (+129 scorecard scenario checks); Jest runs these suites plus 3 local-date cases
 - ✅ Zero-sum settlement validation
 - ✅ Multi-game concurrent support (run 2-8 games at once)
 - ✅ Per-hole progressive calculation
@@ -50,19 +50,19 @@ Real screenshots of the exported web build, driven by Playwright (`scoresnap/e2e
 | File | What it shows |
 |------|---------------|
 | `01-home.png` | Home screen of the running web build |
-| `02-new-contest-players.png` | New Contest step 1 (players Augie, Sam) |
+| `02-new-contest-players.png` | New Contest step 1 (players Augie, Sam, Lee, Pat) |
 | `03-new-contest-games.png` | Step 2 game selection (Stroke Play, Skins, Nassau) |
 | `04-contest-created-empty.png` | New contest with no scores (no sample data) |
 | `05-scan-empty-error.png` | Web scorecard entry rejects empty input |
 | `06-scan-text-entered.png` | Scorecard pasted as text (Sam's row is all 4s) |
-| `07-review-parsed-scorecard.png` | Review screen with parser output: Augie 81, Sam 72 (GS-2) |
+| `07-review-parsed-scorecard.png` | Review screen with parser output: four players with 18 holes each; Augie 81, Sam 72 (GS-2) |
 | `08-contest-leaderboard.png` | Leaderboard after import |
 | `09-scorecard.png` | Hole-by-hole scorecard |
 | `10-games.png` | Game results (Stroke Play, Skins, Nassau) |
 | `11-settlement.png` | Settlement ledger |
 | `12`–`14-gs1-*.png` | Review screen with missing / malformed / empty scan data shows an error, never sample players (GS-1) |
 
-`results.json` in the same folder lists every automated check.
+`results.json` in the same folder lists every automated check. Screenshots are 390×844 and cover four players across 18 holes.
 
 ---
 
@@ -196,7 +196,16 @@ Build and share via TestFlight/Play Store internal testing.
 ## 🐛 Known Issues / Blockers
 
 ### Critical (Blocks Pilot)
-**None.** All core functionality works.
+The offline web flow passes automated checks; this does not establish native camera, live backend, or every game/UI combination as pilot-ready.
+
+**Owner decision pending:** Skins gross vs net scoring remains unresolved. This change deliberately leaves the scoring rules untouched; confirm the intended rule before relying on payouts.
+
+### Verified fixes (2026-10-21)
+- Four-player, 18-hole real-app flow at **390×844** covers contest creation, scorecard import, leaderboard, Skins/Nassau results, and settlement. Every player row is reachable without clipping, and the settlement screenshot shows all four players.
+- Home formats stored timestamps as local calendar dates; three timezone/boundary cases cover the UTC date regression.
+- Sample Round requires `EXPO_PUBLIC_DEMO_MODE=true`, independently of offline mode. Previously saved demo rounds are hidden on Home when demo mode is off.
+- CI workflow `.github/workflows/web-smoke.yml` runs Jest, exports the offline web app, serves it with SPA fallback, and runs Chromium checks on pushes and pull requests. Build failures, failed checks, and uncaught page errors fail the job. CI itself has not been run remotely (no push authorized).
+- Local verification: **6 Jest tests passed**, covering **890 existing engine/parser assertions + 3 date cases**; web export passed. Browser verification passed **23/23 checks**, with no uncaught page errors; results are recorded in `scoresnap/e2e/screens/results.json`.
 
 ### Minor (Nice to Have)
 1. **Camera scanning web:** Not supported by Expo (architectural limitation)
@@ -309,7 +318,7 @@ Build and share via TestFlight/Play Store internal testing.
 
 ✅ All core features work  
 ✅ All 29 games implemented  
-✅ 755 engine tests passing (+129 scorecard scenario checks)  
+✅ 761 engine checks passing (+129 scorecard scenario checks); Jest runs these suites plus 3 local-date cases
 ✅ Web preview mode (no auth)  
 ✅ Deployment docs complete  
 ✅ Real-app screenshots captured (Playwright, web build)  

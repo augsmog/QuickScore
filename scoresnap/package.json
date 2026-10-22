@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "jest"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -53,6 +54,8 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "eas-cli": "^18.4.0",
+    "jest": "^30.5.2",
+    "playwright": "^1.64.1",
     "tsx": "^4.21.0",
     "typescript": "~5.9.2"
   },

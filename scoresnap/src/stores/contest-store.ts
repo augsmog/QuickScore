@@ -31,6 +31,7 @@ export interface Contest {
   gameConfig?: GameConfig;
   createdAt: string;
   auxiliaryData?: AuxiliaryData;
+  isDemo?: boolean;
 }
 
 interface ContestState {
@@ -226,6 +227,7 @@ export function createSampleContest(): Contest {
   return {
     id: generateId(),
     name: "Sample Round",
+    isDemo: true,
     course: defaultCourse("Pine Valley GC"),
     status: "completed",
     betUnit: 5,

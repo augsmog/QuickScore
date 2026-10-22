@@ -1,19 +1,31 @@
 # Web real-app check (Playwright)
 
-Drives the real exported web build — not a mockup — and saves screenshots plus `results.json`.
+Drives the offline exported Expo app and saves 390×844 screenshots plus `results.json`.
+
+From the repository root:
 
 ```bash
 cd scoresnap
+npm ci
+npm test -- --runInBand
 EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web
-npx serve -s dist-web -l 8089            # any static server with SPA fallback
-# playwright is not a project dependency; run from a folder where it is installed:
-#   npm i playwright && npx playwright install chromium
-BASE_URL=http://localhost:8089 OUT_DIR=e2e/screens node e2e/web-real-flow.mjs
+npx playwright install chromium
+node e2e/serve.mjs  # keep running in a separate terminal; stop it after testing
 ```
 
-Flow covered: home → create contest (Augie, Sam; Stroke Play + Skins + Nassau) → Scan screen
-"Enter scorecard as text" (Sam's row is all 4s) → review of parser output → confirm → leaderboard,
-scorecard, games, settlement → GS-1 checks (review with missing/malformed/empty scan data shows an
-error, never sample players).
+In a second terminal, from the repository root:
 
-`screens/` holds the screenshots from the run on 2026-10-21 (15/15 checks passed).
+```bash
+BASE_URL=http://127.0.0.1:8089 OUT_DIR=scoresnap/e2e/screens node scoresnap/e2e/web-real-flow.mjs
+```
+
+Flow: Home without implicit demo → create contest (Augie, Sam, Lee, Pat;
+Stroke Play + Skins + Nassau) → empty-text validation → paste 18-hole scorecard
+(Sam's all-4s row regression) → review → import → four-player leaderboard →
+scorecard → calculated Skins/Nassau results → settlement with all four player rows
+fully reachable → missing/malformed/empty review-data errors.
+
+Any failed check, uncaught page error, or thrown browser action exits nonzero.
+CI runs the same flow in `.github/workflows/web-smoke.yml` and uploads screenshots.
+Demo data is a separate opt-in: `EXPO_PUBLIC_DEMO_MODE=true`; offline mode alone
+never enables it. Skins scoring rules are unchanged pending the owner's decision.
