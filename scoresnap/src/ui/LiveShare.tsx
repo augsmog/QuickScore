@@ -4,7 +4,7 @@ import { createLiveLink, revokeLiveLinks, publishSnapshot } from '../services/li
 import { useContestStore, type Contest } from '../stores/contest-store';
 import { HostChat } from './LiveChat';
 import { COLORS } from './theme';
-export function LiveShare({ contest }: { contest: Contest }) {
+export function LiveShare({ contest, onLinkChange }: { contest: Contest; onLinkChange?: (url?: string) => void }) {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -21,6 +21,7 @@ export function LiveShare({ contest }: { contest: Contest }) {
       if (revoke) {
         await revokeLiveLinks(contest.id);
         useContestStore.getState().updateContest(contest.id, { liveShareEnabled: false });
+        onLinkChange?.();
         setMessage('All live links revoked.');
       } else {
         const origin = Platform.OS === 'web' ? window.location.origin : process.env.EXPO_PUBLIC_WEB_URL;
@@ -28,6 +29,7 @@ export function LiveShare({ contest }: { contest: Contest }) {
         const token = await createLiveLink(contest);
         useContestStore.getState().updateContest(contest.id, { liveShareEnabled: true });
         const url = `${origin.replace(/\/$/, '')}/r/${token}`;
+        onLinkChange?.(url);
         if (Platform.OS === 'web' && navigator.clipboard) await navigator.clipboard.writeText(url);
         else await Share.share({ message: url });
         setMessage('Live link copied / shared. Anyone with the link can view names and scores and chat with a display name. Expires 7 days after the round ends.');

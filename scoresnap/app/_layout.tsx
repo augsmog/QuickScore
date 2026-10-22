@@ -85,6 +85,8 @@ function useProtectedRoute() {
   const router = useRouter();
 
   useEffect(() => {
+    if (__DEV__ && segments[0] === "dev") return;
+
     // In offline mode, auto-create anonymous session and skip auth
     if (OFFLINE_MODE && hasCompletedOnboarding && !session) {
       skipSignIn();
