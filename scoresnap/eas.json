@@ -24,16 +24,12 @@
       },
       "autoIncrement": true,
       "channel": "testflight",
-      "env": {
-        "EXPO_PUBLIC_GOLF_COURSE_API_KEY": "ADIO3YUTMVD6W6JUTKAKH6MVF4"
-      }
+      "environment": "production"
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "env": {
-        "EXPO_PUBLIC_GOLF_COURSE_API_KEY": "ADIO3YUTMVD6W6JUTKAKH6MVF4"
-      }
+      "environment": "production"
     }
   },
   "submit": {
