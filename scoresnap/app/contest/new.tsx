@@ -519,6 +519,7 @@ export default function NewContestScreen() {
                 </Text>
               </View>
               <Switch
+                testID="team-mode"
                 value={hasTeams}
                 onValueChange={setHasTeams}
                 trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
@@ -706,6 +707,7 @@ export default function NewContestScreen() {
                       return (
                         <AnimatedPressable
                           key={t.id}
+                          testID={`player-team-${player.name}-${t.id}`}
                           onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}
                           style={{
                             minWidth: 28,

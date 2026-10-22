@@ -1,0 +1,36 @@
+{
+  "id": "empty-2",
+  "category": "malformed",
+  "expected": {
+    "players": [],
+    "holeCount": 18,
+    "parRow": [
+      4,
+      5,
+      4,
+      3,
+      4,
+      3,
+      4,
+      5,
+      4,
+      4,
+      4,
+      3,
+      5,
+      4,
+      5,
+      3,
+      4,
+      4
+    ]
+  },
+  "grid": [
+    [
+      "Hole",
+      "1",
+      "2"
+    ]
+  ],
+  "expectedError": "No players found"
+}

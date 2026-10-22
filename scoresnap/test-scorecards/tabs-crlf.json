@@ -1,0 +1,53 @@
+{
+  "id": "tabs-crlf",
+  "category": "text",
+  "expected": {
+    "players": [
+      {
+        "name": "Alice",
+        "scores": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ]
+      }
+    ],
+    "holeCount": 18,
+    "parRow": [
+      4,
+      5,
+      4,
+      3,
+      4,
+      3,
+      4,
+      5,
+      4,
+      4,
+      5,
+      4,
+      3,
+      4,
+      3,
+      4,
+      5,
+      4
+    ]
+  },
+  "text": "Par\t4\t5\t4\t3\t4\t3\t4\t5\t4\t4\t5\t4\t3\t4\t3\t4\t5\t4\r\nAlice\t4\t4\t4\t4\t4\t4\t4\t4\t4\t4\t4\t4\t4\t4\t4\t4\t4\t4"
+}
