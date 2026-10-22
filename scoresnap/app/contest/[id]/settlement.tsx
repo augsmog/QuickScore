@@ -641,6 +641,7 @@ export default function SettlementScreen() {
         <Text style={{ ...TYPOGRAPHY.headline, color: COLORS.text }}>Recap card</Text>
         <RecapCard model={buildRecapModel(settlement, {
           title: contest.name, course: contest.course.name, games: contest.games,
+          scorecard: { course: contest.course, players: allPlayers },
           gameConfig: contest.gameConfig, completed: contest.status === "completed",
           liveUrl: contest.liveShareEnabled ? liveUrl : undefined,
         })} />

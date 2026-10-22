@@ -15,9 +15,12 @@ export function RecapCard({ model }: { model: RecapModel }) {
       {!!model.winner && <Text style={styles.amount}>{model.winner.amount}{model.winners.length > 1 ? ' each' : ''}</Text>}
       {!model.completed && <Text style={styles.muted}>Current standings · results may change</Text>}
     </View>
-    <Text style={styles.eyebrow}>NET RESULTS</Text>
+    <Text style={styles.eyebrow}>SCORES & NET $</Text>
     {model.players.map(player => <View key={player.name} style={styles.row}>
-      <Text style={styles.name}>{player.name}</Text>
+      <View style={styles.player}>
+        <Text style={styles.name}>{player.name}</Text>
+        <Text style={styles.muted}>{player.scoreLabel}</Text>
+      </View>
       <Text style={[styles.net, { color: player.net > 0 ? COLORS.primary : player.net < 0 ? COLORS.error : COLORS.textDim }]}>{player.amount}</Text>
     </View>)}
     {!!model.lines.length && <View style={styles.games}>{model.lines.map(line => <Text key={line} style={styles.result}>{line}</Text>)}</View>}
@@ -35,7 +38,8 @@ const styles = StyleSheet.create({
   trophy: { fontSize: 36 }, winner: { color: COLORS.text, fontFamily: FONTS.headline, fontSize: 24, textAlign: 'center' },
   amount: { color: COLORS.primary, fontFamily: FONTS.headline, fontSize: 44 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.textDim + '33' },
-  name: { color: COLORS.text, fontFamily: FONTS.medium, fontSize: 15, flex: 1 }, net: { fontFamily: FONTS.bold, fontSize: 16 },
+  player: { flex: 1, minWidth: 0, gap: 3 },
+  name: { color: COLORS.text, fontFamily: FONTS.medium, fontSize: 15 }, net: { fontFamily: FONTS.bold, fontSize: 16, flexShrink: 0 },
   games: { paddingVertical: 10, gap: 8 }, result: { color: COLORS.text, fontFamily: FONTS.regular, fontSize: 12, lineHeight: 19 },
   link: { color: COLORS.primary, fontFamily: FONTS.medium, fontSize: 12, textDecorationLine: 'underline' },
 });

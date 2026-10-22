@@ -1,5 +1,6 @@
-import type { GameConfig, GameType, SettlementSummary } from '../../engine/types';
-import { skinsLabel } from '../../engine/calculators/skins';
+import type { Course, Player, GameConfig, GameType, SettlementSummary } from '../../engine/types';
+import { calcStrokePlay } from '../../engine/calculators/stroke-play';
+import { handicapStrokesForHole, skinsLabel } from '../../engine/calculators/skins';
 
 export const recapMoney = (net: number): string => {
   const cents = Math.round(net * 100);
@@ -10,9 +11,23 @@ export const recapMoney = (net: number): string => {
 export function buildRecapModel(settlement: SettlementSummary, details: {
   title: string; course: string; games: GameType[]; gameConfig?: GameConfig;
   liveUrl?: string; completed: boolean;
+  scorecard?: { course: Course; players: (Omit<Player, 'handicap'> & { handicap?: number })[] };
 }) {
+  const { scorecard, ...presentation } = details;
+  const scoresByName = new Map(scorecard?.players.map(player => {
+    const holesPlayed = scorecard.course.holes.filter((_, i) => player.scores[i] > 0).length;
+    const grossScore = calcStrokePlay([{ ...player, handicap: player.handicap ?? 0 }], scorecard.course)[0].total;
+    const strokes = scorecard.course.holes.reduce((sum, hole, i) =>
+      sum + (player.scores[i] > 0 ? handicapStrokesForHole(player.handicap, hole.hcp) : 0), 0);
+    const netScore = grossScore - strokes;
+    return [player.name, { grossScore, netScore, holesPlayed,
+      scoreLabel: holesPlayed === 0 ? 'No scores yet'
+        : `Gross ${grossScore} · Net ${netScore}${holesPlayed < scorecard.course.holes.length ? ` · ${holesPlayed} holes played` : ''}` }];
+  }));
   const players = Object.entries(settlement.netByPlayer)
-    .map(([name, net]) => ({ name, net, amount: recapMoney(net) }))
+    .map(([name, net]) => ({ name, net, amount: recapMoney(net),
+      ...(scoresByName.get(name) ?? { grossScore: null, netScore: null, holesPlayed: 0, scoreLabel: 'Scores unavailable' }),
+    }))
     .sort((a, b) => b.net - a.net || a.name.localeCompare(b.name));
   const winners = players.filter(p => p.net > 0 && p.net === players[0]?.net);
   const lines = [...new Set(details.games)]
@@ -31,7 +46,7 @@ export function buildRecapModel(settlement: SettlementSummary, details: {
         : game === 'nassau_press' ? 'Nassau + presses' : 'Nassau';
       return `${label}: ${leaders.length ? leaders.map(([name, cents]) => `${name} ${recapMoney(cents / 100)}`).join(' · ') : 'No net payouts'}`;
     });
-  return { ...details, players, winner: winners[0] ?? null, winners, lines,
+  return { ...presentation, players, winner: winners[0] ?? null, winners, lines,
     headline: winners.length > 1 ? 'Shared honors' : winners.length ? 'What a round!' : 'All square',
     winnerNames: winners.map(p => p.name).join(' & '),
   };

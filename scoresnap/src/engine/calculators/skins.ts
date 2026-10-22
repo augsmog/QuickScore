@@ -21,6 +21,12 @@ export function calcScopedSkins(groups: { name: string; players: Player[] }[], c
   }));
 }
 
+/** Full course handicap allocated by stroke index, including plus handicaps. */
+export function handicapStrokesForHole(handicap: number | undefined, strokeIndex: number): number {
+  const rounded = Math.round(handicap || 0);
+  return Math.floor(rounded / 18) + (strokeIndex <= ((rounded % 18 + 18) % 18) ? 1 : 0);
+}
+
 export function calcSkins(
   players: Player[],
   course: Course,
@@ -35,9 +41,7 @@ export function calcSkins(
   for (let i = 0; i < course.holes.length; i++) {
     pot++;
     const scores = players.map((p) => {
-      const handicap = Math.round(p.handicap || 0);
-      // Full course handicap, allocated by stroke index; supports plus handicaps.
-      const strokes = Math.floor(handicap / 18) + (course.holes[i].hcp <= ((handicap % 18 + 18) % 18) ? 1 : 0);
+      const strokes = handicapStrokesForHole(p.handicap, course.holes[i].hcp);
       return { name: p.name, score: p.scores[i] > 0 ? p.scores[i] - (mode === "net" ? strokes : 0) : Infinity };
     });
     const min = Math.min(...scores.map((s) => s.score));
