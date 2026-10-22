@@ -11,7 +11,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import Svg, { Line, Polygon, Ellipse, Circle } from "react-native-svg";
-import { COLORS } from "../theme";
+import { COLORS, FONTS } from "../theme";
 
 interface LonelyFlagProps {
   message?: string;
@@ -167,7 +167,7 @@ export function LonelyFlag({ message = "No rounds yet" }: LonelyFlagProps) {
           {
             color: COLORS.textDim,
             fontSize: 14,
-            fontWeight: "500",
+            fontFamily: FONTS.medium,
             marginTop: 16,
           },
           textStyle,

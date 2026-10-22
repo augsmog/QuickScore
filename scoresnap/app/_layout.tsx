@@ -4,18 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Stack, useRouter, useSegments, useNavigationContainerRef } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator } from "react-native";
-import {
-  useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  Inter_800ExtraBold,
-} from "@expo-google-fonts/inter";
-import {
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_700Bold,
-} from "@expo-google-fonts/space-grotesk";
+import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { ErrorBoundary } from "../src/ui/ErrorBoundary";
 import { useOnboardingStore } from "../src/stores/onboarding-store";
@@ -122,13 +111,13 @@ export default Sentry.wrap(function RootLayout() {
   const [hydrated, setHydrated] = useState(false);
 
   const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-    Inter_800ExtraBold,
-    SpaceGrotesk_500Medium,
-    SpaceGrotesk_700Bold,
+    Marcellus_400Regular: require("../assets/fonts/Marcellus_400Regular.ttf"),
+    MarcellusSC_400Regular: require("../assets/fonts/MarcellusSC_400Regular.ttf"),
+    SourceSans3_400Regular: require("../assets/fonts/SourceSans3_400Regular.ttf"),
+    SourceSans3_500Medium: require("../assets/fonts/SourceSans3_500Medium.ttf"),
+    SourceSans3_600SemiBold: require("../assets/fonts/SourceSans3_600SemiBold.ttf"),
+    SourceSans3_700Bold: require("../assets/fonts/SourceSans3_700Bold.ttf"),
+    SourceSans3_800ExtraBold: require("../assets/fonts/SourceSans3_800ExtraBold.ttf"),
   });
 
   useEffect(() => {
@@ -154,7 +143,7 @@ export default Sentry.wrap(function RootLayout() {
           alignItems: "center",
         }}
       >
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <ActivityIndicator color={COLORS.accent} size="large" />
       </View>
     );
@@ -169,7 +158,7 @@ function RootLayoutNav() {
   return (
     <ErrorBoundary>
       <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <Stack
           screenOptions={{
             headerShown: false,

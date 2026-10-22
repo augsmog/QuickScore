@@ -77,12 +77,12 @@ interface CourseWithDistance extends CourseSearchResult {
 // ── Tee box colors ──
 const TEE_COLORS: Record<string, string> = {
   black: "#1a1a1a",
-  blue: "#3b82f6",
+  blue: COLORS.blue,
   white: "#e8edf5",
-  gold: "#ffd700",
-  red: "#ff4757",
-  green: "#00d47e",
-  silver: "#c0c0c0",
+  gold: COLORS.gold,
+  red: COLORS.error,
+  green: COLORS.primary,
+  silver: COLORS.silver,
 };
 
 function getTeeColor(tee: TeeBox): string {
@@ -644,7 +644,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                   }}
                 >
                   <Text
-                    style={{ color: "#000", fontWeight: "700", fontSize: 15 }}
+                    style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 15 }}
                   >
                     {selectedTee
                       ? `Select ${selectedTee.name} Tees`

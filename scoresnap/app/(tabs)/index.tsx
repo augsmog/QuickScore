@@ -162,7 +162,7 @@ export default function HomeScreen() {
                 <Camera size={18} color={COLORS.onPrimary} />
                 <Text
                   style={{
-                    fontFamily: FONTS.headline,
+                    fontFamily: FONTS.semibold,
                     fontSize: 13,
                     color: COLORS.onPrimary,
                     textTransform: "uppercase",
@@ -181,7 +181,7 @@ export default function HomeScreen() {
                 flex: 1,
                 borderRadius: RADII.xl,
                 borderWidth: 1,
-                borderColor: "rgba(91,243,147,0.25)",
+                borderColor: COLORS.accentGlow,
                 paddingVertical: 15,
                 alignItems: "center",
                 flexDirection: "row",
@@ -193,7 +193,7 @@ export default function HomeScreen() {
               <Plus size={18} color={COLORS.primary} />
               <Text
                 style={{
-                  fontFamily: FONTS.headline,
+                  fontFamily: FONTS.semibold,
                   fontSize: 13,
                   color: COLORS.primary,
                   textTransform: "uppercase",
@@ -318,7 +318,7 @@ export default function HomeScreen() {
                     style={{
                       height: 3,
                       borderRadius: 2,
-                      backgroundColor: "rgba(91,243,147,0.12)",
+                      backgroundColor: COLORS.surfaceHighest,
                     }}
                   >
                     <View
@@ -700,7 +700,7 @@ export default function HomeScreen() {
                   >
                     <Text
                       style={{
-                        fontFamily: FONTS.headline,
+                        fontFamily: FONTS.semibold,
                         color: COLORS.onPrimary,
                         fontSize: 15,
                       }}
@@ -721,7 +721,7 @@ export default function HomeScreen() {
                 >
                   <Text
                     style={{
-                      fontFamily: FONTS.headline,
+                      fontFamily: FONTS.semibold,
                       color: COLORS.textDim,
                       fontSize: 15,
                     }}

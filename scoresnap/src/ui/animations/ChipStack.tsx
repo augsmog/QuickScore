@@ -6,7 +6,7 @@ import Animated, {
   withSpring,
   withDelay,
 } from "react-native-reanimated";
-import { COLORS } from "../theme";
+import { COLORS, FONTS } from "../theme";
 import { ScoreCounter } from "./ScoreCounter";
 
 interface ChipStackProps {
@@ -45,7 +45,7 @@ export function ChipStack({ amount, playerName, showAmount = true }: ChipStackPr
         style={{
           color: amount >= 0 ? COLORS.accent : COLORS.danger,
           fontSize: 28,
-          fontWeight: "800",
+          fontFamily: FONTS.extrabold,
         }}
       />}
 
@@ -54,7 +54,7 @@ export function ChipStack({ amount, playerName, showAmount = true }: ChipStackPr
         style={{
           color: COLORS.text,
           fontSize: 14,
-          fontWeight: "600",
+          fontFamily: FONTS.semibold,
           marginTop: 4,
         }}
       >

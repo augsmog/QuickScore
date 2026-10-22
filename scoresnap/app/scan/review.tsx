@@ -620,7 +620,7 @@ export default function ScanReviewScreen() {
                       </Pressable>
                     )}
                   </View>
-                  <Text style={{ fontFamily: FONTS.headline, fontSize: 16, color: COLORS.text }}>
+                  <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 16, color: COLORS.text }}>
                     {totalScore}
                   </Text>
                 </View>
@@ -745,7 +745,7 @@ export default function ScanReviewScreen() {
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text }}>{d}</Text>
+                  <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 20, color: COLORS.text }}>{d}</Text>
                 </Pressable>
               ))}
             </View>
@@ -764,7 +764,7 @@ export default function ScanReviewScreen() {
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text }}>{d}</Text>
+                  <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 20, color: COLORS.text }}>{d}</Text>
                 </Pressable>
               ))}
             </View>
@@ -783,7 +783,7 @@ export default function ScanReviewScreen() {
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text }}>{d}</Text>
+                  <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 20, color: COLORS.text }}>{d}</Text>
                 </Pressable>
               ))}
             </View>
@@ -813,7 +813,7 @@ export default function ScanReviewScreen() {
                   justifyContent: "center",
                 }}
               >
-                <Text style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text }}>0</Text>
+                <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 20, color: COLORS.text }}>0</Text>
               </Pressable>
               <Pressable
                 onPress={handleNumpadDelete}

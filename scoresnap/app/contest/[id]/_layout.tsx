@@ -60,7 +60,7 @@ export default function ContestLayout() {
               paddingHorizontal: 24,
             }}
           >
-            <Text style={{ color: "#000", fontWeight: "700", fontSize: 15 }}>Go Back</Text>
+            <Text style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 15 }}>Go Back</Text>
           </AnimatedPressable>
         </View>
       </SafeAreaView>
@@ -180,7 +180,7 @@ export default function ContestLayout() {
                 paddingHorizontal: 2,
                 alignItems: "center",
                 backgroundColor:
-                  activeTab === tab.key ? "rgba(91,243,147,0.10)" : "transparent",
+                  activeTab === tab.key ? COLORS.surfaceHighest : "transparent",
               }}
             >
               <Text
@@ -192,7 +192,7 @@ export default function ContestLayout() {
                   fontFamily: FONTS.bold,
                   textTransform: "uppercase",
                   letterSpacing: 0.3,
-                  color: activeTab === tab.key ? COLORS.primary : "rgba(220,226,248,0.5)",
+                  color: activeTab === tab.key ? COLORS.primary : COLORS.textDim,
                 }}
               >
                 {tab.label}

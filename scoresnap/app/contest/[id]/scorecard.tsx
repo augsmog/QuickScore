@@ -381,7 +381,7 @@ export default function ScorecardScreen() {
               <Text
                 style={{
                   fontSize: 18,
-                  fontFamily: FONTS.headline,
+                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                   color: COLORS.text,
                 }}
               >
@@ -408,7 +408,7 @@ export default function ScorecardScreen() {
               <Text
                 style={{
                   fontSize: 18,
-                  fontFamily: FONTS.headline,
+                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                   color: COLORS.text,
                 }}
               >
@@ -642,7 +642,7 @@ export default function ScorecardScreen() {
                       pointerEvents="none"
                       style={{
                         fontSize: 40,
-                        fontFamily: FONTS.headline,
+                        fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                         color: hasScore ? color : COLORS.textDim + "60",
                         lineHeight: 46,
                       }}

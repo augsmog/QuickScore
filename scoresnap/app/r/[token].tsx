@@ -1,3 +1,4 @@
+import { COLORS, FONTS } from "../../src/ui/theme";
 import { useEffect, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
@@ -48,4 +49,4 @@ export default function SharedScoreboard() {
     </>}
   </ScrollView>;
 }
-const styles = StyleSheet.create({ page:{flex:1,backgroundColor:'#101915'},content:{padding:20,paddingTop:48,maxWidth:860,width:'100%',alignSelf:'center',gap:12},title:{fontSize:30,fontWeight:'700',color:'#fff'},heading:{fontSize:18,fontWeight:'600',color:'#a8e6bc',marginTop:14},note:{color:'#a8b8ae',fontSize:14},text:{color:'#fff',fontSize:16,lineHeight:26},row:{paddingVertical:12,borderBottomWidth:1,borderColor:'#304639'},grid:{flexDirection:'row',paddingVertical:12},name:{color:'#fff',width:130},cell:{color:'#fff',width:38,textAlign:'center'} });
+const styles = StyleSheet.create({ page:{flex:1,backgroundColor:COLORS.bg},content:{padding:20,paddingTop:48,maxWidth:860,width:'100%',alignSelf:'center',gap:12},title:{fontSize:30,fontFamily:FONTS.display,color:COLORS.text},heading:{fontSize:18,fontFamily:FONTS.display,color:COLORS.primary,marginTop:14},note:{color:COLORS.textDim,fontSize:14},text:{fontFamily:FONTS.regular,color:COLORS.text,fontSize:16,lineHeight:26},row:{paddingVertical:12,borderBottomWidth:1,borderColor:COLORS.border},grid:{flexDirection:'row',paddingVertical:12},name:{fontFamily:FONTS.regular,color:COLORS.text,width:130},cell:{fontFamily:FONTS.score,fontVariant:['tabular-nums'],color:COLORS.text,width:38,textAlign:'center'} });

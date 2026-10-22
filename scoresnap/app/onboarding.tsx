@@ -252,7 +252,7 @@ export default function OnboardingScreen() {
             <View style={{ position: "relative", minWidth: 120, alignItems: "center", justifyContent: "center" }}>
               <Animated.Text
                 style={[
-                  { color: "#000", fontWeight: "700", fontSize: 17, textAlign: "center" },
+                  { color: COLORS.onPrimary, fontWeight: "700", fontSize: 17, textAlign: "center" },
                   nextTextStyle,
                 ]}
               >
@@ -262,7 +262,7 @@ export default function OnboardingScreen() {
                 numberOfLines={1}
                 style={[
                   {
-                    color: "#000",
+                    color: COLORS.onPrimary,
                     fontWeight: "700",
                     fontSize: 17,
                     position: "absolute",
