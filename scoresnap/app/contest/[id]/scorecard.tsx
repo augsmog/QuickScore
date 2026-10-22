@@ -637,6 +637,9 @@ export default function ScorecardScreen() {
                     <Animated.Text
                       key={`score-${player.id}-${currentHole}-${score}`}
                       entering={SlideInUp.duration(150).springify()}
+                      // The entering number crosses other players' controls.
+                      // Keep taps on the stationary Pressable underneath it.
+                      pointerEvents="none"
                       style={{
                         fontSize: 40,
                         fontFamily: FONTS.headline,
