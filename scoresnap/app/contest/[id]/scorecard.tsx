@@ -622,6 +622,7 @@ export default function ScorecardScreen() {
 
                   {/* Score display — tap sets to par, long press clears */}
                   <Pressable
+                    testID={`score-par-${player.name}`}
                     onPress={() => {
                       if (!hasScore) setToPar(player.id);
                     }}
@@ -636,6 +637,9 @@ export default function ScorecardScreen() {
                     <Animated.Text
                       key={`score-${player.id}-${currentHole}-${score}`}
                       entering={SlideInUp.duration(150).springify()}
+                      // The entering number crosses other players' controls.
+                      // Keep taps on the stationary Pressable underneath it.
+                      pointerEvents="none"
                       style={{
                         fontSize: 40,
                         fontFamily: FONTS.headline,
@@ -664,6 +668,7 @@ export default function ScorecardScreen() {
 
                   {/* Plus button */}
                   <Pressable
+                    testID={`score-plus-${player.name}`}
                     onPress={() => adjustScore(player.id, 1)}
                     disabled={isCompleted || displayScore >= 15}
                     style={({ pressed }) => ({
@@ -731,6 +736,7 @@ export default function ScorecardScreen() {
               </Text>
             </Pressable>
             <Pressable
+              testID="score-next-hole"
               onPress={handleNextHole}
               disabled={currentHole >= 18}
               style={{

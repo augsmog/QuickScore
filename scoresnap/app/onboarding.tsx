@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { OFFLINE_MODE } from "../src/config/offline";
+import { useRef, useEffect } from "react";
 import { View, Text, Pressable, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -60,6 +61,14 @@ export default function OnboardingScreen() {
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
   const scrollRef = useRef<Animated.ScrollView>(null);
   const scrollX = useSharedValue(0);
+
+  // Auto-complete onboarding in offline mode
+  useEffect(() => {
+    if (OFFLINE_MODE) {
+      completeOnboarding();
+      router.replace("/");
+    }
+  }, []);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {

@@ -41,38 +41,6 @@ interface ConcernItem {
   confidence: number;
 }
 
-// Sample data used as fallback when no OCR data is passed
-const SAMPLE_PLAYERS: ScannedPlayer[] = [
-  {
-    name: "M. Thompson",
-    scores: [4, 5, 4, 3, 5, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4],
-    confidence: Array(18).fill(0.95),
-    nameConfidence: 0.92,
-    matchedPlayerId: null,
-  },
-  {
-    name: "D.R.",
-    scores: [5, 6, 4, 4, 5, 4, 5, 6, 5, 5, 5, 4, 5, 5, 6, 4, 5, 5],
-    confidence: Array(18).fill(0.9).map((c, i) => (i === 3 || i === 11 ? 0.55 : c)),
-    nameConfidence: 0.45,
-    matchedPlayerId: null,
-  },
-  {
-    name: "Chris L",
-    scores: [4, 5, 5, 3, 4, 3, 5, 5, 4, 5, 4, 3, 5, 5, 5, 3, 4, 5],
-    confidence: Array(18).fill(0.92),
-    nameConfidence: 0.88,
-    matchedPlayerId: null,
-  },
-  {
-    name: "J. Parks",
-    scores: [5, 5, 4, 4, 6, 4, 4, 5, 5, 4, 5, 4, 6, 4, 5, 4, 5, 4],
-    confidence: Array(18).fill(0.88).map((c, i) => (i === 7 ? 0.48 : c)),
-    nameConfidence: 0.85,
-    matchedPlayerId: null,
-  },
-];
-
 export default function ScanReviewScreen() {
   const router = useRouter();
   const { contestId, groupId, scanData, photoUri } = useLocalSearchParams<{
@@ -86,19 +54,39 @@ export default function ScanReviewScreen() {
   const importScores = useContestStore((s) => s.importScores);
   const contest = contests.find((c) => c.id === contestId);
 
-  // Use real OCR data from scan flow, or sample data for demo/testing
-  const initialPlayers = useMemo(() => {
-    if (scanData) {
-      try {
-        return JSON.parse(scanData) as ScannedPlayer[];
-      } catch {
-        return SAMPLE_PLAYERS;
-      }
+  // Parse OCR data - require valid scanData, no fallback to sample data
+  const { initialPlayers, parseError } = useMemo(() => {
+    if (!scanData) {
+      return {
+        initialPlayers: null,
+        parseError: "No scorecard data provided. Please scan a scorecard first.",
+      };
     }
-    return SAMPLE_PLAYERS;
+    
+    try {
+      const parsed = JSON.parse(scanData) as ScannedPlayer[];
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        return {
+          initialPlayers: null,
+          parseError: "Invalid scorecard data: no players found in the scan.",
+        };
+      }
+      return { initialPlayers: parsed, parseError: null };
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return {
+          initialPlayers: null,
+          parseError: "Malformed scorecard data. Please rescan the scorecard.",
+        };
+      }
+      return {
+        initialPlayers: null,
+        parseError: "Failed to parse scorecard data. Please try scanning again.",
+      };
+    }
   }, [scanData]);
 
-  const [scannedPlayers, setScannedPlayers] = useState<ScannedPlayer[]>(initialPlayers);
+  const [scannedPlayers, setScannedPlayers] = useState<ScannedPlayer[]>(initialPlayers || []);
 
   const [editingNameIdx, setEditingNameIdx] = useState<number | null>(null);
   const [showPlayerMatchModal, setShowPlayerMatchModal] = useState<number | null>(null);
@@ -285,6 +273,98 @@ export default function ScanReviewScreen() {
 
   const existingPlayers = contest?.groups.flatMap((g) => g.players) || [];
 
+  // Show error screen if parsing failed
+  if (parseError) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 32,
+          }}
+        >
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: RADII.xl,
+              backgroundColor: COLORS.error + "18",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 20,
+            }}
+          >
+            <AlertTriangle size={32} color={COLORS.error} />
+          </View>
+          <Text
+            style={{
+              fontSize: 20,
+              fontFamily: FONTS.headline,
+              color: COLORS.text,
+              textAlign: "center",
+              marginBottom: 8,
+            }}
+          >
+            Invalid Scorecard Data
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              fontFamily: FONTS.regular,
+              color: COLORS.textDim,
+              textAlign: "center",
+              lineHeight: 20,
+              marginBottom: 24,
+            }}
+          >
+            {parseError}
+          </Text>
+
+          <Pressable
+            onPress={() => router.push(contestId ? `/scan?contestId=${contestId}` : "/scan")}
+            style={{
+              backgroundColor: COLORS.primary,
+              borderRadius: RADII.lg,
+              paddingVertical: 14,
+              paddingHorizontal: 24,
+              width: "100%",
+              alignItems: "center",
+              marginBottom: 12,
+              ...GLOW.primary,
+            }}
+          >
+            <Text
+              style={{
+                color: COLORS.onPrimary,
+                fontFamily: FONTS.bold,
+                fontSize: 15,
+              }}
+            >
+              Rescan Scorecard
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.back()}
+            style={{ padding: 12 }}
+          >
+            <Text
+              style={{
+                color: COLORS.textDim,
+                fontSize: 14,
+                fontFamily: FONTS.medium,
+              }}
+            >
+              Go Back
+            </Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* ========== HEADER ========== */}
@@ -307,7 +387,7 @@ export default function ScanReviewScreen() {
             textTransform: "uppercase",
           }}
         >
-          SCORESNAP
+          SNAPSCORE
         </Text>
         <Pressable
           style={{

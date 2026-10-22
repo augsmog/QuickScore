@@ -1,3 +1,4 @@
+import { skinsLabel } from "../../../src/engine/calculators/skins";
 import { useCallback, useState } from "react";
 import {
   View,
@@ -21,7 +22,7 @@ import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 import { calculateSettlement } from "../../../src/engine/settlement";
-import { formatMoney } from "../../../src/utils/formatters";
+const formatMoney = (amount: number) => `$${Math.abs(amount).toFixed(2)}`;
 
 export default function SettlementScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -68,7 +69,9 @@ export default function SettlementScreen() {
     contest.course,
     contest.games,
     contest.betUnit,
-    contest.auxiliaryData
+    contest.auxiliaryData,
+    contest.gameConfig,
+    contest.groups
   );
 
   const sortedNet = Object.entries(settlement.netByPlayer).sort(
@@ -77,7 +80,7 @@ export default function SettlementScreen() {
 
   const sessionTotal = sortedNet
     .filter(([, net]) => net > 0)
-    .reduce((sum, [, net]) => sum + net, 0);
+    .reduce((sum, [, net]) => sum + Math.round(net * 100), 0) / 100;
 
   // Generate shareable text
   const generateShareText = (): string => {
@@ -86,6 +89,7 @@ export default function SettlementScreen() {
     lines.push(`📍 ${contest.course.name}`);
     lines.push(`💰 ${contest.games.length} game${contest.games.length !== 1 ? "s" : ""} at $${contest.betUnit}/unit`);
     lines.push("");
+    if (contest.games.some((g) => g === "skins" || g === "skins_carry")) lines.push(skinsLabel(contest.gameConfig));
     lines.push("📊 Results:");
 
     Object.entries(settlement.netByPlayer)
@@ -144,13 +148,16 @@ export default function SettlementScreen() {
 
   const topWinner = sortedNet[0];
   const runnersUp = sortedNet.slice(1, 3).filter(([, net]) => net > 0);
+  const featuredNames = new Set([...(topWinner && topWinner[1] > 0 ? [topWinner[0]] : []), ...runnersUp.map(([name]) => name)]);
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: COLORS.bg }}
+      testID="settlement-scroll"
+      style={{ flex: 1, minHeight: 0, backgroundColor: COLORS.bg }}
       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
+      {contest.games.some((g) => g === "skins" || g === "skins_carry") && <Text testID="settlement-skins-mode" style={{ color: COLORS.text, marginBottom: 12 }}>{skinsLabel(contest.gameConfig)}</Text>}
       {/* ========== NET WINNERS HERO ========== */}
       <View style={{ marginBottom: 24 }}>
         {/* Section header row */}
@@ -180,7 +187,7 @@ export default function SettlementScreen() {
             >
               SESSION TOTAL
             </Text>
-            <Text
+            <Text testID="settlement-session-total"
               style={{
                 fontFamily: FONTS.headline,
                 fontSize: 28,
@@ -195,7 +202,7 @@ export default function SettlementScreen() {
 
         {/* Top winner — full-width card */}
         {topWinner && topWinner[1] > 0 && (
-          <View
+          <View testID={`settlement-player-${topWinner[0]}`}
             style={{
               backgroundColor: COLORS.surfaceHigh,
               borderRadius: RADII.xl,
@@ -256,8 +263,17 @@ export default function SettlementScreen() {
                   </Text>
                 </View>
               </View>
-              <Text
+            </View>
+            <View testID="settlement-chip-graphic">
+              <ChipStack
+                amount={topWinner[1]}
+                playerName={`${topWinner[0]} cleaned up`}
+                showAmount={false}
+              />
+            </View>
+            <Text testID="settlement-hero-amount"
                 style={{
+                  textAlign: "center",
                   fontFamily: FONTS.headline,
                   fontSize: 32,
                   color: COLORS.primary,
@@ -266,8 +282,7 @@ export default function SettlementScreen() {
               >
                 +{formatMoney(topWinner[1])}
               </Text>
-            </View>
-            <ChipStack amount={topWinner[1]} playerName={`${topWinner[0]} cleaned up`} />
+
           </View>
         )}
 
@@ -277,6 +292,7 @@ export default function SettlementScreen() {
             {runnersUp.map(([name, net], idx) => (
               <View
                 key={name}
+                testID={`settlement-player-${name}`}
                 style={{
                   flex: 1,
                   backgroundColor: COLORS.surfaceMid,
@@ -339,9 +355,10 @@ export default function SettlementScreen() {
         )}
 
         {/* Remaining players (losers / even) */}
-        {sortedNet.slice(runnersUp.length + 1).map(([name, net]) => (
+        {sortedNet.filter(([name]) => !featuredNames.has(name)).map(([name, net]) => (
           <View
             key={name}
+            testID={`settlement-player-${name}`}
             style={{
               flexDirection: "row",
               justifyContent: "space-between",
@@ -388,7 +405,7 @@ export default function SettlementScreen() {
                 color: net < 0 ? COLORS.error : COLORS.textDim,
               }}
             >
-              {net === 0 ? "Even" : formatMoney(net)}
+              {net === 0 ? "Even" : `${net < 0 ? "-" : "+"}${formatMoney(net)}`}
             </Text>
           </View>
         ))}
@@ -544,7 +561,7 @@ export default function SettlementScreen() {
           contentContainerStyle={{ gap: 12 }}
         >
           {contest.games.map((gameType, gi) => {
-            const gameName = gameType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+            const gameName = gameType === "skins" || gameType === "skins_carry" ? skinsLabel(contest.gameConfig) : gameType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
             const gameResults = settlement.gameBreakdowns?.[gameType];
             return (
               <View

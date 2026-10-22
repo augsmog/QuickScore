@@ -1,6 +1,6 @@
-import { Transaction, SettlementSummary, Player, Course, GameType, AuxiliaryData } from "./types";
+import { Transaction, SettlementSummary, Player, Course, GameType, GameConfig, AuxiliaryData } from "./types";
 import { calcStrokePlay } from "./calculators/stroke-play";
-import { calcSkins } from "./calculators/skins";
+import { calcSkins, skinsGroups } from "./calculators/skins";
 import { calcNassau } from "./calculators/nassau";
 import { calcStableford } from "./calculators/stableford";
 import { calcMatchPlay } from "./calculators/match-play";
@@ -47,7 +47,9 @@ export function calculateSettlement(
   course: Course,
   gameTypes: GameType[],
   betUnit: number,
-  auxiliaryData?: AuxiliaryData
+  auxiliaryData?: AuxiliaryData,
+  gameConfig?: GameConfig,
+  groups?: { name: string; players: Player[] }[]
 ): SettlementSummary {
   const transactions: Transaction[] = [];
 
@@ -73,28 +75,32 @@ export function calculateSettlement(
       case "skins":
       case "skins_carry": {
         const carryover = gameType === "skins_carry";
-        const result = calcSkins(players, course, carryover);
-        // Each skin is worth betUnit; distribute from losers to winners
-        const totalSkins = Object.values(result.totals).reduce((a, b) => a + b, 0);
-        if (totalSkins > 0) {
-          const avg = totalSkins / players.length;
-          for (const player of players) {
-            const won = result.totals[player.name] || 0;
-            const diff = won - avg;
-            if (diff > 0) {
-              // This player is a net winner — collect from net losers proportionally
-              for (const other of players) {
-                const otherWon = result.totals[other.name] || 0;
-                const otherDiff = otherWon - avg;
-                if (otherDiff < 0 && diff > 0) {
-                  const amount = Math.min(Math.abs(otherDiff), diff) * betUnit;
-                  if (amount > 0) {
-                    transactions.push({
-                      from: other.name,
-                      to: player.name,
-                      amount: Math.round(amount * 100) / 100,
-                      gameType,
-                    });
+        for (const { players: scopedPlayers } of skinsGroups(groups ?? [{ name: "Whole field", players }], gameConfig)) {
+          const players = scopedPlayers;
+          const result = calcSkins(players, course, carryover, gameConfig?.skinsMode);
+          // Each skin is worth betUnit; distribute from losers to winners
+          const totalSkins = Object.values(result.totals).reduce((a, b) => a + b, 0);
+          if (totalSkins > 0) {
+            const avg = totalSkins / players.length;
+            const totalWinnings = Object.values(result.totals).reduce((sum, won) => sum + Math.max(0, won - avg), 0);
+            for (const player of players) {
+              const won = result.totals[player.name] || 0;
+              const diff = won - avg;
+              if (diff > 0) {
+                // This player is a net winner — collect from net losers proportionally
+                for (const other of players) {
+                  const otherWon = result.totals[other.name] || 0;
+                  const otherDiff = otherWon - avg;
+                  if (otherDiff < 0 && diff > 0) {
+                    const amount = Math.abs(otherDiff) * (diff / totalWinnings) * betUnit;
+                    if (amount > 0) {
+                      transactions.push({
+                        from: other.name,
+                        to: player.name,
+                        amount: amount,
+                        gameType,
+                      });
+                    }
                   }
                 }
               }
@@ -121,6 +127,7 @@ export function calculateSettlement(
 
       case "stableford":
       case "mod_stableford": {
+        if (!players.some(p => p.scores.some(score => score > 0))) break;
         const results = calcStableford(players, course);
         if (results.length >= 2) {
           const winner = results[0];
@@ -262,7 +269,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -292,7 +299,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(perPlayer * 100) / 100,
+                    amount: perPlayer,
                     gameType,
                   });
                 }
@@ -305,7 +312,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(perPlayer * 100) / 100,
+                    amount: perPlayer,
                     gameType,
                   });
                 }
@@ -339,7 +346,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -380,6 +387,7 @@ export function calculateSettlement(
       case "quota": {
         // QuotaResult[]: { name, playerId, handicap, quota, points, overUnder }
         // Sorted by overUnder descending. Highest surplus wins, collects betUnit from each.
+        if (!players.some(p => p.scores.some(score => score > 0))) break;
         const results = calcQuota(players, course);
         if (results.length >= 2) {
           const winner = results[0];
@@ -398,6 +406,7 @@ export function calculateSettlement(
       case "chicago": {
         // ChicagoResult[]: { name, playerId, handicap, quota, grossPoints, netScore }
         // Sorted by netScore descending. Highest net wins, collects betUnit from each.
+        if (!players.some(p => p.scores.some(score => score > 0))) break;
         const results = calcChicago(players, course);
         if (results.length >= 2) {
           const winner = results[0];
@@ -436,7 +445,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -470,7 +479,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -503,7 +512,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -535,7 +544,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -678,7 +687,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -774,7 +783,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -800,7 +809,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -957,7 +966,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: p.name,
                     to: winnerName,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -978,7 +987,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: p.name,
                     to: winnerName,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -1000,14 +1009,56 @@ export function calculateSettlement(
     }
   }
 
-  // Net transactions per player
-  const netByPlayer: Record<string, number> = {};
-  players.forEach((p) => (netByPlayer[p.name] = 0));
-
-  for (const t of transactions) {
-    netByPlayer[t.to] = (netByPlayer[t.to] || 0) + t.amount;
-    netByPlayer[t.from] = (netByPlayer[t.from] || 0) - t.amount;
+  // Round player entitlements, rather than independently rounding every edge.
+  // Each game's two sides receive the same cent budget, with stable input-order
+  // tie breaking for equal remainders. All ledger arithmetic below is integer.
+  const ledger: Transaction[] = [];
+  const netCents: Record<string, number> = {};
+  players.forEach(p => { netCents[p.name] = 0; });
+  for (const gameType of new Set(transactions.map(t => t.gameType))) {
+    const partitions = (gameType === "skins" || gameType === "skins_carry")
+      ? skinsGroups(groups ?? [{ name: "Whole field", players }], gameConfig)
+      : [{ name: "Whole field", players }];
+    for (const partition of partitions) {
+      const members = new Set(partition.players.map(p => p.name));
+      const raw: Record<string, number> = {};
+      players.forEach(p => { raw[p.name] = 0; });
+      for (const t of transactions.filter(t => t.gameType === gameType && members.has(t.from) && members.has(t.to))) {
+        raw[t.to] = (raw[t.to] || 0) + t.amount * 100;
+        raw[t.from] = (raw[t.from] || 0) - t.amount * 100;
+      }
+      const winners = Object.entries(raw).filter(([, n]) => n > 1e-8);
+      const losers = Object.entries(raw).filter(([, n]) => n < -1e-8).map(([name, n]) => [name, -n] as [string, number]);
+      const budget = Math.round(winners.reduce((sum, [, n]) => sum + n, 0));
+      const credits = allocateCents(winners, budget);
+      const debts = allocateCents(losers, budget);
+      for (const credit of credits) {
+        for (const debt of debts) {
+          const cents = Math.min(credit.cents, debt.cents);
+          if (!cents) continue;
+          ledger.push({ from: debt.name, to: credit.name, amount: cents / 100, gameType });
+          netCents[credit.name] += cents;
+          netCents[debt.name] -= cents;
+          credit.cents -= cents;
+          debt.cents -= cents;
+        }
+      }
+    }
   }
+  const netByPlayer = Object.fromEntries(Object.entries(netCents).map(([name, cents]) => [name, cents / 100]));
+  return { transactions: ledger, netByPlayer };
+}
 
-  return { transactions, netByPlayer };
+/** Largest-remainder allocation; amounts and the total are in cents. */
+function allocateCents(entries: [string, number][], total: number) {
+  const sum = entries.reduce((s, [, amount]) => s + amount, 0);
+  const shares = entries.map(([name, amount], index) => {
+    const exact = sum ? amount / sum * total : 0;
+    const cents = Math.floor(exact);
+    return { name, cents, remainder: exact - cents, index };
+  });
+  const ranked = [...shares].sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+  const remaining = total - shares.reduce((s, share) => s + share.cents, 0);
+  for (let i = 0; i < remaining; i++) ranked[i].cents++;
+  return shares;
 }

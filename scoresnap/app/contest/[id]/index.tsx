@@ -114,6 +114,7 @@ export default function LeaderboardScreen() {
             return (
               <View
                 key={r.playerId}
+                testID={`leaderboard-player-${r.name}`}
                 style={{
                   backgroundColor: i === 0 ? COLORS.surfaceHigh : COLORS.surfaceMid,
                   borderRadius: RADII.lg,
@@ -199,7 +200,7 @@ export default function LeaderboardScreen() {
                     </Text>
                   )}
                   <View style={{ alignItems: "flex-end" }}>
-                    <Text style={{ fontFamily: FONTS.headline, fontSize: 22, color: COLORS.text }}>
+                    <Text testID={`leaderboard-total-${r.name}`} style={{ fontFamily: FONTS.headline, fontSize: 22, color: COLORS.text }}>
                       {r.total}
                     </Text>
                     <Text

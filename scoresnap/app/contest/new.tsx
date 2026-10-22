@@ -1,3 +1,5 @@
+import { COURSE_SEARCH_ENABLED } from "../../src/config/features";
+import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useState, useMemo } from "react";
 import {
   View,
@@ -115,7 +117,7 @@ export default function NewContestScreen() {
   const [betUnit, setBetUnit] = useState("5");
 
   // Step 3: Wager settings & game variations
-  const [gameConfig, setGameConfig] = useState<GameConfig>({});
+  const [gameConfig, setGameConfig] = useState<GameConfig>({ skinsMode: "net", skinsScope: "field" });
   const [expandedTooltip, setExpandedTooltip] = useState<string | null>(null);
 
   // Filter variations to only show ones relevant to selected games
@@ -231,6 +233,9 @@ export default function NewContestScreen() {
   const estimatedPot = betAmount * validPlayerCount * 18;
 
   const createContest = () => {
+    if (REAL_AUTH_CONFIGURED && (useAuthStore.getState().isAnonymous || !useAuthStore.getState().session)) {
+      router.push("/auth/sign-in"); return;
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     const course = selectedCourse || defaultCourse(courseName || "My Course");
@@ -453,14 +458,35 @@ export default function NewContestScreen() {
               COURSE
             </Text>
             <View style={{ marginBottom: 16 }}>
-              <CourseSearch
-                initialCourseName={courseName}
-                onSelect={(course, name, teeBox) => {
-                  setSelectedCourse(course);
-                  setCourseName(name);
-                  setSelectedTeeBox(teeBox ?? null);
-                }}
-              />
+              {COURSE_SEARCH_ENABLED ? (
+                <CourseSearch
+                  initialCourseName={courseName}
+                  onSelect={(course, name, teeBox) => {
+                    setSelectedCourse(course);
+                    setCourseName(name);
+                    setSelectedTeeBox(teeBox ?? null);
+                  }}
+                />
+              ) : (
+                <TextInput
+                  accessibilityLabel="Course name"
+                  value={courseName}
+                  onChangeText={setCourseName}
+                  placeholder="My Course"
+                  placeholderTextColor={COLORS.textDim}
+                  style={{
+                    backgroundColor: COLORS.surfaceLow,
+                    borderColor: COLORS.border,
+                    borderWidth: 1,
+                    borderRadius: RADII.md,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    fontSize: 15,
+                    fontFamily: FONTS.regular,
+                    color: COLORS.text,
+                  }}
+                />
+              )}
               {selectedTeeBox && (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, paddingHorizontal: 4 }}>
                   <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim }}>
@@ -493,6 +519,7 @@ export default function NewContestScreen() {
                 </Text>
               </View>
               <Switch
+                testID="team-mode"
                 value={hasTeams}
                 onValueChange={setHasTeams}
                 trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
@@ -614,6 +641,8 @@ export default function NewContestScreen() {
                       HCP
                     </Text>
                     <TextInput
+                      accessibilityLabel={`Handicap for ${player.name || "player"}`}
+                      testID={`player-handicap-${player.name}`}
                       value={player.handicap}
                       onChangeText={(v) => {
                         // Allow +, -, digits, and decimal point
@@ -648,7 +677,7 @@ export default function NewContestScreen() {
                       }}
                     />
                     {numGroups > 1 && (
-                      <AnimatedPressable
+                      <AnimatedPressable testID={`player-group-${player.name}`} accessibilityLabel={`Change group for ${player.name}`}
                         onPress={() =>
                           updatePlayer(
                             player.id,
@@ -678,6 +707,7 @@ export default function NewContestScreen() {
                       return (
                         <AnimatedPressable
                           key={t.id}
+                          testID={`player-team-${player.name}-${t.id}`}
                           onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}
                           style={{
                             minWidth: 28,
@@ -783,6 +813,7 @@ export default function NewContestScreen() {
                   {numGroups}
                 </Text>
                 <AnimatedPressable
+                  testID="add-group" accessibilityLabel="Add group"
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setNumGroups(numGroups + 1);
@@ -814,6 +845,38 @@ export default function NewContestScreen() {
             <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
               Select Game Modes
             </Text>
+
+            {selectedGames.some((g) => g === "skins" || g === "skins_carry") && (
+              <View style={{ marginBottom: 20 }}>
+                <Text style={{ color: COLORS.text, marginBottom: 8 }}>Skins scoring</Text>
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  {(["net", "gross"] as const).map((mode) => (
+                    <AnimatedPressable key={mode} testID={`skins-mode-${mode}`}
+                      accessibilityRole="radio" accessibilityLabel={mode === "net" ? "Net skins" : "Gross skins"}
+                      aria-checked={(gameConfig.skinsMode ?? "net") === mode}
+                      accessibilityState={{ checked: (gameConfig.skinsMode ?? "net") === mode }}
+                      onPress={() => setGameConfig((prev) => ({ ...prev, skinsMode: mode }))}
+                      style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.skinsMode ?? "net") === mode ? COLORS.primary : COLORS.surfaceMid }}>
+                      <Text style={{ color: COLORS.text }}>{mode === "net" ? "Net" : "Gross"}</Text>
+                    </AnimatedPressable>
+                  ))}
+                </View>
+                <Text style={{ color: COLORS.text, marginTop: 12, marginBottom: 8 }}>Skins scope</Text>
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  {(["field", "group"] as const).map((scope) => (
+                    <AnimatedPressable key={scope} testID={`skins-scope-${scope}`}
+                      accessibilityRole="radio" accessibilityLabel={scope === "field" ? "Whole field" : "Each group"}
+                      aria-checked={(gameConfig.skinsScope ?? "field") === scope}
+                      accessibilityState={{ checked: (gameConfig.skinsScope ?? "field") === scope }}
+                      onPress={() => setGameConfig(prev => ({ ...prev, skinsScope: scope }))}
+                      style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.skinsScope ?? "field") === scope ? COLORS.primary : COLORS.surfaceMid }}>
+                      <Text style={{ color: COLORS.text }}>{scope === "field" ? "Whole field" : "Each group"}</Text>
+                    </AnimatedPressable>
+                  ))}
+                </View>
+                <Text style={{ color: COLORS.textDim, marginTop: 8 }}>Net applies handicap strokes by hole; Gross uses scores as entered.</Text>
+              </View>
+            )}
 
             {/* Popular Formats */}
             {popularFormats.length > 0 && (

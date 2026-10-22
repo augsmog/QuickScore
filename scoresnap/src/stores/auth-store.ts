@@ -2,6 +2,9 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { REAL_AUTH_CONFIGURED } from "../config/auth";
+import { supabase } from "../db/supabase";
+
 interface UserProfile {
   id: string;
   email?: string;
@@ -44,6 +47,17 @@ export const useAuthStore = create<AuthState>()(
 
       initialize: async () => {
         const state = get();
+        if (REAL_AUTH_CONFIGURED) {
+          const apply = (session: any) => {
+            const user = session ? { id: session.user.id, email: session.user.email, provider: "email" as const, name: session.user.user_metadata?.full_name } : null;
+            set({ session: user ? { user } : null, user, isAnonymous: false, isInitialized: true, isLoading: false });
+          };
+          const { data, error } = await supabase.auth.getSession();
+          if (error) throw error;
+          apply(data.session);
+          supabase.auth.onAuthStateChange((_event, session) => apply(session));
+          return;
+        }
         if (state.session || state.isAnonymous) {
           set({ isLoading: false, isInitialized: true });
           return;
@@ -61,6 +75,14 @@ export const useAuthStore = create<AuthState>()(
       signInWithApple: async (idToken: string, nonce: string) => {
         set({ isLoading: true });
         try {
+          if (REAL_AUTH_CONFIGURED) {
+            const { data, error } = await supabase.auth.signInWithIdToken({ provider: "apple", token: idToken, nonce });
+            if (error) throw error;
+            if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
+            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            set({ session: { user }, user, isLoading: false, isAnonymous: false });
+            return;
+          }
           // TODO: In production, call supabase.auth.signInWithIdToken({ provider: 'apple', token: idToken, nonce })
           const user: UserProfile = {
             id: `apple-${Date.now()}`,
@@ -83,6 +105,14 @@ export const useAuthStore = create<AuthState>()(
       signInWithGoogle: async (idToken: string, accessToken?: string) => {
         set({ isLoading: true });
         try {
+          if (REAL_AUTH_CONFIGURED) {
+            const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, access_token: accessToken });
+            if (error) throw error;
+            if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
+            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            set({ session: { user }, user, isLoading: false, isAnonymous: false });
+            return;
+          }
           // TODO: In production, call supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })
           const user: UserProfile = {
             id: `google-${Date.now()}`,
@@ -110,6 +140,14 @@ export const useAuthStore = create<AuthState>()(
       ) => {
         set({ isLoading: true });
         try {
+          if (REAL_AUTH_CONFIGURED) {
+            const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: `${firstName} ${lastName}`.trim() } } });
+            if (error) throw error;
+            if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
+            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            set({ session: { user }, user, isLoading: false, isAnonymous: false });
+            return;
+          }
           // TODO: In production, call supabase.auth.signUp({ email, password, options: { data: { first_name, last_name } } })
           // For v1, create a local session
           const user: UserProfile = {
@@ -135,6 +173,14 @@ export const useAuthStore = create<AuthState>()(
       signInWithEmail: async (email: string, password: string) => {
         set({ isLoading: true });
         try {
+          if (REAL_AUTH_CONFIGURED) {
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+            if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
+            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            set({ session: { user }, user, isLoading: false, isAnonymous: false });
+            return;
+          }
           // TODO: In production, call supabase.auth.signInWithPassword({ email, password })
           const user: UserProfile = {
             id: `email-${Date.now()}`,
@@ -169,6 +215,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signOut: () => {
+        if (REAL_AUTH_CONFIGURED) void supabase.auth.signOut();
         // Clear auth state
         set({
           session: null,

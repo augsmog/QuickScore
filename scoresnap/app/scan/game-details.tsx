@@ -310,7 +310,7 @@ export default function GameDetailsScreen() {
             textTransform: "uppercase",
           }}
         >
-          SCORESNAP
+          SNAPSCORE
         </Text>
         <Pressable
           style={{

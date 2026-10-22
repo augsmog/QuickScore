@@ -1,25 +1,11 @@
-# Scorecard Test Images
+# Synthetic scorecard corpus
 
-Place real scorecard photos here for OCR pipeline testing.
+79 labeled JSON fixtures; no photos, personal data, cloud calls or live OCR. Run:
 
-## Expected Fixtures
+```sh
+npm test -- --runInBand tests/scorecard-corpus.test.cjs
+```
 
-Each image should have a corresponding fixture in `src/engine/__tests__/scorecard-fixtures.ts` with manually-verified expected scores.
+Each fixture has a unique `id`, category, `text` or `grid`, and an independent `expected` parse (names, 18-slot scores, par and hole count). Empty/malformed fixtures label the UI error in `expectedError`; the parser itself returns no players. All fixtures assert desired behavior as normal passing tests. See `docs/QA_FINDINGS.md`.
 
-| Filename | Players | Format | OCR Difficulty |
-|----------|---------|--------|----------------|
-| `yates-smith-shure-kirk.jpg` | 4 | Handwritten, circled scores | High — circles, multiple tee rows |
-| `gibson-munson-fox.jpg` | 3 | Semi-clean handwriting | Medium — hole illustrations at top |
-| `vintage-card.jpg` | 1+ | Vintage pencil on aged paper | Very High — low contrast, old format |
-
-## Adding New Test Cards
-
-1. Photo the scorecard with good lighting
-2. Name the file descriptively (e.g., `jones-4player-pebble.jpg`)
-3. Add a fixture to `scorecard-fixtures.ts` with manually-read scores
-4. Run `npx tsx src/engine/__tests__/ocr-validation.ts` to compare
-
-## OCR Validation
-
-The `scorecard-fixtures.ts` file includes a `validateOCRResult()` function that compares
-OCR output against expected scores and reports mismatches with severity levels.
+Coverage: clean 9/18-hole cards, all-4s, CSV/tab/multiple-space separators, CR/LF/CRLF, missing/invalid holes, partial rounds, OCR character substitutions and confidence, OUT/IN/totals, extra columns, names, empty/malformed input. Each fixture also passes through ML Kit's existing geometry builder via a mocked recognition result: reversed elements, row jitter, frameless elements. This exercises the real builder without exposing it or requiring a native runtime. Geometry parity is a wiring check, not independent parser truth or real handwriting/device acceptance.

@@ -27,6 +27,8 @@ export function calcDots(players: Player[], course: Course): DotsResult {
   for (let i = 0; i < 18; i++) {
     const par = course.holes[i].par;
     for (const p of players) {
+      // Zero or missing scores represent unplayed holes.
+      if (!(p.scores[i] > 0)) continue;
       const diff = p.scores[i] - par;
       if (diff <= -1) {
         totals[p.name] += 2;

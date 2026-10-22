@@ -10,6 +10,7 @@ import { COLORS } from "../theme";
 import { ScoreCounter } from "./ScoreCounter";
 
 interface ChipStackProps {
+  showAmount?: boolean;
   amount: number;
   playerName: string;
 }
@@ -23,7 +24,7 @@ const CHIP_COLORS = [
   COLORS.accent,
 ];
 
-export function ChipStack({ amount, playerName }: ChipStackProps) {
+export function ChipStack({ amount, playerName, showAmount = true }: ChipStackProps) {
   const chipCount = Math.min(Math.max(Math.ceil(Math.abs(amount) / 10), 3), 6);
 
   return (
@@ -36,7 +37,7 @@ export function ChipStack({ amount, playerName }: ChipStackProps) {
       </View>
 
       {/* Amount counter */}
-      <ScoreCounter
+      {showAmount && <ScoreCounter
         target={amount}
         prefix="$"
         duration={1000}
@@ -46,7 +47,7 @@ export function ChipStack({ amount, playerName }: ChipStackProps) {
           fontSize: 28,
           fontWeight: "800",
         }}
-      />
+      />}
 
       {/* Player name */}
       <Text
