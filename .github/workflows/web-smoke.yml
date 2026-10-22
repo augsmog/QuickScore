@@ -5,7 +5,7 @@ permissions:
 jobs:
   web-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: scoresnap
@@ -24,12 +24,17 @@ jobs:
         run: |
           node e2e/serve.mjs > /tmp/web-smoke-server.log 2>&1 &
           SERVER_PID=$!
-          trap 'kill "$SERVER_PID"' EXIT
+          echo "SERVER_PID=$SERVER_PID" >> "$GITHUB_ENV"
           for attempt in {1..30}; do
             if curl --fail --silent http://127.0.0.1:8089/ > /dev/null; then break; fi
             sleep 1
           done
           BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens node e2e/web-real-flow.mjs
+      - name: Browser matrix
+        run: BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens/matrix npm run e2e:matrix -- --retries=1 --skip=field-skins-18-manual
+      - name: Stop web server
+        if: always()
+        run: if [ -n "$SERVER_PID" ]; then kill "$SERVER_PID" || true; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

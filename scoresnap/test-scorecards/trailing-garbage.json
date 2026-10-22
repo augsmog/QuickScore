@@ -55,6 +55,5 @@
       "4abc",
       "5"
     ]
-  ],
-  "knownBug": "P4: parseInt accepts trailing junk at high confidence"
+  ]
 }
