@@ -44,3 +44,6 @@ yarn-error.*
 
 # Web export
 dist-web/
+
+# Local browser QA artifacts
+e2e/screens/

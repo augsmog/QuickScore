@@ -405,7 +405,7 @@ export default function SettlementScreen() {
                 color: net < 0 ? COLORS.error : COLORS.textDim,
               }}
             >
-              {net === 0 ? "Even" : formatMoney(net)}
+              {net === 0 ? "Even" : `${net < 0 ? "-" : "+"}${formatMoney(net)}`}
             </Text>
           </View>
         ))}
