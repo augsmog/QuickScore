@@ -115,7 +115,7 @@ export default function NewContestScreen() {
   const [betUnit, setBetUnit] = useState("5");
 
   // Step 3: Wager settings & game variations
-  const [gameConfig, setGameConfig] = useState<GameConfig>({ skinsMode: "net" });
+  const [gameConfig, setGameConfig] = useState<GameConfig>({ skinsMode: "net", skinsScope: "field" });
   const [expandedTooltip, setExpandedTooltip] = useState<string | null>(null);
 
   // Filter variations to only show ones relevant to selected games
@@ -650,7 +650,7 @@ export default function NewContestScreen() {
                       }}
                     />
                     {numGroups > 1 && (
-                      <AnimatedPressable
+                      <AnimatedPressable testID={`player-group-${player.name}`} accessibilityLabel={`Change group for ${player.name}`}
                         onPress={() =>
                           updatePlayer(
                             player.id,
@@ -785,6 +785,7 @@ export default function NewContestScreen() {
                   {numGroups}
                 </Text>
                 <AnimatedPressable
+                  testID="add-group" accessibilityLabel="Add group"
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setNumGroups(numGroups + 1);
@@ -829,6 +830,19 @@ export default function NewContestScreen() {
                       onPress={() => setGameConfig((prev) => ({ ...prev, skinsMode: mode }))}
                       style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.skinsMode ?? "net") === mode ? COLORS.primary : COLORS.surfaceMid }}>
                       <Text style={{ color: COLORS.text }}>{mode === "net" ? "Net" : "Gross"}</Text>
+                    </AnimatedPressable>
+                  ))}
+                </View>
+                <Text style={{ color: COLORS.text, marginTop: 12, marginBottom: 8 }}>Skins scope</Text>
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  {(["field", "group"] as const).map((scope) => (
+                    <AnimatedPressable key={scope} testID={`skins-scope-${scope}`}
+                      accessibilityRole="radio" accessibilityLabel={scope === "field" ? "Whole field" : "Each group"}
+                      aria-checked={(gameConfig.skinsScope ?? "field") === scope}
+                      accessibilityState={{ checked: (gameConfig.skinsScope ?? "field") === scope }}
+                      onPress={() => setGameConfig(prev => ({ ...prev, skinsScope: scope }))}
+                      style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.skinsScope ?? "field") === scope ? COLORS.primary : COLORS.surfaceMid }}>
+                      <Text style={{ color: COLORS.text }}>{scope === "field" ? "Whole field" : "Each group"}</Text>
                     </AnimatedPressable>
                   ))}
                 </View>

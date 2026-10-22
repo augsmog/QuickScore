@@ -336,3 +336,14 @@ The offline web flow passes automated checks; this does not establish native cam
 ---
 
 **Questions or issues?** Check the documentation files or open a GitHub issue.
+
+
+## GS-9 — Per-contest skins scope (2026-10-21)
+
+- Contest creation offers accessible Whole field (default) / Each group radios beside the existing Net/Gross controls; persisted as optional `gameConfig.skinsScope`. Older contests default to Whole field.
+- Games and Settlement share scope boundaries and show scoring mode plus scope. Each-group skins calculate and reconcile cents independently inside each group, so skins transactions never cross groups. Profile wagering history also uses the saved contest settings.
+- Added `scoresnap/tests/skins-scope.test.cjs`: Net/Gross × regular/carryover skins with two groups, default-field compatibility, differing outcomes, Games/Settlement agreement, fractional-cent reconciliation, deterministic ledgers, and group-only payments.
+- Verification: `npx jest --runInBand` passes **15 tests / 5 suites**, including 4 new scope cases. The same suite passes on **Node 22.23.4** with dynamic imports and tsx. Offline Expo web export succeeds.
+- Browser flow creates two groups through the UI, imports the scorecard into each group, then checks persisted Net/Whole field, Gross/Whole field, and Net/Each group results. Required 390×844 screenshots: `03c-skins-scope-toggle.png`, `10c-games-group.png`, `11c-settlement-group.png` in `scoresnap/e2e/screens/`.
+- No commits, pushes, main changes, deployments, or secrets added. Changes remain uncommitted.
+- Final browser verification: **87/87 checks passed**, no uncaught page errors; scope outcomes differ with two UI-created groups. All required screenshots captured; local server stopped. Nothing requested remains undone.

@@ -4,6 +4,23 @@ export function skinsModeLabel(config?: GameConfig): string {
   return config?.skinsMode === "gross" ? "Gross skins" : "Net skins";
 }
 
+export function skinsLabel(config?: GameConfig): string {
+  return skinsModeLabel(config) + " · " + (config?.skinsScope === "group" ? "Each group" : "Whole field");
+}
+
+/** Shared competition boundaries for Games and Settlement. */
+export function skinsGroups(groups: { name: string; players: Player[] }[], config?: GameConfig) {
+  return config?.skinsScope === "group"
+    ? groups
+    : [{ name: "Whole field", players: groups.flatMap(g => g.players) }];
+}
+
+export function calcScopedSkins(groups: { name: string; players: Player[] }[], course: Course, carryover = false, config?: GameConfig) {
+  return skinsGroups(groups, config).map(group => ({
+    ...group, result: calcSkins(group.players, course, carryover, config?.skinsMode),
+  }));
+}
+
 export function calcSkins(
   players: Player[],
   course: Course,

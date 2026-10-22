@@ -51,6 +51,8 @@ for (const [name, handicap] of [["Augie", "18"], ["Sam", "0"], ["Lee", "9"], ["P
   await page.getByTestId(`player-handicap-${name}`).fill(handicap);
 }
 await page.getByPlaceholder("Your name").click();
+await page.getByTestId("add-group").click();
+for (const name of ["Lee", "Pat"]) await page.getByTestId(`player-group-${name}`).click();
 await shot("02-new-contest-players.png");
 await vis(page.getByText(/^next/i)).last().click();
 for (const g of ["Skins", "Nassau"]) await vis(page.getByText(g, { exact: true })).first().click();
@@ -60,6 +62,12 @@ check(await page.getByTestId("skins-mode-gross").getAttribute("aria-checked") ==
 await page.getByTestId("skins-mode-net").click();
 await page.getByTestId("skins-mode-net").scrollIntoViewIfNeeded();
 await shot("03b-skins-mode-toggle.png");
+check(await page.getByTestId("skins-scope-field").getAttribute("aria-checked") === "true", "Skins scope defaults to Whole field");
+await page.getByTestId("skins-scope-group").click();
+check(await page.getByTestId("skins-scope-group").getAttribute("aria-checked") === "true", "Each group scope can be selected");
+await page.getByTestId("skins-scope-field").click();
+await page.getByTestId("skins-mode-net").scrollIntoViewIfNeeded();
+await shot("03c-skins-scope-toggle.png");
 await shot("03-new-contest-games.png");
 await vis(page.getByText(/^next/i)).last().click();
 await vis(page.getByText(/start contest/i)).click();
@@ -109,6 +117,12 @@ await vis(page.getByText(/confirm/i)).last().click();
 await page.waitForURL((u) => u.pathname === `/contest/${contestId}`, { timeout: 15000 }).catch(() => {});
 await page.waitForTimeout(2500);
 check(page.url().startsWith(contestUrl), "Confirm returns to the contest", page.url());
+// Import the same parsed card into the second group using the real group selector.
+await page.goto(reviewUrl.toString(), { waitUntil: "networkidle" });
+await vis(page.getByText("Group 2", {exact:true})).first().click();
+await vis(page.getByText(/confirm/i)).last().click();
+await page.waitForURL((u) => u.pathname === `/contest/${contestId}`, { timeout: 15000 });
+await page.waitForTimeout(2500);
 await shot("08-contest-leaderboard.png");
 const lb = await bodyText();
 check(["81", "72", "90", "108"].every(total => lb.includes(total)), "Leaderboard shows all four real totals (81, 72, 90, 108)");
@@ -139,28 +153,30 @@ const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("snapsco
 const savedContest = saved.state.contests.find(c => c.id === contestId);
 check(savedContest.gameConfig?.skinsMode === "net", "Net mode persisted with contest");
 check(savedContest.groups[0].players.find(p => p.name === "Augie").handicap === 18, "Player handicap persists through scorecard import");
+check(savedContest.gameConfig?.skinsScope === "field", "Whole field scope persisted");
+check(savedContest.groups.length === 2, "Creation UI persists two groups");
 const modeTotals = {};
-for (const mode of ["net", "gross"]) {
-  if (mode === "gross") {
-    await page.evaluate((id) => {
-      const data = JSON.parse(localStorage.getItem("snapscore-contests"));
-      data.state.contests.find(c => c.id === id).gameConfig.skinsMode = "gross";
-      localStorage.setItem("snapscore-contests", JSON.stringify(data));
-    }, contestId);
-  }
-  const fixture = { ...savedContest, gameConfig: { ...savedContest.gameConfig, skinsMode: mode } };
+for (const variant of ["net", "gross", "group"]) {
+  const mode = variant === "group" ? "net" : variant;
+  const scope = variant === "group" ? "group" : "field";
+  const fixture = { ...savedContest, gameConfig: { ...savedContest.gameConfig, skinsMode: mode, skinsScope: scope } };
+  await page.evaluate((fixture) => {
+    const data = JSON.parse(localStorage.getItem("snapscore-contests"));
+    data.state.contests[data.state.contests.findIndex(c => c.id === fixture.id)] = fixture;
+    localStorage.setItem("snapscore-contests", JSON.stringify(data));
+  }, fixture);
   const expected = JSON.parse(execFileSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
-    const {calcSkins} = await import('./src/engine/calculators/skins.ts').then(m => m.default ?? m);
+    const {calcScopedSkins} = await import('./src/engine/calculators/skins.ts').then(m => m.default ?? m);
     const {calculateSettlement} = await import('./src/engine/settlement.ts').then(m => m.default ?? m);
     const c = JSON.parse(process.argv[1]);
     const players = c.groups.flatMap(g=>g.players);
     console.log(JSON.stringify({
-      skins: calcSkins(players,c.course,false,c.gameConfig.skinsMode).totals,
-      settlement: calculateSettlement(players,c.course,c.games,c.betUnit,c.auxiliaryData,c.gameConfig)
+      skins: Object.assign({}, ...calcScopedSkins(c.groups,c.course,false,c.gameConfig).map(g=>g.result.totals)),
+      settlement: calculateSettlement(players,c.course,c.games,c.betUnit,c.auxiliaryData,c.gameConfig,c.groups)
     }));
   `, JSON.stringify(fixture)], { encoding: "utf8" }));
-  modeTotals[mode] = expected.skins;
-  const label = mode === "net" ? "Net skins" : "Gross skins";
+  modeTotals[variant] = expected.skins;
+  const label = (mode === "net" ? "Net skins" : "Gross skins") + " · " + (scope === "group" ? "Each group" : "Whole field");
   await page.goto(contestUrl, {waitUntil:"networkidle"});
   await vis(page.getByText(/^games$/i)).first().click();
   await page.getByTestId("skins-result-skins-Augie").waitFor();
@@ -168,7 +184,8 @@ for (const mode of ["net", "gross"]) {
   for (const [name,count] of Object.entries(expected.skins)) {
     check((await page.getByTestId(`skins-result-skins-${name}`).innerText()).includes(`${count} skins`), `${label}: Games skin count agrees for ${name}`);
   }
-  if (mode === "gross") await shot("10b-games-gross.png");
+  if (variant === "gross") await shot("10b-games-gross.png");
+  if (variant === "group") await shot("10c-games-group.png");
   await vis(page.getByText(/^settlement$/i)).first().click();
   await page.getByTestId("settlement-skins-mode").waitFor();
   check(await page.getByTestId("settlement-skins-mode").innerText() === label, `Settlement shows ${label}`);
@@ -198,10 +215,11 @@ for (const mode of ["net", "gross"]) {
     const g = await page.getByTestId("settlement-chip-graphic").boundingBox();
     const a = await page.getByTestId("settlement-hero-amount").boundingBox();
     check(g && a && !(g.x<a.x+a.width && g.x+g.width>a.x && g.y<a.y+a.height && g.y+g.height>a.y), `${label}: chip and amount do not overlap at ${width}x${height}`);
-    await shot(`${mode === "net" ? "11-settlement" : "11b-settlement-gross"}${suffix}.png`);
+    await shot(`${variant === "group" ? "11c-settlement-group" : mode === "net" ? "11-settlement" : "11b-settlement-gross"}${suffix}.png`);
   }
   await page.setViewportSize({width:390,height:844});
 }
+check(JSON.stringify(modeTotals.net) !== JSON.stringify(modeTotals.group), "Scopes produce different skins with two UI-created groups");
 check(JSON.stringify(modeTotals.net) !== JSON.stringify(modeTotals.gross), "Handicaps produce different Net and Gross skins");
 
 // 5. GS-1: review screen without scan data must NOT fall back to sample data

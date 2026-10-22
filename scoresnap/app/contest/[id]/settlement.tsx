@@ -1,4 +1,4 @@
-import { skinsModeLabel } from "../../../src/engine/calculators/skins";
+import { skinsLabel } from "../../../src/engine/calculators/skins";
 import { useCallback, useState } from "react";
 import {
   View,
@@ -70,7 +70,8 @@ export default function SettlementScreen() {
     contest.games,
     contest.betUnit,
     contest.auxiliaryData,
-    contest.gameConfig
+    contest.gameConfig,
+    contest.groups
   );
 
   const sortedNet = Object.entries(settlement.netByPlayer).sort(
@@ -88,7 +89,7 @@ export default function SettlementScreen() {
     lines.push(`📍 ${contest.course.name}`);
     lines.push(`💰 ${contest.games.length} game${contest.games.length !== 1 ? "s" : ""} at $${contest.betUnit}/unit`);
     lines.push("");
-    if (contest.games.some((g) => g === "skins" || g === "skins_carry")) lines.push(skinsModeLabel(contest.gameConfig));
+    if (contest.games.some((g) => g === "skins" || g === "skins_carry")) lines.push(skinsLabel(contest.gameConfig));
     lines.push("📊 Results:");
 
     Object.entries(settlement.netByPlayer)
@@ -156,7 +157,7 @@ export default function SettlementScreen() {
       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      {contest.games.some((g) => g === "skins" || g === "skins_carry") && <Text testID="settlement-skins-mode" style={{ color: COLORS.text, marginBottom: 12 }}>{skinsModeLabel(contest.gameConfig)}</Text>}
+      {contest.games.some((g) => g === "skins" || g === "skins_carry") && <Text testID="settlement-skins-mode" style={{ color: COLORS.text, marginBottom: 12 }}>{skinsLabel(contest.gameConfig)}</Text>}
       {/* ========== NET WINNERS HERO ========== */}
       <View style={{ marginBottom: 24 }}>
         {/* Section header row */}
@@ -560,7 +561,7 @@ export default function SettlementScreen() {
           contentContainerStyle={{ gap: 12 }}
         >
           {contest.games.map((gameType, gi) => {
-            const gameName = gameType === "skins" || gameType === "skins_carry" ? skinsModeLabel(contest.gameConfig) : gameType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+            const gameName = gameType === "skins" || gameType === "skins_carry" ? skinsLabel(contest.gameConfig) : gameType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
             const gameResults = settlement.gameBreakdowns?.[gameType];
             return (
               <View

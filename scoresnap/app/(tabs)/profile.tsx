@@ -85,7 +85,9 @@ function computeRealStats(contests: Contest[]) {
         contest.course,
         contest.games,
         contest.betUnit,
-        contest.auxiliaryData
+        contest.auxiliaryData,
+        contest.gameConfig,
+        contest.groups
       );
       // Show net for each player
       for (const [name, net] of Object.entries(settlement.netByPlayer)) {

@@ -88,6 +88,7 @@ export interface GameTypeInfo {
 export interface GameConfig {
   // Skins
   carryover?: boolean;
+  skinsScope?: "field" | "group"; // per-contest; missing means whole field
   skinsMode?: "net" | "gross"; // per-contest; missing means net
   skinsTier?: "flat" | "tiered" | "progressive"; // flat=all equal, tiered=1/2/3 by six, progressive=hole#
   birdieMultiplier?: boolean; // birdie=2x skin, eagle=3x
