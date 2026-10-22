@@ -36,6 +36,7 @@ export interface Contest {
   auxiliaryData?: AuxiliaryData;
   isDemo?: boolean;
   joinCode?: string;
+  liveShareEnabled?: boolean;
 }
 
 interface ContestState {
@@ -276,3 +277,14 @@ export function defaultCourse(name: string = "My Course"): Course {
   ];
   return { name, holes: defaultHoles };
 }
+
+// Serialize updates so older score snapshots cannot overtake newer ones.
+useContestStore.subscribe((state, previous) => {
+  for (const contest of state.contests) {
+    if (contest.liveShareEnabled && contest !== previous.contests.find(c => c.id === contest.id)) {
+      void import('../services/live-share').then(m => m.publishSnapshot(contest)).catch(() => {
+        // Local scoring remains available. Organizer can retry with Share.
+      });
+    }
+  }
+});
