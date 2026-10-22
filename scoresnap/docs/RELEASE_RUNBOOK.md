@@ -14,7 +14,8 @@ Decision (Augie, Oct 21 2026): TestFlight goes through **Expo EAS**, so releases
      --environment production --environment preview --visibility sensitive
    ```
    - `eas.json` build profiles `testflight` and `production` use `"environment": "production"`, so EAS injects it at build time.
-   - Note: any `EXPO_PUBLIC_*` value is compiled into the app bundle and is readable by anyone with the app. That's acceptable for a free, rate-limited course API key, but **not** for `EXPO_PUBLIC_ANTHROPIC_API_KEY` (used by OCR); move OCR behind a server function before any public release.
+   - Note: any `EXPO_PUBLIC_*` value is compiled into the app bundle and is readable by anyone with the app. That's acceptable for a free, rate-limited course API key.
+   - **OCR API key (Anthropic)**: moved server-side to Supabase Edge Functions (`ocr-scorecard`). Set the secret on Supabase with: `supabase secrets set ANTHROPIC_API_KEY=<your-key>` and deploy the function with: `supabase functions deploy ocr-scorecard`. This must be done before any public release.
    - Local dev: put it in `scoresnap/.env.local` (git-ignored), or `eas env:pull --environment development`.
 2. **ASC API key** (lets EAS create certificates/profiles and submit with no Apple ID password or 2FA prompt):
    - App Store Connect → Users and Access → Integrations → App Store Connect API → generate a key with **App Manager** role. Note the **Key ID** and **Issuer ID**, download the `.p8` once.

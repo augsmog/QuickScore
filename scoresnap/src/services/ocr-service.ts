@@ -109,14 +109,6 @@ export async function scanScorecard(
   // Step 2: Claude Vision as primary (ML Kit unavailable or failed)
   onProgress?.(20, "Reading scores with AI...");
 
-  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "OCR requires either on-device ML Kit or a Claude API key. " +
-        "Set EXPO_PUBLIC_ANTHROPIC_API_KEY in your .env file."
-    );
-  }
-
   const claudeResult = await recognizeWithClaude(photoUri);
   onProgress?.(85, "Validating data...");
 
