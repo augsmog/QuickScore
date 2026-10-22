@@ -1,0 +1,42 @@
+import { useEffect, useState } from 'react';
+import { View, Text, Pressable, Platform, Share } from 'react-native';
+import { createLiveLink, revokeLiveLinks, publishSnapshot } from '../services/live-share';
+import { useContestStore, type Contest } from '../stores/contest-store';
+import { COLORS } from './theme';
+export function LiveShare({ contest }: { contest: Contest }) {
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!contest.liveShareEnabled) return;
+    const timer = setInterval(() => {
+      const latest = useContestStore.getState().contests.find(c => c.id === contest.id);
+      if (latest?.liveShareEnabled) void publishSnapshot(latest).then(() => setMessage('Live scoreboard synced.')).catch(() => setMessage('Sync interrupted. Retrying while this screen is open.'));
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [contest.id, contest.liveShareEnabled]);
+  async function run(revoke = false) {
+    setBusy(true);
+    try {
+      if (revoke) {
+        await revokeLiveLinks(contest.id);
+        useContestStore.getState().updateContest(contest.id, { liveShareEnabled: false });
+        setMessage('All live links revoked.');
+      } else {
+        const origin = Platform.OS === 'web' ? window.location.origin : process.env.EXPO_PUBLIC_WEB_URL;
+        if (!origin || !/^https?:\/\//.test(origin)) throw new Error('Configure the public web URL to share.');
+        const token = await createLiveLink(contest);
+        useContestStore.getState().updateContest(contest.id, { liveShareEnabled: true });
+        const url = `${origin.replace(/\/$/, '')}/r/${token}`;
+        if (Platform.OS === 'web' && navigator.clipboard) await navigator.clipboard.writeText(url);
+        else await Share.share({ message: url });
+        setMessage('Live link copied / shared. Anyone with the link can view names and scores. Expires 7 days after the round ends.');
+      }
+    } catch (e) { setMessage((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  return <View style={{ paddingHorizontal: 20 }}>
+    <Pressable disabled={busy} onPress={() => run()}><Text style={{ color: COLORS.primary, padding: 8 }}>Share live scoreboard</Text></Pressable>
+    {contest.liveShareEnabled && <Pressable disabled={busy} onPress={() => run(true)}><Text style={{ color: COLORS.text, padding: 8 }}>Revoke live links</Text></Pressable>}
+    {!!message && <Text accessibilityLiveRegion="polite" style={{ color: COLORS.textDim }}>{message}</Text>}
+  </View>;
+}

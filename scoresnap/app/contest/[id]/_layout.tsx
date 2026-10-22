@@ -1,3 +1,4 @@
+import { LiveShare } from "../../../src/ui/LiveShare";
 import { ContestJoinCode } from "../../../src/ui/ContestJoinCode";
 import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
@@ -72,6 +73,7 @@ export default function ContestLayout() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       <ContestJoinCode contest={contest} />
+      <LiveShare contest={contest} />
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
