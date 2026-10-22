@@ -40,8 +40,8 @@ for (const mode of ['net', 'gross'] as const) {
 
   // Settlement agrees: carry pot from unplayed holes never pays out.
   const settlement = calculateSettlement(players, course, ['skins_carry'], 1, undefined, { skinsMode: mode });
-  assert.equal(Object.values(settlement.netByPlayer).reduce((a, b) => a + b, 0), 0);
-  assert.equal(settlement.netByPlayer.B, 3 - 4 / 3);
+  assert.ok(Math.abs(Object.values(settlement.netByPlayer).reduce((a, b) => a + b, 0)) < 1e-9);
+  assert.ok(Math.abs(settlement.netByPlayer.B - (3 - 4 / 3)) < 1e-9, `${mode}: settlement B`);
 }
 
 // Net strokes only apply to played holes: a 36-handicap who hasn't teed off on H7+ gets nothing there.
