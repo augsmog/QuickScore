@@ -16,8 +16,8 @@ export function calcStableford(
 ): StablefordResult[] {
   return players
     .map((p) => {
-      const holePoints = p.scores.map((s, i) =>
-        stablefordPoints(s, course.holes[i].par)
+      const holePoints = course.holes.map((hole, i) =>
+        p.scores[i] > 0 ? stablefordPoints(p.scores[i], hole.par) : 0
       );
       return {
         name: p.name,
