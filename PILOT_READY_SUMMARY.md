@@ -52,6 +52,7 @@ Real screenshots of the exported web build, driven by Playwright (`scoresnap/e2e
 | `01-home.png` | Home screen of the running web build |
 | `02-new-contest-players.png` | New Contest step 1 (players Augie, Sam, Lee, Pat) |
 | `03-new-contest-games.png` | Step 2 game selection (Stroke Play, Skins, Nassau) |
+| `03b-skins-mode-toggle.png` | Net/Gross skins toggle, Net selected |
 | `04-contest-created-empty.png` | New contest with no scores (no sample data) |
 | `05-scan-empty-error.png` | Web scorecard entry rejects empty input |
 | `06-scan-text-entered.png` | Scorecard pasted as text (Sam's row is all 4s) |
@@ -60,6 +61,7 @@ Real screenshots of the exported web build, driven by Playwright (`scoresnap/e2e
 | `09-scorecard.png` | Hole-by-hole scorecard |
 | `10-games.png` | Game results (Stroke Play, Skins, Nassau) |
 | `11-settlement.png` | Settlement ledger |
+| `10b-games-gross.png` / `11b-settlement-gross.png` | Gross mode results and settlement for the same handicap scorecard |
 | `12`–`14-gs1-*.png` | Review screen with missing / malformed / empty scan data shows an error, never sample players (GS-1) |
 
 `results.json` in the same folder lists every automated check. Screenshots are 390×844 and cover four players across 18 holes.
@@ -198,14 +200,18 @@ Build and share via TestFlight/Play Store internal testing.
 ### Critical (Blocks Pilot)
 The offline web flow passes automated checks; this does not establish native camera, live backend, or every game/UI combination as pilot-ready.
 
-**Owner decision pending:** Skins gross vs net scoring remains unresolved. This change deliberately leaves the scoring rules untouched; confirm the intended rule before relying on payouts.
+**GS-7 resolved:** Skins scoring is a per-contest setting: **Net** by default (including older contests without a setting), with a **Gross** option. Creation persists the setting in gameConfig. Games and Settlement show the mode and use the same field-wide skins calculation. Net allocates full rounded player handicaps by hole stroke index, including plus handicaps. Multiple skins winners receive proportional payouts matching their skin balances.
 
 ### Verified fixes (2026-10-21)
+- GS-7: Four-player browser checks set handicaps through the UI, verify Net is selected by default and persisted through import, and check Games counts, Settlement amounts, and mode labels in both Net and Gross modes. Gross verification reloads a persisted contest fixture; creation toggle selection is also checked.
 - Four-player, 18-hole real-app flow at **390×844** covers contest creation, scorecard import, leaderboard, Skins/Nassau results, and settlement. Every player row is reachable without clipping, and the settlement screenshot shows all four players.
 - Home formats stored timestamps as local calendar dates; three timezone/boundary cases cover the UTC date regression.
 - Sample Round requires `EXPO_PUBLIC_DEMO_MODE=true`, independently of offline mode. Previously saved demo rounds are hidden on Home when demo mode is off.
 - CI workflow `.github/workflows/web-smoke.yml` runs Jest, exports the offline web app, serves it with SPA fallback, and runs Chromium checks on pushes and pull requests. Build failures, failed checks, and uncaught page errors fail the job. CI itself has not been run remotely (no push authorized).
-- Local verification: **6 Jest tests passed**, covering **890 existing engine/parser assertions + 3 date cases**; web export passed. Browser verification passed **23/23 checks**, with no uncaught page errors; results are recorded in `scoresnap/e2e/screens/results.json`.
+- Local verification: **10 Jest tests passed**, covering **890 existing engine/parser assertions + 3 date cases + 4 skins-mode regression cases**; web export passed. Jest also passes under **Node 22.23.4** using dynamic imports with CommonJS interop. Browser verification passed **48/48 checks**, with no uncaught page errors; results are recorded in `scoresnap/e2e/screens/results.json`.
+
+### Existing validation debt
+- Repository-wide TypeScript checking still reports errors outside the skins-mode work (including gameBreakdowns, Snake/Rabbit result properties, onboarding SharedValue, and service types). The requested Jest, web export, and browser checks pass. The default Node stack overflows on the large engine test file; running tsc with an increased stack exposes these diagnostics.
 
 ### Minor (Nice to Have)
 1. **Camera scanning web:** Not supported by Expo (architectural limitation)

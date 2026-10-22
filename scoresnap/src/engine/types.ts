@@ -88,6 +88,7 @@ export interface GameTypeInfo {
 export interface GameConfig {
   // Skins
   carryover?: boolean;
+  skinsMode?: "net" | "gross"; // per-contest; missing means net
   skinsTier?: "flat" | "tiered" | "progressive"; // flat=all equal, tiered=1/2/3 by six, progressive=hole#
   birdieMultiplier?: boolean; // birdie=2x skin, eagle=3x
   validationRule?: boolean; // must par next hole to keep carryover skin

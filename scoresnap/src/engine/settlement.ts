@@ -1,4 +1,4 @@
-import { Transaction, SettlementSummary, Player, Course, GameType, AuxiliaryData } from "./types";
+import { Transaction, SettlementSummary, Player, Course, GameType, GameConfig, AuxiliaryData } from "./types";
 import { calcStrokePlay } from "./calculators/stroke-play";
 import { calcSkins } from "./calculators/skins";
 import { calcNassau } from "./calculators/nassau";
@@ -47,7 +47,8 @@ export function calculateSettlement(
   course: Course,
   gameTypes: GameType[],
   betUnit: number,
-  auxiliaryData?: AuxiliaryData
+  auxiliaryData?: AuxiliaryData,
+  gameConfig?: GameConfig
 ): SettlementSummary {
   const transactions: Transaction[] = [];
 
@@ -73,11 +74,12 @@ export function calculateSettlement(
       case "skins":
       case "skins_carry": {
         const carryover = gameType === "skins_carry";
-        const result = calcSkins(players, course, carryover);
+        const result = calcSkins(players, course, carryover, gameConfig?.skinsMode);
         // Each skin is worth betUnit; distribute from losers to winners
         const totalSkins = Object.values(result.totals).reduce((a, b) => a + b, 0);
         if (totalSkins > 0) {
           const avg = totalSkins / players.length;
+          const totalWinnings = Object.values(result.totals).reduce((sum, won) => sum + Math.max(0, won - avg), 0);
           for (const player of players) {
             const won = result.totals[player.name] || 0;
             const diff = won - avg;
@@ -87,7 +89,7 @@ export function calculateSettlement(
                 const otherWon = result.totals[other.name] || 0;
                 const otherDiff = otherWon - avg;
                 if (otherDiff < 0 && diff > 0) {
-                  const amount = Math.min(Math.abs(otherDiff), diff) * betUnit;
+                  const amount = Math.abs(otherDiff) * (diff / totalWinnings) * betUnit;
                   if (amount > 0) {
                     transactions.push({
                       from: other.name,

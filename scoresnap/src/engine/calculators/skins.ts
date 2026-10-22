@@ -1,18 +1,28 @@
-import { Player, Course, SkinsResult, SkinResult } from "../types";
+import { Player, Course, SkinsResult, SkinResult, GameConfig } from "../types";
+
+export function skinsModeLabel(config?: GameConfig): string {
+  return config?.skinsMode === "gross" ? "Gross skins" : "Net skins";
+}
 
 export function calcSkins(
   players: Player[],
-  _course: Course,
-  carryover: boolean = false
+  course: Course,
+  carryover: boolean = false,
+  mode: "net" | "gross" = "net"
 ): SkinsResult {
   let pot = 0;
   const skins: SkinResult[] = [];
   const skinCount: Record<string, number> = {};
   players.forEach((p) => (skinCount[p.name] = 0));
 
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < course.holes.length; i++) {
     pot++;
-    const scores = players.map((p) => ({ name: p.name, score: p.scores[i] }));
+    const scores = players.map((p) => {
+      const handicap = Math.round(p.handicap || 0);
+      // Full course handicap, allocated by stroke index; supports plus handicaps.
+      const strokes = Math.floor(handicap / 18) + (course.holes[i].hcp <= ((handicap % 18 + 18) % 18) ? 1 : 0);
+      return { name: p.name, score: p.scores[i] > 0 ? p.scores[i] - (mode === "net" ? strokes : 0) : Infinity };
+    });
     const min = Math.min(...scores.map((s) => s.score));
     const winners = scores.filter((s) => s.score === min);
 

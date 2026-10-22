@@ -331,9 +331,9 @@ const skins2p = calcSkins([alex, ben], COURSE, false);
 assert(skins2p.skins.length === 18, "2-player: 18 holes");
 
 // Blowout skins
-const skinsBlowout = calcSkins([scratch, duffer], COURSE, false);
+const skinsBlowout = calcSkins([scratch, duffer], COURSE, false, "gross");
 const scratchSkins = skinsBlowout.totals["Scratch"];
-assert(scratchSkins >= 15, "Scratch dominates skins", `got ${scratchSkins}`);
+assert(scratchSkins >= 15, "Scratch dominates gross skins", `got ${scratchSkins}`);
 
 // Real card skins
 const skinsReal = calcSkins(realCard1, COURSE_PAR71, true);

@@ -115,7 +115,7 @@ export default function NewContestScreen() {
   const [betUnit, setBetUnit] = useState("5");
 
   // Step 3: Wager settings & game variations
-  const [gameConfig, setGameConfig] = useState<GameConfig>({});
+  const [gameConfig, setGameConfig] = useState<GameConfig>({ skinsMode: "net" });
   const [expandedTooltip, setExpandedTooltip] = useState<string | null>(null);
 
   // Filter variations to only show ones relevant to selected games
@@ -614,6 +614,8 @@ export default function NewContestScreen() {
                       HCP
                     </Text>
                     <TextInput
+                      accessibilityLabel={`Handicap for ${player.name || "player"}`}
+                      testID={`player-handicap-${player.name}`}
                       value={player.handicap}
                       onChangeText={(v) => {
                         // Allow +, -, digits, and decimal point
@@ -814,6 +816,25 @@ export default function NewContestScreen() {
             <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
               Select Game Modes
             </Text>
+
+            {selectedGames.some((g) => g === "skins" || g === "skins_carry") && (
+              <View style={{ marginBottom: 20 }}>
+                <Text style={{ color: COLORS.text, marginBottom: 8 }}>Skins scoring</Text>
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  {(["net", "gross"] as const).map((mode) => (
+                    <AnimatedPressable key={mode} testID={`skins-mode-${mode}`}
+                      accessibilityRole="radio" accessibilityLabel={mode === "net" ? "Net skins" : "Gross skins"}
+                      aria-checked={(gameConfig.skinsMode ?? "net") === mode}
+                      accessibilityState={{ checked: (gameConfig.skinsMode ?? "net") === mode }}
+                      onPress={() => setGameConfig((prev) => ({ ...prev, skinsMode: mode }))}
+                      style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.skinsMode ?? "net") === mode ? COLORS.primary : COLORS.surfaceMid }}>
+                      <Text style={{ color: COLORS.text }}>{mode === "net" ? "Net" : "Gross"}</Text>
+                    </AnimatedPressable>
+                  ))}
+                </View>
+                <Text style={{ color: COLORS.textDim, marginTop: 8 }}>Net applies handicap strokes by hole; Gross uses scores as entered.</Text>
+              </View>
+            )}
 
             {/* Popular Formats */}
             {popularFormats.length > 0 && (

@@ -13,6 +13,16 @@
     },
     {
       "ok": true,
+      "name": "Skins mode defaults to Net",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins toggle can be selected",
+      "detail": ""
+    },
+    {
+      "ok": true,
       "name": "New contest starts with no scores (no sample data)",
       "detail": ""
     },
@@ -54,7 +64,7 @@
     {
       "ok": true,
       "name": "Confirm returns to the contest",
-      "detail": "http://127.0.0.1:8089/contest/1792635866066-jn88vqw"
+      "detail": "http://127.0.0.1:8089/contest/1792637606902-vpmd47s"
     },
     {
       "ok": true,
@@ -94,6 +104,121 @@
     {
       "ok": true,
       "name": "Settlement screen shows money results",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net mode persisted with contest",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Player handicap persists through scorecard import",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Games shows Net skins",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins: Games skin count agrees for Augie",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins: Games skin count agrees for Sam",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins: Games skin count agrees for Lee",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins: Games skin count agrees for Pat",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement shows Net skins",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins: Settlement amount agrees for Augie",
+      "detail": "+$11"
+    },
+    {
+      "ok": true,
+      "name": "Net skins: Settlement amount agrees for Sam",
+      "detail": "+$26"
+    },
+    {
+      "ok": true,
+      "name": "Net skins: Settlement amount agrees for Lee",
+      "detail": "$19"
+    },
+    {
+      "ok": true,
+      "name": "Net skins: Settlement amount agrees for Pat",
+      "detail": "$19"
+    },
+    {
+      "ok": true,
+      "name": "Games shows Gross skins",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins: Games skin count agrees for Augie",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins: Games skin count agrees for Sam",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins: Games skin count agrees for Lee",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins: Games skin count agrees for Pat",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement shows Gross skins",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins: Settlement amount agrees for Augie",
+      "detail": "$20"
+    },
+    {
+      "ok": true,
+      "name": "Gross skins: Settlement amount agrees for Sam",
+      "detail": "+$60"
+    },
+    {
+      "ok": true,
+      "name": "Gross skins: Settlement amount agrees for Lee",
+      "detail": "$20"
+    },
+    {
+      "ok": true,
+      "name": "Gross skins: Settlement amount agrees for Pat",
+      "detail": "$20"
+    },
+    {
+      "ok": true,
+      "name": "Handicaps produce different Net and Gross skins",
       "detail": ""
     },
     {

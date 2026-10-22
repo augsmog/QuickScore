@@ -3,7 +3,7 @@ import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, RADII, TYPOGRAPHY, scoreColor } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 import { ALL_GAMES, GameType } from "../../../src/engine/types";
-import { calcSkins } from "../../../src/engine/calculators/skins";
+import { calcSkins, skinsModeLabel } from "../../../src/engine/calculators/skins";
 import { calcNassau } from "../../../src/engine/calculators/nassau";
 import { calcStableford } from "../../../src/engine/calculators/stableford";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
@@ -171,7 +171,7 @@ export default function GamesScreen() {
                     fontSize: 16,
                   }}
                 >
-                  {game.name}
+                  {gameId === "skins" || gameId === "skins_carry" ? skinsModeLabel(contest.gameConfig) + (gameId === "skins_carry" ? " (Carryover)" : "") : game.name}
                 </Text>
                 <Text
                   style={{
@@ -187,11 +187,12 @@ export default function GamesScreen() {
 
             {/* ── Skins ── */}
             {(gameId === "skins" || gameId === "skins_carry") &&
-              contest.groups.map((group, gi) => {
+              [{ name: "All players", players: allPlayers }].map((group, gi) => {
                 const result = calcSkins(
                   group.players,
                   contest.course,
-                  gameId === "skins_carry"
+                  gameId === "skins_carry",
+                  contest.gameConfig?.skinsMode
                 );
                 return (
                   <View key={gi} style={gi > 0 ? { marginTop: 12 } : undefined}>
@@ -205,6 +206,7 @@ export default function GamesScreen() {
                       .map(([name, count]) => (
                         <View
                           key={name}
+                          testID={`skins-result-${gameId}-${name}`}
                           style={{
                             flexDirection: "row",
                             justifyContent: "space-between",
@@ -789,7 +791,7 @@ export default function GamesScreen() {
                   fontStyle: "italic",
                 }}
               >
-                {game.name} results calculated at settlement
+                {gameId === "skins" || gameId === "skins_carry" ? skinsModeLabel(contest.gameConfig) + (gameId === "skins_carry" ? " (Carryover)" : "") : game.name} results calculated at settlement
               </Text>
             )}
           </View>
