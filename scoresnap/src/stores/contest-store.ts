@@ -1,3 +1,6 @@
+import { REAL_AUTH_CONFIGURED } from "../config/auth";
+import { useAuthStore } from "./auth-store";
+import { generateJoinCode } from "../services/guest-join";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -32,6 +35,7 @@ export interface Contest {
   createdAt: string;
   auxiliaryData?: AuxiliaryData;
   isDemo?: boolean;
+  joinCode?: string;
 }
 
 interface ContestState {
@@ -81,8 +85,13 @@ export const useContestStore = create<ContestState>()(
       contests: [],
       activeContestId: null,
 
-      addContest: (contest) =>
-        set((state) => ({ contests: [...state.contests, contest] })),
+      addContest: (contest) => {
+        // GS-5: explicit offline builds treat the local user as organizer for e2e.
+        // Configured builds accept only a real Supabase UUID session, never stub IDs.
+        const auth = useAuthStore.getState();
+        if (REAL_AUTH_CONFIGURED && (!auth.session || auth.isAnonymous || !/^[0-9a-f-]{36}$/i.test(auth.user?.id || ""))) throw new Error("Sign in to organize a contest.");
+        set((state) => ({ contests: [...state.contests, { ...contest, joinCode: generateJoinCode(state.contests.map(c => c.joinCode || "")) }] }));
+      },
 
       updateContest: (id, updates) =>
         set((state) => ({

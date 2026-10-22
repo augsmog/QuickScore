@@ -74,7 +74,7 @@
     {
       "ok": true,
       "name": "Confirm returns to the contest",
-      "detail": "http://127.0.0.1:8089/contest/1792639810852-2969pak"
+      "detail": "http://127.0.0.1:8089/contest/1792642892057-vy45a4k"
     },
     {
       "ok": true,
@@ -429,6 +429,41 @@
     {
       "ok": true,
       "name": "GS-1: empty player list shows error",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Organizer sees a six-character join code",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "New browser context explicitly reports offline lookup limitation",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Guest score updates leaderboard total",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Guest uses a separate persisted identity",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Guest leaves other player scores intact",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Claim placeholder explains local round retention",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Guest score and slot binding survive reload",
       "detail": ""
     },
     {

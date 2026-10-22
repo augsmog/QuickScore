@@ -387,7 +387,7 @@ export default function ScanReviewScreen() {
             textTransform: "uppercase",
           }}
         >
-          SCORESNAP
+          SNAPSCORE
         </Text>
         <Pressable
           style={{

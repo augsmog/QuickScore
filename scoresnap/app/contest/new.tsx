@@ -1,3 +1,4 @@
+import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useState, useMemo } from "react";
 import {
   View,
@@ -231,6 +232,9 @@ export default function NewContestScreen() {
   const estimatedPot = betAmount * validPlayerCount * 18;
 
   const createContest = () => {
+    if (REAL_AUTH_CONFIGURED && (useAuthStore.getState().isAnonymous || !useAuthStore.getState().session)) {
+      router.push("/auth/sign-in"); return;
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     const course = selectedCourse || defaultCourse(courseName || "My Course");

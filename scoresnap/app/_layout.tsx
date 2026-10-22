@@ -78,7 +78,7 @@ function useProtectedRoute() {
   const hasCompletedOnboarding = useOnboardingStore(
     (s) => s.hasCompletedOnboarding
   );
-  const { session, skipSignIn } = useAuthStore();
+  const { session, skipSignIn, isAnonymous } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
 
@@ -89,6 +89,9 @@ function useProtectedRoute() {
       return;
     }
 
+    // GS-5: browser guests join without onboarding or an account.
+    if (segments[0] === "join") return;
+
     const inOnboarding = segments[0] === "onboarding";
     const inAuth = segments[0] === "auth";
 
@@ -96,10 +99,10 @@ function useProtectedRoute() {
       router.replace("/onboarding");
     } else if (hasCompletedOnboarding && !session && !inAuth && !OFFLINE_MODE) {
       router.replace("/auth/sign-in");
-    } else if (hasCompletedOnboarding && session && (inOnboarding || inAuth)) {
+    } else if (hasCompletedOnboarding && session && !isAnonymous && (inOnboarding || inAuth)) {
       router.replace("/");
     }
-  }, [hasCompletedOnboarding, session, segments]);
+  }, [hasCompletedOnboarding, session, isAnonymous, segments]);
 }
 
 export default Sentry.wrap(function RootLayout() {

@@ -1,4 +1,6 @@
 import { localDate } from "../../src/utils/local-date";
+import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
+import { useAuthStore } from "../../src/stores/auth-store";
 import { useState, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, Modal, FlatList, Alert } from "react-native";
 import { useRouter } from "expo-router";
@@ -57,6 +59,7 @@ export default function HomeScreen() {
   }, [demoMode, hasSeenDemo, addContest, markDemoSeen]);
 
   const handleQuickStart = () => {
+    if (REAL_AUTH_CONFIGURED && (useAuthStore.getState().isAnonymous || !useAuthStore.getState().session)) { router.push("/auth/sign-in"); return; }
     const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
     const course = defaultCourse("Quick Round");
     const players = [
@@ -95,6 +98,7 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable onPress={() => router.push("/join/enter")} style={{ padding: 16 }}><Text style={{ color: COLORS.primary, textAlign: "center" }}>Join with code</Text></Pressable>
         {/* ── Wordmark ── */}
         <View style={{ alignItems: "center", marginTop: 18, marginBottom: 28 }}>
           <Text
@@ -106,7 +110,7 @@ export default function HomeScreen() {
               letterSpacing: 3,
             }}
           >
-            SCORESNAP
+            SNAPSCORE
           </Text>
         </View>
 

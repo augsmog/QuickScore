@@ -195,6 +195,7 @@ export default function SignInScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
+          <Pressable onPress={() => router.push("/join/enter")} style={{ paddingVertical: 16 }}><Text style={{ color: COLORS.primary, textAlign: "center" }}>Join with code — no account needed</Text></Pressable>
           {/* Logo */}
           <View style={{ alignItems: "center", marginBottom: 40 }}>
             <Text
@@ -207,7 +208,7 @@ export default function SignInScreen() {
                 marginBottom: 8,
               }}
             >
-              SCORESNAP
+              SNAPSCORE
             </Text>
             <Text
               style={{

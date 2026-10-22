@@ -237,6 +237,48 @@ await page.waitForTimeout(1500);
 check(/no players found/i.test(await bodyText()), "GS-1: empty player list shows error");
 await shot("14-gs1-empty-scan-data.png");
 
+// GS-5 local adapter cannot share isolated browser storage. Use the same browser,
+// but join through a distinct persisted guest UUID, without changing organizer auth.
+await page.goto(contestUrl, { waitUntil: "networkidle" });
+const joinText = await page.getByTestId("organizer-join-code").innerText();
+const joinCode = joinText.match(/[A-HJ-NP-Z2-9]{6}$/)?.[0];
+check(!!joinCode, "Organizer sees a six-character join code");
+await shot("15-organizer-join-code.png");
+const isolated = await browser.newContext({viewport:{width:390,height:844}});
+const isolatedPage = await isolated.newPage();
+await isolatedPage.goto(`${BASE}/join/${joinCode}`, {waitUntil:"networkidle"});
+await isolatedPage.getByPlaceholder("Display name").fill("Sam guest");
+await isolatedPage.getByText("Find contest",{exact:true}).click();
+await isolatedPage.getByText(/Contest not found on this device/).waitFor();
+check(true, "New browser context explicitly reports offline lookup limitation");
+await isolated.close();
+await page.goto(`${BASE}/join/enter`, {waitUntil:"networkidle"});
+await page.getByPlaceholder("Join code").fill(joinCode);
+await page.getByPlaceholder("Display name").fill("Sam guest");
+await shot("16-guest-join-code-entry.png");
+await page.getByText("Find contest", {exact:true}).click();
+await page.getByTestId("guest-pick-Sam").waitFor();
+await shot("17-guest-pick-player.png");
+await page.getByTestId("guest-pick-Sam").click();
+await page.getByTestId("guest-score-1").fill("5");
+check((await page.getByTestId("guest-total-Sam").innerText()).includes("73"), "Guest score updates leaderboard total");
+const guestData = await page.evaluate(()=>JSON.parse(localStorage.getItem("snapscore-guest")).state);
+check(!!guestData.guestId && guestData.bindings[0].displayName === "Sam guest", "Guest uses a separate persisted identity");
+const afterGuest = await page.evaluate(()=>JSON.parse(localStorage.getItem("snapscore-contests")).state.contests);
+const guestContest = afterGuest.find(c=>c.id===contestId);
+check(guestContest.groups.flatMap(g=>g.players).find(p=>p.name==="Augie").scores[0] === 5, "Guest leaves other player scores intact");
+await page.getByTestId("guest-identity").scrollIntoViewIfNeeded();
+await shot("18-guest-scoring.png");
+await page.getByTestId("guest-claim").click();
+check(/saved on this device/.test(await page.getByTestId("guest-claim-message").innerText()), "Claim placeholder explains local round retention");
+await shot("19-guest-claim-placeholder.png");
+await page.reload({waitUntil:"networkidle"});
+await page.getByPlaceholder("Join code").fill(joinCode);
+await page.getByPlaceholder("Display name").fill("Sam guest");
+await page.getByText("Find contest",{exact:true}).click();
+await page.getByTestId("guest-pick-Sam").click();
+check(await page.getByTestId("guest-score-1").inputValue() === "5", "Guest score and slot binding survive reload");
+
 check(pageErrors.length === 0, "No uncaught page errors", pageErrors.join(" | "));
 await browser.close();
 fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ base: BASE, results, pageErrors }, null, 2));

@@ -347,3 +347,15 @@ The offline web flow passes automated checks; this does not establish native cam
 - Browser flow creates two groups through the UI, imports the scorecard into each group, then checks persisted Net/Whole field, Gross/Whole field, and Net/Each group results. Required 390×844 screenshots: `03c-skins-scope-toggle.png`, `10c-games-group.png`, `11c-settlement-group.png` in `scoresnap/e2e/screens/`.
 - No commits, pushes, main changes, deployments, or secrets added. Changes remain uncommitted.
 - Final browser verification: **87/87 checks passed**, no uncaught page errors; scope outcomes differ with two UI-created groups. All required screenshots captured; local server stopped. Nothing requested remains undone.
+
+## GS-5: organizer accounts and guest players
+
+Organizers need accounts when real Supabase auth is configured; players join by code without accounts. Explicit offline mode treats the local user as organizer. Implemented six-character contest codes, copy/share invites, home join entry, browser guest route, persisted guest UUID/player binding, own-score entry and gross leaderboard totals. Guests choose existing slots; missing names must be added by the organizer.
+
+Offline joining works only in the same browser storage. E2e checks that a fresh browser context cannot resolve the local code, then uses a distinct guest identity in the same browser. Screenshots 15–19 cover the organizer code, join form, slot selection, scoring and claim placeholder.
+
+Deferred: cross-device sharing/Supabase adapter, atomic slot reservation and server guest authorization, realtime sync/conflicts, secure account history claim, QR/presence/self-add. `claimGuestHistory()` currently explains “Claim your rounds — coming soon” and device-local retention. Draft SQL is checked in but was not applied. Real auth is wired for configured credentials but requires separate project/provider verification. See `scoresnap/docs/spec-contest-sharing.md`.
+
+GS-5 verification: `npx jest --runInBand` passed 20/20 tests in six suites; the same tests also passed under Node 22 with dynamic import + tsx. Offline web export succeeded. Final real-browser e2e passed 94/94 checks, including existing Net/Gross skins, scope and cent reconciliation checks; screenshots 15–19 are 390×844. No uncaught browser errors. An additional TypeScript check reports existing errors in untouched files (games/settlement, onboarding, engine tests, services and Deno functions); none were reported in GS-5's new files.
+
+GS-5 source changes: `app/(tabs)/index.tsx`, `app/_layout.tsx`, `app/auth/sign-in.tsx`, `app/contest/new.tsx`, `app/contest/[id]/_layout.tsx`, `app/join/[code].tsx`, `src/config/auth.ts`, `src/services/guest-join.ts`, `src/stores/auth-store.ts`, `src/stores/contest-store.ts`, `src/stores/guest-store.ts`, `src/ui/ContestJoinCode.tsx`, `tests/guest-join.test.cjs`, `e2e/web-real-flow.mjs`, `e2e/screens/*`, `docs/spec-contest-sharing.md`, and `supabase/migrations/002_contest_sharing_draft.sql` (all paths relative to `scoresnap/`), plus this summary. Changes remain uncommitted; no push, deploy, account creation or remote migration was performed.
