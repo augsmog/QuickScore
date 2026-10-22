@@ -103,6 +103,40 @@ try {
             const persisted = (await readContest())?.groups.flatMap(g=>g.players).find(p=>p.name===name)?.scores[hole-1];
             throw new Error(`${name} hole ${hole}: expected ${score}, persisted ${persisted}, rendered ${JSON.stringify(rendered)}`, {cause:error});
           });
+          if (flow.id === 'field-skins-18-manual') {
+            // Regression: a later player's SlideInUp score can cross an earlier
+            // player's control between pointerdown and pointerup. Hold that
+            // overlap deterministically, then send a physical tap at PlayerA.
+            const input = page.getByTestId(`score-par-${names[0]}`);
+            await input.scrollIntoViewIfNeeded();
+            await page.evaluate(async () => {
+              await Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{})));
+            });
+            const point = await input.evaluate((el, otherName) => {
+              const box = el.getBoundingClientRect();
+              const x = box.x + box.width / 2, y = box.y + box.height / 2;
+              const other = document.querySelector(`[data-testid="score-par-${otherName}"]`).firstElementChild;
+              const otherBox = other.getBoundingClientRect();
+              const transform = `translate(${x-otherBox.x-otherBox.width/2}px, ${y-otherBox.y-otherBox.height/2}px)`;
+              const animation = other.animate([{transform}, {transform}], {duration:1000,fill:'both'});
+              animation.pause();
+              animation.currentTime = 0;
+              return {x,y};
+            }, names[6]);
+            try {
+              await page.mouse.click(point.x, point.y, {delay:30});
+              await waitForScore(names[0],1,contest.course.holes[0].par);
+              assert.deepEqual(
+                (await readContest()).groups.flatMap(g=>g.players).map(p=>p.scores[0]),
+                [contest.course.holes[0].par,...names.slice(1).map(()=>0)],
+                'An overlapping animated number must not receive another player\'s tap'
+              );
+            } finally {
+              await page.getByTestId(`score-par-${names[6]}`).evaluate(el=>{
+                el.firstElementChild.getAnimations().forEach(a=>a.cancel());
+              });
+            }
+          }
           for (let h=0;h<flow.holes;h++) {
             await page.getByText(`HOLE ${String(h+1).padStart(2,'0')}`,{exact:true}).waitFor({state:'visible'});
             for (const [i,name] of names.entries()) {

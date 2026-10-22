@@ -119,6 +119,45 @@ The parser returns an empty player list rather than throwing for empty/malformed
 - `npm run e2e:matrix -- --retries=1`: 23/24 flows passed in 270.211 seconds, exit 1. `field-skins-18-manual` failed both attempts at the persisted-score comparison on the leaderboard: one expected nonzero hole score was zero (different holes across attempts). All paste flows passed. This manual-entry persistence failure is outside the parser fixes and remains unresolved. Retry reporting correctly retained both failed attempts while counting one final failed flow.
 - Matrix report: ignored `e2e/screens/matrix/results.json`; failure screenshots: `field-skins-18-manual-attempt-1-failure.png` and `field-skins-18-manual-attempt-2-failure.png` in the same directory. Smoke screenshots/report: ignored `e2e/screens/parser-fixes-smoke/`. No sandbox subprocess blocks occurred. No paid services, commits or pushes.
 
-## Open: 8-player manual entry drops a score (field-skins-18-manual)
+## Fixed: animated score text intercepts manual taps (field-skins-18-manual)
 
-In the 24-flow web matrix, the 8-player / 18-hole / manual-entry flow fails both attempts: one tap-entered score (different hole each run, e.g. PlayerD hole 17 = 4) does not render or persist. Paste flows and all smaller rosters pass. Not yet known whether this is an app bug (lost tap during re-render/animation) or test timing. Quarantined from CI via `--skip=field-skins-18-manual` until diagnosed; the other 23 flows gate CI.
+The original 8-player / 18-hole manual flow lost one entered score on varying
+holes; paste and smaller-roster flows passed. Diagnosis found an **app input
+hit-testing defect**, rather than an asynchronous store or storage-write race.
+Each score number uses `SlideInUp`, whose web animation starts at `-100vh`.
+Numbers from later player rows travel over earlier players' stationary controls
+and can change the pointer target during a tap.
+
+Temporary browser-only pointer/storage tracing, with the score animation slowed
+to one second and a 30 ms tap, reproduced the missing score: pointerdown targeted
+`score-par-PlayerA`, pointerup targeted `score-par-PlayerG`, and the click landed
+on their common ancestor instead of either Pressable. PlayerA hole 1 stayed zero
+and there was no corresponding storage write. Unmodified-duration diagnostic
+runs passed, so the original intermittent timing was not independently captured
+at normal speed. The widened timing exposes the same production animation's
+cross-row hit-testing failure; it does not establish a storage defect.
+
+**Fix:** make the animated number ignore pointer events, leaving taps with the
+stationary Pressable underneath. The score animation remains enabled. A focused
+browser regression in `field-skins-18-manual` holds PlayerG's number over
+PlayerA's control and sends a physical 30 ms tap. It verifies PlayerA's rendered
+and persisted par score and that every other player's score stays zero. This
+regression failed against the unchanged app (`expected 4, persisted 0`) before
+the fix. The existing per-edit rendered/persisted-state waits remain in place;
+no forced locator clicks, score injection, action retries, or fixed sleeps were
+added. Temporary diagnostic tracing, CPU throttling, and animation-duration
+overrides were removed.
+
+Validation on `cursor/manual-entry-lost-tap` (2026-10-22):
+
+- Offline Expo web export succeeded; served locally with `node e2e/serve.mjs`.
+- `npm run e2e:matrix -- --only=field-skins-18-manual --retries=0` passed
+  **3/3 consecutive runs**, each including the focused overlap regression,
+  all 144 persisted scores, rendered leaderboard totals, and settlement checks:
+  **57.552 s, 57.444 s, 57.435 s**. Separate ignored reports/screenshots are in
+  `e2e/screens/manual-tap-fixed-run-{1,2,3}/`.
+- `npm test -- --runInBand`: **11 suites, 233/233 tests passed**, 22.184 s.
+- Removed `--skip=field-skins-18-manual` from the web-smoke workflow after
+  those three successful runs; all 24 flows are enabled in CI again. The other
+  23 flows were not rerun during this focused diagnosis.
+- No paid services, commits, or pushes.
