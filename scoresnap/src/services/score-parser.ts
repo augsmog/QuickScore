@@ -17,6 +17,18 @@ export interface ParsedGrid {
   holeCount: number;
 }
 
+/** Split pasted rows, preserving empty comma/tab cells and single spaces in names. */
+export function textToGrid(text: string): string[][] {
+  return text
+    .split(/\r\n|\n|\r/)
+    .filter((line) => line.trim().length > 0)
+    .map((line) => {
+      const delimiter = line.includes(",") ? "," : line.includes("\t") ? "\t" : / {2,}/;
+      const row = typeof delimiter === "string" ? line : line.trim();
+      return row.split(delimiter).map((cell) => cell.trim());
+    });
+}
+
 /**
  * Normalize a raw string score value to a number.
  * Handles common OCR misreads: O→0, l→1, S→5, etc.
@@ -166,8 +178,8 @@ export function parseScoreGrid(
     } else if (hasParLabel && !valuesLookLikePar) {
       // Labeled "Par" but values don't match - skip this row (likely malformed)
       continue;
-    } else if (!hasParLabel && valuesLookLikePar && parRow.length === 0) {
-      // No label but values look like par and we haven't found par yet
+    } else if (!hasParLabel && !isPlayerName(firstCell) && valuesLookLikePar && parRow.length === 0) {
+      // No player name or par label, but values look like par and we haven't found par yet
       // Only accept this if it's in the first few rows (typical scorecard layout)
       const rowIndex = rows.indexOf(row);
       if (rowIndex < 5) {

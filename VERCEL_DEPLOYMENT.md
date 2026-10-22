@@ -22,10 +22,10 @@ npm install
 ```bash
 npm run web
 # Or for production build:
-npx expo export:web
+npx expo export --platform web --output-dir dist-web
 ```
 
-This creates a static web build in `web-build/` directory.
+This creates a static web build in `dist-web/` directory.
 
 ### 3. Deploy to Vercel
 
@@ -36,7 +36,7 @@ vercel
 # Follow prompts:
 # - Set up and deploy? Yes
 # - Project name: snapscore-golf (or your choice)
-# - Directory: ./web-build
+# - Directory: ./dist-web
 # - Settings OK? Yes
 
 # Subsequent deploys:
@@ -59,7 +59,7 @@ vercel env add EXPO_PUBLIC_OFFLINE_MODE
 
 ```bash
 cd scoresnap
-npx expo export:web
+npx expo export --platform web --output-dir dist-web
 ```
 
 ### 2. Connect GitHub Repository
@@ -69,8 +69,8 @@ npx expo export:web
 3. Configure project:
    - **Framework Preset**: Other
    - **Root Directory**: `scoresnap`
-   - **Build Command**: `npx expo export:web`
-   - **Output Directory**: `web-build`
+   - **Build Command**: `npx expo export --platform web --output-dir dist-web`
+   - **Output Directory**: `dist-web`
    - **Install Command**: `npm install`
 
 ### 3. Add Environment Variables (Dashboard)
@@ -91,8 +91,8 @@ Create `vercel.json` in `/workspace/scoresnap/`:
 
 ```json
 {
-  "buildCommand": "cd scoresnap && npx expo export:web",
-  "outputDirectory": "scoresnap/web-build",
+  "buildCommand": "cd scoresnap && npx expo export --platform web --output-dir dist-web",
+  "outputDirectory": "scoresnap/dist-web",
   "installCommand": "cd scoresnap && npm install",
   "framework": null,
   "env": {
@@ -119,13 +119,13 @@ vercel
 
 ### Offline Mode Behavior
 
-When `EXPO_PUBLIC_OFFLINE_MODE=true` (default for web):
+When the build is made with `EXPO_PUBLIC_OFFLINE_MODE=true` (explicit opt-in; it is not automatic on web):
 
 - ✅ Auth is bypassed — users land directly on home screen
 - ✅ Onboarding auto-completes
 - ✅ All data stored locally in browser (IndexedDB/localStorage)
 - ✅ No Supabase or backend required
-- ⚠️ Camera scanning disabled on web (not supported by Expo)
+- ⚠️ Camera OCR is not available on web; the Scan screen offers "Enter scorecard as text", which runs the same parser
 - ✅ Manual score entry works fully
 - ✅ All 29 game types work with manual entry
 
@@ -150,9 +150,9 @@ Test the web build locally first:
 
 ```bash
 cd scoresnap
-npx expo export:web
-npx serve web-build
-# Opens at http://localhost:3000
+EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web
+npx serve -s dist-web
+# Real-app Playwright check (see e2e/web-real-flow.mjs): BASE_URL=http://localhost:3000 node e2e/web-real-flow.mjs
 ```
 
 ## Troubleshooting
@@ -238,13 +238,13 @@ Before wider release:
 
 ```bash
 # Check build size
-npx expo export:web --analyze
+npx expo export --platform web --output-dir dist-web
 
 # Clear cache and rebuild
 npx expo start -c --web
 
 # Test production build locally
-npx serve web-build --single
+npx serve dist-web --single
 
 # View Vercel deployment logs
 vercel logs [deployment-url]

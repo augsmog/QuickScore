@@ -41,6 +41,7 @@ import {
   isPlayerName,
   nameConfidence,
   parseScoreGrid,
+  textToGrid,
 } from "../../services/score-parser";
 
 // ─── TEST HELPERS ───────────────────────────────────────────────────
@@ -1393,6 +1394,26 @@ section("🕳️ Edge Cases — Incomplete Round (zeros)");
     typeof partialSkins.totals === "object",
     "Partial skins: valid totals object"
   );
+}
+
+section("Text scorecard entry");
+{
+  assert(textToGrid("  \r\n\n").length === 0, "Blank text has no rows");
+  assert(JSON.stringify(textToGrid("Sam,  4,  5")) === JSON.stringify([["Sam", "4", "5"]]), "Spaces after commas do not create extra holes");
+  const rows = textToGrid("Hole,1,2,3\r\nPar\t4\t5\t3\nAugie Smith  4  4  4");
+  assert(JSON.stringify(rows) === JSON.stringify([["Hole", "1", "2", "3"], ["Par", "4", "5", "3"], ["Augie Smith", "4", "4", "4"]]), "Comma, tab, space separators and CRLF preserve names");
+  assert(JSON.stringify(textToGrid("Augie,4,,5\nSam\t4\t\t5")) === JSON.stringify([["Augie", "4", "", "5"], ["Sam", "4", "", "5"]]), "Empty cells keep their hole positions");
+  assert(JSON.stringify(textToGrid("\t4\t\t5\t")) === JSON.stringify([["", "4", "", "5", ""]]), "Leading and trailing empty tab cells are preserved");
+  const namedPlayers = parseScoreGrid(textToGrid("Sam,4,5,4,3,4,3,4,5,4\nAugie,5,5,4,4,5,4,4,6,5"));
+  assert(JSON.stringify(namedPlayers.players.map((player) => player.name)) === JSON.stringify(["Sam", "Augie"]), "Nine-hole rows with par-like scores retain both named players");
+  assert(JSON.stringify(namedPlayers.players[0]?.scores.slice(0, 9)) === JSON.stringify([4, 5, 4, 3, 4, 3, 4, 5, 4]), "Named player's par-like scores are preserved");
+  const unlabeledPar = parseScoreGrid(textToGrid("\t3\t4\t5\t4\t3\t4\t3\t4\t5\nSam,4,5,4,3,4,3,4,5,4"));
+  assert(JSON.stringify(unlabeledPar.parRow) === JSON.stringify([3, 4, 5, 4, 3, 4, 3, 4, 5]) && unlabeledPar.holeCount === 9, "Blank first cell still allows unlabeled nine-hole par detection");
+  assert(unlabeledPar.players.length === 1 && unlabeledPar.players[0].name === "Sam", "Player following unlabeled par is retained");
+  const parsed = parseScoreGrid(textToGrid("Augie,4,4,4,4,4,4,4,4,4"));
+  assert(parsed.players.length === 1 && parsed.players[0].name === "Augie", "All-4s text row is a player, not par");
+  assert(parsed.players[0].scores.slice(0, 9).every((score) => score === 4), "Text player scores reach real parser");
+  assert(parseScoreGrid(textToGrid("Hole,1,2,3")).players.length === 0, "Header-only text finds no players");
 }
 
 // ─── SUMMARY ────────────────────────────────────────────────────────

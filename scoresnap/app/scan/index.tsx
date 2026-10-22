@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { View, Text, Pressable, Image, Dimensions } from "react-native";
+import { View, Text, Pressable, Image, Dimensions, Platform, TextInput, ScrollView } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions, FlashMode } from "expo-camera";
@@ -18,6 +18,9 @@ import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import { useScanStore } from "../../src/stores/scan-store";
 import { scanScorecard } from "../../src/services/ocr-service";
+
+import { OFFLINE_MODE } from "../../src/config/offline";
+import { parseScoreGrid, textToGrid } from "../../src/services/score-parser";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const FRAME_WIDTH = SCREEN_WIDTH - 80;
@@ -41,6 +44,8 @@ export default function ScanScreen() {
   const { contestId } = useLocalSearchParams<{ contestId?: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<ScanPhase>("ready");
+  const [scorecardText, setScorecardText] = useState("");
+  const [textError, setTextError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -138,6 +143,51 @@ export default function ScanScreen() {
   const toggleFacing = useCallback(() => {
     setFacing((f) => (f === "back" ? "front" : "back"));
   }, []);
+
+  // Text entry does not use OCR or consume scan credits.
+  if (OFFLINE_MODE || Platform.OS === "web") {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+        <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }} keyboardShouldPersistTaps="handled">
+          <Pressable onPress={() => router.back()} accessibilityRole="button">
+            <Text style={{ color: COLORS.primary }}>Go Back</Text>
+          </Pressable>
+          <Text style={{ ...TYPOGRAPHY.title, color: COLORS.text }}>Enter scorecard as text</Text>
+          <Text style={{ color: COLORS.textDim }}>
+            Paste one row per line, with a player name followed by scores. Separate cells with commas, tabs, or two or more spaces. Hole and Par rows are optional.
+          </Text>
+          <TextInput
+            testID="scorecard-text-input"
+            accessibilityLabel="Scorecard text"
+            multiline
+            value={scorecardText}
+            onChangeText={(text) => { setScorecardText(text); setTextError(null); }}
+            style={{ minHeight: 220, padding: 16, borderWidth: 1, borderColor: COLORS.textDim, borderRadius: RADII.lg, color: COLORS.text, textAlignVertical: "top" }}
+          />
+          {textError && <Text accessibilityRole="alert" style={{ color: COLORS.error }}>{textError}</Text>}
+          <Pressable
+            testID="parse-scorecard-button"
+            accessibilityRole="button"
+            onPress={() => {
+              const result = parseScoreGrid(textToGrid(scorecardText));
+              if (result.players.length === 0) {
+                setTextError("No players found. Enter a player name followed by scores on each row.");
+                return;
+              }
+              setTextError(null);
+              router.push({
+                pathname: "/scan/review",
+                params: { contestId: contestId || "", photoUri: "", scanData: JSON.stringify(result.players) },
+              });
+            }}
+            style={{ backgroundColor: COLORS.primary, borderRadius: RADII.lg, padding: 16, alignItems: "center" }}
+          >
+            <Text style={{ fontFamily: FONTS.bold, color: COLORS.onPrimary }}>Parse Scorecard</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   if (!permission) return <View style={{ flex: 1, backgroundColor: COLORS.bg }} />;
 

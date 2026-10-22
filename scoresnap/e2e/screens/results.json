@@ -1,0 +1,81 @@
+{
+  "base": "http://localhost:8089",
+  "results": [
+    {
+      "ok": true,
+      "name": "Home screen renders from real web build",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "New contest starts with no scores (no sample data)",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Empty scorecard text shows error and stays on scan screen",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Parser found exactly 2 players",
+      "detail": "[\"Augie\",\"Sam\"]"
+    },
+    {
+      "ok": true,
+      "name": "GS-2: all-4s row is parsed as player Sam (18 x 4), not as par",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Augie's real scores parsed (total 81)",
+      "detail": "5,6,4,3,5,4,4,6,5,4,5,3,6,4,5,3,5,4"
+    },
+    {
+      "ok": true,
+      "name": "Review screen shows both parsed players",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "GS-1: review shows no old sample players",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Confirm returns to the contest",
+      "detail": "http://localhost:8089/contest/1792627275475-bp76ect"
+    },
+    {
+      "ok": true,
+      "name": "Leaderboard shows real totals (Augie 81, Sam 72)",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement screen shows money results",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "GS-1: no scanData shows error, no sample players",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "GS-1: malformed scanData shows error",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "GS-1: empty player list shows error",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "No uncaught page errors",
+      "detail": ""
+    }
+  ],
+  "pageErrors": []
+}

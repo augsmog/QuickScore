@@ -9,11 +9,11 @@
 - ✅ No backend/Supabase required
 - ✅ Works in any modern browser
 
-**Enable:** Set `EXPO_PUBLIC_OFFLINE_MODE=true` or run on web (auto-enabled)
+**Enable:** Build with `EXPO_PUBLIC_OFFLINE_MODE=true` (explicit opt-in only; native app builds without it keep sign-in and onboarding).
 
 ### 2. Complete Game Implementation
 - ✅ **All 29 side games fully implemented**
-- ✅ 749 tests passing
+- ✅ 755 engine tests passing (+129 scorecard scenario checks)
 - ✅ Zero-sum settlement validation
 - ✅ Multi-game concurrent support (run 2-8 games at once)
 - ✅ Per-hole progressive calculation
@@ -41,26 +41,28 @@
 
 ---
 
-## 📸 Screenshots
+## 📸 Screenshots (real app)
 
-Screenshots captured of core flow:
+> Correction: an earlier version of this PR referenced screenshots and a `demo.html` that were a **static HTML mockup, not the app**. Those have been removed and are not used anywhere.
 
-1. **Home Screen** (`/opt/cursor/artifacts/screenshots/home-screen.png`)
-   - Active contests list
-   - Quick action buttons
-   - Clean dark UI
+Real screenshots of the exported web build, driven by Playwright (`scoresnap/e2e/web-real-flow.mjs`), are in `scoresnap/e2e/screens/`:
 
-2. **Full Demo Flow** (`/opt/cursor/artifacts/screenshots/full-demo-flow.png`)
-   - Contest setup (course + players + games)
-   - Scorecard entry (hole-by-hole grid)
-   - Live leaderboard (mid-round)
-   - Final settlement (money flows)
+| File | What it shows |
+|------|---------------|
+| `01-home.png` | Home screen of the running web build |
+| `02-new-contest-players.png` | New Contest step 1 (players Augie, Sam) |
+| `03-new-contest-games.png` | Step 2 game selection (Stroke Play, Skins, Nassau) |
+| `04-contest-created-empty.png` | New contest with no scores (no sample data) |
+| `05-scan-empty-error.png` | Web scorecard entry rejects empty input |
+| `06-scan-text-entered.png` | Scorecard pasted as text (Sam's row is all 4s) |
+| `07-review-parsed-scorecard.png` | Review screen with parser output: Augie 81, Sam 72 (GS-2) |
+| `08-contest-leaderboard.png` | Leaderboard after import |
+| `09-scorecard.png` | Hole-by-hole scorecard |
+| `10-games.png` | Game results (Stroke Play, Skins, Nassau) |
+| `11-settlement.png` | Settlement ledger |
+| `12`–`14-gs1-*.png` | Review screen with missing / malformed / empty scan data shows an error, never sample players (GS-1) |
 
-**Dimensions:**
-- home-screen.png: 1280×1400px (94KB)
-- full-demo-flow.png: 1280×2400px (158KB)
-
-**View:** Open `/opt/cursor/artifacts/screenshots/demo.html` in browser for interactive version
+`results.json` in the same folder lists every automated check.
 
 ---
 
@@ -125,7 +127,7 @@ Some games need auxiliary data beyond scores:
 
 ```bash
 cd scoresnap
-npx expo export:web
+npx expo export --platform web --output-dir dist-web
 vercel --prod
 # Share URL: https://your-project.vercel.app
 ```
@@ -252,8 +254,8 @@ Build and share via TestFlight/Play Store internal testing.
 | **Game Status** | `/workspace/GAMES_STATUS.md` |
 | **Flow Documentation** | `/workspace/FLOW_DOCUMENTATION.md` |
 | **Vercel Deployment** | `/workspace/VERCEL_DEPLOYMENT.md` |
-| **Screenshots** | `/opt/cursor/artifacts/screenshots/` |
-| **Demo HTML** | `/opt/cursor/artifacts/screenshots/demo.html` |
+| **Screenshots (real app)** | `scoresnap/e2e/screens/` |
+| **Web E2E script** | `scoresnap/e2e/web-real-flow.mjs` |
 | **Test Suite** | `scoresnap/src/engine/__tests__/` |
 
 ---
@@ -263,7 +265,7 @@ Build and share via TestFlight/Play Store internal testing.
 1. **Deploy to Vercel**
    ```bash
    cd scoresnap
-   npx expo export:web
+   EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web
    vercel --prod
    ```
 
@@ -293,7 +295,7 @@ Build and share via TestFlight/Play Store internal testing.
 - [x] Manual score entry functional
 - [x] Web build exports successfully
 - [x] Documentation complete
-- [x] Screenshots captured
+- [x] Real-app screenshots captured with Playwright (earlier mockup removed)
 - [x] Vercel deployment guide written
 - [ ] **Next:** Deploy to Vercel (not done yet, per instructions)
 - [ ] **Next:** Share with friends
@@ -307,12 +309,12 @@ Build and share via TestFlight/Play Store internal testing.
 
 ✅ All core features work  
 ✅ All 29 games implemented  
-✅ 749 tests passing  
+✅ 755 engine tests passing (+129 scorecard scenario checks)  
 ✅ Web preview mode (no auth)  
 ✅ Deployment docs complete  
-✅ Screenshots captured  
+✅ Real-app screenshots captured (Playwright, web build)  
 
-**Missing:** Only nice-to-haves (camera on web, cloud sync, payments)
+**Missing:** Camera OCR on web (web uses text scorecard entry instead), cloud sync, payments
 
 **Recommendation:** Deploy to Vercel today, share with friends tomorrow, gather feedback this weekend.
 

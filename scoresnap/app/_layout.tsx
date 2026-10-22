@@ -1,3 +1,4 @@
+import { OFFLINE_MODE } from "../src/config/offline";
 import { useEffect, useRef, useState } from "react";
 import { Stack, useRouter, useSegments, useNavigationContainerRef } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -72,10 +73,6 @@ Sentry.init({
     return breadcrumb;
   },
 });
-
-// Offline mode: skip auth requirement (for web previews, friend testing, local development)
-// Set EXPO_PUBLIC_OFFLINE_MODE=true in .env or environment to enable
-const OFFLINE_MODE = process.env.EXPO_PUBLIC_OFFLINE_MODE === "true" || typeof window !== "undefined";
 
 function useProtectedRoute() {
   const hasCompletedOnboarding = useOnboardingStore(
