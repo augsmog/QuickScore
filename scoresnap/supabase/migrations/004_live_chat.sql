@@ -1,4 +1,4 @@
--- REVIEW ONLY. Requires 002 and 003; do not apply automatically.
+-- Applied 2026-10-22 to pltgbizexllikiwryozm as live_chat_slice2 (after 003 live_share_slice1).
 begin;
 create table public.round_messages (
   id uuid primary key default gen_random_uuid(),
