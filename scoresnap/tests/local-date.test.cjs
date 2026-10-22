@@ -5,7 +5,7 @@ test.each([
   ['America/Los_Angeles', '2026-01-01T01:30:00Z', '2025-12-31'],
 ])('local calendar date in %s for %s', (timezone, instant, expected) => {
   const result = execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e',
-    `import { localDate } from './src/utils/local-date.ts'; console.log(localDate('${instant}'));`],
+    `const m = await import('./src/utils/local-date.ts'); const localDate = m.localDate ?? m.default.localDate; console.log(localDate('${instant}'));`],
     { encoding: 'utf8', env: { ...process.env, TZ: timezone } });
   expect(result.trim()).toBe(expected);
 });
