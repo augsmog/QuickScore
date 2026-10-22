@@ -42,8 +42,8 @@ export function normalizeScore(raw: string): { value: number; confidence: number
   }
 
   // Direct number
-  const num = parseInt(cleaned, 10);
-  if (!isNaN(num) && num >= 1 && num <= 15) {
+  const num = /^\d+$/.test(cleaned) ? Number(cleaned) : NaN;
+  if (!isNaN(num) && num >= 0 && num <= 15) {
     return { value: num, confidence: 0.95 };
   }
 
@@ -65,15 +65,6 @@ export function normalizeScore(raw: string): { value: number; confidence: number
     return { value: ocrFixes[cleaned], confidence: 0.55 };
   }
 
-  // Try removing non-numeric chars
-  const digitsOnly = cleaned.replace(/\D/g, "");
-  if (digitsOnly.length > 0) {
-    const parsed = parseInt(digitsOnly, 10);
-    if (parsed >= 1 && parsed <= 15) {
-      return { value: parsed, confidence: 0.65 };
-    }
-  }
-
   return { value: 0, confidence: 0.2 };
 }
 
@@ -86,10 +77,10 @@ export function normalizeScore(raw: string): { value: number; confidence: number
  * - Not be all the same value (player row of all 4s is not par)
  */
 export function isParRow(values: string[]): boolean {
-  const nums = values.map((v) => parseInt(v.trim(), 10)).filter((n) => !isNaN(n));
+  const nums = values.map((v) => /^\d+$/.test(v.trim()) ? Number(v.trim()) : NaN);
   
   // Must have at least 9 values for a full 9 holes
-  if (nums.length < 9) return false;
+  if (nums.length !== 9 && nums.length !== 18) return false;
   
   // All values must be in typical par range (3-6)
   if (!nums.every((n) => n >= 3 && n <= 6)) return false;
@@ -158,14 +149,39 @@ export function parseScoreGrid(
   let parRow: number[] = [];
   let holeCount = 18;
 
+  // A numbered Hole header is authoritative; summary columns never become holes.
+  const header = rows.find((row) => /^holes?:?$/i.test(row[0]?.trim() ?? ""));
+  const columns = header?.flatMap((cell, index) =>
+    index > 0 && /^\d+$/.test(cell.trim()) && Number(cell) >= 1 && Number(cell) <= 18
+      ? [{ index, hole: Number(cell) }] : []);
+  const hasHeader = columns && (columns.length === 9 || columns.length === 18)
+    && columns.every((column, index) => column.hole === index + 1);
+  if (hasHeader) holeCount = columns.length;
+
+  function cellsFor(row: string[]): string[] {
+    if (hasHeader) return columns!.map(({ index }) => row[index] ?? "");
+    const cells = row.slice(1);
+    // Without a header, only remove an embedded OUT when it equals the
+    // preceding nine scores. Trailing IN/total cells are outside the 18 holes.
+    if (cells.length >= 19 && cells.length <= 21) {
+      const front = cells.slice(0, 9).map(normalizeScore);
+      const subtotal = cells[9].trim();
+      if (/^\d+$/.test(subtotal) && front.every((score) => score.confidence >= 0.55)
+        && Number(subtotal) === front.reduce((sum, score) => sum + score.value, 0)) {
+        return [...cells.slice(0, 9), ...cells.slice(10, 19)];
+      }
+    }
+    return cells.slice(0, holeCount);
+  }
+
   for (const row of rows) {
-    if (row.length < 3) continue;
+    if (row.length < 3 || row === header) continue;
 
     const firstCell = row[0].trim();
-    const scoreCells = row.slice(1);
+    const scoreCells = cellsFor(row);
 
     // Check if this is a par row by looking at label first, then values
-    const hasParLabel = firstCell.toLowerCase().includes("par");
+    const hasParLabel = /^par\s*:?$/i.test(firstCell);
     const valuesLookLikePar = isParRow(scoreCells);
     
     if (hasParLabel && valuesLookLikePar) {
@@ -173,7 +189,7 @@ export function parseScoreGrid(
       parRow = scoreCells
         .map((v) => parseInt(v.trim(), 10))
         .filter((n) => !isNaN(n));
-      holeCount = parRow.length;
+      if (!hasHeader) holeCount = parRow.length;
       continue;
     } else if (hasParLabel && !valuesLookLikePar) {
       // Labeled "Par" but values don't match - skip this row (likely malformed)
@@ -186,7 +202,7 @@ export function parseScoreGrid(
         parRow = scoreCells
           .map((v) => parseInt(v.trim(), 10))
           .filter((n) => !isNaN(n));
-        holeCount = parRow.length;
+        if (!hasHeader) holeCount = parRow.length;
         continue;
       }
     }
@@ -196,8 +212,8 @@ export function parseScoreGrid(
       const scores: number[] = [];
       const confidence: number[] = [];
 
-      for (let i = 1; i < Math.min(row.length, holeCount + 1); i++) {
-        const parsed = normalizeScore(row[i]);
+      for (const cell of scoreCells.slice(0, holeCount)) {
+        const parsed = normalizeScore(cell);
         scores.push(parsed.value);
         confidence.push(parsed.confidence);
       }

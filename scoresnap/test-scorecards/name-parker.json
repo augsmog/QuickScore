@@ -71,6 +71,5 @@
       "4",
       "4"
     ]
-  ],
-  "knownBug": "P3: name containing par is discarded"
+  ]
 }
