@@ -156,7 +156,7 @@ for (const mode of ["net", "gross"]) {
     const players = c.groups.flatMap(g=>g.players);
     console.log(JSON.stringify({
       skins: calcSkins(players,c.course,false,c.gameConfig.skinsMode).totals,
-      settlement: calculateSettlement(players,c.course,c.games,c.betUnit,c.auxiliaryData,c.gameConfig).netByPlayer
+      settlement: calculateSettlement(players,c.course,c.games,c.betUnit,c.auxiliaryData,c.gameConfig)
     }));
   `, JSON.stringify(fixture)], { encoding: "utf8" }));
   modeTotals[mode] = expected.skins;
@@ -172,12 +172,35 @@ for (const mode of ["net", "gross"]) {
   await vis(page.getByText(/^settlement$/i)).first().click();
   await page.getByTestId("settlement-skins-mode").waitFor();
   check(await page.getByTestId("settlement-skins-mode").innerText() === label, `Settlement shows ${label}`);
-  for (const [name,amount] of Object.entries(expected.settlement)) {
+  for (const [name,amount] of Object.entries(expected.settlement.netByPlayer)) {
     const rowText = await page.getByTestId(`settlement-player-${name}`).innerText();
-    const money = amount === 0 ? "Even" : (amount > 0 ? "+" : "") + "$" + Math.abs(amount).toFixed(0);
+    const money = amount === 0 ? "Even" : (amount > 0 ? "+" : "") + "$" + Math.abs(amount).toFixed(2);
     check(rowText.includes(money), `${label}: Settlement amount agrees for ${name}`, money);
   }
-  if (mode === "gross") await shot("11b-settlement-gross.png");
+  const cents = n => Math.round(n * 100);
+  const nets = expected.settlement.netByPlayer;
+  check(Object.values(nets).reduce((sum,n)=>sum+cents(n),0) === 0, `${label}: player nets sum to zero`);
+  for (const [name,net] of Object.entries(nets)) {
+    const balance = expected.settlement.transactions.reduce((sum,t)=>sum+(t.to===name?cents(t.amount):0)-(t.from===name?cents(t.amount):0),0);
+    check(balance === cents(net), `${label}: ledger reconciles for ${name}`);
+  }
+  let winnerTotal = 0;
+  for (const [name,net] of Object.entries(nets).filter(([,n])=>n>0)) {
+    const text = await page.getByTestId(`settlement-player-${name}`).innerText();
+    winnerTotal += cents(Number(text.match(/\+\$(\d+\.\d{2})/)[1]));
+  }
+  const displayedTotal = cents(Number((await page.getByTestId("settlement-session-total").innerText()).replace("$","")));
+  check(displayedTotal === winnerTotal, `${label}: session total equals displayed winners`);
+  for (const [width,height,suffix] of [[390,844,""],[1280,800,"-desktop"]]) {
+    await page.setViewportSize({width,height});
+    await page.getByTestId("settlement-scroll").evaluate(el=>{el.scrollTop=0;});
+    await page.waitForTimeout(2000);
+    const g = await page.getByTestId("settlement-chip-graphic").boundingBox();
+    const a = await page.getByTestId("settlement-hero-amount").boundingBox();
+    check(g && a && !(g.x<a.x+a.width && g.x+g.width>a.x && g.y<a.y+a.height && g.y+g.height>a.y), `${label}: chip and amount do not overlap at ${width}x${height}`);
+    await shot(`${mode === "net" ? "11-settlement" : "11b-settlement-gross"}${suffix}.png`);
+  }
+  await page.setViewportSize({width:390,height:844});
 }
 check(JSON.stringify(modeTotals.net) !== JSON.stringify(modeTotals.gross), "Handicaps produce different Net and Gross skins");
 

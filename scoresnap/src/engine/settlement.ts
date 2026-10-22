@@ -94,7 +94,7 @@ export function calculateSettlement(
                     transactions.push({
                       from: other.name,
                       to: player.name,
-                      amount: Math.round(amount * 100) / 100,
+                      amount: amount,
                       gameType,
                     });
                   }
@@ -264,7 +264,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -294,7 +294,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(perPlayer * 100) / 100,
+                    amount: perPlayer,
                     gameType,
                   });
                 }
@@ -307,7 +307,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(perPlayer * 100) / 100,
+                    amount: perPlayer,
                     gameType,
                   });
                 }
@@ -341,7 +341,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -438,7 +438,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -472,7 +472,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -505,7 +505,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -537,7 +537,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -680,7 +680,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -776,7 +776,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -802,7 +802,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -959,7 +959,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: p.name,
                     to: winnerName,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -980,7 +980,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: p.name,
                     to: winnerName,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -1002,14 +1002,50 @@ export function calculateSettlement(
     }
   }
 
-  // Net transactions per player
-  const netByPlayer: Record<string, number> = {};
-  players.forEach((p) => (netByPlayer[p.name] = 0));
-
-  for (const t of transactions) {
-    netByPlayer[t.to] = (netByPlayer[t.to] || 0) + t.amount;
-    netByPlayer[t.from] = (netByPlayer[t.from] || 0) - t.amount;
+  // Round player entitlements, rather than independently rounding every edge.
+  // Each game's two sides receive the same cent budget, with stable input-order
+  // tie breaking for equal remainders. All ledger arithmetic below is integer.
+  const ledger: Transaction[] = [];
+  const netCents: Record<string, number> = {};
+  players.forEach(p => { netCents[p.name] = 0; });
+  for (const gameType of new Set(transactions.map(t => t.gameType))) {
+    const raw: Record<string, number> = {};
+    players.forEach(p => { raw[p.name] = 0; });
+    for (const t of transactions.filter(t => t.gameType === gameType)) {
+      raw[t.to] = (raw[t.to] || 0) + t.amount * 100;
+      raw[t.from] = (raw[t.from] || 0) - t.amount * 100;
+    }
+    const winners = Object.entries(raw).filter(([, n]) => n > 1e-8);
+    const losers = Object.entries(raw).filter(([, n]) => n < -1e-8).map(([name, n]) => [name, -n] as [string, number]);
+    const budget = Math.round(winners.reduce((sum, [, n]) => sum + n, 0));
+    const credits = allocateCents(winners, budget);
+    const debts = allocateCents(losers, budget);
+    for (const credit of credits) {
+      for (const debt of debts) {
+        const cents = Math.min(credit.cents, debt.cents);
+        if (!cents) continue;
+        ledger.push({ from: debt.name, to: credit.name, amount: cents / 100, gameType });
+        netCents[credit.name] += cents;
+        netCents[debt.name] -= cents;
+        credit.cents -= cents;
+        debt.cents -= cents;
+      }
+    }
   }
+  const netByPlayer = Object.fromEntries(Object.entries(netCents).map(([name, cents]) => [name, cents / 100]));
+  return { transactions: ledger, netByPlayer };
+}
 
-  return { transactions, netByPlayer };
+/** Largest-remainder allocation; amounts and the total are in cents. */
+function allocateCents(entries: [string, number][], total: number) {
+  const sum = entries.reduce((s, [, amount]) => s + amount, 0);
+  const shares = entries.map(([name, amount], index) => {
+    const exact = sum ? amount / sum * total : 0;
+    const cents = Math.floor(exact);
+    return { name, cents, remainder: exact - cents, index };
+  });
+  const ranked = [...shares].sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+  const remaining = total - shares.reduce((s, share) => s + share.cents, 0);
+  for (let i = 0; i < remaining; i++) ranked[i].cents++;
+  return shares;
 }

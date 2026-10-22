@@ -22,7 +22,7 @@ import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 import { calculateSettlement } from "../../../src/engine/settlement";
-import { formatMoney } from "../../../src/utils/formatters";
+const formatMoney = (amount: number) => `$${Math.abs(amount).toFixed(2)}`;
 
 export default function SettlementScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -79,7 +79,7 @@ export default function SettlementScreen() {
 
   const sessionTotal = sortedNet
     .filter(([, net]) => net > 0)
-    .reduce((sum, [, net]) => sum + net, 0);
+    .reduce((sum, [, net]) => sum + Math.round(net * 100), 0) / 100;
 
   // Generate shareable text
   const generateShareText = (): string => {
@@ -186,7 +186,7 @@ export default function SettlementScreen() {
             >
               SESSION TOTAL
             </Text>
-            <Text
+            <Text testID="settlement-session-total"
               style={{
                 fontFamily: FONTS.headline,
                 fontSize: 28,
@@ -262,8 +262,17 @@ export default function SettlementScreen() {
                   </Text>
                 </View>
               </View>
-              <Text
+            </View>
+            <View testID="settlement-chip-graphic">
+              <ChipStack
+                amount={topWinner[1]}
+                playerName={`${topWinner[0]} cleaned up`}
+                showAmount={false}
+              />
+            </View>
+            <Text testID="settlement-hero-amount"
                 style={{
+                  textAlign: "center",
                   fontFamily: FONTS.headline,
                   fontSize: 32,
                   color: COLORS.primary,
@@ -272,8 +281,7 @@ export default function SettlementScreen() {
               >
                 +{formatMoney(topWinner[1])}
               </Text>
-            </View>
-            <ChipStack amount={topWinner[1]} playerName={`${topWinner[0]} cleaned up`} />
+
           </View>
         )}
 
