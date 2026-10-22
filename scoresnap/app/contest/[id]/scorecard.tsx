@@ -131,8 +131,8 @@ export default function ScorecardScreen() {
       players.length >= 2
     ) {
       const isCarry = contest.games.includes("skins_carry");
-      const result = calcSkins(players, contest.course, isCarry);
-      const carriedSkins = result.skins.filter((s) => s.winner === "Carry").length;
+      const result = calcSkins(players, contest.course, isCarry, contest.gameConfig?.skinsMode);
+      const carriedSkins = result.remaining;
       if (carriedSkins > 0) {
         statuses.push({
           label: `${carriedSkins} skin${carriedSkins > 1 ? "s" : ""} carrying`,
@@ -143,7 +143,7 @@ export default function ScorecardScreen() {
     }
 
     return statuses;
-  }, [group.players, currentHole, contest.games, contest.course]);
+  }, [group.players, currentHole, contest.games, contest.course, contest.gameConfig]);
 
   // ── Score adjustment via +/- buttons ──
   const adjustScore = useCallback(

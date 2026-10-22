@@ -256,8 +256,7 @@ section("4. Skins Carryover Progressive");
   assert(r1.skins[0].value === 1, "Skins carry H1: value=1", `got ${r1.skins[0].value}`);
   assert(r1.totals["Skin3"] === 1, "Skins carry H1: Skin3 total=1", `got ${r1.totals["Skin3"]}`);
 
-  // After H2: H2 all have score 0 (unplayed) which ties -> carry. pot=1
-  // Actually wait: through 2 means holes 0,1 played. H1: S3 wins (pot resets).
+  // After H2: H1 won by S3 (pot resets).
   // H2: S1=5, S2=5, S3=5 -> all tied -> carry. remaining=1
   const r2 = calcSkins(
     [playerThrough(SKIN_P1, 2), playerThrough(SKIN_P2, 2), playerThrough(SKIN_P3, 2)],
@@ -266,13 +265,12 @@ section("4. Skins Carryover Progressive");
   );
   assert(r2.skins[0].winner === "Skin3", "Skins carry H1-2: H1 Skin3 wins", `got ${r2.skins[0].winner}`);
   assert(r2.skins[1].winner === "Carry", "Skins carry H1-2: H2 carry", `got ${r2.skins[1].winner}`);
-  // H3-H18 are all 0,0,0 -> ties -> carry each. Remaining = 1 + 16 = 17
-  assert(r2.remaining === 17, "Skins carry after H2: remaining=17", `got ${r2.remaining}`);
+  // H3-H18 are unplayed and do not add to the pot.
+  assert(r2.remaining === 1, "Skins carry after H2: remaining=1", `got ${r2.remaining}`);
 
   // After H4: H1 won by S3 (pot=0), H2 carry (pot=1), H3 carry (pot=2), H4 carry (pot=3)
   // All scores identical on H2-H4 -> 3 carries in a row
-  // H5-H18 unplayed (0,0,0) -> 14 more carries. remaining = 3+14 = 17
-  // Wait: pot after H4 = 3. Then H5-H18 each add 1. remaining = 3+14=17
+  // H5-H18 are unplayed and do not add to the pot. Remaining = 3.
   const r4 = calcSkins(
     [playerThrough(SKIN_P1, 4), playerThrough(SKIN_P2, 4), playerThrough(SKIN_P3, 4)],
     COURSE,
@@ -282,6 +280,8 @@ section("4. Skins Carryover Progressive");
   assert(r4.skins[1].winner === "Carry", "Skins carry H1-4: H2 carry", `got ${r4.skins[1].winner}`);
   assert(r4.skins[2].winner === "Carry", "Skins carry H1-4: H3 carry", `got ${r4.skins[2].winner}`);
   assert(r4.skins[3].winner === "Carry", "Skins carry H1-4: H4 carry", `got ${r4.skins[3].winner}`);
+
+  assert(r4.remaining === 3, "Skins carry after H4: remaining=3", `got ${r4.remaining}`);
 
   // Full round: H1 won by S3 (1 skin). H2-H17 all tied (carry). H18: S1=4,S2=4,S3=5 -> S1&S2 tie -> carry.
   // Remaining = 17
