@@ -7,6 +7,7 @@ Decision (Augie, Oct 21 2026): TestFlight goes through **Expo EAS**, so releases
 ## 0. One-time setup (done once, then never again)
 
 1. **Golf course API key → EAS env var** (it used to be plain text in `eas.json`; it was removed on Oct 21 2026).
+   - Course search is off by default; set `EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true` plus `EXPO_PUBLIC_GOLF_COURSE_API_KEY` to enable.
    - The old key is in git history (commit `bc9b70a`), so **rotate it** at golfcourseapi.com first, then store the new one:
    ```sh
    cd scoresnap

@@ -1,3 +1,4 @@
+import { COURSE_SEARCH_ENABLED } from "../../src/config/features";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useState, useMemo } from "react";
 import {
@@ -457,14 +458,35 @@ export default function NewContestScreen() {
               COURSE
             </Text>
             <View style={{ marginBottom: 16 }}>
-              <CourseSearch
-                initialCourseName={courseName}
-                onSelect={(course, name, teeBox) => {
-                  setSelectedCourse(course);
-                  setCourseName(name);
-                  setSelectedTeeBox(teeBox ?? null);
-                }}
-              />
+              {COURSE_SEARCH_ENABLED ? (
+                <CourseSearch
+                  initialCourseName={courseName}
+                  onSelect={(course, name, teeBox) => {
+                    setSelectedCourse(course);
+                    setCourseName(name);
+                    setSelectedTeeBox(teeBox ?? null);
+                  }}
+                />
+              ) : (
+                <TextInput
+                  accessibilityLabel="Course name"
+                  value={courseName}
+                  onChangeText={setCourseName}
+                  placeholder="My Course"
+                  placeholderTextColor={COLORS.textDim}
+                  style={{
+                    backgroundColor: COLORS.surfaceLow,
+                    borderColor: COLORS.border,
+                    borderWidth: 1,
+                    borderRadius: RADII.md,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    fontSize: 15,
+                    fontFamily: FONTS.regular,
+                    color: COLORS.text,
+                  }}
+                />
+              )}
               {selectedTeeBox && (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, paddingHorizontal: 4 }}>
                   <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim }}>
