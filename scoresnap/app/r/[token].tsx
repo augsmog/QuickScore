@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import Head from 'expo-router/head';
+import { LiveChat } from '../../src/ui/LiveChat';
+import { CHAT_POLL_MS } from '../../src/services/live-chat-model';
 import { getSharedRound } from '../../src/services/live-share';
 import type { SharedRound } from '../../src/services/live-share-snapshot';
 export default function SharedScoreboard() {
@@ -9,21 +11,24 @@ export default function SharedScoreboard() {
   const [round, setRound] = useState<SharedRound | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
-    let alive = true;
+    let alive = true; let fetching = false;
     async function refresh() {
+      if (fetching) return;
+      fetching = true;
       try {
         const data = await getSharedRound(token);
         if (alive) { setRound(data); setError(''); }
       } catch (e) { if (alive) { setRound(null); setError((e as Error).message); } }
+      finally { fetching = false; }
     }
     void refresh();
-    const timer = setInterval(refresh, 10000);
+    const timer = setInterval(refresh, CHAT_POLL_MS);
     return () => { alive = false; clearInterval(timer); };
   }, [token]);
   return <ScrollView style={styles.page} contentContainerStyle={styles.content}>
     <Head><title>Live scoreboard · SnapScore</title><meta name="referrer" content="no-referrer" /><meta name="robots" content="noindex,nofollow" /></Head>
     <Text style={styles.title}>Live scoreboard</Text>
-    <Text style={styles.note}>Read only · updates every 10 seconds</Text>
+    <Text style={styles.note}>Scores and chat · updates every 5 seconds</Text>
     {!!error && <Text accessibilityRole="alert" style={styles.text}>{error}</Text>}
     {!round && !error && <Text style={styles.text}>Loading scoreboard…</Text>}
     {round && <>
@@ -39,6 +44,7 @@ export default function SharedScoreboard() {
       </View></ScrollView>
       <Text style={styles.heading}>Game results · unit summary</Text>
       {round.games.map((g,i)=><View key={i}><Text style={styles.heading}>{g.game.replace(/_/g,' ')}</Text>{g.standings.map((s,j)=><Text key={j} style={styles.text}>{s.displayName}: {s.units > 0 ? '+' : ''}{s.units} units</Text>)}</View>)}
+      <LiveChat key={token} token={token} />
     </>}
   </ScrollView>;
 }

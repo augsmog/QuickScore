@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, Pressable, Platform, Share } from 'react-native';
 import { createLiveLink, revokeLiveLinks, publishSnapshot } from '../services/live-share';
 import { useContestStore, type Contest } from '../stores/contest-store';
+import { HostChat } from './LiveChat';
 import { COLORS } from './theme';
 export function LiveShare({ contest }: { contest: Contest }) {
   const [message, setMessage] = useState('');
@@ -29,7 +30,7 @@ export function LiveShare({ contest }: { contest: Contest }) {
         const url = `${origin.replace(/\/$/, '')}/r/${token}`;
         if (Platform.OS === 'web' && navigator.clipboard) await navigator.clipboard.writeText(url);
         else await Share.share({ message: url });
-        setMessage('Live link copied / shared. Anyone with the link can view names and scores. Expires 7 days after the round ends.');
+        setMessage('Live link copied / shared. Anyone with the link can view names and scores and chat with a display name. Expires 7 days after the round ends.');
       }
     } catch (e) { setMessage((e as Error).message); }
     finally { setBusy(false); }
@@ -37,6 +38,7 @@ export function LiveShare({ contest }: { contest: Contest }) {
   return <View style={{ paddingHorizontal: 20 }}>
     <Pressable disabled={busy} onPress={() => run()}><Text style={{ color: COLORS.primary, padding: 8 }}>Share live scoreboard</Text></Pressable>
     {contest.liveShareEnabled && <Pressable disabled={busy} onPress={() => run(true)}><Text style={{ color: COLORS.text, padding: 8 }}>Revoke live links</Text></Pressable>}
+    {contest.liveShareEnabled && <HostChat key={contest.id} localId={contest.id} />}
     {!!message && <Text accessibilityLiveRegion="polite" style={{ color: COLORS.textDim }}>{message}</Text>}
   </View>;
 }
