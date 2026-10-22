@@ -165,7 +165,7 @@ The AI cannot create a contest without ALL of the following resolved:
 ```
 User prompt
     ↓
-AI (Claude API) — system prompt includes:
+AI (Claude API via Edge Function) — system prompt includes:
   - All 30 game types with descriptions and config options
   - Custom game schema
   - Contest creation schema
@@ -191,7 +191,7 @@ The AI system prompt should include:
 
 ### API Integration
 
-Uses Claude API (already have `EXPO_PUBLIC_ANTHROPIC_API_KEY` in env) with:
+Uses Claude API through Supabase Edge Functions with:
 - **Streaming** for responsive feel during multi-turn setup
 - **Tool use** for course search, player lookup (future), template recall
 - **Structured output** for the final contest config JSON
