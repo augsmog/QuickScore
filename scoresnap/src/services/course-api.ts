@@ -4,6 +4,7 @@
  *
  * Future: GHIN integration for automatic handicap posting.
  */
+import { COURSE_SEARCH_ENABLED } from "../config/features";
 import * as Sentry from "@sentry/react-native";
 
 const API_BASE = "https://api.golfcourseapi.com/v1";
@@ -60,12 +61,9 @@ export interface CourseDetail {
  * Search for courses by name.
  */
 export async function searchCourses(query: string): Promise<CourseSearchResult[]> {
+  if (!COURSE_SEARCH_ENABLED) return [];
   const apiKey = getApiKey();
   if (!query.trim()) return [];
-  if (!apiKey) {
-    console.warn("EXPO_PUBLIC_GOLF_COURSE_API_KEY is not set — course search disabled");
-    return [];
-  }
 
   try {
     const res = await fetch(
@@ -110,6 +108,7 @@ export async function searchCourses(query: string): Promise<CourseSearchResult[]
  * Get full course details including tee boxes and hole data.
  */
 export async function getCourseDetail(courseId: string): Promise<CourseDetail | null> {
+  if (!COURSE_SEARCH_ENABLED) return null;
   const apiKey = getApiKey();
   if (!apiKey) return null;
 
