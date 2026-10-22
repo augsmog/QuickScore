@@ -31,7 +31,9 @@ const routingInstrumentation = Sentry.reactNavigationIntegration({
   enableTimeToInitialDisplay: true,
 });
 
+const isPublicShare = typeof window !== "undefined" && window.location.pathname.startsWith("/r/");
 Sentry.init({
+  enabled: !isPublicShare,
   dsn: 'https://e878c1d1d9a18b64ad7ddc2f6d2b5986@o4511068999385088.ingest.us.sentry.io/4511069003776000',
 
   // Release & environment tracking
@@ -90,7 +92,7 @@ function useProtectedRoute() {
     }
 
     // GS-5: browser guests join without onboarding or an account.
-    if (segments[0] === "join") return;
+    if (segments[0] === "join" || segments[0] === "r") return;
 
     const inOnboarding = segments[0] === "onboarding";
     const inAuth = segments[0] === "auth";

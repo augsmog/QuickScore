@@ -30,6 +30,7 @@ jobs:
             sleep 1
           done
           BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens node e2e/web-real-flow.mjs
+          BASE_URL=http://127.0.0.1:8089 node e2e/live-share.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
