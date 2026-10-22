@@ -22,11 +22,14 @@ const ml = load('src/services/ml-kit-ocr.ts', {
 const dir = path.join(__dirname, '../test-scorecards');
 const fixtures = fs.readdirSync(dir).filter(f => f.endsWith('.json')).sort().map(f => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
 for (const fixture of fixtures) {
-  const run = fixture.knownBug ? test.failing : test;
-  run(`${fixture.id}${fixture.knownBug ? ` [${fixture.knownBug}]` : ''}`, () => {
+  test(fixture.id, () => {
     const rows = fixture.grid ?? parser.textToGrid(fixture.text);
     const actual = parser.parseScoreGrid(rows);
     expect({ ...actual, players: actual.players.map(({ name, scores }) => ({ name, scores })) }).toEqual(fixture.expected);
+    if (fixture.reviewCells) for (const index of fixture.reviewCells) {
+      expect(actual.players[0].scores[index]).toBe(0);
+      expect(actual.players[0].confidence[index]).toBeLessThan(0.5);
+    }
     if (fixture.expectedError) expect(actual.players).toHaveLength(0);
     for (const player of actual.players) {
       expect(player.confidence).toHaveLength(18);
