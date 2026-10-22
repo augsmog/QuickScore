@@ -127,6 +127,7 @@ export function calculateSettlement(
 
       case "stableford":
       case "mod_stableford": {
+        if (!players.some(p => p.scores.some(score => score > 0))) break;
         const results = calcStableford(players, course);
         if (results.length >= 2) {
           const winner = results[0];
@@ -386,6 +387,7 @@ export function calculateSettlement(
       case "quota": {
         // QuotaResult[]: { name, playerId, handicap, quota, points, overUnder }
         // Sorted by overUnder descending. Highest surplus wins, collects betUnit from each.
+        if (!players.some(p => p.scores.some(score => score > 0))) break;
         const results = calcQuota(players, course);
         if (results.length >= 2) {
           const winner = results[0];
@@ -404,6 +406,7 @@ export function calculateSettlement(
       case "chicago": {
         // ChicagoResult[]: { name, playerId, handicap, quota, grossPoints, netScore }
         // Sorted by netScore descending. Highest net wins, collects betUnit from each.
+        if (!players.some(p => p.scores.some(score => score > 0))) break;
         const results = calcChicago(players, course);
         if (results.length >= 2) {
           const winner = results[0];
