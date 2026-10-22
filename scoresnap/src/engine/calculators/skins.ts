@@ -39,6 +39,7 @@ export function calcSkins(
   players.forEach((p) => (skinCount[p.name] = 0));
 
   for (let i = 0; i < course.holes.length; i++) {
+    if (!players.some((p) => p.scores[i] > 0)) continue;
     pot++;
     const scores = players.map((p) => {
       const strokes = handicapStrokesForHole(p.handicap, course.holes[i].hcp);
