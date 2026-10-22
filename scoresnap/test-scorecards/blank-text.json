@@ -1,0 +1,30 @@
+{
+  "id": "blank-text",
+  "category": "malformed",
+  "expected": {
+    "players": [],
+    "holeCount": 18,
+    "parRow": [
+      4,
+      5,
+      4,
+      3,
+      4,
+      3,
+      4,
+      5,
+      4,
+      4,
+      4,
+      3,
+      5,
+      4,
+      5,
+      3,
+      4,
+      4
+    ]
+  },
+  "text": " \n\t\r\n",
+  "expectedError": "No players found"
+}

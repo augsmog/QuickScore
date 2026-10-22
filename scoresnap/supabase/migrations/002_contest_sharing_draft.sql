@@ -1,3 +1,5 @@
+-- NOT APPLIED and must not be: the live project already has public.contests (different columns)
+-- from migration create_contest_sharing_tables (2026-03-26). 003_live_share.sql targets the live shape.
 -- DRAFT ONLY — NOT APPLIED. GS-5 backend foundation for review.
 -- No client access policies intentionally: RLS denies access until server-side
 -- capability-verifying RPCs for lookup, join, own-score writes and claim exist.
