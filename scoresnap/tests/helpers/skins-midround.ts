@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { calcSkins } from '../../src/engine/calculators/skins';
 import { calculateSettlement } from '../../src/engine/settlement';
+import type { Course } from '../../src/engine/types';
 
 // Mid-round regression: holes nobody has entered yet are not played, so they
 // must not count as ties, add to the carryover pot, or appear as Push/Carry.
-const course = { name: 'Midround', holes: Array.from({ length: 18 }, (_, i) => ({ num: i + 1, par: 4, hcp: i + 1 })) };
+const course = { name: 'Midround', holes: Array.from({ length: 18 }, (_, i) => ({ num: i + 1, par: 4, hcp: i + 1 })) } as unknown as Course;
 // Through 6 holes. H1 A wins outright, H2-H3 tie, H4 B wins, H5-H6 tie, H7-H18 unplayed.
 const front = { A: [3, 4, 4, 5, 4, 4], B: [4, 4, 4, 3, 4, 4], C: [5, 4, 4, 5, 4, 4] };
 const pad = (s: number[]) => [...s, ...Array(18 - s.length).fill(0)];
@@ -39,9 +40,8 @@ for (const mode of ['net', 'gross'] as const) {
   assert.equal(gapRes.totals.B, 2, `${mode}: B's H4 win collects only the H2 carry`);
 
   // Settlement agrees: carry pot from unplayed holes never pays out.
-  const settlement = calculateSettlement(players, course, ['skins_carry'], 1, undefined, { skinsMode: mode });
-  assert.ok(Math.abs(Object.values(settlement.netByPlayer).reduce((a, b) => a + b, 0)) < 1e-9);
-  assert.ok(Math.abs(settlement.netByPlayer.B - (3 - 4 / 3)) < 1e-9, `${mode}: settlement B`);
+  const settlement = calculateSettlement(players, course, ['skins_carry'], 3, undefined, { skinsMode: mode });
+  assert.deepEqual(settlement.netByPlayer, { A: -1, B: 5, C: -4 }, `${mode}: settlement pays only played-hole skins`);
 }
 
 // Net strokes only apply to played holes: a 36-handicap who hasn't teed off on H7+ gets nothing there.
