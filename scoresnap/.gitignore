@@ -47,3 +47,6 @@ dist-web/
 
 # Local browser QA artifacts
 e2e/screens/
+
+# iOS production JS smoke export
+dist-ios/

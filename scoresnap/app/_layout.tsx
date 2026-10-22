@@ -1,3 +1,4 @@
+import { isPublicShare } from "../src/config/public-share";
 import { OFFLINE_MODE } from "../src/config/offline";
 import { useEffect, useRef, useState } from "react";
 import { Stack, useRouter, useSegments, useNavigationContainerRef } from "expo-router";
@@ -31,7 +32,6 @@ const routingInstrumentation = Sentry.reactNavigationIntegration({
   enableTimeToInitialDisplay: true,
 });
 
-const isPublicShare = typeof window !== "undefined" && window.location.pathname.startsWith("/r/");
 Sentry.init({
   enabled: !isPublicShare,
   dsn: 'https://e878c1d1d9a18b64ad7ddc2f6d2b5986@o4511068999385088.ingest.us.sentry.io/4511069003776000',
