@@ -1,6 +1,10 @@
--- REVIEW ONLY. Requires 002_contest_sharing_draft.sql; do not apply automatically.
+-- Applied 2026-10-22 to pltgbizexllikiwryozm. Uses the live public.contests table from the
+-- earlier create_contest_sharing_tables migration (002 draft is NOT applied; its contests shape differs).
+-- Also drops the over-permissive "Anyone can lookup by invite code" (using true) policy so anon
+-- cannot list contests; invite lookup must go through an RPC when guest sync ships.
 -- Slice 1 polls get_shared_round every 10 seconds; no public Realtime channels.
 begin;
+drop policy if exists "Anyone can lookup by invite code" on public.contests;
 create table public.published_rounds (
   contest_id uuid primary key references public.contests(id) on delete cascade,
   owner_id uuid not null references auth.users(id),
@@ -61,8 +65,8 @@ begin
     if not exists(select 1 from public.contests where id = cid and owner_id = auth.uid()) then raise exception 'owner required'; end if;
     ended := r.ended_at;
   else
-    insert into public.contests(owner_id,join_code,data)
-      values(auth.uid(),translate(upper(substr(replace(gen_random_uuid()::text,'-',''),1,6)),'01','GH'),'{}'::jsonb) returning id into cid;
+    insert into public.contests(owner_id,name,course,invite_code)
+      values(auth.uid(),'Shared round','{}'::jsonb,translate(upper(substr(replace(gen_random_uuid()::text,'-',''),1,6)),'01','GH')) returning id into cid;
   end if;
   if (clean->>'completed')::boolean and ended is null then ended := now(); end if;
   insert into public.published_rounds(contest_id,owner_id,local_id,snapshot,ended_at)
