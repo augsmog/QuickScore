@@ -1,3 +1,6 @@
+import { RecapCard } from "../../../src/ui/recap/RecapCard";
+import { buildRecapModel } from "../../../src/ui/recap/model";
+import { LiveShare } from "../../../src/ui/LiveShare";
 import { skinsLabel } from "../../../src/engine/calculators/skins";
 import { useCallback, useState } from "react";
 import {
@@ -29,6 +32,7 @@ export default function SettlementScreen() {
   const contest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
+  const [liveUrl, setLiveUrl] = useState<string>();
   const [settledTransactions, setSettledTransactions] = useState<
     Set<number>
   >(new Set());
@@ -113,6 +117,7 @@ export default function SettlementScreen() {
     }
 
     lines.push("");
+    if (liveUrl && contest.liveShareEnabled) lines.push(liveUrl);
     lines.push("— via SnapScore ⛳");
     return lines.join("\n");
   };
@@ -128,7 +133,7 @@ export default function SettlementScreen() {
     } catch (error) {
       console.error("Share error:", error);
     }
-  }, [contest, settlement]);
+  }, [contest, settlement, liveUrl]);
 
   const toggleSettled = useCallback(
     (index: number) => {
@@ -630,6 +635,18 @@ export default function SettlementScreen() {
             );
           })}
         </ScrollView>
+      </View>
+
+      <View style={{ gap: 12, marginBottom: 24 }}>
+        <Text style={{ ...TYPOGRAPHY.headline, color: COLORS.text }}>Recap card</Text>
+        <RecapCard model={buildRecapModel(settlement, {
+          title: contest.name, course: contest.course.name, games: contest.games,
+          scorecard: { course: contest.course, players: allPlayers },
+          gameConfig: contest.gameConfig, completed: contest.status === "completed",
+          liveUrl: contest.liveShareEnabled ? liveUrl : undefined,
+        })} />
+        <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Screenshot this card to share your round.</Text>
+        <LiveShare contest={contest} onLinkChange={setLiveUrl} />
       </View>
 
       {/* ========== BOTTOM ACTIONS ========== */}
