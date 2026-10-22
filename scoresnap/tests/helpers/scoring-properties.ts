@@ -84,6 +84,30 @@ for (let slot = 0; slot < 60; slot++) {
         groups.map(g=>({...g,players:[...g.players].reverse()})).reverse());
       equal(original.netByPlayer,permuted.netByPlayer);
     }
+    // No points, penalties, breakdown entries, or bonus events from unplayed holes.
+    if (['stableford','mod_stableford','quota','chicago','dots','aces_deuces'].includes(game)) {
+      for (const p of players) {
+        const diffs = p.scores.flatMap((score, i) => score > 0 ? [score - pars[i]] : []);
+        if (['stableford','mod_stableford','quota','chicago'].includes(game)) {
+          const points = (d: number) => game === 'mod_stableford'
+            ? d <= -2 ? 8 : d === -1 ? 5 : d === 0 ? 2 : d === 1 ? -1 : d === 2 ? -3 : -5
+            : d <= -3 && game !== 'quota' ? 5 : d <= -2 ? 4 : d === -1 ? 3 : d === 0 ? 2 : d === 1 ? 1 : 0;
+          const row = result.find((r: any) => r.playerId === p.id);
+          equal(game === 'chicago' ? row.grossPoints : row.points, sum(diffs.map(points)));
+          if (row.holePoints) p.scores.forEach((score, i) => { if (!score) equal(row.holePoints[i], 0); });
+        } else if (game === 'dots') {
+          equal(result.breakdown[p.name], {
+            birdies: diffs.filter(d => d < 0).length, pars: diffs.filter(d => d === 0).length,
+            bogeys: diffs.filter(d => d === 1).length, doubles: diffs.filter(d => d >= 2).length,
+          });
+        } else {
+          equal(result.aces.filter((e: any) => e.playerName === p.name).map((e: any) => e.hole),
+            p.scores.flatMap((score, i) => score > 0 && score < pars[i] ? [i + 1] : []));
+          equal(result.deuces.filter((e: any) => e.playerName === p.name).map((e: any) => e.hole),
+            p.scores.flatMap((score, i) => score > 0 && score >= pars[i] + 2 ? [i + 1] : []));
+        }
+      }
+    }
     // Registry exports: independent stroke totals and Stableford hole aggregation.
     for (const row of registry.calcStrokePlay(players,course)) {
       const p = players.find(p=>p.id===row.playerId)!;

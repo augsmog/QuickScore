@@ -29,7 +29,7 @@ export function calcChicago(players: Player[], course: Course): ChicagoResult[] 
   return players
     .map((p) => {
       const grossPoints = p.scores.reduce(
-        (sum, s, i) => sum + chicagoPts(s, course.holes[i].par),
+        (sum, s, i) => sum + (s > 0 ? chicagoPts(s, course.holes[i].par) : 0),
         0
       );
       const quota = 36 - Math.round(p.handicap);

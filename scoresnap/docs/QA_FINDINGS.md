@@ -1,11 +1,18 @@
 # GS-13 QA findings
 
-## Unplayed scores earn points and bonuses
+## Fixed: unplayed scores earn points and bonuses
 
 The `Player.scores` contract defines zero as unplayed. Stableford, Modified
 Stableford, Quota, Chicago, Dots, and Aces & Deuces nevertheless classify zero
 against par and award points or bonuses. This affects incomplete and nine-hole
-rounds represented by 18 slots with trailing zeros. No scoring code was changed.
+rounds represented by 18 slots with trailing zeros.
+
+**Fixed:** all six calculators ignore zero or missing scores. Stableford and
+Modified Stableford return zero per-hole points for missing slots; Dots and
+Aces & Deuces produce no breakdown entries or events for unplayed holes. Quota
+and Chicago retain handicap targets but count only points earned on played holes.
+Settlement for these games produces no transactions before any hole is played.
+Played-hole scoring and existing payout rules after play begins are unchanged.
 
 Minimal reproduction, run from `scoresnap/` (installed dependencies only):
 
@@ -29,12 +36,15 @@ JS
 Expected: zero earned points and no aces for either player, since neither has
 played a hole. Handicap quota targets can remain nonzero.
 
-Actual per player: Stableford **90 points**, Modified Stableford **144 points**,
+Before the fix, actual per player: Stableford **90 points**, Modified Stableford **144 points**,
 Quota **72 points**, Chicago **90 gross points**, Dots **36 dots / 18 birdies**.
 Aces & Deuces reports **36 ace events** across the two players (their equal
-payments cancel). The generated properties check arithmetic consistency without
-asserting these erroneous point schedules are correct. This semantic invariant
-remains an open finding, rather than a passing regression assertion.
+payments cancel). The generated properties now enforce independent played-hole point schedules,
+Dots breakdowns, and Aces & Deuces event lists for all six affected games.
+Focused regressions cover all-zero rounds, nine played plus nine unplayed holes,
+mid-round gaps, uneven player progress, and sparse/undefined/truncated scores,
+including settlement. Legacy progressive Quota and Dots expectations were
+corrected to exclude unplayed-hole bonuses.
 
 ## Coverage and reproduction
 
@@ -66,23 +76,10 @@ Settlement permutation is checked for skins using wagers divisible by all group
 sizes: smaller wagers can legitimately move a remainder cent under the existing
 input-order allocation policy.
 
-Sandbox validation requires a temporary `/tmp` Node preloader that captures
-subprocess output in regular files: default Node synchronous pipe capture returns
-`EPERM` in this environment, including for all pre-existing subprocess tests.
-The preloader changes no repository files or scoring behavior and is not needed
-in normal CI. No dependencies were fetched.
-
 ## Validation result
 
-Default `npm test`: **7 suites, 50 Jest tests passed in 11.696 seconds**.
-Generated configurations: **1,800**. Generated invariant assertions: **123,359**.
-Together with **890** legacy assertions, **124,249 engine checks** passed.
-This count excludes assertion calls inside the other 17 pre-existing Jest tests
-and the wrapper assertions themselves. No enforced invariant failed; the
-unplayed-score semantic finding above remains open. Serial Jest validation also
-passed in 17.863 seconds. The existing dependency manifest/lockfile worktree
-changes were left untouched.
-
-Commit creation was attempted with author `augsmog <augsmog@users.noreply.github.com>`
-but Git could not create its worktree `index.lock`: the shared Git directory is
-read-only in this session. No commit or push was made.
+`npm test`: **9 suites, 71 Jest tests passed in 12.027 seconds**.
+All **1,800 generated configurations** and **890 legacy checks** passed, along
+with the focused unplayed-hole regression runner and other existing Jest tests.
+No sandbox EPERM workaround was needed for this run. No dependencies were fetched.
+No commit or push was made.

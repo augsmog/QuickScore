@@ -20,8 +20,8 @@ export function calcModStableford(
 ): StablefordResult[] {
   return players
     .map((p) => {
-      const holePoints = p.scores.map((s, i) =>
-        modStablefordPoints(s, course.holes[i].par)
+      const holePoints = course.holes.map((hole, i) =>
+        p.scores[i] > 0 ? modStablefordPoints(p.scores[i], hole.par) : 0
       );
       return {
         name: p.name,

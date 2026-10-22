@@ -311,8 +311,7 @@ section("5. Stableford Progressive");
   const expectedPts = [4, 3, 2, 2, 1, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
 
   // Verify cumulative points after each hole
-  // Note: unplayed holes (score=0) produce 5 pts each in calculator.
-  // So we verify individual holePoints for played holes instead.
+  // Unplayed holes contribute no points.
   for (let h = 1; h <= 18; h++) {
     const r = calcStableford([playerThrough(stbPlayer, h)], COURSE);
     // Verify each played hole has the correct points
@@ -404,13 +403,11 @@ section("7. Quota Progressive");
 
   const quota = 36 - Math.round(P1_FULL.handicap); // 26
 
-  // Note: unplayed holes (score=0) produce 4 pts each in the quota stableford function
-  // (diff <= -2 -> 4pts). So total = sum_played + 4 * unplayed.
+  // Only played holes contribute toward the unchanged quota.
   for (const h of [1, 5, 9, 14, 18]) {
     const r = calcQuota([playerThrough(P1_FULL, h)], COURSE);
     const playedPts = p1Pts.slice(0, h).reduce((a, b) => a + b, 0);
-    const unplayedPts = (18 - h) * 4; // score 0 vs par gives 4 points in quota stableford
-    const expectedPoints = playedPts + unplayedPts;
+    const expectedPoints = playedPts;
     const expectedOverUnder = expectedPoints - quota;
 
     assert(r[0].quota === quota, `Quota after H${h}: quota=26`, `got ${r[0].quota}`);
@@ -611,18 +608,17 @@ section("12. Dots Progressive");
   const expectedDots = [2, 2, 1, 1, 0, -1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
 
   // Check progressive dot accumulation
-  // Note: unplayed holes (score=0) are birdie-or-better vs par -> +2 each.
+  // Unplayed holes contribute no dots.
   for (const h of [1, 4, 6, 9, 18]) {
     const r = calcDots(
       [playerThrough(dotsPlayer, h), playerThrough(dotsPlayer2, h)],
       COURSE
     );
-    // Total for played holes + unplayed dots
+    // Total for played holes only
     const playedDots = expectedDots.slice(0, h).reduce((a, b) => a + b, 0);
-    const unplayedDots = (18 - h) * 2; // score 0 vs any par -> birdie-or-better -> +2
     assert(
-      r.totals["DotsGuy"] === playedDots + unplayedDots,
-      `Dots after H${h}: total=${playedDots + unplayedDots}`,
+      r.totals["DotsGuy"] === playedDots,
+      `Dots after H${h}: total=${playedDots}`,
       `got ${r.totals["DotsGuy"]}`
     );
   }
