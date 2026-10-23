@@ -52,7 +52,7 @@ export default function ContestLayout() {
             This contest may have been deleted or doesn't exist.
           </Text>
           <AnimatedPressable
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
             style={{
               backgroundColor: COLORS.accent,
               borderRadius: RADII.md,
