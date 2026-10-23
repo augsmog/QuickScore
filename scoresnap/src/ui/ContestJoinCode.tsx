@@ -3,6 +3,8 @@ import { View, Text, Pressable, Share, Platform } from "react-native";
 import { useContestStore, type Contest } from "../stores/contest-store";
 import { generateJoinCode } from "../services/guest-join";
 import { COLORS } from "./theme";
+import { LocalJoinLimitationBanner } from "./LocalJoinLimitationBanner";
+import { getLocalJoinLimitation } from "../services/local-join-limitation";
 export function ContestJoinCode({ contest }: { contest: Contest }) {
   const [message, setMessage] = useState("");
   useEffect(() => {
@@ -11,14 +13,14 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
   const share = async () => {
     const link = Platform.OS === "web" ? `${window.location.origin}/join/${contest.joinCode}` : `snapscore://join/${contest.joinCode}`;
     try {
-      if (Platform.OS === "web" && navigator.clipboard) { await navigator.clipboard.writeText(link); setMessage("Invite link copied"); }
-      else await Share.share({ message: `Join with code ${contest.joinCode}: ${link}` });
+      if (Platform.OS === "web" && navigator.clipboard) { await navigator.clipboard.writeText(link); setMessage("Local invite link copied · same browser only"); }
+      else await Share.share({ message: `${getLocalJoinLimitation().title} — ${getLocalJoinLimitation().message} Join with code ${contest.joinCode}: ${link}` });
     } catch { setMessage("Could not share. Copy the code shown above."); }
   };
   return <View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
     <Text testID="organizer-join-code" style={{ color: COLORS.primary }}>Join code: {contest.joinCode}</Text>
-    <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Local invite · works in this browser only</Text>
-    <Pressable onPress={share}><Text style={{ color: COLORS.text, paddingVertical: 8 }}>Copy / share invite</Text></Pressable>
+    <View style={{ marginTop: 8 }}><LocalJoinLimitationBanner /></View>
+    <Pressable onPress={share}><Text style={{ color: COLORS.text, paddingVertical: 8 }}>Copy / share local invite</Text></Pressable>
     {!!message && <Text style={{ color: COLORS.textDim }}>{message}</Text>}
   </View>;
 }

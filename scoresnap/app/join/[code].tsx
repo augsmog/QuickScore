@@ -6,6 +6,7 @@ import { useContestStore, type Contest } from "../../src/stores/contest-store";
 import { useGuestStore } from "../../src/stores/guest-store";
 import { localContestJoinService, claimGuestHistory } from "../../src/services/guest-join";
 import { COLORS } from "../../src/ui/theme";
+import { LocalJoinLimitationBanner } from "../../src/ui/LocalJoinLimitationBanner";
 export default function JoinContest() {
   const { code: initial } = useLocalSearchParams<{ code: string }>();
   const [code, setCode] = useState(initial === "enter" ? "" : initial || "");
@@ -32,9 +33,9 @@ export default function JoinContest() {
   const join = (c: Contest, playerId: string) => {
     try { guest.join(c, playerId, name); setJoined(true); setError(""); } catch (e: any) { setError(e.message); }
   };
-  return <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
+  return <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><LocalJoinLimitationBanner /></View><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
     <Text style={{ color: COLORS.text, fontSize: 26 }}>Join with code</Text>
-    <Text style={{ color: COLORS.textDim }}>Play as a guest. No account needed. Offline invites work in this browser only.</Text>
+    <Text style={{ color: COLORS.textDim }}>Play as a guest. No account needed.</Text>
     {!contest && <>
       <TextInput accessibilityLabel="Join code" placeholder="Join code" value={code} onChangeText={setCode} autoCapitalize="characters" maxLength={6} style={{ color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />
       <TextInput placeholder="Display name" value={name} onChangeText={setName} style={{ color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />

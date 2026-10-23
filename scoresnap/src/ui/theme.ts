@@ -27,6 +27,7 @@ export const COLORS = {
   error: "#A3261B",
   errorContainer: "#A3261B",
   warn: "#9A4A12",
+  warnContainer: "#FFF0CC",
   gold: "#8A6A00",
   silver: "#62665F",
   bronze: "#88552A",
