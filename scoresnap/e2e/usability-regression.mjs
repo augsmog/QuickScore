@@ -1,0 +1,11 @@
+import {spawnSync} from 'node:child_process';
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {gate} from './shared/usability-gate.mjs';
+const out='e2e/screens/usability-regression';
+fs.rmSync(out,{recursive:true,force:true});
+const run=spawnSync(process.execPath,['e2e/usability.mjs'],{stdio:'inherit',env:{...process.env,MISSING_DISMISS:'1',OUT_DIR:out},timeout:120000});
+assert.equal(run.status,1,'seed mutation must fail the normal QA gate');
+gate(JSON.parse(fs.readFileSync(`${out}/results.json`)),{regression:true});
+for(const ext of ['png','zip']) assert(fs.statSync(`${out}/join-empty.${ext}`).size>0);
+console.log('PASS: normal QA gate rejects missing dismiss; trace and screenshot retained');

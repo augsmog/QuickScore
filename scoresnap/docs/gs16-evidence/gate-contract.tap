@@ -1,0 +1,55 @@
+TAP version 13
+# Subtest: complete execution passes
+ok 1 - complete execution passes
+  ---
+  duration_ms: 2.209846
+  ...
+# Subtest: zero tests blocks green
+ok 2 - zero tests blocks green
+  ---
+  duration_ms: 1.427284
+  ...
+# Subtest: missing result blocks green
+ok 3 - missing result blocks green
+  ---
+  duration_ms: 0.220188
+  ...
+# Subtest: unexpected skip blocks green
+ok 4 - unexpected skip blocks green
+  ---
+  duration_ms: 0.548226
+  ...
+# Subtest: failed check blocks green
+ok 5 - failed check blocks green
+  ---
+  duration_ms: 0.2538
+  ...
+# Subtest: startup failure blocks green
+ok 6 - startup failure blocks green
+  ---
+  duration_ms: 0.267198
+  ...
+# Subtest: duplicate case blocks green
+ok 7 - duplicate case blocks green
+  ---
+  duration_ms: 1.236917
+  ...
+# Subtest: missing required inventory blocks green
+ok 8 - missing required inventory blocks green
+  ---
+  duration_ms: 0.314717
+  ...
+# Subtest: only the expected missing-dismiss failure proves regression
+ok 9 - only the expected missing-dismiss failure proves regression
+  ---
+  duration_ms: 0.518202
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 22.011523
