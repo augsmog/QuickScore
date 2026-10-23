@@ -168,7 +168,7 @@ export default function ProfileScreen() {
         <View style={{ alignItems: "center", paddingTop: 24, paddingBottom: 28 }}>
           <Text
             style={{
-              fontFamily: FONTS.headline,
+              fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
               fontSize: 28,
               color: COLORS.text,
               marginBottom: 6,
@@ -201,7 +201,7 @@ export default function ProfileScreen() {
               <>
                 <Text
                   style={{
-                    fontFamily: FONTS.headline,
+                    fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                     fontSize: 42,
                     color: COLORS.onPrimary,
                     letterSpacing: -2,
@@ -211,7 +211,7 @@ export default function ProfileScreen() {
                 </Text>
                 <Text
                   style={{
-                    fontFamily: FONTS.headlineMedium,
+                    fontFamily: FONTS.displaySC, letterSpacing: 0.72,
                     fontSize: 11,
                     color: COLORS.onPrimary,
                     marginTop: -4,
@@ -224,7 +224,7 @@ export default function ProfileScreen() {
               <>
                 <Text
                   style={{
-                    fontFamily: FONTS.headline,
+                    fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                     fontSize: 24,
                     color: COLORS.textDim,
                   }}
@@ -233,7 +233,7 @@ export default function ProfileScreen() {
                 </Text>
                 <Text
                   style={{
-                    fontFamily: FONTS.headlineMedium,
+                    fontFamily: FONTS.displaySC, letterSpacing: 0.72,
                     fontSize: 11,
                     color: COLORS.textDim,
                     marginTop: -2,
@@ -284,7 +284,7 @@ export default function ProfileScreen() {
             >
               <Text
                 style={{
-                  fontFamily: FONTS.headline,
+                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                   fontSize: 26,
                   color: COLORS.text,
                   marginBottom: 4,
@@ -338,7 +338,7 @@ export default function ProfileScreen() {
                 </View>
                 <Text
                   style={{
-                    fontFamily: FONTS.headline,
+                    fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                     fontSize: 18,
                     color: item.isWin ? COLORS.primary : COLORS.error,
                   }}

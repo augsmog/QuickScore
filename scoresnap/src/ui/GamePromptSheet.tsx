@@ -116,7 +116,7 @@ function PlayerButton({
         )}
         <Text
           style={{
-            fontFamily: FONTS.headline,
+            fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
             fontSize: 16,
             color: disabled ? COLORS.textDim : COLORS.text,
           }}

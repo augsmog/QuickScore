@@ -466,7 +466,7 @@ export default function GameDetailsScreen() {
                   </Text>
                   <Text
                     style={{
-                      fontFamily: FONTS.headline,
+                      fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                       fontSize: 16,
                       color: COLORS.text,
                     }}

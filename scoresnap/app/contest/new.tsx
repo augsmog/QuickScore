@@ -809,7 +809,7 @@ export default function NewContestScreen() {
                 >
                   <Minus size={16} color={COLORS.text} />
                 </AnimatedPressable>
-                <Text style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text, width: 24, textAlign: "center" }}>
+                <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 20, color: COLORS.text, width: 24, textAlign: "center" }}>
                   {numGroups}
                 </Text>
                 <AnimatedPressable
@@ -972,7 +972,7 @@ export default function NewContestScreen() {
               STAKE PER HOLE
             </Text>
             <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: 24 }}>
-              <Text style={{ fontFamily: FONTS.headline, fontSize: 28, color: COLORS.textDim, marginRight: 2 }}>
+              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28, color: COLORS.textDim, marginRight: 2 }}>
                 $
               </Text>
               <TextInput
@@ -980,7 +980,7 @@ export default function NewContestScreen() {
                 onChangeText={setBetUnit}
                 keyboardType="numeric"
                 style={{
-                  fontFamily: FONTS.headline,
+                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                   fontSize: 40,
                   color: COLORS.text,
                   minWidth: 60,
@@ -999,7 +999,7 @@ export default function NewContestScreen() {
                   const tooltipOpen = expandedTooltip === variation.id;
                   const tagColor =
                     variation.tag === "wild"
-                      ? "#ff6b6b"
+                      ? COLORS.error
                       : variation.tag === "spicy"
                       ? COLORS.gold
                       : COLORS.primary;
@@ -1171,7 +1171,7 @@ export default function NewContestScreen() {
               <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textDim }}>
                 ENTRY FEE
               </Text>
-              <Text style={{ fontFamily: FONTS.headline, fontSize: 18, color: COLORS.text }}>
+              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 18, color: COLORS.text }}>
                 ${betAmount}
               </Text>
             </View>
@@ -1190,7 +1190,7 @@ export default function NewContestScreen() {
               <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 8 }}>
                 ESTIMATED TOTAL POT
               </Text>
-              <Text style={{ fontFamily: FONTS.headline, fontSize: 48, color: COLORS.primary, marginBottom: 8 }}>
+              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 48, color: COLORS.primary, marginBottom: 8 }}>
                 ${estimatedPot}
               </Text>
               <View style={{ flexDirection: "row", gap: 16 }}>

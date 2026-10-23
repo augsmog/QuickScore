@@ -156,7 +156,7 @@ export default function PaywallScreen() {
             onPress={() => router.back()}
             style={{ backgroundColor: COLORS.accent, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, marginTop: 24 }}
           >
-            <Text style={{ color: "#000", fontWeight: "700", fontSize: 15 }}>Back to App</Text>
+            <Text style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 15 }}>Back to App</Text>
           </AnimatedPressable>
         </View>
       </SafeAreaView>
@@ -253,8 +253,8 @@ export default function PaywallScreen() {
           </View>
           <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Just $1.67/month — less than a sleeve of balls</Text>
           <View style={{ backgroundColor: COLORS.gold, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, marginTop: 16, width: "100%", alignItems: "center" }}>
-            {loading ? <ActivityIndicator color="#000" /> : (
-              <Text style={{ color: "#000", fontWeight: "700", fontSize: 16 }}>Start Free Trial</Text>
+            {loading ? <ActivityIndicator color={COLORS.onPrimary} /> : (
+              <Text style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 16 }}>Start Free Trial</Text>
             )}
           </View>
           <Text style={{ color: COLORS.textDim, fontSize: 11, marginTop: 8 }}>7-day free trial, cancel anytime</Text>

@@ -209,7 +209,7 @@ function NumberRow({
           </Text>
         )}
       </View>
-      <Text style={{ fontFamily: FONTS.headline, fontSize: 16, color: COLORS.primary }}>
+      <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 16, color: COLORS.primary }}>
         {value}
       </Text>
       <ChevronRight size={14} color={COLORS.textDim} />
@@ -378,7 +378,7 @@ export default function SettingsScreen() {
               justifyContent: "center",
             }}
           >
-            <Text style={{ fontFamily: FONTS.headline, fontSize: 18, color: COLORS.primary }}>
+            <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 18, color: COLORS.primary }}>
               {(user?.name || "G")[0].toUpperCase()}
             </Text>
           </View>

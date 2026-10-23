@@ -139,7 +139,7 @@ export default function LeaderboardScreen() {
                 >
                   <Text
                     style={{
-                      fontFamily: FONTS.headline,
+                      fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                       fontSize: 14,
                       color: i < 3 ? RANK_COLORS[i] : COLORS.textDim,
                     }}
@@ -200,7 +200,7 @@ export default function LeaderboardScreen() {
                     </Text>
                   )}
                   <View style={{ alignItems: "flex-end" }}>
-                    <Text testID={`leaderboard-total-${r.name}`} style={{ fontFamily: FONTS.headline, fontSize: 22, color: COLORS.text }}>
+                    <Text testID={`leaderboard-total-${r.name}`} style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 22, color: COLORS.text }}>
                       {r.total}
                     </Text>
                     <Text
@@ -247,7 +247,7 @@ export default function LeaderboardScreen() {
                 {contest.teamAName}
               </Text>
               <View style={{ flex: 1 }} />
-              <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.primary }}>
+              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 24, color: COLORS.primary }}>
                 {teamATotal}
               </Text>
             </View>
@@ -258,7 +258,7 @@ export default function LeaderboardScreen() {
                   <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.text }}>
                     {p.name}
                   </Text>
-                  <Text style={{ fontFamily: FONTS.headlineMedium, fontSize: 14, color: COLORS.textDim }}>
+                  <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 14, color: COLORS.textDim }}>
                     {pResult?.total || 0} ({pResult ? formatToPar(pResult.toPar) : "E"})
                   </Text>
                 </View>
@@ -281,7 +281,7 @@ export default function LeaderboardScreen() {
                 {contest.teamBName}
               </Text>
               <View style={{ flex: 1 }} />
-              <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.secondary }}>
+              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 24, color: COLORS.secondary }}>
                 {teamBTotal}
               </Text>
             </View>
@@ -292,7 +292,7 @@ export default function LeaderboardScreen() {
                   <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.text }}>
                     {p.name}
                   </Text>
-                  <Text style={{ fontFamily: FONTS.headlineMedium, fontSize: 14, color: COLORS.textDim }}>
+                  <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 14, color: COLORS.textDim }}>
                     {pResult?.total || 0} ({pResult ? formatToPar(pResult.toPar) : "E"})
                   </Text>
                 </View>
@@ -346,7 +346,7 @@ export default function LeaderboardScreen() {
                       </Text>
                     </View>
                     <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
-                      <Text style={{ fontFamily: FONTS.headlineMedium, fontSize: 16, color: COLORS.text }}>
+                      <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 16, color: COLORS.text }}>
                         {pResult?.total || 0}
                       </Text>
                       <Text style={{ fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textDim }}>

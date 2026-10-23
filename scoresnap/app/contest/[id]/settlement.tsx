@@ -194,7 +194,7 @@ export default function SettlementScreen() {
             </Text>
             <Text testID="settlement-session-total"
               style={{
-                fontFamily: FONTS.headline,
+                fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                 fontSize: 28,
                 color: COLORS.primary,
                 letterSpacing: -0.5,
@@ -239,7 +239,7 @@ export default function SettlementScreen() {
                 >
                   <Text
                     style={{
-                      fontFamily: FONTS.headline,
+                      fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                       fontSize: 20,
                       color: COLORS.primary,
                     }}
@@ -259,7 +259,7 @@ export default function SettlementScreen() {
                   </Text>
                   <Text
                     style={{
-                      fontFamily: FONTS.headline,
+                      fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                       fontSize: 18,
                       color: COLORS.text,
                     }}
@@ -279,7 +279,7 @@ export default function SettlementScreen() {
             <Text testID="settlement-hero-amount"
                 style={{
                   textAlign: "center",
-                  fontFamily: FONTS.headline,
+                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                   fontSize: 32,
                   color: COLORS.primary,
                   letterSpacing: -1,
@@ -318,7 +318,7 @@ export default function SettlementScreen() {
                   >
                     <Text
                       style={{
-                        fontFamily: FONTS.headline,
+                        fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                         fontSize: 14,
                         color: COLORS.text,
                       }}
@@ -347,7 +347,7 @@ export default function SettlementScreen() {
                 </Text>
                 <Text
                   style={{
-                    fontFamily: FONTS.headline,
+                    fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                     fontSize: 22,
                     color: COLORS.primary,
                   }}
@@ -405,7 +405,7 @@ export default function SettlementScreen() {
             </View>
             <Text
               style={{
-                fontFamily: FONTS.headline,
+                fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                 fontSize: 18,
                 color: net < 0 ? COLORS.error : COLORS.textDim,
               }}
@@ -504,7 +504,7 @@ export default function SettlementScreen() {
                   </View>
                   <Text
                     style={{
-                      fontFamily: FONTS.headline,
+                      fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                       fontSize: 18,
                       color: COLORS.primary,
                     }}
@@ -611,7 +611,7 @@ export default function SettlementScreen() {
                 </Text>
                 <Text
                   style={{
-                    fontFamily: FONTS.headline,
+                    fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                     fontSize: 24,
                     color: COLORS.text,
                     marginBottom: 8,

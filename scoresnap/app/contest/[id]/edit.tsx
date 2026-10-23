@@ -393,7 +393,7 @@ export default function EditContestScreen() {
                     borderWidth: 1.5,
                   }}
                 >
-                  {isEnabled && <Check size={14} color="#000" strokeWidth={3} />}
+                  {isEnabled && <Check size={14} color={COLORS.onPrimary} strokeWidth={3} />}
                 </View>
               </AnimatedPressable>
             );
@@ -483,7 +483,7 @@ export default function EditContestScreen() {
           >
             <Text
               style={{
-                color: "#000",
+                color: COLORS.onPrimary,
                 fontSize: 16,
                 fontWeight: "800",
               }}

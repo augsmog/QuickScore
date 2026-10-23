@@ -1,13 +1,14 @@
+import { COLORS, FONTS } from "./theme";
 import { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable } from 'react-native';
 import { listMessages, postMessage, loadChatName, saveChatName, listHostMessages, removeMessage } from '../services/live-chat';
 import { CHAT_POLL_MS, type ChatMessage, type HostMessage } from '../services/live-chat-model';
-const text = { color: '#fff', fontSize: 16, lineHeight: 26 };
-const input = { color: '#fff', borderColor: '#7c9985', borderWidth: 1, padding: 10, borderRadius: 6 };
+const text = { fontFamily: FONTS.regular, color: COLORS.text, fontSize: 16, lineHeight: 26 };
+const input = { fontFamily: FONTS.regular, color: COLORS.text, borderColor: COLORS.border, borderWidth: 1, padding: 10, borderRadius: 6 };
 function Messages({ messages }: { messages: ChatMessage[] }) {
   return <View accessibilityLiveRegion="polite">{messages.map((m, i) => <View key={`${m.created_at}:${i}`} style={{ paddingVertical: 8 }}>
     <Text style={text}>{m.display_name}: {m.body}</Text>
-    <Text style={{ color: '#a8b8ae' }}>{new Date(m.created_at).toLocaleTimeString()}</Text>
+    <Text style={{ color: COLORS.textDim }}>{new Date(m.created_at).toLocaleTimeString()}</Text>
   </View>)}</View>;
 }
 export function LiveChat({ token }: { token: string }) {
@@ -64,7 +65,7 @@ export function LiveChat({ token }: { token: string }) {
   }
   return <View style={{ gap: 10, marginTop: 18 }}>
     <Text style={{ ...text, fontWeight: '700', fontSize: 20 }}>Round chat</Text>
-    <Text style={{ color: '#a8b8ae' }}>Anyone with the link can chat. Use a display name without contact details. Updates every 5 seconds.</Text>
+    <Text style={{ color: COLORS.textDim }}>Anyone with the link can chat. Use a display name without contact details. Updates every 5 seconds.</Text>
     <Messages messages={messages} />
     {!!(pollError || error) && <Text accessibilityRole="alert" style={text}>{pollError || error}</Text>}
     {ready && (!name ? <>
@@ -104,7 +105,7 @@ export function HostChat({ localId }: { localId: string }) {
   return <View style={{ gap: 8, marginVertical: 12 }}>
     <Text style={text}>Round chat · host moderation</Text>
     {!!error && <Text accessibilityRole="alert" style={text}>{error}</Text>}
-    {messages.map(m => <View key={m.id}><Messages messages={[m]} /><Pressable accessibilityRole="button" accessibilityLabel={`Remove message from ${m.display_name}`} disabled={busy} onPress={() => remove(m.id)}><Text style={{ color: '#a8e6bc', padding: 8 }}>Remove message</Text></Pressable></View>)}
+    {messages.map(m => <View key={m.id}><Messages messages={[m]} /><Pressable accessibilityRole="button" accessibilityLabel={`Remove message from ${m.display_name}`} disabled={busy} onPress={() => remove(m.id)}><Text style={{ color: COLORS.primary, padding: 8 }}>Remove message</Text></Pressable></View>)}
     {!messages.length && !error && <Text style={text}>No messages yet.</Text>}
   </View>;
 }

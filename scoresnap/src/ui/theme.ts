@@ -1,59 +1,59 @@
-// Midnight Fairway Design System
-// "The Digital Caddie" — atmospheric depth with luminescent accents
+// Sunday Ledger Design System
+// Cream paper, forest accents, and Marcellus display type
 
 export const COLORS = {
   // Tonal Foundation
-  bg: "#0c1322",
-  surface: "#0c1322",
-  surfaceLowest: "#070e1d",
-  surfaceLow: "#151b2b",
-  surfaceMid: "#191f2f",
-  surfaceHigh: "#232a3a",
-  surfaceHighest: "#2e3545",
+  bg: "#FAF4E8",
+  surface: "#FFFFFF",
+  surfaceLowest: "#FFFFFF",
+  surfaceLow: "#FAF4E8",
+  surfaceMid: "#F3ECDD",
+  surfaceHigh: "#F3ECDD",
+  surfaceHighest: "#E7EEE6",
 
-  // Primary (Fairway Green)
-  primary: "#5bf393",
-  primaryContainer: "#37d67a",
-  onPrimary: "#00391a",
-  primaryFixed: "#67fe9d",
-  primaryDim: "#46e183",
+  // Primary (Forest)
+  primary: "#175C3A",
+  primaryContainer: "#175C3A",
+  onPrimary: "#FFFFFF",
+  primaryFixed: "#175C3A",
+  primaryDim: "#175C3A",
 
   // Text
-  text: "#dce2f8",
-  textDim: "#bbcbbb",
-  onSurfaceVariant: "#bbcbbb",
+  text: "#17251E",
+  textDim: "#5E6257",
+  onSurfaceVariant: "#5E6257",
 
   // Semantic
-  error: "#ffb4ab",
-  errorContainer: "#93000a",
-  warn: "#ffa777",
-  gold: "#ffd700",
-  silver: "#c0c0c0",
-  bronze: "#cd7f32",
+  error: "#A3261B",
+  errorContainer: "#A3261B",
+  warn: "#9A4A12",
+  gold: "#8A6A00",
+  silver: "#62665F",
+  bronze: "#88552A",
 
   // Secondary
-  secondary: "#bcc7de",
-  secondaryContainer: "#3e495d",
+  secondary: "#5E6257",
+  secondaryContainer: "#E7EEE6",
 
   // Tertiary
-  tertiary: "#ffcdb5",
-  tertiaryContainer: "#ffa777",
+  tertiary: "#9A4A12",
+  tertiaryContainer: "#F3ECDD",
 
-  // Outline (ghost borders only, at 15% opacity)
-  outline: "#869586",
-  outlineVariant: "#3c4a3e",
+  // Paper rules and borders
+  outline: "#E3D9C6",
+  outlineVariant: "#E3D9C6",
 
   // Legacy aliases (for gradual migration)
-  accent: "#5bf393",
-  accentDim: "#37d67a",
-  accentGlow: "rgba(91,243,147,0.15)",
-  card: "#191f2f",
-  cardHover: "#232a3a",
-  border: "#2e3545",
-  inputBg: "#151b2b",
-  danger: "#ffb4ab",
-  purple: "#a855f7",
-  blue: "#3b82f6",
+  accent: "#175C3A",
+  accentDim: "#175C3A",
+  accentGlow: "rgba(23,92,58,0.10)",
+  card: "#FFFFFF",
+  cardHover: "#FAF4E8",
+  border: "#E3D9C6",
+  inputBg: "#FFFFFF",
+  danger: "#A3261B",
+  purple: "#70408D",
+  blue: "#245C98",
 } as const;
 
 export function scoreColor(strokes: number, par: number): string {
@@ -88,16 +88,19 @@ export const RADII = {
 } as const;
 
 export const FONTS = {
-  // Headlines, scores, branding
-  headline: "SpaceGrotesk_700Bold",
-  headlineMedium: "SpaceGrotesk_500Medium",
-  headlineBlack: "SpaceGrotesk_700Bold",
-  // Body, labels, data
-  regular: "Inter_400Regular",
-  medium: "Inter_500Medium",
-  semibold: "Inter_600SemiBold",
-  bold: "Inter_700Bold",
-  extrabold: "Inter_800ExtraBold",
+  // Display headings and branding
+  headline: "Marcellus_400Regular",
+  headlineMedium: "Marcellus_400Regular",
+  headlineBlack: "Marcellus_400Regular",
+  display: "Marcellus_400Regular",
+  displaySC: "MarcellusSC_400Regular",
+  score: "SourceSans3_600SemiBold",
+  // Operational text and data
+  regular: "SourceSans3_400Regular",
+  medium: "SourceSans3_500Medium",
+  semibold: "SourceSans3_600SemiBold",
+  bold: "SourceSans3_700Bold",
+  extrabold: "SourceSans3_800ExtraBold",
 } as const;
 
 export const TYPOGRAPHY = {
@@ -110,30 +113,30 @@ export const TYPOGRAPHY = {
   caption: { fontSize: 14, fontFamily: FONTS.medium },
   label: {
     fontSize: 11,
-    fontFamily: FONTS.bold,
+    fontFamily: FONTS.displaySC,
     textTransform: "uppercase" as const,
     letterSpacing: 0.8,
   },
   labelSm: {
     fontSize: 10,
-    fontFamily: FONTS.bold,
+    fontFamily: FONTS.displaySC,
     textTransform: "uppercase" as const,
-    letterSpacing: 1,
+    letterSpacing: 0.6,
   },
 } as const;
 
-// Glow shadows for primary elements
+// Primary elements have no glow
 export const GLOW = {
   primary: {
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0,
     shadowRadius: 20,
   },
   primaryStrong: {
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0,
     shadowRadius: 30,
   },
 } as const;

@@ -16,7 +16,7 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor: "rgba(12,19,34,0.80)",
+          backgroundColor: COLORS.bg,
           borderTopWidth: 0,
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
@@ -30,9 +30,9 @@ export default function TabLayout() {
           elevation: 0,
         },
         tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: "rgba(220,226,248,0.60)",
+        tabBarInactiveTintColor: COLORS.textDim,
         tabBarLabelStyle: {
-          fontFamily: FONTS.headline,
+          fontFamily: FONTS.displaySC,
           fontSize: 10,
           textTransform: "uppercase",
           letterSpacing: 0.8,
@@ -45,7 +45,7 @@ export default function TabLayout() {
           <View
             style={{
               ...StyleSheet.absoluteFillObject,
-              backgroundColor: "rgba(12,19,34,0.80)",
+              backgroundColor: COLORS.bg,
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
               overflow: "hidden",
@@ -63,7 +63,7 @@ export default function TabLayout() {
               style={
                 focused
                   ? {
-                      backgroundColor: "rgba(91,243,147,0.10)",
+                      backgroundColor: COLORS.surfaceHighest,
                       borderRadius: 12,
                       paddingHorizontal: 14,
                       paddingVertical: 5,
@@ -85,7 +85,7 @@ export default function TabLayout() {
               style={
                 focused
                   ? {
-                      backgroundColor: "rgba(91,243,147,0.10)",
+                      backgroundColor: COLORS.surfaceHighest,
                       borderRadius: 12,
                       paddingHorizontal: 14,
                       paddingVertical: 5,
@@ -107,7 +107,7 @@ export default function TabLayout() {
               style={
                 focused
                   ? {
-                      backgroundColor: "rgba(91,243,147,0.10)",
+                      backgroundColor: COLORS.surfaceHighest,
                       borderRadius: 12,
                       paddingHorizontal: 14,
                       paddingVertical: 5,

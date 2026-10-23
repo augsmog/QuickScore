@@ -292,7 +292,7 @@ export default function GamesScreen() {
                           <Text
                             style={{
                               fontSize: 18,
-                              fontFamily: FONTS.headline,
+                              fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                               color:
                                 val > 0
                                   ? COLORS.primary
@@ -427,7 +427,7 @@ export default function GamesScreen() {
                     <Text
                       style={{
                         fontSize: 24,
-                        fontFamily: FONTS.headline,
+                        fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                         color:
                           status > 0 ? COLORS.primary : status < 0 ? COLORS.error : COLORS.textDim,
                       }}
@@ -560,13 +560,13 @@ export default function GamesScreen() {
                     <View style={{ flexDirection: "row", gap: 8 }}>
                       <View style={{ flex: 1, borderRadius: RADII.md, padding: 12, alignItems: "center", backgroundColor: COLORS.bg }}>
                         <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.textDim, marginBottom: 4 }}>Team 1</Text>
-                        <Text style={{ fontSize: 22, fontFamily: FONTS.headline, color: result.team1Won > result.team2Won ? COLORS.primary : COLORS.textDim }}>
+                        <Text style={{ fontSize: 22, fontFamily: FONTS.score, fontVariant: ['tabular-nums'], color: result.team1Won > result.team2Won ? COLORS.primary : COLORS.textDim }}>
                           {result.team1Won}
                         </Text>
                       </View>
                       <View style={{ flex: 1, borderRadius: RADII.md, padding: 12, alignItems: "center", backgroundColor: COLORS.bg }}>
                         <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.textDim, marginBottom: 4 }}>Team 2</Text>
-                        <Text style={{ fontSize: 22, fontFamily: FONTS.headline, color: result.team2Won > result.team1Won ? COLORS.primary : COLORS.textDim }}>
+                        <Text style={{ fontSize: 22, fontFamily: FONTS.score, fontVariant: ['tabular-nums'], color: result.team2Won > result.team1Won ? COLORS.primary : COLORS.textDim }}>
                           {result.team2Won}
                         </Text>
                       </View>

@@ -301,7 +301,7 @@ function StatCard({ value, label, accent }: { value: string; label: string; acce
     >
       <Text
         style={{
-          fontFamily: FONTS.headline,
+          fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
           fontSize: 22,
           color: COLORS.text,
           marginBottom: 2,
@@ -694,7 +694,7 @@ function OverviewTab({ stats }: { stats: Analytics }) {
         >
           <Text
             style={{
-              fontFamily: FONTS.headline,
+              fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
               fontSize: 38,
               color: COLORS.onPrimary,
               letterSpacing: -2,
@@ -705,7 +705,7 @@ function OverviewTab({ stats }: { stats: Analytics }) {
         </View>
         <Text
           style={{
-            fontFamily: FONTS.headlineMedium,
+            fontFamily: FONTS.displaySC, letterSpacing: 0.72,
             fontSize: 12,
             color: COLORS.textDim,
             marginTop: 8,
@@ -809,7 +809,7 @@ function OverviewTab({ stats }: { stats: Analytics }) {
           >
             <Text
               style={{
-                fontFamily: FONTS.headline,
+                fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                 fontSize: 24,
                 color: item.avg > 0 ? scoreColor(Math.round(item.avg * 10) / 10, item.par) : COLORS.textDim,
               }}
@@ -858,7 +858,7 @@ function OverviewTab({ stats }: { stats: Analytics }) {
         >
           <Flame size={20} color={stats.currentParOrBetterStreak > 0 ? COLORS.gold : COLORS.textDim} />
           <View>
-            <Text style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text }}>
+            <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 20, color: COLORS.text }}>
               {stats.currentParOrBetterStreak}
             </Text>
             <Text style={{ fontFamily: FONTS.medium, fontSize: 10, color: COLORS.textDim }}>
@@ -879,7 +879,7 @@ function OverviewTab({ stats }: { stats: Analytics }) {
         >
           <Award size={20} color={COLORS.gold} />
           <View>
-            <Text style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text }}>
+            <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 20, color: COLORS.text }}>
               {stats.bestParOrBetterStreak}
             </Text>
             <Text style={{ fontFamily: FONTS.medium, fontSize: 10, color: COLORS.textDim }}>
@@ -912,7 +912,7 @@ function ScoringTab({ stats }: { stats: Analytics }) {
         <DistributionBar label="Par" count={stats.pars} total={total} color={COLORS.text} />
         <DistributionBar label="Bogey" count={stats.bogeys} total={total} color={COLORS.warn} />
         <DistributionBar label="Double" count={stats.doubles} total={total} color={COLORS.error} />
-        <DistributionBar label="Triple+" count={stats.triplePlus} total={total} color="#ff4444" />
+        <DistributionBar label="Triple+" count={stats.triplePlus} total={total} color={COLORS.error} />
       </View>
 
       {/* Scoring percentages as big tiles */}
@@ -954,7 +954,7 @@ function ScoringTab({ stats }: { stats: Analytics }) {
       >
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
           <View style={{ alignItems: "center", flex: 1 }}>
-            <Text style={{ fontFamily: FONTS.headline, fontSize: 28, color: COLORS.text }}>
+            <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28, color: COLORS.text }}>
               {stats.frontAvg.toFixed(1)}
             </Text>
             <Text style={{ fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textDim }}>
@@ -963,7 +963,7 @@ function ScoringTab({ stats }: { stats: Analytics }) {
           </View>
           <View style={{ width: 1, backgroundColor: COLORS.surfaceHigh, marginHorizontal: 16 }} />
           <View style={{ alignItems: "center", flex: 1 }}>
-            <Text style={{ fontFamily: FONTS.headline, fontSize: 28, color: COLORS.text }}>
+            <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28, color: COLORS.text }}>
               {stats.backAvg.toFixed(1)}
             </Text>
             <Text style={{ fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textDim }}>
@@ -1039,7 +1039,7 @@ function HolesTab({ stats }: { stats: Analytics }) {
               marginRight: 12,
             }}
           >
-            <Text style={{ fontFamily: FONTS.headline, fontSize: 16, color: COLORS.error }}>
+            <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 16, color: COLORS.error }}>
               {h.holeNum}
             </Text>
           </View>
@@ -1052,7 +1052,7 @@ function HolesTab({ stats }: { stats: Analytics }) {
             </Text>
           </View>
           <View style={{ alignItems: "flex-end" }}>
-            <Text style={{ fontFamily: FONTS.headline, fontSize: 18, color: COLORS.error }}>
+            <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 18, color: COLORS.error }}>
               {h.avgScore.toFixed(1)}
             </Text>
             <Text style={{ fontFamily: FONTS.bold, fontSize: 10, color: COLORS.error }}>
@@ -1086,7 +1086,7 @@ function HolesTab({ stats }: { stats: Analytics }) {
               marginRight: 12,
             }}
           >
-            <Text style={{ fontFamily: FONTS.headline, fontSize: 16, color: COLORS.primary }}>
+            <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 16, color: COLORS.primary }}>
               {h.holeNum}
             </Text>
           </View>
@@ -1101,7 +1101,7 @@ function HolesTab({ stats }: { stats: Analytics }) {
           <View style={{ alignItems: "flex-end" }}>
             <Text
               style={{
-                fontFamily: FONTS.headline,
+                fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                 fontSize: 18,
                 color: h.diff <= 0 ? COLORS.primary : COLORS.text,
               }}
@@ -1180,7 +1180,7 @@ function HolesTab({ stats }: { stats: Analytics }) {
               <Text style={{ width: 32, fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textDim, textAlign: "center" }}>
                 {hole.par}
               </Text>
-              <Text style={{ flex: 1, fontFamily: FONTS.headline, fontSize: 14, color: COLORS.text, textAlign: "center" }}>
+              <Text style={{ flex: 1, fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 14, color: COLORS.text, textAlign: "center" }}>
                 {hole.avgScore.toFixed(1)}
               </Text>
               <Text style={{ width: 36, fontFamily: FONTS.bold, fontSize: 11, color: diffColor, textAlign: "center" }}>
