@@ -8,7 +8,7 @@ const input = { fontFamily: FONTS.regular, color: COLORS.text, borderColor: COLO
 function Messages({ messages }: { messages: ChatMessage[] }) {
   return <View accessibilityLiveRegion="polite">{messages.map((m, i) => <View key={`${m.created_at}:${i}`} style={{ paddingVertical: 8 }}>
     <Text style={text}>{m.display_name}: {m.body}</Text>
-    <Text style={{ color: COLORS.textDim }}>{new Date(m.created_at).toLocaleTimeString()}</Text>
+    <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>{new Date(m.created_at).toLocaleTimeString()}</Text>
   </View>)}</View>;
 }
 export function LiveChat({ token }: { token: string }) {
@@ -64,16 +64,16 @@ export function LiveChat({ token }: { token: string }) {
     } finally { setBusy(false); }
   }
   return <View style={{ gap: 10, marginTop: 18 }}>
-    <Text style={{ ...text, fontWeight: '700', fontSize: 20 }}>Round chat</Text>
-    <Text style={{ color: COLORS.textDim }}>Anyone with the link can chat. Use a display name without contact details. Updates every 5 seconds.</Text>
+    <Text style={{ ...text, fontFamily: FONTS.headline, fontSize: 20 }}>Round chat</Text>
+    <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>Anyone with the link can chat. Use a display name without contact details. Updates every 5 seconds.</Text>
     <Messages messages={messages} />
     {!!(pollError || error) && <Text accessibilityRole="alert" style={text}>{pollError || error}</Text>}
     {ready && (!name ? <>
-      <TextInput accessibilityLabel="Chat display name" placeholder="Display name (1–30 characters)" placeholderTextColor="#a8b8ae" value={draftName} onChangeText={setDraftName} style={input} />
+      <TextInput accessibilityLabel="Chat display name" placeholder="Display name (1–30 characters)" placeholderTextColor={COLORS.textDim} value={draftName} onChangeText={setDraftName} style={input} />
       <Pressable accessibilityRole="button" disabled={busy || !readable} onPress={join}><Text style={text}>Join chat</Text></Pressable>
     </> : <>
       <Text style={text}>Chatting as {name}</Text>
-      <TextInput accessibilityLabel="Chat message" placeholder="Message (1–500 characters)" placeholderTextColor="#a8b8ae" value={body} onChangeText={setBody} editable={!busy && readable} multiline style={input} />
+      <TextInput accessibilityLabel="Chat message" placeholder="Message (1–500 characters)" placeholderTextColor={COLORS.textDim} value={body} onChangeText={setBody} editable={!busy && readable} multiline style={input} />
       <Pressable accessibilityRole="button" disabled={busy || cooldown || !readable} onPress={send}><Text style={text}>{cooldown ? 'Wait 30 seconds' : busy ? 'Sending…' : 'Send message'}</Text></Pressable>
     </>)}
   </View>;
@@ -105,7 +105,7 @@ export function HostChat({ localId }: { localId: string }) {
   return <View style={{ gap: 8, marginVertical: 12 }}>
     <Text style={text}>Round chat · host moderation</Text>
     {!!error && <Text accessibilityRole="alert" style={text}>{error}</Text>}
-    {messages.map(m => <View key={m.id}><Messages messages={[m]} /><Pressable accessibilityRole="button" accessibilityLabel={`Remove message from ${m.display_name}`} disabled={busy} onPress={() => remove(m.id)}><Text style={{ color: COLORS.primary, padding: 8 }}>Remove message</Text></Pressable></View>)}
+    {messages.map(m => <View key={m.id}><Messages messages={[m]} /><Pressable accessibilityRole="button" accessibilityLabel={`Remove message from ${m.display_name}`} disabled={busy} onPress={() => remove(m.id)}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary, padding: 8 }}>Remove message</Text></Pressable></View>)}
     {!messages.length && !error && <Text style={text}>No messages yet.</Text>}
   </View>;
 }
