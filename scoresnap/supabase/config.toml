@@ -1,0 +1,2 @@
+[functions.course-data]
+verify_jwt = true
