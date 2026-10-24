@@ -43,7 +43,8 @@ BEGIN
  SELECT count(*) INTO v_calls FROM golfcore_usage WHERE month = v_month;
  SELECT count(*) INTO v_minute FROM golfcore_usage WHERE called_at >= clock_timestamp() - interval '60 seconds';
  SELECT ratelimit_remaining INTO v_remaining FROM golfcore_usage WHERE month = v_month AND ratelimit_remaining IS NOT NULL ORDER BY called_at DESC, id DESC LIMIT 1;
- IF v_calls >= p_monthly_cap OR v_minute >= p_minute_cap OR v_remaining = 0 THEN RETURN NULL; END IF;
+ -- Hard ceilings regardless of caller-supplied caps (GolfCore Free: 500/month, 10/minute).
+ IF v_calls >= LEAST(coalesce(p_monthly_cap, 500), 500) OR v_minute >= LEAST(coalesce(p_minute_cap, 10), 10) OR v_remaining = 0 THEN RETURN NULL; END IF;
  INSERT INTO golfcore_usage(month, endpoint, status) VALUES (v_month, p_endpoint, 0) RETURNING id INTO v_id;
  RETURN v_id;
 END $$;

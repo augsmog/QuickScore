@@ -6,8 +6,9 @@ const headers = { "Content-Type": "application/json", "Access-Control-Allow-Orig
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers });
 const callers = new Map();
 const positive = (name, fallback) => { const n = Number(Deno.env.get(name)); return Number.isInteger(n) && n > 0 ? n : fallback; };
-const cap = positive("GOLFCORE_MONTHLY_CAP", 500);
-const minuteCap = positive("GOLFCORE_PER_MIN_CAP", 10);
+// Hard ceilings: GolfCore Free is 500/month and 10/minute; env can only lower them (Starter needs Augie's yes + a code change).
+const cap = Math.min(positive("GOLFCORE_MONTHLY_CAP", 500), 500);
+const minuteCap = Math.min(positive("GOLFCORE_PER_MIN_CAP", 10), 10);
 // Serialize ledger checks + calls in this isolate. Database reservations also protect across isolates.
 let queue = Promise.resolve();
 function serialized(fn) { const result = queue.then(fn); queue = result.catch(() => {}); return result; }

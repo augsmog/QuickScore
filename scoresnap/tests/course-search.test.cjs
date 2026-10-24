@@ -45,3 +45,11 @@ test('complete card converts but a truncated card requires manual entry',()=>{co
 test('old-month cache refresh and detail response preserve attribution URL',async()=>{const e=edge({response:{status:200,body:detail}});const r=await (await e.call(`slug=${detail.slug}`)).json();expect(r.course.slug).toBe(detail.slug);expect(r.attribution).toContain(detail.url);expect(e.writes[0].source).toBe('golfcore');});
 test('provider error body never leaks into response',async()=>{const e=edge({response:{status:500,body:{error:'private upstream debug'}}});const r=await e.call('q=torrey');expect(r.status).toBe(503);expect(await r.text()).not.toContain('private');expect(e.rows[0].status).toBe(500);});
 test.each([[429,{},true],[200,{quota_exceeded:true},true],[403,{error:{code:'monthly_quota_exceeded'}},true],[200,search,false]])('quota body recognition %s', (status,body,expected)=>expect(logic.isQuotaResponse(status,body)).toBe(expected));
+test('quota ceilings are hard: env can only lower 500/month and 10/minute', () => {
+  const handler = fs.readFileSync(path.join(__dirname, '..', 'supabase/functions/course-data/index.ts'), 'utf8');
+  const sql = fs.readFileSync(path.join(__dirname, '..', 'supabase/migrations/006_course_data.sql'), 'utf8');
+  expect(handler).toContain('Math.min(positive("GOLFCORE_MONTHLY_CAP", 500), 500)');
+  expect(handler).toContain('Math.min(positive("GOLFCORE_PER_MIN_CAP", 10), 10)');
+  expect(sql).toMatch(/LEAST\(coalesce\(p_monthly_cap, 500\), 500\)/);
+  expect(sql).toMatch(/LEAST\(coalesce\(p_minute_cap, 10\), 10\)/);
+});
