@@ -35,9 +35,10 @@ export function isQuotaResponse(status: number, body: any, headers?: { get(name:
   // X-RateLimit-* is the monthly meter: a 429 with Remaining > 0 is per-minute and must never trip the month.
   const remaining = headers?.get('X-RateLimit-Remaining') ?? null;
   const explicit = /quota[_ -]?(exceeded|exhausted)|(?:exceeded|exhausted)[_ -]?quota/i;
+  // On a 429 the official monthly header wins over any body text: Remaining > 0 means per-minute.
+  if (status === 429 && remaining !== null && /^\d+$/.test(remaining)) return remaining === '0';
   if (body?.quota_exceeded === true || body?.quota_exhausted === true) return true;
   if (status >= 400 && explicit.test(signals)) return true;
-  if (status === 429 && remaining !== null && /^\d+$/.test(remaining)) return remaining === '0';
   return status >= 400 && /month/i.test(signals);
 }
 

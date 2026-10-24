@@ -38,7 +38,7 @@ function edge({cached=null,allowed=1,response={status:200,body:search},role='ano
 test('edge cache hit skips fetch and ledger reservation',async()=>{ const e=edge({cached:{payload:search,fetched_at:new Date().toISOString()}});const r=await e.call('q=torrey');expect((await r.json()).source).toBe('cache');expect(e.fetch).not.toHaveBeenCalled();expect(e.db.rpc).not.toHaveBeenCalled(); });
 test('edge records upstream status and official rate headers',async()=>{const e=edge();expect((await e.call('q=torrey')).status).toBe(200);expect(e.rows[0]).toMatchObject({status:200,ratelimit_limit:500,ratelimit_remaining:499,ratelimit_reset:'reset',retry_after:'60',is_quota_error:false});expect(e.fetch.mock.calls[0][0]).toBe('https://api.golfcore.org/v1/courses?q=torrey&limit=20');});
 test('edge exhausted guard never calls upstream; stale cache survives',async()=>{ const e=edge({allowed:null,cached:{payload:search,fetched_at:'2020-01-01'}});const r=await (await e.call('q=torrey')).json();expect(r.quota_exhausted).toBe(true);expect(r.source).toBe('cache');expect(e.fetch).not.toHaveBeenCalled(); });
-test('edge quota error is logged and fails open',async()=>{const e=edge({response:{status:429,body:{error:'quota_exhausted'}}});const r=await e.call('q=torrey');expect(r.status).toBe(503);expect(await r.json()).toMatchObject({error:'quota_exhausted',fallback:'manual'});expect(e.rows[0].is_quota_error).toBe(true);});
+test('edge quota error is logged and fails open',async()=>{const e=edge({response:{status:429,body:{error:'quota_exhausted'},headers:{'X-RateLimit-Limit':'500','X-RateLimit-Remaining':'0'}}});const r=await e.call('q=torrey');expect(r.status).toBe(503);expect(await r.json()).toMatchObject({error:'quota_exhausted',fallback:'manual'});expect(e.rows[0].is_quota_error).toBe(true);});
 test.each(['usage=1','count=1'])('admin %s denied for anon',async query=>{const e=edge();expect((await e.call(query)).status).toBe(403);expect(e.fetch).not.toHaveBeenCalled();});
 test.each(['q=x','near=91,0','near=1,2&radius=51','slug=../usage','q=test&limit=51','q=test&slug=test'])('rejects unsafe query %s',async query=>{const e=edge();expect((await e.call(query)).status).toBe(400);expect(e.fetch).not.toHaveBeenCalled();});
 test('count measures four totals and reserves each call',async()=>{const e=edge({role:'service_role'});const r=await (await e.call('count=1')).json();expect(Object.keys(r.totals)).toHaveLength(4);expect(e.fetch).toHaveBeenCalledTimes(4);expect(e.db.rpc.mock.calls.filter(([name])=>name==='reserve_golfcore_call')).toHaveLength(4);});
@@ -99,9 +99,12 @@ test('tripped monthly guard serves stale cache without fetch or sleep',async()=>
  expect(e.fetch).not.toHaveBeenCalled();expect(e.sleep).not.toHaveBeenCalled();
 });
 test('successful data mentioning a month is not a quota failure',()=>expect(logic.isQuotaResponse(200,{name:'Monthly Golf Club'})).toBe(false));
-test('per-minute 429 with monthly Remaining > 0 never trips the month, even if body mentions month',()=>{
+test('per-minute 429 with monthly Remaining > 0 never trips the month, whatever the body says',()=>{
   const h=v=>({get:n=>n==='X-RateLimit-Remaining'?v:null});
   expect(logic.isQuotaResponse(429,{error:'Too many requests (10/min; 500/month plan)'},h('321'))).toBe(false);
   expect(logic.isQuotaResponse(429,{error:'Too many requests'},h('0'))).toBe(true);
-  expect(logic.isQuotaResponse(429,{quota_exceeded:true},h('5'))).toBe(true);
+  expect(logic.isQuotaResponse(429,{quota_exceeded:true},h('5'))).toBe(false);
+  expect(logic.isQuotaResponse(429,{error:'monthly quota exceeded; retry next minute'},h('321'))).toBe(false);
+  expect(logic.isQuotaResponse(429,{error:'monthly quota exceeded'},h(null))).toBe(true);
+  expect(logic.isQuotaResponse(429,{quota_exceeded:true},h(null))).toBe(true);
 });
