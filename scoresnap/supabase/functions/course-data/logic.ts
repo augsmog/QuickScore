@@ -2,8 +2,8 @@ export const ATTRIBUTION = "Course data: GolfCore";
 export function normalizeQuery(input: string): string {
   return input.trim().replace(/\s+/g, " ").toLowerCase();
 }
-export function guardDecision(calls: number, minuteCalls: number, remaining: number | null, cap = 500, minuteCap = 10, cacheHit = false): boolean {
-  return cacheHit || (calls < cap && minuteCalls < minuteCap && remaining !== 0);
+export function guardDecision(calls: number, minuteCalls: number, remaining: number | null, cap = 500, minuteCap = 9, cacheHit = false): boolean {
+  return cacheHit || (calls < Math.min(cap, 500) && minuteCalls < Math.min(minuteCap, 9) && remaining !== 0);
 }
 export function projectMonth(calls: number, now: Date): number {
   const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
@@ -30,7 +30,18 @@ export function mapCourse(c: any) {
     }) };
 }
 
-export function isQuotaResponse(status: number, body: any): boolean {
-  return status === 429 || body?.quota_exceeded === true || body?.quota_exhausted === true ||
-    /quota|monthly.{0,20}(limit|exceed|exhaust)/i.test(JSON.stringify(body?.error ?? body?.message ?? body?.code ?? ""));
+export function isQuotaResponse(status: number, body: any, headers?: { get(name: string): string | null }): boolean {
+  const signals = JSON.stringify(body ?? {}) + ' ' + ['X-RateLimit-Reason', 'X-RateLimit-Period', 'X-RateLimit-Reset', 'X-Quota-Exceeded', 'X-RateLimit-Quota', 'X-RateLimit-Scope'].map(name => headers?.get(name) ?? '').join(' ');
+  // X-RateLimit-* is the monthly meter: a 429 with Remaining > 0 is per-minute and must never trip the month.
+  const remaining = headers?.get('X-RateLimit-Remaining') ?? null;
+  const explicit = /quota[_ -]?(exceeded|exhausted)|(?:exceeded|exhausted)[_ -]?quota/i;
+  if (body?.quota_exceeded === true || body?.quota_exhausted === true) return true;
+  if (status >= 400 && explicit.test(signals)) return true;
+  if (status === 429 && remaining !== null && /^\d+$/.test(remaining)) return remaining === '0';
+  return status >= 400 && /month/i.test(signals);
+}
+
+export function retryDelay(retryAfter: string | null, attempt: number): number {
+  const seconds = retryAfter !== null && /^\d+(?:\.\d+)?$/.test(retryAfter.trim()) ? Number(retryAfter) : NaN;
+  return Number.isFinite(seconds) ? Math.min(seconds, 8) * 1000 : 2000 * (attempt + 1);
 }

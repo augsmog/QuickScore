@@ -1,23 +1,21 @@
 // @ts-nocheck -- Deno runtime imports and globals; pure logic is checked by app tsc/Jest.
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ATTRIBUTION, normalizeQuery, projectMonth, isQuotaResponse } from "./logic.ts";
+import { ATTRIBUTION, normalizeQuery, isQuotaResponse, retryDelay } from "./logic.ts";
 const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "GET, OPTIONS" };
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers });
 const callers = new Map();
 const positive = (name, fallback) => { const n = Number(Deno.env.get(name)); return Number.isInteger(n) && n > 0 ? n : fallback; };
-// Hard ceilings: GolfCore Free is 500/month and 10/minute; env can only lower them (Starter needs Augie's yes + a code change).
+// Hard ceilings: 500/month and 9/minute (one below GolfCore Free); env can only lower them (Starter needs Augie's yes + a code change).
 const cap = Math.min(positive("GOLFCORE_MONTHLY_CAP", 500), 500);
-const minuteCap = Math.min(positive("GOLFCORE_PER_MIN_CAP", 10), 10);
-// Serialize ledger checks + calls in this isolate. Database reservations also protect across isolates.
-let queue = Promise.resolve();
-function serialized(fn) { const result = queue.then(fn); queue = result.catch(() => {}); return result; }
+const minuteCap = Math.min(positive("GOLFCORE_PER_MIN_CAP", 9), 9);
 function checked(result) { if (result.error) throw new Error("database_error"); return result.data; }
 function claims(req) {
   try { const token = (req.headers.get("authorization") ?? "").replace(/^Bearer /i, ""); return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); }
   catch { return {}; }
 }
-serve(async (req) => {
+export function createHandler({ sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), fetchUpstream = fetch } = {}) {
+return async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers });
   if (req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
   // JWT signature validation is performed by the Supabase gateway (verify_jwt=true).
@@ -35,8 +33,8 @@ serve(async (req) => {
   try {
     const db = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
     if (params.get("usage") === "1") {
-      const summary = checked(await db.from("golfcore_usage_summary").select('*').single());
-      return json({ ...summary, cap, pct_used: summary.calls / cap * 100, projected_month_end: projectMonth(summary.calls, new Date()) });
+      const summary = checked(await db.from("golfcore_usage_summary_v2").select('*').single());
+      return json(summary);
     }
     let endpoint, path, table, key, keyValue, ttl;
     const modes = ['q','near','slug','count','usage'].filter(p => params.has(p));
@@ -69,30 +67,41 @@ serve(async (req) => {
       endpoint = 'search'; path = `/courses?${search}`; table = 'course_search_cache'; key = 'query'; keyValue = search.toString(); ttl = 7 * 86400000;
     }
     const cached = checked(await db.from(table).select('*').eq(key, keyValue).maybeSingle());
-    const output = (payload, source, exhausted = false) => {
+    const output = (payload, source, failure = null) => {
       const attribution = endpoint === 'detail' && payload.url ? `${ATTRIBUTION} — ${payload.url}` : ATTRIBUTION;
-      return json({ ...(endpoint === 'detail' ? { course: payload } : payload), source, attribution, ...(exhausted ? { quota_exhausted: true } : {}) });
+      return json({ ...(endpoint === 'detail' ? { course: payload } : payload), source, attribution, ...(failure ? { [failure]: true } : {}) });
     };
     if (cached && Date.now() - Date.parse(cached.fetched_at) < ttl) return output(cached.payload, 'cache');
     if (!Deno.env.get('GOLFCORE_API_KEY')) return json({ error: 'course_data_unconfigured' }, 503);
-    return await serialized(async () => {
+    return await (async () => {
       async function upstream(upstreamPath) {
-        // Atomic reservation serializes budget enforcement across every function instance.
-        const allowed = checked(await db.rpc('reserve_golfcore_call', { p_endpoint: endpoint, p_monthly_cap: cap, p_minute_cap: minuteCap }));
-        if (!allowed) throw new Error('quota_exhausted');
-        const usageId = allowed;
-        let response, body;
-        try {
-          response = await fetch(`https://api.golfcore.org/v1${upstreamPath}`, { headers: { Authorization: `Bearer ${Deno.env.get('GOLFCORE_API_KEY')}`, 'User-Agent': 'SnapScore/1.0 (+https://github.com/augsmog/QuickScore)' }, signal: AbortSignal.timeout(15000) });
-          body = await response.json().catch(() => null);
-        } catch { checked(await db.from('golfcore_usage').update({ status: 0 }).eq('id', usageId)); throw new Error('upstream_unavailable'); }
-        const integerHeader = name => { const value = response.headers.get(name); return value !== null && /^\d+$/.test(value) ? Number(value) : null; };
-        const quota = isQuotaResponse(response.status, body);
-        checked(await db.from('golfcore_usage').update({ status: response.status, is_quota_error: quota,
-          ratelimit_limit: integerHeader('X-RateLimit-Limit'), ratelimit_remaining: integerHeader('X-RateLimit-Remaining'), ratelimit_reset: response.headers.get('X-RateLimit-Reset'), retry_after: response.headers.get('Retry-After') }).eq('id', usageId));
-        if (quota) throw new Error('quota_exhausted');
-        if (!response.ok || !body) throw new Error('upstream_unavailable');
-        return body;
+        for (let attempt = 0; attempt <= 2; attempt++) {
+          // Atomic reservation serializes budget enforcement across every function instance.
+          const allowed = checked(await db.rpc('reserve_golfcore_call', { p_endpoint: endpoint, p_monthly_cap: cap, p_minute_cap: minuteCap }));
+          if (!allowed) {
+            const summary = checked(await db.from('golfcore_usage_summary_v2').select('*').single());
+            throw new Error(summary.quota_tripped || summary.calls_effective >= cap ? 'quota_exhausted' : 'rate_limited');
+          }
+          const usageId = allowed;
+          let response, body;
+          try {
+            response = await fetchUpstream(`https://api.golfcore.org/v1${upstreamPath}`, { headers: { Authorization: `Bearer ${Deno.env.get('GOLFCORE_API_KEY')}`, 'User-Agent': 'SnapScore/1.0 (+https://github.com/augsmog/QuickScore)' }, signal: AbortSignal.timeout(15000) });
+            body = await response.json().catch(() => null);
+          } catch { checked(await db.from('golfcore_usage').update({ status: 0 }).eq('id', usageId)); throw new Error('upstream_unavailable'); }
+          const integerHeader = name => { const value = response.headers.get(name); return value !== null && /^\d+$/.test(value) ? Number(value) : null; };
+          const quota = isQuotaResponse(response.status, body, response.headers);
+          checked(await db.from('golfcore_usage').update({ status: response.status, is_quota_error: quota, quota_tripped: quota,
+            ratelimit_limit: integerHeader('X-RateLimit-Limit'), ratelimit_remaining: integerHeader('X-RateLimit-Remaining'), ratelimit_reset: response.headers.get('X-RateLimit-Reset'), retry_after: response.headers.get('Retry-After') }).eq('id', usageId));
+          checked(await db.rpc('reconcile_golfcore_usage', { p_usage_id: usageId }));
+          if (quota) throw new Error('quota_exhausted');
+          if (response.status === 429) {
+            if (attempt === 2) throw new Error('rate_limited');
+            await sleep(retryDelay(response.headers.get('Retry-After'), attempt));
+            continue;
+          }
+          if (!response.ok || !body) throw new Error('upstream_unavailable');
+          return body;
+        }
       }
       try {
         let payload;
@@ -106,13 +115,15 @@ serve(async (req) => {
         checked(await db.from(table).upsert({ [key]: keyValue, payload, fetched_at: new Date().toISOString(), ...(endpoint === 'detail' ? { source: 'golfcore' } : {}) }));
         return output(payload, 'golfcore');
       } catch (error) {
-        const quota = error.message === 'quota_exhausted';
-        if (cached) return output(cached.payload, 'cache', quota);
-        return json({ error: quota ? 'quota_exhausted' : 'course_data_unavailable', fallback: 'manual' }, 503);
+        const failure = ['quota_exhausted', 'rate_limited'].includes(error.message) ? error.message : null;
+        if (cached) return output(cached.payload, 'cache', failure);
+        return json({ error: failure || 'course_data_unavailable', fallback: 'manual' }, 503);
       }
-    });
+    })();
   } catch {
     console.error('course-data: request unavailable');
     return json({ error: 'course_data_unavailable', fallback: 'manual' }, 503);
   }
-});
+};
+}
+serve(createHandler());
