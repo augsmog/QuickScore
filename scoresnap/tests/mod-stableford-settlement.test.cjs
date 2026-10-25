@@ -39,3 +39,10 @@ test('Modified Stableford settlement follows its scoreboard and regular Stablefo
     }
   `], { cwd: path.resolve(__dirname, '..'), stdio: 'inherit' });
 });
+
+test('Modified Stableford scoreboard ranks with the same calculator as settlement', () => {
+  const fs = require('node:fs');
+  const games = fs.readFileSync(path.resolve(__dirname, '../app/contest/[id]/games.tsx'), 'utf8');
+  expect(games).toMatch(/import \{ calcModStableford \} from "\.\.\/\.\.\/\.\.\/src\/engine\/calculators\/mod-stableford";/);
+  expect(games).toContain('(gameId === "mod_stableford" ? calcModStableford : calcStableford)(allPlayers, contest.course)');
+});

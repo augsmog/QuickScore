@@ -3,23 +3,35 @@
 ## Root cause
 
 `settlement.ts` grouped `stableford` and `mod_stableford` into a single case
-that called `calcStableford`. The scoreboard calls `calcModStableford`, so
-settlement could pay a different player than the displayed leader.
+that called `calcStableford`, so Modified Stableford was settled on regular
+Stableford points. The in-app Games scoreboard (`app/contest/[id]/games.tsx`)
+had the same shortcut: it also rendered Modified Stableford with `calcStableford`.
+So on `main` the two screens agreed with each other, but both used the wrong
+points for this format, and the payout could differ from the Modified Stableford
+standings in the rules explainer.
 
 ## Diff summary
 
 - Import `calcModStableford` and give `mod_stableford` its own settlement case.
+- Games scoreboard: render `mod_stableford` with `calcModStableford` (regular
+  `stableford` still uses `calcStableford`), so the displayed leader and the
+  settle-up winner use the same points.
 - Preserve regular Stableford and all other settlement cases, the no-scores guard,
   winner-takes-one-unit-per-opponent policy, and shared cent reconciliation.
 - Add a regression using the rules-explainer Modified Stableford fixture, including
   scoreboard totals, exact transfers, zero-sum nets, and regular Stableford behavior.
 - Add an independent three-hole case with strictly opposite rankings, plus
   unplayed-round coverage for both formats.
+- Add a static check that the Games scoreboard uses `calcModStableford` for
+  `mod_stableford` (the screen itself has no render test harness).
 - No explainer copy changes.
 
 ## Fixture before / after
 
-At a $1 bet unit, scoreboard points remain Casey 51, Alex 48, Jordan 36, Sam 33.
+At a $1 bet unit, Modified Stableford points (`calcModStableford`) are Casey 51,
+Alex 48, Jordan 36, Sam 33. After this change the Games scoreboard shows those
+numbers. Before it, the scoreboard showed regular Stableford points (Alex 41,
+Casey 41, Jordan 36, Sam 35, with Alex listed first on input order).
 
 | Player | Before net | After net |
 | --- | ---: | ---: |
@@ -54,8 +66,9 @@ corrected values (Casey +$3, Alex -$1).
 ## Validation
 
 - Full scoresnap suite on this branch: `cd scoresnap && npm test -- --runInBand`
-  gives **17 suites passed, 248 tests passed** (including `engine.test.cjs`
+  gives **17 suites passed, 249 tests passed** (including `engine.test.cjs`
   and `scoring-properties.test.cjs`).
+- Changed files are `settlement.ts`, `games.tsx`, the new test and fixture, and this report.
 - The new regression fails against the original `settlement.ts` (actual Alex +$3 /
   Casey -$1), so it catches the reported defect.
 - `tsc --noEmit` reports 42 errors both before and after this change; none are
