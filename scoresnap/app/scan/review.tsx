@@ -347,7 +347,8 @@ export default function ScanReviewScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.back()}
+            testID="review-back" accessibilityRole="button" accessibilityLabel="Go Back"
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
             style={{ padding: 12 }}
           >
             <Text

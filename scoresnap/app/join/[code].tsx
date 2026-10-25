@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ScrollView, Text, TextInput, Pressable, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useContestStore, type Contest } from "../../src/stores/contest-store";
 import { useGuestStore } from "../../src/stores/guest-store";
@@ -8,6 +8,7 @@ import { localContestJoinService, claimGuestHistory } from "../../src/services/g
 import { COLORS, FONTS } from "../../src/ui/theme";
 import { LocalJoinLimitationBanner } from "../../src/ui/LocalJoinLimitationBanner";
 export default function JoinContest() {
+  const router = useRouter();
   const { code: initial } = useLocalSearchParams<{ code: string }>();
   const [code, setCode] = useState(initial === "enter" ? "" : initial || "");
   const [name, setName] = useState("");
@@ -33,7 +34,7 @@ export default function JoinContest() {
   const join = (c: Contest, playerId: string) => {
     try { guest.join(c, playerId, name); setJoined(true); setError(""); } catch (e: any) { setError(e.message); }
   };
-  return <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><LocalJoinLimitationBanner /></View><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
+  return <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><Pressable testID="join-dismiss" accessibilityRole="button" accessibilityLabel="Back to home" onPress={() => router.replace("/")} style={{ paddingVertical: 12 }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>Back to home</Text></Pressable><LocalJoinLimitationBanner /></View><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
     <Text style={{ fontFamily: FONTS.headline, color: COLORS.text, fontSize: 26 }}>Join with code</Text>
     <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>Play as a guest. No account needed.</Text>
     {!contest && <>

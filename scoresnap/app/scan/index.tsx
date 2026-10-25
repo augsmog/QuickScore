@@ -246,7 +246,7 @@ export default function ScanScreen() {
           </Text>
         </Pressable>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
           style={{ marginTop: 16, padding: 8 }}
         >
           <Text
@@ -894,7 +894,7 @@ export default function ScanScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
             style={{ marginTop: 16, padding: 8 }}
           >
             <Text
@@ -997,7 +997,7 @@ export default function ScanScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
             style={{ padding: 12 }}
           >
             <Text
