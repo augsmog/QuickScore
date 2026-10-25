@@ -47,3 +47,16 @@ for (const [file, label, count] of [
     });
   }
 }
+
+// The join screen is shared by Expo iOS and web. It must always leave the flow,
+// including a cold-start deep link where there is no navigation history.
+for (const hasHistory of [false, true]) {
+  test(`native join dismiss returns home with history=${hasHistory}`, () => {
+    const router = { canGoBack: jest.fn(() => hasHistory), back: jest.fn(), replace: jest.fn() };
+    const handlers = handlersFor('app/join/[code].tsx', 'Back to home', router);
+    expect(handlers).toHaveLength(1);
+    handlers[0]();
+    expect(router.replace).toHaveBeenCalledWith('/');
+    expect(router.back).not.toHaveBeenCalled();
+  });
+}
