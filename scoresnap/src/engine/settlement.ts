@@ -3,6 +3,7 @@ import { calcStrokePlay } from "./calculators/stroke-play";
 import { calcSkins, skinsGroups } from "./calculators/skins";
 import { calcNassau } from "./calculators/nassau";
 import { calcStableford } from "./calculators/stableford";
+import { calcModStableford } from "./calculators/mod-stableford";
 import { calcMatchPlay } from "./calculators/match-play";
 import { calcBestBall } from "./calculators/best-ball";
 import { calcNassauPress } from "./calculators/nassau-press";
@@ -125,10 +126,26 @@ export function calculateSettlement(
         break;
       }
 
-      case "stableford":
-      case "mod_stableford": {
+      case "stableford": {
         if (!players.some(p => p.scores.some(score => score > 0))) break;
         const results = calcStableford(players, course);
+        if (results.length >= 2) {
+          const winner = results[0];
+          for (let i = 1; i < results.length; i++) {
+            transactions.push({
+              from: results[i].name,
+              to: winner.name,
+              amount: betUnit,
+              gameType,
+            });
+          }
+        }
+        break;
+      }
+
+      case "mod_stableford": {
+        if (!players.some(p => p.scores.some(score => score > 0))) break;
+        const results = calcModStableford(players, course);
         if (results.length >= 2) {
           const winner = results[0];
           for (let i = 1; i < results.length; i++) {

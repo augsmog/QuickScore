@@ -6,6 +6,7 @@ import { ALL_GAMES, GameType } from "../../../src/engine/types";
 import { calcScopedSkins, skinsLabel } from "../../../src/engine/calculators/skins";
 import { calcNassau } from "../../../src/engine/calculators/nassau";
 import { calcStableford } from "../../../src/engine/calculators/stableford";
+import { calcModStableford } from "../../../src/engine/calculators/mod-stableford";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { calcWolf } from "../../../src/engine/calculators/wolf";
 import { calcSnake } from "../../../src/engine/calculators/snake";
@@ -318,7 +319,7 @@ export default function GamesScreen() {
             {/* ── Stableford / Mod Stableford ── */}
             {(gameId === "stableford" || gameId === "mod_stableford") && (
               <View>
-                {calcStableford(allPlayers, contest.course).map((r, i) => (
+                {(gameId === "mod_stableford" ? calcModStableford : calcStableford)(allPlayers, contest.course).map((r, i) => (
                   <View
                     key={r.playerId}
                     style={{
