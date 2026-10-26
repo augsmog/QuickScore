@@ -12,6 +12,14 @@ export interface ContestGroup {
   players: Player[];
 }
 
+export interface RoundInfo {
+  id: string;
+  number: number;
+  name: string;
+  date?: string;
+  groups: ContestGroup[];
+}
+
 export interface TeamInfo {
   id: string;
   name: string;
@@ -37,6 +45,10 @@ export interface Contest {
   isDemo?: boolean;
   joinCode?: string;
   liveShareEnabled?: boolean;
+  // Multi-round tournament support
+  rounds?: RoundInfo[];
+  currentRound?: number; // 1-indexed
+  isTournament?: boolean;
 }
 
 interface ContestState {

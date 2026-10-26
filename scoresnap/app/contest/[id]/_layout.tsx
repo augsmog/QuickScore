@@ -15,8 +15,8 @@ import GamesScreen from "./games";
 import SettlementScreen from "./settlement";
 
 const TABS = [
-  { key: "leaderboard", label: "Leaderboard", Screen: LeaderboardScreen },
   { key: "scorecard", label: "Scorecard", Screen: ScorecardScreen },
+  { key: "leaderboard", label: "Leaderboard", Screen: LeaderboardScreen },
   { key: "games", label: "Games", Screen: GamesScreen },
   { key: "settlement", label: "Settlement", Screen: SettlementScreen },
 ] as const;
@@ -29,7 +29,7 @@ export default function ContestLayout() {
   const contest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
-  const [activeTab, setActiveTab] = useState<TabKey>("leaderboard");
+  const [activeTab, setActiveTab] = useState<TabKey>("scorecard");
 
   const handleTabPress = useCallback(
     (tabKey: TabKey) => {
