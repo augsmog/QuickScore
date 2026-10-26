@@ -123,6 +123,9 @@ await vis(page.getByText("Group 2", {exact:true})).first().click();
 await vis(page.getByText(/confirm/i)).last().click();
 await page.waitForURL((u) => u.pathname === `/contest/${contestId}`, { timeout: 15000 });
 await page.waitForTimeout(2500);
+// Click Leaderboard tab (Scorecard is now default)
+await vis(page.getByText(/^leaderboard$/i)).first().click();
+await page.waitForTimeout(500);
 await shot("08-contest-leaderboard.png");
 const lb = await bodyText();
 check(["81", "72", "90", "108"].every(total => lb.includes(total)), "Leaderboard shows all four real totals (81, 72, 90, 108)");
