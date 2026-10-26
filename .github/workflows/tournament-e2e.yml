@@ -1,0 +1,99 @@
+name: Tournament E2E
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+permissions:
+  contents: read
+jobs:
+  tournament-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: scoresnap
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL https://github.com/supabase/cli/releases/download/v1.200.3/supabase_1.200.3_linux_amd64.tar.gz | tar -xz
+          sudo mv supabase /usr/local/bin/
+          supabase --version
+      
+      - name: Start Supabase
+        run: |
+          supabase start --debug
+          supabase status
+      
+      - name: Apply migrations
+        run: |
+          for migration in supabase/migrations/*.sql; do
+            echo "Applying $migration..."
+            supabase db reset --no-seed
+            for file in supabase/migrations/*.sql; do
+              psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f "$file"
+            done
+          done
+      
+      - name: Build web app
+        run: |
+          # Set Supabase env vars from local instance
+          export EXPO_PUBLIC_SUPABASE_URL=$(supabase status --output json | jq -r '.API_URL')
+          export EXPO_PUBLIC_SUPABASE_ANON_KEY=$(supabase status --output json | jq -r '.ANON_KEY')
+          echo "EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL" >> $GITHUB_ENV
+          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY" >> $GITHUB_ENV
+          npx expo export --platform web --output-dir dist-web
+      
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+      
+      - name: Start web server
+        run: |
+          node e2e/serve.mjs > /tmp/tournament-server.log 2>&1 &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> "$GITHUB_ENV"
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8089/ > /dev/null; then break; fi
+            sleep 1
+          done
+          kill -0 "$SERVER_PID"
+          curl --fail --silent http://127.0.0.1:8089/ > /dev/null
+      
+      - name: Run 16-player tournament E2E test
+        run: BASE_URL=http://127.0.0.1:8089 node e2e/tournament-16-player.mjs
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ env.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ env.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      
+      - name: Run Hopwood Cup 56-player E2E test
+        run: BASE_URL=http://127.0.0.1:8089 node e2e/hopwood-cup-56-player.mjs
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ env.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ env.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      
+      - name: Stop services
+        if: always()
+        run: |
+          if [ -n "$SERVER_PID" ]; then kill "$SERVER_PID" || true; fi
+          supabase stop
+      
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tournament-e2e-screenshots
+          path: /tmp/*.png
+          if-no-files-found: ignore

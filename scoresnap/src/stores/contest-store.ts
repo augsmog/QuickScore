@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GameType, GameConfig, Player, Course, HoleInfo, AuxiliaryData } from "../engine/types";
+import { syncRound, syncRoundGroups, syncContestTournamentMeta, syncScore } from "../services/tournament-sync";
 
 export interface ContestGroup {
   id: string;
@@ -136,12 +137,17 @@ export const useContestStore = create<ContestState>()(
         return state.contests.find((c) => c.id === state.activeContestId);
       },
 
-      updateScore: (contestId, groupId, playerId, hole, strokes) =>
+      updateScore: (contestId, groupId, playerId, hole, strokes) => {
+        let roundId: string | null = null;
         set((state) => ({
           contests: state.contests.map((c) => {
             if (c.id !== contestId) return c;
             // For tournaments, update the current round's groups
             if (c.isTournament && c.rounds && c.currentRound) {
+              const currentRound = c.rounds.find(r => r.number === c.currentRound);
+              if (currentRound) {
+                roundId = currentRound.id;
+              }
               return {
                 ...c,
                 rounds: c.rounds.map((r) => {
@@ -181,7 +187,14 @@ export const useContestStore = create<ContestState>()(
               }),
             };
           }),
-        })),
+        }));
+        // Sync to Supabase
+        if (roundId) {
+          syncScore(contestId, roundId, playerId, hole, strokes).catch(err =>
+            console.error('Failed to sync score:', err)
+          );
+        }
+      },
 
       importScores: (contestId, groupId, playerScores) =>
         set((state) => ({
@@ -258,14 +271,20 @@ export const useContestStore = create<ContestState>()(
           }),
         })),
 
-      setCurrentRound: (contestId, roundNumber) =>
+      setCurrentRound: (contestId, roundNumber) => {
         set((state) => ({
           contests: state.contests.map((c) =>
             c.id === contestId ? { ...c, currentRound: roundNumber } : c
           ),
-        })),
+        }));
+        // Sync to Supabase
+        syncContestTournamentMeta(contestId, true, roundNumber).catch(err => 
+          console.error('Failed to sync current round:', err)
+        );
+      },
 
-      addRound: (contestId, roundName) =>
+      addRound: (contestId, roundName) => {
+        let newRound: RoundInfo | null = null;
         set((state) => ({
           contests: state.contests.map((c) => {
             if (c.id !== contestId) return c;
@@ -281,7 +300,7 @@ export const useContestStore = create<ContestState>()(
                 scores: new Array(c.course.holes.length).fill(0),
               })),
             }];
-            const newRound: RoundInfo = {
+            newRound = {
               id: generateId(),
               number: newRoundNumber,
               name: roundName || `Round ${newRoundNumber}`,
@@ -295,12 +314,24 @@ export const useContestStore = create<ContestState>()(
               currentRound: newRoundNumber,
             };
           }),
-        })),
+        }));
+        // Sync to Supabase
+        if (newRound) {
+          syncRound(contestId, newRound).catch(err =>
+            console.error('Failed to sync new round:', err)
+          );
+        }
+      },
 
-      updateRoundGroups: (contestId, roundNumber, groups) =>
+      updateRoundGroups: (contestId, roundNumber, groups) => {
+        let roundId: string | null = null;
         set((state) => ({
           contests: state.contests.map((c) => {
             if (c.id !== contestId || !c.rounds) return c;
+            const targetRound = c.rounds.find(r => r.number === roundNumber);
+            if (targetRound) {
+              roundId = targetRound.id;
+            }
             return {
               ...c,
               rounds: c.rounds.map((r) =>
@@ -308,7 +339,14 @@ export const useContestStore = create<ContestState>()(
               ),
             };
           }),
-        })),
+        }));
+        // Sync to Supabase
+        if (roundId) {
+          syncRoundGroups(contestId, roundId, groups).catch(err =>
+            console.error('Failed to sync round groups:', err)
+          );
+        }
+      },
 
       copyRoundGroups: (contestId, fromRound, toRound) =>
         set((state) => ({

@@ -150,33 +150,70 @@ export default function TournamentRoundsScreen() {
       .find((p) => p.id === playerId);
     if (!player) return;
 
-    // Show group picker
     const otherGroups = currentRound.groups.filter((g) => g.id !== fromGroupId);
-    if (otherGroups.length === 0) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      `Move ${player.name}`,
-      "Select destination group:",
+      player.name,
+      `HCP ${player.handicap} · ${player.status || 'Active'}`,
       [
         { text: "Cancel", style: "cancel" },
-        ...otherGroups.map((targetGroup) => ({
-          text: targetGroup.name,
+        // Move to another group
+        ...(otherGroups.length > 0 ? [{
+          text: "Move to another group",
           onPress: () => {
-            const newGroups = currentRound.groups.map((g) => {
-              if (g.id === fromGroupId) {
-                // Remove from current group
-                return { ...g, players: g.players.filter((p) => p.id !== playerId) };
-              } else if (g.id === targetGroup.id) {
-                // Add to target group
-                return { ...g, players: [...g.players, player] };
-              }
-              return g;
-            });
+            Alert.alert(
+              `Move ${player.name}`,
+              "Select destination group:",
+              [
+                { text: "Cancel", style: "cancel" },
+                ...otherGroups.map((targetGroup) => ({
+                  text: targetGroup.name,
+                  onPress: () => {
+                    const newGroups = currentRound.groups.map((g) => {
+                      if (g.id === fromGroupId) {
+                        return { ...g, players: g.players.filter((p) => p.id !== playerId) };
+                      } else if (g.id === targetGroup.id) {
+                        return { ...g, players: [...g.players, player] };
+                      }
+                      return g;
+                    });
+                    updateRoundGroups(id!, selectedRound, newGroups);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  },
+                })),
+              ]
+            );
+          }
+        }] : []),
+        // Mark as WD
+        {
+          text: player.status === "WD" ? "Unmark WD" : "Mark as WD (Withdrew)",
+          onPress: () => {
+            const newGroups = currentRound.groups.map((g) => ({
+              ...g,
+              players: g.players.map((p) =>
+                p.id === playerId ? { ...p, status: p.status === "WD" ? undefined : "WD" as const } : p
+              ),
+            }));
             updateRoundGroups(id!, selectedRound, newGroups);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          },
-        })),
+          }
+        },
+        // Mark as NS
+        {
+          text: player.status === "NS" ? "Unmark NS" : "Mark as NS (No-Show)",
+          onPress: () => {
+            const newGroups = currentRound.groups.map((g) => ({
+              ...g,
+              players: g.players.map((p) =>
+                p.id === playerId ? { ...p, status: p.status === "NS" ? undefined : "NS" as const } : p
+              ),
+            }));
+            updateRoundGroups(id!, selectedRound, newGroups);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+        },
       ]
     );
   };
@@ -234,6 +271,38 @@ export default function TournamentRoundsScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 20, paddingBottom: 120 }}
       >
+        {/* Round Course */}
+        {currentRound && (
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ color: COLORS.textDim, fontSize: 12, fontWeight: "700", marginBottom: 8 }}>
+              ROUND COURSE
+            </Text>
+            <TextInput
+              value={currentRound.course?.name || contest.course.name}
+              onChangeText={(name) => {
+                const updated = rounds.map(r => 
+                  r.number === selectedRound 
+                    ? { ...r, course: { ...contest.course, name } }
+                    : r
+                );
+                updateContest(id!, { rounds: updated });
+              }}
+              placeholder="Course name"
+              placeholderTextColor={COLORS.textDim}
+              style={{
+                backgroundColor: COLORS.card,
+                borderColor: COLORS.border,
+                borderWidth: 1,
+                borderRadius: RADII.md,
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                color: COLORS.text,
+                fontSize: 15,
+              }}
+            />
+          </View>
+        )}
+
         {/* Round Selector */}
         <Text
           style={{
@@ -385,7 +454,7 @@ export default function TournamentRoundsScreen() {
           Foursomes
         </Text>
 
-        {currentRound?.groups.map((group) => (
+        {currentRound?.groups.map((group, groupIdx) => (
           <View
             key={group.id}
             style={{
@@ -408,39 +477,99 @@ export default function TournamentRoundsScreen() {
               {group.name} ({group.players.length} players)
             </Text>
 
-            {group.players.map((player) => (
-              <Pressable
-                key={player.id}
-                onPress={() => handleMovePlayer(player.id, group.id)}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  paddingVertical: 8,
-                  borderBottomWidth: 1,
-                  borderBottomColor: COLORS.border + "40",
-                }}
-              >
-                <Text
+            {/* Tee Time & External ID */}
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: COLORS.textDim, fontSize: 11, marginBottom: 4 }}>
+                  TEE TIME
+                </Text>
+                <TextInput
+                  value={group.teeTime || ""}
+                  onChangeText={(val) => {
+                    const updatedGroups = currentRound.groups.map((g, i) =>
+                      i === groupIdx ? { ...g, teeTime: val } : g
+                    );
+                    updateRoundGroups(id!, selectedRound, updatedGroups);
+                  }}
+                  placeholder="10:03"
+                  placeholderTextColor={COLORS.textDim}
                   style={{
-                    flex: 1,
+                    backgroundColor: COLORS.surfaceLow,
+                    borderColor: COLORS.border,
+                    borderWidth: 1,
+                    borderRadius: RADII.sm,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
                     color: COLORS.text,
-                    fontSize: 15,
-                    fontWeight: "500",
-                  }}
-                >
-                  {player.name}
-                </Text>
-                <Text
-                  style={{
-                    color: COLORS.textDim,
                     fontSize: 13,
-                    marginRight: 10,
+                  }}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: COLORS.textDim, fontSize: 11, marginBottom: 4 }}>
+                  EXTERNAL ID
+                </Text>
+                <TextInput
+                  value={group.externalId || ""}
+                  onChangeText={(val) => {
+                    const updatedGroups = currentRound.groups.map((g, i) =>
+                      i === groupIdx ? { ...g, externalId: val } : g
+                    );
+                    updateRoundGroups(id!, selectedRound, updatedGroups);
+                  }}
+                  placeholder="WTKTH9"
+                  placeholderTextColor={COLORS.textDim}
+                  style={{
+                    backgroundColor: COLORS.surfaceLow,
+                    borderColor: COLORS.border,
+                    borderWidth: 1,
+                    borderRadius: RADII.sm,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    color: COLORS.text,
+                    fontSize: 13,
+                  }}
+                />
+              </View>
+            </View>
+
+            {/* Players */}
+            {group.players.map((player, playerIdx) => (
+              <View key={player.id}>
+                <Pressable
+                  onPress={() => handleMovePlayer(player.id, group.id)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 8,
+                    borderBottomWidth: 1,
+                    borderBottomColor: COLORS.border + "40",
                   }}
                 >
-                  HCP {player.handicap}
-                </Text>
-                <ChevronRight size={16} color={COLORS.textDim} />
-              </Pressable>
+                  <Text
+                    style={{
+                      flex: 1,
+                      color: COLORS.text,
+                      fontSize: 15,
+                      fontWeight: "500",
+                    }}
+                  >
+                    {player.name}
+                  </Text>
+                  <Text
+                    style={{
+                      color: COLORS.textDim,
+                      fontSize: 13,
+                      marginRight: 4,
+                    }}
+                  >
+                    {player.status === "WD" && "WD · "}
+                    {player.status === "NS" && "NS · "}
+                    HCP {player.handicap > 0 ? player.handicap : player.handicap < 0 ? `+${Math.abs(player.handicap)}` : "0"}
+                  </Text>
+                  <ChevronRight size={16} color={COLORS.textDim} />
+                </Pressable>
+              </View>
             ))}
           </View>
         ))}
