@@ -7,13 +7,15 @@
  * 
  * Requirements:
  * - A local web server running the app at http://localhost:8089 (or set BASE_URL env var)
- * - The app must be built with EXPO_PUBLIC_DEMO_MODE=true to have Sample Round available
+ * - The app must be built with EXPO_PUBLIC_DEMO_MODE=true and EXPO_PUBLIC_OFFLINE_MODE=true to have Sample Round available
  * - Playwright with Chromium installed: npx playwright install chromium
  *
  * Example:
- *   EXPO_PUBLIC_DEMO_MODE=true npx expo export --platform web --output-dir dist-web
+ *   EXPO_PUBLIC_DEMO_MODE=true EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web
  *   npx http-server dist-web -p 8089 --silent &
  *   node scripts/render-scorecard.mjs ./screenshot.png
+ *   # Or with custom device scale factor (default 1):
+ *   DEVICE_SCALE_FACTOR=3 node scripts/render-scorecard.mjs ./screenshot.png
  */
 
 import { chromium } from "playwright";
@@ -22,6 +24,7 @@ import path from "node:path";
 import fs from "node:fs";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:8089";
+const DEVICE_SCALE_FACTOR = parseInt(process.env.DEVICE_SCALE_FACTOR || "1", 10);
 const outputPath = process.argv[2];
 
 if (!outputPath) {
@@ -37,12 +40,13 @@ fs.mkdirSync(outputDir, { recursive: true });
 
 console.log(`Rendering Sample Round scorecard at ${BASE_URL}...`);
 console.log(`Viewport: 393x852 (standard mobile)`);
+console.log(`Device scale factor: ${DEVICE_SCALE_FACTOR}`);
 console.log(`Output: ${absoluteOutputPath}`);
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({
   viewport: { width: 393, height: 852 },
-  deviceScaleFactor: 3, // High-DPI for crisp text
+  deviceScaleFactor: DEVICE_SCALE_FACTOR,
 });
 
 const pageErrors = [];
@@ -52,24 +56,36 @@ page.on("pageerror", (e) => {
 });
 
 try {
-  // 1. Navigate to home and wait for Sample Round to appear
+  // 1. Navigate to home - may show onboarding
   console.log("Navigating to home...");
   await page.goto(BASE_URL + "/", { waitUntil: "networkidle", timeout: 30000 });
   
-  // Wait for the Sample Round contest to be visible
-  console.log("Waiting for Sample Round...");
-  const sampleRoundLink = page.locator('text="Sample Round"').first();
-  await sampleRoundLink.waitFor({ state: "visible", timeout: 10000 });
+  // Check if onboarding appears
+  const skipButton = page.getByText(/skip/i).first();
+  const skipVisible = await skipButton.isVisible().catch(() => false);
+  if (skipVisible) {
+    console.log("Clicking onboarding Skip...");
+    await skipButton.click();
+    await page.waitForTimeout(500);
+    // Reload to ensure clean state
+    console.log("Reloading home...");
+    await page.goto(BASE_URL + "/", { waitUntil: "networkidle", timeout: 30000 });
+  }
   
-  // 2. Click on Sample Round
-  console.log("Opening Sample Round...");
-  await sampleRoundLink.click();
+  // 2. Wait for the Sample Round contest to appear (search by course name)
+  console.log("Waiting for Pine Valley GC...");
+  const pineValleyLink = page.locator('text="Pine Valley GC"').first();
+  await pineValleyLink.waitFor({ state: "visible", timeout: 10000 });
+  
+  // 3. Click on the Pine Valley GC contest
+  console.log("Opening Sample Round (Pine Valley GC)...");
+  await pineValleyLink.click();
   
   // Wait for contest page to load (URL should be /contest/[id])
   await page.waitForURL(/\/contest\/[^/]+/, { timeout: 10000 });
   console.log("Contest page loaded:", page.url());
   
-  // 3. Ensure we're on the Scorecard tab (should be default)
+  // 4. Ensure we're on the Scorecard tab (should be default)
   // Wait for the scorecard to render
   console.log("Waiting for scorecard to render...");
   await page.locator('text="Scorecard"').first().waitFor({ state: "visible", timeout: 5000 });
@@ -77,11 +93,11 @@ try {
   // Give the scorecard time to fully render and stabilize
   await page.waitForTimeout(1000);
   
-  // 4. Ensure scroll position is at the top
+  // 5. Ensure scroll position is at the top
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(200); // Let scroll settle
   
-  // 5. Take the screenshot
+  // 6. Take the screenshot
   console.log("Capturing screenshot...");
   await page.screenshot({
     path: absoluteOutputPath,

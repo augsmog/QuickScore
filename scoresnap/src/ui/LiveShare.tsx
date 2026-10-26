@@ -4,7 +4,13 @@ import { createLiveLink, revokeLiveLinks, publishSnapshot } from '../services/li
 import { useContestStore, type Contest } from '../stores/contest-store';
 import { HostChat } from './LiveChat';
 import { COLORS } from './theme';
+import { CROSS_DEVICE_SHARING_ENABLED } from '../config/features';
+
 export function LiveShare({ contest, onLinkChange }: { contest: Contest; onLinkChange?: (url?: string) => void }) {
+  // Hide cross-device sharing UI until feature is ready
+  if (!CROSS_DEVICE_SHARING_ENABLED) {
+    return null;
+  }
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
