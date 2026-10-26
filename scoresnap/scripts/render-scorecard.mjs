@@ -60,26 +60,39 @@ try {
   console.log("Navigating to home...");
   await page.goto(BASE_URL + "/", { waitUntil: "networkidle", timeout: 30000 });
   
-  // Check if onboarding appears
+  // Check if onboarding appears and handle it
   const skipButton = page.getByText(/skip/i).first();
   const skipVisible = await skipButton.isVisible().catch(() => false);
   if (skipVisible) {
     console.log("Clicking onboarding Skip...");
     await skipButton.click();
-    await page.waitForTimeout(500);
-    // Reload to ensure clean state
-    console.log("Reloading home...");
-    await page.goto(BASE_URL + "/", { waitUntil: "networkidle", timeout: 30000 });
+    await page.waitForTimeout(1000);
   }
   
-  // 2. Wait for the Sample Round contest to appear (search by course name)
-  console.log("Waiting for Pine Valley GC...");
-  const pineValleyLink = page.locator('text="Pine Valley GC"').first();
-  await pineValleyLink.waitFor({ state: "visible", timeout: 10000 });
+  // Ensure we're on the home page with contests visible
+  await page.waitForTimeout(1000);
   
-  // 3. Click on the Pine Valley GC contest
-  console.log("Opening Sample Round (Pine Valley GC)...");
-  await pineValleyLink.click();
+  // 2. Wait for the Sample Round contest to appear (search by contest name or course name)
+  console.log("Waiting for Sample Round or Pine Valley GC...");
+  const contestLink = page.locator('text="Sample Round"').first();
+  const courseLink = page.locator('text="Pine Valley GC"').first();
+  
+  // Wait for either the contest name or course name to appear
+  const linkFound = await Promise.race([
+    contestLink.waitFor({ state: "visible", timeout: 10000 }).then(() => 'contest'),
+    courseLink.waitFor({ state: "visible", timeout: 10000 }).then(() => 'course'),
+  ]).catch(() => null);
+  
+  if (!linkFound) {
+    throw new Error("Sample Round not found on home page. Demo mode may not be properly enabled.");
+  }
+  
+  const linkToClick = linkFound === 'contest' ? contestLink : courseLink;
+  console.log(`Found ${linkFound === 'contest' ? 'Sample Round' : 'Pine Valley GC'}...`);
+  
+  // 3. Click on the Sample Round contest
+  console.log("Opening Sample Round...");
+  await linkToClick.click();
   
   // Wait for contest page to load (URL should be /contest/[id])
   await page.waitForURL(/\/contest\/[^/]+/, { timeout: 10000 });
