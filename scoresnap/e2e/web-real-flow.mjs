@@ -74,7 +74,8 @@ await vis(page.getByText(/start contest/i)).click();
 await page.waitForURL(/\/contest\/[^/]+$/);
 const contestUrl = page.url();
 const contestId = contestUrl.split("/contest/")[1];
-check(/No scores yet/i.test(await bodyText()), "New contest starts with no scores (no sample data)");
+// Contest now defaults to Scorecard tab (changed from Leaderboard)
+check(/Scorecard/i.test(await bodyText()), "New contest defaults to Scorecard tab (no sample data)");
 await shot("04-contest-created-empty.png");
 
 // 3. GS-2 in the running app: enter a scorecard where Sam's row is all 4s.
