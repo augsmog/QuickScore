@@ -78,14 +78,14 @@ const contestId = contestUrl.split("/contest/")[1];
 
 check(contestUrl.includes("/contest/"), "Tournament created");
 
-// Wait for contest page to fully render and verify scorecard tab is visible
-const scorecardTab = orgPage.getByText(/scorecard/i).first();
-try {
-  await scorecardTab.waitFor({ state: "visible", timeout: 10000 });
-  check(true, "Scorecard tab rendered and visible");
-} catch (e) {
-  check(false, "Scorecard tab rendered and visible", "timeout after 10s");
-}
+// Wait for contest page to fully render - verify multiple tab labels are present
+// Note: tabs use textTransform: "uppercase" so text renders as "SCORECARD" etc.
+await orgPage.waitForTimeout(2000);
+const bodyText = await orgPage.innerText("body");
+const hasMultipleTabs = bodyText.includes("SCORECARD") && 
+                        bodyText.includes("LEADERBOARD") && 
+                        bodyText.includes("GAMES");
+check(hasMultipleTabs, "Contest tabs rendered (Scorecard, Leaderboard, Games)");
 
 // Check if join code is available (cross-device sharing feature flag)
 const joinCodeElement = orgPage.getByTestId("organizer-join-code");
