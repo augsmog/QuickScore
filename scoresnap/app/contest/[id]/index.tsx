@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW, scoreColor } from "../../../src/ui/theme";
-import { useContestStore } from "../../../src/stores/contest-store";
+import { useContestStore, getTournamentPlayers } from "../../../src/stores/contest-store";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
@@ -17,7 +17,10 @@ export default function LeaderboardScreen() {
 
   if (!contest) return null;
 
-  const allPlayers = contest.groups.flatMap((g) => g.players);
+  // For tournaments, aggregate scores across all rounds; for legacy, use groups directly
+  const allPlayers = contest.isTournament 
+    ? getTournamentPlayers(contest)
+    : contest.groups.flatMap((g) => g.players);
   const hasScores = allPlayers.some((p) =>
     p.scores.some((s) => s > 0)
   );
