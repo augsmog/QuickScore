@@ -371,6 +371,7 @@ export default function NewContestScreen() {
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, flexDirection: "row", alignItems: "center", gap: 12 }}>
         <AnimatedPressable
+          testID="new-contest-back" accessibilityRole="button" accessibilityLabel="Back"
           onPress={() => (step > 1 ? setStep(step - 1) : router.back())}
           style={{
             backgroundColor: COLORS.surfaceMid,
