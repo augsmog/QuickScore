@@ -289,6 +289,23 @@ if (hasJoinCode) {
   check(await page.getByTestId("guest-score-1").inputValue() === "5", "Guest score and slot binding survive reload");
 } else {
   check(true, "Cross-device sharing disabled (feature flag); skipping join code tests");
+  // Verify no share/join UI strings render when flag is off
+  await page.goto(contestUrl, { waitUntil: "networkidle" });
+  const bodyContent = await page.innerText("body");
+  const forbiddenStrings = [
+    "Share live scoreboard",
+    "Revoke live links",
+    "Join code:",
+    "same browser",
+    "Copy / share local invite",
+    "share local invite"
+  ];
+  const foundStrings = forbiddenStrings.filter(s => bodyContent.includes(s));
+  check(
+    foundStrings.length === 0,
+    "No share/join UI strings visible when flag off",
+    foundStrings.length > 0 ? `Found: ${foundStrings.join(", ")}` : "clean"
+  );
 }
 
 check(pageErrors.length === 0, "No uncaught page errors", pageErrors.join(" | "));

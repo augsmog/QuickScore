@@ -47,6 +47,15 @@ jobs:
         run: BASE_URL=http://127.0.0.1:8089 node e2e/usability-regression.mjs
       - name: Browser matrix
         run: BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens/matrix npm run e2e:matrix -- --retries=1
+      - name: Render scorecard screenshot
+        run: |
+          EXPO_PUBLIC_DEMO_MODE=true EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web-scorecard
+          npx http-server dist-web-scorecard -p 8090 --silent &
+          SCREENSHOT_SERVER_PID=$!
+          echo "SCREENSHOT_SERVER_PID=$SCREENSHOT_SERVER_PID" >> "$GITHUB_ENV"
+          sleep 3
+          BASE_URL=http://127.0.0.1:8090 node scripts/render-scorecard.mjs e2e/screens/scorecard-390x844.png
+          kill "$SCREENSHOT_SERVER_PID" || true
       - name: Stop web server
         if: always()
         run: if [ -n "$SERVER_PID" ]; then kill "$SERVER_PID" || true; fi

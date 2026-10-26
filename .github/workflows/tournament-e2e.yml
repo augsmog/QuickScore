@@ -72,12 +72,11 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL: ${{ env.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ env.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       
-      # Hopwood Cup test uses @playwright/test framework - needs separate setup
-      # - name: Run Hopwood Cup 56-player E2E test
-      #   run: BASE_URL=http://127.0.0.1:8089 node e2e/hopwood-cup-56-player.mjs
-      #   env:
-      #     EXPO_PUBLIC_SUPABASE_URL: ${{ env.EXPO_PUBLIC_SUPABASE_URL }}
-      #     EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ env.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      - name: Run Hopwood Cup 56-player E2E test
+        run: BASE_URL=http://127.0.0.1:8089 node e2e/hopwood-cup-56-player.mjs
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ env.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ env.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       
       - name: Stop services
         if: always()

@@ -78,8 +78,15 @@ const contestId = contestUrl.split("/contest/")[1];
 
 check(contestUrl.includes("/contest/"), "Tournament created");
 
-// Wait for contest page to load
-await orgPage.waitForTimeout(1000);
+// Wait for contest page to fully render and verify scorecard tab is visible
+await orgPage.waitForTimeout(2000);
+const scorecardTab = orgPage.getByText(/scorecard/i).first();
+const scorecardVisible = await scorecardTab.isVisible().catch(() => false);
+check(
+  scorecardVisible,
+  "Scorecard tab rendered and visible",
+  scorecardVisible ? "visible" : "not rendered"
+);
 
 // Check if join code is available (cross-device sharing feature flag)
 const joinCodeElement = orgPage.getByTestId("organizer-join-code");
