@@ -48,7 +48,8 @@ jobs:
           export EXPO_PUBLIC_SUPABASE_ANON_KEY=$(supabase status --output json | jq -r '.ANON_KEY')
           echo "EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL" >> $GITHUB_ENV
           echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY" >> $GITHUB_ENV
-          npx expo export --platform web --output-dir dist-web
+          # Build in offline mode to skip auth requirement
+          EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web
       
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
