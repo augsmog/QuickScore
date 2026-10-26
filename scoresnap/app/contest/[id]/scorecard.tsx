@@ -329,138 +329,53 @@ export default function ScorecardScreen() {
           </View>
         )}
 
-        {/* Top Section: Hole Info */}
+        {/* Compact Hole Info Row */}
         <View
           style={{
             paddingHorizontal: 20,
-            paddingTop: 12,
-            paddingBottom: 8,
+            paddingVertical: 12,
             flexDirection: "row",
-            alignItems: "flex-end",
+            alignItems: "center",
             justifyContent: "space-between",
+            borderBottomWidth: 1,
+            borderBottomColor: COLORS.border + "40",
           }}
         >
-          <View>
-            <Text
-              style={{
-                ...TYPOGRAPHY.labelSm,
-                color: COLORS.textDim,
-              }}
-            >
-              CURRENT ROUND
+          <Text
+            style={{
+              fontSize: 16,
+              fontFamily: FONTS.semibold,
+              color: COLORS.text,
+            }}
+          >
+            Hole {currentHole} · Par {par} · HCP {hcp}
+          </Text>
+          <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+            <Text style={{ fontSize: 12, color: COLORS.textDim }}>
+              {holeData?.yards || 0} yds
             </Text>
-            <Text
-              style={{
-                fontSize: 40,
-                fontFamily: FONTS.headline,
-                color: COLORS.text,
-                marginTop: 2,
-              }}
-            >
-              HOLE {String(currentHole).padStart(2, "0")}
-            </Text>
-          </View>
-
-          {/* Par + HCP badges */}
-          <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-            <View
-              style={{
-                backgroundColor: COLORS.surfaceHigh,
-                borderRadius: RADII.md,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{
-                  ...TYPOGRAPHY.labelSm,
-                  color: COLORS.textDim,
-                }}
-              >
-                PAR
-              </Text>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
-                  color: COLORS.text,
-                }}
-              >
-                {par}
-              </Text>
-            </View>
-            <View
-              style={{
-                backgroundColor: COLORS.surfaceHigh,
-                borderRadius: RADII.md,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{
-                  ...TYPOGRAPHY.labelSm,
-                  color: COLORS.textDim,
-                }}
-              >
-                HCP
-              </Text>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
-                  color: COLORS.text,
-                }}
-              >
-                {hcp}
-              </Text>
-            </View>
           </View>
         </View>
 
-        {/* Live Game Status Banners */}
+        {/* Compact Game Status Row */}
         {liveGameStatus.length > 0 && (
-          <View style={{ paddingHorizontal: 20, marginBottom: 8, gap: 6 }}>
-            {liveGameStatus.map((status, i) => (
-              <Animated.View
-                key={`${status.label}-${i}`}
-                entering={FadeIn.duration(300)}
-                style={{
-                  backgroundColor: status.color + "18",
-                  borderRadius: RADII.md,
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: FONTS.bold,
-                    fontSize: 12,
-                    color: status.color,
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  {status.label}
-                </Text>
-                {status.detail ? (
-                  <Text
-                    style={{
-                      fontFamily: FONTS.medium,
-                      fontSize: 11,
-                      color: status.color,
-                      opacity: 0.8,
-                    }}
-                  >
-                    {status.detail}
-                  </Text>
-                ) : null}
-              </Animated.View>
-            ))}
+          <View style={{ 
+            paddingHorizontal: 20, 
+            paddingVertical: 6,
+            backgroundColor: liveGameStatus[0].color + "10",
+            borderBottomWidth: 1,
+            borderBottomColor: liveGameStatus[0].color + "20",
+          }}>
+            <Text
+              style={{
+                fontFamily: FONTS.medium,
+                fontSize: 11,
+                color: liveGameStatus[0].color,
+                letterSpacing: 0.3,
+              }}
+            >
+              {liveGameStatus.map(s => s.label).join(" · ")}
+            </Text>
           </View>
         )}
 

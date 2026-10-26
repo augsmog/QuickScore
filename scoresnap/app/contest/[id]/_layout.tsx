@@ -72,76 +72,91 @@ export default function ContestLayout() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
-      <ContestJoinCode contest={contest} />
-      <LiveShare contest={contest} />
-      {/* Header */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
-          <AnimatedPressable
-            onPress={() => router.back()}
-            style={{
-              borderRadius: RADII.sm,
-              padding: 8,
-              backgroundColor: COLORS.card,
-              borderColor: COLORS.border,
-              borderWidth: 1,
-            }}
-          >
-            <ChevronLeft size={20} color={COLORS.textDim} />
-          </AnimatedPressable>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: COLORS.text, fontFamily: FONTS.headline, fontSize: 18 }}>
-              {contest.name}
-            </Text>
-            <Text style={{ color: COLORS.textDim, fontFamily: FONTS.regular, fontSize: 13 }}>
-              {contest.course.name} · {allPlayers.length} players
-              {contest.isTournament && contest.rounds && ` · Round ${contest.currentRound || 1}`}
-            </Text>
-          </View>
-          {contest.status === "active" && contest.isTournament && (
-            <AnimatedPressable
-              onPress={() => router.push(`/contest/${id}/tournament-rounds` as any)}
-              style={{
-                borderRadius: RADII.sm,
-                padding: 8,
-                backgroundColor: COLORS.card,
-                borderColor: COLORS.border,
-                borderWidth: 1,
-              }}
-            >
-              <Calendar size={16} color={COLORS.textDim} />
-            </AnimatedPressable>
-          )}
-          {contest.status === "active" && (
-            <AnimatedPressable
-              onPress={() => router.push(`/contest/${id}/edit` as any)}
-              style={{
-                borderRadius: RADII.sm,
-                padding: 8,
-                backgroundColor: COLORS.card,
-                borderColor: COLORS.border,
-                borderWidth: 1,
-              }}
-            >
-              <Edit3 size={16} color={COLORS.textDim} />
-            </AnimatedPressable>
-          )}
-          <AnimatedPressable
-            onPress={() => router.push(`/scan?contestId=${id}`)}
-            style={{
-              borderRadius: RADII.sm,
-              padding: 8,
-              backgroundColor: COLORS.accentGlow,
-              borderColor: COLORS.accent + "44",
-              borderWidth: 1,
-            }}
-          >
-            <Camera size={18} color={COLORS.accent} />
-          </AnimatedPressable>
+      {/* Compact Header Bar - Back + Title + Camera */}
+      <View style={{ 
+        flexDirection: "row", 
+        alignItems: "center", 
+        paddingHorizontal: 16, 
+        paddingVertical: 8,
+        gap: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border + "40"
+      }}>
+        <AnimatedPressable
+          onPress={() => router.back()}
+          style={{
+            padding: 6,
+          }}
+        >
+          <ChevronLeft size={20} color={COLORS.textDim} />
+        </AnimatedPressable>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold, fontSize: 16 }} numberOfLines={1}>
+            {contest.name}
+          </Text>
         </View>
+        {contest.status === "active" && contest.isTournament && (
+          <AnimatedPressable
+            onPress={() => router.push(`/contest/${id}/tournament-rounds` as any)}
+            style={{ padding: 6 }}
+          >
+            <Calendar size={18} color={COLORS.textDim} />
+          </AnimatedPressable>
+        )}
+        <AnimatedPressable
+          onPress={() => router.push(`/scan?contestId=${id}`)}
+          style={{ padding: 6 }}
+        >
+          <Camera size={18} color={COLORS.accent} />
+        </AnimatedPressable>
+      </View>
 
+      {/* Tabs - Compact */}
+      <View style={{ 
+        flexDirection: "row", 
+        paddingHorizontal: 16,
+        paddingVertical: 0,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border
+      }}>
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <AnimatedPressable
+              key={tab.key}
+              onPress={() => handleTabPress(tab.key)}
+              style={{
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderBottomWidth: 2,
+                borderBottomColor: isActive ? COLORS.accent : "transparent",
+              }}
+            >
+              <Text
+                style={{
+                  color: isActive ? COLORS.accent : COLORS.textDim,
+                  fontFamily: isActive ? FONTS.semibold : FONTS.regular,
+                  fontSize: 14,
+                }}
+              >
+                {tab.label}
+              </Text>
+            </AnimatedPressable>
+          );
+        })}
+      </View>
+
+      {/* Screen Content - passes contest for each screen to handle its own scroll */}
+      <View style={{ flex: 1 }}>
+        <ActiveScreen />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/* OLD CODE REMOVED - scrollable content moved to individual screens
         {/* Team Score Banner */}
-        {contest.hasTeams && contest.teamAName && contest.teamBName && (
+        {/*{contest.hasTeams && contest.teamAName && contest.teamBName && (
           <View
             style={{
               borderRadius: RADII.md,
