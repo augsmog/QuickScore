@@ -65,11 +65,22 @@ try {
   const skipVisible = await skipButton.isVisible().catch(() => false);
   if (skipVisible) {
     console.log("Onboarding detected, clicking Skip...");
+    const currentUrl = page.url();
     await skipButton.click();
-    await page.waitForTimeout(2000); // Wait for navigation to home
     
-    // After skip, we should be on the home page with the sample contest
-    console.log("Onboarding skipped, now on home page");
+    // Wait for navigation away from onboarding (URL should change)
+    await page.waitForFunction(
+      (startUrl) => {
+        const currentUrl = window.location.href;
+        return !currentUrl.includes('/onboarding') && currentUrl !== startUrl;
+      },
+      currentUrl,
+      { timeout: 5000 }
+    ).catch(() => console.log("Onboarding URL did not change after skip"));
+    
+    await page.waitForTimeout(2000); // Wait for the home page to render
+    
+    console.log("After skip, URL:", page.url());
   } else {
     console.log("No onboarding screen, directly on home page");
   }
