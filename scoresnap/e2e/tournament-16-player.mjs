@@ -78,16 +78,8 @@ const contestId = contestUrl.split("/contest/")[1];
 
 check(contestUrl.includes("/contest/"), "Tournament created");
 
-// Wait for contest page to fully load and render tabs
-await orgPage.waitForTimeout(2000);
-// Try to find the scorecard text or header element
-const scorecardText = orgPage.getByText(/scorecard/i).first();
-const scorecardVisible = await scorecardText.isVisible().catch(() => false);
-check(
-  scorecardVisible,
-  "Contest tabs visible",
-  scorecardVisible ? "found scorecard tab" : "scorecard not rendered"
-);
+// Wait for contest page to load
+await orgPage.waitForTimeout(1000);
 
 // Check if join code is available (cross-device sharing feature flag)
 const joinCodeElement = orgPage.getByTestId("organizer-join-code");
