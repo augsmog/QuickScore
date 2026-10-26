@@ -1,0 +1,30 @@
+{
+  "total": 1,
+  "count": 1,
+  "offset": 0,
+  "courses": [
+    {
+      "slug": "torrey-pines-south-course",
+      "name": "Torrey Pines South Course",
+      "url": "https://www.golfcore.org/courses/torrey-pines-south-course/",
+      "app_url": "https://www.golfcore.app/courses/torrey-pines-south-course?ref=golfcore.org",
+      "city": "La Jolla",
+      "region": "California",
+      "country": "us",
+      "lat": 32.896703,
+      "lng": -117.246921,
+      "hole_count": 18,
+      "par_total": 72,
+      "architect": null,
+      "year_built": null,
+      "native_name": null,
+      "coverage": {
+        "contours": true,
+        "traced": true,
+        "scorecard": true,
+        "rated": true,
+        "wind": true
+      }
+    }
+  ]
+}

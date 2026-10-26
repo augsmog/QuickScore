@@ -2,22 +2,19 @@
 
 Decision (Augie, Oct 21 2026): TestFlight goes through **Expo EAS**, so releases reach Augie's iPhone without him at a computer. Xcode is not needed for normal releases.
 
-**Never paste or commit secrets.** `EXPO_TOKEN`, the App Store Connect (ASC) API key (`.p8`), and the golf course API key live only in EAS / CI secret storage or the box's secret store, never in git, chat, logs or this doc.
+**Never paste or commit secrets.** `EXPO_TOKEN`, the App Store Connect (ASC) API key (`.p8`) live only in EAS / CI secret storage or the box's secret store; the GolfCore key lives only in Supabase Function Secrets, never in git, chat, logs or this doc.
 
 ## 0. One-time setup (done once, then never again)
 
-1. **Golf course API key → EAS env var** (it used to be plain text in `eas.json`; it was removed on Oct 21 2026).
-   - Course search is off by default; set `EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true` plus `EXPO_PUBLIC_GOLF_COURSE_API_KEY` to enable.
-   - The old key is in git history (commit `bc9b70a`), so **rotate it** at golfcourseapi.com first, then store the new one:
-   ```sh
-   cd scoresnap
-   eas env:create --name EXPO_PUBLIC_GOLF_COURSE_API_KEY --value "<new key>" \
-     --environment production --environment preview --visibility sensitive
-   ```
-   - `eas.json` build profiles `testflight` and `production` use `"environment": "production"`, so EAS injects it at build time.
-   - Note: any `EXPO_PUBLIC_*` value is compiled into the app bundle and is readable by anyone with the app. That's acceptable for a free, rate-limited course API key.
-   - **OCR API key (Anthropic)**: moved server-side to Supabase Edge Functions (`ocr-scorecard`). Set the secret on Supabase with: `supabase secrets set ANTHROPIC_API_KEY=<your-key>` and deploy the function with: `supabase functions deploy ocr-scorecard`. This must be done before any public release.
-   - Local dev: put it in `scoresnap/.env.local` (git-ignored), or `eas env:pull --environment development`.
+1. **GolfCore course data (server only, $0 Free plan)**:
+   - Store `GOLFCORE_API_KEY` in Supabase Function Secrets using the dashboard. Never put a provider key in an Expo environment variable or app bundle. Revoke the old vendor key exposed in historical commit `bc9b70a` if that account still exists.
+   - Apply additive migration `supabase/migrations/006_course_data.sql` before deploying.
+   - From `scoresnap/`, coordinator deploys with `supabase functions deploy course-data`. Keep `verify_jwt = true`; anon JWTs can search, while count/usage require a service_role JWT kept server-side.
+   - Set `EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true` to enable the app UI. The existing Supabase URL and anon/user JWT are the only client credentials.
+   - Verify on preview: search Torrey Pines, select both White gender categories, check holes/ratings and the tappable “Course data: GolfCore” course-page credit. Test missing-card/manual entry and exhausted-quota states.
+   - A server-side monitor reads `GET course-data?usage=1`: at 70% or projected month end >500, create a Needs-you card **“Upgrade GolfCore to Starter ($10/mo)?”**; at 90% or any quota 429, mark urgent. No automatic upgrades; Augie must say yes. See [COURSE_DATA.md](COURSE_DATA.md).
+   - Measure listing counts using service-role `GET course-data?count=1` on preview and record totals/timestamp before making listing claims. Do not infer counts from marketing copy.
+   - **OCR API key (Anthropic)** remains in Supabase Function Secrets; deploy `ocr-scorecard` separately before public release.
 2. **ASC API key** (lets EAS create certificates/profiles and submit with no Apple ID password or 2FA prompt):
    - App Store Connect → Users and Access → Integrations → App Store Connect API → generate a key with **App Manager** role. Note the **Key ID** and **Issuer ID**, download the `.p8` once.
    - Upload it to EAS once: `eas credentials -p ios` → App Store Connect API Key → add (or set it in the expo.dev dashboard under Credentials). After that, `eas submit` uses it automatically.

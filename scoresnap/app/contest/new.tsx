@@ -492,8 +492,8 @@ export default function NewContestScreen() {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, paddingHorizontal: 4 }}>
                   <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim }}>
                     {selectedTeeBox.name} Tees
-                    {selectedTeeBox.totalYards > 0 ? ` \u00B7 ${selectedTeeBox.totalYards} yds` : ""}
-                    {selectedTeeBox.courseRating ? ` \u00B7 ${selectedTeeBox.courseRating}/${selectedTeeBox.slopeRating}` : ""}
+                    {(selectedTeeBox.totalYards ?? 0) > 0 ? ` \u00B7 ${selectedTeeBox.totalYards} yds` : ""}
+                    {selectedTeeBox.courseRating ? ` \u00B7 ${selectedTeeBox.courseRating}/${selectedTeeBox.slopeRating ?? ""}` : ""}
                   </Text>
                 </View>
               )}

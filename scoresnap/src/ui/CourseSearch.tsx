@@ -9,11 +9,13 @@ import {
   Modal,
   Platform,
   Keyboard,
+  Linking,
 } from "react-native";
 import { Search, MapPin, ChevronDown, X, Check, Navigation } from "lucide-react-native";
 import { COLORS } from "./theme";
 import {
   searchCourses,
+  courseSearchResting,
   getCourseDetail,
   CourseSearchResult,
   CourseDetail,
@@ -95,6 +97,10 @@ function getTeeColor(tee: TeeBox): string {
 
 // ── Component ──
 export default function CourseSearch({ onSelect, initialCourseName }: CourseSearchProps) {
+  const [resting, setResting] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [manualCard, setManualCard] = useState("");
+  const [manualError, setManualError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CourseWithDistance[]>([]);
@@ -106,6 +112,8 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
   const [locationRequested, setLocationRequested] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const searchVersion = useRef(0);
+  useEffect(() => () => { searchVersion.current++; if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   // Request location when modal first opens
   useEffect(() => {
@@ -130,9 +138,11 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
   const handleSearch = useCallback(
     (text: string) => {
       setQuery(text);
+      const version = ++searchVersion.current;
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
       if (text.length < 3) {
+        setLoading(false);
         setResults([]);
         return;
       }
@@ -140,10 +150,12 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
       debounceRef.current = setTimeout(async () => {
         setLoading(true);
         const courses = await searchCourses(text);
+        if (version !== searchVersion.current) return;
+        setResting(courseSearchResting);
 
         // Attach distance if we have user location and course lat/lng
         const withDistance: CourseWithDistance[] = courses.map((c: any) => {
-          if (userLocation && c.latitude && c.longitude) {
+          if (userLocation && c.latitude != null && c.longitude != null) {
             return { ...c, distance: distanceMiles(userLocation, { latitude: c.latitude, longitude: c.longitude }) };
           }
           return c;
@@ -175,20 +187,9 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
       }
     } else {
       setDisplayName(course.name);
-      setShowModal(false);
-      onSelect(
-        {
-          name: course.name,
-          holes: Array.from({ length: 18 }, (_, i) => ({
-            num: i + 1,
-            par: [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4][i],
-            hcp: i + 1,
-            yards: 400,
-          })),
-        },
-        course.name,
-        null
-      );
+      setManualName(course.name);
+      setResting(courseSearchResting);
+      setShowModal(true);
     }
     setLoading(false);
   };
@@ -200,24 +201,13 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
       : selectedCourse.name;
     setDisplayName(teeName);
 
-    if (selectedTee && selectedTee.holes.length > 0) {
-      const engineCourse = teeBoxToCourse(selectedCourse.name, selectedTee);
-      onSelect(engineCourse, teeName, selectedTee);
-    } else {
-      onSelect(
-        {
-          name: selectedCourse.name,
-          holes: Array.from({ length: 18 }, (_, i) => ({
-            num: i + 1,
-            par: [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4][i],
-            hcp: i + 1,
-            yards: 400,
-          })),
-        },
-        teeName,
-        selectedTee
-      );
+    const engineCourse = selectedTee ? teeBoxToCourse(selectedCourse.name, selectedTee) : null;
+    if (!engineCourse || (selectedCourse.holes != null && engineCourse.holes.length !== selectedCourse.holes)) {
+      setManualName(selectedCourse.name);
+      setManualCard(selectedTee?.holes.map(h => `${h.number ?? ""},${h.par ?? ""},${h.handicap ?? ""},${h.yards ?? ""}`).join("\n") ?? "");
+      return;
     }
+    onSelect(engineCourse, teeName, selectedTee);
 
     setShowModal(false);
     setSelectedCourse(null);
@@ -293,7 +283,25 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
               }}
             />
 
-            {!selectedCourse ? (
+            {manualName ? (
+              <View style={{ flex: 1, padding: 20 }}>
+                <Text style={{ color: COLORS.text }}>Enter holes manually for {manualName}</Text>
+                <Text style={{ color: COLORS.textDim }}>One hole per line: number, par, handicap, yards. Fill every blank.</Text>
+                <TextInput accessibilityLabel="Manual hole card" multiline value={manualCard} onChangeText={setManualCard}
+                  placeholder="1, par, handicap, yards" placeholderTextColor={COLORS.textDim}
+                  style={{ color: COLORS.text, minHeight: 180, borderWidth: 1, borderColor: COLORS.border, marginVertical: 12 }} />
+                <Text style={{ color: COLORS.error }}>{manualError}</Text>
+                <Pressable onPress={() => {
+                  const rows = manualCard.trim().split(/\n/).map(line => line.split(',').map(v => v.trim() ? Number(v) : NaN));
+                  if (![9,18].includes(rows.length) || rows.some((r,i) => r.length !== 4 || r.some(v => !Number.isInteger(v)) || r[0] !== i+1 || r[1] < 3 || r[1] > 6 || r[2] < 1 || r[2] > rows.length || r[3] <= 0) || new Set(rows.map(r => r[2])).size !== rows.length) {
+                    setManualError("Enter 9 or 18 complete holes with unique handicap indexes."); return;
+                  }
+                  onSelect({ name: manualName, holes: rows.map(([num,par,hcp,yards]) => ({num,par,hcp,yards})) }, manualName, null);
+                  setDisplayName(manualName); setManualName(""); setManualCard(""); setSelectedCourse(null); setSelectedTee(null); setShowModal(false);
+                }}><Text style={{ color: COLORS.primary }}>Use manual card</Text></Pressable>
+                <Pressable onPress={() => setManualName("")}><Text style={{ color: COLORS.textDim }}>Back</Text></Pressable>
+              </View>
+            ) : !selectedCourse ? (
               /* ── Search View ── */
               <View style={{ flex: 1 }}>
                 <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
@@ -372,7 +380,10 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                     {query.length > 0 && !loading && (
                       <Pressable
                         onPress={() => {
+                          searchVersion.current++;
+                          if (debounceRef.current) clearTimeout(debounceRef.current);
                           setQuery("");
+                          setLoading(false);
                           setResults([]);
                         }}
                         hitSlop={8}
@@ -383,6 +394,8 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                   </View>
                 </View>
 
+                <Text style={{ color: COLORS.textDim, paddingHorizontal: 20 }}>Course data: GolfCore</Text>
+                {resting && <Text style={{ color: COLORS.textDim, padding: 20 }}>Course search is resting, enter holes manually</Text>}
                 {/* Results */}
                 <FlatList
                   data={results}
@@ -484,20 +497,8 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                   onPress={() => {
                     if (query.trim()) {
                       setDisplayName(query.trim());
-                      setShowModal(false);
-                      onSelect(
-                        {
-                          name: query.trim(),
-                          holes: Array.from({ length: 18 }, (_, i) => ({
-                            num: i + 1,
-                            par: [4, 5, 4, 3, 4, 3, 4, 5, 4, 5, 4, 3, 5, 4, 5, 3, 4, 4][i],
-                            hcp: i + 1,
-                            yards: 400,
-                          })),
-                        },
-                        query.trim(),
-                        null
-                      );
+                      setManualName(query.trim());
+                      setShowModal(true);
                     }
                   }}
                   style={{
@@ -529,6 +530,9 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                 >
                   {selectedCourse.name}
                 </Text>
+                <Pressable onPress={() => { if (selectedCourse.url.startsWith("https://www.golfcore.org/")) Linking.openURL(selectedCourse.url); }}>
+                  <Text style={{ color: COLORS.primary }}>Course data: GolfCore</Text>
+                </Pressable>
                 <Text
                   style={{
                     color: COLORS.textDim,
@@ -609,7 +613,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                               marginTop: 2,
                             }}
                           >
-                            {tee.totalYards > 0 ? `${tee.totalYards} yds` : ""}
+                            {(tee.totalYards ?? 0) > 0 ? `${tee.totalYards} yds` : ""}
                             {tee.courseRating
                               ? ` · Rating ${tee.courseRating}`
                               : ""}
@@ -646,7 +650,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                   <Text
                     style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 15 }}
                   >
-                    {selectedTee
+                    {selectedTee && teeBoxToCourse(selectedCourse.name, selectedTee)
                       ? `Select ${selectedTee.name} Tees`
                       : `Use ${selectedCourse.name}`}
                   </Text>
