@@ -38,7 +38,7 @@ try {
       // Permit Expo Camera's public static QR worker; block external service calls.
       await context.route('**/*', route => (new URL(route.request().url()).origin === new URL(BASE).origin || route.request().url() === 'https://cdn.jsdelivr.net/npm/jsqr@1.2.0/dist/jsQR.min.js') ? route.continue() : route.abort());
       const page = await context.newPage();
-      page.setDefaultTimeout(30000);
+      page.setDefaultTimeout(10000); // Reduced from 30s to 10s for faster failure detection
       page.on('pageerror', e => errors.push(e.message));
       const visible = loc => loc.locator('visible=true').first();
       const names = Array.from({length:flow.count},(_,i)=>`Player${String.fromCharCode(65+i)}`);
@@ -163,6 +163,9 @@ try {
         }
         stage = 'leaderboard';
         await page.goto(contestUrl,{waitUntil:'networkidle'});
+        // Click Leaderboard tab to render leaderboard content (default tab is Scorecard)
+        await visible(page.getByText(/^leaderboard$/i)).click();
+        await page.waitForTimeout(500); // Wait for tab content to render
         contest = await readContest();
         assert.deepEqual(contest.groups.flatMap(g=>g.players).map(p=>p.scores),scores);
         for (const [i,name] of names.entries()) {
