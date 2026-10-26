@@ -56,29 +56,25 @@ page.on("pageerror", (e) => {
 });
 
 try {
-  // 1. Navigate to home and clear onboarding state to ensure sample contest is created
+  // 1. Navigate to home - will show onboarding if needed
   console.log("Navigating to home...");
   await page.goto(BASE_URL + "/", { waitUntil: "networkidle", timeout: 30000 });
   
-  // Clear onboarding state so the sample contest will be created
-  await page.evaluate(() => {
-    localStorage.removeItem('snapscore-onboarding');
-  });
-  
-  // Reload to trigger sample contest creation
-  console.log("Reloading with fresh onboarding state...");
-  await page.goto(BASE_URL + "/", { waitUntil: "networkidle", timeout: 30000 });
-  
-  // Check if onboarding appears and handle it
+  // Handle onboarding if it appears
   const skipButton = page.getByText(/skip/i).first();
   const skipVisible = await skipButton.isVisible().catch(() => false);
   if (skipVisible) {
-    console.log("Clicking onboarding Skip...");
+    console.log("Onboarding detected, clicking Skip...");
     await skipButton.click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000); // Wait for navigation to home
+    
+    // After skip, we should be on the home page with the sample contest
+    console.log("Onboarding skipped, now on home page");
+  } else {
+    console.log("No onboarding screen, directly on home page");
   }
   
-  // Ensure we're on the home page with contests visible
+  // Give the app time to render the contest list
   await page.waitForTimeout(1000);
   
   // 2. Wait for the Sample Round contest to appear (search by contest name or course name)
