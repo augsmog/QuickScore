@@ -78,14 +78,15 @@ const contestId = contestUrl.split("/contest/")[1];
 
 check(contestUrl.includes("/contest/"), "Tournament created");
 
-// Check that Scorecard tab exists and is accessible
-await orgPage.waitForTimeout(1000);
-const bodyContent = await orgPage.innerText("body");
-const hasScorecard = bodyContent.includes("Scorecard") || bodyContent.includes("Leaderboard");
+// Wait for contest page to fully load and render tabs
+await orgPage.waitForTimeout(2000);
+// Try to find the scorecard text or header element
+const scorecardText = orgPage.getByText(/scorecard/i).first();
+const scorecardVisible = await scorecardText.isVisible().catch(() => false);
 check(
-  hasScorecard,
+  scorecardVisible,
   "Contest tabs visible",
-  hasScorecard ? "found contest tabs" : "tabs not visible"
+  scorecardVisible ? "found scorecard tab" : "scorecard not rendered"
 );
 
 // Check if join code is available (cross-device sharing feature flag)
@@ -203,9 +204,11 @@ for (const el of tabbableElements.slice(0, 10)) { // Check first 10
 // Test home page shows created contest
 console.log("\n─── Home Page ───");
 await orgPage.goto(BASE + "/", { waitUntil: "networkidle" });
-const homeBody = await orgPage.innerText("body");
+await orgPage.waitForTimeout(1000);
+const newContestButton = orgPage.getByText(/new contest/i).first();
+const newContestVisible = await newContestButton.isVisible().catch(() => false);
 check(
-  homeBody.includes("New Contest"),
+  newContestVisible,
   "Home shows New Contest button"
 );
 
