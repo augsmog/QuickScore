@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Camera, Edit3 } from "lucide-react-native";
+import { ChevronLeft, Camera, Edit3, Calendar } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
@@ -97,6 +97,20 @@ export default function ContestLayout() {
               {contest.course.name} · {allPlayers.length} players
             </Text>
           </View>
+          {contest.status === "active" && contest.isTournament && (
+            <AnimatedPressable
+              onPress={() => router.push(`/contest/${id}/tournament-rounds` as any)}
+              style={{
+                borderRadius: RADII.sm,
+                padding: 8,
+                backgroundColor: COLORS.card,
+                borderColor: COLORS.border,
+                borderWidth: 1,
+              }}
+            >
+              <Calendar size={16} color={COLORS.textDim} />
+            </AnimatedPressable>
+          )}
           {contest.status === "active" && (
             <AnimatedPressable
               onPress={() => router.push(`/contest/${id}/edit` as any)}
