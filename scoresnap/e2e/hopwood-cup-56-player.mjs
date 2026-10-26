@@ -52,16 +52,12 @@ try {
   }
   
   // Enable tournament mode
-  const tournamentCheckbox = orgPage.getByRole("checkbox", { name: /tournament|multi.*day/i }).first();
-  const isChecked = await tournamentCheckbox.isChecked().catch(() => false);
-  if (!isChecked) {
-    await tournamentCheckbox.click();
-  }
+  const tournamentToggle = orgPage.getByTestId("tournament-toggle");
+  await tournamentToggle.waitFor({ state: "visible", timeout: 5000 });
+  await tournamentToggle.click();
   
-  // Set number of rounds to 2
-  const roundsInput = orgPage.getByLabel(/rounds/i).first();
-  await roundsInput.clear();
-  await roundsInput.fill("2");
+  // Number of rounds defaults to 2 when tournament mode is enabled
+  await orgPage.waitForTimeout(500);
   
   // Click Next/Continue
   await orgPage.getByText(/^next|continue/i).last().click();
