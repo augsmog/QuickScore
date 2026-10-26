@@ -49,13 +49,16 @@ for (let i = 4; i < 16; i++) {
   // Select the group (implementation may vary based on UI)
 }
 
+// Navigate to games selection screen
 await orgPage.getByText(/^next/i).last().click();
-// Wait for games screen to load and scroll to games
-await orgPage.waitForTimeout(1000);
-const strokePlayBtn = orgPage.getByText("Stroke Play", { exact: true }).first();
-await strokePlayBtn.scrollIntoViewIfNeeded();
-await strokePlayBtn.waitFor({ state: "visible", timeout: 5000 });
-await strokePlayBtn.click();
+await orgPage.waitForTimeout(2000);
+
+// Wait for games screen to be ready by checking for multiple game options
+await orgPage.getByText("Skins", { exact: true }).first().waitFor({ state: "attached", timeout: 5000 });
+
+// Click Stroke Play (it should be pre-selected, but click to ensure)
+const strokePlay = orgPage.getByText("Stroke Play", { exact: true }).first();
+await strokePlay.click({ force: true, timeout: 5000 });
 await orgPage.getByText(/^next/i).last().click();
 await orgPage.getByText(/start contest/i).click();
 
