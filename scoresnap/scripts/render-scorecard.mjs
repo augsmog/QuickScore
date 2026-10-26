@@ -56,8 +56,17 @@ page.on("pageerror", (e) => {
 });
 
 try {
-  // 1. Navigate to home - may show onboarding
+  // 1. Navigate to home and clear onboarding state to ensure sample contest is created
   console.log("Navigating to home...");
+  await page.goto(BASE_URL + "/", { waitUntil: "networkidle", timeout: 30000 });
+  
+  // Clear onboarding state so the sample contest will be created
+  await page.evaluate(() => {
+    localStorage.removeItem('snapscore-onboarding');
+  });
+  
+  // Reload to trigger sample contest creation
+  console.log("Reloading with fresh onboarding state...");
   await page.goto(BASE_URL + "/", { waitUntil: "networkidle", timeout: 30000 });
   
   // Check if onboarding appears and handle it
