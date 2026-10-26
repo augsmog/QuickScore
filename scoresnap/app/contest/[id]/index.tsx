@@ -14,13 +14,24 @@ export default function LeaderboardScreen() {
   );
 
   const [viewMode, setViewMode] = useState<"individual" | "groups">("individual");
+  const [scoreView, setScoreView] = useState<"cumulative" | "daily">("cumulative");
 
   if (!contest) return null;
 
-  // For tournaments, aggregate scores across all rounds; for legacy, use groups directly
-  const allPlayers = contest.isTournament 
-    ? getTournamentPlayers(contest)
-    : contest.groups.flatMap((g) => g.players);
+  // For tournaments, aggregate scores based on view mode
+  let allPlayers;
+  if (contest.isTournament && scoreView === "daily" && contest.rounds && contest.currentRound) {
+    // Daily view: show only current round scores
+    const currentRound = contest.rounds.find((r) => r.number === contest.currentRound);
+    allPlayers = currentRound?.groups.flatMap((g) => g.players) || [];
+  } else if (contest.isTournament) {
+    // Cumulative view: aggregate across all rounds
+    allPlayers = getTournamentPlayers(contest);
+  } else {
+    // Legacy: use groups directly
+    allPlayers = contest.groups.flatMap((g) => g.players);
+  }
+
   const hasScores = allPlayers.some((p) =>
     p.scores.some((s) => s > 0)
   );
@@ -62,6 +73,40 @@ export default function LeaderboardScreen() {
       <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, marginBottom: 16 }}>
         {contest.course.name}
       </Text>
+
+      {/* Tournament: Cumulative / Daily toggle */}
+      {contest.isTournament && contest.rounds && contest.rounds.length > 1 && (
+        <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
+          <AnimatedPressable
+            onPress={() => setScoreView("cumulative")}
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              borderRadius: RADII.md - 2,
+              alignItems: "center",
+              backgroundColor: scoreView === "cumulative" ? COLORS.surfaceHigh : "transparent",
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: scoreView === "cumulative" ? COLORS.text : COLORS.textDim }}>
+              CUMULATIVE
+            </Text>
+          </AnimatedPressable>
+          <AnimatedPressable
+            onPress={() => setScoreView("daily")}
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              borderRadius: RADII.md - 2,
+              alignItems: "center",
+              backgroundColor: scoreView === "daily" ? COLORS.surfaceHigh : "transparent",
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: scoreView === "daily" ? COLORS.text : COLORS.textDim }}>
+              ROUND {contest.currentRound || 1}
+            </Text>
+          </AnimatedPressable>
+        </View>
+      )}
 
       {/* Individual / Groups toggle */}
       {hasTeams && (

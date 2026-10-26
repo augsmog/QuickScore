@@ -1,6 +1,6 @@
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
-for (const file of ['all-calculators.test.ts', 'per-hole-progressive.test.ts', 'comprehensive-scorecard-tests.ts', 'tournament-multi-round.test.ts']) {
+for (const file of ['all-calculators.test.ts', 'per-hole-progressive.test.ts', 'comprehensive-scorecard-tests.ts', 'tournament-multi-round.test.ts', 'hopwood-cup-56-player.test.ts']) {
   test(file, () => {
     const output = execFileSync(process.execPath, ['--import', 'tsx', `src/engine/__tests__/${file}`], {
       cwd: path.resolve(__dirname, '..'), encoding: 'utf8', timeout: 25000,

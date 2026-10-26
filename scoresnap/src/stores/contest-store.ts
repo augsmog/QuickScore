@@ -10,6 +10,8 @@ export interface ContestGroup {
   id: string;
   name: string;
   players: Player[];
+  teeTime?: string; // "10:03" or "10:03 AM"
+  externalId?: string; // External group ID (e.g. from GolfGenius)
 }
 
 export interface RoundInfo {
@@ -17,6 +19,7 @@ export interface RoundInfo {
   number: number;
   name: string;
   date?: string;
+  course?: Course; // Each round can have a different course
   groups: ContestGroup[];
 }
 

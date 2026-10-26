@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS public.contest_rounds (
   round_number INTEGER NOT NULL CHECK (round_number > 0),
   name TEXT NOT NULL,
   date DATE,
+  course_name TEXT, -- Each round can have a different course
+  course_data JSONB, -- Full course structure (holes, pars, etc.)
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (contest_id, round_number)
 );
@@ -24,7 +26,9 @@ CREATE POLICY "Users can manage rounds in own contests" ON public.contest_rounds
 
 -- Add round_id to contest_groups to track which round a group belongs to
 ALTER TABLE public.contest_groups
-  ADD COLUMN round_id UUID REFERENCES public.contest_rounds(id) ON DELETE CASCADE;
+  ADD COLUMN round_id UUID REFERENCES public.contest_rounds(id) ON DELETE CASCADE,
+  ADD COLUMN tee_time TEXT, -- Tee time for this group (e.g. "10:03" or "10:03 AM")
+  ADD COLUMN external_id TEXT; -- External group ID (e.g. from GolfGenius)
 
 -- Add current_round to contests
 ALTER TABLE public.contests
@@ -79,5 +83,10 @@ ALTER TABLE public.contest_groups
 
 ALTER TABLE public.hole_scores
   ALTER COLUMN round_id SET NOT NULL;
+
+-- Add player status and per-course handicaps
+ALTER TABLE public.contest_players
+  ADD COLUMN status TEXT CHECK (status IN ('active', 'WD', 'NS')) DEFAULT 'active',
+  ADD COLUMN course_handicaps JSONB; -- { "course_name": handicap_value }
 
 COMMIT;

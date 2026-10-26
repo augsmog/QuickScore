@@ -95,6 +95,7 @@ export default function ContestLayout() {
             </Text>
             <Text style={{ color: COLORS.textDim, fontFamily: FONTS.regular, fontSize: 13 }}>
               {contest.course.name} · {allPlayers.length} players
+              {contest.isTournament && contest.rounds && ` · Round ${contest.currentRound || 1}`}
             </Text>
           </View>
           {contest.status === "active" && contest.isTournament && (

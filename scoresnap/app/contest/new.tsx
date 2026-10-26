@@ -78,6 +78,8 @@ export default function NewContestScreen() {
   // Step 1: Players & Course
   const [contestName, setContestName] = useState("");
   const [courseName, setCourseName] = useState("");
+  const [isTournament, setIsTournament] = useState(false);
+  const [numRounds, setNumRounds] = useState(2);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedTeeBox, setSelectedTeeBox] = useState<TeeBox | null>(null);
   const [numGroups, setNumGroups] = useState(1);
@@ -453,6 +455,60 @@ export default function NewContestScreen() {
                 marginBottom: 16,
               }}
             />
+
+            {/* Tournament Toggle */}
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+              <Switch
+                testID="tournament-toggle"
+                value={isTournament}
+                onValueChange={(val) => {
+                  setIsTournament(val);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                thumbColor={COLORS.cardBg}
+              />
+              <Text style={{ color: COLORS.text, fontSize: 15, marginLeft: 12 }}>
+                Multi-Day Tournament
+              </Text>
+            </View>
+
+            {isTournament && (
+              <View style={{ marginBottom: 16, paddingLeft: 48 }}>
+                <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 8, fontSize: 11 }}>
+                  NUMBER OF ROUNDS
+                </Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {[2, 3, 4].map((n) => (
+                    <AnimatedPressable
+                      key={n}
+                      testID={`rounds-${n}`}
+                      onPress={() => {
+                        setNumRounds(n);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderRadius: RADII.md,
+                        borderWidth: 1,
+                        borderColor: numRounds === n ? COLORS.primary : COLORS.border,
+                        backgroundColor: numRounds === n ? COLORS.primary + "20" : COLORS.surfaceLow,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: numRounds === n ? FONTS.semibold : FONTS.regular,
+                          color: numRounds === n ? COLORS.primary : COLORS.text,
+                        }}
+                      >
+                        {n}
+                      </Text>
+                    </AnimatedPressable>
+                  ))}
+                </View>
+              </View>
+            )}
 
             {/* Course Selection */}
             <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 6 }}>

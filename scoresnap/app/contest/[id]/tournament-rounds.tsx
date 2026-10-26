@@ -141,26 +141,44 @@ export default function TournamentRoundsScreen() {
     updateRoundGroups(id!, selectedRound, newGroups);
   };
 
-  const handleMovePlayer = (playerId: string, toGroupId: string) => {
+  const handleMovePlayer = (playerId: string, fromGroupId: string) => {
     if (!currentRound) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    const newGroups = currentRound.groups.map((g) => ({
-      ...g,
-      players: g.players.filter((p) => p.id !== playerId),
-    }));
-
+    
+    // Find the player and their current group
     const player = currentRound.groups
       .flatMap((g) => g.players)
       .find((p) => p.id === playerId);
     if (!player) return;
 
-    const targetGroup = newGroups.find((g) => g.id === toGroupId);
-    if (targetGroup) {
-      targetGroup.players.push(player);
-    }
+    // Show group picker
+    const otherGroups = currentRound.groups.filter((g) => g.id !== fromGroupId);
+    if (otherGroups.length === 0) return;
 
-    updateRoundGroups(id!, selectedRound, newGroups);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      `Move ${player.name}`,
+      "Select destination group:",
+      [
+        { text: "Cancel", style: "cancel" },
+        ...otherGroups.map((targetGroup) => ({
+          text: targetGroup.name,
+          onPress: () => {
+            const newGroups = currentRound.groups.map((g) => {
+              if (g.id === fromGroupId) {
+                // Remove from current group
+                return { ...g, players: g.players.filter((p) => p.id !== playerId) };
+              } else if (g.id === targetGroup.id) {
+                // Add to target group
+                return { ...g, players: [...g.players, player] };
+              }
+              return g;
+            });
+            updateRoundGroups(id!, selectedRound, newGroups);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        })),
+      ]
+    );
   };
 
   const handleSetActive = () => {
@@ -391,8 +409,9 @@ export default function TournamentRoundsScreen() {
             </Text>
 
             {group.players.map((player) => (
-              <View
+              <Pressable
                 key={player.id}
+                onPress={() => handleMovePlayer(player.id, group.id)}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -420,7 +439,8 @@ export default function TournamentRoundsScreen() {
                 >
                   HCP {player.handicap}
                 </Text>
-              </View>
+                <ChevronRight size={16} color={COLORS.textDim} />
+              </Pressable>
             ))}
           </View>
         ))}
