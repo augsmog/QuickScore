@@ -465,9 +465,9 @@ export default function ScorecardScreen() {
         )}
 
         {/* Group Selector (if multiple groups) */}
-        {contest.groups.length > 1 && (
+        {activeGroups.length > 1 && (
           <View style={{ flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 20, marginBottom: 4, gap: 8 }}>
-            {contest.groups.map((g, gi) => (
+            {activeGroups.map((g, gi) => (
               <Pressable
                 key={g.id}
                 onPress={() => {
