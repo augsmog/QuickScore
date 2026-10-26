@@ -30,10 +30,9 @@ await orgPage.getByText(/^new contest$/i).first().click();
 // Add 16 players
 const playerNames = Array.from({ length: 16 }, (_, i) => `P${i + 1}`);
 await orgPage.getByPlaceholder("Your name").fill(playerNames[0]);
-for (let i = 1; i < 4; i++) {
-  await orgPage.getByPlaceholder(`Player ${i + 1} name`).fill(playerNames[i]);
-}
-for (let i = 4; i < 16; i++) {
+await orgPage.getByPlaceholder("Player 2 name").fill(playerNames[1]);
+// Add remaining 14 players (3-16)
+for (let i = 2; i < 16; i++) {
   await orgPage.getByText(/add player/i).first().click();
   await orgPage.getByPlaceholder(`Player ${i + 1} name`).fill(playerNames[i]);
 }
