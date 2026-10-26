@@ -65,9 +65,11 @@ if (!bodyAfterNext.includes("STEP 02") && !bodyAfterNext.includes("Select Game")
 }
 
 // Stroke Play should be pre-selected by default
-// Just verify we're past this screen by clicking Next again
+// Click Next to proceed to final step (wager settings)
 await orgPage.getByText(/^next/i).last().click();
-await orgPage.getByText(/^next/i).last().click();
+await orgPage.waitForTimeout(1000);
+
+// Final step: click Start Contest
 await orgPage.getByText(/start contest/i).click();
 
 await orgPage.waitForURL(/\/contest\/[^/]+$/);
