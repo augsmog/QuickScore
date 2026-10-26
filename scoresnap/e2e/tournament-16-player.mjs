@@ -50,6 +50,9 @@ for (let i = 4; i < 16; i++) {
 }
 
 await orgPage.getByText(/^next/i).last().click();
+// Wait for games screen to load
+await orgPage.waitForTimeout(1000);
+await orgPage.getByText("Stroke Play", { exact: true }).first().waitFor({ state: "visible", timeout: 5000 });
 await orgPage.getByText("Stroke Play", { exact: true }).first().click();
 await orgPage.getByText(/^next/i).last().click();
 await orgPage.getByText(/start contest/i).click();
