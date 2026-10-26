@@ -283,6 +283,8 @@ function assert(condition: boolean, message: string) {
   assert(nets.length === 3, `Should have 3 tied players for comparison`);
 }
 
-console.log(`\n✅ ${section}: ${passed} passed, ${failed} failed\n`);
+console.log(`\n──────────────────────────────────────────────`);
+console.log(`Results: ${passed} passed, ${failed} failed`);
+console.log(`──────────────────────────────────────────────\n`);
 
 export default { section, passed, failed };

@@ -29,10 +29,9 @@ jobs:
         run: npm ci
       
       - name: Install Supabase CLI
-        run: |
-          curl -fsSL https://github.com/supabase/cli/releases/download/v1.200.3/supabase_1.200.3_linux_amd64.tar.gz | tar -xz
-          sudo mv supabase /usr/local/bin/
-          supabase --version
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
       
       - name: Start Supabase
         run: |
@@ -40,14 +39,7 @@ jobs:
           supabase status
       
       - name: Apply migrations
-        run: |
-          for migration in supabase/migrations/*.sql; do
-            echo "Applying $migration..."
-            supabase db reset --no-seed
-            for file in supabase/migrations/*.sql; do
-              psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f "$file"
-            done
-          done
+        run: supabase db reset
       
       - name: Build web app
         run: |
