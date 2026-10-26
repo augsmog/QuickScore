@@ -83,6 +83,11 @@ try {
   
   // 2. Wait for the Sample Round contest to appear (search by contest name or course name)
   console.log("Waiting for Sample Round or Pine Valley GC...");
+  
+  // Debug: log the page content
+  const bodyText = await page.locator('body').innerText().catch(() => 'body not found');
+  console.log("Page content (first 500 chars):", bodyText.substring(0, 500));
+  
   const contestLink = page.locator('text="Sample Round"').first();
   const courseLink = page.locator('text="Pine Valley GC"').first();
   
