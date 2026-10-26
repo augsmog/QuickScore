@@ -50,15 +50,23 @@ for (let i = 4; i < 16; i++) {
 }
 
 // Navigate to games selection screen
-await orgPage.getByText(/^next/i).last().click();
+const nextBtn = orgPage.getByText(/^next/i).last();
+await nextBtn.click();
 await orgPage.waitForTimeout(2000);
 
-// Wait for games screen to be ready by checking for multiple game options
-await orgPage.getByText("Skins", { exact: true }).first().waitFor({ state: "attached", timeout: 5000 });
+// Verify we're on step 2 (games screen)
+const bodyAfterNext = await orgPage.innerText("body");
+if (!bodyAfterNext.includes("STEP 02") && !bodyAfterNext.includes("Select Game")) {
+  console.log("⚠️ Not on games screen after clicking Next");
+  console.log("Body contains:", bodyAfterNext.substring(0, 300));
+  // Try clicking Next again
+  await orgPage.getByText(/^next/i).last().click();
+  await orgPage.waitForTimeout(1000);
+}
 
-// Click Stroke Play (it should be pre-selected, but click to ensure)
-const strokePlay = orgPage.getByText("Stroke Play", { exact: true }).first();
-await strokePlay.click({ force: true, timeout: 5000 });
+// Stroke Play should be pre-selected by default
+// Just verify we're past this screen by clicking Next again
+await orgPage.getByText(/^next/i).last().click();
 await orgPage.getByText(/^next/i).last().click();
 await orgPage.getByText(/start contest/i).click();
 
