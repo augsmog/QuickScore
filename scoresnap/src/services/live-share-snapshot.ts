@@ -1,4 +1,5 @@
 import type { Contest } from '../stores/contest-store';
+import { getTournamentPlayers } from '../stores/contest-store';
 import { calcStrokePlay } from '../engine/calculators/stroke-play';
 import { calculateSettlement } from '../engine/settlement';
 export const validShareToken = (token: unknown): token is string => typeof token === 'string' && /^[a-f0-9]{64}$/.test(token);
@@ -9,7 +10,11 @@ export interface SharedRound {
   games: { game: string; standings: { displayName: string; units: number }[] }[];
 }
 export function buildSnapshot(contest: Contest): SharedRound {
-  const players = contest.groups.flatMap(g => g.players).map(p => ({ ...p, scores: Array.from({ length: Math.min(18, contest.course.holes.length) }, (_, i) => {
+  // For tournaments, aggregate scores across all rounds; for legacy, use groups directly
+  const allPlayers = contest.isTournament 
+    ? getTournamentPlayers(contest)
+    : contest.groups.flatMap(g => g.players);
+  const players = allPlayers.map(p => ({ ...p, scores: Array.from({ length: Math.min(18, contest.course.holes.length) }, (_, i) => {
     const n = p.scores[i];
     return Number.isInteger(n) && n >= 0 && n <= 99 ? n : 0;
   }) }));
