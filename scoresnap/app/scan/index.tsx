@@ -174,7 +174,7 @@ export default function ScanScreen() {
             testID="parse-scorecard-button"
             accessibilityRole="button"
             onPress={() => {
-              const result = parseScoreGrid(textToGrid(scorecardText));
+              const result = parseScoreGrid(textToGrid(scorecardText), undefined, "paste");
               if (result.players.length === 0) {
                 setTextError("No players found. Enter a player name followed by scores on each row.");
                 return;

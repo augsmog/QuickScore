@@ -204,7 +204,7 @@ export default function ScanReviewScreen() {
       // Flow 1: Importing into existing contest
       const group = contest?.groups.find((g) => g.id === selectedGroupId);
       if (group) {
-        const playerScores = importPlayers.map(sp => ({ playerId: sp.matchedPlayerId!, scores: completeScores(sp.scores, contest?.course.holes.length) }));
+        const playerScores = importPlayers.map(sp => ({ playerId: sp.matchedPlayerId!, source: sp.source, scores: completeScores(sp.scores, contest?.course.holes.length, sp.source) }));
         importScores(contestId, selectedGroupId, playerScores);
       }
       setPendingNavTarget(`/contest/${contestId}`);
@@ -216,7 +216,7 @@ export default function ScanReviewScreen() {
         name: sp.name,
         handicap: 0,
         team: null,
-        scores: completeScores(sp.scores),
+        scores: completeScores(sp.scores, 18, sp.source),
       }));
 
       const group: ContestGroup = {

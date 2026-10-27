@@ -194,13 +194,14 @@ test('exact-name matching rejects ambiguous names and reserved targets',()=>{
  expect(review.autoMatchPlayers([rows[0]],[{id:'a',name:'Augie'},{id:'b',name:'AUGIE'}])[0].matchedPlayerId).toBeNull();
  expect(review.autoMatchPlayers([rows[0],{...rows[2],matchedPlayerId:'a'}],[{id:'a',name:'Augie'}])[0].matchedPlayerId).toBeNull();
 });
-test('real two-group smoke imports each selected group, returns, and keeps invalid mappings blocking',()=>{
+for (const partial of [false,true]) test(`real two-group smoke imports and keeps invalid mappings blocking partial=${partial}`,()=>{
  const names=['Augie','Sam','Lee','Pat'];
  const scores=[[5,6,4,3,5,4,4,6,5,4,5,3,6,4,5,3,5,4],... [4,5,6].map(n=>Array(18).fill(n))];
+ if(partial) scores.forEach(row=>row.fill(0,9));
  const targets=names.map((name,i)=>({id:String(i),name,handicap:[18,0,9,0][i],scores:Array(18).fill(0)}));
  const contest={id:'smoke',course:{holes:Array.from({length:18},(_,i)=>({num:i+1,par:4}))},groups:[{id:'g',name:'Group 1',players:targets.slice(0,2)},{id:'other',name:'Group 2',players:targets.slice(2)}]};
  store.setState({contests:[contest]});
- const url=new URL('http://localhost/scan/review?contestId=smoke&scanData='+encodeURIComponent(JSON.stringify(names.map((name,i)=>({...raw(scores[i]),name,matchedPlayerId:null})))));
+ const url=new URL('http://localhost/scan/review?contestId=smoke&scanData='+encodeURIComponent(JSON.stringify(names.map((name,i)=>({...raw(scores[i]),source:partial?'paste':'ocr',name,matchedPlayerId:null})))));
  const replace=jest.fn();
  let states=[],cursor=0;
  const jsx=(type,props)=>({type,props});
@@ -219,6 +220,12 @@ test('real two-group smoke imports each selected group, returns, and keeps inval
  const button=label=>nodes.filter(n=>n.type==='Pressable' && text(n)===label).at(-1);
  const target=name=>nodes.find(n=>n.type==='Pressable' && text(n).includes('HCP ') && text(n).includes(name));
  const confirm=()=>nodes.find(n=>n.type==='Pressable' && text(n).startsWith('Confirm'));
+ if(partial) {
+  const pasted=parser.parseScoreGrid(parser.textToGrid(names.map((name,i)=>[name,...scores[i]].join(',')).join('\n')),undefined,'paste').players;
+  expect(pasted.map(p=>p.scores)).toEqual(scores);
+  expect(pasted.every(p=>p.confidence.every(c=>c===.95))).toBe(true);
+  url.searchParams.set('scanData',JSON.stringify(pasted));
+ }
  render();expect(confirm().props.disabled).toBeFalsy();
  expect(nodes.some(n=>n.props?.accessibilityLabel==='Lee: Not imported — belongs to Group 2')).toBe(true);
  // Rematch Sam to Augie: duplicate must block but remain recoverable.
@@ -243,13 +250,13 @@ test('real two-group smoke imports each selected group, returns, and keeps inval
  expect(replace).toHaveBeenLastCalledWith('/contest/smoke');
  expect(store.getState().contests[0].groups.flatMap(g=>g.players.map(p=>p.scores))).toEqual(scores);
  // Unmatched rows and even excluded rows with missing holes still block.
- for(const mutate of [rows=>{rows[2].name='Unknown';},rows=>{rows[2].scores[6]=null;},rows=>{rows[3].name='Lee';}]) {
+ for(const mutate of [rows=>{rows[0].scores[2]=0;},rows=>{rows[2].name='Unknown';},rows=>{rows[2].scores[6]=null;},rows=>{rows[3].name='Lee';}]) {
   const rows=JSON.parse(url.searchParams.get('scanData'));mutate(rows);
   url.searchParams.set('scanData',JSON.stringify(rows));states=[];render();
   expect(confirm().props.disabled).toBeTruthy();
   expect(nodes.some(n=>n.props?.accessibilityRole==='alert' && text(n))).toBe(true);
   expect(store.getState().contests[0].groups.flatMap(g=>g.players.map(p=>p.scores))).toEqual(scores);
-  url.searchParams.set('scanData',JSON.stringify(names.map((name,i)=>({...raw(scores[i]),name,matchedPlayerId:null}))));
+  url.searchParams.set('scanData',JSON.stringify(names.map((name,i)=>({...raw(scores[i]),source:partial?'paste':'ocr',name,matchedPlayerId:null}))));
  }
  // A supplied wrong-group mapping also keeps controls available for recovery.
  const wrong=JSON.parse(url.searchParams.get('scanData'));wrong[0].matchedPlayerId='2';wrong[2].matchedPlayerId='2';
@@ -257,4 +264,17 @@ test('real two-group smoke imports each selected group, returns, and keeps inval
  expect(confirm().props.disabled).toBeTruthy();
  nodes.filter(n=>n.type==='Pressable'&&text(n)==='Rematch')[0].props.onPress();render();
  target('Augie').props.onPress();render();expect(confirm().props.disabled).toBeFalsy();
+});
+
+test('OCR trailing zeros remain blank and blocked in both paths',async()=>{
+ const scores=[...Array(9).fill(4),...Array(9).fill(0)];
+ response={data:{players:[{...raw(scores),source:'paste'}]}};
+ const cloudPlayer=(await cloud.recognizeWithClaude('x')).players[0];
+ recognized=geometry([['Hole',...Array.from({length:18},(_,i)=>String(i+1))],['Player A',...scores.map(String)]]);
+ const mlPlayer=(await ml.recognizeWithMLKit('x')).players[0];
+ for(const p of [cloudPlayer,mlPlayer]) {
+  expect(p.scores.slice(9)).toEqual(Array(9).fill(null));
+  expect(p.confidence.slice(9)).toEqual(Array(9).fill(0));
+  expect(review.blockingReason([p])).toMatch(/Hole 10 is blank/);
+ }
 });

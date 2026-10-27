@@ -46,7 +46,7 @@ export async function recognizeWithClaude(
   }
 
   if (!Array.isArray(data.players)) throw new Error("OCR service returned invalid response");
-  const players: ScannedPlayer[] = data.players.map((p: any) => normalizePlayer({ ...p, name: String(p?.name || "Unknown") }));
+  const players: ScannedPlayer[] = data.players.map((p: any) => normalizePlayer({ ...p, source: "ocr", name: String(p?.name || "Unknown") }));
 
   // Calculate average confidence
   const allConfs = players.flatMap((p) => [

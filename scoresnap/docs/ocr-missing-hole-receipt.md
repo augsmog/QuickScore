@@ -95,3 +95,19 @@ Validation from `scoresnap/`:
 - Logs: `/tmp/ocr-round4-{jest,all-jest,client,tsc,baseline-tsc,matrix}.log`.
 
 Remaining matrix mismatch: the six `9-paste` fixtures create an 18-hole contest/course (no nine-hole round selection) and paste an explicit 18-column header with nine positive scores followed by nine zeros. The assertion at line 79 checks the scanData URL before confirmation, rather than persisted scores. Under the cut, required eighteen-hole zeros must become blanks and block; neither array length nor trailing blanks can identify a nine-hole round. This fix deliberately does not reinterpret that eighteen-hole payload as a selected nine-hole round. Those six fixtures therefore still need an explicit required-hole selection to exercise the nine-hole persistence behavior safely; assertions have not been changed. Round 4's selected-nine-hole boundary is fixed, but the reported six matrix failures are not claimed resolved.
+
+## Fix round 5
+
+Orchestrator semantics decision supersedes round 4's remaining matrix-mismatch interpretation: in text paste only, explicit typed `0` cells in a trailing contiguous run after a played hole mean not played yet. They remain numeric zero in scanData, retain normal paste confidence (0.95), are not flagged, and may be confirmed and persisted using the engine's unplayed convention even on an 18-hole course. A source flag (`paste` / `ocr`) follows parsing, route normalization, review, Quick Settle and the atomic store boundary. Claude explicitly forces OCR source; ML Kit defaults to OCR. Missing, empty, malformed and interior-zero paste cells remain blank and blocking. OCR zeros remain null with confidence zero and block. Existing matching, multi-group, empty-scan and course-mapping guards remain intact. E2E and out-of-scope surfaces were not edited.
+
+Jest now exercises the actual review component with an 18-hole partial paste: exact scanData scores and confidence, enabled Confirm, exact persisted nine scores plus nine zeros, and interior-zero rejection. It also verifies Claude and ML Kit trailing zeros become null with confidence zero and block, including a Claude response that incorrectly claims paste source.
+
+Validation from `scoresnap/` (reused installed dependencies via an ignored node_modules symlink):
+
+- `NODE_OPTIONS=--require=/tmp/ocr-verify-stdio.cjs node_modules/.bin/jest tests/ocr-missing-hole.test.cjs tests/engine.test.cjs tests/error-back.test.cjs tests/scorecard-corpus.test.cjs --runInBand`: **203 passed / 4 suites**.
+- `NODE_OPTIONS=--require=/tmp/ocr-verify-stdio.cjs node_modules/.bin/jest --runInBand`: **358 passed / 21 suites**. Same external file-backed subprocess stdio preload as earlier rounds.
+- `node --import tsx src/services/__tests__/ocr-client.test.ts`: **18 passed / 0 failed**.
+- `node_modules/.bin/tsc --noEmit`: exit 2, **45 diagnostics**, output identical to an archived unchanged `35d10da` using the same dependencies; **0 new**.
+- `git diff --check`: passed. Logs: `/tmp/ocr-round5-{target,all-jest,client,tsc,baseline-tsc}.log`. No browser or remote CI pass claimed. No pushes.
+
+Local commit attempted with `SnapScore OCR missing-hole: fix round 5 (paste partial rounds)`; staging failed because `.git/index.lock` is on a read-only filesystem. The eight changed files remain in this isolated worktree, uncommitted. No source or remote refs were updated.

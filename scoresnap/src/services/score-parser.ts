@@ -5,6 +5,7 @@
 
 export interface ScannedPlayer {
   name: string;
+  source?: "paste" | "ocr";
   scores: (number | null)[];
   requiredHoles?: number[];
   alignmentError?: string;
@@ -127,7 +128,8 @@ export function nameConfidence(name: string): number {
  */
 export function parseScoreGrid(
   rows: string[][],
-  parValues?: number[]
+  parValues?: number[],
+  source: "paste" | "ocr" = "ocr"
 ): ParsedGrid {
   const players: ScannedPlayer[] = [];
   let parRow: number[] = [];
@@ -196,8 +198,12 @@ export function parseScoreGrid(
       const scores: (number | null)[] = [];
       const confidence: number[] = [];
 
-      for (const cell of scoreCells.slice(0, holeCount)) {
-        const parsed = normalizeScore(cell);
+      for (let i = 0; i < Math.min(scoreCells.length, holeCount); i++) {
+        const cell = scoreCells[i];
+        const trailingUnplayed = source === "paste" && cell.trim() === "0"
+          && scoreCells.length === holeCount && scoreCells.slice(i).every(c => c.trim() === "0")
+          && scoreCells.slice(0, i).some(c => normalizeScore(c).value !== null);
+        const parsed = trailingUnplayed ? { value: 0, confidence: 0.95 } : normalizeScore(cell);
         scores.push(parsed.value);
         confidence.push(parsed.confidence);
       }
@@ -210,6 +216,7 @@ export function parseScoreGrid(
 
       players.push({
         name: firstCell,
+        source,
         ...(!hasHeader && row.length > 19 && cellsFor(row)[9] === row[10] ? {
           alignmentError: "Unnumbered summary columns have ambiguous alignment. Retain these readings and enter scores manually."
         } : {}),

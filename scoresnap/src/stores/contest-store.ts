@@ -80,7 +80,7 @@ interface ContestState {
   importScores: (
     contestId: string,
     groupId: string,
-    playerScores: { playerId: string; scores: (number | null)[] }[]
+    playerScores: { source?: "paste" | "ocr"; playerId: string; scores: (number | null)[] }[]
   ) => void;
 
   completeContest: (id: string) => void;
@@ -209,7 +209,7 @@ export const useContestStore = create<ContestState>()(
         const validated = playerScores.map(p => {
           if (!p || ids.has(p.playerId) || group.players.filter(cp => cp.id === p.playerId).length !== 1) throw new Error("Import requires unique explicit player matches");
           ids.add(p.playerId);
-          return { playerId: p.playerId, scores: completeScores(p.scores, (round?.course ?? contest.course).holes.length) };
+          return { playerId: p.playerId, scores: completeScores(p.scores, (round?.course ?? contest.course).holes.length, p.source) };
         });
         const groups = (round?.groups ?? contest.groups).map(g => g.id !== groupId ? g : ({ ...g, players: g.players.map(p => {
           const imported = validated.find(v => v.playerId === p.id);
