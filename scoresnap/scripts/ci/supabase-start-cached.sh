@@ -5,14 +5,18 @@ warn() { printf 'WARNING: supabase image cache: %s\n' "$*" >&2; }
 
 load_images() {
   local dir=$1 archive output
-  local -a archives
-  shopt -s nullglob
-  archives=("$dir"/images.tar*)
-  if ((${#archives[@]} == 0)); then
+  archive=''
+  local name
+  for name in images.tar.zst images.tar.gz images.tar; do
+    if [[ -f "$dir/$name" ]]; then
+      archive="$dir/$name"
+      break
+    fi
+  done
+  if [[ -z "$archive" ]]; then
     warn 'no archive found; continuing without cached images'
     return 0
   fi
-  archive=${archives[0]}
   if ! output=$(case "$archive" in
     *.zst) zstd -dc "$archive" | docker load ;;
     *.gz) gzip -dc "$archive" | docker load ;;
@@ -28,22 +32,80 @@ load_images() {
   printf 'supabase image cache: loaded %s images\n' "$count"
 }
 
+# The Docker CLI uses the registry credentials configured by docker/login-action.
+pull_image() {
+  local image=$1 attempt delay
+  for attempt in 1 2 3 4; do
+    if docker pull "$image"; then
+      return 0
+    fi
+    if ((attempt < 4)); then
+      delay=$((10 * (1 << (attempt - 1)) + RANDOM % 6))
+      printf 'image pull failed; retrying %s in %s seconds\n' "$image" "$delay"
+      sleep "$delay" || true
+    fi
+  done
+  return 1
+}
+
+prepull_failed_images() {
+  local log=$1 image mirror
+  prepulled=0
+  while IFS= read -r image; do
+    [[ -n "$image" ]] || continue
+    if docker image inspect "$image" >/dev/null 2>&1; then
+      continue
+    fi
+    if pull_image "$image"; then
+      prepulled=$((prepulled + 1))
+      continue
+    fi
+    if [[ "$image" == ghcr.io/supabase/* ]]; then
+      for mirror in "public.ecr.aws/supabase/${image#ghcr.io/supabase/}" "docker.io/supabase/${image#ghcr.io/supabase/}"; do
+        if pull_image "$mirror" && docker tag "$mirror" "$image"; then
+          prepulled=$((prepulled + 1))
+          break
+        fi
+      done
+    fi
+    if ! docker image inspect "$image" >/dev/null 2>&1; then
+      warn "could not pre-pull $image; continuing with start retries"
+    fi
+  done < <(sed -nE \
+    -e 's/.*Retrying after [0-9]+s: ([^[:space:]]+).*/\1/p' \
+    -e 's/.*failed to pull docker image from all registries: ([^[:space:]]+).*/\1/p' \
+    "$log" | sed -E 's/[[:punct:]]+$//' | sort -u)
+  return 0
+}
+
 start_stack() {
-  local attempt delay status=1
+  local attempt delay status=1 log prepulled
+  local -a pipeline_status
+  log=$(mktemp)
   for attempt in 1 2 3 4 5; do
     printf 'supabase start: attempt %s/5\n' "$attempt"
-    if supabase start "$@"; then
+    if supabase start "$@" 2>&1 | tee "$log"; then
+      rm -f "$log"
       return 0
     else
-      status=$?
+      pipeline_status=("${PIPESTATUS[@]}")
+      status=${pipeline_status[0]}
+      # Preserve a logging failure too, if start itself succeeded.
+      if ((status == 0)); then status=${pipeline_status[1]}; fi
     fi
     if ((attempt < 5)); then
       supabase stop --no-backup || true
-      delay=$((15 * (1 << (attempt - 1)) + RANDOM % 6))
-      printf 'supabase start failed; retrying in %s seconds\n' "$delay"
-      sleep "$delay"
+      prepull_failed_images "$log"
+      if ((prepulled > 0)); then
+        printf 'supabase start failed; pre-pulled %s images; retrying immediately\n' "$prepulled"
+      else
+        delay=$((15 * (1 << (attempt - 1)) + RANDOM % 6))
+        printf 'supabase start failed; retrying in %s seconds\n' "$delay"
+        sleep "$delay"
+      fi
     fi
   done
+  rm -f "$log"
   return "$status"
 }
 
