@@ -23,6 +23,8 @@ CREATE PUBLICATION supabase_realtime;
 CREATE SCHEMA supabase_migrations;
 CREATE TABLE supabase_migrations.schema_migrations (version text PRIMARY KEY, statements text[], name text);
 SQL
+# Default ACLs are per-database: emulate hosted platform-provided supabase_admin defaults here too.
+psql 'postgresql://supabase_admin:postgres@127.0.0.1:54322/live_rehearsal' -X -v ON_ERROR_STOP=1 -f "$here/platform-emulation.sql"
 psql "$url" -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261027000000_live_baseline.sql
 python3 - "$here/expected-ledger.json" > "$work/ledger.sql" <<'PY'
 import json,sys
