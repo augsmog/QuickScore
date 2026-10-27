@@ -83,3 +83,12 @@ The capture disproved two "by construction" assumptions, which is why it was req
    verify-offline.sh/sql-fixtures --pgdata emulate those three exact live rows (platform_ext.py) because plain
    PG17 cannot install them; the pinned Supabase stack in CI compares them for real.
 preapply-check.sh on this capture: Schema matches, Ledger matches: live.
+
+## Refresh 2026-10-26 22:01 MST (2026-10-27T05:01:59Z) — role security attributes
+Verifier 3 showed `ALTER ROLE authenticated BYPASSRLS` passed both gates. catalog-query.sql now captures
+`app_roles` (super/inherit/createrole/createdb/login/replication/bypassrls for anon, authenticated,
+service_role, authenticator) and `app_role_memberships` (every pg_auth_members edge touching them, with
+admin/inherit/set options). live.json is exactly `drift.py normalize` of a fresh read-only live capture at this
+time (raw: aos-state/snapscore-xdevice/m1/live-catalog-v4-capture.json); preapply passes on it.
+verify-offline.sh stubs the same hosted attributes/memberships. Fixtures: role bypassrls, role login,
+role membership, authenticator inherit — each rejected by compare and preapply.

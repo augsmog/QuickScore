@@ -13,6 +13,13 @@ CREATE ROLE service_role;
 CREATE ROLE supabase_admin;
 CREATE ROLE authenticator;
 CREATE ROLE supabase_realtime_admin;
+-- Hosted role attributes/memberships (captured live 2026-10-26 22:05 MST).
+ALTER ROLE authenticator LOGIN NOINHERIT;
+ALTER ROLE service_role BYPASSRLS;
+GRANT anon, authenticated, service_role TO authenticator WITH INHERIT FALSE, SET TRUE;
+GRANT anon, authenticated, service_role, authenticator TO postgres WITH ADMIN TRUE, INHERIT TRUE, SET TRUE;
+CREATE ROLE supabase_storage_admin;
+GRANT authenticator TO supabase_storage_admin WITH INHERIT FALSE, SET TRUE;
 CREATE SCHEMA auth;
 CREATE SCHEMA extensions;
 CREATE EXTENSION pgcrypto SCHEMA extensions;

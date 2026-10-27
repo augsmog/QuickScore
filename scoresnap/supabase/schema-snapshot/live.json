@@ -1,5 +1,105 @@
 {
   "aggregates": [],
+  "app_role_memberships": [
+    {
+      "admin": false,
+      "inherit": false,
+      "member": "authenticator",
+      "role": "anon",
+      "set": true
+    },
+    {
+      "admin": false,
+      "inherit": false,
+      "member": "authenticator",
+      "role": "authenticated",
+      "set": true
+    },
+    {
+      "admin": false,
+      "inherit": false,
+      "member": "authenticator",
+      "role": "service_role",
+      "set": true
+    },
+    {
+      "admin": false,
+      "inherit": false,
+      "member": "supabase_storage_admin",
+      "role": "authenticator",
+      "set": true
+    },
+    {
+      "admin": true,
+      "inherit": true,
+      "member": "postgres",
+      "role": "anon",
+      "set": true
+    },
+    {
+      "admin": true,
+      "inherit": true,
+      "member": "postgres",
+      "role": "authenticated",
+      "set": true
+    },
+    {
+      "admin": true,
+      "inherit": true,
+      "member": "postgres",
+      "role": "authenticator",
+      "set": true
+    },
+    {
+      "admin": true,
+      "inherit": true,
+      "member": "postgres",
+      "role": "service_role",
+      "set": true
+    }
+  ],
+  "app_roles": [
+    {
+      "bypassrls": false,
+      "createdb": false,
+      "createrole": false,
+      "inherit": false,
+      "login": true,
+      "name": "authenticator",
+      "replication": false,
+      "super": false
+    },
+    {
+      "bypassrls": false,
+      "createdb": false,
+      "createrole": false,
+      "inherit": true,
+      "login": false,
+      "name": "anon",
+      "replication": false,
+      "super": false
+    },
+    {
+      "bypassrls": false,
+      "createdb": false,
+      "createrole": false,
+      "inherit": true,
+      "login": false,
+      "name": "authenticated",
+      "replication": false,
+      "super": false
+    },
+    {
+      "bypassrls": true,
+      "createdb": false,
+      "createrole": false,
+      "inherit": true,
+      "login": false,
+      "name": "service_role",
+      "replication": false,
+      "super": false
+    }
+  ],
   "column_acls": [],
   "column_definitions": [
     {
