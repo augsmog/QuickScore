@@ -114,6 +114,10 @@ a guard assertion, permission error, or TRUNCATE ONLY foreign-key error
 a successful suite explicitly rolls back before the runner rejects it. Duplicate
 ACL mutations are deduplicated. No mutation touches service_role.
 
+The full local chain and expected-after.json include seven historical markers +
+`20261027000000 live_baseline` + `20261027120000 sync_foundation` +
+`20261027130000 guest_write_guard`, for ten ledger rows.
+
 Offline PG17 single-user mode checks policy/ACL inventory, full-chain parity,
 exact M2b down-to-M2 parity, M2 down-to-baseline and reapply. It does not enforce
 RLS row filtering. Run `bash schema-drift/guest-guard-local.sh` on the box for a throwaway PG17

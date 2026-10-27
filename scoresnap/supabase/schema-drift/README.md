@@ -261,14 +261,17 @@ live database, Docker or M2 work was used. This verifies the pending local
 expectations; it does not replace the mandatory single fresh hosted capture.
 
 
-## M2 full-chain gate
+## M2 + M2b full-chain gate
 
 `verify-foundation-ci.sh` is the disposable-loopback-only gate used by CI. It
-rolls down the unused foundation to compare the baseline prefix against live.json,
+rolls down M2b first, then the unused foundation to compare the baseline prefix against live.json,
 checks its ledger, proves baseline default privileges red, and runs M1 JSON and
 SQL mutations with both postgres and supabase_admin connections. It then reapplies
-foundation, compares the full chain to expected-after.json, checks the nine-entry
-ledger, and runs future-default, protocol/role and legacy compatibility tests.
+M2 foundation and M2b guest guard, compares the full chain to expected-after.json,
+and checks the ten-entry local ledger: seven historical markers +
+`20261027000000 live_baseline` + `20261027120000 sync_foundation` +
+`20261027130000 guest_write_guard`. It runs future-default, protocol/role, legacy
+compatibility, guest-write guard and guest-guard mutation tests.
 `check-active-sql.py` requires exact active migration names, reviewed SHA256
 hashes and git tracking. `preapply-check.sh` still uses only the PRE-APPLY live
 snapshot and adopted eight-entry live ledger. See ../M2-FOUNDATION.md for contracts,

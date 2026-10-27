@@ -99,6 +99,8 @@ three contest tables, and gates their legacy access by protocol. Existing legacy
 DML/routine grants, unrelated ACL/view issues and share/chat privacy changes are
 staged with owners in that document. Eight ordered adopted live ledger rows (seven markers plus the exact
 20261027000000 live_baseline row) are now expected after the approved adoption;
-local full chain has ten entries. live.json stays PRE-APPLY;
-expected-after.json describes baseline plus M2 and M2b. Anonymous Auth
+local full chain has ten entries: seven historical markers +
+`20261027000000 live_baseline` + `20261027120000 sync_foundation` +
+`20261027130000 guest_write_guard`. live.json stays PRE-APPLY;
+expected-after.json describes this full chain, including M2b. Anonymous Auth
 remains disabled; no hosted settings or app code changed.

@@ -146,14 +146,17 @@ assignment/scorer authorization is implied; it is explicitly denied.
 ## Verification and drift
 
 `schema-snapshot/live.json` remains the untouched PRE-APPLY capture. The new
-expected-after.json is the normalized catalog for seven markers + baseline +
-foundation. CI starts CLI 2.122.0 with ghcr.io, resets the full chain, and applies hosted
-platform emulation as supabase_admin. It rolls down the unused foundation,
+expected-after.json is the normalized catalog for the full local chain, including
+M2b: seven historical markers + `20261027000000 live_baseline` +
+`20261027120000 sync_foundation` + `20261027130000 guest_write_guard` (ten ledger
+rows). CI starts CLI 2.122.0 with ghcr.io, resets the full chain, and applies hosted
+platform emulation as supabase_admin. It rolls down M2b, then the unused foundation,
 compares baseline to live.json (eight local ledger entries), requires the default
 fixture to fail on baseline, and runs M1 selftest and SQL mutation/preapply
-rejection fixtures with --url/--admin-url. It reapplies with CLI migration up,
-compares expected-after and nine ledger entries, then runs the M2
-role/ACL/default/future/join/CAS/legacy gates before ledger-adoption rehearsal. Live preapply now requires the exact ordered adopted eight-row ledger (seven markers
+rejection fixtures with --url/--admin-url. It reapplies both M2 and M2b with CLI
+migration up, compares expected-after and ten local ledger entries, then runs the
+M2 role/ACL/default/future/join/CAS/legacy gates and M2b guest-write guard and
+mutation gates before ledger-adoption rehearsal. Live preapply now requires the exact ordered adopted eight-row ledger (seven markers
 plus 20261027000000 live_baseline); local full-chain mode expects ten rows including M2b. Active SQL names, SHA256 and git tracking are checked.
 Rehearsal repairs only baseline; foundation must remain pending after repair.
 
@@ -218,7 +221,11 @@ inventory rows are injected by M1's offline platform_ext.inject; no role, ACL,
 relation or publication rows are injected. The baseline prefix and rollback both
 compare equal to the refreshed live.json under the existing normalization.
 
-The complete intentional schema delta is:
+The intentional M2 foundation schema delta is listed below. The current
+expected-after.json also includes the subsequent M2b policy and ACL changes
+documented in M2B-GUEST-GUARD.md; it represents the full ten-row local chain.
+
+The M2 foundation delta is:
 
 - Three tables: contest_memberships, contest_join_requests, operation_receipts,
   with their columns, composite row types, constraints, seven total new indexes

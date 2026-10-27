@@ -18,7 +18,10 @@ The guard runs only Python against files; it neither connects nor applies SQL.
 Seven-row pre-adoption, already-applied M2/M2b, missing, renamed, extra,
 duplicate, reordered, and wrong baseline name/version ledgers fail closed.
 `baseline` remains the eight-row local prefix; `local` remains the ten-row full
-chain. `pre-adoption` exists only for the historical adoption rehearsal.
+chain: seven historical markers + `20261027000000 live_baseline` +
+`20261027120000 sync_foundation` + `20261027130000 guest_write_guard`.
+`schema-snapshot/expected-after.json` describes this full chain, including M2b.
+`pre-adoption` exists only for the historical adoption rehearsal.
 
 SHA256 (files in this directory):
 

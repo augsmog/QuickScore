@@ -13,6 +13,13 @@ baseline. No database action is needed because nothing was applied live.
 
 ## Database rollback (only if M2 is ever applied to a database)
 
+The full local chain has ten ledger rows (seven historical markers +
+`20261027000000 live_baseline` + `20261027120000 sync_foundation` +
+`20261027130000 guest_write_guard`), and expected-after.json includes M2b.
+If M2b is installed, roll it down and repair its ledger first as described in
+ROLLBACK-M2B.md, leaving the nine-row M2-only chain. Successful M2 down and
+ledger repair then leave the eight-row baseline prefix.
+
 Use `rollback/20261027120000_sync_foundation.down.sql` (see `M2-FOUNDATION.md`,
 "Rollback and live sequence"). Back up first. Run it with
 `psql -v ON_ERROR_STOP=1 -f <file>`; it takes ACCESS EXCLUSIVE locks on every
