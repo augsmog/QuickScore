@@ -56,7 +56,7 @@ def differences(live, local):
     return out
 
 def ledger(raw, mode):
-    expected = load(HERE / 'expected-ledger.json') + ([BASELINE, FOUNDATION] if mode == 'local' else [BASELINE] if mode == 'baseline' else [])
+    expected = load(HERE / 'expected-ledger.json') + ([BASELINE, FOUNDATION, {"version":"20261027130000","name":"guest_write_guard"}] if mode == 'local' else [BASELINE] if mode == 'baseline' else [])
     actual = raw.get('migrations')
     if actual is None or sorted(actual,key=lambda m:m['version']) != sorted(expected,key=lambda m:m['version']):
         raise ValueError(f'{mode} ledger mismatch: expected {expected}; got {actual}')

@@ -54,7 +54,7 @@ def old_shape(x):
     x['regclass_checks']['contest_rounds']='contest_rounds'
 check('archived 001–008 shape',old_shape)
 for mode in ('live','local'):
-    good={'migrations':load(HERE/'expected-ledger.json')+([{'version':'20261027000000','name':'live_baseline'},{'version':'20261027120000','name':'sync_foundation'}] if mode=='local' else [])}
+    good={'migrations':load(HERE/'expected-ledger.json')+([{'version':'20261027000000','name':'live_baseline'},{'version':'20261027120000','name':'sync_foundation'},{'version':'20261027130000','name':'guest_write_guard'}] if mode=='local' else [])}
     ledger(good,mode)
     for bad in (good['migrations'][:-1],good['migrations']+[{'version':'008','name':'tournament_rounds'}]):
         try: ledger({'migrations':bad},mode)
@@ -76,3 +76,42 @@ for field,value in [('event','sql_drop'),('fn_schema','evil'),('fn','other'),('o
     check('event trigger '+field, lambda x,f=field,v=value:x['event_triggers'][0].update({f:v}))
 
 print('All JSON drift fixtures and preapply rejections passed')
+
+# Catalog permission gate must reject policy and ACL widening independently.
+import runpy
+permission_gate = runpy.run_path(str(HERE / 'guest-guard-catalog.py'))['check']
+permission_gate(snapshot, snapshot)
+for key, row in [
+    ('policies', dict(snapshot['policies'][0], policyname='unexpected_permissive')),
+    ('grants', dict(table='contest_players', grantee='authenticated', priv='UNEXPECTED')),
+    ('column_acls', dict(table='profiles', col='is_premium', acl='{authenticated=w/postgres}')),
+]:
+    changed = copy.deepcopy(snapshot)
+    changed[key].append(row)
+    try:
+        permission_gate(snapshot, changed)
+    except AssertionError:
+        print('PASS: permission gate rejects ' + key)
+    else:
+        raise AssertionError('permission widening escaped: ' + key)
+
+# Probe SQL columns come from the full-chain snapshot, never application src/.
+import re
+expected = load(HERE.parent / 'schema-snapshot/expected-after.json')
+columns = {}
+for row in expected['columns']:
+    columns.setdefault(row['table'], set()).add(row['col'])
+suite = (HERE.parent / 'tests/guest-write-guard.sql').read_text()
+for sql in re.findall(r'\$q\$(.*?)\$q\$', suite, re.S):
+    insert = re.match(r'INSERT INTO public\.(\w+)\(([^)]+)\)', sql)
+    update = re.match(r'UPDATE public\.(\w+) SET (.*?)(?: WHERE |$)', sql)
+    if insert:
+        table, names = insert.groups()
+        used = set(names.split(','))
+    elif update:
+        table, assignments = update.groups()
+        used = set(re.findall(r'(?:^|,)\s*(\w+)\s*=', assignments))
+    else:
+        continue
+    assert {name.strip() for name in used} <= columns[table], sql
+print('PASS: every INSERT/UPDATE probe uses expected-after.json columns')

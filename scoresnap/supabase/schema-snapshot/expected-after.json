@@ -65,7 +65,18 @@
       "super": false
     }
   ],
-  "column_acls": [],
+  "column_acls": [
+    {
+      "acl": "{authenticated=w/postgres}",
+      "col": "avatar_url",
+      "table": "profiles"
+    },
+    {
+      "acl": "{authenticated=w/postgres}",
+      "col": "display_name",
+      "table": "profiles"
+    }
+  ],
   "column_definitions": [
     {
       "col": "action",
@@ -11900,16 +11911,6 @@
     {
       "grantee": "anon",
       "priv": "DELETE",
-      "table": "contest_players"
-    },
-    {
-      "grantee": "anon",
-      "priv": "DELETE",
-      "table": "contests"
-    },
-    {
-      "grantee": "anon",
-      "priv": "DELETE",
       "table": "daily_metrics"
     },
     {
@@ -11945,17 +11946,7 @@
     {
       "grantee": "anon",
       "priv": "DELETE",
-      "table": "profiles"
-    },
-    {
-      "grantee": "anon",
-      "priv": "DELETE",
       "table": "revenue_events"
-    },
-    {
-      "grantee": "anon",
-      "priv": "DELETE",
-      "table": "scans"
     },
     {
       "grantee": "anon",
@@ -11985,16 +11976,6 @@
     {
       "grantee": "anon",
       "priv": "INSERT",
-      "table": "contest_players"
-    },
-    {
-      "grantee": "anon",
-      "priv": "INSERT",
-      "table": "contests"
-    },
-    {
-      "grantee": "anon",
-      "priv": "INSERT",
       "table": "daily_metrics"
     },
     {
@@ -12030,101 +12011,11 @@
     {
       "grantee": "anon",
       "priv": "INSERT",
-      "table": "profiles"
-    },
-    {
-      "grantee": "anon",
-      "priv": "INSERT",
       "table": "revenue_events"
     },
     {
       "grantee": "anon",
       "priv": "INSERT",
-      "table": "scans"
-    },
-    {
-      "grantee": "anon",
-      "priv": "INSERT",
-      "table": "score_events"
-    },
-    {
-      "grantee": "anon",
-      "priv": "INSERT",
-      "table": "settlements"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "automation_log"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "channel_effectiveness"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "content_insights"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "content_performance"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "daily_metrics"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "feedback"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "feedback_themes"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "funnel_health"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "funnel_snapshots"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "improvement_actions"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "marketing_events"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "profiles"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "revenue_events"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
-      "table": "scans"
-    },
-    {
-      "grantee": "anon",
-      "priv": "REFERENCES",
       "table": "settlements"
     },
     {
@@ -12219,156 +12110,6 @@
     },
     {
       "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "automation_log"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "channel_effectiveness"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "content_insights"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "content_performance"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "daily_metrics"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "feedback"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "feedback_themes"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "funnel_health"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "funnel_snapshots"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "improvement_actions"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "marketing_events"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "profiles"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "revenue_events"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "scans"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRIGGER",
-      "table": "settlements"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "automation_log"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "channel_effectiveness"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "content_insights"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "content_performance"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "daily_metrics"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "feedback"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "feedback_themes"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "funnel_health"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "funnel_snapshots"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "improvement_actions"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "marketing_events"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "profiles"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "revenue_events"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "scans"
-    },
-    {
-      "grantee": "anon",
-      "priv": "TRUNCATE",
-      "table": "settlements"
-    },
-    {
-      "grantee": "anon",
       "priv": "UPDATE",
       "table": "automation_log"
     },
@@ -12386,16 +12127,6 @@
       "grantee": "anon",
       "priv": "UPDATE",
       "table": "content_performance"
-    },
-    {
-      "grantee": "anon",
-      "priv": "UPDATE",
-      "table": "contest_players"
-    },
-    {
-      "grantee": "anon",
-      "priv": "UPDATE",
-      "table": "contests"
     },
     {
       "grantee": "anon",
@@ -12435,17 +12166,7 @@
     {
       "grantee": "anon",
       "priv": "UPDATE",
-      "table": "profiles"
-    },
-    {
-      "grantee": "anon",
-      "priv": "UPDATE",
       "table": "revenue_events"
-    },
-    {
-      "grantee": "anon",
-      "priv": "UPDATE",
-      "table": "scans"
     },
     {
       "grantee": "anon",
@@ -12601,11 +12322,6 @@
       "grantee": "authenticated",
       "priv": "INSERT",
       "table": "marketing_events"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "INSERT",
-      "table": "profiles"
     },
     {
       "grantee": "authenticated",
@@ -12625,81 +12341,6 @@
     {
       "grantee": "authenticated",
       "priv": "INSERT",
-      "table": "settlements"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "automation_log"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "channel_effectiveness"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "content_insights"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "content_performance"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "daily_metrics"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "feedback"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "feedback_themes"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "funnel_health"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "funnel_snapshots"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "improvement_actions"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "marketing_events"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "profiles"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "revenue_events"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
-      "table": "scans"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "REFERENCES",
       "table": "settlements"
     },
     {
@@ -12794,156 +12435,6 @@
     },
     {
       "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "automation_log"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "channel_effectiveness"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "content_insights"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "content_performance"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "daily_metrics"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "feedback"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "feedback_themes"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "funnel_health"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "funnel_snapshots"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "improvement_actions"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "marketing_events"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "profiles"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "revenue_events"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "scans"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRIGGER",
-      "table": "settlements"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "automation_log"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "channel_effectiveness"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "content_insights"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "content_performance"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "daily_metrics"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "feedback"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "feedback_themes"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "funnel_health"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "funnel_snapshots"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "improvement_actions"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "marketing_events"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "profiles"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "revenue_events"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "scans"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "TRUNCATE",
-      "table": "settlements"
-    },
-    {
-      "grantee": "authenticated",
       "priv": "UPDATE",
       "table": "automation_log"
     },
@@ -13006,11 +12497,6 @@
       "grantee": "authenticated",
       "priv": "UPDATE",
       "table": "marketing_events"
-    },
-    {
-      "grantee": "authenticated",
-      "priv": "UPDATE",
-      "table": "profiles"
     },
     {
       "grantee": "authenticated",
@@ -16301,111 +15787,111 @@
   "inheritance": [],
   "owners": [
     {
-      "acl": "{anon=arm/postgres,authenticated=arm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
-      "kind": "r",
-      "name": "score_events",
-      "owner": "postgres"
-    },
-    {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "automation_log",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "content_performance",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "daily_metrics",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "feedback",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "funnel_snapshots",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "improvement_actions",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "marketing_events",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
-      "kind": "r",
-      "name": "profiles",
-      "owner": "postgres"
-    },
-    {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "revenue_events",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
-      "kind": "r",
-      "name": "scans",
-      "owner": "postgres"
-    },
-    {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "settlements",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "v",
       "name": "channel_effectiveness",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "v",
       "name": "content_insights",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "v",
       "name": "feedback_themes",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "v",
       "name": "funnel_health",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=rm/postgres,authenticated=arm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "score_events",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=rm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "contest_players",
       "owner": "postgres"
     },
     {
-      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=rm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "contests",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=rm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "scans",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=rm/postgres,authenticated=rdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "profiles",
       "owner": "postgres"
     },
     {
@@ -16675,6 +16161,66 @@
       "with_check": "(legacy_contest_open(contest_id) AND (cell_version IS NULL) AND (contest_revision IS NULL) AND (round_id IS NULL) AND (action = 'set'::text) AND (actor IS NULL) AND (op_id IS NULL) AND (request_hash IS NULL))"
     },
     {
+      "cmd": "DELETE",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_contest_players_delete",
+      "qual": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contest_players",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_contests_delete",
+      "qual": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contests",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_profiles_delete",
+      "qual": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "profiles",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_scans_delete",
+      "qual": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "scans",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_score_events_delete",
+      "qual": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "score_events",
+      "with_check": null
+    },
+    {
       "cmd": "INSERT",
       "permissive": "PERMISSIVE",
       "policyname": "Owner can insert players",
@@ -16721,6 +16267,66 @@
       "schemaname": "public",
       "tablename": "contest_players",
       "with_check": "(user_id = auth.uid())"
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_contest_players_insert",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contest_players",
+      "with_check": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))"
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_contests_insert",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contests",
+      "with_check": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))"
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_profiles_insert",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "profiles",
+      "with_check": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))"
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_scans_insert",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "scans",
+      "with_check": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))"
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_score_events_insert",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "score_events",
+      "with_check": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))"
     },
     {
       "cmd": "SELECT",
@@ -16829,6 +16435,66 @@
       "schemaname": "public",
       "tablename": "profiles",
       "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_contest_players_update",
+      "qual": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contest_players",
+      "with_check": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))"
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_contests_update",
+      "qual": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contests",
+      "with_check": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))"
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_profiles_update",
+      "qual": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "profiles",
+      "with_check": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))"
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_scans_update",
+      "qual": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "scans",
+      "with_check": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))"
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m2b_score_events_update",
+      "qual": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "score_events",
+      "with_check": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))"
     }
   ],
   "publication": [
@@ -18043,23 +17709,7 @@
     },
     {
       "access_method": "heap",
-      "acl": "{anon=arm/postgres,authenticated=arm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
-      "check_count": 4,
-      "kind": "r",
-      "name": "score_events",
-      "of_type": null,
-      "owner": "postgres",
-      "partition": false,
-      "partition_bound": null,
-      "partition_key": null,
-      "persistence": "p",
-      "populated": true,
-      "replica_identity": "f",
-      "tablespace": null
-    },
-    {
-      "access_method": "heap",
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "r",
       "name": "automation_log",
@@ -18075,7 +17725,7 @@
     },
     {
       "access_method": "heap",
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "r",
       "name": "content_performance",
@@ -18091,7 +17741,7 @@
     },
     {
       "access_method": "heap",
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "r",
       "name": "daily_metrics",
@@ -18107,7 +17757,7 @@
     },
     {
       "access_method": "heap",
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "r",
       "name": "feedback",
@@ -18123,7 +17773,7 @@
     },
     {
       "access_method": "heap",
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "r",
       "name": "funnel_snapshots",
@@ -18139,7 +17789,7 @@
     },
     {
       "access_method": "heap",
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "r",
       "name": "improvement_actions",
@@ -18155,7 +17805,7 @@
     },
     {
       "access_method": "heap",
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "r",
       "name": "marketing_events",
@@ -18171,23 +17821,7 @@
     },
     {
       "access_method": "heap",
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
-      "check_count": 0,
-      "kind": "r",
-      "name": "profiles",
-      "of_type": null,
-      "owner": "postgres",
-      "partition": false,
-      "partition_bound": null,
-      "partition_key": null,
-      "persistence": "p",
-      "populated": true,
-      "replica_identity": "d",
-      "tablespace": null
-    },
-    {
-      "access_method": "heap",
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "r",
       "name": "revenue_events",
@@ -18203,23 +17837,7 @@
     },
     {
       "access_method": "heap",
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
-      "check_count": 0,
-      "kind": "r",
-      "name": "scans",
-      "of_type": null,
-      "owner": "postgres",
-      "partition": false,
-      "partition_bound": null,
-      "partition_key": null,
-      "persistence": "p",
-      "populated": true,
-      "replica_identity": "d",
-      "tablespace": null
-    },
-    {
-      "access_method": "heap",
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "r",
       "name": "settlements",
@@ -18235,7 +17853,39 @@
     },
     {
       "access_method": "heap",
-      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=rm/postgres,authenticated=arm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 4,
+      "kind": "r",
+      "name": "score_events",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "f",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{anon=rm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 0,
+      "kind": "r",
+      "name": "scans",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "d",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{anon=rm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 1,
       "kind": "r",
       "name": "contest_players",
@@ -18251,10 +17901,26 @@
     },
     {
       "access_method": "heap",
-      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=rm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 3,
       "kind": "r",
       "name": "contests",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "d",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{anon=rm/postgres,authenticated=rdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 0,
+      "kind": "r",
+      "name": "profiles",
       "of_type": null,
       "owner": "postgres",
       "partition": false,
@@ -18427,7 +18093,7 @@
     },
     {
       "access_method": null,
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "v",
       "name": "channel_effectiveness",
@@ -18443,7 +18109,7 @@
     },
     {
       "access_method": null,
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "v",
       "name": "content_insights",
@@ -18459,7 +18125,7 @@
     },
     {
       "access_method": null,
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "v",
       "name": "feedback_themes",
@@ -18475,7 +18141,7 @@
     },
     {
       "access_method": null,
-      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "v",
       "name": "funnel_health",
