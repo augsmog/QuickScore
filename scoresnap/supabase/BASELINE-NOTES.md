@@ -87,3 +87,17 @@ recorded in live.json. The baseline does not set them (postgres lacks permission
 and the local CLI 2.122.0 image does not create them. CI therefore applies
 `schema-drift/platform-emulation.sql` as local supabase_admin after `db reset`. That file is CI/offline
 only and must never be run against live.
+
+## M2 disposition (local only)
+
+See [M2-FOUNDATION.md](M2-FOUNDATION.md) for exact frozen RPC contracts, staged
+owners/milestones and apply/rollback gates. The inventory above describes captured
+**pre-apply live debt**, not a claim that every item is fixed in M2. M2 closes
+postgres future-object client defaults (including global PUBLIC EXECUTE), fixes
+seven mutable legacy paths, revokes unused TRUNCATE/REFERENCES/TRIGGER on the
+three contest tables, and gates their legacy access by protocol. Existing legacy
+DML/routine grants, unrelated ACL/view issues and share/chat privacy changes are
+staged with owners in that document. Seven live ledger markers remain expected
+until baseline adoption; local full chain has nine entries. live.json stays
+PRE-APPLY; expected-after.json describes baseline plus foundation. Anonymous Auth
+remains disabled; no hosted settings or app code changed.

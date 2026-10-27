@@ -13,13 +13,10 @@ No live apply, repair, network connection, app change, or security fix is part o
 From `scoresnap/`, with CLI **2.122.0**, Docker, psql, and Python 3:
 
 ```sh
-supabase start
+SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io supabase start -x vector,logflare,studio,imgproxy,mailpit
 supabase db reset
-psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -At -v ON_ERROR_STOP=1 -f supabase/schema-drift/catalog-query.sql > /tmp/local-catalog.json
-python3 supabase/schema-drift/drift.py normalize /tmp/local-catalog.json /tmp/local-normalized.json
-python3 supabase/schema-drift/drift.py compare supabase/schema-snapshot/live.json /tmp/local-normalized.json
-python3 supabase/schema-drift/drift.py ledger /tmp/local-catalog.json --mode local
-python3 supabase/schema-drift/selftest.py
+psql postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/schema-drift/platform-emulation.sql
+bash supabase/schema-drift/verify-foundation-ci.sh
 bash supabase/schema-drift/rehearse-ledger-adoption.sh
 supabase stop
 ```
@@ -33,7 +30,7 @@ bash scoresnap/supabase/schema-drift/verify-offline.sh
 This initializes a disposable PostgreSQL 17 cluster, executes the exact migrations
 in single-user mode with stub Auth functions/users and local roles, extracts with
 the same query, compares schema/ledger, runs fixtures, and removes the cluster.
-It tests DDL, not Auth service or RPC authorization behavior. No daemon remains.
+It tests DDL and RPC role/JWT authorization using stub Auth functions, not the Auth service. No daemon remains.
 `PGBIN` can select another PostgreSQL 17 binary directory. Requires pgcrypto and
 uuid-ossp; pg_graphql, supabase_vault, and pg_stat_statements are not installed by
 this offline harness. The pinned CI stack supplies managed prerequisites.
@@ -50,7 +47,7 @@ field, and live/local value. Unknown catalog keys also compare.
 Normalizer sorts object arrays, role/config arrays and ACL entries; enum labels, publication column lists, and paired extension config/condition lists preserve order. It strips SQL
 formatting whitespace outside quoted strings/identifiers/dollar bodies, and
 retains literal contents and function bodies. Null aggregate sections become
-empty arrays. Physical column position remains a compared field. Normalizing an
+empty arrays. Visible ordinal column order remains compared; dropped physical attnum gaps are compressed for down/reapply parity. Normalizing an
 already normalized snapshot is safe. Stored function bodies are deliberately
 stricter than semantic SQL equivalence.
 
@@ -71,7 +68,7 @@ Every exception is in `allowlist.json`:
   the baseline does not alter supabase_admin defaults. Offline setup emulates
   them. `platform_differences` is empty; no role-wide exceptions exist.
 - Migration rows are omitted from the physical comparison, then separately
-  checked for exact names/versions: live has seven, local adds the baseline.
+  checked for exact names/versions: live has seven, local adds baseline and foundation; baseline-prefix mode adds only baseline.
   Missing, extra, duplicate, or renamed ledger entries fail.
 
 Public routine ACL text and information_schema EXECUTE grants are both compared.
@@ -91,8 +88,8 @@ schema and ledger, not a second running hosted Auth service. Template0 avoids
 cloning `postgres` while stack services hold active connections.
 
 It compares this schema/ledger, runs `migration list`, asserts dry-run lists
-**only** baseline, repairs baseline to applied, lists again, asserts dry-run says
-up to date with no migration filenames, then rechecks unchanged physical schema
+**baseline plus foundation**, repairs baseline to applied, lists again, asserts
+dry-run lists only foundation, then rechecks unchanged physical schema
 and the eight-row ledger. It drops the disposable database on success. A failed
 run leaves the database for investigation; the CI stack cleanup removes it.
 
@@ -257,3 +254,17 @@ Superuser-only leakproof/all-tables publication and extension-owner mutations us
 `--admin-url`, as do platform-owned trigger/default ACL operations. No network,
 live database, Docker or M2 work was used. This verifies the pending local
 expectations; it does not replace the mandatory single fresh hosted capture.
+
+
+## M2 full-chain gate
+
+`verify-foundation-ci.sh` is the disposable-loopback-only gate used by CI. It
+rolls down the unused foundation to compare the baseline prefix against live.json,
+checks its ledger, proves baseline default privileges red, and runs M1 JSON and
+SQL mutations with both postgres and supabase_admin connections. It then reapplies
+foundation, compares the full chain to expected-after.json, checks the nine-entry
+ledger, and runs future-default, protocol/role and legacy compatibility tests.
+`check-active-sql.py` requires exact active migration names, reviewed SHA256
+hashes and git tracking. `preapply-check.sh` still uses only the PRE-APPLY live
+snapshot and seven-entry live ledger. See ../M2-FOUNDATION.md for contracts,
+staged debt and live approval requirements.

@@ -3,6 +3,7 @@
 import argparse, copy, difflib, json, pathlib, re, sys
 HERE = pathlib.Path(__file__).resolve().parent
 BASELINE = {'version': '20261027000000', 'name': 'live_baseline'}
+FOUNDATION = {'version': '20261027120000', 'name': 'sync_foundation'}
 
 def load(p):
     return json.loads(pathlib.Path(p).read_text())
@@ -14,6 +15,10 @@ def sql_space(s):
 
 def normalize(raw):
     x = copy.deepcopy(raw)
+    # Compare visible column order, not physical attnums left behind by DROP COLUMN.
+    for table in {c['table'] for c in x.get('columns', [])}:
+        for pos, col in enumerate(sorted((c for c in x['columns'] if c['table']==table), key=lambda c:c['pos']), 1):
+            col['pos'] = pos
     rules = load(HERE / 'allowlist.json')
     for k in rules['metadata_fields']:
         x.pop(k, None)
@@ -51,7 +56,7 @@ def differences(live, local):
     return out
 
 def ledger(raw, mode):
-    expected = load(HERE / 'expected-ledger.json') + ([BASELINE] if mode == 'local' else [])
+    expected = load(HERE / 'expected-ledger.json') + ([BASELINE, FOUNDATION] if mode == 'local' else [BASELINE] if mode == 'baseline' else [])
     actual = raw.get('migrations')
     if actual is None or sorted(actual,key=lambda m:m['version']) != sorted(expected,key=lambda m:m['version']):
         raise ValueError(f'{mode} ledger mismatch: expected {expected}; got {actual}')
@@ -61,7 +66,7 @@ def main():
     sub=p.add_subparsers(dest='cmd',required=True)
     n=sub.add_parser('normalize'); n.add_argument('input'); n.add_argument('output')
     c=sub.add_parser('compare'); c.add_argument('live'); c.add_argument('local')
-    l=sub.add_parser('ledger'); l.add_argument('input'); l.add_argument('--mode',choices=['live','local'],required=True)
+    l=sub.add_parser('ledger'); l.add_argument('input'); l.add_argument('--mode',choices=['live','baseline','local'],required=True)
     args=p.parse_args()
     if args.cmd=='normalize': pathlib.Path(args.output).write_text(json.dumps(normalize(load(args.input)),indent=2,sort_keys=True)+'\n')
     elif args.cmd=='ledger': ledger(load(args.input),args.mode); print('Ledger matches: '+args.mode)
