@@ -28,18 +28,11 @@ jobs:
         run: |
           supabase start -x vector,logflare,studio,imgproxy,mailpit
           supabase db reset
-      - name: Emulate hosted platform-provided supabase_admin default ACLs (local image lacks them; never run on live)
+      - name: Emulate hosted platform-provided defaults and extensions (never live)
         run: psql postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/schema-drift/platform-emulation.sql
-      - name: Extract, normalize, compare, and verify ledger
-        run: |
-          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -At -v ON_ERROR_STOP=1 -f supabase/schema-drift/catalog-query.sql > /tmp/local-catalog.json
-          python3 supabase/schema-drift/drift.py normalize /tmp/local-catalog.json /tmp/local-normalized.json
-          python3 supabase/schema-drift/drift.py compare supabase/schema-snapshot/live.json /tmp/local-normalized.json
-          python3 supabase/schema-drift/drift.py ledger /tmp/local-catalog.json --mode local
-      - name: Drift mutation fixtures
-        run: |
-          python3 supabase/schema-drift/selftest.py
-          python3 supabase/schema-drift/sql-fixtures.py --url postgresql://postgres:postgres@127.0.0.1:54322/postgres --admin-url postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres
+      - name: M1 baseline parity, ledger and mutation gates; M2 foundation, rollback, role and compatibility gates
+        run: bash supabase/schema-drift/verify-foundation-ci.sh
+
       - name: Rehearse live ledger adoption without executing baseline twice
         run: bash supabase/schema-drift/rehearse-ledger-adoption.sh
       - name: Stop local stack

@@ -43,7 +43,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON S
 ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM PUBLIC, supabase_admin;
 ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON FUNCTIONS TO postgres, anon, authenticated, service_role;
 SQL
-cat "$here"/../migrations/*.sql >> "$work/apply.sql"
+cat "$here"/../migrations/202603*.sql "$here"/../migrations/20261022*.sql "$here"/../migrations/20261027000000_live_baseline.sql >> "$work/apply.sql"
 python3 - "$here/expected-ledger.json" >> "$work/apply.sql" <<'PY'
 import json,sys
 for m in json.load(open(sys.argv[1]))+[{'version':'20261027000000','name':'live_baseline'}]:
@@ -64,7 +64,9 @@ if [[ -n "${CATALOG_OUTPUT:-}" ]]; then cp "$work/local.json" "$CATALOG_OUTPUT";
 # pg_stat_statements). Emulate their exact live rows; the pinned Supabase stack in CI compares them for real.
 python3 "$here/platform_ext.py" "$here/../schema-snapshot/live.json" "$work/local.json"
 python3 "$here/drift.py" compare "$here/../schema-snapshot/live.json" "$work/local.json"
-python3 "$here/drift.py" ledger "$work/local.json" --mode local
+python3 "$here/drift.py" ledger "$work/local.json" --mode baseline
 python3 "$here/selftest.py"
 python3 "$here/sql-fixtures.py" --pgdata "$work/db"
 echo 'PASS: PostgreSQL single-user apply + catalog parity + ledger + fixtures (no running server)'
+
+python3 "$here/verify-foundation.py"
