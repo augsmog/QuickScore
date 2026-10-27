@@ -158,7 +158,11 @@ migration up, compares expected-after and ten local ledger entries, then runs th
 M2 role/ACL/default/future/join/CAS/legacy gates and M2b guest-write guard and
 mutation gates before ledger-adoption rehearsal. Live preapply now requires the exact ordered adopted eight-row ledger (seven markers
 plus 20261027000000 live_baseline); local full-chain mode expects ten rows including M2b. Active SQL names, SHA256 and git tracking are checked.
-Rehearsal repairs only baseline; foundation must remain pending after repair.
+Rehearsal asserts exactly baseline, M2 and M2b pending in that order before
+repair: `20261027000000_live_baseline.sql`, `20261027120000_sync_foundation.sql`,
+`20261027130000_guest_write_guard.sql`. It repairs only baseline, then asserts
+exactly M2 and M2b remain pending in that order; physical schema still matches
+live.json and the ledger matches the eight-row baseline prefix.
 
 Normalization now compares **visible ordinal column order**, compressing gaps
 left by PostgreSQL DROP COLUMN. It still detects additions/removals/reordering;
@@ -214,8 +218,9 @@ red/green results, skips and the local commit outcome.
 
 ## Port onto final-candidate M1 9023862
 
-Regenerated expected-after.json with the new catalog-query.sql, PG17 single-user
-baseline + foundation, hosted role attributes/memberships, and the default ACL
+At this historical M2-only port, expected-after.json was regenerated with the
+new catalog-query.sql, PG17 single-user baseline + foundation, hosted role
+attributes/memberships, and the default ACL
 statements from platform-emulation.sql. Only unavailable platform extension
 inventory rows are injected by M1's offline platform_ext.inject; no role, ACL,
 relation or publication rows are injected. The baseline prefix and rollback both

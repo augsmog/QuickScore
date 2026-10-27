@@ -88,9 +88,17 @@ schema and ledger, not a second running hosted Auth service. Template0 avoids
 cloning `postgres` while stack services hold active connections.
 
 It compares this schema/ledger, runs `migration list`, asserts dry-run lists
-**baseline plus foundation**, repairs baseline to applied, lists again, asserts
-dry-run lists only foundation, then rechecks unchanged physical schema
-and the eight-row ledger. It drops the disposable database on success. A failed
+exactly these files in order before repair:
+
+1. `20261027000000_live_baseline.sql`
+2. `20261027120000_sync_foundation.sql` (M2)
+3. `20261027130000_guest_write_guard.sql` (M2b)
+
+It repairs only baseline to applied, lists again, and asserts the dry-run lists
+exactly M2 then M2b (`20261027120000_sync_foundation.sql`,
+`20261027130000_guest_write_guard.sql`). It then rechecks unchanged physical
+schema and the eight-row baseline ledger (seven historical markers plus
+`20261027000000 live_baseline`). It drops the disposable database on success. A failed
 run leaves the database for investigation; the CI stack cleanup removes it.
 
 The CLI gets `--db-url` with a non-postgres database name; no `--linked` and no
