@@ -5,11 +5,23 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GameType, GameConfig, Player, Course, HoleInfo, AuxiliaryData } from "../engine/types";
+import { syncRound, syncRoundGroups, syncContestTournamentMeta, syncScore } from "../services/tournament-sync";
 
 export interface ContestGroup {
   id: string;
   name: string;
   players: Player[];
+  teeTime?: string; // "10:03" or "10:03 AM"
+  externalId?: string; // External group ID (e.g. from GolfGenius)
+}
+
+export interface RoundInfo {
+  id: string;
+  number: number;
+  name: string;
+  date?: string;
+  course?: Course; // Each round can have a different course
+  groups: ContestGroup[];
 }
 
 export interface TeamInfo {
@@ -37,6 +49,10 @@ export interface Contest {
   isDemo?: boolean;
   joinCode?: string;
   liveShareEnabled?: boolean;
+  // Multi-round tournament support
+  rounds?: RoundInfo[];
+  currentRound?: number; // 1-indexed
+  isTournament?: boolean;
 }
 
 interface ContestState {
@@ -75,6 +91,12 @@ interface ContestState {
     hole: number,
     data: any
   ) => void;
+
+  // Tournament/multi-round support
+  setCurrentRound: (contestId: string, roundNumber: number) => void;
+  addRound: (contestId: string, roundName?: string) => void;
+  updateRoundGroups: (contestId: string, roundNumber: number, groups: ContestGroup[]) => void;
+  copyRoundGroups: (contestId: string, fromRound: number, toRound: number) => void;
 
   // Clear all data (used on sign-out)
   resetAll: () => void;
@@ -115,10 +137,40 @@ export const useContestStore = create<ContestState>()(
         return state.contests.find((c) => c.id === state.activeContestId);
       },
 
-      updateScore: (contestId, groupId, playerId, hole, strokes) =>
+      updateScore: (contestId, groupId, playerId, hole, strokes) => {
+        let roundId: string | null = null;
         set((state) => ({
           contests: state.contests.map((c) => {
             if (c.id !== contestId) return c;
+            // For tournaments, update the current round's groups
+            if (c.isTournament && c.rounds && c.currentRound) {
+              const currentRound = c.rounds.find(r => r.number === c.currentRound);
+              if (currentRound) {
+                roundId = currentRound.id;
+              }
+              return {
+                ...c,
+                rounds: c.rounds.map((r) => {
+                  if (r.number !== c.currentRound) return r;
+                  return {
+                    ...r,
+                    groups: r.groups.map((g) => {
+                      if (g.id !== groupId) return g;
+                      return {
+                        ...g,
+                        players: g.players.map((p) => {
+                          if (p.id !== playerId) return p;
+                          const newScores = [...p.scores];
+                          newScores[hole - 1] = strokes;
+                          return { ...p, scores: newScores };
+                        }),
+                      };
+                    }),
+                  };
+                }),
+              };
+            }
+            // Legacy: update groups directly
             return {
               ...c,
               groups: c.groups.map((g) => {
@@ -135,12 +187,45 @@ export const useContestStore = create<ContestState>()(
               }),
             };
           }),
-        })),
+        }));
+        // Sync to Supabase
+        if (roundId) {
+          syncScore(contestId, roundId, playerId, hole, strokes).catch(err =>
+            console.error('Failed to sync score:', err)
+          );
+        }
+      },
 
       importScores: (contestId, groupId, playerScores) =>
         set((state) => ({
           contests: state.contests.map((c) => {
             if (c.id !== contestId) return c;
+            // For tournaments, import into the current round's groups
+            if (c.isTournament && c.rounds && c.currentRound) {
+              return {
+                ...c,
+                rounds: c.rounds.map((r) => {
+                  if (r.number !== c.currentRound) return r;
+                  return {
+                    ...r,
+                    groups: r.groups.map((g) => {
+                      if (g.id !== groupId) return g;
+                      return {
+                        ...g,
+                        players: g.players.map((p) => {
+                          const imported = playerScores.find(
+                            (ps) => ps.playerId === p.id
+                          );
+                          if (!imported) return p;
+                          return { ...p, scores: imported.scores };
+                        }),
+                      };
+                    }),
+                  };
+                }),
+              };
+            }
+            // Legacy: import into groups directly
             return {
               ...c,
               groups: c.groups.map((g) => {
@@ -182,6 +267,110 @@ export const useContestStore = create<ContestState>()(
                   [hole]: data,
                 },
               },
+            };
+          }),
+        })),
+
+      setCurrentRound: (contestId, roundNumber) => {
+        set((state) => ({
+          contests: state.contests.map((c) =>
+            c.id === contestId ? { ...c, currentRound: roundNumber } : c
+          ),
+        }));
+        // Sync to Supabase
+        syncContestTournamentMeta(contestId, true, roundNumber).catch(err => 
+          console.error('Failed to sync current round:', err)
+        );
+      },
+
+      addRound: (contestId, roundName) => {
+        let newRound: RoundInfo | null = null;
+        set((state) => ({
+          contests: state.contests.map((c) => {
+            if (c.id !== contestId) return c;
+            const rounds = c.rounds || [];
+            const newRoundNumber = rounds.length + 1;
+            const allPlayers = c.groups.flatMap((g) => g.players);
+            // Create initial groups for new round with all players in one group
+            const newGroups: ContestGroup[] = [{
+              id: generateId(),
+              name: `Group 1`,
+              players: allPlayers.map(p => ({
+                ...p,
+                scores: new Array(c.course.holes.length).fill(0),
+              })),
+            }];
+            newRound = {
+              id: generateId(),
+              number: newRoundNumber,
+              name: roundName || `Round ${newRoundNumber}`,
+              date: new Date().toISOString().split('T')[0],
+              groups: newGroups,
+            };
+            return {
+              ...c,
+              isTournament: true,
+              rounds: [...rounds, newRound],
+              currentRound: newRoundNumber,
+            };
+          }),
+        }));
+        // Sync to Supabase
+        if (newRound) {
+          syncRound(contestId, newRound).catch(err =>
+            console.error('Failed to sync new round:', err)
+          );
+        }
+      },
+
+      updateRoundGroups: (contestId, roundNumber, groups) => {
+        let roundId: string | null = null;
+        set((state) => ({
+          contests: state.contests.map((c) => {
+            if (c.id !== contestId || !c.rounds) return c;
+            const targetRound = c.rounds.find(r => r.number === roundNumber);
+            if (targetRound) {
+              roundId = targetRound.id;
+            }
+            return {
+              ...c,
+              rounds: c.rounds.map((r) =>
+                r.number === roundNumber ? { ...r, groups } : r
+              ),
+            };
+          }),
+        }));
+        // Sync to Supabase
+        if (roundId) {
+          syncRoundGroups(contestId, roundId, groups).catch(err =>
+            console.error('Failed to sync round groups:', err)
+          );
+        }
+      },
+
+      copyRoundGroups: (contestId, fromRound, toRound) =>
+        set((state) => ({
+          contests: state.contests.map((c) => {
+            if (c.id !== contestId || !c.rounds) return c;
+            const sourceRound = c.rounds.find((r) => r.number === fromRound);
+            if (!sourceRound) return c;
+            return {
+              ...c,
+              rounds: c.rounds.map((r) => {
+                if (r.number !== toRound) return r;
+                // Copy group structure but reset scores
+                return {
+                  ...r,
+                  groups: sourceRound.groups.map((g) => ({
+                    ...g,
+                    id: generateId(), // New group ID
+                    players: g.players.map((p) => ({
+                      ...p,
+                      scores: new Array(c.course.holes.length).fill(0),
+                    })),
+                  })),
+                };
+              }),
             };
           }),
         })),
@@ -276,6 +465,48 @@ export function defaultCourse(name: string = "My Course"): Course {
     { num: 18, par: 4, hcp: 18, yards: 440 },
   ];
   return { name, holes: defaultHoles };
+}
+
+// Helper: Get the active groups for a contest (tournament-aware)
+export function getActiveGroups(contest: Contest): ContestGroup[] {
+  if (contest.isTournament && contest.rounds && contest.currentRound) {
+    const currentRound = contest.rounds.find((r) => r.number === contest.currentRound);
+    return currentRound?.groups || [];
+  }
+  return contest.groups;
+}
+
+// Helper: Get all players across all rounds for tournament leaderboard
+export function getTournamentPlayers(contest: Contest): Player[] {
+  if (!contest.isTournament || !contest.rounds) {
+    return contest.groups.flatMap((g) => g.players);
+  }
+  
+  // Aggregate scores across all rounds
+  const playerMap = new Map<string, Player>();
+  
+  for (const round of contest.rounds) {
+    for (const group of round.groups) {
+      for (const player of group.players) {
+        const existing = playerMap.get(player.id);
+        if (!existing) {
+          playerMap.set(player.id, {
+            ...player,
+            scores: [...player.scores], // Clone for aggregation
+          });
+        } else {
+          // Add this round's scores to the cumulative total
+          for (let i = 0; i < player.scores.length; i++) {
+            if (player.scores[i] > 0) {
+              existing.scores[i] = (existing.scores[i] || 0) + player.scores[i];
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  return Array.from(playerMap.values());
 }
 
 // Serialize updates so older score snapshots cannot overtake newer ones.

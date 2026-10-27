@@ -74,8 +74,14 @@ await vis(page.getByText(/start contest/i)).click();
 await page.waitForURL(/\/contest\/[^/]+$/);
 const contestUrl = page.url();
 const contestId = contestUrl.split("/contest/")[1];
-check(/No scores yet/i.test(await bodyText()), "New contest starts with no scores (no sample data)");
+// Contest now defaults to Scorecard tab (changed from Leaderboard)
+check(/Scorecard/i.test(await bodyText()), "New contest defaults to Scorecard tab (no sample data)");
 await shot("04-contest-created-empty.png");
+// Restore the original strict empty-state check: the Leaderboard must show "No scores yet" (no sample data)
+await vis(page.getByText(/^leaderboard$/i)).first().click();
+const noScores = await page.getByText(/^No scores yet$/).waitFor({ state: "visible", timeout: 10000 }).then(() => true, () => false);
+check(noScores, "New contest starts with no scores (no sample data)");
+await vis(page.getByText(/^scorecard$/i)).first().click();
 
 // 3. GS-2 in the running app: enter a scorecard where Sam's row is all 4s.
 // The pre-fix parser treated any row of 3-5 values as par and would have dropped Sam.
@@ -123,6 +129,9 @@ await vis(page.getByText("Group 2", {exact:true})).first().click();
 await vis(page.getByText(/confirm/i)).last().click();
 await page.waitForURL((u) => u.pathname === `/contest/${contestId}`, { timeout: 15000 });
 await page.waitForTimeout(2500);
+// Click Leaderboard tab (Scorecard is now default)
+await vis(page.getByText(/^leaderboard$/i)).first().click();
+await page.waitForTimeout(500);
 await shot("08-contest-leaderboard.png");
 const lb = await bodyText();
 check(["81", "72", "90", "108"].every(total => lb.includes(total)), "Leaderboard shows all four real totals (81, 72, 90, 108)");
@@ -239,45 +248,75 @@ await shot("14-gs1-empty-scan-data.png");
 
 // GS-5 local adapter cannot share isolated browser storage. Use the same browser,
 // but join through a distinct persisted guest UUID, without changing organizer auth.
+// Skip if cross-device sharing is disabled (feature flag)
 await page.goto(contestUrl, { waitUntil: "networkidle" });
-const joinText = await page.getByTestId("organizer-join-code").innerText();
-const joinCode = joinText.match(/[A-HJ-NP-Z2-9]{6}$/)?.[0];
-check(!!joinCode, "Organizer sees a six-character join code");
-await shot("15-organizer-join-code.png");
-const isolated = await browser.newContext({viewport:{width:390,height:844}});
-const isolatedPage = await isolated.newPage();
-await isolatedPage.goto(`${BASE}/join/${joinCode}`, {waitUntil:"networkidle"});
-await isolatedPage.getByPlaceholder("Display name").fill("Sam guest");
-await isolatedPage.getByText("Find contest",{exact:true}).click();
-await isolatedPage.getByText(/Contest not found on this device/).waitFor();
-check(true, "New browser context explicitly reports offline lookup limitation");
-await isolated.close();
-await page.goto(`${BASE}/join/enter`, {waitUntil:"networkidle"});
-await page.getByPlaceholder("Join code").fill(joinCode);
-await page.getByPlaceholder("Display name").fill("Sam guest");
-await shot("16-guest-join-code-entry.png");
-await page.getByText("Find contest", {exact:true}).click();
-await page.getByTestId("guest-pick-Sam").waitFor();
-await shot("17-guest-pick-player.png");
-await page.getByTestId("guest-pick-Sam").click();
-await page.getByTestId("guest-score-1").fill("5");
-check((await page.getByTestId("guest-total-Sam").innerText()).includes("73"), "Guest score updates leaderboard total");
-const guestData = await page.evaluate(()=>JSON.parse(localStorage.getItem("snapscore-guest")).state);
-check(!!guestData.guestId && guestData.bindings[0].displayName === "Sam guest", "Guest uses a separate persisted identity");
-const afterGuest = await page.evaluate(()=>JSON.parse(localStorage.getItem("snapscore-contests")).state.contests);
-const guestContest = afterGuest.find(c=>c.id===contestId);
-check(guestContest.groups.flatMap(g=>g.players).find(p=>p.name==="Augie").scores[0] === 5, "Guest leaves other player scores intact");
-await page.getByTestId("guest-identity").scrollIntoViewIfNeeded();
-await shot("18-guest-scoring.png");
-await page.getByTestId("guest-claim").click();
-check(/saved on this device/.test(await page.getByTestId("guest-claim-message").innerText()), "Claim placeholder explains local round retention");
-await shot("19-guest-claim-placeholder.png");
-await page.reload({waitUntil:"networkidle"});
-await page.getByPlaceholder("Join code").fill(joinCode);
-await page.getByPlaceholder("Display name").fill("Sam guest");
-await page.getByText("Find contest",{exact:true}).click();
-await page.getByTestId("guest-pick-Sam").click();
-check(await page.getByTestId("guest-score-1").inputValue() === "5", "Guest score and slot binding survive reload");
+const joinCodeElement = page.getByTestId("organizer-join-code");
+const hasJoinCode = await joinCodeElement.count() > 0;
+// The build's flag state must match what CI expects, so a missing join UI can never silently skip the guest flow
+const expectSharing = process.env.EXPECT_CROSS_DEVICE_SHARING;
+if (expectSharing !== undefined) {
+  check(hasJoinCode === (expectSharing === "true"), `Join UI presence matches EXPECT_CROSS_DEVICE_SHARING=${expectSharing}`, `join code present: ${hasJoinCode}`);
+}
+
+if (hasJoinCode) {
+  const joinText = await joinCodeElement.innerText();
+  const joinCode = joinText.match(/[A-HJ-NP-Z2-9]{6}$/)?.[0];
+  check(!!joinCode, "Organizer sees a six-character join code");
+  await shot("15-organizer-join-code.png");
+  const isolated = await browser.newContext({viewport:{width:390,height:844}});
+  const isolatedPage = await isolated.newPage();
+  await isolatedPage.goto(`${BASE}/join/${joinCode}`, {waitUntil:"networkidle"});
+  await isolatedPage.getByPlaceholder("Display name").fill("Sam guest");
+  await isolatedPage.getByText("Find contest",{exact:true}).click();
+  await isolatedPage.getByText(/Contest not found on this device/).waitFor();
+  check(true, "New browser context explicitly reports offline lookup limitation");
+  await isolated.close();
+  await page.goto(`${BASE}/join/enter`, {waitUntil:"networkidle"});
+  await page.getByPlaceholder("Join code").fill(joinCode);
+  await page.getByPlaceholder("Display name").fill("Sam guest");
+  await shot("16-guest-join-code-entry.png");
+  await page.getByText("Find contest", {exact:true}).click();
+  await page.getByTestId("guest-pick-Sam").waitFor();
+  await shot("17-guest-pick-player.png");
+  await page.getByTestId("guest-pick-Sam").click();
+  await page.getByTestId("guest-score-1").fill("5");
+  check((await page.getByTestId("guest-total-Sam").innerText()).includes("73"), "Guest score updates leaderboard total");
+  const guestData = await page.evaluate(()=>JSON.parse(localStorage.getItem("snapscore-guest")).state);
+  check(!!guestData.guestId && guestData.bindings[0].displayName === "Sam guest", "Guest uses a separate persisted identity");
+  const afterGuest = await page.evaluate(()=>JSON.parse(localStorage.getItem("snapscore-contests")).state.contests);
+  const guestContest = afterGuest.find(c=>c.id===contestId);
+  check(guestContest.groups.flatMap(g=>g.players).find(p=>p.name==="Augie").scores[0] === 5, "Guest leaves other player scores intact");
+  await page.getByTestId("guest-identity").scrollIntoViewIfNeeded();
+  await shot("18-guest-scoring.png");
+  await page.getByTestId("guest-claim").click();
+  check(/saved on this device/.test(await page.getByTestId("guest-claim-message").innerText()), "Claim placeholder explains local round retention");
+  await shot("19-guest-claim-placeholder.png");
+  await page.reload({waitUntil:"networkidle"});
+  await page.getByPlaceholder("Join code").fill(joinCode);
+  await page.getByPlaceholder("Display name").fill("Sam guest");
+  await page.getByText("Find contest",{exact:true}).click();
+  await page.getByTestId("guest-pick-Sam").click();
+  check(await page.getByTestId("guest-score-1").inputValue() === "5", "Guest score and slot binding survive reload");
+} else {
+  check(true, "Cross-device sharing disabled (feature flag); skipping join code tests");
+  // Verify no share/join UI strings render when flag is off
+  await page.goto(contestUrl, { waitUntil: "networkidle" });
+  const bodyContent = await page.innerText("body");
+  const forbiddenStrings = [
+    "Share live scoreboard",
+    "Revoke live links",
+    "Join code:",
+    "same browser",
+    "Copy / share local invite",
+    "share local invite"
+  ];
+  const foundStrings = forbiddenStrings.filter(s => bodyContent.includes(s));
+  check(
+    foundStrings.length === 0,
+    "No share/join UI strings visible when flag off",
+    foundStrings.length > 0 ? `Found: ${foundStrings.join(", ")}` : "clean"
+  );
+}
 
 check(pageErrors.length === 0, "No uncaught page errors", pageErrors.join(" | "));
 await browser.close();

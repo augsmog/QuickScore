@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Camera, Edit3 } from "lucide-react-native";
+import { ChevronLeft, Camera, Edit3, Calendar } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
@@ -15,8 +15,8 @@ import GamesScreen from "./games";
 import SettlementScreen from "./settlement";
 
 const TABS = [
-  { key: "leaderboard", label: "Leaderboard", Screen: LeaderboardScreen },
   { key: "scorecard", label: "Scorecard", Screen: ScorecardScreen },
+  { key: "leaderboard", label: "Leaderboard", Screen: LeaderboardScreen },
   { key: "games", label: "Games", Screen: GamesScreen },
   { key: "settlement", label: "Settlement", Screen: SettlementScreen },
 ] as const;
@@ -29,7 +29,7 @@ export default function ContestLayout() {
   const contest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
-  const [activeTab, setActiveTab] = useState<TabKey>("leaderboard");
+  const [activeTab, setActiveTab] = useState<TabKey>("scorecard");
 
   const handleTabPress = useCallback(
     (tabKey: TabKey) => {
@@ -71,11 +71,11 @@ export default function ContestLayout() {
   const ActiveScreen = TABS.find((t) => t.key === activeTab)!.Screen;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeAreaView testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       <ContestJoinCode contest={contest} />
       <LiveShare contest={contest} />
       {/* Header */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
+      <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <AnimatedPressable
             onPress={() => router.back()}
@@ -95,8 +95,23 @@ export default function ContestLayout() {
             </Text>
             <Text style={{ color: COLORS.textDim, fontFamily: FONTS.regular, fontSize: 13 }}>
               {contest.course.name} · {allPlayers.length} players
+              {contest.isTournament && contest.rounds && ` · Round ${contest.currentRound || 1}`}
             </Text>
           </View>
+          {contest.status === "active" && contest.isTournament && (
+            <AnimatedPressable
+              onPress={() => router.push(`/contest/${id}/tournament-rounds` as any)}
+              style={{
+                borderRadius: RADII.sm,
+                padding: 8,
+                backgroundColor: COLORS.card,
+                borderColor: COLORS.border,
+                borderWidth: 1,
+              }}
+            >
+              <Calendar size={16} color={COLORS.textDim} />
+            </AnimatedPressable>
+          )}
           {contest.status === "active" && (
             <AnimatedPressable
               onPress={() => router.push(`/contest/${id}/edit` as any)}

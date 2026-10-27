@@ -18,6 +18,8 @@ export interface Player {
   id: string;
   name: string;
   handicap: number;
+  courseHandicaps?: Record<string, number>; // Per-course handicaps, keyed by course name or ID
+  status?: "active" | "WD" | "NS"; // WD = withdrew, NS = no-show
   team?: string | null; // team ID/name, null = no team
   scores: number[]; // 18 holes, 0 = not yet played
   putts?: number[]; // 18 holes, 0 = not entered (for Snake)

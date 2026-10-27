@@ -34,9 +34,15 @@ drop policy if exists "Users can join contests" on public.contest_players;
 create policy "Users can join contests" on public.contest_players for insert to authenticated
   with check (user_id = auth.uid());
 
-drop policy if exists "Participants can view scores" on public.score_events;
-create policy "Participants can view scores" on public.score_events for select to authenticated
-  using (public.is_contest_member(contest_id));
-drop policy if exists "Participants can insert scores" on public.score_events;
-create policy "Participants can insert scores" on public.score_events for insert to authenticated
-  with check (public.is_contest_member(contest_id) and entered_by = auth.uid());
+-- score_events policies only if table exists (table may not exist in all environments)
+do $$ 
+begin
+  if exists (select from pg_tables where schemaname = 'public' and tablename = 'score_events') then
+    drop policy if exists "Participants can view scores" on public.score_events;
+    create policy "Participants can view scores" on public.score_events for select to authenticated
+      using (public.is_contest_member(contest_id));
+    drop policy if exists "Participants can insert scores" on public.score_events;
+    create policy "Participants can insert scores" on public.score_events for insert to authenticated
+      with check (public.is_contest_member(contest_id) and entered_by = auth.uid());
+  end if;
+end $$;

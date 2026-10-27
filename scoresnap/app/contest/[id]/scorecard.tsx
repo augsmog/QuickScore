@@ -26,7 +26,7 @@ import {
   scoreColor,
   scoreName,
 } from "../../../src/ui/theme";
-import { useContestStore } from "../../../src/stores/contest-store";
+import { useContestStore, getActiveGroups } from "../../../src/stores/contest-store";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AuxiliaryPrompt, {
   needsAuxiliaryPrompt,
@@ -52,7 +52,9 @@ export default function ScorecardScreen() {
 
   if (!contest) return null;
 
-  const group = contest.groups[selectedGroup];
+  // For tournaments, use current round's groups; for legacy, use contest groups
+  const activeGroups = getActiveGroups(contest);
+  const group = activeGroups[selectedGroup];
   if (!group) return null;
 
   const holeData = contest.course.holes[currentHole - 1];
@@ -236,7 +238,7 @@ export default function ScorecardScreen() {
   }, [advanceToNextHole]);
 
   const handleFinalizeRound = useCallback(() => {
-    const allPlayers = contest.groups.flatMap((g) => g.players);
+    const allPlayers = activeGroups.flatMap((g) => g.players);
     const totalScores = allPlayers.reduce(
       (sum, p) => sum + p.scores.filter((s) => s > 0).length,
       0
@@ -463,9 +465,9 @@ export default function ScorecardScreen() {
         )}
 
         {/* Group Selector (if multiple groups) */}
-        {contest.groups.length > 1 && (
+        {activeGroups.length > 1 && (
           <View style={{ flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 20, marginBottom: 4, gap: 8 }}>
-            {contest.groups.map((g, gi) => (
+            {activeGroups.map((g, gi) => (
               <Pressable
                 key={g.id}
                 onPress={() => {
