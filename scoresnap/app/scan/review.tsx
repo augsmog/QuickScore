@@ -27,7 +27,7 @@ import type { Contest, ContestGroup } from "../../src/stores/contest-store";
 import { ConfettiOverlay } from "../../src/ui/animations/ConfettiOverlay";
 
 import type { ScannedPlayer } from "../../src/services/score-parser";
-import { parseReviewData, grossScore, subtotal, blockingReason, completeScores, commitQuickSettle } from "../../src/services/ocr-review";
+import { autoMatchPlayers, parseReviewData, grossScore, subtotal, blockingReason, completeScores, commitQuickSettle } from "../../src/services/ocr-review";
 
 interface ConcernItem {
   type: "name" | "score";
@@ -69,7 +69,7 @@ export default function ScanReviewScreen() {
           parseError: "Invalid scorecard data: no players found in the scan.",
         };
       }
-      return { initialPlayers: parsed, parseError: null };
+      return { initialPlayers: autoMatchPlayers(parsed, contest?.groups.find(g => g.id === (groupId || contest.groups[0]?.id))?.players ?? []), parseError: null };
     } catch (error) {
       if (error instanceof SyntaxError) {
         return {
@@ -158,7 +158,12 @@ export default function ScanReviewScreen() {
     setSelectedCell(null);
   };
 
-  const matchToPlayer = (scannedIdx: number, playerId: string) => {
+  const matchToPlayer = (scannedIdx: number, playerId: string | null) => {
+    if (playerId === null) {
+      setScannedPlayers(prev => prev.map((p, i) => i === scannedIdx ? { ...p, matchedPlayerId: null } : p));
+      setShowPlayerMatchModal(null);
+      return;
+    }
     const player = contest?.groups.flatMap((g) => g.players).find((p) => p.id === playerId);
     if (player) {
       setScannedPlayers((prev) =>
@@ -232,7 +237,7 @@ export default function ScanReviewScreen() {
     }
   };
 
-  const existingPlayers = contest?.groups.flatMap((g) => g.players) || [];
+  const existingPlayers = contest?.groups.find(g => g.id === selectedGroupId)?.players || [];
 
   // Show error screen if parsing failed
   if (parseError) {
@@ -576,7 +581,7 @@ export default function ScanReviewScreen() {
                         <Edit3 size={11} color={COLORS.textDim} />
                       </Pressable>
                     )}
-                    {existingPlayers.length > 0 && !isMatched && (
+                    {contestId && (
                       <Pressable
                         onPress={() => setShowPlayerMatchModal(pi)}
                         style={{
@@ -586,7 +591,7 @@ export default function ScanReviewScreen() {
                           backgroundColor: COLORS.secondaryContainer,
                         }}
                       >
-                        <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold, fontSize: 10 }}>Match</Text>
+                        <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold, fontSize: 10 }}>{isMatched ? "Rematch" : "Match"}</Text>
                       </Pressable>
                     )}
                   </View>
@@ -922,6 +927,9 @@ export default function ScanReviewScreen() {
               Link "{showPlayerMatchModal !== null ? scannedPlayers[showPlayerMatchModal]?.name : ""}" to an existing contest player
             </Text>
 
+            <Pressable accessibilityLabel="Clear player match" onPress={() => {
+              if (showPlayerMatchModal !== null) matchToPlayer(showPlayerMatchModal, null);
+            }}><Text>Clear match</Text></Pressable>
             {existingPlayers.map((player) => (
               <Pressable
                 key={player.id}

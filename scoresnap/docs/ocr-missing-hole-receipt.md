@@ -28,3 +28,20 @@ Failed SIGTRAP: `setsockopt: Operation not permitted`. No PNG claimed.
 Pending: integrated device evidence (large text, numpad/reason visibility, assistive announcements and existing UI rules); independent verifier PASS; exact candidate/back-button reconciliation and M3/M4 owner review; PR CI (web-smoke, ios-boot-smoke, tournament-e2e, schema-drift). Local-only/no-push instructions preclude PR/merge and release actions here. Actual pre-merge main SHA, merge method/revert command and rehearsal require the future integrated candidate. Oct 30 runner/cutoff, M6/M7 and Apple processing remain unconfirmed; no delivery/inclusion claimed. No dedicated build or migration. Code rollback does not repair old imported zeros; distributed regression needs a replacement Apple-processed build or OCR import held.
 
 Commit attempt: `git add … && git commit -m "SnapScore: missing OCR holes stay blank (proto 2026-10-26)"` failed before staging: `.git/index.lock: Read-only file system`. The sandbox mounts this clone's `.git` read-only and approval is unavailable. An offline commit patch is saved at `/tmp/snapscore-ocr-missing-hole.patch` using temporary writable Git metadata; the current clone's branch cannot be updated here. No source/remote refs were changed.
+
+
+## Fix round 1
+
+Read the cut and independent FAIL report for PR #29 at `4c5f33e`. Restored automatic matching for null IDs only when case-insensitive exact names are unique on both sides in the selected group and no explicit row reserves the target. Duplicate names, unmatched rows and duplicate IDs still block visibly; no positional or zero-score fallback. Match/rematch stays available on every contest row, including invalid mappings; Clear match removes an assignment, and choices are limited to the selected group.
+
+ML Kit now keeps unnumbered player names clean and retains candidate score cells at confidence 0 with an explicit alignment block. Numbered collisions/offsets retain every recognized reading in that block rather than discarding them. Corpus expectations now require retained identity, zero confidence and the block, replacing the all-null success expectation.
+
+Validation from `scoresnap/` (reused `/workspace/QuickScore/scoresnap/node_modules`, unchanged versions):
+
+- `node_modules/.bin/jest tests/ocr-missing-hole.test.cjs tests/engine.test.cjs tests/error-back.test.cjs tests/scorecard-corpus.test.cjs --runInBand`: **199 passed, 4 suites passed**. Includes the actual review screen with the web smoke's Augie/Sam/Lee/Pat scanData URL payload, enabled Confirm, exact successful store import, duplicate selection → blocked → clear/rematch → enabled, and wrong-group mapping recovery. Tests also cover exact-name ambiguity and ML Kit absent headers/collisions/offsets.
+- `node --import tsx src/services/__tests__/ocr-client.test.ts`: **18 passed, 0 failed**.
+- `node_modules/.bin/tsc --noEmit`: exits 2, **45 diagnostics**, identical diagnostic set to archived original head using the same dependencies; **0 new diagnostics**.
+- Smoke located at `e2e/web-real-flow.mjs` ("Confirm returns to the contest"). Browser preflight with Playwright Chromium failed at launch (sandbox closes the browser); the full browser smoke was not run. The executable component/store test above covers its payload and import regression. No green browser/remote CI claim.
+- `git diff --check`: passed. Excluded Supabase, workflows, build configuration, package versions, share/join UI, headers and game sheets untouched. No push or remote write.
+
+Fix-round commit attempt with message `SnapScore OCR missing-hole: fix round 1 (auto-match, ML Kit readings, rematch)` failed: `.git/index.lock: Read-only file system`. Changes remain in this isolated worktree, uncommitted, per instruction. No pushes.

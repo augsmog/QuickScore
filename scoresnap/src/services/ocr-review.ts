@@ -70,3 +70,15 @@ export function applyCourseHoles(players: ScannedPlayer[], holes?: number[]): Sc
     return p;
   });
 }
+
+/** Exact names may establish identity only when both sides are unambiguous. */
+export function autoMatchPlayers(rows: ScannedPlayer[], targets: {id: string; name: string}[]): ScannedPlayer[] {
+  const key = (name: string) => name.trim().toLowerCase();
+  return rows.map(row => {
+    if (row.matchedPlayerId !== null) return row;
+    const matches = targets.filter(target => key(target.name) === key(row.name));
+    if (matches.length !== 1 || rows.filter(other => key(other.name) === key(row.name)).length !== 1 ||
+        rows.some(other => other.matchedPlayerId === matches[0].id)) return row;
+    return { ...row, matchedPlayerId: matches[0].id };
+  });
+}

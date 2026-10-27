@@ -56,7 +56,10 @@ test('unnumbered ML geometry blocks ambiguous alignment, fallback failure retain
  recognized=geometry([['Player A','4','5','4']]);response={error:{message:'mock failure'}};
  const warn=jest.spyOn(console,'warn').mockImplementation(()=>{});
  const result=await service.scanScorecard('x');warn.mockRestore();
- expect(result.players[0].scores).toEqual(Array(18).fill(null));expect(review.blockingReason(result.players)).toMatch(/blank/);
+ expect(result.players[0].name).toBe('Player A');
+ expect(result.players[0].scores.slice(0,3)).toEqual([4,5,4]);
+ expect(result.players[0].confidence).toEqual(Array(18).fill(0));
+ expect(review.blockingReason(result.players)).toMatch(/Ambiguous score alignment/);
 });
 for(const first of [1,10]) test(`explicit nine-hole identities ${first} retained without unused blanks`,()=>{
  const p=parser.parseScoreGrid([['Hole',...Array.from({length:9},(_,i)=>String(i+first))],['Player A',...Array(9).fill('4')]]).players[0];
@@ -134,4 +137,64 @@ test('selected front/back course metadata survives camera and pasted route data'
  }
  const full=review.applyCourseHoles([review.normalizePlayer(raw())],Array.from({length:9},(_,i)=>i+10));
  expect(full[0].scores).toEqual(Array(18).fill(4));expect(review.blockingReason(full)).toMatch(/do not match/);
+});
+
+test('ML collision and offset keep all readings in an explicit alignment block', async()=>{
+ for (const offset of [0,45]) {
+  recognized=geometry([['Hole',...Array.from({length:18},(_,i)=>String(i+1))],['Player A','4','5','6']]);
+  const elements=recognized.blocks[0].lines[0].elements;
+  elements[elements.length-1].frame.left=offset ? 300+offset : 200;
+  const p=(await ml.recognizeWithMLKit('x')).players[0];
+  expect(p.name).toBe('Player A');expect(p.alignmentError).toContain('Readings: 4, 5, 6');
+  expect(p.confidence.every(c=>c===0)).toBe(true);
+ }
+});
+test('exact-name matching rejects ambiguous names and reserved targets',()=>{
+ expect(review.autoMatchPlayers([review.normalizePlayer({...raw(),name:'aUgIe'})],[{id:'a',name:'Augie'}])[0].matchedPlayerId).toBe('a');
+ const rows=['Augie','augie','Other'].map(name=>review.normalizePlayer({...raw(),name}));
+ expect(review.autoMatchPlayers(rows,[{id:'a',name:'Augie'}]).every(p=>p.matchedPlayerId===null)).toBe(true);
+ expect(review.autoMatchPlayers([rows[0]],[{id:'a',name:'Augie'},{id:'b',name:'AUGIE'}])[0].matchedPlayerId).toBeNull();
+ expect(review.autoMatchPlayers([rows[0],{...rows[2],matchedPlayerId:'a'}],[{id:'a',name:'Augie'}])[0].matchedPlayerId).toBeNull();
+});
+test('smoke scanData URL enables Confirm, imports, and duplicate mapping can be corrected',()=>{
+ const names=['Augie','Sam','Lee','Pat'];
+ const scores=[[5,6,4,3,5,4,4,6,5,4,5,3,6,4,5,3,5,4],... [4,5,6].map(n=>Array(18).fill(n))];
+ const targets=names.map((name,i)=>({id:String(i),name,handicap:0,scores:Array(18).fill(0)}));
+ const contest={id:'smoke',course:{holes:Array.from({length:18},(_,i)=>({num:i+1,par:4}))},groups:[{id:'g',players:targets},{id:'other',players:[{id:'wrong',name:'Wrong'}]}]};
+ store.setState({contests:[contest]});
+ const url=new URL('http://localhost/scan/review?contestId=smoke&groupId=g&scanData='+encodeURIComponent(JSON.stringify(names.map((name,i)=>({...raw(scores[i]),name,matchedPlayerId:null})))));
+ let states=[],cursor=0;
+ const jsx=(type,props)=>({type,props});
+ const hooks={useState:init=>{const i=cursor++;if(!(i in states))states[i]=typeof init==='function'?init():init;return [states[i],value=>{states[i]=typeof value==='function'?value(states[i]):value;}];},useMemo:fn=>fn(),useEffect:()=>{}};
+ const screen=load('app/scan/review.tsx',{
+ react:hooks,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':Object.fromEntries(['View','Text','ScrollView','Pressable','TextInput','Modal','Image'].map(n=>[n,n])),
+ 'expo-router':{useRouter:()=>({}),useLocalSearchParams:()=>Object.fromEntries(url.searchParams)},
+ 'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'lucide-react-native':{},
+ 'expo-haptics':{notificationAsync:()=>{},NotificationFeedbackType:{Success:'success'}},'../../src/ui/theme':load('src/ui/theme.ts'),
+ '../../src/stores/contest-store':{useContestStore:select=>select(store.getState())},
+ '../../src/services/ocr-review':review,'../../src/ui/animations/ConfettiOverlay':{ConfettiOverlay:'Confetti'},
+ }).default;
+ let nodes;
+ const render=()=>{cursor=0;nodes=[];const walk=n=>{if(!n||typeof n!=='object')return;if(Array.isArray(n)){n.forEach(walk);return;}nodes.push(n);walk(n.props?.children);};walk(screen());};
+ const text=n=>typeof n==='string'?n:Array.isArray(n)?n.map(text).join(''):text(n?.props?.children??'');
+ const button=label=>nodes.filter(n=>n.type==='Pressable' && text(n)===label).at(-1);
+ const target=name=>nodes.find(n=>n.type==='Pressable' && text(n).includes('HCP ') && text(n).includes(name));
+ const confirm=()=>nodes.find(n=>n.type==='Pressable' && text(n).startsWith('Confirm'));
+ render();expect(confirm().props.disabled).toBeFalsy();
+ // Rematch Sam to Augie: duplicate must block but remain recoverable.
+ nodes.filter(n=>n.type==='Pressable'&&text(n)==='Rematch')[1].props.onPress();render();
+ target('Augie').props.onPress();render();expect(confirm().props.disabled).toBeTruthy();
+ expect(nodes.filter(n=>n.type==='Pressable'&&text(n)==='Rematch')).toHaveLength(4);
+ nodes.filter(n=>n.type==='Pressable'&&text(n)==='Rematch')[1].props.onPress();render();
+ expect(target('Wrong')).toBeUndefined();
+ nodes.find(n=>n.props?.accessibilityLabel==='Clear player match').props.onPress();render();
+ expect(confirm().props.disabled).toBeTruthy();button('Match').props.onPress();render();target('Sam').props.onPress();render();
+ expect(confirm().props.disabled).toBeFalsy();confirm().props.onPress();
+ expect(store.getState().contests[0].groups[0].players.map(p=>p.scores)).toEqual(scores);
+ // A supplied wrong-group mapping also keeps controls available for recovery.
+ const wrong=JSON.parse(url.searchParams.get('scanData'));wrong[0].matchedPlayerId='wrong';
+ url.searchParams.set('scanData',JSON.stringify(wrong));states=[];render();
+ expect(confirm().props.disabled).toBeTruthy();
+ nodes.filter(n=>n.type==='Pressable'&&text(n)==='Rematch')[0].props.onPress();render();
+ target('Augie').props.onPress();render();expect(confirm().props.disabled).toBeFalsy();
 });

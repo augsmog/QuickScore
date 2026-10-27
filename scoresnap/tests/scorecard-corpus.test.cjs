@@ -59,8 +59,9 @@ for (const fixture of fixtures) {
     const hasHeader = rows.some(r => /^holes?:?$/i.test(r[0] ?? ''));
     if (hasHeader) expect(actual.players).toEqual(expected.players);
     else {
-      // Unnumbered image columns cannot prove alignment: never compact scores.
-      expect(actual.players.every(p => p.scores.every(s => s === null))).toBe(true);
+      // Candidate readings remain blocked until entered on verified holes.
+      expect(actual.players.every(p => /Ambiguous score alignment.*Readings:/.test(p.alignmentError))).toBe(true);
+      expect(actual.players.every(p => rows.some(r => r[0] === p.name))).toBe(true);
       expect(actual.players.every(p => p.confidence.every(c => c === 0))).toBe(true);
     }
     if (hasHeader) expect(actual.parRow).toEqual(expected.parRow);

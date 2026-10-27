@@ -36,10 +36,18 @@ export async function recognizeWithMLKit(
   const rawText = result.text;
 
   // Extract text blocks and organize into a grid
-  const grid = extractGrid(result.blocks);
+  const ambiguous = new Map<string, string[]>();
+  const grid = extractGrid(result.blocks, ambiguous);
 
   // Parse the grid into structured player data
   const parsed = parseScoreGrid(grid);
+  for (const player of parsed.players) {
+    const readings = ambiguous.get(player.name);
+    if (readings) {
+      player.alignmentError = `Ambiguous score alignment for ${player.name}. Readings: ${readings.join(", ")}. Enter scores manually on matching holes.`;
+      player.confidence = player.scores.map(() => 0);
+    }
+  }
 
   // Calculate average confidence
   const allConfidences = parsed.players.flatMap((p) => [
@@ -64,7 +72,7 @@ export async function recognizeWithMLKit(
  * Groups text elements by vertical position (y-coordinate) to form rows,
  * then sorts each row left-to-right.
  */
-function extractGrid(blocks: TextBlock[]): string[][] {
+function extractGrid(blocks: TextBlock[], ambiguous: Map<string, string[]>): string[][] {
   // Collect all text elements with their positions
   const elements: { text: string; x: number; y: number; height: number }[] = [];
 
@@ -112,8 +120,11 @@ function extractGrid(blocks: TextBlock[]): string[][] {
   const header = rows.find(row => /^holes?:?$/i.test(row[0]?.text ?? ""));
   const columns = header?.slice(1);
   if (!columns || ![9,18].includes(columns.filter(c => /^\d+$/.test(c.text)).length)) {
-    // No safe geometry: preserve text as names but leave every hole blank.
-    return rows.filter(row => isPlayerName(row[0]?.text ?? "")).map(row => [row.map(e => e.text).join(" "), "", ""]);
+    // Candidate cells are editable, but their hole identities are unverified.
+    return rows.filter(row => isPlayerName(row[0]?.text ?? "")).map(row => {
+      ambiguous.set(row[0].text, row.slice(1).map(e => e.text));
+      return [row[0].text, ...row.slice(1).map(e => e.text), "", ""];
+    });
   }
   return rows.map(row => {
     if (row === header) return row.map(e => e.text);
@@ -122,7 +133,10 @@ function extractGrid(blocks: TextBlock[]): string[][] {
       const distances = columns.map(c => Math.abs(c.x - el.x));
       const i = distances.indexOf(Math.min(...distances));
       const spacing = Math.min(...columns.filter((_, j) => j !== i).map(c => Math.abs(c.x - columns[i].x)));
-      if (distances[i] > spacing * 0.4 || cells[i]) return [row[0].text, "", ""];
+      if (distances[i] > spacing * 0.4 || cells[i]) {
+        ambiguous.set(row[0].text, row.slice(1).map(e => e.text));
+        return [row[0].text, "", ""];
+      }
       cells[i] = el.text;
     }
     return [row[0].text, ...cells];
