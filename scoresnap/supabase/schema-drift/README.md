@@ -3,9 +3,9 @@
 M1 replaces the incompatible 001–008 executable chain with seven provenance-only
 markers and `20261027000000_live_baseline.sql`. The markers match the exact live
 ledger names/versions; baseline creates the physical schema only for fresh local
-stacks. The committed snapshot merges the 2026-10-26 20:12 MST live capture with
-the ~20:35 and ~20:58 MST supplemental captures. See
-`../schema-snapshot/PROVENANCE.md` for the per-key source.
+stacks. The current live snapshot is the single post-M2/M2b capture from
+2026-10-27 02:20 MST. `baseline.json` preserves the historical pre-M2 snapshot
+for baseline and rollback checks. See `../schema-snapshot/PROVENANCE.md`.
 No live apply, repair, network connection, app change, or security fix is part of M1.
 
 ## Run locally
@@ -65,8 +65,8 @@ expectations come from expected-ledger.json and drift.py, as described below.
   schema, relocation flag and dump config/conditions remain compared by drift.py.
   Offline PostgreSQL supplies only pgcrypto, uuid-ossp and plpgsql. Before offline
   comparison, platform_ext.py copies missing pg_graphql, pg_stat_statements and
-  supabase_vault records verbatim from live.json; verify-foundation.py uses the
-  same injection. Offline parity therefore does not independently verify those
+  supabase_vault records verbatim from baseline.json; verify-foundation.py uses
+  live.json for the same extension-only injection. Offline parity therefore does not independently verify those
   three extensions or their installation. CI installs real extensions and compares
   their extracted records without this injection; other missing inventory fails.
 - Default ACL scope: **every role's global** defaults (namespace zero rendered
@@ -75,7 +75,7 @@ expectations come from expected-ledger.json and drift.py, as described below.
   the baseline does not alter supabase_admin defaults. Offline setup emulates
   them. `platform_differences` is empty; no role-wide exceptions exist.
 - Migration rows are omitted from the physical comparison, then separately
-  checked for exact names/versions: live requires the adopted eight rows in exact order; baseline has the same eight rows; local adds M2 and M2b (ten rows). Historical pre-adoption mode has seven rows. Only live mode checks input order; the other modes sort by version before checking.
+  checked for exact names/versions: live requires the applied ten rows in exact order; baseline retains the first eight rows; local has the full ten rows. Historical pre-adoption mode has seven rows. Only live mode checks input order; the other modes sort by version before checking.
   Missing, extra, duplicate, or renamed ledger entries fail.
 
 Public routine ACL text and information_schema EXECUTE grants are both compared.
@@ -126,31 +126,37 @@ bash scoresnap/supabase/schema-drift/preapply-check.sh /path/to/fresh-live-catal
 
 The guard uses only Python and the provided file: it never connects or writes to
 live, reads no credentials, and never invokes Supabase. It normalizes both sides,
-compares schema and the exact ordered eight-row adopted live ledger in
-`expected-ledger.json`, and fails closed with a human diff. Baseline adoption was
-approved by Augie on 2026-10-26 at 23:11 MST for `pltgbizexllikiwryozm`.
-On success it prints:
+compares schema to the post-M2b `live.json` and the exact ordered ten-row live
+ledger in `expected-ledger.json`, and fails closed with a human diff.
+M2 and M2b were applied live with Augie approval on 2026-10-27 at approximately
+02:20 MST. On success it prints:
 
 ```text
 Schema matches
 Ledger matches: live
 Guard passed.
-Next: apply approved M2 (20261027120000_sync_foundation), then M2b (20261027130000_guest_write_guard), per the live-apply plan.
+Next: M3 requires separate approval; no approved apply is pending.
 ```
 
-Follow the approved live-apply plan for M2 then M2b. Baseline repair is already
-complete; never execute baseline DDL on live. The guard itself performs no apply.
+No approved apply is pending. M3 requires separate approval. Baseline repair is
+complete; never execute baseline DDL on live. The guard performs no apply.
 See [LIVE-APPLY-PREFLIGHT.md](LIVE-APPLY-PREFLIGHT.md) for checksums.
 
 After an approved future live schema change, save the fresh read-only raw capture,
-review the diff against the expected forward migration, update expected physical
-snapshot with `drift.py normalize RAW schema-snapshot/live.json`, and update the
-ledger expectation/code for that approved milestone. Review those updates in a PR
-and run identity/mutation/local parity/rehearsal checks. Do not refresh merely to
-silence unexpected drift or expand the allowlist to hide app differences. The live guard accepts only the adopted eight-entry ledger, including the exact
-`20261027000000 live_baseline` row. Seven, nine, ten, missing, renamed, reordered,
-duplicate, extra, and other baseline variants fail; subsequent milestones must
-explicitly revise that expectation.
+review the diff against the expected migration, normalize it over `live.json`,
+and explicitly update ledger expectations for that milestone. Do not refresh to
+silence unexpected drift or expand the allowlist to hide app differences.
+Eight, nine, eleven, missing, renamed, reordered, duplicate, extra and wrong
+baseline variants fail the live gate. Baseline/local/pre-adoption modes retain
+historical CI/rehearsal semantics; baseline physical checks use `baseline.json`.
+
+SHA256 (files in this directory):
+
+```text
+c8fd85bd1acc57ab87dbb6294baa8488f464d9953eacc96068feab2318b99388  preapply-check.sh
+28fe833309d506592aa3201742ce5c1ef1b28d3fcf020e48255bbdacbd484486  drift.py
+b3335057646f63786a439d5e14012d10080ecfb23c907713161320695b28ece7  expected-ledger.json
+```
 
 ## Historical verification receipt (fix round 1)
 
@@ -288,7 +294,7 @@ executes those four, so CI executes 56 SQL mutations plus the RLS behavior probe
 `verify-foundation-ci.sh` is the disposable-loopback-only gate used by CI. It
 rolls down M2b first and requires the guest-contest failure, runs the unsafe
 rollback race red, restores/reapplies M2 and runs the guarded race green, then
-rolls down the unused foundation to compare the baseline prefix against live.json,
+rolls down the unused foundation to compare the baseline prefix against baseline.json,
 checks its ledger, proves baseline default privileges red, and runs M1 JSON and
 SQL mutations with both postgres and supabase_admin connections. It then reapplies
 M2 foundation and M2b guest guard, compares the full chain to expected-after.json,
@@ -297,6 +303,6 @@ and checks the ten-entry local ledger: seven historical markers +
 `20261027130000 guest_write_guard`. It runs future-default, protocol/role, legacy
 compatibility, guest-write guard and guest-guard mutation tests.
 `check-active-sql.py` requires exact active migration names, reviewed SHA256
-hashes and git tracking. `preapply-check.sh` still uses only the PRE-APPLY live
-snapshot and adopted eight-entry live ledger. See ../M2-FOUNDATION.md for contracts,
+hashes and git tracking. `preapply-check.sh` uses the post-M2b live
+snapshot and exact ordered ten-entry live ledger. See ../M2-FOUNDATION.md for contracts,
 staged debt and live approval requirements.

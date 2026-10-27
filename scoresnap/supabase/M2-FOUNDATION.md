@@ -1,12 +1,13 @@
 # M2 sync foundation (stacked on M1)
 
-Local implementation only. No hosted change, network call, Auth configuration
-change, enrollment or client change was performed. Delivery remains staged:
+Applied live with Augie approval on 2026-10-27 at approximately 02:20 MST,
+followed by M2b. This local snapshot refresh used no network or live database.
+The migration does not enable Auth or enroll clients. Delivery remains staged:
 rounds plus rewritten-008 tournaments first; leagues M9, extras M10. Initial
 claims and new-phone recovery use host approval; no slot PIN or name takeover.
 Live anonymous sign-ins were DISABLED in the read-only 21:11 capture. Nothing
 here enables them, even locally; SQL tests simulate verified JWT claims. Live
-Auth enablement and live apply need Augie's yes.
+Auth enablement remains a separate Augie decision.
 
 ## Migration and security boundary
 
@@ -123,7 +124,7 @@ checks precede receipt replay, including for revoked identities.
 
 ## Staged debt and owners
 
-The exact baseline inventory stays in BASELINE-NOTES.md and live.json. No broad
+The exact baseline inventory stays in BASELINE-NOTES.md and baseline.json. No broad
 legacy grant or SECURITY DEFINER entry point is silently declared safe.
 
 | Inventory retained | Owner / exit milestone |
@@ -145,32 +146,33 @@ assignment/scorer authorization is implied; it is explicitly denied.
 
 ## Verification and drift
 
-`schema-snapshot/live.json` remains the untouched PRE-APPLY capture. The new
-expected-after.json is the normalized catalog for the full local chain, including
+`schema-snapshot/live.json` is the normalized post-apply capture; baseline.json
+preserves the pre-M2 schema. expected-after.json is the full-chain catalog, including
 M2b. The separately checked local ledger contains seven historical markers + `20261027000000 live_baseline` +
 `20261027120000 sync_foundation` + `20261027130000 guest_write_guard` (ten ledger
 rows); normalization removes ledger rows from expected-after.json. CI starts CLI 2.122.0 with ghcr.io, resets the full chain, and applies hosted
 platform emulation as supabase_admin. It rolls down M2b and requires the guest-contest red result, runs the unsafe
 rollback race red, restores/reapplies M2 and runs the guarded race green, then
 rolls down the unused foundation,
-compares baseline to live.json (eight local ledger entries), requires the default
+compares baseline to baseline.json (eight local ledger entries), requires the default
 fixture to fail on baseline, and runs M1 selftest and SQL mutation/preapply
 rejection fixtures with --url/--admin-url (four reserved-role mutations run
 only in offline PG17 because of supautils). It reapplies both M2 and M2b with CLI
 migration up, compares expected-after and ten local ledger entries, then runs the
 M2 role/ACL/default/future/join/CAS/legacy gates and M2b guest-write guard and
-mutation gates before ledger-adoption rehearsal. Live preapply now requires the exact ordered adopted eight-row ledger (seven markers
-plus 20261027000000 live_baseline); local full-chain mode expects ten rows including M2b. Active SQL names, SHA256 and git tracking are checked.
+mutation gates before ledger-adoption rehearsal. Live preapply now requires the exact ordered ten-row applied ledger;
+local full-chain mode also expects ten rows including M2b. Active SQL names, SHA256 and git tracking are checked.
 Rehearsal asserts exactly baseline, M2 and M2b pending in that order before
 repair: `20261027000000_live_baseline.sql`, `20261027120000_sync_foundation.sql`,
 `20261027130000_guest_write_guard.sql`. It repairs only baseline, then asserts
 exactly M2 and M2b remain pending in that order; physical schema still matches
-live.json and the ledger matches the eight-row baseline prefix.
+baseline.json and the ledger matches the eight-row baseline prefix.
 
 Normalization now compares **visible ordinal column order**, compressing gaps
 left by PostgreSQL DROP COLUMN. It still detects additions/removals/reordering;
 physical attnum gaps alone do not make a safe down/reapply differ forever.
-The pre-apply snapshot file itself has not been refreshed or rewritten.
+The historical pre-apply snapshot is now preserved as baseline.json; live.json
+contains the single post-M2b capture.
 
 Offline command (no server, sockets, Docker or network):
 
@@ -201,18 +203,12 @@ transaction; only after success repair the foundation ledger to reverted, on the
 same intended target. Reapply via the normal migration workflow. Tests exercise
 both down and reapply on disposable databases.
 
-Live apply is a **box step requiring Augie's yes**, not authorized by these local
-files. Before any apply, capture read-only catalog/ledger and run
-schema-drift/preapply-check.sh against live.json, verify checksums, finish full
-stack and unchanged old-client gates, archive backup and rollback receipts.
-Baseline ledger adoption was approved and completed on 2026-10-26 at 23:11 MST.
-The preapply guard now requires exactly those eight adopted rows; never execute
-baseline DDL on live or repeat adoption repair. Follow the approved live-apply
-plan to apply M2 (20261027120000_sync_foundation), then M2b
-(20261027130000_guest_write_guard).
-Verify expected-after and ledger, then box may refresh live.json from a
-new read-only capture. Auth enablement is a separate Augie decision. No source
-or remote refs are updated by this local work.
+M2 and M2b were applied live with Augie approval on 2026-10-27 at approximately
+02:20 MST. The post-apply read-only capture matches expected-after.json and the
+exact ordered ten-row ledger. The next milestone is M3 with separate approval;
+no approved apply is pending. Never execute baseline DDL on live or repeat
+adoption repair. Auth enablement remains a separate decision. See
+[schema-drift/LIVE-APPLY-PREFLIGHT.md](schema-drift/LIVE-APPLY-PREFLIGHT.md).
 
 ## Local receipt
 
@@ -227,7 +223,7 @@ attributes/memberships, and the default ACL
 statements from platform-emulation.sql. Only unavailable platform extension
 inventory rows are injected by M1's offline platform_ext.inject; no role, ACL,
 relation or publication rows are injected. The baseline prefix and rollback both
-compare equal to the refreshed live.json under the existing normalization.
+compare equal to the historical baseline.json under the existing normalization.
 
 The intentional M2 foundation schema delta is listed below. The current
 expected-after.json also includes the subsequent M2b policy and ACL changes
@@ -324,4 +320,4 @@ No concurrent-session red/green execution is claimed from single-user tests.
 To revert this PR's code after merge, run `git revert -m 1 <merge-commit>` on the
 intended branch and review the resulting revert. A code revert does not undo an
 applied database migration; use the guarded M2 down procedure above separately.
-M2 is **not applied to live**. Any live apply requires Augie's explicit yes.
+M2 is applied live as of 2026-10-27 02:20 MST. Future milestones require separate approval.

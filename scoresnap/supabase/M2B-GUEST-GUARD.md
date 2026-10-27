@@ -1,6 +1,7 @@
 # M2b guest direct-write guard
 
-Local work only. Read the 2026-10-26 23:11 live audit ledger: anonymous
+Applied live with Augie approval on 2026-10-27 at approximately 02:20 MST.
+The historical 2026-10-26 23:11 live audit ledger reported: anonymous
 sign-ins remain disabled. M2 protects synced contests but leaves protocol-0
 writes open to authenticated anonymous identities. Profiles also allowed
 self-service entitlement changes. M2b closes these direct client paths without
@@ -26,11 +27,11 @@ except UPDATE(display_name, avatar_url) on profiles. It runs offline and in CI.
 
 TRUNCATE bypasses RLS. Explicitly revoke TRUNCATE, REFERENCES and TRIGGER from
 anon and authenticated on every public table (including the three M2 tables),
-and the four analytics views carrying these grants in live.json. No service_role,
+and the four analytics views carrying these grants in historical baseline.json. No service_role,
 owner or default ACL is changed. Views cannot actually be truncated: their ACLs
 are checked separately rather than treating PostgreSQL 42809 as a denial.
 
-The snapshot carries these three privileges for both roles on: automation_log,
+The historical baseline snapshot carries these three privileges for both roles on: automation_log,
 channel_effectiveness (view), content_insights (view), content_performance,
 contest_players, contests, daily_metrics, feedback, feedback_themes (view),
 funnel_health (view), funnel_snapshots, improvement_actions, marketing_events,
@@ -43,7 +44,7 @@ REFERENCES permits creating foreign keys and TRIGGER permits installing triggers
 neither is a client data operation. Inspection of src/ and app/ found no SQL
 TRUNCATE, CREATE TRIGGER or ALTER TABLE/foreign-key DDL against Supabase. Local
 SQLite REFERENCES declarations in src/db/schema.ts do not use Supabase grants.
-The exact prior grants are recoverable from live.json plus M2's three-table
+The exact prior grants are recoverable from baseline.json plus M2's three-table
 revocations, so both capabilities are revoked too. Down restores each role/table
 explicitly, preserving M2's existing revocations.
 
@@ -136,7 +137,7 @@ Live migration apply requires Augie's explicit yes. Enabling anonymous sign-ins
 requires a separate explicit yes and working CAPTCHA integration first; this
 migration does not enable Auth or claim to solve abuse budgets or rate limits.
 Before integration, run the schema-drift CI stack and unchanged old-client
-gates. This task leaves working-tree changes only.
+gates. That implementation receipt described local work before live apply.
 
 ## Historical offline receipt (fix round 3)
 
@@ -146,13 +147,12 @@ gates. This task leaves working-tree changes only.
 - PG17 role/JWT suite and 201 mutations: blocked here by socket denial; run
   guest-guard-local.sh on the box. Supabase CI and synchronized race remain for CI.
 
-No network, live database or secrets were accessed. Changes remain uncommitted
-in this isolated working tree.
+No network, live database or secrets were accessed. That receipt preceded the approved live apply and this committed snapshot refresh.
 
-## Adopted live preflight (2026-10-27)
+## Post-apply live preflight (2026-10-27 02:20 MST)
 
-Baseline adoption completed with Augie approval on 2026-10-26 at 23:11 MST.
-The M2 preapply guard requires exactly eight ordered ledger rows, ending in
-`20261027000000 live_baseline`. Follow the approved live-apply plan: M2 then M2b.
-An already applied M2 or M2b fails this preflight. See
+M2 and M2b are applied live. The next milestone preflight requires the post-M2b
+schema and exactly ten ordered ledger rows: eight adopted rows, M2, then M2b.
+Eight, nine, eleven, renamed, reordered, duplicate and extra rows fail closed.
+No approved apply is pending; M3 requires separate approval. See
 [schema-drift/LIVE-APPLY-PREFLIGHT.md](schema-drift/LIVE-APPLY-PREFLIGHT.md).
