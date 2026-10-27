@@ -1,4 +1,5 @@
 {
+  "column_acls": [],
   "columns": [
     {
       "col": "action_taken",
@@ -2616,9 +2617,21 @@
       "schema": "public"
     },
     {
+      "acl": "{anon=X/supabase_admin,authenticated=X/supabase_admin,postgres=X/supabase_admin,service_role=X/supabase_admin}",
+      "objtype": "f",
+      "role": "supabase_admin",
+      "schema": "public"
+    },
+    {
       "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "objtype": "r",
       "role": "postgres",
+      "schema": "public"
+    },
+    {
+      "acl": "{anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,postgres=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}",
+      "objtype": "r",
+      "role": "supabase_admin",
       "schema": "public"
     },
     {
@@ -2626,6 +2639,27 @@
       "objtype": "S",
       "role": "postgres",
       "schema": "public"
+    },
+    {
+      "acl": "{anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,postgres=rwU/supabase_admin,service_role=rwU/supabase_admin}",
+      "objtype": "S",
+      "role": "supabase_admin",
+      "schema": "public"
+    }
+  ],
+  "event_triggers": [
+    {
+      "enabled": "O",
+      "event": "ddl_command_end",
+      "fn": "rls_auto_enable",
+      "fn_schema": "public",
+      "name": "ensure_rls",
+      "owner": "postgres",
+      "tags": [
+        "CREATE TABLE AS",
+        "CREATE TABLE",
+        "SELECT INTO"
+      ]
     }
   ],
   "extensions": [],
@@ -6011,6 +6045,20 @@
       "table": "share_links"
     }
   ],
+  "identity_generated": [
+    {
+      "col": "id",
+      "generated": "",
+      "identity": "a",
+      "table": "golfcore_usage"
+    },
+    {
+      "col": "id",
+      "generated": "",
+      "identity": "a",
+      "table": "golfcore_usage_drift"
+    }
+  ],
   "indexes": [
     {
       "def": "CREATE INDEX golfcore_usage_called_at ON public.golfcore_usage USING btree (called_at DESC)",
@@ -6839,6 +6887,7 @@
     "contest_rounds": null,
     "hole_scores": null
   },
+  "reloptions": [],
   "rls": [
     {
       "force": false,
@@ -7353,16 +7402,58 @@
       "routine": "sanitize_shared_round"
     }
   ],
+  "schema_acl": {
+    "acl": "{=U/pg_database_owner,anon=U/pg_database_owner,authenticated=U/pg_database_owner,pg_database_owner=UC/pg_database_owner,postgres=U/pg_database_owner,service_role=U/pg_database_owner}",
+    "owner": "pg_database_owner"
+  },
+  "seq_deps": [
+    {
+      "col": 1,
+      "deptype": "i",
+      "seq": "golfcore_usage_drift_id_seq",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "col": 1,
+      "deptype": "i",
+      "seq": "golfcore_usage_id_seq",
+      "table": "golfcore_usage"
+    }
+  ],
+  "sequences": [
+    {
+      "cache": 1,
+      "cycle": false,
+      "inc": 1,
+      "max": "9223372036854775807",
+      "min": "1",
+      "name": "golfcore_usage_drift_id_seq",
+      "start": "1",
+      "type": "bigint"
+    },
+    {
+      "cache": 1,
+      "cycle": false,
+      "inc": 1,
+      "max": "9223372036854775807",
+      "min": "1",
+      "name": "golfcore_usage_id_seq",
+      "start": "1",
+      "type": "bigint"
+    }
+  ],
   "server_version_major": 17,
   "triggers": [
     {
       "def": "CREATE TRIGGER contests_updated_at BEFORE UPDATE ON public.contests FOR EACH ROW EXECUTE FUNCTION handle_updated_at()",
+      "enabled": "O",
       "name": "contests_updated_at",
       "schema": "public",
       "table": "contests"
     },
     {
       "def": "CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user()",
+      "enabled": "O",
       "name": "on_auth_user_created",
       "schema": "auth",
       "table": "users"

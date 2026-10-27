@@ -1,0 +1,24 @@
+{
+  "expected": [
+    {
+      "role": "supabase_admin",
+      "schema": "public",
+      "objtype": "S",
+      "acl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}"
+    },
+    {
+      "role": "supabase_admin",
+      "schema": "public",
+      "objtype": "r",
+      "acl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}"
+    },
+    {
+      "role": "supabase_admin",
+      "schema": "public",
+      "objtype": "f",
+      "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    }
+  ],
+  "platform_differences": [],
+  "justification": "Exact live supabase_admin/public entries are restored; no local divergence is permitted."
+}

@@ -48,4 +48,5 @@ PY
 python3 "$here/drift.py" compare "$here/../schema-snapshot/live.json" "$work/local.json"
 python3 "$here/drift.py" ledger "$work/local.json" --mode local
 python3 "$here/selftest.py"
+python3 "$here/sql-fixtures.py" --pgdata "$work/db"
 echo 'PASS: PostgreSQL single-user apply + catalog parity + ledger + fixtures (no running server)'

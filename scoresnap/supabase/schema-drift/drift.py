@@ -22,7 +22,7 @@ def normalize(raw):
     x['extensions'] = [e for e in x.get('extensions', []) or [] if e['name'] not in rules['extensions']]
     if 'server_version' in x:
         x['server_version_major'] = int(re.match(r'\d+', x.pop('server_version')).group())
-    x['default_acls'] = [a for a in x.get('default_acls', []) or [] if a['role'] == 'postgres' and a['schema'] == 'public']
+    x['default_acls'] = [a for a in x.get('default_acls', []) or [] if a['schema'] == 'public' or (a['role'] == 'postgres' and a['schema'] == '-')]
     def norm(v, key=''):
         if isinstance(v, dict):
             return {k: norm(w, k) for k, w in sorted(v.items())}

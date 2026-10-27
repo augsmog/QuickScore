@@ -3,7 +3,9 @@
 M1 replaces the incompatible 001–008 executable chain with seven provenance-only
 markers and `20261027000000_live_baseline.sql`. The markers match the exact live
 ledger names/versions; baseline creates the physical schema only for fresh local
-stacks. The committed snapshot comes from the 2026-10-26 20:12 MST live capture.
+stacks. The committed snapshot merges the 2026-10-26 20:12 MST live capture with
+the ~20:35 and ~20:58 MST supplemental captures. See
+`../schema-snapshot/PROVENANCE.md` for the per-key source.
 No live apply, repair, network connection, app change, or security fix is part of M1.
 
 ## Run locally
@@ -38,7 +40,7 @@ this offline harness. The pinned CI stack supplies managed prerequisites.
 
 ## Comparison and explicit allowlist
 
-`catalog-query.sql` is the supplied M0 extractor, unchanged. Always execute as
+`catalog-query.sql` extends the M0 extractor with the verifier supplemental fields. It returns one self-contained JSON object. Always execute as
 postgres: information_schema privilege visibility is role dependent. `-X -At`
 and `ON_ERROR_STOP` prevent psql startup files/formatting/errors from corrupting
 JSON. Both sides use this exact query. Objects added to public are included;
@@ -62,9 +64,11 @@ Every exception is in `allowlist.json`:
   and availability differ; no extension definition is reconstructed. Unexpected
   extension names still fail. Any public objects supplied by extensions still
   compare; moving an extension into public cannot hide its objects.
-- Default ACL scope: include **every** postgres/public entry; exclude managed
-  role defaults and defaults in other schemas. They belong to the platform,
-  not this public app baseline. Extra postgres/public defaults fail fixtures.
+- Default ACL scope: include **all roles in public** and **postgres global**
+  defaults (namespace zero rendered `-`). Live has no postgres global entries.
+  `reviewed-default-acls.json` lists all three exact supabase_admin/public
+  expectations. Baseline restores each; no local platform differences are
+  permitted. Defaults in other schemas remain outside the app boundary.
 - Migration rows are omitted from the physical comparison, then separately
   checked for exact names/versions: live has seven, local adds the baseline.
   Missing, extra, duplicate, or renamed ledger entries fail.
@@ -72,8 +76,9 @@ Every exception is in `allowlist.json`:
 Public routine ACL text and information_schema EXECUTE grants are both compared.
 All public relation owners/ACLs, both sequence ACLs, policies, function secdef and
 proconfig, RLS/force flags, publication members, and the auth.users row trigger
-are included. See `../BASELINE-NOTES.md` for exact evidence boundaries: the supplied
-catalog does not expose identities, sequence parameters, or view reloptions.
+are included. Identity/generated flags, sequence parameters/dependencies, relation
+reloptions, schema owner/ACL, column ACLs, row-trigger enabled state, and application
+event triggers are also compared. See `../BASELINE-NOTES.md` for provenance.
 
 ## Ledger adoption rehearsal
 
@@ -129,17 +134,24 @@ silence unexpected drift or expand the allowlist to hide app differences. M1's
 guard intentionally refuses already-adopted (eight-entry) live ledgers; subsequent
 milestones must explicitly revise that expectation.
 
-## Verification receipt (this offline workspace)
+## Verification receipt (fix round 1)
 
-`verify-offline.sh` passed on PostgreSQL 17.11: all eight migrations applied,
-physical catalog matched, exact local ledger matched, identity passed, 19 schema
-mutations failed comparison, and both live/local bad ledger tests were rejected.
-The original live capture passed `preapply-check.sh`; a mutated capture was rejected.
-Shell syntax and TOML parsing passed. No Supabase CLI, Docker, npm, network, or
-remote DB was used. CI must prove pinned-stack start/reset, CLI adoption rehearsal,
-and existing tournament/web/iOS workflow compatibility.
+PG17 offline apply, catalog parity, ledger checks, JSON mutation fixtures, and
+15 transactional SQL mutations pass. Every mutation is also rejected by the offline
+pre-apply guard before any repair command is printed. SQL fixtures run through the
+same extractor and comparer in pinned-stack CI. `rls-probe.sql` requires the new
+public table to have RLS enabled and drops it within a rolled-back transaction.
+Single-user PostgreSQL suppresses event triggers, so the behavior probe explicitly
+skips there and is mandatory in CI. Event-trigger creation is unconditional: the
+pinned Supabase image's supautils allowance for postgres must succeed; no privileged
+role impersonation, swallowed permission failure, or skipped DDL is used. This
+workspace cannot verify that allowance or postgres's ability to restore
+supabase_admin defaults and set pg_database_owner on the pinned stack; CI must.
 
-Git metadata in this workspace is mounted read-only: `git mv` failed creating
-`.git/index.lock`. Archive moves used filesystem rename, preserving SHA256 values.
-No commits could be created here; the box must stage the moves (Git detects the
-renames), commit, push and run CI. Nothing modifies source/remote refs.
+Historical markers now contain comments only. The CLI migration runner records a
+migration version independently of its statement batch; an empty SQL batch needs
+no SELECT to create a ledger entry. The pinned 2.122.0 reset and adoption rehearsal
+must prove this behavior with the seven comment-only files.
+
+No network, live DB, CLI, or Docker was used for this fix. A fresh live execution
+of the expanded query and pinned-stack CI remain required before merge.

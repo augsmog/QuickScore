@@ -32,7 +32,9 @@ jobs:
           python3 supabase/schema-drift/drift.py compare supabase/schema-snapshot/live.json /tmp/local-normalized.json
           python3 supabase/schema-drift/drift.py ledger /tmp/local-catalog.json --mode local
       - name: Drift mutation fixtures
-        run: python3 supabase/schema-drift/selftest.py
+        run: |
+          python3 supabase/schema-drift/selftest.py
+          python3 supabase/schema-drift/sql-fixtures.py --url postgresql://postgres:postgres@127.0.0.1:54322/postgres
       - name: Rehearse live ledger adoption without executing baseline twice
         run: bash supabase/schema-drift/rehearse-ledger-adoption.sh
       - name: Stop local stack

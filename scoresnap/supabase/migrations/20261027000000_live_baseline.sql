@@ -1756,3 +1756,23 @@ DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='su
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='contests') THEN ALTER PUBLICATION "supabase_realtime" ADD TABLE public."contests"; END IF; END $$;
 
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='score_events') THEN ALTER PUBLICATION "supabase_realtime" ADD TABLE public."score_events"; END IF; END $$;
+
+-- Reproduce the captured application event trigger. Supautils on the pinned
+-- Supabase image permits postgres to create event triggers; never skip on error.
+CREATE EVENT TRIGGER ensure_rls ON ddl_command_end
+  WHEN TAG IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')
+  EXECUTE FUNCTION public.rls_auto_enable();
+ALTER EVENT TRIGGER ensure_rls OWNER TO postgres;
+ALTER EVENT TRIGGER ensure_rls ENABLE;
+ALTER SCHEMA public OWNER TO pg_database_owner;
+SET ROLE pg_database_owner;
+REVOKE ALL ON SCHEMA public FROM PUBLIC, postgres, anon, authenticated, service_role;
+GRANT USAGE, CREATE ON SCHEMA public TO pg_database_owner;
+GRANT USAGE ON SCHEMA public TO PUBLIC, postgres, anon, authenticated, service_role;
+RESET ROLE;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC, supabase_admin, postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC, supabase_admin, postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM PUBLIC, supabase_admin, postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON FUNCTIONS TO postgres, anon, authenticated, service_role;

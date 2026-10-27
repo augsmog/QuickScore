@@ -51,22 +51,30 @@ The advisor is context, not a schema substitute. Captured finding categories/cou
 
 ## Evidence boundaries
 
-The supplied extractor does not record view reloptions, column identity/generated
-attributes, sequence parameters/dependencies, schema privileges, event triggers,
-or extension internals. It records relation owners and ACLs, sequence ACLs,
-function definitions/config/owners/ACLs, and the Auth row trigger. Catalog parity
-must not be represented as proof of those unrecorded attributes.
+The expanded self-contained extractor records identity/generated flags (nonempty
+entries), all public sequence parameters and ownership dependencies, relation
+reloptions (non-null entries), public schema owner/ACL, column ACLs (non-null
+entries), row-trigger enabled flags, and application event triggers. Application
+event triggers include every public-function trigger regardless of owner and
+triggers whose owner is outside the explicitly named Supabase managed role set.
+Extension internals and managed non-public event triggers remain outside scope.
+All public default ACLs, including supabase_admin, and postgres global defaults
+are compared. There are no live postgres global defaults and no reviewed platform
+differences. The three supabase_admin/public expectations are listed individually
+in schema-drift/reviewed-default-acls.json and restored exactly by the baseline.
 
-The two bigint IDs (`golfcore_usage.id`, `golfcore_usage_drift.id`) have null
-column_default and named sequences in the live catalog; archived 006/007 explicitly
-use GENERATED ALWAYS AS IDENTITY. Baseline preserves those identity declarations
-and their default sequence parameters/ownership rather than creating disconnected
-sequences. This is corroborating SQL evidence, not a fresh live identity query.
-All six views use default owner behavior as in the earlier schema SQL; the advisor
-specifically flags the four anon-accessible analytics views. A supplemental
-read-only live reloptions/identity/sequence query is needed for independent proof
-of attributes missing from the supplied catalog. No claim that CI can prove an
-uncaptured live value is made.
+Live ensure_rls exists, owned by postgres, enabled O, invoking
+public.rls_auto_enable at ddl_command_end for CREATE TABLE, CREATE TABLE AS and
+SELECT INTO. It is preserved as live behavior, including its security-definer
+function and exception handling. Both row triggers are enabled O. Both bigint IDs
+are GENERATED ALWAYS AS IDENTITY with cache 1 and exact maximum
+9223372036854775807; sequence start/min/max are extracted as text. All public
+reloptions and column ACLs were null in the supplemental capture. In particular,
+all six views lack security_invoker, preserving their known live owner-permission
+debt. Public schema owner is pg_database_owner, with owner UC and only USAGE for
+PUBLIC, postgres, anon, authenticated and service_role. This is restored explicitly.
+See schema-snapshot/PROVENANCE.md for the source of each added key. The box must
+replace this merged snapshot with a single new read-only capture before merge.
 
 Auth settings other than anonymous sign-ins are explicit local development
 settings, not a claimed full export of hosted Auth. Anonymous sign-ins remain off.

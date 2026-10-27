@@ -10,7 +10,7 @@
     "supabase_vault": "Managed extension inventory/version only; public objects remain compared.",
     "uuid-ossp": "Managed extension inventory/version only; public objects remain compared."
   },
-  "default_acls_scope": "Only role postgres in schema public is app-owned. Managed roles and all non-public schemas are outside scope; no exclusions within postgres/public.",
+  "default_acls_scope": "All public-schema defaults for every role, plus postgres global defaults (-). No exclusion within that scope. reviewed-default-acls.json records exact non-postgres expectations; baseline restores them without platform exceptions.",
   "ledger": "Exclude migrations from physical comparison; require exact versions AND names separately (live 7; local 7 + baseline).",
   "server_version": "Compare major version; strip hosted/local patch and packaging suffix."
 }

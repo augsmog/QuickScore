@@ -13,6 +13,10 @@ def check(name, mutate):
         p.write_text(json.dumps(x))
         r = subprocess.run([sys.executable, str(HERE / 'drift.py'), 'compare', str(HERE.parent / 'schema-snapshot/live.json'), str(p)],capture_output=True,text=True)
         assert r.returncode == 1 and 'live/' in r.stdout and 'local/' in r.stdout, (name,r)
+        x['migrations'] = load(HERE / 'expected-ledger.json')
+        p.write_text(json.dumps(x))
+        guard = subprocess.run(['bash', str(HERE / 'preapply-check.sh'), str(p)], capture_output=True, text=True)
+        assert guard.returncode != 0 and 'supabase migration repair' not in guard.stdout, (name, guard)
     print('PASS detected: ' + name)
 
 assert not differences(snapshot, snapshot)
@@ -57,4 +61,18 @@ for mode in ('live','local'):
         except ValueError: pass
         else: raise AssertionError('bad ledger accepted')
 print('PASS ledger identity and rejection (live/local)')
-print('All drift fixtures passed')
+
+from drift import normalize
+reviewed = load(HERE / 'reviewed-default-acls.json')
+assert normalize({'default_acls': reviewed['expected']})['default_acls'] == [a for a in snapshot['default_acls'] if a['role'] != 'postgres']
+check('generated column', lambda x:x['identity_generated'][0].update(generated='s'))
+check('identity removed', lambda x:x['identity_generated'].pop())
+check('sequence dependency', lambda x:x['seq_deps'][0].update(deptype='a'))
+check('sequence dependency removed', lambda x:x['seq_deps'].pop())
+for field,value in [('type','integer'),('start','2'),('min','0'),('max','9223372036854775806'),('inc',2),('cycle',True),('cache',2)]:
+    check('sequence '+field, lambda x,f=field,v=value:x['sequences'][0].update({f:v}))
+check('schema owner', lambda x:x['schema_acl'].update(owner='postgres'))
+for field,value in [('event','sql_drop'),('fn_schema','evil'),('fn','other'),('owner','anon'),('enabled','R'),('tags',['CREATE TABLE'])]:
+    check('event trigger '+field, lambda x,f=field,v=value:x['event_triggers'][0].update({f:v}))
+
+print('All JSON drift fixtures and preapply rejections passed')
