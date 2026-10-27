@@ -17,3 +17,18 @@ Reapply with normal migration up workflow and verify expected-after.json and
 local ledger. No default ACL, owner or service_role change needs restoration.
 Live apply and later anonymous Auth enablement each require Augie's explicit
 yes. CAPTCHA integration remains mandatory before enabling anonymous sign-ins.
+
+Fix round 2: down also removes m2b_contest_players_owner_delete, restoring M2's
+filtered player DELETE behavior. It removes the presentation column UPDATE grant
+and restores table INSERT/UPDATE on profiles. For each role and relation it
+restores the prior TRUNCATE/REFERENCES/TRIGGER grants from live.json, except on
+contests, contest_players and score_events where M2 had already revoked them.
+This includes the four analytics views' ACL entries. It does not grant anything
+on previously ungranted tables or touch service_role. Rollback reopens TRUNCATE
+on settlements and analytics tables for both client roles, in addition to the
+original guest and entitlement write holes; assess that exposure before live use.
+
+Offline verify-foundation.py records the M2 catalog before apply and compares it
+to the down result exactly, then verifies baseline rollback and full reapply.
+The CI mutation suite rolls back its own mutations independently; do not use a
+migration down to clean up mutation tests.

@@ -21,5 +21,34 @@ CREATE POLICY m2b_profiles_delete ON public.profiles AS RESTRICTIVE FOR DELETE T
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.profiles FROM anon;
 REVOKE INSERT, UPDATE ON public.profiles FROM authenticated;
 GRANT UPDATE (display_name, avatar_url) ON public.profiles TO authenticated;
--- TRUNCATE bypasses RLS and is never a client profile/scan operation.
-REVOKE TRUNCATE ON public.profiles, public.scans FROM authenticated;
+-- Explicit public-table inventory from live.json; RLS cannot protect TRUNCATE.
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.automation_log FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.channel_effectiveness FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.content_insights FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.content_performance FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.contest_players FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.contests FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.daily_metrics FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.feedback FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.feedback_themes FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.funnel_health FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.funnel_snapshots FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.improvement_actions FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.marketing_events FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.profiles FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.revenue_events FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.scans FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.score_events FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.settlements FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.contest_join_requests FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.contest_memberships FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.course_catalog FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.course_search_cache FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.golfcore_usage FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.golfcore_usage_drift FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.operation_receipts FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.published_rounds FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.round_messages FROM anon, authenticated;
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.share_links FROM anon, authenticated;
+-- Tournament sync replaces the owner's legacy roster; guests remain restricted.
+CREATE POLICY m2b_contest_players_owner_delete ON public.contest_players FOR DELETE TO authenticated USING (public.is_contest_owner(contest_id) AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean, false));

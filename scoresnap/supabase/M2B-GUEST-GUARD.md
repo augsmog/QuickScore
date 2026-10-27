@@ -16,10 +16,36 @@ changing reads, M2 policies, RPC bodies, owners, service_role or default ACLs.
 
 Each command has its own policy: INSERT WITH CHECK, UPDATE USING and WITH
 CHECK, DELETE USING. Every predicate rejects coalesced is_anonymous=true.
-All five tables had anon DML grants; these are revoked, including TRUNCATE.
-Authenticated TRUNCATE on scans/profiles is also revoked because it bypasses
-RLS (M2 already removed it on the other three tables). Guest UPDATE/DELETE
-can legitimately affect zero rows rather than throw; no mutation is permitted.
+Anon INSERT/UPDATE/DELETE on all five guarded tables are revoked. The regular
+owner can delete legacy contest_players, matching tournament-sync.ts roster
+replacement; restrictive M2 protocol and guest policies still apply. This adds
+one permissive policy, m2b_contest_players_owner_delete, alongside the 15
+restrictive command policies.
+
+## TRUNCATE and schema capabilities
+
+TRUNCATE bypasses RLS. Explicitly revoke TRUNCATE, REFERENCES and TRIGGER from
+anon and authenticated on every public table (including the three M2 tables),
+and the four analytics views carrying these grants in live.json. No service_role,
+owner or default ACL is changed. Views cannot actually be truncated: their ACLs
+are checked separately rather than treating PostgreSQL 42809 as a denial.
+
+The snapshot carries these three privileges for both roles on: automation_log,
+channel_effectiveness (view), content_insights (view), content_performance,
+contest_players, contests, daily_metrics, feedback, feedback_themes (view),
+funnel_health (view), funnel_snapshots, improvement_actions, marketing_events,
+profiles, revenue_events, scans, score_events, settlements. M2 already revoked
+all three on contests, contest_players and score_events. Therefore the additional
+removal is 15 relations × 2 roles × 3 privileges = 90 ACL entries. Explicit
+revocations on other public tables preserve their existing lack of these grants.
+
+REFERENCES permits creating foreign keys and TRIGGER permits installing triggers;
+neither is a client data operation. Inspection of src/ and app/ found no SQL
+TRUNCATE, CREATE TRIGGER or ALTER TABLE/foreign-key DDL against Supabase. Local
+SQLite REFERENCES declarations in src/db/schema.ts do not use Supabase grants.
+The exact prior grants are recoverable from live.json plus M2's three-table
+revocations, so both capabilities are revoked too. Down restores each role/table
+explicitly, preserving M2's existing revocations.
 
 ## Profile columns
 
@@ -58,27 +84,38 @@ approved guest scoring, transfers/revocation and anonymous host denials.
 
 ## Test matrix and CI
 
-Guest tests use real SET LOCAL ROLE authenticated and request.jwt.claims with
-sub and is_anonymous=true, inside a rolled-back transaction. Each operation has
-its own savepoint, and exception assertions use SQLSTATE 42501. Profile UPDATE
-also accepts zero affected rows under restrictive USING. Matrix: guest contest
-create, own/other-contest join, score insert/update/delete, own scan insert,
-display-name and premium update; regular legacy create/join/score/scan/display
-updates succeed, entitlement updates fail; no-JWT anon insert/update/delete
-fail or filter all rows; guest request_join succeeds and host listing fails.
+348 savepoint probes run with SET LOCAL ROLE and request.jwt.claims, in a rolled
+back transaction. The helper catches only SQLSTATE 42501. For filtered guest
+UPDATE/DELETE, it requires zero affected rows and compares the complete seeded
+row before/after as superuser. Owned contests, players, scores, scans and profiles
+exist before those probes. Positive UPDATE/DELETE must affect rows.
 
-CI rolls M2b down before any M2 rollback/race gate. Against M2-only it requires
-the specific M2B_UNGUARDED guest-contest failure, then m2b.red=true reverses the
-expectations for every formerly vulnerable operation and requires all to succeed.
-Infrastructure errors cannot count as expected red. The normal migration up
-reapplies M2 and M2b after baseline gates; the same tests must then pass green.
-Full-chain catalog and ten-entry local ledger parity follow. Ledger adoption
-rehearsal leaves both M2 and M2b pending after baseline ledger repair.
+| Identity / fixture | Assertions |
+| --- | --- |
+| Guest, top-level true | Five guarded tables: INSERT, UPDATE, DELETE, TRUNCATE; own and other-contest player INSERT; profile display_name and is_premium UPDATE |
+| Isolated guest policies | All 15 restrictive policies independently: supply test-only permissive policy and command grant within the savepoint, then require denial; UPDATE/DELETE also require row unchanged |
+| JWT variants | String "true" denied; missing top-level allowed; top-level false with user_metadata true, app_metadata true, and both true allowed; top-level true with user_metadata false denied |
+| Regular legacy user | Contest INSERT and tournament metadata UPDATE; player INSERT with/without user_id, UPDATE and owner DELETE; score INSERT; own scan INSERT; display_name and avatar_url UPDATE |
+| Regular protected profile columns | is_premium, premium_since, premium_source, churned_at, referral_count, referral_code, referred_by UPDATE fail 42501; table INSERT ACL independently tested with permissive fixture |
+| Anon | INSERT/UPDATE/DELETE all five guarded tables, independently of RLS through test-only permissive policies; all TRUNCATE probes require 42501 |
+| Guest / regular / anon | TRUNCATE denied on every public table, including settlements and every physical analytics table; analytics view TRUNCATE ACL checked separately; REFERENCES/TRIGGER ACL checked for every explicitly revoked relation |
+| Guest RPC | request_join and persisted request allowed; host listing denied; foundation suite retains the other RPC authorization cases |
 
-Offline PG17 single-user mode verifies catalog/policy/column ACL inventory,
-full-chain parity, exact M2b down-to-M2 parity, M2 down-to-baseline and reapply.
-It does not enforce RLS row filtering; the real Supabase role/JWT suite and
-concurrent rollback race are CI-only. No stack was started here.
+CI rolls M2b down and requires the specific M2B_UNGUARDED guest-contest error on
+the unchanged suite. Infrastructure errors cannot count as expected red. After
+all baseline/race gates, migration up reapplies M2 and M2b and the suite must pass.
+The mutation runner then drops each of the 16 m2b_ policies separately, re-grants
+each revoked role/table/privilege separately, and removes the profile presentation
+grant. Each mutation runs the suite in one psql transaction and must fail with
+a guard assertion, permission error, or TRUNCATE ONLY foreign-key error
+(the expected 42501 is replaced by 0A000 when the target grant is restored). Connection close rolls back failures;
+a successful suite explicitly rolls back before the runner rejects it. Duplicate
+ACL mutations are deduplicated. No mutation touches service_role.
+
+Offline PG17 single-user mode checks policy/ACL inventory, full-chain parity,
+exact M2b down-to-M2 parity, M2 down-to-baseline and reapply. It does not enforce
+RLS row filtering. Real role/JWT probes, red/green and mutation execution remain
+mandatory on the disposable Supabase CI stack; they were not executed locally.
 
 ## Delivery and live decisions
 
@@ -86,17 +123,16 @@ See ROLLBACK-M2B.md. Code revert and database down are separate operations.
 Live migration apply requires Augie's explicit yes. Enabling anonymous sign-ins
 requires a separate explicit yes and working CAPTCHA integration first; this
 migration does not enable Auth or claim to solve abuse budgets or rate limits.
-The box must stage/commit the new files (this clone's .git is read-only), run the
-schema-drift CI stack and unchanged old-client gates, then push for review.
+Before integration, run the schema-drift CI stack and unchanged old-client
+gates. This task leaves working-tree changes only.
 
-## Offline receipt
+## Offline receipt (fix round 2)
 
-- verify-offline.sh: PASS, including baseline prefix, mutation fixtures and foundation verification.
-- verify-foundation.py --record: PASS; regenerated full chain and proved both down/reapply catalog boundaries.
-- selftest.py: PASS after extending the local ledger fixture to ten entries.
-- check-active-sql.py: manifest names/hashes match; final Git-tracking assertion fails because the new migration cannot be staged in read-only .git. Box must stage files and rerun unchanged checker.
-- Shell syntax and git diff --check: PASS.
-- Supabase role/JWT red/green suite and concurrent race: not run; CI-only.
+- verify-offline.sh, verify-foundation.py and selftest.py: PASS.
+- check-active-sql.py: PASS, including hashes and migration tracking.
+- Shell syntax, Python compilation and git diff --check: PASS.
+- Real Supabase role/JWT suite, policy/ACL mutation runner and synchronized race:
+  not run here; CI-only under the no-network/no-live-DB constraint.
 
-No network, linked/live DB, Auth settings or secrets were accessed. The audit
-ledger was read from the supplied local path. No commit or push was possible.
+No network, live database or secrets were accessed. Changes remain uncommitted
+in this isolated working tree.

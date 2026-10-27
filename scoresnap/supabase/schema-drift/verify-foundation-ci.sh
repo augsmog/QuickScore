@@ -14,7 +14,6 @@ if psql_local -f "$here/../tests/guest-write-guard.sql" > /tmp/m2b-red.log 2>&1;
  echo 'FAIL: M2-only guest guard unexpectedly green'; exit 1
 fi
 grep -q 'M2B_UNGUARDED: guest contest' /tmp/m2b-red.log
-PGOPTIONS='-c m2b.red=true' psql_local -f "$here/../tests/guest-write-guard.sql"
 echo 'PASS: M2-only guest holes reproduced (expected red)'
 # Red before green, exclusively on the disposable CLI stack.
 red_log=$(mktemp)
@@ -57,3 +56,5 @@ psql_local -f "$here/../tests/foundation.sql"
 psql_local -f "$here/../tests/legacy-compatibility.sql"
 
 psql_local -f "$here/../tests/guest-write-guard.sql"
+
+python3 "$here/guest-guard-mutations.py" --url "$url"
