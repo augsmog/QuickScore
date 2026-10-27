@@ -1,3 +1,4 @@
+import { completeScores } from "../services/ocr-review";
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
 import { useAuthStore } from "./auth-store";
 import { generateJoinCode } from "../services/guest-join";
@@ -79,7 +80,7 @@ interface ContestState {
   importScores: (
     contestId: string,
     groupId: string,
-    playerScores: { playerId: string; scores: number[] }[]
+    playerScores: { source?: "paste" | "ocr"; playerId: string; scores: (number | null)[] }[]
   ) => void;
 
   completeContest: (id: string) => void;
@@ -196,54 +197,27 @@ export const useContestStore = create<ContestState>()(
         }
       },
 
-      importScores: (contestId, groupId, playerScores) =>
-        set((state) => ({
-          contests: state.contests.map((c) => {
-            if (c.id !== contestId) return c;
-            // For tournaments, import into the current round's groups
-            if (c.isTournament && c.rounds && c.currentRound) {
-              return {
-                ...c,
-                rounds: c.rounds.map((r) => {
-                  if (r.number !== c.currentRound) return r;
-                  return {
-                    ...r,
-                    groups: r.groups.map((g) => {
-                      if (g.id !== groupId) return g;
-                      return {
-                        ...g,
-                        players: g.players.map((p) => {
-                          const imported = playerScores.find(
-                            (ps) => ps.playerId === p.id
-                          );
-                          if (!imported) return p;
-                          return { ...p, scores: imported.scores };
-                        }),
-                      };
-                    }),
-                  };
-                }),
-              };
-            }
-            // Legacy: import into groups directly
-            return {
-              ...c,
-              groups: c.groups.map((g) => {
-                if (g.id !== groupId) return g;
-                return {
-                  ...g,
-                  players: g.players.map((p) => {
-                    const imported = playerScores.find(
-                      (ps) => ps.playerId === p.id
-                    );
-                    if (!imported) return p;
-                    return { ...p, scores: imported.scores };
-                  }),
-                };
-              }),
-            };
-          }),
-        })),
+      importScores: (contestId, groupId, playerScores) => {
+        const contest = get().contests.find(c => c.id === contestId);
+        if (!contest) throw new Error("Contest not found");
+        const round = contest.isTournament ? contest.rounds?.find(r => r.number === contest.currentRound) : undefined;
+        if (contest.isTournament && !round) throw new Error("Active round not found");
+        const group = (round?.groups ?? contest.groups).find(g => g.id === groupId);
+        if (!group || !Array.isArray(playerScores) || !playerScores.length) throw new Error("Invalid import group or batch");
+        if (!(round?.course ?? contest.course).holes.every((h, i) => h.num === i + 1)) throw new Error("Course hole mapping requires manual entry");
+        const ids = new Set<string>();
+        const validated = playerScores.map(p => {
+          if (!p || ids.has(p.playerId) || group.players.filter(cp => cp.id === p.playerId).length !== 1) throw new Error("Import requires unique explicit player matches");
+          ids.add(p.playerId);
+          return { playerId: p.playerId, scores: completeScores(p.scores, (round?.course ?? contest.course).holes.length, p.source) };
+        });
+        const groups = (round?.groups ?? contest.groups).map(g => g.id !== groupId ? g : ({ ...g, players: g.players.map(p => {
+          const imported = validated.find(v => v.playerId === p.id);
+          return imported ? { ...p, scores: imported.scores } : p;
+        }) }));
+        set(state => ({ contests: state.contests.map(c => c.id !== contestId ? c : round ?
+          { ...c, rounds: c.rounds!.map(r => r.id === round.id ? { ...r, groups } : r) } : { ...c, groups }) }));
+      },
 
       completeContest: (id) =>
         set((state) => ({

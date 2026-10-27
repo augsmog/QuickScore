@@ -1,20 +1,4 @@
-/**
- * OCR Edge Function Client Test
- * 
- * Tests the client-side call to the ocr-scorecard Edge Function.
- * This test mocks the Supabase client to verify the client service
- * correctly calls the Edge Function and handles responses.
- * 
- * NOTE: This test file is not run in the regular Jest suite because
- * tsx cannot handle React Native imports. The TypeScript type checking
- * is verified in the Jest suite instead. For manual testing, run:
- * 
- *   npx tsx src/services/__tests__/ocr-client.test.ts
- * 
- * (This will also fail with react-native imports, but the code structure
- * and API contract are documented here for reference.)
- */
-
+/** Run: node --import tsx src/services/__tests__/ocr-client.test.ts */
 // Mock Supabase client before importing the service
 let mockInvoke: any;
 const mockSupabase = {
@@ -40,14 +24,14 @@ Module.prototype.require = function (id: string) {
   if (id === '../db/supabase' || id.endsWith('/db/supabase')) {
     return { supabase: mockSupabase };
   }
-  if (id === 'expo-file-system') {
+  if (id === 'expo-file-system/legacy') {
     return (globalThis as any).mockFileSystem;
   }
   return originalRequire.apply(this, arguments);
 };
 
 // Now import the service
-import { recognizeWithClaude } from '../claude-ocr';
+const { recognizeWithClaude } = require('../claude-ocr');
 
 let passed = 0;
 let failed = 0;
@@ -192,8 +176,8 @@ async function runTests() {
         'Original scores preserved'
       );
       assert(
-        result.players[0].scores.slice(3).every((s: number) => s === 0),
-        'Padded with zeros'
+        result.players[0].scores.slice(3).every((s: number | null) => s === null),
+        'Padded with blanks'
       );
     } catch (error) {
       failed++;

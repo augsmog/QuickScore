@@ -7,6 +7,7 @@
  * 3. Return ScannedPlayer[] for the review screen
  */
 
+import { applyCourseHoles } from "./ocr-review";
 import { ScannedPlayer } from "./score-parser";
 import {
   recognizeWithMLKit,
@@ -34,8 +35,10 @@ export type ScanProgressCallback = (progress: number, message: string) => void;
  */
 export async function scanScorecard(
   photoUri: string,
-  onProgress?: ScanProgressCallback
+  onProgress?: ScanProgressCallback,
+  requiredHoles?: number[]
 ): Promise<ScanResult> {
+  const normalize = (players: ScannedPlayer[]) => applyCourseHoles(players, requiredHoles);
   onProgress?.(5, "Preparing image...");
 
   // Step 1: Try ML Kit on-device
@@ -56,7 +59,7 @@ export async function scanScorecard(
         onProgress?.(90, "Validating results...");
         onProgress?.(100, "Done");
         return {
-          players: mlResult.players,
+          players: normalize(mlResult.players),
           source: "ml-kit",
           averageConfidence: mlResult.averageConfidence,
           parRow: mlResult.parRow,
@@ -74,7 +77,7 @@ export async function scanScorecard(
           if (claudeResult.averageConfidence > mlResult.averageConfidence) {
             onProgress?.(100, "Done");
             return {
-              players: claudeResult.players,
+              players: normalize(claudeResult.players),
               source: "ml-kit+claude",
               averageConfidence: claudeResult.averageConfidence,
               parRow: mlResult.parRow,
@@ -83,7 +86,7 @@ export async function scanScorecard(
 
           onProgress?.(100, "Done");
           return {
-            players: mlResult.players,
+            players: normalize(mlResult.players),
             source: "ml-kit",
             averageConfidence: mlResult.averageConfidence,
             parRow: mlResult.parRow,
@@ -93,7 +96,7 @@ export async function scanScorecard(
           console.warn("Claude fallback failed:", claudeError);
           onProgress?.(100, "Done");
           return {
-            players: mlResult.players,
+            players: normalize(mlResult.players),
             source: "ml-kit",
             averageConfidence: mlResult.averageConfidence,
             parRow: mlResult.parRow,
@@ -121,7 +124,7 @@ export async function scanScorecard(
 
   onProgress?.(100, "Done");
   return {
-    players: claudeResult.players,
+    players: normalize(claudeResult.players),
     source: "claude",
     averageConfidence: claudeResult.averageConfidence,
     parRow: [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4],
