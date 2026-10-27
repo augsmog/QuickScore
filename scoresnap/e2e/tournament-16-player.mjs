@@ -86,6 +86,13 @@ const hasMultipleTabs = bodyText.includes("SCORECARD") &&
                         bodyText.includes("LEADERBOARD") && 
                         bodyText.includes("GAMES");
 check(hasMultipleTabs, "Contest tabs rendered (Scorecard, Leaderboard, Games)");
+const scorecardTab = orgPage.getByText(/^scorecard$/i).first();
+const scorecardVisible = await scorecardTab.waitFor({ state: "visible", timeout: 10000 }).then(() => true, () => false);
+check(
+  scorecardVisible,
+  "Scorecard tab rendered and visible",
+  scorecardVisible ? "visible" : "not rendered"
+);
 
 // Check if join code is available (cross-device sharing feature flag)
 const joinCodeElement = orgPage.getByTestId("organizer-join-code");

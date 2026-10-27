@@ -56,8 +56,10 @@ try {
   await tournamentToggle.waitFor({ state: "visible", timeout: 5000 });
   await tournamentToggle.click();
   
-  // Number of rounds defaults to 2 when tournament mode is enabled
-  await orgPage.waitForTimeout(500);
+  // Set number of rounds to 2 explicitly (do not rely on the default)
+  const rounds2 = orgPage.getByTestId("rounds-2");
+  await rounds2.waitFor({ state: "visible", timeout: 5000 });
+  await rounds2.click();
   
   // Click Next/Continue
   await orgPage.getByText(/^next|continue/i).last().click();
@@ -96,17 +98,15 @@ try {
   if (leaderboardVisible) {
     await leaderboardTab.click();
     await orgPage.waitForTimeout(1000);
-    const leaderboardContent = await orgPage.innerText("body");
-    const hasLeaderboardContent = 
-      leaderboardContent.includes("Player 0") || 
-      leaderboardContent.includes("Name") ||
-      leaderboardContent.includes("Scores") ||
-      leaderboardContent.includes("No scores") ||
-      leaderboardContent.includes("LEADERBOARD");
+    // Require the Leaderboard screen's own content, not the tab label. This test enters no
+    // scores, so the leaderboard must render its empty state ("No scores yet" + scorecard hint).
+    const emptyState = await orgPage.getByText(/^No scores yet$/).waitFor({ state: "visible", timeout: 10000 }).then(() => true, () => false);
+    const emptyHint = await orgPage.getByText(/^Enter scores on the Scorecard tab/).isVisible().catch(() => false);
+    const hasLeaderboardContent = emptyState && emptyHint;
     check(
       hasLeaderboardContent,
       "Leaderboard loads for 56-player tournament",
-      hasLeaderboardContent ? "loaded" : "empty or missing expected content"
+      hasLeaderboardContent ? "leaderboard empty state rendered (no scores entered)" : `leaderboard content missing (empty state: ${emptyState}, hint: ${emptyHint})`
     );
   }
   

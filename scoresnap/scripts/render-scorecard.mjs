@@ -79,7 +79,7 @@ try {
       },
       currentUrl,
       { timeout: 5000 }
-    ).catch(() => console.log("Onboarding URL did not change after skip"));
+    );
     
     await page.waitForTimeout(2000); // Wait for the home page to render
     
@@ -91,25 +91,14 @@ try {
   // Give the app time to render the contest list
   await page.waitForTimeout(1000);
   
-  // 2. Wait for the Sample Round contest to appear (search by contest name or course name)
-  console.log("Waiting for Sample Round or Pine Valley GC...");
-  
-  const contestLink = page.locator('text="Sample Round"').first();
+  // 2. Home "Recent rounds" lists the round by course name: Pine Valley GC must be visible (strict)
+  console.log("Waiting for Pine Valley GC (Sample Round) on home...");
   const courseLink = page.locator('text="Pine Valley GC"').first();
-  
-  // Wait for either the contest name or course name to appear
-  const linkFound = await Promise.race([
-    contestLink.waitFor({ state: "visible", timeout: 10000 }).then(() => 'contest'),
-    courseLink.waitFor({ state: "visible", timeout: 10000 }).then(() => 'course'),
-  ]).catch(() => null);
-  
-  if (!linkFound) {
-    throw new Error("Sample Round not found on home page. Demo mode may not be properly enabled.");
-  }
-  
-  const linkToClick = linkFound === 'contest' ? contestLink : courseLink;
-  console.log(`Found ${linkFound === 'contest' ? 'Sample Round' : 'Pine Valley GC'}...`);
-  
+  await courseLink.waitFor({ state: "visible", timeout: 10000 }).catch(() => {
+    throw new Error("Sample Round (Pine Valley GC) not found on home page. Demo mode may not be properly enabled.");
+  });
+  const linkToClick = courseLink;
+
   // 3. Click on the Sample Round contest
   console.log("Opening Sample Round...");
   await linkToClick.click();
@@ -117,6 +106,8 @@ try {
   // Wait for contest page to load (URL should be /contest/[id])
   await page.waitForURL(/\/contest\/[^/]+/, { timeout: 10000 });
   console.log("Contest page loaded:", page.url());
+  // The opened contest must be the Sample Round at Pine Valley GC
+  await page.getByTestId("contest-header").getByText("Sample Round", { exact: true }).waitFor({ state: "visible", timeout: 10000 });
   
   // 4. Ensure we're on the Scorecard tab (should be default)
   // Wait for the scorecard to render
@@ -132,7 +123,7 @@ try {
   await contestScreen.waitFor({ state: 'visible', timeout: 10000 });
   await contestScreen.getByTestId('score-next-hole').waitFor({ state: 'visible', timeout: 10000 });
   assert.equal(await page.getByTestId('organizer-join-code').count(), 0);
-  assert.equal(await contestScreen.getByText(/join code|share local invite|live scoreboard|share live|revoke live links/i).count(), 0,
+  assert.equal(await contestScreen.getByText(/join code|share local invite|same browser|live scoreboard|share live|revoke live links/i).count(), 0,
     'Sharing UI must be absent, including hidden text');
   const precedingLayout = await contestScreen.getByTestId('contest-header').evaluate(header => {
     const siblings = [];
@@ -161,7 +152,7 @@ try {
   console.log(`✓ Screenshot saved to ${absoluteOutputPath}`);
   
   if (pageErrors.length > 0) {
-    console.warn(`⚠ ${pageErrors.length} page error(s) occurred during render`);
+    throw new Error(`${pageErrors.length} uncaught page error(s) during render: ${pageErrors.join(" | ")}`);
   }
   
 } catch (error) {
