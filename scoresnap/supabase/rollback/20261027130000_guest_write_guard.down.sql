@@ -1,0 +1,26 @@
+-- Restore the exact M2 policy and ACL catalog.
+BEGIN;
+DROP POLICY m2b_contests_insert ON public.contests;
+DROP POLICY m2b_contests_update ON public.contests;
+DROP POLICY m2b_contests_delete ON public.contests;
+GRANT INSERT, UPDATE, DELETE ON public.contests TO anon;
+DROP POLICY m2b_contest_players_insert ON public.contest_players;
+DROP POLICY m2b_contest_players_update ON public.contest_players;
+DROP POLICY m2b_contest_players_delete ON public.contest_players;
+GRANT INSERT, UPDATE, DELETE ON public.contest_players TO anon;
+DROP POLICY m2b_score_events_insert ON public.score_events;
+DROP POLICY m2b_score_events_update ON public.score_events;
+DROP POLICY m2b_score_events_delete ON public.score_events;
+GRANT INSERT ON public.score_events TO anon;
+DROP POLICY m2b_scans_insert ON public.scans;
+DROP POLICY m2b_scans_update ON public.scans;
+DROP POLICY m2b_scans_delete ON public.scans;
+GRANT INSERT, UPDATE, DELETE, TRUNCATE ON public.scans TO anon;
+DROP POLICY m2b_profiles_insert ON public.profiles;
+DROP POLICY m2b_profiles_update ON public.profiles;
+DROP POLICY m2b_profiles_delete ON public.profiles;
+GRANT INSERT, UPDATE, DELETE, TRUNCATE ON public.profiles TO anon;
+REVOKE UPDATE (display_name, avatar_url) ON public.profiles FROM authenticated;
+GRANT INSERT, UPDATE ON public.profiles TO authenticated;
+GRANT TRUNCATE ON public.profiles, public.scans TO authenticated;
+COMMIT;

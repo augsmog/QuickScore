@@ -54,7 +54,7 @@ def old_shape(x):
     x['regclass_checks']['contest_rounds']='contest_rounds'
 check('archived 001–008 shape',old_shape)
 for mode in ('live','local'):
-    good={'migrations':load(HERE/'expected-ledger.json')+([{'version':'20261027000000','name':'live_baseline'},{'version':'20261027120000','name':'sync_foundation'}] if mode=='local' else [])}
+    good={'migrations':load(HERE/'expected-ledger.json')+([{'version':'20261027000000','name':'live_baseline'},{'version':'20261027120000','name':'sync_foundation'},{'version':'20261027130000','name':'guest_write_guard'}] if mode=='local' else [])}
     ledger(good,mode)
     for bad in (good['migrations'][:-1],good['migrations']+[{'version':'008','name':'tournament_rounds'}]):
         try: ledger({'migrations':bad},mode)

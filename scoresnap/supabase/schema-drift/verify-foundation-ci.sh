@@ -6,6 +6,16 @@ url='postgresql://postgres:postgres@127.0.0.1:54322/postgres'
 psql_local() { psql "$url" -X -v ON_ERROR_STOP=1 "$@"; }
 extract() { psql_local -At -f "$here/catalog-query.sql" > /tmp/m2-catalog.json; }
 python3 "$here/check-active-sql.py"
+# Reset starts with the full chain. Remove M2b before all M2 down/race gates.
+psql_local -f "$here/../rollback/20261027130000_guest_write_guard.down.sql"
+psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261027130000'"
+# Require the specific guest-write failure, then verify every vulnerable case.
+if psql_local -f "$here/../tests/guest-write-guard.sql" > /tmp/m2b-red.log 2>&1; then
+ echo 'FAIL: M2-only guest guard unexpectedly green'; exit 1
+fi
+grep -q 'M2B_UNGUARDED: guest contest' /tmp/m2b-red.log
+PGOPTIONS='-c m2b.red=true' psql_local -f "$here/../tests/guest-write-guard.sql"
+echo 'PASS: M2-only guest holes reproduced (expected red)'
 # Red before green, exclusively on the disposable CLI stack.
 red_log=$(mktemp)
 trap 'rm -f "$red_log"' EXIT
@@ -45,3 +55,5 @@ python3 "$here/drift.py" ledger /tmp/m2-catalog.json --mode local
 psql_local -f "$here/../tests/default-privileges.sql"
 psql_local -f "$here/../tests/foundation.sql"
 psql_local -f "$here/../tests/legacy-compatibility.sql"
+
+psql_local -f "$here/../tests/guest-write-guard.sql"

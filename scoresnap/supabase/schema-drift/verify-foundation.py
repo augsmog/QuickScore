@@ -49,11 +49,16 @@ with tempfile.TemporaryDirectory() as tmp:
  run((root/'tests/default-privileges.sql').read_text(),'baseline default privilege fixture',True,'DEFAULT_TABLE_PRIVILEGE')
  up=(root/'migrations/20261027120000_sync_foundation.sql').read_text()
  run(up,'foundation apply')
- entries=json.loads((here/'expected-ledger.json').read_text())+[{'version':'20261027000000','name':'live_baseline'},{'version':'20261027120000','name':'sync_foundation'}]
+ m2_catalog=catalog()
+ guard=(root/'migrations/20261027130000_guest_write_guard.sql').read_text()
+ guard_down=(root/'rollback/20261027130000_guest_write_guard.down.sql').read_text()
+ run(guard,'guest guard apply')
+ run("DO $$ BEGIN IF has_column_privilege('authenticated','public.profiles','is_premium','UPDATE') OR NOT has_column_privilege('authenticated','public.profiles','display_name','UPDATE') THEN RAISE EXCEPTION 'profile ACL'; END IF; END $$;",'profile entitlement ACL')
+ entries=json.loads((here/'expected-ledger.json').read_text())+[{'version':'20261027000000','name':'live_baseline'},{'version':'20261027120000','name':'sync_foundation'},{'version':'20261027130000','name':'guest_write_guard'}]
  run('\n'.join("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('%s','%s');" % (e['version'],e['name']) for e in entries),'full local ledger seed')
  raw=catalog()
  ledger(raw,'local')
- print('PASS: nine-entry local ledger (live expectation remains seven)')
+ print('PASS: ten-entry local ledger (live expectation remains seven)')
  expected=root/'schema-snapshot/expected-after.json'
  if '--record' in sys.argv: expected.write_text(json.dumps(normalize(raw),indent=2,sort_keys=True)+'\n')
  compare(expected,'full chain equals expected-after.json')
@@ -61,9 +66,13 @@ with tempfile.TemporaryDirectory() as tmp:
  run((root/'tests/foundation.sql').read_text(),'foundation role/join/CAS fixtures')
  print('SKIP: raw RLS row filtering and event-trigger firing in single-user mode; mandatory in CI')
  run((root/'tests/legacy-compatibility.sql').read_text(),'legacy publish/watch/chat flags-off gate')
+ run(guard_down,'guest guard rollback')
+ assert not differences(m2_catalog,catalog()), 'M2b down exact M2 catalog'
+ print('PASS: M2b down exact M2 catalog')
  down=(root/'rollback/20261027120000_sync_foundation.down.sql').read_text()
  run("BEGIN; INSERT INTO auth.users(id) VALUES('10000000-0000-0000-0000-000000000001'); INSERT INTO public.contests(owner_id,course,invite_code,protocol) VALUES('10000000-0000-0000-0000-000000000001','{}','ABCDEF',1);\n"+down+'\nROLLBACK;','rollback refuses enrolled data',True,'M2_DOWN_UNSAFE')
  run(down,'rollback')
  compare(root/'schema-snapshot/live.json','rollback exact baseline catalog')
  run(up,'reapply')
+ run(guard,'guest guard reapply')
  compare(expected,'reapply exact expected catalog')
