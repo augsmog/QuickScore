@@ -1,0 +1,7404 @@
+{
+  "columns": [
+    {
+      "col": "action_taken",
+      "default": null,
+      "nullable": "YES",
+      "pos": 12,
+      "table": "feedback",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "actionable",
+      "default": "false",
+      "nullable": "YES",
+      "pos": 11,
+      "table": "feedback",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "col": "activation_rate_pct",
+      "default": null,
+      "nullable": "YES",
+      "pos": 2,
+      "table": "funnel_health",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "activation_wow_delta",
+      "default": null,
+      "nullable": "YES",
+      "pos": 8,
+      "table": "funnel_health",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "amount_cents",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 5,
+      "table": "revenue_events",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "amount_cents",
+      "default": null,
+      "nullable": "NO",
+      "pos": 5,
+      "table": "settlements",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "app_store_impressions",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 3,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "app_store_page_views",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 4,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "as_of",
+      "default": null,
+      "nullable": "YES",
+      "pos": 11,
+      "table": "golfcore_usage_summary_v2",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "auxiliary_data",
+      "default": null,
+      "nullable": "YES",
+      "pos": 12,
+      "table": "contests",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "avatar_url",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "profiles",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "avg_ctr_pct",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "content_insights",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "avg_engagement_pct",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "content_insights",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "avg_onboarding_duration_sec",
+      "default": null,
+      "nullable": "YES",
+      "pos": 20,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "avg_time_to_first_scan_sec",
+      "default": null,
+      "nullable": "YES",
+      "pos": 18,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "avg_time_to_first_settlement_sec",
+      "default": null,
+      "nullable": "YES",
+      "pos": 19,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "avg_ttfs_sec",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "funnel_health",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "best_posting_hour",
+      "default": null,
+      "nullable": "YES",
+      "pos": 14,
+      "table": "content_performance",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "bet_unit",
+      "default": "1",
+      "nullable": "NO",
+      "pos": 6,
+      "table": "contests",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "body",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "round_messages",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "called_at",
+      "default": "now()",
+      "nullable": "NO",
+      "pos": 2,
+      "table": "golfcore_usage",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "calls",
+      "default": null,
+      "nullable": "YES",
+      "pos": 2,
+      "table": "golfcore_usage_summary",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "calls",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "golfcore_usage_summary_v2",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "calls_7d",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "golfcore_usage_summary_v2",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "calls_effective",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "golfcore_usage_summary_v2",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "campaign",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "marketing_events",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "cap",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "golfcore_usage_summary",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "cap",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "golfcore_usage_summary_v2",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "category",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "automation_log",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "category",
+      "default": null,
+      "nullable": "YES",
+      "pos": 1,
+      "table": "feedback_themes",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "category",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "feedback",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "churned_at",
+      "default": null,
+      "nullable": "YES",
+      "pos": 8,
+      "table": "profiles",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "click_through_rate",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 12,
+      "table": "content_performance",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "clicks",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 9,
+      "table": "content_performance",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "completed_onboarding",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 7,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "content_type",
+      "default": null,
+      "nullable": "YES",
+      "pos": 2,
+      "table": "content_insights",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "content_type",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "content_performance",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "published_rounds",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "contest_players",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "round_messages",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "score_events",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "share_links",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "converted_premium",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 17,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "course",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "contests",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "course_name",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "scans",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "created_at",
+      "default": "clock_timestamp()",
+      "nullable": "NO",
+      "pos": 5,
+      "table": "round_messages",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 13,
+      "table": "improvement_actions",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 14,
+      "table": "daily_metrics",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 15,
+      "table": "contests",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 15,
+      "table": "feedback",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 16,
+      "table": "content_performance",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 17,
+      "table": "profiles",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 21,
+      "table": "funnel_snapshots",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 7,
+      "table": "automation_log",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 7,
+      "table": "score_events",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 8,
+      "table": "marketing_events",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 8,
+      "table": "scans",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 8,
+      "table": "settlements",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 9,
+      "table": "revenue_events",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "currency",
+      "default": "'usd'::text",
+      "nullable": "YES",
+      "pos": 6,
+      "table": "revenue_events",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "current_hole",
+      "default": "1",
+      "nullable": "YES",
+      "pos": 14,
+      "table": "contests",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "customer_email",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "revenue_events",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "d30_retention",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 13,
+      "table": "daily_metrics",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "d7_retention",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 12,
+      "table": "daily_metrics",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "date",
+      "default": "CURRENT_DATE",
+      "nullable": "NO",
+      "pos": 2,
+      "table": "daily_metrics",
+      "type": "date",
+      "udt": "date"
+    },
+    {
+      "col": "date",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "funnel_snapshots",
+      "type": "date",
+      "udt": "date"
+    },
+    {
+      "col": "dau",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 5,
+      "table": "daily_metrics",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "dau_mau_ratio",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 7,
+      "table": "daily_metrics",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "details",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "automation_log",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "diagnosis",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "improvement_actions",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "display_name",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "round_messages",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "display_name",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "profiles",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "downloads",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 5,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "email",
+      "default": null,
+      "nullable": "YES",
+      "pos": 2,
+      "table": "profiles",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "ended_at",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "published_rounds",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "endpoint",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "golfcore_usage",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "engagement_rate",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 11,
+      "table": "content_performance",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "engagements",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 8,
+      "table": "content_performance",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "entered_by",
+      "default": null,
+      "nullable": "NO",
+      "pos": 6,
+      "table": "score_events",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "event_name",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "marketing_events",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "event_type",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "revenue_events",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "expires_at",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "share_links",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "fetched_at",
+      "default": "now()",
+      "nullable": "NO",
+      "pos": 2,
+      "table": "course_search_cache",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "fetched_at",
+      "default": "now()",
+      "nullable": "NO",
+      "pos": 3,
+      "table": "course_catalog",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "first_game_selected",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 10,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "first_scan_completed",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 9,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "first_scan_started",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 8,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "first_settlement_sent",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 11,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "from_user_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "settlements",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "game_config",
+      "default": null,
+      "nullable": "YES",
+      "pos": 11,
+      "table": "contests",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "game_mode",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "scans",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "games",
+      "default": "'{}'::text[]",
+      "nullable": "NO",
+      "pos": 10,
+      "table": "contests",
+      "type": "ARRAY",
+      "udt": "_text"
+    },
+    {
+      "col": "group_id",
+      "default": "'group-1'::text",
+      "nullable": "NO",
+      "pos": 4,
+      "table": "contest_players",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "handicap",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 6,
+      "table": "contest_players",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "has_teams",
+      "default": "false",
+      "nullable": "YES",
+      "pos": 7,
+      "table": "contests",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "col": "header_used",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "golfcore_usage_drift",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "hole",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "score_events",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "automation_log",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "content_performance",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "contest_players",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "contests",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "daily_metrics",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "feedback",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "funnel_snapshots",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "improvement_actions",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "marketing_events",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "revenue_events",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "round_messages",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "scans",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "score_events",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "settlements",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "golfcore_usage",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "golfcore_usage_drift",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "profiles",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "impact_area",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "improvement_actions",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "impressions",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 7,
+      "table": "content_performance",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "install_rate",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 13,
+      "table": "content_performance",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "installs_attributed",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 10,
+      "table": "content_performance",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "invite_code",
+      "default": null,
+      "nullable": "NO",
+      "pos": 13,
+      "table": "contests",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "invite_rate_pct",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "funnel_health",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "invite_wow_delta",
+      "default": null,
+      "nullable": "YES",
+      "pos": 10,
+      "table": "funnel_health",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "invited_friend",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 13,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "is_premium",
+      "default": "false",
+      "nullable": "YES",
+      "pos": 5,
+      "table": "profiles",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "col": "is_quota_error",
+      "default": "false",
+      "nullable": "NO",
+      "pos": 6,
+      "table": "golfcore_usage",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "col": "joined_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 10,
+      "table": "contest_players",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "k_factor",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 11,
+      "table": "daily_metrics",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "last_call_at",
+      "default": null,
+      "nullable": "YES",
+      "pos": 8,
+      "table": "golfcore_usage_summary",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "last_remaining",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "golfcore_usage_summary",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "ledger_calls",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "golfcore_usage_drift",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "ledger_rows",
+      "default": null,
+      "nullable": "YES",
+      "pos": 2,
+      "table": "golfcore_usage_summary_v2",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "linear_issue_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 13,
+      "table": "feedback",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "linear_issue_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 9,
+      "table": "improvement_actions",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "local_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "published_rounds",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "mau",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 6,
+      "table": "daily_metrics",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "medium",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "marketing_events",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "mention_count",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "feedback_themes",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "mentions_24h",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "feedback_themes",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "mentions_7d",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "feedback_themes",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "metadata",
+      "default": "'{}'::jsonb",
+      "nullable": "YES",
+      "pos": 8,
+      "table": "revenue_events",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "metric_after",
+      "default": null,
+      "nullable": "YES",
+      "pos": 12,
+      "table": "improvement_actions",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "metric_before",
+      "default": null,
+      "nullable": "YES",
+      "pos": 11,
+      "table": "improvement_actions",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "month",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "golfcore_usage_drift",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "month",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "golfcore_usage",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "month",
+      "default": null,
+      "nullable": "YES",
+      "pos": 1,
+      "table": "golfcore_usage_summary",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "month",
+      "default": null,
+      "nullable": "YES",
+      "pos": 1,
+      "table": "golfcore_usage_summary_v2",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "name",
+      "default": "''::text",
+      "nullable": "NO",
+      "pos": 3,
+      "table": "contests",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "name",
+      "default": null,
+      "nullable": "NO",
+      "pos": 5,
+      "table": "contest_players",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "negative_pct",
+      "default": null,
+      "nullable": "YES",
+      "pos": 8,
+      "table": "feedback_themes",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "new_users",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 4,
+      "table": "daily_metrics",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "notion_page_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 2,
+      "table": "content_performance",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "observed_at",
+      "default": "now()",
+      "nullable": "NO",
+      "pos": 5,
+      "table": "golfcore_usage_drift",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "onboarding_email_sent",
+      "default": "false",
+      "nullable": "YES",
+      "pos": 13,
+      "table": "profiles",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "col": "onboarding_email_sent_at",
+      "default": null,
+      "nullable": "YES",
+      "pos": 14,
+      "table": "profiles",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "optimal_hour",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "content_insights",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "outcome",
+      "default": null,
+      "nullable": "YES",
+      "pos": 10,
+      "table": "improvement_actions",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "owner_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "contests",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "owner_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "published_rounds",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "payload",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "course_search_cache",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "payload",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "course_catalog",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "pct_effective",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "golfcore_usage_summary_v2",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "pct_used",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "golfcore_usage_summary",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "platform",
+      "default": null,
+      "nullable": "YES",
+      "pos": 1,
+      "table": "content_insights",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "platform",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "content_performance",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "player_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "score_events",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "players",
+      "default": "4",
+      "nullable": "YES",
+      "pos": 5,
+      "table": "scans",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "premium_conversion_rate",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "channel_effectiveness",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "premium_conversions",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "channel_effectiveness",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "premium_rate_pct",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "funnel_health",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "premium_since",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "profiles",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "premium_source",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "profiles",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "priority",
+      "default": "3",
+      "nullable": "YES",
+      "pos": 14,
+      "table": "feedback",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "priority",
+      "default": "3",
+      "nullable": "YES",
+      "pos": 7,
+      "table": "improvement_actions",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "projected_month_end",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "golfcore_usage_summary",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "projected_month_end_7d",
+      "default": null,
+      "nullable": "YES",
+      "pos": 8,
+      "table": "golfcore_usage_summary_v2",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "properties",
+      "default": "'{}'::jsonb",
+      "nullable": "YES",
+      "pos": 7,
+      "table": "marketing_events",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "published_at",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "content_performance",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "putts",
+      "default": "ARRAY[]::integer[]",
+      "nullable": "YES",
+      "pos": 9,
+      "table": "contest_players",
+      "type": "ARRAY",
+      "udt": "_int4"
+    },
+    {
+      "col": "query",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "course_search_cache",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "quota_errors",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "golfcore_usage_summary",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "quota_errors",
+      "default": null,
+      "nullable": "YES",
+      "pos": 9,
+      "table": "golfcore_usage_summary_v2",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "quota_tripped",
+      "default": "false",
+      "nullable": "NO",
+      "pos": 11,
+      "table": "golfcore_usage",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "col": "quota_tripped",
+      "default": null,
+      "nullable": "YES",
+      "pos": 10,
+      "table": "golfcore_usage_summary_v2",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "col": "ratelimit_limit",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "golfcore_usage",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "ratelimit_remaining",
+      "default": null,
+      "nullable": "YES",
+      "pos": 8,
+      "table": "golfcore_usage",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "ratelimit_reset",
+      "default": null,
+      "nullable": "YES",
+      "pos": 9,
+      "table": "golfcore_usage",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "raw_text",
+      "default": null,
+      "nullable": "NO",
+      "pos": 9,
+      "table": "feedback",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "read",
+      "default": "false",
+      "nullable": "YES",
+      "pos": 6,
+      "table": "automation_log",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "col": "recommendation",
+      "default": null,
+      "nullable": "NO",
+      "pos": 5,
+      "table": "improvement_actions",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "referral_code",
+      "default": null,
+      "nullable": "YES",
+      "pos": 10,
+      "table": "profiles",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "referral_count",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 12,
+      "table": "profiles",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "referred_by",
+      "default": null,
+      "nullable": "YES",
+      "pos": 11,
+      "table": "profiles",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "removed_at",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "round_messages",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "resolved_at",
+      "default": null,
+      "nullable": "YES",
+      "pos": 14,
+      "table": "improvement_actions",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "retention_rate_pct",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "funnel_health",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "retry_after",
+      "default": null,
+      "nullable": "YES",
+      "pos": 10,
+      "table": "golfcore_usage",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "revenue_cents",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 10,
+      "table": "daily_metrics",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "revoked_at",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "share_links",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "scan_duration_ms",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "scans",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "scan_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 2,
+      "table": "settlements",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "scorecard_data",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "scans",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "scores",
+      "default": "ARRAY[]::integer[]",
+      "nullable": "YES",
+      "pos": 8,
+      "table": "contest_players",
+      "type": "ARRAY",
+      "udt": "_int4"
+    },
+    {
+      "col": "second_scan_within_7d",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 12,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "sender_session_hash",
+      "default": null,
+      "nullable": "NO",
+      "pos": 7,
+      "table": "round_messages",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "sentiment",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "feedback_themes",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "sentiment",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "feedback",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "settled_at",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "settlements",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "settlement_rate_pct",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "funnel_health",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "settlement_wow_delta",
+      "default": null,
+      "nullable": "YES",
+      "pos": 9,
+      "table": "funnel_health",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "shared_results_card",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 14,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "signup_rate_pct",
+      "default": null,
+      "nullable": "YES",
+      "pos": 1,
+      "table": "funnel_health",
+      "type": "numeric",
+      "udt": "numeric"
+    },
+    {
+      "col": "signup_source",
+      "default": null,
+      "nullable": "YES",
+      "pos": 9,
+      "table": "profiles",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "signups",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 6,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "slug",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "course_catalog",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "snapshot",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "published_rounds",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "source",
+      "default": "'golfcore'::text",
+      "nullable": "NO",
+      "pos": 2,
+      "table": "course_catalog",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "source",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "feedback",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "source",
+      "default": null,
+      "nullable": "YES",
+      "pos": 1,
+      "table": "channel_effectiveness",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "source",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "marketing_events",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "source",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "automation_log",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "source_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "feedback",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "started_trial",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 16,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "status",
+      "default": "'active'::text",
+      "nullable": "NO",
+      "pos": 5,
+      "table": "contests",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "status",
+      "default": "'pending'::text",
+      "nullable": "YES",
+      "pos": 6,
+      "table": "settlements",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "status",
+      "default": "'suggested'::text",
+      "nullable": "YES",
+      "pos": 8,
+      "table": "improvement_actions",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "status",
+      "default": null,
+      "nullable": "NO",
+      "pos": 5,
+      "table": "golfcore_usage",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "stripe_event_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "revenue_events",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "strokes",
+      "default": null,
+      "nullable": "NO",
+      "pos": 5,
+      "table": "score_events",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "subcategory",
+      "default": null,
+      "nullable": "YES",
+      "pos": 2,
+      "table": "feedback_themes",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "subcategory",
+      "default": null,
+      "nullable": "YES",
+      "pos": 8,
+      "table": "feedback",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "subscription_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "revenue_events",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "summary",
+      "default": null,
+      "nullable": "YES",
+      "pos": 10,
+      "table": "feedback",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "tags",
+      "default": null,
+      "nullable": "YES",
+      "pos": 15,
+      "table": "content_performance",
+      "type": "ARRAY",
+      "udt": "_text"
+    },
+    {
+      "col": "team",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "contest_players",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "team_a_name",
+      "default": null,
+      "nullable": "YES",
+      "pos": 8,
+      "table": "contests",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "team_b_name",
+      "default": null,
+      "nullable": "YES",
+      "pos": 9,
+      "table": "contests",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "title",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "automation_log",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "title",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "content_performance",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "to_user_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "settlements",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "token_hash",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "share_links",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "total_installs",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "content_insights",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "total_posts",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "content_insights",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "total_rounds",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 16,
+      "table": "profiles",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "total_scans",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 15,
+      "table": "profiles",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "total_scans",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 8,
+      "table": "daily_metrics",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "total_settlements",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 9,
+      "table": "daily_metrics",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "total_signups",
+      "default": null,
+      "nullable": "YES",
+      "pos": 2,
+      "table": "channel_effectiveness",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "total_users",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 3,
+      "table": "daily_metrics",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "trigger_data",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "improvement_actions",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "trigger_type",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "improvement_actions",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "unactioned",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "feedback_themes",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "updated_at",
+      "default": "now()",
+      "nullable": "NO",
+      "pos": 6,
+      "table": "published_rounds",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "updated_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 16,
+      "table": "contests",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "updated_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 17,
+      "table": "content_performance",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "updated_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 18,
+      "table": "profiles",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "user_email",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "feedback",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "user_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 2,
+      "table": "scans",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "user_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "contest_players",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "user_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 4,
+      "table": "feedback",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "user_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "marketing_events",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "viewed_premium",
+      "default": "0",
+      "nullable": "YES",
+      "pos": 15,
+      "table": "funnel_snapshots",
+      "type": "integer",
+      "udt": "int4"
+    }
+  ],
+  "constraints": [
+    {
+      "def": "CHECK (((char_length(btrim(body)) >= 1) AND (char_length(btrim(body)) <= 500)))",
+      "name": "round_messages_body_check",
+      "table": "round_messages"
+    },
+    {
+      "def": "CHECK (((char_length(btrim(display_name)) >= 1) AND (char_length(btrim(display_name)) <= 30)))",
+      "name": "round_messages_display_name_check",
+      "table": "round_messages"
+    },
+    {
+      "def": "CHECK (((hole >= 1) AND (hole <= 18)))",
+      "name": "score_events_hole_check",
+      "table": "score_events"
+    },
+    {
+      "def": "CHECK (((strokes >= 1) AND (strokes <= 15)))",
+      "name": "score_events_strokes_check",
+      "table": "score_events"
+    },
+    {
+      "def": "CHECK ((endpoint = ANY (ARRAY['search'::text, 'detail'::text, 'count'::text])))",
+      "name": "golfcore_usage_endpoint_check",
+      "table": "golfcore_usage"
+    },
+    {
+      "def": "CHECK ((sender_session_hash ~ '^[a-f0-9]{64}$'::text))",
+      "name": "round_messages_sender_session_hash_check",
+      "table": "round_messages"
+    },
+    {
+      "def": "CHECK ((status = ANY (ARRAY['active'::text, 'completed'::text])))",
+      "name": "contests_status_check",
+      "table": "contests"
+    },
+    {
+      "def": "CHECK ((team = ANY (ARRAY['A'::text, 'B'::text])))",
+      "name": "contest_players_team_check",
+      "table": "contest_players"
+    },
+    {
+      "def": "FOREIGN KEY (contest_id) REFERENCES contests(id) ON DELETE CASCADE",
+      "name": "contest_players_contest_id_fkey",
+      "table": "contest_players"
+    },
+    {
+      "def": "FOREIGN KEY (contest_id) REFERENCES contests(id) ON DELETE CASCADE",
+      "name": "published_rounds_contest_id_fkey",
+      "table": "published_rounds"
+    },
+    {
+      "def": "FOREIGN KEY (contest_id) REFERENCES contests(id) ON DELETE CASCADE",
+      "name": "score_events_contest_id_fkey",
+      "table": "score_events"
+    },
+    {
+      "def": "FOREIGN KEY (contest_id) REFERENCES published_rounds(contest_id) ON DELETE CASCADE",
+      "name": "round_messages_contest_id_fkey",
+      "table": "round_messages"
+    },
+    {
+      "def": "FOREIGN KEY (contest_id) REFERENCES published_rounds(contest_id) ON DELETE CASCADE",
+      "name": "share_links_contest_id_fkey",
+      "table": "share_links"
+    },
+    {
+      "def": "FOREIGN KEY (entered_by) REFERENCES auth.users(id)",
+      "name": "score_events_entered_by_fkey",
+      "table": "score_events"
+    },
+    {
+      "def": "FOREIGN KEY (from_user_id) REFERENCES auth.users(id)",
+      "name": "settlements_from_user_id_fkey",
+      "table": "settlements"
+    },
+    {
+      "def": "FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "name": "profiles_id_fkey",
+      "table": "profiles"
+    },
+    {
+      "def": "FOREIGN KEY (owner_id) REFERENCES auth.users(id)",
+      "name": "contests_owner_id_fkey",
+      "table": "contests"
+    },
+    {
+      "def": "FOREIGN KEY (owner_id) REFERENCES auth.users(id)",
+      "name": "published_rounds_owner_id_fkey",
+      "table": "published_rounds"
+    },
+    {
+      "def": "FOREIGN KEY (player_id) REFERENCES contest_players(id) ON DELETE CASCADE",
+      "name": "score_events_player_id_fkey",
+      "table": "score_events"
+    },
+    {
+      "def": "FOREIGN KEY (scan_id) REFERENCES scans(id)",
+      "name": "settlements_scan_id_fkey",
+      "table": "settlements"
+    },
+    {
+      "def": "FOREIGN KEY (to_user_id) REFERENCES auth.users(id)",
+      "name": "settlements_to_user_id_fkey",
+      "table": "settlements"
+    },
+    {
+      "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)",
+      "name": "contest_players_user_id_fkey",
+      "table": "contest_players"
+    },
+    {
+      "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)",
+      "name": "feedback_user_id_fkey",
+      "table": "feedback"
+    },
+    {
+      "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)",
+      "name": "marketing_events_user_id_fkey",
+      "table": "marketing_events"
+    },
+    {
+      "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)",
+      "name": "scans_user_id_fkey",
+      "table": "scans"
+    },
+    {
+      "def": "PRIMARY KEY (contest_id)",
+      "name": "published_rounds_pkey",
+      "table": "published_rounds"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "automation_log_pkey",
+      "table": "automation_log"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "content_performance_pkey",
+      "table": "content_performance"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "contest_players_pkey",
+      "table": "contest_players"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "contests_pkey",
+      "table": "contests"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "daily_metrics_pkey",
+      "table": "daily_metrics"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "feedback_pkey",
+      "table": "feedback"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "funnel_snapshots_pkey",
+      "table": "funnel_snapshots"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "golfcore_usage_drift_pkey",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "golfcore_usage_pkey",
+      "table": "golfcore_usage"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "improvement_actions_pkey",
+      "table": "improvement_actions"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "marketing_events_pkey",
+      "table": "marketing_events"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "profiles_pkey",
+      "table": "profiles"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "revenue_events_pkey",
+      "table": "revenue_events"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "round_messages_pkey",
+      "table": "round_messages"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "scans_pkey",
+      "table": "scans"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "score_events_pkey",
+      "table": "score_events"
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "name": "settlements_pkey",
+      "table": "settlements"
+    },
+    {
+      "def": "PRIMARY KEY (query)",
+      "name": "course_search_cache_pkey",
+      "table": "course_search_cache"
+    },
+    {
+      "def": "PRIMARY KEY (slug)",
+      "name": "course_catalog_pkey",
+      "table": "course_catalog"
+    },
+    {
+      "def": "PRIMARY KEY (token_hash)",
+      "name": "share_links_pkey",
+      "table": "share_links"
+    },
+    {
+      "def": "UNIQUE (contest_id, user_id)",
+      "name": "contest_players_contest_id_user_id_key",
+      "table": "contest_players"
+    },
+    {
+      "def": "UNIQUE (date)",
+      "name": "daily_metrics_date_key",
+      "table": "daily_metrics"
+    },
+    {
+      "def": "UNIQUE (date)",
+      "name": "funnel_snapshots_date_key",
+      "table": "funnel_snapshots"
+    },
+    {
+      "def": "UNIQUE (invite_code)",
+      "name": "contests_invite_code_key",
+      "table": "contests"
+    },
+    {
+      "def": "UNIQUE (owner_id, local_id)",
+      "name": "published_rounds_owner_id_local_id_key",
+      "table": "published_rounds"
+    },
+    {
+      "def": "UNIQUE (referral_code)",
+      "name": "profiles_referral_code_key",
+      "table": "profiles"
+    },
+    {
+      "def": "UNIQUE (stripe_event_id)",
+      "name": "revenue_events_stripe_event_id_key",
+      "table": "revenue_events"
+    }
+  ],
+  "default_acls": [
+    {
+      "acl": "{anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "objtype": "f",
+      "role": "postgres",
+      "schema": "public"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "objtype": "r",
+      "role": "postgres",
+      "schema": "public"
+    },
+    {
+      "acl": "{anon=rwU/postgres,authenticated=rwU/postgres,postgres=rwU/postgres,service_role=rwU/postgres}",
+      "objtype": "S",
+      "role": "postgres",
+      "schema": "public"
+    }
+  ],
+  "extensions": [],
+  "functions": [
+    {
+      "acl": "{=X/postgres,anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.rls_auto_enable() RETURNS event_trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE\n  cmd record;\nBEGIN\n  FOR cmd IN\n    SELECT *\n    FROM pg_event_trigger_ddl_commands()\n    WHERE command_tag IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')\n      AND object_type IN ('table','partitioned table')\n  LOOP\n     IF cmd.schema_name IS NOT NULL AND cmd.schema_name IN ('public') AND cmd.schema_name NOT IN ('pg_catalog','information_schema') AND cmd.schema_name NOT LIKE 'pg_toast%' AND cmd.schema_name NOT LIKE 'pg_temp%' THEN\n      BEGIN\n        EXECUTE format('alter table if exists %s enable row level security', cmd.object_identity);\n        RAISE LOG 'rls_auto_enable: enabled RLS on %', cmd.object_identity;\n      EXCEPTION\n        WHEN OTHERS THEN\n          RAISE LOG 'rls_auto_enable: failed to enable RLS on %', cmd.object_identity;\n      END;\n     ELSE\n        RAISE LOG 'rls_auto_enable: skip % (either system schema or not in enforced list: %.)', cmd.object_identity, cmd.schema_name;\n     END IF;\n  END LOOP;\nEND;\n$function$",
+      "name": "rls_auto_enable",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{=X/postgres,anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "",
+      "config": null,
+      "def": "CREATE OR REPLACE FUNCTION public.get_dau() RETURNS integer LANGUAGE plpgsql SECURITY DEFINER AS $function$\nBEGIN\n  RETURN (SELECT count(DISTINCT id)::integer FROM auth.users WHERE last_sign_in_at >= now() - interval '1 day');\nEND;\n$function$",
+      "name": "get_dau",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{=X/postgres,anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "",
+      "config": null,
+      "def": "CREATE OR REPLACE FUNCTION public.get_mau() RETURNS integer LANGUAGE plpgsql SECURITY DEFINER AS $function$\nBEGIN\n  RETURN (SELECT count(DISTINCT id)::integer FROM auth.users WHERE last_sign_in_at >= now() - interval '30 days');\nEND;\n$function$",
+      "name": "get_mau",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{=X/postgres,anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "",
+      "config": null,
+      "def": "CREATE OR REPLACE FUNCTION public.handle_new_user() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$\nBEGIN\n  INSERT INTO public.profiles (id, email, signup_source)\n  VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_app_meta_data->>'provider', 'email'))\n  ON CONFLICT (id) DO NOTHING;\n  RETURN NEW;\nEND;\n$function$",
+      "name": "handle_new_user",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{=X/postgres,anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "",
+      "config": null,
+      "def": "CREATE OR REPLACE FUNCTION public.handle_updated_at() RETURNS trigger LANGUAGE plpgsql AS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$",
+      "name": "handle_updated_at",
+      "owner": "postgres",
+      "secdef": false
+    },
+    {
+      "acl": "{=X/postgres,anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "days integer",
+      "config": null,
+      "def": "CREATE OR REPLACE FUNCTION public.calculate_retention(days integer) RETURNS numeric LANGUAGE plpgsql SECURITY DEFINER AS $function$\nDECLARE\n  eligible integer;\n  retained integer;\nBEGIN\n  SELECT count(*)::integer INTO eligible FROM auth.users WHERE created_at <= now() - (days || ' days')::interval;\n  IF eligible = 0 THEN RETURN 0; END IF;\n  SELECT count(*)::integer INTO retained FROM auth.users\n    WHERE created_at <= now() - (days || ' days')::interval\n      AND last_sign_in_at >= now() - (days || ' days')::interval;\n  RETURN round((retained::numeric / eligible::numeric) * 100, 2);\nEND;\n$function$",
+      "name": "calculate_retention",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{=X/postgres,anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "target_date date",
+      "config": null,
+      "def": "CREATE OR REPLACE FUNCTION public.increment_daily_signups(target_date date) RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $function$\nBEGIN\n  INSERT INTO public.daily_metrics (date, new_users)\n  VALUES (target_date, 1)\n  ON CONFLICT (date) DO UPDATE SET new_users = daily_metrics.new_users + 1;\nEND;\n$function$",
+      "name": "increment_daily_signups",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{=X/postgres,anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "target_date date, amount integer",
+      "config": null,
+      "def": "CREATE OR REPLACE FUNCTION public.increment_daily_revenue(target_date date, amount integer) RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $function$\nBEGIN\n  INSERT INTO public.daily_metrics (date, revenue_cents)\n  VALUES (target_date, amount)\n  ON CONFLICT (date) DO UPDATE SET revenue_cents = daily_metrics.revenue_cents + amount;\nEND;\n$function$",
+      "name": "increment_daily_revenue",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_token text",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.get_shared_round(p_token text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\ndeclare link public.share_links; snapshot jsonb;\nbegin\n  if p_token is null or p_token !~ '^[a-f0-9]{64}$' then raise exception 'invalid link'; end if;\n  select * into link from public.share_links where token_hash=encode(sha256(convert_to(p_token,'UTF8')),'hex');\n  if not found then raise exception 'invalid link'; end if;\n  if link.revoked_at is not null then raise exception 'revoked link'; end if;\n  if link.expires_at <= now() then raise exception 'expired link'; end if;\n  select r.snapshot into snapshot from public.published_rounds r where r.contest_id=link.contest_id;\n  return public.sanitize_shared_round(snapshot);\nend $function$",
+      "name": "get_shared_round",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_token text, p_session text, p_name text, p_body text",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.post_message(p_token text, p_session text, p_name text, p_body text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\ndeclare cid uuid; session_hash text; at_time timestamptz;\nbegin\n  cid := public.chat_contest(p_token);\n  if p_session is null or p_session !~ '^[a-f0-9]{64}$'\n    or p_name is null or char_length(btrim(p_name)) not between 1 and 30\n    or p_body is null or char_length(btrim(p_body)) not between 1 and 500 then\n    raise exception 'invalid message';\n  end if;\n  -- Same lock as revoke/publish: concurrent posts cannot bypass round/session limits.\n  perform 1 from public.published_rounds where contest_id=cid for update;\n  perform public.chat_contest(p_token); -- Revocation/expiry may have occurred while waiting.\n  at_time := clock_timestamp();\n  session_hash := encode(sha256(convert_to(p_session,'UTF8')),'hex');\n  -- Removed messages still count. A new token does not reset the round's limits.\n  if (select count(*) from public.round_messages where contest_id=cid and sender_session_hash=session_hash\n        and created_at > at_time - interval '30 seconds') >= 5\n    or (select count(*) from public.round_messages where contest_id=cid\n        and created_at > at_time - interval '1 minute') >= 60 then\n    raise exception 'chat rate limit' using errcode='P0001';\n  end if;\n  insert into public.round_messages(contest_id, display_name, body, sender_session_hash, created_at)\n    values(cid, btrim(p_name), btrim(p_body), session_hash, at_time);\nend $function$",
+      "name": "post_message",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_token text, p_since timestamp with time zone",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.list_messages(p_token text, p_since timestamp with time zone DEFAULT NULL::timestamp with time zone) RETURNS TABLE(display_name text, body text, created_at timestamp with time zone) LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\ndeclare cid uuid;\nbegin\n  cid := public.chat_contest(p_token);\n  return query select m.display_name,m.body,m.created_at from (\n    select r.* from public.round_messages r where r.contest_id=cid and r.removed_at is null\n      and (p_since is null or r.created_at > p_since)\n    order by r.created_at desc,r.id desc limit 200\n  ) m order by m.created_at,m.id;\nend $function$",
+      "name": "list_messages",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_contest uuid",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.is_contest_member(p_contest uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\n  select exists(select 1 from public.contest_players p where p.contest_id = p_contest and p.user_id = auth.uid())\n      or exists(select 1 from public.contests c where c.id = p_contest and c.owner_id = auth.uid());\n$function$",
+      "name": "is_contest_member",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_contest uuid",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.is_contest_owner(p_contest uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\n  select exists(select 1 from public.contests c where c.id = p_contest and c.owner_id = auth.uid());\n$function$",
+      "name": "is_contest_owner",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_local_id text",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.create_share_link(p_local_id text) RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\ndeclare r public.published_rounds; token text;\nbegin\n  select * into r from public.published_rounds where owner_id=auth.uid() and local_id=p_local_id for update;\n  if not found or not exists(select 1 from public.contests where id=r.contest_id and owner_id=auth.uid()) then raise exception 'owner required'; end if;\n  if r.ended_at + interval '7 days' <= now() then raise exception 'round expired'; end if;\n  token := replace(gen_random_uuid()::text,'-','') || replace(gen_random_uuid()::text,'-','');\n  insert into public.share_links(token_hash,contest_id,expires_at)\n    values(encode(sha256(convert_to(token,'UTF8')),'hex'),r.contest_id,coalesce(r.ended_at + interval '7 days','infinity'::timestamptz));\n  return token;\nend $function$",
+      "name": "create_share_link",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_local_id text",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.list_host_messages(p_local_id text) RETURNS TABLE(id uuid, display_name text, body text, created_at timestamp with time zone) LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\ndeclare cid uuid;\nbegin\n  select r.contest_id into cid from public.published_rounds r join public.contests c on c.id=r.contest_id\n    where r.local_id=p_local_id and r.owner_id=auth.uid() and c.owner_id=auth.uid()\n      and not coalesce((auth.jwt()->>'is_anonymous')::boolean,false);\n  if cid is null then raise exception 'owner required'; end if;\n  return query select m.id,m.display_name,m.body,m.created_at from (\n    select r.* from public.round_messages r where r.contest_id=cid and r.removed_at is null\n    order by r.created_at desc,r.id desc limit 200\n  ) m order by m.created_at,m.id;\nend $function$",
+      "name": "list_host_messages",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_local_id text",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.revoke_share_links(p_local_id text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\ndeclare cid uuid;\nbegin\n  select r.contest_id into cid from public.published_rounds r join public.contests c on c.id=r.contest_id\n    where r.owner_id=auth.uid() and c.owner_id=auth.uid() and r.local_id=p_local_id for update of r;\n  if cid is null then raise exception 'owner required'; end if;\n  update public.share_links set revoked_at=now() where contest_id=cid and revoked_at is null;\nend $function$",
+      "name": "revoke_share_links",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_local_id text, p_snapshot jsonb",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.publish_shared_round(p_local_id text, p_snapshot jsonb) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\ndeclare r public.published_rounds; cid uuid; clean jsonb; ended timestamptz;\nbegin\n  if auth.uid() is null or coalesce((auth.jwt()->>'is_anonymous')::boolean,false) then raise exception 'owner required'; end if;\n  if length(p_local_id) not between 1 and 200 or pg_column_size(p_snapshot) > 100000 then raise exception 'invalid snapshot'; end if;\n  -- Serialize creation and updates for a local contest, including across devices.\n  perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text || ':' || p_local_id,0));\n  clean := public.sanitize_shared_round(p_snapshot);\n  select * into r from public.published_rounds where owner_id = auth.uid() and local_id = p_local_id for update;\n  if found then\n    cid := r.contest_id;\n    if not exists(select 1 from public.contests where id = cid and owner_id = auth.uid()) then raise exception 'owner required'; end if;\n    ended := r.ended_at;\n  else\n    insert into public.contests(owner_id,name,course,invite_code)\n      values(auth.uid(),'Shared round','{}'::jsonb,translate(upper(substr(replace(gen_random_uuid()::text,'-',''),1,6)),'01','GH')) returning id into cid;\n  end if;\n  if (clean->>'completed')::boolean and ended is null then ended := now(); end if;\n  insert into public.published_rounds(contest_id,owner_id,local_id,snapshot,ended_at)\n    values(cid,auth.uid(),p_local_id,clean,ended)\n    on conflict(contest_id) do update set snapshot=excluded.snapshot, ended_at=excluded.ended_at, updated_at=now();\n  -- Active links have no scheduled round end. Completion fixes their expiry once.\n  if ended is not null then update public.share_links set expires_at=least(expires_at,ended + interval '7 days') where contest_id=cid; end if;\nend $function$",
+      "name": "publish_shared_round",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_message_id uuid",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.remove_message(p_message_id uuid) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nbegin\n  update public.round_messages m set removed_at=coalesce(m.removed_at,clock_timestamp())\n  where m.id=p_message_id and exists (\n    select 1 from public.published_rounds r join public.contests c on c.id=r.contest_id\n    where r.contest_id=m.contest_id and r.owner_id=auth.uid() and c.owner_id=auth.uid()\n      and not coalesce((auth.jwt()->>'is_anonymous')::boolean,false)\n  );\n  if not found then raise exception 'owner required'; end if;\nend $function$",
+      "name": "remove_message",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p jsonb",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.sanitize_shared_round(p jsonb) RETURNS jsonb LANGUAGE plpgsql IMMUTABLE SET search_path TO 'pg_catalog' AS $function$\ndeclare players jsonb; games jsonb;\nbegin\n  if jsonb_typeof(p->'players') is distinct from 'array' or jsonb_array_length(p->'players') > 40\n    or jsonb_typeof(p->'games') is distinct from 'array' or jsonb_array_length(p->'games') > 30 then\n    raise exception 'invalid snapshot';\n  end if;\n  select coalesce(jsonb_agg(jsonb_build_object(\n    'displayName', left(x->>'displayName',80),\n    'scores', (select coalesce(jsonb_agg((n::text)::integer order by ord), '[]'::jsonb)\n      from jsonb_array_elements(x->'scores') with ordinality as s(n,ord)\n      where ord <= 18 and jsonb_typeof(n) = 'number' and n::text ~ '^[0-9]{1,2}$'),\n    'total', (x->>'total')::integer, 'toPar', (x->>'toPar')::integer\n  )), '[]'::jsonb) into players from jsonb_array_elements(p->'players') x;\n  select coalesce(jsonb_agg(jsonb_build_object(\n    'game', left(x->>'game',40),\n    'standings', (select coalesce(jsonb_agg(jsonb_build_object(\n      'displayName', left(s->>'displayName',80), 'units', (s->>'units')::numeric)), '[]'::jsonb)\n      from jsonb_array_elements(x->'standings') s)\n  )), '[]'::jsonb) into games from jsonb_array_elements(p->'games') x;\n  return jsonb_build_object('completed', coalesce((p->>'completed')::boolean,false), 'players', players, 'games', games);\nend $function$",
+      "name": "sanitize_shared_round",
+      "owner": "postgres",
+      "secdef": false
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_endpoint text, p_monthly_cap integer, p_minute_cap integer",
+      "config": [
+        "search_path=public"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.reserve_golfcore_call(p_endpoint text, p_monthly_cap integer, p_minute_cap integer) RETURNS bigint LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $function$\nDECLARE v_month text := to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM');\nv_calls bigint; v_minute bigint; v_used bigint; v_tripped boolean; v_id bigint;\nBEGIN\n PERFORM pg_advisory_xact_lock(706241024);\n SELECT count(*), coalesce(bool_or(quota_tripped), false) INTO v_calls, v_tripped FROM golfcore_usage WHERE month = v_month;\n SELECT count(*) INTO v_minute FROM golfcore_usage WHERE called_at >= clock_timestamp() - interval '60 seconds';\n SELECT greatest(0, ratelimit_limit - ratelimit_remaining) INTO v_used FROM golfcore_usage\n WHERE month = v_month AND ratelimit_limit IS NOT NULL AND ratelimit_remaining IS NOT NULL ORDER BY called_at DESC, id DESC LIMIT 1;\n IF v_tripped OR greatest(v_calls, coalesce(v_used,0)) >= LEAST(coalesce(p_monthly_cap, 500), 500)\n OR v_minute >= LEAST(coalesce(p_minute_cap, 9), 9) THEN RETURN NULL; END IF;\n INSERT INTO golfcore_usage(month, endpoint, status) VALUES (v_month, p_endpoint, 0) RETURNING id INTO v_id;\n RETURN v_id;\nEND $function$",
+      "name": "reserve_golfcore_call",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_token text",
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.chat_contest(p_token text) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\ndeclare link public.share_links;\nbegin\n  if p_token is null or p_token !~ '^[a-f0-9]{64}$' then raise exception 'invalid link'; end if;\n  select * into link from public.share_links where token_hash=encode(sha256(convert_to(p_token,'UTF8')),'hex');\n  if not found then raise exception 'invalid link'; end if;\n  if link.revoked_at is not null then raise exception 'revoked link'; end if;\n  if link.expires_at <= clock_timestamp() then raise exception 'expired link'; end if;\n  return link.contest_id;\nend $function$",
+      "name": "chat_contest",
+      "owner": "postgres",
+      "secdef": true
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_usage_id bigint",
+      "config": [
+        "search_path=public"
+      ],
+      "def": "CREATE OR REPLACE FUNCTION public.reconcile_golfcore_usage(p_usage_id bigint) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $function$\nDECLARE v_row golfcore_usage%ROWTYPE; v_count bigint; v_used bigint;\nBEGIN\n PERFORM pg_advisory_xact_lock(706241024);\n SELECT * INTO v_row FROM golfcore_usage WHERE id = p_usage_id;\n IF v_row.ratelimit_limit IS NULL OR v_row.ratelimit_remaining IS NULL THEN RETURN; END IF;\n SELECT count(*) INTO v_count FROM golfcore_usage WHERE month = v_row.month;\n v_used := greatest(0, v_row.ratelimit_limit - v_row.ratelimit_remaining);\n IF abs(v_used - v_count)::numeric / greatest(1, v_count) > 0.02 THEN\n  INSERT INTO golfcore_usage_drift(month, ledger_calls, header_used) VALUES (v_row.month, v_count, v_used);\n END IF;\nEND $function$",
+      "name": "reconcile_golfcore_usage",
+      "owner": "postgres",
+      "secdef": true
+    }
+  ],
+  "grants": [
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "contests"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "scans"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "DELETE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "contests"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "feedback"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "profiles"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "scans"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "score_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "INSERT",
+      "table": "settlements"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "contests"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "feedback"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "profiles"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "scans"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "score_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "REFERENCES",
+      "table": "settlements"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "contests"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "feedback"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "profiles"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "scans"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "score_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "SELECT",
+      "table": "settlements"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "contests"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "feedback"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "profiles"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "scans"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "score_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRIGGER",
+      "table": "settlements"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "contests"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "scans"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "TRUNCATE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "contests"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "scans"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "anon",
+      "priv": "UPDATE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "contests"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "scans"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "DELETE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "contests"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "feedback"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "profiles"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "scans"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "score_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "INSERT",
+      "table": "settlements"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "contests"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "feedback"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "profiles"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "scans"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "score_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "REFERENCES",
+      "table": "settlements"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "contests"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "feedback"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "profiles"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "scans"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "score_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "SELECT",
+      "table": "settlements"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "contests"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "feedback"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "profiles"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "scans"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "score_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRIGGER",
+      "table": "settlements"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "contests"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "scans"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "TRUNCATE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "contests"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "scans"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "UPDATE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "contests"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "scans"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "contests"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "feedback"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "profiles"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "scans"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "score_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "settlements"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "contests"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "feedback"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "profiles"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "scans"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "score_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "settlements"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "contests"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "feedback"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "profiles"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "scans"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "score_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "settlements"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "contests"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "feedback"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "profiles"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "scans"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "score_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "settlements"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "contests"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "scans"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "contests"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "scans"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "contests"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "scans"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "contests"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "feedback"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "profiles"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "scans"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "score_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "settlements"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "contests"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "feedback"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "profiles"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "scans"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "score_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "settlements"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "contests"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "feedback"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "profiles"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "scans"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "score_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "settlements"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "contests"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "feedback"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "profiles"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "scans"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "score_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "settlements"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "contests"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "scans"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "automation_log"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "content_insights"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "content_performance"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "contests"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "course_catalog"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "course_search_cache"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "daily_metrics"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "feedback"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "feedback_themes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "funnel_health"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "funnel_snapshots"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "golfcore_usage"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "golfcore_usage_summary"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "golfcore_usage_summary_v2"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "improvement_actions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "marketing_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "profiles"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "published_rounds"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "revenue_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "round_messages"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "scans"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "score_events"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "settlements"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "share_links"
+    }
+  ],
+  "indexes": [
+    {
+      "def": "CREATE INDEX golfcore_usage_called_at ON public.golfcore_usage USING btree (called_at DESC)",
+      "name": "golfcore_usage_called_at",
+      "table": "golfcore_usage"
+    },
+    {
+      "def": "CREATE INDEX golfcore_usage_month_called_at ON public.golfcore_usage USING btree (month, called_at DESC)",
+      "name": "golfcore_usage_month_called_at",
+      "table": "golfcore_usage"
+    },
+    {
+      "def": "CREATE INDEX idx_automation_log_category ON public.automation_log USING btree (category)",
+      "name": "idx_automation_log_category",
+      "table": "automation_log"
+    },
+    {
+      "def": "CREATE INDEX idx_automation_log_created ON public.automation_log USING btree (created_at DESC)",
+      "name": "idx_automation_log_created",
+      "table": "automation_log"
+    },
+    {
+      "def": "CREATE INDEX idx_automation_log_unread ON public.automation_log USING btree (read) WHERE (read = false)",
+      "name": "idx_automation_log_unread",
+      "table": "automation_log"
+    },
+    {
+      "def": "CREATE INDEX idx_content_perf_engagement ON public.content_performance USING btree (engagement_rate DESC)",
+      "name": "idx_content_perf_engagement",
+      "table": "content_performance"
+    },
+    {
+      "def": "CREATE INDEX idx_content_perf_platform ON public.content_performance USING btree (platform)",
+      "name": "idx_content_perf_platform",
+      "table": "content_performance"
+    },
+    {
+      "def": "CREATE INDEX idx_contest_players_contest ON public.contest_players USING btree (contest_id)",
+      "name": "idx_contest_players_contest",
+      "table": "contest_players"
+    },
+    {
+      "def": "CREATE INDEX idx_contest_players_user ON public.contest_players USING btree (user_id)",
+      "name": "idx_contest_players_user",
+      "table": "contest_players"
+    },
+    {
+      "def": "CREATE INDEX idx_contests_invite_code ON public.contests USING btree (invite_code)",
+      "name": "idx_contests_invite_code",
+      "table": "contests"
+    },
+    {
+      "def": "CREATE INDEX idx_contests_owner ON public.contests USING btree (owner_id)",
+      "name": "idx_contests_owner",
+      "table": "contests"
+    },
+    {
+      "def": "CREATE INDEX idx_feedback_actionable ON public.feedback USING btree (actionable) WHERE (actionable = true)",
+      "name": "idx_feedback_actionable",
+      "table": "feedback"
+    },
+    {
+      "def": "CREATE INDEX idx_feedback_category ON public.feedback USING btree (category)",
+      "name": "idx_feedback_category",
+      "table": "feedback"
+    },
+    {
+      "def": "CREATE INDEX idx_feedback_created ON public.feedback USING btree (created_at DESC)",
+      "name": "idx_feedback_created",
+      "table": "feedback"
+    },
+    {
+      "def": "CREATE INDEX idx_feedback_sentiment ON public.feedback USING btree (sentiment)",
+      "name": "idx_feedback_sentiment",
+      "table": "feedback"
+    },
+    {
+      "def": "CREATE INDEX idx_feedback_source ON public.feedback USING btree (source)",
+      "name": "idx_feedback_source",
+      "table": "feedback"
+    },
+    {
+      "def": "CREATE INDEX idx_funnel_date ON public.funnel_snapshots USING btree (date DESC)",
+      "name": "idx_funnel_date",
+      "table": "funnel_snapshots"
+    },
+    {
+      "def": "CREATE INDEX idx_improvements_area ON public.improvement_actions USING btree (impact_area)",
+      "name": "idx_improvements_area",
+      "table": "improvement_actions"
+    },
+    {
+      "def": "CREATE INDEX idx_improvements_created ON public.improvement_actions USING btree (created_at DESC)",
+      "name": "idx_improvements_created",
+      "table": "improvement_actions"
+    },
+    {
+      "def": "CREATE INDEX idx_improvements_status ON public.improvement_actions USING btree (status)",
+      "name": "idx_improvements_status",
+      "table": "improvement_actions"
+    },
+    {
+      "def": "CREATE INDEX idx_marketing_events_campaign ON public.marketing_events USING btree (campaign)",
+      "name": "idx_marketing_events_campaign",
+      "table": "marketing_events"
+    },
+    {
+      "def": "CREATE INDEX idx_marketing_events_created_at ON public.marketing_events USING btree (created_at DESC)",
+      "name": "idx_marketing_events_created_at",
+      "table": "marketing_events"
+    },
+    {
+      "def": "CREATE INDEX idx_marketing_events_source ON public.marketing_events USING btree (source)",
+      "name": "idx_marketing_events_source",
+      "table": "marketing_events"
+    },
+    {
+      "def": "CREATE INDEX idx_profiles_email ON public.profiles USING btree (email)",
+      "name": "idx_profiles_email",
+      "table": "profiles"
+    },
+    {
+      "def": "CREATE INDEX idx_profiles_premium ON public.profiles USING btree (is_premium) WHERE (is_premium = true)",
+      "name": "idx_profiles_premium",
+      "table": "profiles"
+    },
+    {
+      "def": "CREATE INDEX idx_profiles_referral_code ON public.profiles USING btree (referral_code)",
+      "name": "idx_profiles_referral_code",
+      "table": "profiles"
+    },
+    {
+      "def": "CREATE INDEX idx_revenue_events_created_at ON public.revenue_events USING btree (created_at DESC)",
+      "name": "idx_revenue_events_created_at",
+      "table": "revenue_events"
+    },
+    {
+      "def": "CREATE INDEX idx_revenue_events_customer_email ON public.revenue_events USING btree (customer_email)",
+      "name": "idx_revenue_events_customer_email",
+      "table": "revenue_events"
+    },
+    {
+      "def": "CREATE INDEX idx_revenue_events_event_type ON public.revenue_events USING btree (event_type)",
+      "name": "idx_revenue_events_event_type",
+      "table": "revenue_events"
+    },
+    {
+      "def": "CREATE INDEX idx_scans_created ON public.scans USING btree (created_at DESC)",
+      "name": "idx_scans_created",
+      "table": "scans"
+    },
+    {
+      "def": "CREATE INDEX idx_scans_user ON public.scans USING btree (user_id)",
+      "name": "idx_scans_user",
+      "table": "scans"
+    },
+    {
+      "def": "CREATE INDEX idx_score_events_contest ON public.score_events USING btree (contest_id)",
+      "name": "idx_score_events_contest",
+      "table": "score_events"
+    },
+    {
+      "def": "CREATE INDEX idx_settlements_created ON public.settlements USING btree (created_at DESC)",
+      "name": "idx_settlements_created",
+      "table": "settlements"
+    },
+    {
+      "def": "CREATE INDEX idx_settlements_from ON public.settlements USING btree (from_user_id)",
+      "name": "idx_settlements_from",
+      "table": "settlements"
+    },
+    {
+      "def": "CREATE INDEX idx_settlements_to ON public.settlements USING btree (to_user_id)",
+      "name": "idx_settlements_to",
+      "table": "settlements"
+    },
+    {
+      "def": "CREATE INDEX round_messages_recent ON public.round_messages USING btree (contest_id, created_at DESC)",
+      "name": "round_messages_recent",
+      "table": "round_messages"
+    },
+    {
+      "def": "CREATE INDEX round_messages_session ON public.round_messages USING btree (contest_id, sender_session_hash, created_at DESC)",
+      "name": "round_messages_session",
+      "table": "round_messages"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX automation_log_pkey ON public.automation_log USING btree (id)",
+      "name": "automation_log_pkey",
+      "table": "automation_log"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX content_performance_pkey ON public.content_performance USING btree (id)",
+      "name": "content_performance_pkey",
+      "table": "content_performance"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX contest_players_contest_id_user_id_key ON public.contest_players USING btree (contest_id, user_id)",
+      "name": "contest_players_contest_id_user_id_key",
+      "table": "contest_players"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX contest_players_pkey ON public.contest_players USING btree (id)",
+      "name": "contest_players_pkey",
+      "table": "contest_players"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX contests_invite_code_key ON public.contests USING btree (invite_code)",
+      "name": "contests_invite_code_key",
+      "table": "contests"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX contests_pkey ON public.contests USING btree (id)",
+      "name": "contests_pkey",
+      "table": "contests"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX course_catalog_pkey ON public.course_catalog USING btree (slug)",
+      "name": "course_catalog_pkey",
+      "table": "course_catalog"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX course_search_cache_pkey ON public.course_search_cache USING btree (query)",
+      "name": "course_search_cache_pkey",
+      "table": "course_search_cache"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX daily_metrics_date_key ON public.daily_metrics USING btree (date)",
+      "name": "daily_metrics_date_key",
+      "table": "daily_metrics"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX daily_metrics_pkey ON public.daily_metrics USING btree (id)",
+      "name": "daily_metrics_pkey",
+      "table": "daily_metrics"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX feedback_pkey ON public.feedback USING btree (id)",
+      "name": "feedback_pkey",
+      "table": "feedback"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX funnel_snapshots_date_key ON public.funnel_snapshots USING btree (date)",
+      "name": "funnel_snapshots_date_key",
+      "table": "funnel_snapshots"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX funnel_snapshots_pkey ON public.funnel_snapshots USING btree (id)",
+      "name": "funnel_snapshots_pkey",
+      "table": "funnel_snapshots"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX golfcore_usage_drift_pkey ON public.golfcore_usage_drift USING btree (id)",
+      "name": "golfcore_usage_drift_pkey",
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX golfcore_usage_pkey ON public.golfcore_usage USING btree (id)",
+      "name": "golfcore_usage_pkey",
+      "table": "golfcore_usage"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX improvement_actions_pkey ON public.improvement_actions USING btree (id)",
+      "name": "improvement_actions_pkey",
+      "table": "improvement_actions"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX marketing_events_pkey ON public.marketing_events USING btree (id)",
+      "name": "marketing_events_pkey",
+      "table": "marketing_events"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)",
+      "name": "profiles_pkey",
+      "table": "profiles"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX profiles_referral_code_key ON public.profiles USING btree (referral_code)",
+      "name": "profiles_referral_code_key",
+      "table": "profiles"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX published_rounds_owner_id_local_id_key ON public.published_rounds USING btree (owner_id, local_id)",
+      "name": "published_rounds_owner_id_local_id_key",
+      "table": "published_rounds"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX published_rounds_pkey ON public.published_rounds USING btree (contest_id)",
+      "name": "published_rounds_pkey",
+      "table": "published_rounds"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX revenue_events_pkey ON public.revenue_events USING btree (id)",
+      "name": "revenue_events_pkey",
+      "table": "revenue_events"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX revenue_events_stripe_event_id_key ON public.revenue_events USING btree (stripe_event_id)",
+      "name": "revenue_events_stripe_event_id_key",
+      "table": "revenue_events"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX round_messages_pkey ON public.round_messages USING btree (id)",
+      "name": "round_messages_pkey",
+      "table": "round_messages"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX scans_pkey ON public.scans USING btree (id)",
+      "name": "scans_pkey",
+      "table": "scans"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX score_events_pkey ON public.score_events USING btree (id)",
+      "name": "score_events_pkey",
+      "table": "score_events"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX settlements_pkey ON public.settlements USING btree (id)",
+      "name": "settlements_pkey",
+      "table": "settlements"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX share_links_pkey ON public.share_links USING btree (token_hash)",
+      "name": "share_links_pkey",
+      "table": "share_links"
+    }
+  ],
+  "owners": [
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "automation_log",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "content_performance",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "contest_players",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "contests",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "daily_metrics",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "feedback",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "funnel_snapshots",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "improvement_actions",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "marketing_events",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "profiles",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "revenue_events",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "scans",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "score_events",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "settlements",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "v",
+      "name": "channel_effectiveness",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "v",
+      "name": "content_insights",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "v",
+      "name": "feedback_themes",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "v",
+      "name": "funnel_health",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=rwU/postgres,authenticated=rwU/postgres,postgres=rwU/postgres,service_role=rwU/postgres}",
+      "kind": "S",
+      "name": "golfcore_usage_drift_id_seq",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{anon=rwU/postgres,authenticated=rwU/postgres,postgres=rwU/postgres,service_role=rwU/postgres}",
+      "kind": "S",
+      "name": "golfcore_usage_id_seq",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "course_catalog",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "course_search_cache",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "golfcore_usage",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "golfcore_usage_drift",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "published_rounds",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "round_messages",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "share_links",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "v",
+      "name": "golfcore_usage_summary",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "v",
+      "name": "golfcore_usage_summary_v2",
+      "owner": "postgres"
+    }
+  ],
+  "policies": [
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Owner full access",
+      "qual": "(owner_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contests",
+      "with_check": "(owner_id = auth.uid())"
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role full access on automation_log",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "automation_log",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role full access on content_performance",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "content_performance",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role full access on daily_metrics",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "daily_metrics",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role full access on feedback",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "feedback",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role full access on funnel_snapshots",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "funnel_snapshots",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role full access on improvement_actions",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "improvement_actions",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role full access on marketing_events",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "marketing_events",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role full access on profiles",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "profiles",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role full access on revenue_events",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "revenue_events",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role full access on scans",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "scans",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role full access on settlements",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "settlements",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Owner can insert players",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contest_players",
+      "with_check": "is_contest_owner(contest_id)"
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Participants can insert scores",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "score_events",
+      "with_check": "(is_contest_member(contest_id) AND (entered_by = auth.uid()))"
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can create scans",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "scans",
+      "with_check": "(auth.uid() = user_id)"
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can join contests",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contest_players",
+      "with_check": "(user_id = auth.uid())"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Participants can view contests",
+      "qual": "is_contest_member(id)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contests",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Participants can view players",
+      "qual": "is_contest_member(contest_id)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contest_players",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Participants can view scores",
+      "qual": "is_contest_member(contest_id)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "score_events",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can view own marketing events",
+      "qual": "(auth.uid() = user_id)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "marketing_events",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can view own profile",
+      "qual": "(auth.uid() = id)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "profiles",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can view own scans",
+      "qual": "(auth.uid() = user_id)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "scans",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can view own settlements",
+      "qual": "((auth.uid() = from_user_id) OR (auth.uid() = to_user_id))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "settlements",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "Self or owner can update",
+      "qual": "((user_id = auth.uid()) OR is_contest_owner(contest_id))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "contest_players",
+      "with_check": "((user_id = auth.uid()) OR is_contest_owner(contest_id))"
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can update own profile",
+      "qual": "(auth.uid() = id)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "profiles",
+      "with_check": null
+    }
+  ],
+  "publication": [
+    {
+      "pub": "supabase_realtime",
+      "schema": "public",
+      "table": "contest_players"
+    },
+    {
+      "pub": "supabase_realtime",
+      "schema": "public",
+      "table": "contests"
+    },
+    {
+      "pub": "supabase_realtime",
+      "schema": "public",
+      "table": "score_events"
+    }
+  ],
+  "regclass_checks": {
+    "contest_games": null,
+    "contest_groups": null,
+    "contest_rounds": null,
+    "hole_scores": null
+  },
+  "rls": [
+    {
+      "force": false,
+      "rls": true,
+      "table": "automation_log"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "content_performance"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "contest_players"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "contests"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "course_catalog"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "course_search_cache"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "daily_metrics"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "feedback"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "funnel_snapshots"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "golfcore_usage"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "golfcore_usage_drift"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "improvement_actions"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "marketing_events"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "profiles"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "published_rounds"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "revenue_events"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "round_messages"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "scans"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "score_events"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "settlements"
+    },
+    {
+      "force": false,
+      "rls": true,
+      "table": "share_links"
+    }
+  ],
+  "routine_grants": [
+    {
+      "grantee": "PUBLIC",
+      "priv": "EXECUTE",
+      "routine": "calculate_retention"
+    },
+    {
+      "grantee": "PUBLIC",
+      "priv": "EXECUTE",
+      "routine": "get_dau"
+    },
+    {
+      "grantee": "PUBLIC",
+      "priv": "EXECUTE",
+      "routine": "get_mau"
+    },
+    {
+      "grantee": "PUBLIC",
+      "priv": "EXECUTE",
+      "routine": "handle_new_user"
+    },
+    {
+      "grantee": "PUBLIC",
+      "priv": "EXECUTE",
+      "routine": "handle_updated_at"
+    },
+    {
+      "grantee": "PUBLIC",
+      "priv": "EXECUTE",
+      "routine": "increment_daily_revenue"
+    },
+    {
+      "grantee": "PUBLIC",
+      "priv": "EXECUTE",
+      "routine": "increment_daily_signups"
+    },
+    {
+      "grantee": "PUBLIC",
+      "priv": "EXECUTE",
+      "routine": "rls_auto_enable"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "calculate_retention"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "get_dau"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "get_mau"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "get_shared_round"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "handle_new_user"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "handle_updated_at"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "increment_daily_revenue"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "increment_daily_signups"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "list_messages"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "post_message"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "rls_auto_enable"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "calculate_retention"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "create_share_link"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "get_dau"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "get_mau"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "get_shared_round"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "handle_new_user"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "handle_updated_at"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "increment_daily_revenue"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "increment_daily_signups"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "is_contest_member"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "is_contest_owner"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "list_host_messages"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "list_messages"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "post_message"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "publish_shared_round"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "remove_message"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "revoke_share_links"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "rls_auto_enable"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "calculate_retention"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "chat_contest"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "create_share_link"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "get_dau"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "get_mau"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "get_shared_round"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "handle_new_user"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "handle_updated_at"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "increment_daily_revenue"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "increment_daily_signups"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "is_contest_member"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "is_contest_owner"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "list_host_messages"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "list_messages"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "post_message"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "publish_shared_round"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "reconcile_golfcore_usage"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "remove_message"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "reserve_golfcore_call"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "revoke_share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "rls_auto_enable"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "sanitize_shared_round"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "calculate_retention"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "chat_contest"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "create_share_link"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "get_dau"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "get_mau"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "get_shared_round"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "handle_new_user"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "handle_updated_at"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "increment_daily_revenue"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "increment_daily_signups"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "is_contest_member"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "is_contest_owner"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "list_host_messages"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "list_messages"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "post_message"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "publish_shared_round"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "reconcile_golfcore_usage"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "remove_message"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "reserve_golfcore_call"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "revoke_share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "rls_auto_enable"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "sanitize_shared_round"
+    }
+  ],
+  "server_version_major": 17,
+  "triggers": [
+    {
+      "def": "CREATE TRIGGER contests_updated_at BEFORE UPDATE ON public.contests FOR EACH ROW EXECUTE FUNCTION handle_updated_at()",
+      "name": "contests_updated_at",
+      "schema": "public",
+      "table": "contests"
+    },
+    {
+      "def": "CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user()",
+      "name": "on_auth_user_created",
+      "schema": "auth",
+      "table": "users"
+    }
+  ],
+  "types": [],
+  "views": [
+    {
+      "def": "SELECT category, subcategory, sentiment, count(*) AS mention_count, count(*) FILTER (WHERE (created_at >= (now() - '7 days'::interval))) AS mentions_7d, count(*) FILTER (WHERE (created_at >= (now() - '1 day'::interval))) AS mentions_24h, count(*) FILTER (WHERE ((actionable = true) AND (action_taken IS NULL))) AS unactioned, round((((count(*) FILTER (WHERE (sentiment = 'negative'::text)))::numeric / (NULLIF(count(*), 0))::numeric) * (100)::numeric), 1) AS negative_pct FROM feedback WHERE (created_at >= (now() - '30 days'::interval)) GROUP BY category, subcategory, sentiment ORDER BY (count(*)) DESC;",
+      "name": "feedback_themes",
+      "owner": "postgres"
+    },
+    {
+      "def": "SELECT platform, content_type, count(*) AS total_posts, round((avg(engagement_rate) * (100)::numeric), 2) AS avg_engagement_pct, round((avg(click_through_rate) * (100)::numeric), 2) AS avg_ctr_pct, sum(installs_attributed) AS total_installs, mode() WITHIN GROUP (ORDER BY best_posting_hour) AS optimal_hour FROM content_performance WHERE (published_at >= (now() - '30 days'::interval)) GROUP BY platform, content_type ORDER BY (round((avg(engagement_rate) * (100)::numeric), 2)) DESC;",
+      "name": "content_insights",
+      "owner": "postgres"
+    },
+    {
+      "def": "SELECT source, count(*) AS total_signups, count(*) FILTER (WHERE (user_id IN ( SELECT profiles.id FROM profiles WHERE (profiles.is_premium = true)))) AS premium_conversions, round((((count(*) FILTER (WHERE (user_id IN ( SELECT profiles.id FROM profiles WHERE (profiles.is_premium = true)))))::numeric / (NULLIF(count(*), 0))::numeric) * (100)::numeric), 2) AS premium_conversion_rate FROM marketing_events WHERE ((event_name = 'user_signup'::text) AND (created_at >= (now() - '30 days'::interval))) GROUP BY source ORDER BY (count(*)) DESC;",
+      "name": "channel_effectiveness",
+      "owner": "postgres"
+    },
+    {
+      "def": "SELECT to_char((now() AT TIME ZONE 'UTC'::text), 'YYYY-MM'::text) AS month, (count(*))::integer AS calls, 500 AS cap, (((count(*))::numeric * 100.0) / (500)::numeric) AS pct_used, CASE WHEN (count(*) = 0) THEN (0)::numeric ELSE ((count(*))::numeric / GREATEST((EXTRACT(epoch FROM (now() - (date_trunc('month'::text, (now() AT TIME ZONE 'UTC'::text)) AT TIME ZONE 'UTC'::text))) / EXTRACT(epoch FROM ((date_trunc('month'::text, (now() AT TIME ZONE 'UTC'::text)) + '1 mon'::interval) - date_trunc('month'::text, (now() AT TIME ZONE 'UTC'::text))))), 0.000000001)) END AS projected_month_end, (count(*) FILTER (WHERE is_quota_error))::integer AS quota_errors, ( SELECT golfcore_usage_1.ratelimit_remaining FROM golfcore_usage golfcore_usage_1 WHERE ((golfcore_usage_1.month = to_char((now() AT TIME ZONE 'UTC'::text), 'YYYY-MM'::text)) AND (golfcore_usage_1.ratelimit_remaining IS NOT NULL)) ORDER BY golfcore_usage_1.called_at DESC, golfcore_usage_1.id DESC LIMIT 1) AS last_remaining, max(called_at) AS last_call_at FROM golfcore_usage WHERE (month = to_char((now() AT TIME ZONE 'UTC'::text), 'YYYY-MM'::text));",
+      "name": "golfcore_usage_summary",
+      "owner": "postgres"
+    },
+    {
+      "def": "WITH clock AS ( SELECT now() AS as_of, to_char((now() AT TIME ZONE 'UTC'::text), 'YYYY-MM'::text) AS month, ((date_trunc('month'::text, (now() AT TIME ZONE 'UTC'::text)) + '1 mon'::interval) AT TIME ZONE 'UTC'::text) AS month_end ), ledger AS ( SELECT count(*) AS ledger_rows, count(*) FILTER (WHERE golfcore_usage.is_quota_error) AS quota_errors, COALESCE(bool_or(golfcore_usage.quota_tripped), false) AS quota_tripped FROM golfcore_usage WHERE (golfcore_usage.month = ( SELECT clock.month FROM clock)) ), recent AS ( SELECT count(*) AS calls_7d FROM golfcore_usage WHERE (golfcore_usage.called_at >= (now() - '7 days'::interval)) ), latest AS ( SELECT GREATEST(0, (golfcore_usage.ratelimit_limit - golfcore_usage.ratelimit_remaining)) AS header_used FROM golfcore_usage WHERE ((golfcore_usage.month = ( SELECT clock.month FROM clock)) AND (golfcore_usage.ratelimit_limit IS NOT NULL) AND (golfcore_usage.ratelimit_remaining IS NOT NULL)) ORDER BY golfcore_usage.called_at DESC, golfcore_usage.id DESC LIMIT 1 ), effective AS ( SELECT clock.as_of, clock.month, clock.month_end, ledger.ledger_rows, ledger.quota_errors, ledger.quota_tripped, recent.calls_7d, GREATEST(ledger.ledger_rows, (COALESCE(( SELECT latest.header_used FROM latest), 0))::bigint) AS calls_effective FROM ((clock CROSS JOIN ledger) CROSS JOIN recent) ) SELECT month, ledger_rows, ledger_rows AS calls, calls_effective, 500 AS cap, (((calls_effective)::numeric * 100.0) / (500)::numeric) AS pct_effective, calls_7d, ((calls_effective)::numeric + (((calls_7d)::numeric / 7.0) * GREATEST((0)::numeric, (EXTRACT(epoch FROM (month_end - as_of)) / 86400.0)))) AS projected_month_end_7d, quota_errors, quota_tripped, as_of FROM effective;",
+      "name": "golfcore_usage_summary_v2",
+      "owner": "postgres"
+    },
+    {
+      "def": "WITH this_week AS ( SELECT avg( CASE WHEN (funnel_snapshots.downloads > 0) THEN ((funnel_snapshots.signups)::numeric / (funnel_snapshots.downloads)::numeric) ELSE NULL::numeric END) AS signup_rate, avg( CASE WHEN (funnel_snapshots.signups > 0) THEN ((funnel_snapshots.first_scan_completed)::numeric / (funnel_snapshots.signups)::numeric) ELSE NULL::numeric END) AS activation_rate, avg( CASE WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.first_settlement_sent)::numeric / (funnel_snapshots.first_scan_completed)::numeric) ELSE NULL::numeric END) AS settlement_rate, avg( CASE WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.second_scan_within_7d)::numeric / (funnel_snapshots.first_scan_completed)::numeric) ELSE NULL::numeric END) AS retention_rate, avg( CASE WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.invited_friend)::numeric / (funnel_snapshots.first_scan_completed)::numeric) ELSE NULL::numeric END) AS invite_rate, avg( CASE WHEN (funnel_snapshots.signups > 0) THEN ((funnel_snapshots.converted_premium)::numeric / (funnel_snapshots.signups)::numeric) ELSE NULL::numeric END) AS premium_rate, avg(funnel_snapshots.avg_time_to_first_scan_sec) AS avg_ttfs FROM funnel_snapshots WHERE (funnel_snapshots.date >= (CURRENT_DATE - 7)) ), last_week AS ( SELECT avg( CASE WHEN (funnel_snapshots.downloads > 0) THEN ((funnel_snapshots.signups)::numeric / (funnel_snapshots.downloads)::numeric) ELSE NULL::numeric END) AS signup_rate, avg( CASE WHEN (funnel_snapshots.signups > 0) THEN ((funnel_snapshots.first_scan_completed)::numeric / (funnel_snapshots.signups)::numeric) ELSE NULL::numeric END) AS activation_rate, avg( CASE WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.first_settlement_sent)::numeric / (funnel_snapshots.first_scan_completed)::numeric) ELSE NULL::numeric END) AS settlement_rate, avg( CASE WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.second_scan_within_7d)::numeric / (funnel_snapshots.first_scan_completed)::numeric) ELSE NULL::numeric END) AS retention_rate, avg( CASE WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.invited_friend)::numeric / (funnel_snapshots.first_scan_completed)::numeric) ELSE NULL::numeric END) AS invite_rate, avg( CASE WHEN (funnel_snapshots.signups > 0) THEN ((funnel_snapshots.converted_premium)::numeric / (funnel_snapshots.signups)::numeric) ELSE NULL::numeric END) AS premium_rate, avg(funnel_snapshots.avg_time_to_first_scan_sec) AS avg_ttfs FROM funnel_snapshots WHERE ((funnel_snapshots.date >= (CURRENT_DATE - 14)) AND (funnel_snapshots.date < (CURRENT_DATE - 7))) ) SELECT round((tw.signup_rate * (100)::numeric), 1) AS signup_rate_pct, round((tw.activation_rate * (100)::numeric), 1) AS activation_rate_pct, round((tw.settlement_rate * (100)::numeric), 1) AS settlement_rate_pct, round((tw.retention_rate * (100)::numeric), 1) AS retention_rate_pct, round((tw.invite_rate * (100)::numeric), 1) AS invite_rate_pct, round((tw.premium_rate * (100)::numeric), 1) AS premium_rate_pct, round(tw.avg_ttfs) AS avg_ttfs_sec, round(((tw.activation_rate - lw.activation_rate) * (100)::numeric), 1) AS activation_wow_delta, round(((tw.settlement_rate - lw.settlement_rate) * (100)::numeric), 1) AS settlement_wow_delta, round(((tw.invite_rate - lw.invite_rate) * (100)::numeric), 1) AS invite_wow_delta FROM this_week tw, last_week lw;",
+      "name": "funnel_health",
+      "owner": "postgres"
+    }
+  ]
+}

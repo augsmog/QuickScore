@@ -1,0 +1,40 @@
+name: Schema drift
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+jobs:
+  schema-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: scoresnap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - name: Start pinned PostgreSQL 17 stack and reset migration chain
+        run: |
+          supabase start
+          supabase db reset
+      - name: Extract, normalize, compare, and verify ledger
+        run: |
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -At -v ON_ERROR_STOP=1 -f supabase/schema-drift/catalog-query.sql > /tmp/local-catalog.json
+          python3 supabase/schema-drift/drift.py normalize /tmp/local-catalog.json /tmp/local-normalized.json
+          python3 supabase/schema-drift/drift.py compare supabase/schema-snapshot/live.json /tmp/local-normalized.json
+          python3 supabase/schema-drift/drift.py ledger /tmp/local-catalog.json --mode local
+      - name: Drift mutation fixtures
+        run: python3 supabase/schema-drift/selftest.py
+      - name: Rehearse live ledger adoption without executing baseline twice
+        run: bash supabase/schema-drift/rehearse-ledger-adoption.sh
+      - name: Stop local stack
+        if: always()
+        run: supabase stop

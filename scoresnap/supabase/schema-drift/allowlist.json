@@ -1,0 +1,16 @@
+{
+  "metadata_fields": [
+    "taken_at"
+  ],
+  "extensions": {
+    "pg_graphql": "Managed extension inventory/version only; public objects remain compared.",
+    "pg_stat_statements": "Managed extension inventory/version only; public objects remain compared.",
+    "pgcrypto": "Managed extension inventory/version only; public objects remain compared.",
+    "plpgsql": "Managed extension inventory/version only; public objects remain compared.",
+    "supabase_vault": "Managed extension inventory/version only; public objects remain compared.",
+    "uuid-ossp": "Managed extension inventory/version only; public objects remain compared."
+  },
+  "default_acls_scope": "Only role postgres in schema public is app-owned. Managed roles and all non-public schemas are outside scope; no exclusions within postgres/public.",
+  "ledger": "Exclude migrations from physical comparison; require exact versions AND names separately (live 7; local 7 + baseline).",
+  "server_version": "Compare major version; strip hosted/local patch and packaging suffix."
+}

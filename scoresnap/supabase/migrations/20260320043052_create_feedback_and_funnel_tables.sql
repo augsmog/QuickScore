@@ -1,0 +1,3 @@
+-- Live ledger provenance: 20260320043052 create_feedback_and_funnel_tables.
+-- No-op locally; real physical DDL is represented by 20261027000000_live_baseline.sql.
+select 1;
