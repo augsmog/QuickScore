@@ -77,6 +77,11 @@ const contestId = contestUrl.split("/contest/")[1];
 // Contest now defaults to Scorecard tab (changed from Leaderboard)
 check(/Scorecard/i.test(await bodyText()), "New contest defaults to Scorecard tab (no sample data)");
 await shot("04-contest-created-empty.png");
+// Restore the original strict empty-state check: the Leaderboard must show "No scores yet" (no sample data)
+await vis(page.getByText(/^leaderboard$/i)).first().click();
+const noScores = await page.getByText(/^No scores yet$/).waitFor({ state: "visible", timeout: 10000 }).then(() => true, () => false);
+check(noScores, "New contest starts with no scores (no sample data)");
+await vis(page.getByText(/^scorecard$/i)).first().click();
 
 // 3. GS-2 in the running app: enter a scorecard where Sam's row is all 4s.
 // The pre-fix parser treated any row of 3-5 values as par and would have dropped Sam.

@@ -126,7 +126,7 @@ if (hasJoinCode) {
       // Verify Scorecard tab is active by default
       const activePage = await page.innerText("body").catch(() => "");
       check(
-        activePage.includes("Hole") || activePage.includes("Score") || contestUrl,
+        activePage.includes("Hole") || activePage.includes("Score"),
         `P${i + 1}: Lands on Scorecard tab after join`
       );
       
@@ -255,4 +255,5 @@ if (pageErrors.length > 0) {
 }
 console.log("──────────────────────────────────────\n");
 
-process.exit(failed > 0 ? 1 : 0);
+// Uncaught page errors fail the run (previously only logged)
+process.exit(failed > 0 || pageErrors.length > 0 ? 1 : 0);

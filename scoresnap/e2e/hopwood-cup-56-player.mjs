@@ -117,11 +117,13 @@ try {
   console.log("──────────────────────────────────────\n");
   
   if (pageErrors.length > 0) {
-    console.warn(`⚠️  ${pageErrors.length} page error(s) during test`);
+    console.error(`✗ ${pageErrors.length} uncaught page error(s) during test:`);
+    pageErrors.slice(0, 5).forEach((err) => console.error(`  ${err}`));
   }
   
   await browser.close();
-  process.exit(failed > 0 ? 1 : 0);
+  // Uncaught page errors fail the run (previously only warned)
+  process.exit(failed > 0 || pageErrors.length > 0 ? 1 : 0);
   
 } catch (error) {
   console.error("\n✗ Test failed with error:", error.message);
