@@ -81,7 +81,7 @@ settings, not a claimed full export of hosted Auth. Anonymous sign-ins remain of
 No app code or other workflow was changed. Tournament E2E remains OFFLINE and
 receives the new reset chain; web/iOS behavior still needs their existing CI.
 
-## Platform-provided supabase_admin default ACLs (CI emulation)
+## Platform-provided supabase_admin default ACLs and pg_graphql (CI emulation)
 Hosted Supabase carries three supabase_admin/public default ACLs (tables, sequences, functions)
 recorded in live.json. The baseline does not set them (postgres lacks permission; SQLSTATE 42501),
 and the local CLI 2.122.0 image does not create them. CI therefore applies
