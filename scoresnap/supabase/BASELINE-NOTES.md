@@ -4,7 +4,11 @@ Captured from project `pltgbizexllikiwryozm`, PostgreSQL 17.6, 2026-10-26 20:12 
 
 Baseline is for an empty local public schema. It intentionally fails on duplicate app objects; it is not a general rerunnable migration and must never execute on live. Publication additions alone are guarded. No enum/domain/custom standalone composite types were captured.
 
-## Known live debt, fixed in M2+
+## Historical M1 debt inventory
+
+The “fixed in M2+” labels below were future-work labels, not verification that
+M2 or M2b fixes every item. The M2 disposition below and M2-FOUNDATION.md list
+implemented changes and remaining work; Auth settings are not changed by SQL CI.
 
 - **Views use postgres owner permissions (default security definer behavior) — known live debt, fixed in M2+:** `channel_effectiveness`, `content_insights`, `feedback_themes`, `funnel_health`, `golfcore_usage_summary`, `golfcore_usage_summary_v2`.
 
@@ -57,11 +61,13 @@ reloptions (non-null entries), public schema owner/ACL, column ACLs (non-null
 entries), row-trigger enabled flags, and application event triggers. Application
 event triggers include every public-function trigger regardless of owner and
 triggers whose owner is outside the explicitly named Supabase managed role set.
-Extension internals and managed non-public event triggers remain outside scope.
-All public default ACLs, including supabase_admin, and postgres global defaults
-are compared. There are no live postgres global defaults and no reviewed platform
+Extension members in public remain in scope. Non-public extension internals and
+non-public event triggers owned by the four named managed roles are excluded.
+All public default ACLs and every role's global defaults are compared.
+There are no live postgres global defaults and no reviewed platform
 differences. The three supabase_admin/public expectations are listed individually
-in schema-drift/reviewed-default-acls.json and restored exactly by the baseline.
+in schema-drift/reviewed-default-acls.json and emulated by offline setup and
+schema-drift/platform-emulation.sql; the baseline does not set them.
 
 Live ensure_rls exists, owned by postgres, enabled O, invoking
 public.rls_auto_enable at ddl_command_end for CREATE TABLE, CREATE TABLE AS and

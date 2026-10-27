@@ -147,13 +147,16 @@ assignment/scorer authorization is implied; it is explicitly denied.
 
 `schema-snapshot/live.json` remains the untouched PRE-APPLY capture. The new
 expected-after.json is the normalized catalog for the full local chain, including
-M2b: seven historical markers + `20261027000000 live_baseline` +
+M2b. The separately checked local ledger contains seven historical markers + `20261027000000 live_baseline` +
 `20261027120000 sync_foundation` + `20261027130000 guest_write_guard` (ten ledger
-rows). CI starts CLI 2.122.0 with ghcr.io, resets the full chain, and applies hosted
-platform emulation as supabase_admin. It rolls down M2b, then the unused foundation,
+rows); normalization removes ledger rows from expected-after.json. CI starts CLI 2.122.0 with ghcr.io, resets the full chain, and applies hosted
+platform emulation as supabase_admin. It rolls down M2b and requires the guest-contest red result, runs the unsafe
+rollback race red, restores/reapplies M2 and runs the guarded race green, then
+rolls down the unused foundation,
 compares baseline to live.json (eight local ledger entries), requires the default
 fixture to fail on baseline, and runs M1 selftest and SQL mutation/preapply
-rejection fixtures with --url/--admin-url. It reapplies both M2 and M2b with CLI
+rejection fixtures with --url/--admin-url (four reserved-role mutations run
+only in offline PG17 because of supautils). It reapplies both M2 and M2b with CLI
 migration up, compares expected-after and ten local ledger entries, then runs the
 M2 role/ACL/default/future/join/CAS/legacy gates and M2b guest-write guard and
 mutation gates before ledger-adoption rehearsal. Live preapply now requires the exact ordered adopted eight-row ledger (seven markers

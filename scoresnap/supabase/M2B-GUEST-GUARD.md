@@ -85,7 +85,8 @@ approved guest scoring, transfers/revocation and anonymous host denials.
 ## Test matrix and CI
 
 348 savepoint probes run with SET LOCAL ROLE and request.jwt.claims, in a rolled
-back transaction. Only SQLSTATE 42501 satisfies a denial. Every unexpected SQLSTATE produces a
+back transaction. SQLSTATE 42501 satisfies a denial; probes marked filtered also accept successful
+zero-row statements. Every unexpected SQLSTATE produces a
 labelled M2B_UNEXPECTED_SQLSTATE warning. A temporary sequence retains failures
 across savepoint rollbacks; the suite reports all probes then fails explicitly. For filtered guest
 UPDATE/DELETE, it requires zero affected rows and compares the complete seeded
@@ -108,15 +109,18 @@ the unchanged suite. Infrastructure errors cannot count as expected red. After
 all baseline/race gates, migration up reapplies M2 and M2b and the suite must pass.
 The 201-case mutation runner then drops each of the 15 m2b_ policies separately, re-grants
 each revoked role/table/privilege separately, and removes the profile presentation
-grant. Each mutation runs the suite in one psql transaction and must fail with
-a guard assertion, permission error, or TRUNCATE ONLY foreign-key error
+grant. Each mutation runs the suite in one psql transaction and must exit nonzero with M2B_SUITE_FAILED and at least one M2B_UNGUARDED,
+M2B_EXPECTED_UPDATE or M2B_UNEXPECTED_SQLSTATE warning. These include
+permission errors and TRUNCATE ONLY foreign-key errors
 (the expected 42501 is replaced by 0A000 when the target grant is restored). Connection close rolls back failures;
 a successful suite explicitly rolls back before the runner rejects it. Duplicate
 ACL mutations are deduplicated. No mutation touches service_role.
 
-The full local chain and expected-after.json include seven historical markers +
+The full local ledger includes seven historical markers +
 `20261027000000 live_baseline` + `20261027120000 sync_foundation` +
-`20261027130000 guest_write_guard`, for ten ledger rows.
+`20261027130000 guest_write_guard`, for ten ledger rows. expected-after.json
+compares the physical full-chain catalog; normalization removes migration rows,
+so drift.py checks the ledger separately.
 
 Offline PG17 single-user mode checks policy/ACL inventory, full-chain parity,
 exact M2b down-to-M2 parity, M2 down-to-baseline and reapply. It does not enforce
@@ -125,7 +129,7 @@ server with hosted auth stubs and real role/JWT probes. It requires M2 RED,
 M2b GREEN, then all 201 mutations RED. This sandbox denies socket creation;
 role/JWT and mutation execution remain for the box and disposable CI stack.
 
-## Delivery and live decisions
+## Historical delivery and live decisions (M2b implementation)
 
 See ROLLBACK-M2B.md. Code revert and database down are separate operations.
 Live migration apply requires Augie's explicit yes. Enabling anonymous sign-ins
@@ -134,7 +138,7 @@ migration does not enable Auth or claim to solve abuse budgets or rate limits.
 Before integration, run the schema-drift CI stack and unchanged old-client
 gates. This task leaves working-tree changes only.
 
-## Offline receipt (fix round 3)
+## Historical offline receipt (fix round 3)
 
 - verify-offline.sh, verify-foundation.py and selftest.py: PASS.
 - check-active-sql.py: PASS, including hashes and migration tracking.

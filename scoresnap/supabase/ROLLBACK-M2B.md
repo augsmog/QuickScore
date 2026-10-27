@@ -12,7 +12,9 @@ Keep anonymous sign-ins disabled, or disable them before rollback if enabled.
 Only after successful down repair version 20261027130000 to reverted using the
 normal migration-ledger workflow. Verify catalog against the M2-only chain
 (nine ledger rows: seven historical markers + live_baseline + sync_foundation),
-not expected-after.json, which includes M2b.
+rather than expected-after.json, which describes the M2b physical schema.
+Migration rows are omitted from that normalized snapshot and checked separately;
+there is no dedicated nine-row ledger mode in drift.py.
 M2b down must precede M2 down; do not run M2 down under installed M2b policies.
 
 Reapply with normal migration up workflow and verify expected-after.json and

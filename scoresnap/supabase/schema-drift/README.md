@@ -48,27 +48,34 @@ Normalizer sorts object arrays, role/config arrays and ACL entries; enum labels,
 formatting whitespace outside quoted strings/identifiers/dollar bodies, and
 retains literal contents and function bodies. Null aggregate sections become
 empty arrays. Visible ordinal column order remains compared; dropped physical attnum gaps are compressed for down/reapply parity. Normalizing an
-already normalized snapshot is safe. Stored function bodies are deliberately
+already normalized snapshot is safe. Only the SQL-bearing keys def, qual, with_check, default, filter,
+argument_defaults and partition_bound receive whitespace normalization.
+Stored function bodies are deliberately
 stricter than semantic SQL equivalence.
 
-Every exception is in `allowlist.json`:
+Normalization exceptions are implemented by drift.py using `allowlist.json`:
+its ledger description is historical (seven live/eight local); executable ledger
+expectations come from expected-ledger.json and drift.py, as described below.
 
 - `taken_at`: capture time is not schema.
 - `server_version`: compare major (17), omit patch/packaging differences
   (hosted 17.6 versus offline 17.11).
 - Only versions of six **named** extensions may differ: pg_graphql,
   pg_stat_statements, pgcrypto, plpgsql, supabase_vault, uuid-ossp. Inventory,
-  schema, relocation flag and dump config/conditions remain compared. No synthetic
-  extension records are injected. Offline PostgreSQL supplies only pgcrypto,
-  uuid-ossp and plpgsql; after hosted inventory is refreshed, offline verification
-  must report any additional hosted inventory as a limitation, rather than hide it.
+  schema, relocation flag and dump config/conditions remain compared by drift.py.
+  Offline PostgreSQL supplies only pgcrypto, uuid-ossp and plpgsql. Before offline
+  comparison, platform_ext.py copies missing pg_graphql, pg_stat_statements and
+  supabase_vault records verbatim from live.json; verify-foundation.py uses the
+  same injection. Offline parity therefore does not independently verify those
+  three extensions or their installation. CI installs real extensions and compares
+  their extracted records without this injection; other missing inventory fails.
 - Default ACL scope: **every role's global** defaults (namespace zero rendered
   `-`) plus **every role's public-schema** defaults. Exact entries compare.
   `reviewed-default-acls.json` records three platform-provided public defaults;
   the baseline does not alter supabase_admin defaults. Offline setup emulates
   them. `platform_differences` is empty; no role-wide exceptions exist.
 - Migration rows are omitted from the physical comparison, then separately
-  checked for exact names/versions: live requires the adopted eight rows in exact order; baseline has the same eight rows; local adds M2 and M2b (ten rows). Historical pre-adoption mode has seven rows.
+  checked for exact names/versions: live requires the adopted eight rows in exact order; baseline has the same eight rows; local adds M2 and M2b (ten rows). Historical pre-adoption mode has seven rows. Only live mode checks input order; the other modes sort by version before checking.
   Missing, extra, duplicate, or renamed ledger entries fail.
 
 Public routine ACL text and information_schema EXECUTE grants are both compared.
@@ -145,7 +152,11 @@ silence unexpected drift or expand the allowlist to hide app differences. The li
 duplicate, extra, and other baseline variants fail; subsequent milestones must
 explicitly revise that expectation.
 
-## Verification receipt (fix round 1)
+## Historical verification receipt (fix round 1)
+
+This receipt describes that round, not the current full-chain harness. The
+current offline scripts emulate platform default ACLs and the three extension
+records described above; pinned-stack execution is still a separate gate.
 
 PG17 offline apply, catalog parity, ledger checks, JSON mutation fixtures, and
 15 transactional SQL mutations pass. Every mutation is also rejected by the offline
@@ -201,7 +212,7 @@ capture because that deparser rejects aggregate routines.
 | Catalog | Compared columns (directly or semantic definition) | Deliberately excluded columns and reason |
 |---|---|---|
 | `pg_class` | `relname`, `relnamespace`, `reloftype`, `relowner`, `relam`, `reltablespace`, `relpersistence`, `relkind`, `relchecks`, `relrowsecurity`, `relforcerowsecurity`, `relispopulated`, `relreplident`, `relispartition`, `relacl`, `reloptions`, `relpartbound` | `oid`: cluster identity, resolved by names; `reltype`: row type derived from relation and attributes; `relfilenode`: physical storage location; `relpages`: runtime statistics; `reltuples`: runtime statistics; `relallvisible`: runtime visibility statistics; `reltoastrelid`: automatic physical TOAST storage; `relhasindex`: lazy maintenance hint; actual indexes compare; `relisshared`: system-only property; app relations cannot be shared; `relnatts`: derived from attribute positions; dropped slots excluded; `relhasrules`: lazy hint; actual rules compare; `relhastriggers`: lazy hint; actual triggers compare; `relhassubclass`: lazy hint; inheritance edges compare; `relrewrite`: transient rewrite identity; `relfrozenxid`: maintenance transaction horizon; `relminmxid`: maintenance multixact horizon |
-| `pg_attribute` | `attrelid`, `attname`, `atttypid`, `attnum`, `atttypmod`, `attndims`, `attstorage`, `attcompression`, `attnotnull`, `attidentity`, `attgenerated`, `attislocal`, `attinhcount`, `attcollation`, `attstattarget`, `attacl`, `attoptions`, `attfdwoptions` | `attlen`: derived from type; `attcacheoff`: backend cache offset; `attbyval`: derived from type; `attalign`: derived from type; `atthasdef`: derived from attrdef presence; `atthasmissing`: physical fast-default implementation; expression and visible default compare; `attmissingval`: physical fast-default implementation; changes after rewrite without schema change; `attisdropped`: dropped attributes excluded; active physical positions compare |
+| `pg_attribute` | `attrelid`, `attname`, `atttypid`, `attnum`, `atttypmod`, `attndims`, `attstorage`, `attcompression`, `attnotnull`, `attidentity`, `attgenerated`, `attislocal`, `attinhcount`, `attcollation`, `attstattarget`, `attacl`, `attoptions`, `attfdwoptions` | `attlen`: derived from type; `attcacheoff`: backend cache offset; `attbyval`: derived from type; `attalign`: derived from type; `atthasdef`: derived from attrdef presence; `atthasmissing`: physical fast-default implementation; expression and visible default compare; `attmissingval`: physical fast-default implementation; changes after rewrite without schema change; `attisdropped`: dropped attributes excluded; visible ordinal positions compare after gap compression |
 | `pg_attrdef` | `adrelid`, `adnum`, `adbin` | `oid`: cluster identity |
 | `pg_constraint` | `conname`, `connamespace`, `contype`, `condeferrable`, `condeferred`, `convalidated`, `conrelid`, `contypid`, `conparentid`, `confrelid`, `confupdtype`, `confdeltype`, `confmatchtype`, `conislocal`, `coninhcount`, `connoinherit`, `conkey`, `confkey`, `confdelsetcols`, `conexclop`, `conbin` | `oid`: cluster identity; `conindid`: support index definition/constraint semantics compared through indexes; `conpfeqop`: derived FK equality operators from compared types and supporting index opclasses; `conppeqop`: derived FK equality operators from compared types and supporting index opclasses; `conffeqop`: derived FK equality operators from compared types and supporting index opclasses |
 | `pg_index` | `indexrelid`, `indrelid`, `indnatts`, `indnkeyatts`, `indisunique`, `indnullsnotdistinct`, `indisprimary`, `indisexclusion`, `indimmediate`, `indisclustered`, `indisvalid`, `indisready`, `indislive`, `indisreplident`, `indkey`, `indcollation`, `indclass`, `indoption`, `indexprs`, `indpred` | `indcheckxmin`: transient transaction visibility horizon; validity/readiness compared |
@@ -241,7 +252,7 @@ runtime state are intentionally excluded; extended-statistics **definitions** an
 targets compare. Extension member objects in public remain subject to normal
 application comparison.
 
-Round 2 SQL fixtures capture before and after within one rolled-back transaction
+The 41 targeted semantic SQL fixtures capture before and after within one rolled-back transaction
 and assert the **specific semantic section** changes, then require the comparison
 CLI and preapply guard to reject. This prevents fixture setup objects from hiding
 an uncaptured mutation. They include the requested typmod/collation/generated
@@ -256,7 +267,7 @@ The snapshot additions are **pending live capture**, not independently observed
 live facts. See PROVENANCE.md before using preapply against hosted state. The query
 remains one self-contained SELECT, suitable for a single read-only fresh capture.
 
-## Round 2 verification receipt
+## Historical round 2 verification receipt
 
 `PGBIN=/usr/lib/postgresql/17/bin` with verify-offline.sh: baseline DDL apply,
 strict pending-snapshot parity, local ledger, JSON mutations, and **56 real SQL
@@ -267,12 +278,17 @@ Superuser-only leakproof/all-tables publication and extension-owner mutations us
 `--admin-url`, as do platform-owned trigger/default ACL operations. No network,
 live database, Docker or M2 work was used. This verifies the pending local
 expectations; it does not replace the mandatory single fresh hosted capture.
+The current runner has 60 SQL mutations: 41 semantic checks plus 19 regressions.
+Pinned-stack CI skips four reserved-role mutations (supautils); offline PG17
+executes those four, so CI executes 56 SQL mutations plus the RLS behavior probe.
 
 
 ## M2 + M2b full-chain gate
 
 `verify-foundation-ci.sh` is the disposable-loopback-only gate used by CI. It
-rolls down M2b first, then the unused foundation to compare the baseline prefix against live.json,
+rolls down M2b first and requires the guest-contest failure, runs the unsafe
+rollback race red, restores/reapplies M2 and runs the guarded race green, then
+rolls down the unused foundation to compare the baseline prefix against live.json,
 checks its ledger, proves baseline default privileges red, and runs M1 JSON and
 SQL mutations with both postgres and supabase_admin connections. It then reapplies
 M2 foundation and M2b guest guard, compares the full chain to expected-after.json,
