@@ -11,7 +11,7 @@ function load(file, imports, globals = {}) {
   vm.runInNewContext(source, { exports, require(name) {
     if (!(name in imports)) throw new Error(`Unexpected import ${name}`);
     return imports[name];
-  }, setTimeout, clearTimeout, console, URL, ...globals }, { filename });
+  }, setTimeout, clearTimeout, Date, console, URL, ...globals }, { filename });
   return exports;
 }
 const config = mode => ({ CAPTCHA_MODE: mode, TURNSTILE_SITE_KEY: 'public-site-key', TURNSTILE_BASE_URL: 'https://snapscore-web.augie-os.workers.dev' });
@@ -201,4 +201,140 @@ test.each(['ios', 'web'])('%s host displays a cancellable challenge and cleans u
   expect(complete).toHaveBeenCalledWith('request-1');
   cleanup();
   expect(unregister).toHaveBeenCalled();
+});
+
+
+test.each(['optional', 'required'])('%s concurrent timeouts share an invocation deadline', async mode => {
+  jest.useFakeTimers();
+  const svc = service(mode);
+  const host = jest.fn();
+  svc.registerCaptchaHost(host);
+  const results = [];
+  const calls = Array.from({ length: 5 }, () => svc.getCaptchaToken('signin').then(
+    token => results.push({ token }), error => results.push({ error: error.message }),
+  ));
+  await flush();
+  expect(host.mock.calls.filter(([request]) => request)).toHaveLength(1);
+  await jest.advanceTimersByTimeAsync(svc.CAPTCHA_TIMEOUT_MS - 1);
+  expect(results).toHaveLength(0);
+  await jest.advanceTimersByTimeAsync(1);
+  await Promise.all(calls);
+  expect(results).toEqual(Array.from({ length: 5 }, () => mode === 'optional'
+    ? { token: undefined } : { error: svc.CAPTCHA_ERROR_MESSAGE }));
+  expect(host.mock.calls.filter(([request]) => request)).toHaveLength(1);
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+test('a queued request opens its own widget for only its remaining time', async () => {
+  jest.useFakeTimers();
+  const svc = service('optional');
+  const host = jest.fn();
+  svc.registerCaptchaHost(host);
+  const first = svc.getCaptchaToken('signup');
+  await flush();
+  await jest.advanceTimersByTimeAsync(5_000);
+  let settled = false;
+  const second = svc.getCaptchaToken('signin').then(token => { settled = true; return token; });
+  await jest.advanceTimersByTimeAsync(5_000);
+  const firstRequest = host.mock.calls[0][0];
+  svc.completeCaptcha(firstRequest.id, 'first-token');
+  expect(await first).toBe('first-token');
+  await flush();
+  const requests = host.mock.calls.filter(([request]) => request).map(([request]) => request);
+  expect(requests).toHaveLength(2);
+  expect(requests[1]).toMatchObject({ action: 'signin' });
+  expect(requests[1].id).not.toBe(firstRequest.id);
+  expect(host.mock.calls[1]).toEqual([null]);
+  await jest.advanceTimersByTimeAsync(14_999);
+  expect(settled).toBe(false);
+  await jest.advanceTimersByTimeAsync(1);
+  expect(await second).toBeUndefined();
+  expect(host.mock.calls[3]).toEqual([null]);
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+// Execute the real WebChallenge effect with a minimal DOM and React hook harness.
+function webChallengeHarness() {
+  const scripts = [];
+  const effects = [];
+  const complete = jest.fn();
+  const api = { render: jest.fn(() => 'widget-id'), remove: jest.fn() };
+  const window = { turnstile: api };
+  const document = {
+    createElement: jest.fn(() => ({ remove: jest.fn() })),
+    head: { appendChild: jest.fn(script => scripts.push(script)) },
+  };
+  const jsx = (type, props) => ({ type, props });
+  const { TurnstileHost } = load('src/components/TurnstileHost.tsx', {
+    react: {
+      useState: () => [{ id: 'web-request', action: 'signin' }, jest.fn()],
+      useRef: () => ({ current: null }),
+      useEffect: fn => effects.push(fn),
+      createElement: (type, props) => {
+        const node = { type };
+        props.ref.current = node;
+        return node;
+      },
+    },
+    'react/jsx-runtime': { jsx, jsxs: jsx },
+    'react-native': { Platform: { OS: 'web' } },
+    '../config/captcha': config('required'),
+    '../services/captcha': { completeCaptcha: complete, registerCaptchaHost: () => () => {} },
+    '../services/turnstile-html': { TURNSTILE_SCRIPT_URL: 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit' },
+    '../ui/theme': { COLORS: {}, FONTS: {}, RADII: {} },
+  }, { document, window });
+  const modal = TurnstileHost();
+  effects.shift()();
+  const challenge = modal.props.children.props.children.props.children[1];
+  const mount = () => {
+    const container = challenge.type(challenge.props);
+    const dispose = effects.shift()();
+    return { container, dispose };
+  };
+  return { mount, scripts, api, complete, document };
+}
+
+test('web loads the script once, renders configured widgets, forwards success and removes on unmount', async () => {
+  const h = webChallengeHarness();
+  const first = h.mount();
+  expect(h.scripts).toHaveLength(1);
+  expect(h.scripts[0].src).toBe('https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit');
+  expect(h.scripts[0].async).toBe(true);
+  expect(h.api.render).not.toHaveBeenCalled();
+  h.scripts[0].onload();
+  await flush();
+  expect(h.api.render).toHaveBeenCalledWith(first.container, expect.objectContaining({
+    sitekey: 'public-site-key', action: 'signin',
+  }));
+  h.api.render.mock.calls[0][1].callback('web-token');
+  expect(h.complete).toHaveBeenCalledWith('web-request', 'web-token');
+  first.dispose();
+  expect(h.api.remove).toHaveBeenCalledWith('widget-id');
+  const second = h.mount();
+  await flush();
+  expect(h.document.createElement).toHaveBeenCalledTimes(1);
+  expect(h.api.render).toHaveBeenCalledTimes(2);
+  second.dispose();
+  expect(h.api.remove).toHaveBeenCalledTimes(2);
+});
+
+test.each(['error-callback', 'expired-callback', 'timeout-callback'])('web %s forwards failure', async callback => {
+  const h = webChallengeHarness();
+  const widget = h.mount();
+  h.scripts[0].onload();
+  await flush();
+  h.api.render.mock.calls[0][1][callback]();
+  expect(h.complete).toHaveBeenCalledWith('web-request');
+  widget.dispose();
+});
+
+test('web disposal before script load prevents rendering', async () => {
+  const h = webChallengeHarness();
+  const widget = h.mount();
+  widget.dispose();
+  h.scripts[0].onload();
+  await flush();
+  expect(h.api.render).not.toHaveBeenCalled();
+  expect(h.api.remove).not.toHaveBeenCalled();
+  expect(h.complete).not.toHaveBeenCalled();
 });

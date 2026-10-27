@@ -35,24 +35,38 @@ export function receiveCaptchaMessage(raw: string): void {
 
 export function getCaptchaToken(action: CaptchaAction): Promise<string | undefined> {
   if (CAPTCHA_MODE === "off") return Promise.resolve(undefined);
-  const run = async () => {
-    const token = await new Promise<string | undefined>((resolve) => {
-      if (!host || !TURNSTILE_SITE_KEY) { resolve(undefined); return; }
-      const id = `captcha-${++sequence}`;
-      const timer = setTimeout(() => completeCaptcha(id), CAPTCHA_TIMEOUT_MS);
-      pending = { id, finish: (value) => {
-        clearTimeout(timer);
+  const deadline = Date.now() + CAPTCHA_TIMEOUT_MS;
+  let settled = false;
+  let finish!: (token?: string) => void;
+  const tokenPromise: Promise<string | undefined> = new Promise<string | undefined>((resolve) => {
+    let activeId: string | undefined;
+    const timer = setTimeout(() => finish(), CAPTCHA_TIMEOUT_MS);
+    finish = (token) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (activeId && pending?.id === activeId) {
         pending = undefined;
-        resolve(value);
+        resolve(token);
         host?.(null);
-      } };
-      try { host({ id, action }); } catch { completeCaptcha(id); }
-    });
+      } else resolve(token);
+    };
+    const run = () => {
+      // Queue time counts against the deadline; expired callers never open a widget.
+      if (settled) return;
+      if (Date.now() >= deadline || !host || !TURNSTILE_SITE_KEY) { finish(); return; }
+      activeId = `captcha-${++sequence}`;
+      pending = { id: activeId, finish };
+      try { host({ id: activeId, action }); } catch { finish(); }
+      return tokenPromise;
+    };
+    // Run in a microtask, after tokenPromise has been initialized.
+    queue = queue.then(run).catch(() => undefined);
+  });
+  const result = tokenPromise.then((token) => {
     if (!token && CAPTCHA_MODE === "required") throw new Error(CAPTCHA_ERROR_MESSAGE);
     return token;
-  };
-  const result = queue.then(run);
-  queue = result.catch(() => undefined);
+  });
   return result;
 }
 
