@@ -156,19 +156,20 @@ test('exact-name matching rejects ambiguous names and reserved targets',()=>{
  expect(review.autoMatchPlayers([rows[0]],[{id:'a',name:'Augie'},{id:'b',name:'AUGIE'}])[0].matchedPlayerId).toBeNull();
  expect(review.autoMatchPlayers([rows[0],{...rows[2],matchedPlayerId:'a'}],[{id:'a',name:'Augie'}])[0].matchedPlayerId).toBeNull();
 });
-test('smoke scanData URL enables Confirm, imports, and duplicate mapping can be corrected',()=>{
+test('real two-group smoke imports each selected group, returns, and keeps invalid mappings blocking',()=>{
  const names=['Augie','Sam','Lee','Pat'];
  const scores=[[5,6,4,3,5,4,4,6,5,4,5,3,6,4,5,3,5,4],... [4,5,6].map(n=>Array(18).fill(n))];
- const targets=names.map((name,i)=>({id:String(i),name,handicap:0,scores:Array(18).fill(0)}));
- const contest={id:'smoke',course:{holes:Array.from({length:18},(_,i)=>({num:i+1,par:4}))},groups:[{id:'g',players:targets},{id:'other',players:[{id:'wrong',name:'Wrong'}]}]};
+ const targets=names.map((name,i)=>({id:String(i),name,handicap:[18,0,9,0][i],scores:Array(18).fill(0)}));
+ const contest={id:'smoke',course:{holes:Array.from({length:18},(_,i)=>({num:i+1,par:4}))},groups:[{id:'g',name:'Group 1',players:targets.slice(0,2)},{id:'other',name:'Group 2',players:targets.slice(2)}]};
  store.setState({contests:[contest]});
- const url=new URL('http://localhost/scan/review?contestId=smoke&groupId=g&scanData='+encodeURIComponent(JSON.stringify(names.map((name,i)=>({...raw(scores[i]),name,matchedPlayerId:null})))));
+ const url=new URL('http://localhost/scan/review?contestId=smoke&scanData='+encodeURIComponent(JSON.stringify(names.map((name,i)=>({...raw(scores[i]),name,matchedPlayerId:null})))));
+ const replace=jest.fn();
  let states=[],cursor=0;
  const jsx=(type,props)=>({type,props});
  const hooks={useState:init=>{const i=cursor++;if(!(i in states))states[i]=typeof init==='function'?init():init;return [states[i],value=>{states[i]=typeof value==='function'?value(states[i]):value;}];},useMemo:fn=>fn(),useEffect:()=>{}};
  const screen=load('app/scan/review.tsx',{
  react:hooks,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':Object.fromEntries(['View','Text','ScrollView','Pressable','TextInput','Modal','Image'].map(n=>[n,n])),
- 'expo-router':{useRouter:()=>({}),useLocalSearchParams:()=>Object.fromEntries(url.searchParams)},
+ 'expo-router':{useRouter:()=>({replace}),useLocalSearchParams:()=>Object.fromEntries(url.searchParams)},
  'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'lucide-react-native':{},
  'expo-haptics':{notificationAsync:()=>{},NotificationFeedbackType:{Success:'success'}},'../../src/ui/theme':load('src/ui/theme.ts'),
  '../../src/stores/contest-store':{useContestStore:select=>select(store.getState())},
@@ -181,18 +182,39 @@ test('smoke scanData URL enables Confirm, imports, and duplicate mapping can be 
  const target=name=>nodes.find(n=>n.type==='Pressable' && text(n).includes('HCP ') && text(n).includes(name));
  const confirm=()=>nodes.find(n=>n.type==='Pressable' && text(n).startsWith('Confirm'));
  render();expect(confirm().props.disabled).toBeFalsy();
+ expect(nodes.some(n=>n.props?.accessibilityLabel==='Lee: Not imported — belongs to Group 2')).toBe(true);
  // Rematch Sam to Augie: duplicate must block but remain recoverable.
  nodes.filter(n=>n.type==='Pressable'&&text(n)==='Rematch')[1].props.onPress();render();
  target('Augie').props.onPress();render();expect(confirm().props.disabled).toBeTruthy();
  expect(nodes.filter(n=>n.type==='Pressable'&&text(n)==='Rematch')).toHaveLength(4);
  nodes.filter(n=>n.type==='Pressable'&&text(n)==='Rematch')[1].props.onPress();render();
- expect(target('Wrong')).toBeUndefined();
+ expect(target('Lee')).toBeUndefined();
  nodes.find(n=>n.props?.accessibilityLabel==='Clear player match').props.onPress();render();
  expect(confirm().props.disabled).toBeTruthy();button('Match').props.onPress();render();target('Sam').props.onPress();render();
  expect(confirm().props.disabled).toBeFalsy();confirm().props.onPress();
- expect(store.getState().contests[0].groups[0].players.map(p=>p.scores)).toEqual(scores);
+ expect(store.getState().contests[0].groups[0].players.map(p=>p.scores)).toEqual(scores.slice(0,2));
+ expect(store.getState().contests[0].groups[1].players).toEqual(targets.slice(2));
+ render();nodes.find(n=>n.type==='Confetti').props.onDone();
+ expect(replace).toHaveBeenLastCalledWith('/contest/smoke');
+ // Reopen the same null-ID card, then use the real Group 2 selector.
+ states=[];render();button('Group 2').props.onPress();render();
+ expect(confirm().props.disabled).toBeFalsy();
+ expect(nodes.some(n=>n.props?.accessibilityLabel==='Augie: Not imported — belongs to Group 1')).toBe(true);
+ confirm().props.onPress();render();nodes.find(n=>n.type==='Confetti').props.onDone();
+ expect(replace).toHaveBeenCalledTimes(2);
+ expect(replace).toHaveBeenLastCalledWith('/contest/smoke');
+ expect(store.getState().contests[0].groups.flatMap(g=>g.players.map(p=>p.scores))).toEqual(scores);
+ // Unmatched rows and even excluded rows with missing holes still block.
+ for(const mutate of [rows=>{rows[2].name='Unknown';},rows=>{rows[2].scores[6]=null;},rows=>{rows[3].name='Lee';}]) {
+  const rows=JSON.parse(url.searchParams.get('scanData'));mutate(rows);
+  url.searchParams.set('scanData',JSON.stringify(rows));states=[];render();
+  expect(confirm().props.disabled).toBeTruthy();
+  expect(nodes.some(n=>n.props?.accessibilityRole==='alert' && text(n))).toBe(true);
+  expect(store.getState().contests[0].groups.flatMap(g=>g.players.map(p=>p.scores))).toEqual(scores);
+  url.searchParams.set('scanData',JSON.stringify(names.map((name,i)=>({...raw(scores[i]),name,matchedPlayerId:null}))));
+ }
  // A supplied wrong-group mapping also keeps controls available for recovery.
- const wrong=JSON.parse(url.searchParams.get('scanData'));wrong[0].matchedPlayerId='wrong';
+ const wrong=JSON.parse(url.searchParams.get('scanData'));wrong[0].matchedPlayerId='2';wrong[2].matchedPlayerId='2';
  url.searchParams.set('scanData',JSON.stringify(wrong));states=[];render();
  expect(confirm().props.disabled).toBeTruthy();
  nodes.filter(n=>n.type==='Pressable'&&text(n)==='Rematch')[0].props.onPress();render();

@@ -69,7 +69,7 @@ export default function ScanReviewScreen() {
           parseError: "Invalid scorecard data: no players found in the scan.",
         };
       }
-      return { initialPlayers: autoMatchPlayers(parsed, contest?.groups.find(g => g.id === (groupId || contest.groups[0]?.id))?.players ?? []), parseError: null };
+      return { initialPlayers: autoMatchPlayers(parsed, contest?.groups.flatMap(g => g.players) ?? []), parseError: null };
     } catch (error) {
       if (error instanceof SyntaxError) {
         return {
@@ -120,7 +120,22 @@ export default function ScanReviewScreen() {
 
   const lowConfCount = concerns.length;
   const [commitError, setCommitError] = useState<string | null>(null);
-  const reason = blockingReason(scannedPlayers, !!contestId) || (contestId && !contest?.groups.some(g => g.id === selectedGroupId && scannedPlayers.every(p => g.players.some(cp => cp.id === p.matchedPlayerId))) ? "Match players to the selected group" : null);
+  // Main imports only the selected group. Exclude another group's row only
+  // when its exact name uniquely identifies that player across the whole card.
+  const excludedGroups = scannedPlayers.map(player => {
+    const key = player.name.trim().toLowerCase();
+    const owners = contest?.groups.flatMap(g => g.players
+      .filter(p => p.name.trim().toLowerCase() === key).map(p => ({ group: g, player: p }))) ?? [];
+    return owners.length === 1 && owners[0].group.id !== selectedGroupId &&
+      owners[0].player.id === player.matchedPlayerId &&
+      scannedPlayers.filter(p => p.name.trim().toLowerCase() === key).length === 1
+      ? owners[0].group : null;
+  });
+  const importPlayers = scannedPlayers.filter((_, i) => !excludedGroups[i]);
+  const reason = blockingReason(scannedPlayers, !!contestId) || (contestId &&
+    (!importPlayers.length || !contest?.groups.some(g => g.id === selectedGroupId &&
+      importPlayers.every(p => g.players.some(cp => cp.id === p.matchedPlayerId))))
+    ? "Match players to the selected group" : null);
   useEffect(() => { AccessibilityInfo.announceForAccessibility(reason || "All required scores entered. Confirm and Calculate available."); setCommitError(null); }, [reason]);
 
   const updatePlayerName = (idx: number, name: string) => {
@@ -189,7 +204,7 @@ export default function ScanReviewScreen() {
       // Flow 1: Importing into existing contest
       const group = contest?.groups.find((g) => g.id === selectedGroupId);
       if (group) {
-        const playerScores = scannedPlayers.map(sp => ({ playerId: sp.matchedPlayerId!, scores: completeScores(sp.scores) }));
+        const playerScores = importPlayers.map(sp => ({ playerId: sp.matchedPlayerId!, scores: completeScores(sp.scores) }));
         importScores(contestId, selectedGroupId, playerScores);
       }
       setPendingNavTarget(`/contest/${contestId}`);
@@ -600,6 +615,12 @@ export default function ScanReviewScreen() {
                   </Text>
                 </View>
 
+                {excludedGroups[pi] && (
+                  <Text accessibilityLabel={`${player.name}: Not imported — belongs to ${excludedGroups[pi]!.name}`}
+                    style={{ color: COLORS.textDim, paddingHorizontal: 12, marginBottom: 8 }}>
+                    {`Not imported — belongs to ${excludedGroups[pi]!.name}`}
+                  </Text>
+                )}
                 {/* Score cells grid */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View style={{ flexDirection: "row", paddingHorizontal: 8, paddingBottom: 10, gap: 4 }}>

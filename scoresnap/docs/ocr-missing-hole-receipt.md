@@ -45,3 +45,22 @@ Validation from `scoresnap/` (reused `/workspace/QuickScore/scoresnap/node_modul
 - `git diff --check`: passed. Excluded Supabase, workflows, build configuration, package versions, share/join UI, headers and game sheets untouched. No push or remote write.
 
 Fix-round commit attempt with message `SnapScore OCR missing-hole: fix round 1 (auto-match, ML Kit readings, rematch)` failed: `.git/index.lock: Read-only file system`. Changes remain in this isolated worktree, uncommitted, per instruction. No pushes.
+
+## Fix round 2
+
+Read the full `e2e/web-real-flow.mjs`, including every post-Confirm assertion, and main `8ab5ec2` review/store import paths. Main matched names across groups but wrote only the selected group. The unchanged smoke imports Group 1 (Augie/Sam), reopens the same four-row null-ID card, selects Group 2 (Lee/Pat), then expects totals 81/72/90/108 and matching persisted calculators.
+
+Restored that selected-group behavior with unique case-insensitive exact-name matching across contest groups. Other-group rows stay visible with player-specific accessibility labels and “Not imported — belongs to <group>”; only selected-group rows enter the existing atomically validated store batch. Unmatched/duplicate mappings and missing holes still block visibly (including missing holes in excluded rows). No positional or zero fallback. Store validation is unchanged.
+
+Replaced the misleading single-group smoke fixture with the real two-group names, scores, handicaps and null match IDs, with no groupId route parameter. Executable actual-component/store coverage verifies enabled Confirm, exclusion labels, both selected-group imports, exact persisted scores, unchanged other-group players, and both successful return navigation calls; duplicate, unmatched, missing-hole and wrong-group recovery checks remain covered. E2e assertions and excluded surfaces unchanged.
+
+Validation (from `scoresnap/`, existing local dependency versions reused):
+
+- `node_modules/.bin/jest tests/ocr-missing-hole.test.cjs tests/engine.test.cjs tests/error-back.test.cjs tests/scorecard-corpus.test.cjs --runInBand`: 199 passed / 4 suites.
+- `node --import tsx src/services/__tests__/ocr-client.test.ts`: 18 passed / 0 failed.
+- `node_modules/.bin/tsc --noEmit`: exit 2, 45 diagnostics. Archived pre-fix HEAD with identical dependencies: same 45 diagnostic lines, 0 new.
+- `EXPO_PUBLIC_OFFLINE_MODE=true node_modules/.bin/expo export --platform web --output-dir /tmp/ocr-round2-web`: succeeded.
+- `OUT_DIR=/tmp/ocr-round2-screens node e2e/web-real-flow.mjs`: Chromium launch failed before navigation, `sandbox_host_linux.cc:41`, shutdown Operation not permitted, SIGTRAP. Browser/CI pass is not claimed.
+- Logs: `/tmp/ocr-round2-{jest,client,tsc,original-tsc,export,e2e}.log`. No push or remote mutation.
+- Full `node_modules/.bin/jest --runInBand`: 295 passed / 59 failed (11 failed suites), subprocess `spawnSync /usr/bin/node EPERM`, matching verifier environment failures. With the verifier's inspected external file-backed stdio preload: `NODE_OPTIONS=--require=/tmp/ocr-verify-stdio.cjs node_modules/.bin/jest --runInBand`: **354 passed, 21 suites passed**. Commands/arguments and failure propagation preserved; no repository test runner/config changes. Logs `/tmp/ocr-round2-all-{jest,adapted}.log`.
+- `git diff --check`: passed. Commit attempted with `SnapScore OCR missing-hole: fix round 2 (multi-group import)`; failed creating `.git/index.lock` because `.git` is read-only. Three changed files remain in the isolated worktree, uncommitted. No pushes.
