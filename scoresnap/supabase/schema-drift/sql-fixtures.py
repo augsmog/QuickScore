@@ -4,12 +4,15 @@ import argparse, json, os, pathlib, subprocess, sys, tempfile
 from drift import HERE, load
 p=argparse.ArgumentParser()
 p.add_argument('--pgdata'); p.add_argument('--url')
+# Platform-owned objects (auth.users, supabase_admin defaults) need the local platform owner role.
+p.add_argument('--admin-url')
 a=p.parse_args()
-def run(sql):
+ADMIN={'trigger disabled','managed default revoke'}
+def run(sql,admin=False):
     if a.pgdata:
         cmd=[os.environ.get('PGBIN','/usr/lib/postgresql/17/bin')+'/postgres','--single','-D',a.pgdata,'-j','postgres']
     else:
-        cmd=['psql',a.url,'-X','-At','-v','ON_ERROR_STOP=1']
+        cmd=['psql',(a.admin_url or a.url) if admin else a.url,'-X','-At','-v','ON_ERROR_STOP=1']
     r=subprocess.run(cmd,input=sql,text=True,capture_output=True)
     assert r.returncode==0 and 'ERROR:' not in r.stdout+r.stderr and 'FATAL:' not in r.stdout+r.stderr,r.stdout+r.stderr
     return r.stdout
@@ -37,7 +40,7 @@ fixtures={
  'managed default revoke':'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE SELECT ON TABLES FROM anon;',
 }
 for name,sql in fixtures.items():
-    out=run('BEGIN;\n\n'+sql+'\n\n'+(HERE/'catalog-query.sql').read_text()+'\n\nROLLBACK;\n')
+    out=run('BEGIN;\n\n'+sql+'\n\n'+(HERE/'catalog-query.sql').read_text()+'\n\nROLLBACK;\n',admin=name in ADMIN)
     if a.pgdata:out=out.split('catalog = "',1)[1]
     else:out=next(line for line in out.splitlines() if line.startswith('{'))
     raw,_=json.JSONDecoder().raw_decode(out)

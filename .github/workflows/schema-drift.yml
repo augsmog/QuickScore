@@ -37,7 +37,7 @@ jobs:
       - name: Drift mutation fixtures
         run: |
           python3 supabase/schema-drift/selftest.py
-          python3 supabase/schema-drift/sql-fixtures.py --url postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          python3 supabase/schema-drift/sql-fixtures.py --url postgresql://postgres:postgres@127.0.0.1:54322/postgres --admin-url postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres
       - name: Rehearse live ledger adoption without executing baseline twice
         run: bash supabase/schema-drift/rehearse-ledger-adoption.sh
       - name: Stop local stack
