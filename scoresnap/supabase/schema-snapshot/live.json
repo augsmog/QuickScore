@@ -21,41 +21,6 @@
       "member": "authenticator",
       "role": "service_role",
       "set": true
-    },
-    {
-      "admin": false,
-      "inherit": false,
-      "member": "supabase_storage_admin",
-      "role": "authenticator",
-      "set": true
-    },
-    {
-      "admin": true,
-      "inherit": true,
-      "member": "postgres",
-      "role": "anon",
-      "set": true
-    },
-    {
-      "admin": true,
-      "inherit": true,
-      "member": "postgres",
-      "role": "authenticated",
-      "set": true
-    },
-    {
-      "admin": true,
-      "inherit": true,
-      "member": "postgres",
-      "role": "authenticator",
-      "set": true
-    },
-    {
-      "admin": true,
-      "inherit": true,
-      "member": "postgres",
-      "role": "service_role",
-      "set": true
     }
   ],
   "app_roles": [

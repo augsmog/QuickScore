@@ -92,3 +92,10 @@ admin/inherit/set options). live.json is exactly `drift.py normalize` of a fresh
 time (raw: aos-state/snapscore-xdevice/m1/live-catalog-v4-capture.json); preapply passes on it.
 verify-offline.sh stubs the same hosted attributes/memberships. Fixtures: role bypassrls, role login,
 role membership, authenticator inherit — each rejected by compare and preapply.
+
+## Refresh 2026-10-26 22:08 MST (2026-10-27T05:08:31Z) — membership scope
+`app_role_memberships` now captures edges where an app role (anon, authenticated, service_role,
+authenticator) is the MEMBER, i.e. what those roles can inherit or SET ROLE to — the RLS-bypass vector.
+Edges granting app roles to platform roles (postgres, supabase_storage_admin, local-only
+supabase_realtime_admin) are platform wiring that differs between hosted and the local image and are
+deliberately excluded. live.json = normalize(raw: aos-state/snapscore-xdevice/m1/live-catalog-v5-capture.json).
