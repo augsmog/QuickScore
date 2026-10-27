@@ -7,7 +7,7 @@ p.add_argument('--pgdata'); p.add_argument('--url')
 # Platform-owned objects (auth.users, supabase_admin defaults) need the local platform owner role.
 p.add_argument('--admin-url')
 a=p.parse_args()
-ADMIN={'trigger disabled','managed default revoke'}
+ADMIN={'trigger disabled','managed default revoke','managed global default','internal FK trigger','function leakproof','extension schema','publication all tables'}
 def run(sql,admin=False):
     if a.pgdata:
         cmd=[os.environ.get('PGBIN','/usr/lib/postgresql/17/bin')+'/postgres','--single','-D',a.pgdata,'-j','postgres']
@@ -39,6 +39,71 @@ fixtures={
  'public default revoke':'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE SELECT ON TABLES FROM anon;',
  'managed default revoke':'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE SELECT ON TABLES FROM anon;',
 }
+# Setup/capture/mutate/capture tests prove the named semantic section itself changes.
+# This avoids a false pass merely because a fixture introduced a new object.
+semantic = {
+ 'publication all tables': ('CREATE PUBLICATION fixture_all;', 'DROP PUBLICATION fixture_all; CREATE PUBLICATION fixture_all FOR ALL TABLES;', 'publication_behavior'),
+ 'publication root': ('', 'ALTER PUBLICATION supabase_realtime SET (publish_via_partition_root=true);', 'publication_behavior'),
+ 'application schema boundary': ('', 'CREATE SCHEMA fixture_application;', 'unreviewed_schemas'),
+ 'domain nullability': ('CREATE DOMAIN public.fixture_domain AS int;', 'ALTER DOMAIN public.fixture_domain SET NOT NULL;', 'type_behavior'),
+ 'range subtype': ('CREATE TYPE public.fixture_range AS RANGE (subtype=int4);', 'DROP TYPE public.fixture_range; CREATE TYPE public.fixture_range AS RANGE (subtype=int8);', 'ranges'),
+ 'column statistics': ('', 'ALTER TABLE public.profiles ALTER COLUMN display_name SET STATISTICS 200;', 'column_definitions'),
+ 'function rows': ('CREATE FUNCTION public.fixture_fn() RETURNS SETOF int LANGUAGE sql AS $$ SELECT 1 $$;', 'ALTER FUNCTION public.fixture_fn() ROWS 42;', 'functions'),
+ 'function strict': ('CREATE FUNCTION public.fixture_fn(a int) RETURNS int LANGUAGE sql AS $$ SELECT a $$;', 'ALTER FUNCTION public.fixture_fn(int) STRICT;', 'functions'),
+ 'function language': ('CREATE FUNCTION public.fixture_fn() RETURNS int LANGUAGE sql AS $$ SELECT 1 $$;', 'CREATE OR REPLACE FUNCTION public.fixture_fn() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$;', 'functions'),
+
+ 'internal FK trigger': ('', 'ALTER TABLE public.contests DISABLE TRIGGER ALL;', 'triggers'),
+ 'aggregate transition': ('CREATE AGGREGATE public.fixture_agg(int) (SFUNC=int4pl, STYPE=int, INITCOND=0);', 'DROP AGGREGATE public.fixture_agg(int); CREATE AGGREGATE public.fixture_agg(int) (SFUNC=int4pl, STYPE=int, INITCOND=1);', 'aggregates'),
+ 'numeric typmod': ('', 'ALTER TABLE public.contests ALTER COLUMN bet_unit TYPE numeric(3,0);', 'column_definitions'),
+ 'collation': ('', 'ALTER TABLE public.profiles ALTER COLUMN display_name TYPE text COLLATE "C";', 'column_definitions'),
+ 'generated expression': ('CREATE TABLE public.fixture_generated (a int, b int GENERATED ALWAYS AS (a+1) STORED);', 'ALTER TABLE public.fixture_generated DROP COLUMN b; ALTER TABLE public.fixture_generated ADD COLUMN b int GENERATED ALWAYS AS (a+2) STORED;', 'column_definitions'),
+ 'publish insert': ('', "ALTER PUBLICATION supabase_realtime SET (publish='insert');", 'publication_behavior'),
+ 'publication row filter': ('CREATE PUBLICATION fixture_pub FOR TABLE public.contests;', 'ALTER PUBLICATION fixture_pub SET TABLE public.contests WHERE (id IS NOT NULL);', 'publication_relations'),
+ 'publication column list': ('CREATE PUBLICATION fixture_pub FOR TABLE public.contests;', 'ALTER PUBLICATION fixture_pub SET TABLE public.contests (id);', 'publication_relations'),
+ 'unlogged': ('', 'ALTER TABLE public.feedback SET UNLOGGED;', 'relation_behavior'),
+ 'replica nothing': ('', 'ALTER TABLE public.contests REPLICA IDENTITY NOTHING;', 'relation_behavior'),
+ 'replica full': ('', 'ALTER TABLE public.contests REPLICA IDENTITY FULL;', 'relation_behavior'),
+ 'replica index': ('', 'ALTER TABLE public.contests REPLICA IDENTITY USING INDEX contests_pkey;', 'index_behavior'),
+ 'managed global default': ('', 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin GRANT SELECT ON TABLES TO PUBLIC;', 'default_acls'),
+ 'enum order': ("CREATE TYPE public.fixture_enum AS ENUM ('a','b');", "DROP TYPE public.fixture_enum; CREATE TYPE public.fixture_enum AS ENUM ('b','a');", 'types'),
+ 'extension schema': ('CREATE SCHEMA fixture_extensions;', 'ALTER EXTENSION pgcrypto SET SCHEMA fixture_extensions;', 'extensions'),
+ 'function volatility': ('CREATE FUNCTION public.fixture_fn() RETURNS int LANGUAGE sql IMMUTABLE AS $$ SELECT 1 $$;', 'ALTER FUNCTION public.fixture_fn() VOLATILE;', 'functions'),
+ 'function leakproof': ('CREATE FUNCTION public.fixture_fn() RETURNS int LANGUAGE sql AS $$ SELECT 1 $$;', 'ALTER FUNCTION public.fixture_fn() LEAKPROOF;', 'functions'),
+ 'function parallel': ('CREATE FUNCTION public.fixture_fn() RETURNS int LANGUAGE sql AS $$ SELECT 1 $$;', 'ALTER FUNCTION public.fixture_fn() PARALLEL SAFE;', 'functions'),
+ 'function cost': ('CREATE FUNCTION public.fixture_fn() RETURNS int LANGUAGE sql AS $$ SELECT 1 $$;', 'ALTER FUNCTION public.fixture_fn() COST 42;', 'functions'),
+ 'function defaults': ('CREATE FUNCTION public.fixture_fn(a int DEFAULT 1) RETURNS int LANGUAGE sql AS $$ SELECT a $$;', 'CREATE OR REPLACE FUNCTION public.fixture_fn(a int DEFAULT 2) RETURNS int LANGUAGE sql AS $$ SELECT a $$;', 'functions'),
+ 'force RLS': ('', 'ALTER TABLE public.contests FORCE ROW LEVEL SECURITY;', 'rls'),
+ 'inheritance': ('CREATE TABLE public.fixture_parent (a int); CREATE TABLE public.fixture_child (a int);', 'ALTER TABLE public.fixture_child INHERIT public.fixture_parent;', 'inheritance'),
+ 'partition bound': ('CREATE TABLE public.fixture_parent (a int) PARTITION BY RANGE(a); CREATE TABLE public.fixture_child PARTITION OF public.fixture_parent FOR VALUES FROM (0) TO (10);', 'ALTER TABLE public.fixture_parent DETACH PARTITION public.fixture_child; ALTER TABLE public.fixture_parent ATTACH PARTITION public.fixture_child FOR VALUES FROM (10) TO (20);', 'relation_behavior'),
+ 'rule enabled': ('CREATE TABLE public.fixture_rule(a int); CREATE RULE fixture_rule AS ON INSERT TO public.fixture_rule DO ALSO NOTHING;', 'ALTER TABLE public.fixture_rule DISABLE RULE fixture_rule;', 'rules'),
+ 'check validation': ('CREATE TABLE public.fixture_check(a int); ALTER TABLE public.fixture_check ADD CONSTRAINT fixture_check CHECK(a>0) NOT VALID;', 'ALTER TABLE public.fixture_check VALIDATE CONSTRAINT fixture_check;', 'constraints'),
+ 'FK actions': ('CREATE TABLE public.fixture_parent(a int PRIMARY KEY); CREATE TABLE public.fixture_child(a int REFERENCES public.fixture_parent(a));', 'ALTER TABLE public.fixture_child DROP CONSTRAINT fixture_child_a_fkey; ALTER TABLE public.fixture_child ADD FOREIGN KEY(a) REFERENCES public.fixture_parent(a) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;', 'constraints'),
+ 'index predicate': ('CREATE TABLE public.fixture_index(a int); CREATE INDEX fixture_index_idx ON public.fixture_index(a) WHERE a>0;', 'DROP INDEX public.fixture_index_idx; CREATE UNIQUE INDEX fixture_index_idx ON public.fixture_index(a) WHERE a>1;', 'indexes'),
+ 'domain constraint': ('CREATE DOMAIN public.fixture_domain AS int CHECK(VALUE>0);', 'ALTER DOMAIN public.fixture_domain ADD CHECK(VALUE<10);', 'constraints'),
+ 'statistics target': ('CREATE STATISTICS public.fixture_stats ON id, display_name FROM public.profiles;', 'ALTER STATISTICS public.fixture_stats SET STATISTICS 200;', 'extended_statistics'),
+ 'publication schema': ('CREATE PUBLICATION fixture_pub;', 'ALTER PUBLICATION fixture_pub ADD TABLES IN SCHEMA public;', 'publication_schemas'),
+ 'policy roles': ('CREATE POLICY fixture_policy ON public.contests USING (true);', 'ALTER POLICY fixture_policy ON public.contests TO anon;', 'policies'),
+ 'policy restrictive': ('CREATE POLICY fixture_policy ON public.contests USING (true);', 'DROP POLICY fixture_policy ON public.contests; CREATE POLICY fixture_policy ON public.contests AS RESTRICTIVE USING (true);', 'policies'),
+}
+from drift import differences, normalize
+query=(HERE/'catalog-query.sql').read_text()
+def captures(out):
+    if a.pgdata:
+        return [json.JSONDecoder().raw_decode(part)[0] for part in out.split('catalog = "')[1:]]
+    return [json.loads(line) for line in out.splitlines() if line.startswith('{')]
+for name,(setup,sql,key) in semantic.items():
+    before,after=captures(run('BEGIN;\n'+setup+'\n'+query+'\n'+sql+'\n'+query+'\nROLLBACK;\n',admin=name in ADMIN))
+    assert normalize(before)[key] != normalize(after)[key], (name,key,'semantic field did not change')
+    assert differences(before,after),name
+    after['migrations']=load(HERE/'expected-ledger.json')
+    with tempfile.TemporaryDirectory() as d:
+        before_file=pathlib.Path(d)/'before.json'; before_file.write_text(json.dumps(before))
+        after_file=pathlib.Path(d)/'after.json'; after_file.write_text(json.dumps(after))
+        c=subprocess.run([sys.executable,str(HERE/'drift.py'),'compare',str(before_file),str(after_file)],capture_output=True,text=True)
+        g=subprocess.run(['bash',str(HERE/'preapply-check.sh'),str(after_file)],capture_output=True,text=True)
+        assert c.returncode==1 and 'live/'+key in c.stdout,(name,c)
+        assert g.returncode!=0 and 'supabase migration repair' not in g.stdout,(name,g)
+    print('PASS SQL semantic compare + preapply rejection: '+name)
 for name,sql in fixtures.items():
     out=run('BEGIN;\n\n'+sql+'\n\n'+(HERE/'catalog-query.sql').read_text()+'\n\nROLLBACK;\n',admin=name in ADMIN)
     if a.pgdata:out=out.split('catalog = "',1)[1]

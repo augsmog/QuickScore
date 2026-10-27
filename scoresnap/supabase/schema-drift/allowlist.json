@@ -3,14 +3,14 @@
     "taken_at"
   ],
   "extensions": {
-    "pg_graphql": "Managed extension inventory/version only; public objects remain compared.",
-    "pg_stat_statements": "Managed extension inventory/version only; public objects remain compared.",
-    "pgcrypto": "Managed extension inventory/version only; public objects remain compared.",
-    "plpgsql": "Managed extension inventory/version only; public objects remain compared.",
-    "supabase_vault": "Managed extension inventory/version only; public objects remain compared.",
-    "uuid-ossp": "Managed extension inventory/version only; public objects remain compared."
+    "pg_graphql": "Version differences only; exact inventory and schema remain compared.",
+    "pg_stat_statements": "Version differences only; exact inventory and schema remain compared.",
+    "pgcrypto": "Version differences only; exact inventory and schema remain compared.",
+    "plpgsql": "Version differences only; exact inventory and schema remain compared.",
+    "supabase_vault": "Version differences only; exact inventory and schema remain compared.",
+    "uuid-ossp": "Version differences only; exact inventory and schema remain compared."
   },
-  "default_acls_scope": "All public-schema defaults for every role, plus postgres global defaults (-). No exclusion within that scope. reviewed-default-acls.json records exact non-postgres expectations; baseline restores them without platform exceptions.",
+  "default_acls_scope": "Every namespace-zero entry for every role, and every public-schema entry; no exclusions.",
   "ledger": "Exclude migrations from physical comparison; require exact versions AND names separately (live 7; local 7 + baseline).",
   "server_version": "Compare major version; strip hosted/local patch and packaging suffix."
 }

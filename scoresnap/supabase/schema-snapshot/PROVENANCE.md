@@ -30,3 +30,43 @@ The box ran this branch's `schema-drift/catalog-query.sql` read-only against liv
 The result is byte-for-byte equal to the merged live.json above (no key differs), and
 `preapply-check.sh` on that capture reported "Schema matches" and "Ledger matches: live".
 live.json is therefore a single-capture snapshot as of 21:11 MST.
+
+## Round 2 — PENDING LIVE CAPTURE (local expectations only)
+
+The 21:11 MST receipt applies to the preceding extractor, **not** the expanded
+round 2 query. The box MUST execute the entire new catalog-query.sql read-only
+against live and normalize that **single fresh capture** over live.json before
+using these additions as live evidence. No network or live database was used here.
+
+The added sections are column_definitions, relation_behavior, index_behavior,
+publication_behavior, publication_relations, publication_schemas, inheritance,
+rules, extended_statistics, ranges, foreign_tables, aggregates, type_behavior
+and unreviewed_schemas (empty by baseline construction).
+Existing constraints/functions/triggers have supplemental fields; internal FK
+trigger records are new. These expected values were obtained only from the exact
+baseline applied to disposable PostgreSQL 17 by verify-offline.sh. The baseline
+DDL constructs the expected type modifiers, defaults/expressions, function
+attributes, FK/index definitions, ordinary logged tables, default replica identity,
+publication settings, view rules and absence of custom domains/enums/ranges,
+inheritance, partitions, rules, statistics, foreign tables and aggregates. Values
+are expected from those constructions, **pending live capture**; offline parity
+is not independent proof that live has these newly observed catalog properties.
+Existing previously captured field values are retained, not refreshed from local.
+
+Extension inventory was previously entirely erased by normalization. The three
+records now present (pgcrypto/uuid-ossp in extensions, plpgsql in pg_catalog) are
+**pending live capture** local prerequisite expectations, not a reconstructed
+hosted extension inventory. The box must replace them with every present hosted
+extension from its fresh capture; it must not discard additional managed records.
+Only versions of the six individually named extensions are ignored. Hosted-only
+extension inventory will cause strict offline parity to fail unless that offline
+installation supplies the same extensions; pinned Supabase CI must verify full
+hosted inventory. Do not broaden the allowlist to conceal that limitation.
+
+All global defaults for all roles now survive normalization. No additional global
+ACLs were invented from local defaults. If the fresh hosted capture contains
+platform global defaults absent locally, list each exact hosted/local entry and
+its justification individually in reviewed-default-acls.json; no such difference
+has been authorized or suppressed in this round. The three existing
+supabase_admin/public entries remain platform-provided and are emulated offline;
+the baseline still does not attempt to alter them.

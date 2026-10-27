@@ -52,6 +52,7 @@ assert 'ERROR:' not in s and 'FATAL:' not in s,s
 x,_=json.JSONDecoder().raw_decode(s.split('catalog = "',1)[1])
 pathlib.Path(sys.argv[2]).write_text(json.dumps(x))
 PY
+if [[ -n "${CATALOG_OUTPUT:-}" ]]; then cp "$work/local.json" "$CATALOG_OUTPUT"; fi
 python3 "$here/drift.py" compare "$here/../schema-snapshot/live.json" "$work/local.json"
 python3 "$here/drift.py" ledger "$work/local.json" --mode local
 python3 "$here/selftest.py"
