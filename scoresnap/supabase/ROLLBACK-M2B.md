@@ -18,8 +18,8 @@ local ledger. No default ACL, owner or service_role change needs restoration.
 Live apply and later anonymous Auth enablement each require Augie's explicit
 yes. CAPTCHA integration remains mandatory before enabling anonymous sign-ins.
 
-Fix round 2: down also removes m2b_contest_players_owner_delete, restoring M2's
-filtered player DELETE behavior. It removes the presentation column UPDATE grant
+Fix round 3: M2b introduces no permissive roster DELETE policy, so M2's
+filtered player DELETE behavior is unchanged in both directions. Down removes the presentation column UPDATE grant
 and restores table INSERT/UPDATE on profiles. For each role and relation it
 restores the prior TRUNCATE/REFERENCES/TRIGGER grants from live.json, except on
 contests, contest_players and score_events where M2 had already revoked them.

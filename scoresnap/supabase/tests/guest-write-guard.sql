@@ -1,16 +1,31 @@
 BEGIN;
 -- Each call's exception block is a subtransaction; explicit savepoints also
 -- isolate successful writes. UPDATE may correctly filter all rows under RLS.
+-- Sequence increments survive the per-probe SAVEPOINT rollback.
+CREATE TEMP SEQUENCE probe_failures MINVALUE 0 START 0;
+SELECT setval('pg_temp.probe_failures',0,true);
+GRANT USAGE, SELECT ON SEQUENCE probe_failures TO authenticated, anon;
 CREATE FUNCTION pg_temp.probe(sql text, denied boolean, label text, filtered boolean DEFAULT false) RETURNS void LANGUAGE plpgsql AS $$
-DECLARE n bigint;
+DECLARE n bigint; failure text;
 BEGIN
  BEGIN
   EXECUTE sql; GET DIAGNOSTICS n=ROW_COUNT;
-  IF NOT denied AND (sql LIKE 'UPDATE %' OR sql LIKE 'DELETE %') AND n=0 THEN RAISE EXCEPTION 'M2B_EXPECTED_UPDATE: %',label; END IF;
-  IF denied AND NOT (filtered AND n=0) THEN RAISE EXCEPTION 'M2B_UNGUARDED: %',label; END IF;
- EXCEPTION WHEN SQLSTATE '42501' THEN
-  IF NOT denied THEN RAISE; END IF;
+  IF NOT denied AND (sql LIKE 'UPDATE %' OR sql LIKE 'DELETE %') AND n=0 THEN
+   failure := 'M2B_EXPECTED_UPDATE: ' || label;
+  ELSIF denied AND NOT (filtered AND n=0) THEN
+   failure := 'M2B_UNGUARDED: ' || label;
+  END IF;
+  IF failure IS NOT NULL THEN RAISE EXCEPTION USING ERRCODE='PZ001', MESSAGE=failure; END IF;
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLSTATE = 'PZ001' THEN NULL;
+  ELSIF SQLSTATE <> '42501' OR NOT denied THEN
+   failure := format('M2B_UNEXPECTED_SQLSTATE: %s SQLSTATE=%s %s',label,SQLSTATE,SQLERRM);
+  END IF;
  END;
+ IF failure IS NOT NULL THEN
+  PERFORM nextval('pg_temp.probe_failures');
+  RAISE WARNING '%',failure;
+ END IF;
 END $$;
 GRANT EXECUTE ON FUNCTION pg_temp.probe(text,boolean,text,boolean) TO authenticated,anon;
 INSERT INTO auth.users(id) VALUES('20000000-0000-0000-0000-000000000001'),('20000000-0000-0000-0000-000000000002');
@@ -201,7 +216,7 @@ ROLLBACK TO matrix_case; RELEASE matrix_case;
 SAVEPOINT matrix_case;
 
 RESET ROLE; CREATE TEMP TABLE before_row AS SELECT * FROM public.contests WHERE id='30000000-0000-0000-0000-000000000001'; SET LOCAL ROLE authenticated;
-SELECT pg_temp.probe($q$UPDATE public.contests SET is_tournament=true,current_round=2 WHERE id='30000000-0000-0000-0000-000000000001'$q$, true, 'guest contests UPDATE', true);
+SELECT pg_temp.probe($q$UPDATE public.contests SET name='Changed',current_hole=2 WHERE id='30000000-0000-0000-0000-000000000001'$q$, true, 'guest contests UPDATE', true);
 RESET ROLE; DO $$ BEGIN IF EXISTS ((TABLE before_row EXCEPT SELECT * FROM public.contests WHERE id='30000000-0000-0000-0000-000000000001') UNION ALL (SELECT * FROM public.contests WHERE id='30000000-0000-0000-0000-000000000001' EXCEPT TABLE before_row)) THEN RAISE EXCEPTION 'M2B_ROW_CHANGED: guest contests UPDATE'; END IF; END $$; SET LOCAL ROLE authenticated;
 ROLLBACK TO matrix_case; RELEASE matrix_case;
 
@@ -220,7 +235,7 @@ ROLLBACK TO matrix_case; RELEASE matrix_case;
 SAVEPOINT matrix_case;
 
 RESET ROLE; CREATE TEMP TABLE before_row AS SELECT * FROM public.contest_players WHERE id='40000000-0000-0000-0000-000000000001'; SET LOCAL ROLE authenticated;
-SELECT pg_temp.probe($q$UPDATE public.contest_players SET name='Changed',handicap=12,sort_order=1 WHERE id='40000000-0000-0000-0000-000000000001'$q$, true, 'guest contest_players UPDATE', true);
+SELECT pg_temp.probe($q$UPDATE public.contest_players SET name='Changed',handicap=12,group_id='group-2' WHERE id='40000000-0000-0000-0000-000000000001'$q$, true, 'guest contest_players UPDATE', true);
 RESET ROLE; DO $$ BEGIN IF EXISTS ((TABLE before_row EXCEPT SELECT * FROM public.contest_players WHERE id='40000000-0000-0000-0000-000000000001') UNION ALL (SELECT * FROM public.contest_players WHERE id='40000000-0000-0000-0000-000000000001' EXCEPT TABLE before_row)) THEN RAISE EXCEPTION 'M2B_ROW_CHANGED: guest contest_players UPDATE'; END IF; END $$; SET LOCAL ROLE authenticated;
 ROLLBACK TO matrix_case; RELEASE matrix_case;
 
@@ -296,7 +311,7 @@ ROLLBACK TO matrix_case; RELEASE matrix_case;
 SAVEPOINT matrix_case;
 RESET ROLE; GRANT UPDATE ON public.contests TO authenticated; CREATE POLICY m2b_test_permissive ON public.contests FOR ALL TO authenticated USING (true) WITH CHECK (true); SET LOCAL ROLE authenticated;
 RESET ROLE; CREATE TEMP TABLE before_row AS SELECT * FROM public.contests WHERE id='30000000-0000-0000-0000-000000000001'; SET LOCAL ROLE authenticated;
-SELECT pg_temp.probe($q$UPDATE public.contests SET is_tournament=true,current_round=2 WHERE id='30000000-0000-0000-0000-000000000001'$q$, true, 'isolated policy contests UPDATE', true);
+SELECT pg_temp.probe($q$UPDATE public.contests SET name='Changed',current_hole=2 WHERE id='30000000-0000-0000-0000-000000000001'$q$, true, 'isolated policy contests UPDATE', true);
 RESET ROLE; DO $$ BEGIN IF EXISTS ((TABLE before_row EXCEPT SELECT * FROM public.contests WHERE id='30000000-0000-0000-0000-000000000001') UNION ALL (SELECT * FROM public.contests WHERE id='30000000-0000-0000-0000-000000000001' EXCEPT TABLE before_row)) THEN RAISE EXCEPTION 'M2B_ROW_CHANGED: isolated policy contests UPDATE'; END IF; END $$; SET LOCAL ROLE authenticated;
 ROLLBACK TO matrix_case; RELEASE matrix_case;
 
@@ -315,7 +330,7 @@ ROLLBACK TO matrix_case; RELEASE matrix_case;
 SAVEPOINT matrix_case;
 RESET ROLE; GRANT UPDATE ON public.contest_players TO authenticated; CREATE POLICY m2b_test_permissive ON public.contest_players FOR ALL TO authenticated USING (true) WITH CHECK (true); SET LOCAL ROLE authenticated;
 RESET ROLE; CREATE TEMP TABLE before_row AS SELECT * FROM public.contest_players WHERE id='40000000-0000-0000-0000-000000000001'; SET LOCAL ROLE authenticated;
-SELECT pg_temp.probe($q$UPDATE public.contest_players SET name='Changed',handicap=12,sort_order=1 WHERE id='40000000-0000-0000-0000-000000000001'$q$, true, 'isolated policy contest_players UPDATE', true);
+SELECT pg_temp.probe($q$UPDATE public.contest_players SET name='Changed',handicap=12,group_id='group-2' WHERE id='40000000-0000-0000-0000-000000000001'$q$, true, 'isolated policy contest_players UPDATE', true);
 RESET ROLE; DO $$ BEGIN IF EXISTS ((TABLE before_row EXCEPT SELECT * FROM public.contest_players WHERE id='40000000-0000-0000-0000-000000000001') UNION ALL (SELECT * FROM public.contest_players WHERE id='40000000-0000-0000-0000-000000000001' EXCEPT TABLE before_row)) THEN RAISE EXCEPTION 'M2B_ROW_CHANGED: isolated policy contest_players UPDATE'; END IF; END $$; SET LOCAL ROLE authenticated;
 ROLLBACK TO matrix_case; RELEASE matrix_case;
 
@@ -410,16 +425,16 @@ RESET ROLE; SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claims'
 
 SAVEPOINT matrix_case;
 
-SELECT pg_temp.probe($q$UPDATE public.contests SET is_tournament=true,current_round=2 WHERE id='30000000-0000-0000-0000-000000000001'$q$, false, 'regular tournament metadata', false);
+SELECT pg_temp.probe($q$UPDATE public.contests SET name='Changed',current_hole=2 WHERE id='30000000-0000-0000-0000-000000000001'$q$, false, 'regular legacy metadata', false);
 ROLLBACK TO matrix_case; RELEASE matrix_case;
 
 SAVEPOINT matrix_case;
 
-SELECT pg_temp.probe($q$UPDATE public.contest_players SET name='Changed',handicap=12,sort_order=1 WHERE id='40000000-0000-0000-0000-000000000001'$q$, false, 'regular tournament player update', false);
+SELECT pg_temp.probe($q$UPDATE public.contest_players SET name='Changed',handicap=12,group_id='group-2' WHERE id='40000000-0000-0000-0000-000000000001'$q$, false, 'regular legacy player update', false);
 ROLLBACK TO matrix_case; RELEASE matrix_case;
 
 SAVEPOINT matrix_case;
-SELECT pg_temp.probe($q$DELETE FROM public.contest_players WHERE id='40000000-0000-0000-0000-000000000001'$q$, false, 'regular tournament player delete', false);
+SELECT pg_temp.probe($q$DO $$ DECLARE n bigint; BEGIN DELETE FROM public.contest_players WHERE id='40000000-0000-0000-0000-000000000001'; GET DIAGNOSTICS n=ROW_COUNT; IF n<>0 THEN RAISE EXCEPTION 'M2B_ROSTER_DELETE_WIDENED: expected M2 zero rows, got %',n; END IF; END $$$q$, false, 'regular roster delete unchanged from M2 (exactly zero rows)', false);
 ROLLBACK TO matrix_case; RELEASE matrix_case;
 
 SAVEPOINT matrix_case;
@@ -1248,7 +1263,7 @@ ROLLBACK TO matrix_case; RELEASE matrix_case;
 
 SAVEPOINT matrix_case;
 RESET ROLE; CREATE POLICY m2b_test_anon ON public.contests FOR ALL TO anon USING (true) WITH CHECK (true); SET LOCAL ROLE anon;
-SELECT pg_temp.probe($q$UPDATE public.contests SET is_tournament=true,current_round=2$q$, true, 'anon grant contests UPDATE', false);
+SELECT pg_temp.probe($q$UPDATE public.contests SET name='Changed',current_hole=2$q$, true, 'anon grant contests UPDATE', false);
 ROLLBACK TO matrix_case; RELEASE matrix_case;
 
 SAVEPOINT matrix_case;
@@ -1263,7 +1278,7 @@ ROLLBACK TO matrix_case; RELEASE matrix_case;
 
 SAVEPOINT matrix_case;
 RESET ROLE; CREATE POLICY m2b_test_anon ON public.contest_players FOR ALL TO anon USING (true) WITH CHECK (true); SET LOCAL ROLE anon;
-SELECT pg_temp.probe($q$UPDATE public.contest_players SET name='Changed',handicap=12,sort_order=1$q$, true, 'anon grant contest_players UPDATE', false);
+SELECT pg_temp.probe($q$UPDATE public.contest_players SET name='Changed',handicap=12,group_id='group-2'$q$, true, 'anon grant contest_players UPDATE', false);
 ROLLBACK TO matrix_case; RELEASE matrix_case;
 
 SAVEPOINT matrix_case;
@@ -1429,6 +1444,12 @@ ROLLBACK TO matrix_case; RELEASE matrix_case;
 RESET ROLE; SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims','{"sub":"20000000-0000-0000-0000-000000000001","role":"authenticated","is_anonymous":false}',true);
 SAVEPOINT matrix_case;
-SELECT pg_temp.probe($q$INSERT INTO public.contest_players(contest_id,name,handicap,team,sort_order,status,course_handicaps) VALUES('30000000-0000-0000-0000-000000000001','Tournament',12,'A',0,'active','{}')$q$,false,'regular tournament roster insert without user_id',false);
+SELECT pg_temp.probe($q$INSERT INTO public.contest_players(contest_id,name,handicap,team,group_id) VALUES('30000000-0000-0000-0000-000000000001','Roster',12,'A','group-2')$q$,false,'regular legacy roster insert without user_id',false);
 ROLLBACK TO matrix_case; RELEASE matrix_case;
+RESET ROLE;
+DO $$ BEGIN
+ IF (SELECT last_value FROM pg_temp.probe_failures) > 0 THEN
+  RAISE EXCEPTION 'M2B_SUITE_FAILED: % labelled probe failures', (SELECT last_value FROM pg_temp.probe_failures);
+ END IF;
+END $$;
 ROLLBACK;

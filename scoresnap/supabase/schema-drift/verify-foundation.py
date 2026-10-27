@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Offline PG17 single-user verification: no sockets, services, network or live DB."""
 import json, os, pathlib, subprocess, tempfile, sys
+import runpy
+check_guard = runpy.run_path(str(pathlib.Path(__file__).with_name("guest-guard-catalog.py")))["check"]
 from drift import differences, normalize, ledger
 from platform_ext import inject
 here=pathlib.Path(__file__).resolve().parent
@@ -53,10 +55,23 @@ with tempfile.TemporaryDirectory() as tmp:
  guard=(root/'migrations/20261027130000_guest_write_guard.sql').read_text()
  guard_down=(root/'rollback/20261027130000_guest_write_guard.down.sql').read_text()
  run(guard,'guest guard apply')
+ # Verify unexpected SQLSTATEs aggregate across savepoint rollback without aborting.
+ helper=(root/'tests/guest-write-guard.sql').read_text().split('INSERT INTO auth.users',1)[0]
+ run(helper+"""
+ SAVEPOINT helper_case;
+ SELECT pg_temp.probe('SELECT public.m2b_nonexistent_function()',true,'helper unexpected SQLSTATE');
+ ROLLBACK TO helper_case; RELEASE helper_case;
+ SAVEPOINT helper_case;
+ SELECT pg_temp.probe('SELECT 1',true,'helper unexpected success');
+ ROLLBACK TO helper_case; RELEASE helper_case;
+ DO $$ BEGIN IF (SELECT last_value FROM pg_temp.probe_failures) <> 2 THEN RAISE EXCEPTION 'probe failure aggregation lost'; END IF; END $$;
+ ROLLBACK;
+ """,'probe helper aggregates unexpected SQLSTATE and success across rollback')
  run("DO $$ BEGIN IF has_column_privilege('authenticated','public.profiles','is_premium','UPDATE') OR NOT has_column_privilege('authenticated','public.profiles','display_name','UPDATE') THEN RAISE EXCEPTION 'profile ACL'; END IF; END $$;",'profile entitlement ACL')
  entries=json.loads((here/'expected-ledger.json').read_text())+[{'version':'20261027000000','name':'live_baseline'},{'version':'20261027120000','name':'sync_foundation'},{'version':'20261027130000','name':'guest_write_guard'}]
  run('\n'.join("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('%s','%s');" % (e['version'],e['name']) for e in entries),'full local ledger seed')
  raw=catalog()
+ check_guard(m2_catalog,raw)
  ledger(raw,'local')
  print('PASS: ten-entry local ledger (live expectation remains seven)')
  expected=root/'schema-snapshot/expected-after.json'

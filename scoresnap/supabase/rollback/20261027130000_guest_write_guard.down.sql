@@ -1,6 +1,5 @@
 -- Restore the exact M2 policy and ACL catalog.
 BEGIN;
-DROP POLICY m2b_contest_players_owner_delete ON public.contest_players;
 DROP POLICY m2b_contests_insert ON public.contests;
 DROP POLICY m2b_contests_update ON public.contests;
 DROP POLICY m2b_contests_delete ON public.contests;

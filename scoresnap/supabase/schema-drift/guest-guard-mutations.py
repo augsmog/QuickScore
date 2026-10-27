@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Disposable CI stack only. One psql session/transaction per independent mutation."""
 import argparse, pathlib, re, subprocess
+from urllib.parse import urlsplit
 here = pathlib.Path(__file__).resolve().parent
 parser = argparse.ArgumentParser()
 parser.add_argument('--url', required=True)
 args = parser.parse_args()
-assert args.url == 'postgresql://postgres:postgres@127.0.0.1:54322/postgres', 'local CI stack only'
+target = urlsplit(args.url)
+assert target.scheme == 'postgresql' and target.hostname == '127.0.0.1' and target.username == 'postgres' and target.path == '/postgres' and target.port, 'throwaway loopback PostgreSQL only'
 up = (here.parent/'migrations/20261027130000_guest_write_guard.sql').read_text()
 suite = (here.parent/'tests/guest-write-guard.sql').read_text()
 # The enclosing transaction belongs to this runner. Connection close rolls back
@@ -35,8 +37,8 @@ for label, mutation in mutations:
     result = subprocess.run(['psql', args.url, '-X', '-v', 'ON_ERROR_STOP=1'],
                             input='BEGIN;\n'+mutation+'\n'+suite+'\nROLLBACK;\n',
                             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if result.returncode == 0 or not any(marker in result.stdout for marker in
-            ('M2B_UNGUARDED:', 'M2B_EXPECTED_UPDATE:', 'permission denied', 'cannot truncate a table referenced in a foreign key constraint')):
+    if result.returncode == 0 or 'M2B_SUITE_FAILED:' not in result.stdout or not any(marker in result.stdout for marker in
+            ('M2B_UNGUARDED:', 'M2B_EXPECTED_UPDATE:', 'M2B_UNEXPECTED_SQLSTATE:')):
         raise AssertionError(f'Mutation escaped or failed for an unrelated reason: {label}\n{result.stdout}')
     print(f'PASS: rejected mutation {label}')
 print(f'PASS: {len(seen)} independent policy/ACL mutations, all rolled back')

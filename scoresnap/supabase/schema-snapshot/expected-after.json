@@ -16162,18 +16162,6 @@
     },
     {
       "cmd": "DELETE",
-      "permissive": "PERMISSIVE",
-      "policyname": "m2b_contest_players_owner_delete",
-      "qual": "(is_contest_owner(contest_id) AND (NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false)))",
-      "roles": [
-        "authenticated"
-      ],
-      "schemaname": "public",
-      "tablename": "contest_players",
-      "with_check": null
-    },
-    {
-      "cmd": "DELETE",
       "permissive": "RESTRICTIVE",
       "policyname": "m2b_contest_players_delete",
       "qual": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))",

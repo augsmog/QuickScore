@@ -50,5 +50,3 @@ REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.operation_receipts FROM anon, aut
 REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.published_rounds FROM anon, authenticated;
 REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.round_messages FROM anon, authenticated;
 REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.share_links FROM anon, authenticated;
--- Tournament sync replaces the owner's legacy roster; guests remain restricted.
-CREATE POLICY m2b_contest_players_owner_delete ON public.contest_players FOR DELETE TO authenticated USING (public.is_contest_owner(contest_id) AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean, false));
