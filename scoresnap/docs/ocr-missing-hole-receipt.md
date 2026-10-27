@@ -64,3 +64,17 @@ Validation (from `scoresnap/`, existing local dependency versions reused):
 - Logs: `/tmp/ocr-round2-{jest,client,tsc,original-tsc,export,e2e}.log`. No push or remote mutation.
 - Full `node_modules/.bin/jest --runInBand`: 295 passed / 59 failed (11 failed suites), subprocess `spawnSync /usr/bin/node EPERM`, matching verifier environment failures. With the verifier's inspected external file-backed stdio preload: `NODE_OPTIONS=--require=/tmp/ocr-verify-stdio.cjs node_modules/.bin/jest --runInBand`: **354 passed, 21 suites passed**. Commands/arguments and failure propagation preserved; no repository test runner/config changes. Logs `/tmp/ocr-round2-all-{jest,adapted}.log`.
 - `git diff --check`: passed. Commit attempted with `SnapScore OCR missing-hole: fix round 2 (multi-group import)`; failed creating `.git/index.lock` because `.git` is read-only. Three changed files remain in the isolated worktree, uncommitted. No pushes.
+
+## Fix round 3
+
+Read the whole GS-1 section of `e2e/web-real-flow.mjs` (missing scanData, malformed JSON, and empty player list). Restored the exact message `Invalid scorecard data: no players found in the scan.` for empty or non-array JSON before player validation and contest-player matching. Missing scanData and malformed JSON retain their separate messages. Actual review-component Jest assertions use no contestId and cover `scanData="[]"`, non-array values, and every GS-1 text check. E2e and out-of-scope surfaces are unchanged.
+
+Validation from `scoresnap/` using unchanged local dependency versions:
+
+- `node_modules/.bin/jest tests/ocr-missing-hole.test.cjs tests/engine.test.cjs tests/error-back.test.cjs tests/scorecard-corpus.test.cjs --runInBand`: 199 passed, 4 suites passed.
+- `node --import tsx src/services/__tests__/ocr-client.test.ts`: 18 passed, 0 failed.
+- `node_modules/.bin/tsc --noEmit`: exit 2, 45 diagnostics; output identical to archived unchanged head `dc0a079` with the same dependencies, 0 new diagnostics.
+- `NODE_OPTIONS=--require=/tmp/ocr-verify-stdio.cjs node_modules/.bin/jest --runInBand`: 354 passed, 21 suites passed, using the same external file-backed subprocess stdio preload documented in round 2.
+- `git diff --check`: passed. Logs: `/tmp/ocr-round3-{jest,client,tsc,baseline-tsc,all-jest}.log`. Browser smoke was not rerun; no remote CI claim. No pushes.
+
+Commit attempted with `SnapScore OCR missing-hole: fix round 3 (empty scan message)`; failed before staging because `.git/index.lock` is on a read-only filesystem. The three changed files remain in this isolated worktree, uncommitted. No pushes or source/remote ref updates.

@@ -117,6 +117,17 @@ test('actual review screen renders incomplete and corrected states side by side'
  r.scores[6]=4;data=JSON.stringify([r]);const corrected=renderToStaticMarkup(React.createElement(screen));
  expect(corrected).not.toContain('Partial:');expect(corrected).toContain('>72<');expect(corrected).not.toContain('Hole 7 is blank');
  expect(corrected).toContain('aria-disabled="false"');
+ for (const empty of ['[]','{}','null']) {
+  data=empty;
+  expect(renderToStaticMarkup(React.createElement(screen))).toContain('Invalid scorecard data: no players found in the scan.');
+ }
+ data=undefined;
+ const missing=renderToStaticMarkup(React.createElement(screen));
+ expect(missing).toContain('Invalid Scorecard Data');
+ expect(missing).toContain('No scorecard data provided. Please scan a scorecard first.');
+ expect(missing).not.toMatch(/Thompson|Chris L/);
+ data='{not json';
+ expect(renderToStaticMarkup(React.createElement(screen))).toContain('Malformed scorecard data. Please rescan the scorecard.');
  for (const invalid of ['null','[null]','bad']) {
   data=invalid;expect(renderToStaticMarkup(React.createElement(screen))).toMatch(/Malformed|Failed to parse|Invalid/);
  }

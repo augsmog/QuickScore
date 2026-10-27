@@ -62,14 +62,14 @@ export default function ScanReviewScreen() {
     }
     
     try {
-      const parsed = parseReviewData(scanData);
-      if (!Array.isArray(parsed) || parsed.length === 0) {
+      const rows = JSON.parse(scanData);
+      if (!Array.isArray(rows) || rows.length === 0) {
         return {
           initialPlayers: null,
           parseError: "Invalid scorecard data: no players found in the scan.",
         };
       }
-      return { initialPlayers: autoMatchPlayers(parsed, contest?.groups.flatMap(g => g.players) ?? []), parseError: null };
+      return { initialPlayers: autoMatchPlayers(parseReviewData(scanData), contest?.groups.flatMap(g => g.players) ?? []), parseError: null };
     } catch (error) {
       if (error instanceof SyntaxError) {
         return {
