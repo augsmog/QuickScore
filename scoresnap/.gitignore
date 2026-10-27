@@ -50,3 +50,7 @@ e2e/screens/
 
 # iOS production JS smoke export
 dist-ios/
+
+# Linked offline dependencies and scorecard export
+/node_modules
+/dist-web-scorecard/

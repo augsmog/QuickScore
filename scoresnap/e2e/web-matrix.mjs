@@ -165,7 +165,7 @@ try {
         await page.goto(contestUrl,{waitUntil:'networkidle'});
         // Click Leaderboard tab to render leaderboard content (default tab is Scorecard)
         await visible(page.getByText(/^leaderboard$/i)).click();
-        await page.waitForTimeout(500); // Wait for tab content to render
+        await page.getByTestId(`leaderboard-total-${names[0]}`).waitFor({state:'visible'});
         contest = await readContest();
         assert.deepEqual(contest.groups.flatMap(g=>g.players).map(p=>p.scores),scores);
         for (const [i,name] of names.entries()) {
