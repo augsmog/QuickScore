@@ -9,6 +9,9 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 permissions:
   contents: read
+# Avoid public.ecr.aws anonymous pull throttling on shared GitHub runners.
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
 jobs:
   tournament-e2e:
     runs-on: ubuntu-latest
@@ -35,7 +38,7 @@ jobs:
       
       - name: Start Supabase
         run: |
-          supabase start --debug
+          supabase start --debug -x vector,logflare,studio,imgproxy,mailpit
           supabase status
       
       - name: Apply migrations

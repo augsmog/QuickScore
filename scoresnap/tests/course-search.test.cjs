@@ -48,7 +48,7 @@ test('provider error body never leaks into response',async()=>{const e=edge({res
 test.each([[429,{},false],[200,{quota_exceeded:true},true],[403,{error:{code:'monthly_quota_exceeded'}},true],[200,search,false]])('quota body recognition %s', (status,body,expected)=>expect(logic.isQuotaResponse(status,body)).toBe(expected));
 test('quota ceilings are hard: env can only lower 500/month and 9/minute', () => {
   const handler = fs.readFileSync(path.join(__dirname, '..', 'supabase/functions/course-data/index.ts'), 'utf8');
-  const sql = fs.readFileSync(path.join(__dirname, '..', 'supabase/migrations/007_course_data_pm_edits.sql'), 'utf8');
+  const sql = fs.readFileSync(path.join(__dirname, '..', 'supabase/migrations/20261027000000_live_baseline.sql'), 'utf8');
   expect(handler).toContain('Math.min(positive("GOLFCORE_MONTHLY_CAP", 500), 500)');
   expect(handler).toContain('Math.min(positive("GOLFCORE_PER_MIN_CAP", 9), 9)');
   expect(sql).toMatch(/LEAST\(coalesce\(p_monthly_cap, 500\), 500\)/);
