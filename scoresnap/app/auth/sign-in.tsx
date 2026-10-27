@@ -1,4 +1,5 @@
 import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
+import { openPrivacyPolicy } from "../../src/config/support-links";
 import { useState } from "react";
 import {
   View,
@@ -610,7 +611,7 @@ export default function SignInScreen() {
             <Text onPress={() => Linking.openURL("https://august-industries.com/snapscore/terms")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
               Terms of Service
             </Text>{" "}and{" "}
-            <Text onPress={() => Linking.openURL("https://august-industries.com/snapscore/privacy")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
+            <Text onPress={openPrivacyPolicy} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
               Privacy Policy
             </Text>
           </Text>

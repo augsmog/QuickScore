@@ -37,6 +37,7 @@ import {
   DefaultTee,
 } from "../src/stores/settings-store";
 import { useAuthStore } from "../src/stores/auth-store";
+import { openPrivacyPolicy } from "../src/config/support-links";
 // Contest and scan stores cleared via AsyncStorage.multiRemove in handleDeleteAccount
 
 // ─── Reusable row components ──────────────────────────────────
@@ -607,7 +608,7 @@ export default function SettingsScreen() {
         <SectionHeader title="About" />
 
         <AnimatedPressable
-          onPress={() => Linking.openURL("https://august-industries.com/snapscore/privacy")}
+          onPress={openPrivacyPolicy}
           style={{
             backgroundColor: COLORS.surfaceLow,
             borderRadius: RADII.lg,
