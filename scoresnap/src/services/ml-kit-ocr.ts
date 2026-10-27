@@ -43,7 +43,7 @@ export async function recognizeWithMLKit(
 
   // Calculate average confidence
   const allConfidences = parsed.players.flatMap((p) => [
-    ...p.confidence.filter((c) => c > 0),
+    ...p.confidence,
     p.nameConfidence,
   ]);
   const averageConfidence =
@@ -108,10 +108,25 @@ function extractGrid(blocks: TextBlock[]): string[][] {
   }
   if (currentRow.length > 0) rows.push(currentRow);
 
-  // Sort each row left-to-right and extract text
-  return rows.map((row) =>
-    row.sort((a, b) => a.x - b.x).map((el) => el.text)
-  );
+  rows.forEach(row => row.sort((a, b) => a.x - b.x));
+  const header = rows.find(row => /^holes?:?$/i.test(row[0]?.text ?? ""));
+  const columns = header?.slice(1);
+  if (!columns || ![9,18].includes(columns.filter(c => /^\d+$/.test(c.text)).length)) {
+    // No safe geometry: preserve text as names but leave every hole blank.
+    return rows.filter(row => isPlayerName(row[0]?.text ?? "")).map(row => [row.map(e => e.text).join(" "), "", ""]);
+  }
+  return rows.map(row => {
+    if (row === header) return row.map(e => e.text);
+    const cells = columns.map(() => "");
+    for (const el of row.slice(1)) {
+      const distances = columns.map(c => Math.abs(c.x - el.x));
+      const i = distances.indexOf(Math.min(...distances));
+      const spacing = Math.min(...columns.filter((_, j) => j !== i).map(c => Math.abs(c.x - columns[i].x)));
+      if (distances[i] > spacing * 0.4 || cells[i]) return [row[0].text, "", ""];
+      cells[i] = el.text;
+    }
+    return [row[0].text, ...cells];
+  });
 }
 
 /**

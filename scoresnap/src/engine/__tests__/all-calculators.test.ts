@@ -781,12 +781,12 @@ section("📸 OCR Score Parser");
 // normalizeScore
 assert(normalizeScore("4").value === 4, "Parses '4'");
 assert(normalizeScore("4").confidence >= 0.9, "'4' high confidence");
-assert(normalizeScore("O").value === 0, "OCR fix: O → 0");
-assert(normalizeScore("O").confidence < 0.7, "O → 0 low confidence");
-assert(normalizeScore("l").value === 1, "OCR fix: l → 1");
-assert(normalizeScore("S").value === 5, "OCR fix: S → 5");
-assert(normalizeScore("").value === 0, "Empty → 0");
-assert(normalizeScore("-").value === 0, "Dash → 0");
+assert(normalizeScore("O").value === null, "OCR fix: O → blank");
+assert(normalizeScore("O").confidence < 0.7, "O → blank low confidence");
+assert(normalizeScore("l").value === null, "OCR fix: l → blank");
+assert(normalizeScore("S").value === null, "OCR fix: S → blank");
+assert(normalizeScore("").value === null, "Empty → blank");
+assert(normalizeScore("-").value === null, "Dash → blank");
 assert(normalizeScore("12").value === 12, "Double digit: 12");
 assert(normalizeScore("abc").confidence < 0.5, "Garbage low confidence");
 
@@ -1408,7 +1408,7 @@ section("Text scorecard entry");
   assert(JSON.stringify(namedPlayers.players.map((player) => player.name)) === JSON.stringify(["Sam", "Augie"]), "Nine-hole rows with par-like scores retain both named players");
   assert(JSON.stringify(namedPlayers.players[0]?.scores.slice(0, 9)) === JSON.stringify([4, 5, 4, 3, 4, 3, 4, 5, 4]), "Named player's par-like scores are preserved");
   const unlabeledPar = parseScoreGrid(textToGrid("\t3\t4\t5\t4\t3\t4\t3\t4\t5\nSam,4,5,4,3,4,3,4,5,4"));
-  assert(JSON.stringify(unlabeledPar.parRow) === JSON.stringify([3, 4, 5, 4, 3, 4, 3, 4, 5]) && unlabeledPar.holeCount === 9, "Blank first cell still allows unlabeled nine-hole par detection");
+  assert(JSON.stringify(unlabeledPar.parRow) === JSON.stringify([3, 4, 5, 4, 3, 4, 3, 4, 5]) && unlabeledPar.holeCount === 18, "Unlabeled par retained without inferring required holes from length");
   assert(unlabeledPar.players.length === 1 && unlabeledPar.players[0].name === "Sam", "Player following unlabeled par is retained");
   const parsed = parseScoreGrid(textToGrid("Augie,4,4,4,4,4,4,4,4,4"));
   assert(parsed.players.length === 1 && parsed.players[0].name === "Augie", "All-4s text row is a player, not par");

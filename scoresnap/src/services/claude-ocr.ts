@@ -3,8 +3,9 @@
  * Used when ML Kit confidence is too low (handwritten, blurry, etc.)
  */
 
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { supabase } from "../db/supabase";
+import { normalizePlayer } from "./ocr-review";
 import { ScannedPlayer } from "./score-parser";
 
 interface ClaudeOCRResult {
@@ -44,17 +45,12 @@ export async function recognizeWithClaude(
     throw new Error("OCR service returned invalid response");
   }
 
-  const players: ScannedPlayer[] = data.players.map((p: any) => ({
-    name: String(p.name || "Unknown"),
-    scores: ensureArray(p.scores, 18, 0),
-    confidence: ensureArray(p.confidence, 18, 0.8),
-    nameConfidence: p.nameConfidence || 0.8,
-    matchedPlayerId: null,
-  }));
+  if (!Array.isArray(data.players)) throw new Error("OCR service returned invalid response");
+  const players: ScannedPlayer[] = data.players.map((p: any) => normalizePlayer({ ...p, name: String(p?.name || "Unknown") }));
 
   // Calculate average confidence
   const allConfs = players.flatMap((p) => [
-    ...p.confidence.filter((c) => c > 0),
+    ...p.confidence,
     p.nameConfidence,
   ]);
   const averageConfidence =
@@ -63,17 +59,4 @@ export async function recognizeWithClaude(
       : 0;
 
   return { players, averageConfidence };
-}
-
-/**
- * Ensure an array has exactly `length` elements, padding with `fill`.
- */
-function ensureArray(arr: any, length: number, fill: number): number[] {
-  if (!Array.isArray(arr)) return new Array(length).fill(fill);
-  const result = arr.slice(0, length).map((v: any) => {
-    const n = Number(v);
-    return isNaN(n) ? fill : n;
-  });
-  while (result.length < length) result.push(fill);
-  return result;
 }

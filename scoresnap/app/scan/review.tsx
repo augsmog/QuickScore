@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
+  AccessibilityInfo,
   View,
   Text,
   ScrollView,
@@ -25,13 +26,8 @@ import { useContestStore, generateId, defaultCourse } from "../../src/stores/con
 import type { Contest, ContestGroup } from "../../src/stores/contest-store";
 import { ConfettiOverlay } from "../../src/ui/animations/ConfettiOverlay";
 
-interface ScannedPlayer {
-  name: string;
-  scores: number[];
-  confidence: number[]; // 0-1 per hole
-  nameConfidence: number; // 0-1
-  matchedPlayerId: string | null;
-}
+import type { ScannedPlayer } from "../../src/services/score-parser";
+import { parseReviewData, grossScore, subtotal, blockingReason, completeScores, commitQuickSettle } from "../../src/services/ocr-review";
 
 interface ConcernItem {
   type: "name" | "score";
@@ -52,7 +48,9 @@ export default function ScanReviewScreen() {
 
   const contests = useContestStore((s) => s.contests);
   const importScores = useContestStore((s) => s.importScores);
-  const contest = contests.find((c) => c.id === contestId);
+  const storedContest = contests.find((c) => c.id === contestId);
+  const activeRound = storedContest?.isTournament ? storedContest.rounds?.find(r => r.number === storedContest.currentRound) : undefined;
+  const contest = storedContest && activeRound ? { ...storedContest, groups: activeRound.groups, course: activeRound.course ?? storedContest.course } : storedContest;
 
   // Parse OCR data - require valid scanData, no fallback to sample data
   const { initialPlayers, parseError } = useMemo(() => {
@@ -64,7 +62,7 @@ export default function ScanReviewScreen() {
     }
     
     try {
-      const parsed = JSON.parse(scanData) as ScannedPlayer[];
+      const parsed = parseReviewData(scanData);
       if (!Array.isArray(parsed) || parsed.length === 0) {
         return {
           initialPlayers: null,
@@ -111,7 +109,7 @@ export default function ScanReviewScreen() {
         if (c < 0.7) {
           items.push({
             type: "score", playerIndex: pi, holeIndex: hi,
-            message: `${p.name} hole ${hi + 1}: score "${p.scores[hi]}" is uncertain`,
+            message: `${p.name} hole ${p.requiredHoles?.[hi] ?? hi + 1}: score "${p.scores[hi]}" is uncertain`,
             confidence: c,
           });
         }
@@ -121,6 +119,9 @@ export default function ScanReviewScreen() {
   }, [scannedPlayers]);
 
   const lowConfCount = concerns.length;
+  const [commitError, setCommitError] = useState<string | null>(null);
+  const reason = blockingReason(scannedPlayers, !!contestId) || (contestId && !contest?.groups.some(g => g.id === selectedGroupId && scannedPlayers.every(p => g.players.some(cp => cp.id === p.matchedPlayerId))) ? "Match players to the selected group" : null);
+  useEffect(() => { AccessibilityInfo.announceForAccessibility(reason || "All required scores entered. Confirm and Calculate available."); setCommitError(null); }, [reason]);
 
   const updatePlayerName = (idx: number, name: string) => {
     setScannedPlayers((prev) =>
@@ -129,14 +130,14 @@ export default function ScanReviewScreen() {
   };
 
   const updateScore = (playerIdx: number, holeIdx: number, score: string) => {
-    const val = parseInt(score) || 0;
+    const val = grossScore(score);
     setScannedPlayers((prev) =>
       prev.map((p, i) =>
         i === playerIdx
           ? {
               ...p,
               scores: p.scores.map((s, hi) => (hi === holeIdx ? val : s)),
-              confidence: p.confidence.map((c, hi) => (hi === holeIdx ? 1 : c)),
+              confidence: p.confidence.map((c, hi) => (hi === holeIdx ? (val === null ? 0 : 1) : c)),
             }
           : p
       )
@@ -153,7 +154,7 @@ export default function ScanReviewScreen() {
 
   const handleNumpadDelete = () => {
     if (!selectedCell) return;
-    updateScore(selectedCell.player, selectedCell.hole, "0");
+    updateScore(selectedCell.player, selectedCell.hole, "");
     setSelectedCell(null);
   };
 
@@ -171,62 +172,19 @@ export default function ScanReviewScreen() {
     setShowPlayerMatchModal(null);
   };
 
-  // Auto-match scanned players to contest players by name similarity
-  const autoMatchPlayers = useCallback(() => {
-    if (!contest) return;
-    const allContestPlayers = contest.groups.flatMap((g) => g.players);
-
-    setScannedPlayers((prev) =>
-      prev.map((sp) => {
-        if (sp.matchedPlayerId) return sp; // Already matched
-
-        // Try exact match first
-        const exact = allContestPlayers.find(
-          (cp) => cp.name.toLowerCase() === sp.name.toLowerCase()
-        );
-        if (exact) return { ...sp, matchedPlayerId: exact.id, nameConfidence: 1 };
-
-        // Try partial match (first name or last name)
-        const scannedParts = sp.name.toLowerCase().split(/[\s.]+/).filter(Boolean);
-        const partial = allContestPlayers.find((cp) => {
-          const cpParts = cp.name.toLowerCase().split(/[\s.]+/).filter(Boolean);
-          return scannedParts.some((sp) => cpParts.some((cp) => cp.startsWith(sp) || sp.startsWith(cp)));
-        });
-        if (partial) return { ...sp, matchedPlayerId: partial.id, name: partial.name, nameConfidence: 0.8 };
-
-        return sp;
-      })
-    );
-  }, [contest]);
-
-  // Run auto-match on mount when contest exists
-  useEffect(() => {
-    if (contest && scannedPlayers.some((sp) => !sp.matchedPlayerId)) {
-      autoMatchPlayers();
-    }
-  }, [contest?.id]);
-
   const addContest = useContestStore((s) => s.addContest);
 
   const [pendingNavTarget, setPendingNavTarget] = useState<string | null>(null);
 
   const handleCommit = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setShowConfetti(true);
+    if (reason) return;
+    try {
 
     if (contestId && selectedGroupId) {
       // Flow 1: Importing into existing contest
       const group = contest?.groups.find((g) => g.id === selectedGroupId);
       if (group) {
-        const playerScores = group.players.map((contestPlayer, i) => {
-          const matched = scannedPlayers.find(
-            (sp) => sp.matchedPlayerId === contestPlayer.id
-          );
-          return {
-            playerId: contestPlayer.id,
-            scores: matched?.scores || scannedPlayers[i]?.scores || new Array(18).fill(0),
-          };
-        });
+        const playerScores = scannedPlayers.map(sp => ({ playerId: sp.matchedPlayerId!, scores: completeScores(sp.scores) }));
         importScores(contestId, selectedGroupId, playerScores);
       }
       setPendingNavTarget(`/contest/${contestId}`);
@@ -238,7 +196,7 @@ export default function ScanReviewScreen() {
         name: sp.name,
         handicap: 0,
         team: null,
-        scores: sp.scores,
+        scores: completeScores(sp.scores),
       }));
 
       const group: ContestGroup = {
@@ -259,9 +217,12 @@ export default function ScanReviewScreen() {
         createdAt: new Date().toISOString(),
       };
 
-      addContest(newContest);
+      commitQuickSettle(scannedPlayers, () => addContest(newContest));
       setPendingNavTarget(`/contest/${newContest.id}`);
     }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setShowConfetti(true);
+    } catch (error) { setCommitError(error instanceof Error ? error.message : "Import rejected"); }
   };
 
   const handleConfettiDone = () => {
@@ -543,12 +504,20 @@ export default function ScanReviewScreen() {
           </View>
         )}
 
+        {scannedPlayers.length > 0 && scannedPlayers.every(p => p.scores.length === 18 && p.scores.slice(9).every(s => s === null)) && (
+          <View style={{ padding: 16, gap: 8 }}>
+            <Text style={{ color: COLORS.text }}>Required holes: 18. If you have reviewed this as a nine-hole card, choose its course holes:</Text>
+            {[1, 10].map(first => <Pressable key={first} accessibilityRole="button" onPress={() => {
+              setScannedPlayers(prev => prev.map(p => ({ ...p, scores: p.scores.slice(0, 9), confidence: p.confidence.slice(0, 9), requiredHoles: Array.from({ length: 9 }, (_, i) => first + i) })));
+            }}><Text style={{ color: COLORS.primary }}>Confirm {first === 1 ? "front nine (1–9)" : "back nine (10–18)"}</Text></Pressable>)}
+          </View>
+        )}
         {/* ========== PLAYER SCORE GRID ========== */}
         <View style={{ paddingHorizontal: 12, marginBottom: 16 }}>
           {scannedPlayers.map((player, pi) => {
             const isLowConf = player.nameConfidence < 0.7;
             const isMatched = player.matchedPlayerId !== null;
-            const totalScore = player.scores.reduce((a, b) => a + b, 0);
+            const totalScore = subtotal(player);
 
             return (
               <View
@@ -622,7 +591,7 @@ export default function ScanReviewScreen() {
                     )}
                   </View>
                   <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 16, color: COLORS.text }}>
-                    {totalScore}
+                    {player.scores.some(s => s === null) ? `Partial: ${totalScore}` : totalScore}
                   </Text>
                 </View>
 
@@ -634,11 +603,12 @@ export default function ScanReviewScreen() {
                       const isFlagged = conf < 0.7;
                       const isSelected = selectedCell?.player === pi && selectedCell?.hole === hi;
                       const par = pars[hi];
-                      const color = scoreColor(score, par);
+                      const color = score === null ? COLORS.error : scoreColor(score, par);
 
                       return (
                         <Pressable
                           key={hi}
+                          accessibilityLabel={`${player.name}, hole ${player.requiredHoles?.[hi] ?? hi + 1}, ${score === null ? "blank, needs review" : score}`}
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                             setSelectedCell(
@@ -646,8 +616,8 @@ export default function ScanReviewScreen() {
                             );
                           }}
                           style={{
-                            width: 34,
-                            height: 34,
+                            minWidth: 44,
+                            minHeight: 44,
                             borderRadius: RADII.md,
                             alignItems: "center",
                             justifyContent: "center",
@@ -667,7 +637,7 @@ export default function ScanReviewScreen() {
                               color: isFlagged ? COLORS.error : color,
                             }}
                           >
-                            {score}
+                            {score ?? ""}
                           </Text>
                         </Pressable>
                       );
@@ -702,17 +672,13 @@ export default function ScanReviewScreen() {
           </Pressable>
         )}
 
-        <View style={{ height: 220 }} />
-      </ScrollView>
+
 
       {/* ========== NUMBER PAD (bottom) ========== */}
       {selectedCell !== null && (
         <View
           style={{
-            position: "absolute",
-            bottom: 100,
-            left: 20,
-            right: 20,
+            marginHorizontal: 20,
             backgroundColor: COLORS.surfaceMid,
             borderRadius: RADII.xl,
             padding: 16,
@@ -728,7 +694,7 @@ export default function ScanReviewScreen() {
               marginBottom: 10,
             }}
           >
-            {scannedPlayers[selectedCell.player]?.name} — Hole {selectedCell.hole + 1}
+            {scannedPlayers[selectedCell.player]?.name} — Hole {scannedPlayers[selectedCell.player]?.requiredHoles?.[selectedCell.hole] ?? selectedCell.hole + 1}
           </Text>
           <View style={{ gap: 8 }}>
             {/* Row 1: 1 2 3 */}
@@ -804,7 +770,8 @@ export default function ScanReviewScreen() {
                 <Text style={{ fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textDim }}>Cancel</Text>
               </Pressable>
               <Pressable
-                onPress={() => handleNumpadPress(0)}
+                disabled
+                accessibilityState={{ disabled: true }}
                 style={{
                   flex: 1,
                   height: 48,
@@ -818,6 +785,7 @@ export default function ScanReviewScreen() {
               </Pressable>
               <Pressable
                 onPress={handleNumpadDelete}
+                accessibilityLabel="Delete score, leave blank"
                 style={{
                   flex: 1,
                   height: 48,
@@ -837,19 +805,19 @@ export default function ScanReviewScreen() {
       {/* ========== BOTTOM ACTIONS ========== */}
       <View
         style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
+
           paddingHorizontal: 20,
           paddingBottom: 36,
           paddingTop: 14,
           backgroundColor: COLORS.bg,
         }}
       >
+        {(reason || commitError) && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: COLORS.error, marginBottom: 8 }}>{reason || commitError}</Text>}
         {/* Confirm & Calculate — primary CTA */}
         <Pressable
           onPress={handleCommit}
+          disabled={!!reason}
+          accessibilityState={{ disabled: !!reason }}
           style={{
             borderRadius: RADII.lg,
             paddingVertical: 16,
@@ -901,6 +869,8 @@ export default function ScanReviewScreen() {
           </Text>
         </Pressable>
       </View>
+
+      </ScrollView>
 
       {/* ========== PLAYER MATCH MODAL ========== */}
       <Modal

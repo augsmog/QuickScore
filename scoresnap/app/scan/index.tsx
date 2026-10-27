@@ -1,3 +1,5 @@
+import { applyCourseHoles } from "../../src/services/ocr-review";
+import { useContestStore } from "../../src/stores/contest-store";
 import { useState, useRef, useCallback } from "react";
 import { View, Text, Pressable, Image, Dimensions, Platform, TextInput, ScrollView } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -42,6 +44,9 @@ type FlashOption = "off" | "on" | "auto";
 export default function ScanScreen() {
   const router = useRouter();
   const { contestId } = useLocalSearchParams<{ contestId?: string }>();
+  const selectedContest = useContestStore(s => s.contests.find(c => c.id === contestId));
+  const selectedRound = selectedContest?.rounds?.find(r => r.number === selectedContest.currentRound);
+  const requiredHoles = (selectedRound?.course ?? selectedContest?.course)?.holes.map(h => h.num);
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<ScanPhase>("ready");
   const [scorecardText, setScorecardText] = useState("");
@@ -95,7 +100,7 @@ export default function ScanScreen() {
     try {
       const result = await scanScorecard(photoUri, (p, msg) => {
         setProgress(p);
-      });
+      }, requiredHoles);
 
       if (result.players.length === 0) {
         throw new Error("No players detected in this scorecard.");
@@ -126,7 +131,7 @@ export default function ScanScreen() {
       );
       setPhase("error");
     }
-  }, [contestId, router, photoUri, useScan]);
+  }, [contestId, router, photoUri, useScan, requiredHoles]);
 
   const handleRetake = useCallback(() => {
     setPhotoUri(null);
@@ -177,7 +182,7 @@ export default function ScanScreen() {
               setTextError(null);
               router.push({
                 pathname: "/scan/review",
-                params: { contestId: contestId || "", photoUri: "", scanData: JSON.stringify(result.players) },
+                params: { contestId: contestId || "", photoUri: "", scanData: JSON.stringify(applyCourseHoles(result.players, requiredHoles)) },
               });
             }}
             style={{ backgroundColor: COLORS.primary, borderRadius: RADII.lg, padding: 16, alignItems: "center" }}
