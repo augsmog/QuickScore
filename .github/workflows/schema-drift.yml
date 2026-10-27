@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  packages: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -24,9 +25,52 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.122.0
-      - name: Start pinned PostgreSQL 17 stack and reset migration chain
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compute Supabase image cache key
+        id: img-key
         run: |
-          supabase start -x vector,logflare,studio,imgproxy,mailpit
+          version=$(supabase --version)
+          echo "key=supabase-images-v1-${{ runner.os }}-cli${version}-${{ hashFiles('scoresnap/supabase/config.toml') }}" >> "$GITHUB_OUTPUT"
+      - name: Restore Supabase image cache
+        id: img-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/supabase-images
+          key: ${{ steps.img-key.outputs.key }}
+      - name: Load Supabase image cache
+        env:
+          CACHE_HIT: ${{ steps.img-cache.outputs.cache-hit }}
+        run: |
+          if [ "$CACHE_HIT" = true ]; then
+            echo "supabase image cache: HIT"
+          else
+            echo "supabase image cache: MISS"
+          fi
+          bash scripts/ci/supabase-start-cached.sh load "${{ runner.temp }}/supabase-images"
+      - name: Start pinned PostgreSQL 17 stack and reset migration chain
+        run: bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit
+      - name: Save Supabase images
+        if: steps.img-cache.outputs.cache-hit != 'true'
+        id: img-save
+        run: |
+          bash scripts/ci/supabase-start-cached.sh save "${{ runner.temp }}/supabase-images"
+          if compgen -G "${{ runner.temp }}/supabase-images/images.tar.*" > /dev/null; then
+            echo "saved=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Save Supabase image cache
+        if: steps.img-cache.outputs.cache-hit != 'true' && steps.img-save.outputs.saved == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/supabase-images
+          key: ${{ steps.img-key.outputs.key }}
+      - name: Reset migration chain
+        run: |
           supabase db reset
       - name: Emulate hosted platform-provided defaults and extensions (never live)
         run: psql postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/schema-drift/platform-emulation.sql
