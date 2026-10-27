@@ -196,3 +196,42 @@ PASS: reapply
 PASS: extract catalog
 PASS: reapply exact expected catalog
 ```
+
+## Verifier 2 rollback-race correction (2026-10-26)
+
+Replaced sleep-based scheduling with a FIFO-held writer and observer-proven
+rollback lock wait (`pg_stat_activity` plus `pg_blocking_pids`) before COMMIT.
+Success additionally requires `M2_DOWN_UNSAFE`, retained M2 objects and the
+committed writer row. The exact a5c154a unsafe fixture must instead fail after
+its later DDL wait and erroneous success; both CI and the local harness reject
+infrastructure errors as red evidence. The fixture is transaction-wrapped for
+recoverability, and M2 is restored before green and the existing CI gates.
+The offline bootstrap SQL was extracted unchanged for reuse by both harnesses.
+Migration SQL, the real down SQL, expected-after.json and active SQL hashes are
+unchanged.
+
+This round's checks:
+
+- `bash scoresnap/supabase/schema-drift/verify-offline.sh`: PASS, including M1
+  catalog/ledger/mutation checks and M2 foundation, defaults, compatibility,
+  guarded rollback, exact baseline rollback and exact reapply comparisons.
+- `python3 scoresnap/supabase/schema-drift/selftest.py`: PASS.
+- `python3 -m py_compile scoresnap/supabase/schema-drift/*.py`: PASS.
+- `python3 scoresnap/supabase/schema-drift/check-active-sql.py`: PASS.
+- `bash -n scoresnap/supabase/schema-drift/*.sh`: PASS.
+- Fixture byte comparison with `git show a5c154a:...` and bootstrap byte
+  comparison with the original offline heredoc: PASS.
+- URL rejection checks (remote host, query override, keyword connection): PASS;
+  no connection attempted and supplied credentials were not printed.
+- `git diff --check`: PASS.
+- `bash scoresnap/supabase/schema-drift/rollback-race-local.sh`: BLOCKED at
+  PG17 startup: `could not create IPv4 socket ... Operation not permitted`.
+  No two-session red/green evidence was produced here; **box to run** the local
+  harness and full pinned Supabase CI. Single-user RLS/event-trigger limitations
+  remain as documented above. No network, live URL, push or remote update used.
+
+This round also attempted `git add` and
+`git commit -m "Synchronize M2 rollback race regression with observed lock blocking"`.
+Both failed because `.git` is mounted read-only (`.git/index.lock: Read-only file
+system`). No commit hash exists for this round; the box must stage these changes
+and create the single local commit. No permission escalation or push was attempted.

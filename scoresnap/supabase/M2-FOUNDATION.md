@@ -280,3 +280,31 @@ client-callable approval path is decide_join_request, which checks the current
 non-anonymous contest owner under the contest lock before assigning/transferring
 a slot. A fixture explicitly asserts request_join leaves my_membership NULL.
 Protocol-0 legacy behavior remains the documented compatibility boundary.
+
+## Verifier 2: synchronized rollback regression
+
+The earlier sleep-based CI race could pass without proving rollback waited.
+`schema-drift/rollback-race-test.sh <db-url> [rollback-file]` now keeps a writer
+transaction open through a FIFO, records its backend PID, and observes the
+rollback backend in `pg_stat_activity`: `wait_event_type = 'Lock'` and the writer
+PID in `pg_blocking_pids`. Only then does it release COMMIT. Each polling stage
+has a 30-second deadline; an early rollback exit fails. The rollback must exit
+nonzero with `M2_DOWN_UNSAFE`, retain `contest_memberships` and the committed
+protocol-1 contest, and clean the test rows. Exit traps terminate both sessions.
+Only explicit localhost/127.0.0.1 URLs without query overrides are accepted.
+
+CI first runs the exact old a5c154a rollback fixture (header added only). It can
+wait at later DDL after its unsafe guard; that wait alone is insufficient. The
+red gate requires observation of the wait followed by erroneous rollback success.
+The fixture is wrapped in a transaction so interruption cannot leave partial DDL.
+CI restores baseline if necessary, reapplies M2, and runs the real rollback green
+before the existing baseline, M1, migration-up and M2 gates in their prior order.
+`schema-drift/rollback-race-local.sh` builds a throwaway PG17 server using the
+shared `offline-bootstrap.sql` and runs the same red/green sequence. The sandbox
+denied socket creation; the box must run this harness and the full CLI-stack CI.
+No concurrent-session red/green execution is claimed from single-user tests.
+
+To revert this PR's code after merge, run `git revert -m 1 <merge-commit>` on the
+intended branch and review the resulting revert. A code revert does not undo an
+applied database migration; use the guarded M2 down procedure above separately.
+M2 is **not applied to live**. Any live apply requires Augie's explicit yes.

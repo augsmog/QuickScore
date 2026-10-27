@@ -6,17 +6,24 @@ url='postgresql://postgres:postgres@127.0.0.1:54322/postgres'
 psql_local() { psql "$url" -X -v ON_ERROR_STOP=1 "$@"; }
 extract() { psql_local -At -f "$here/catalog-query.sql" > /tmp/m2-catalog.json; }
 python3 "$here/check-active-sql.py"
-# Concurrency regression (verifier M2-1): a writer that commits while rollback waits must make rollback refuse.
-psql_local -c "BEGIN; INSERT INTO auth.users(id) VALUES('20000000-0000-0000-0000-000000000009'); INSERT INTO public.contests(owner_id,course,invite_code,protocol) VALUES('20000000-0000-0000-0000-000000000009','{}','RACE01',1); SELECT pg_sleep(6); COMMIT;" > /tmp/m2-writer.log 2>&1 &
-writer=$!
-sleep 2
-if psql_local -f "$here/../rollback/20261027120000_sync_foundation.down.sql" > /tmp/m2-race.log 2>&1; then
- echo 'ERROR: rollback ran despite a concurrent committed writer'; cat /tmp/m2-race.log; exit 1
+# Red before green, exclusively on the disposable CLI stack.
+red_log=$(mktemp)
+trap 'rm -f "$red_log"' EXIT
+if bash "$here/rollback-race-test.sh" "$url" "$here/fixtures/unsafe-rollback-no-lock.down.sql" > "$red_log" 2>&1; then
+ echo 'FAIL: unsafe rollback unexpectedly passed the synchronized race'; exit 1
 fi
-wait "$writer"; cat /tmp/m2-writer.log
-grep -q 'M2_DOWN_UNSAFE' /tmp/m2-race.log || { cat /tmp/m2-race.log; exit 1; }
-echo 'PASS: rollback waits for and refuses concurrent committed writer'
-psql_local -c "DELETE FROM public.contests WHERE invite_code='RACE01'; DELETE FROM auth.users WHERE id='20000000-0000-0000-0000-000000000009'"
+cat "$red_log"
+# Require the historical bug, rather than counting an infrastructure error as red.
+grep -q 'PASS: observed rollback Lock wait' "$red_log"
+grep -q 'FAIL: rollback succeeded after concurrent writer committed' "$red_log"
+echo 'PASS: unsafe rollback rejected by synchronized race (expected red)'
+# The old rollback can finish destructively after the writer commits. Restore a
+# known unused baseline even if the red run instead interrupted it transactionally.
+if [[ $(psql_local -Atqc "SELECT to_regclass('public.contest_memberships') IS NOT NULL") == t ]]; then
+ psql_local -f "$here/../rollback/20261027120000_sync_foundation.down.sql"
+fi
+psql_local -f "$here/../migrations/20261027120000_sync_foundation.sql"
+bash "$here/rollback-race-test.sh" "$url"
 # Baseline prefix: undo M2 before running every M1 gate.
 psql_local -f "$here/../rollback/20261027120000_sync_foundation.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261027120000'"

@@ -31,7 +31,7 @@ with tempfile.TemporaryDirectory() as tmp:
  CREATE SCHEMA supabase_migrations; CREATE TABLE supabase_migrations.schema_migrations(version text PRIMARY KEY,statements text[],name text);
  '''
  # Keep hosted attributes, memberships and platform defaults identical to M1's offline harness.
- harness=(here/'verify-offline.sh').read_text()
+ harness=(here/'offline-bootstrap.sql').read_text()
  roles=harness.split('-- Hosted role attributes/memberships',1)[1].split('CREATE SCHEMA auth;',1)[0]
  # Plain PG17 lacks pg_graphql; only that extension inventory is injected below.
  defaults=(here/'platform-emulation.sql').read_text().replace('CREATE EXTENSION IF NOT EXISTS pg_graphql;', '')
