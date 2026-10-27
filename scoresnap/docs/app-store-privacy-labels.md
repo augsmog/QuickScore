@@ -175,7 +175,7 @@ These were searched and are not collected off the device by the code that shippe
 4. Customer Support, after checking whether the Sentry feedback widget is visible.
 5. Audio Data, after confirming the Android `RECORD_AUDIO` entries are unused (`scoresnap/app.json:33-38`).
 6. Location, if `expo-location` is later added or the client starts calling `near`.
-7. The privacy policy URL the binary opens is `https://august-industries.com/snapscore/privacy` (`scoresnap/app/auth/sign-in.tsx:613`, `scoresnap/app/settings.tsx:610`). This draft is not that page until the owner publishes it. The nutrition label's privacy policy URL has to be a real page. The support URL in the policy is still `[SUPPORT URL — owner to provide]`.
+7. The privacy policy URL the binary opens is `https://august-industries.com/snapscore/privacy` (`scoresnap/app/auth/sign-in.tsx:613`, `scoresnap/app/settings.tsx:610`). This draft is not that page until the owner publishes it. The nutrition label's privacy policy URL has to be a real page. The policy's support contact is augie@autumn8.me. The support URL in the policy is still `[SUPPORT URL — owner to provide]`. The owner has not confirmed whether the published privacy and support pages stay on august-industries.com or move to autumn8.me.
 
 ## Sources
 
