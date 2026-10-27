@@ -53,14 +53,50 @@ def old_shape(x):
     x['regclass_checks']['hole_scores']='hole_scores'
     x['regclass_checks']['contest_rounds']='contest_rounds'
 check('archived 001–008 shape',old_shape)
-for mode in ('live','local'):
-    good={'migrations':load(HERE/'expected-ledger.json')+([{'version':'20261027000000','name':'live_baseline'},{'version':'20261027120000','name':'sync_foundation'},{'version':'20261027130000','name':'guest_write_guard'}] if mode=='local' else [])}
-    ledger(good,mode)
-    for bad in (good['migrations'][:-1],good['migrations']+[{'version':'008','name':'tournament_rounds'}]):
-        try: ledger({'migrations':bad},mode)
-        except ValueError: pass
-        else: raise AssertionError('bad ledger accepted')
-print('PASS ledger identity and rejection (live/local)')
+# The fixture is explicit: the guard must not accept an arbitrary baseline.
+adopted = load(HERE/'expected-ledger.json')
+assert adopted == load(HERE/'fixtures/live-adopted-ledger.json')
+for mode, entries in [('live', adopted), ('baseline', adopted), ('pre-adoption', adopted[:-1]),
+                      ('local', adopted + [{'version':'20261027120000','name':'sync_foundation'},
+                                           {'version':'20261027130000','name':'guest_write_guard'}])]:
+    ledger({'migrations': entries}, mode)
+    for bad in (entries[:-1], entries + [entries[0]]):
+        try:
+            ledger({'migrations': bad}, mode)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('bad ledger accepted: ' + mode)
+
+bad_ledgers = {
+    'seven pre-adoption': adopted[:-1],
+    'nine M2 applied': adopted + [{'version':'20261027120000','name':'sync_foundation'}],
+    'ten M2b applied': adopted + [{'version':'20261027120000','name':'sync_foundation'}, {'version':'20261027130000','name':'guest_write_guard'}],
+    'missing': adopted[:2] + adopted[3:],
+    'reordered': [adopted[1], adopted[0]] + adopted[2:],
+    'duplicate': adopted[:-1] + [adopted[0]],
+    'extra': adopted + [{'version':'99999999999999','name':'unexpected'}],
+    'renamed': [dict(adopted[0], name='renamed')] + adopted[1:],
+    'wrong baseline name': adopted[:-1] + [dict(adopted[-1], name='other_baseline')],
+    'wrong baseline version': adopted[:-1] + [dict(adopted[-1], version='20261027000001')],
+}
+with tempfile.TemporaryDirectory() as d:
+    p = pathlib.Path(d) / 'capture.json'
+    for name, entries in [('adopted eight', adopted), *bad_ledgers.items()]:
+        capture = copy.deepcopy(snapshot)
+        capture['migrations'] = entries
+        p.write_text(json.dumps(capture))
+        guard = subprocess.run(['bash', str(HERE/'preapply-check.sh'), str(p)], capture_output=True, text=True)
+        if name == 'adopted eight':
+            assert guard.returncode == 0, guard
+            assert guard.stdout.splitlines() == [
+                'Schema matches', 'Ledger matches: live', 'Guard passed.',
+                'Next: apply approved M2 (20261027120000_sync_foundation), then M2b (20261027130000_guest_write_guard), per the live-apply plan.'], guard
+        else:
+            assert guard.returncode == 1 and 'live ledger mismatch' in guard.stderr, (name, guard)
+            assert 'Guard passed.' not in guard.stdout and 'Next:' not in guard.stdout, (name, guard)
+        assert 'migration repair' not in guard.stdout, guard
+        print('PASS preapply ledger: ' + name)
 
 from drift import normalize
 reviewed = load(HERE / 'reviewed-default-acls.json')

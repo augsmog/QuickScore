@@ -56,9 +56,12 @@ def differences(live, local):
     return out
 
 def ledger(raw, mode):
-    expected = load(HERE / 'expected-ledger.json') + ([BASELINE, FOUNDATION, {"version":"20261027130000","name":"guest_write_guard"}] if mode == 'local' else [BASELINE] if mode == 'baseline' else [])
+    expected = load(HERE / 'expected-ledger.json') + ([FOUNDATION, {"version":"20261027130000","name":"guest_write_guard"}] if mode == 'local' else [])
+    if mode == 'pre-adoption':
+        expected = expected[:-1]
     actual = raw.get('migrations')
-    if actual is None or sorted(actual,key=lambda m:m['version']) != sorted(expected,key=lambda m:m['version']):
+    if (actual != expected if mode == 'live' else
+            actual is None or sorted(actual,key=lambda m:m['version']) != sorted(expected,key=lambda m:m['version'])):
         raise ValueError(f'{mode} ledger mismatch: expected {expected}; got {actual}')
 
 def main():
@@ -66,7 +69,7 @@ def main():
     sub=p.add_subparsers(dest='cmd',required=True)
     n=sub.add_parser('normalize'); n.add_argument('input'); n.add_argument('output')
     c=sub.add_parser('compare'); c.add_argument('live'); c.add_argument('local')
-    l=sub.add_parser('ledger'); l.add_argument('input'); l.add_argument('--mode',choices=['live','baseline','local'],required=True)
+    l=sub.add_parser('ledger'); l.add_argument('input'); l.add_argument('--mode',choices=['live','baseline','local','pre-adoption'],required=True)
     args=p.parse_args()
     if args.cmd=='normalize': pathlib.Path(args.output).write_text(json.dumps(normalize(load(args.input)),indent=2,sort_keys=True)+'\n')
     elif args.cmd=='ledger': ledger(load(args.input),args.mode); print('Ledger matches: '+args.mode)

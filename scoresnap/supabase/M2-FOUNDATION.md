@@ -146,16 +146,26 @@ assignment/scorer authorization is implied; it is explicitly denied.
 ## Verification and drift
 
 `schema-snapshot/live.json` remains the untouched PRE-APPLY capture. The new
-expected-after.json is the normalized catalog for seven markers + baseline +
-foundation. CI starts CLI 2.122.0 with ghcr.io, resets the full chain, and applies hosted
-platform emulation as supabase_admin. It rolls down the unused foundation,
+expected-after.json is the normalized catalog for the full local chain, including
+M2b. The separately checked local ledger contains seven historical markers + `20261027000000 live_baseline` +
+`20261027120000 sync_foundation` + `20261027130000 guest_write_guard` (ten ledger
+rows); normalization removes ledger rows from expected-after.json. CI starts CLI 2.122.0 with ghcr.io, resets the full chain, and applies hosted
+platform emulation as supabase_admin. It rolls down M2b and requires the guest-contest red result, runs the unsafe
+rollback race red, restores/reapplies M2 and runs the guarded race green, then
+rolls down the unused foundation,
 compares baseline to live.json (eight local ledger entries), requires the default
 fixture to fail on baseline, and runs M1 selftest and SQL mutation/preapply
-rejection fixtures with --url/--admin-url. It reapplies with CLI migration up,
-compares expected-after and nine ledger entries, then runs the M2
-role/ACL/default/future/join/CAS/legacy gates before ledger-adoption rehearsal. Live pre-adoption ledger
-still expects seven. Active SQL names, SHA256 and git tracking are checked.
-Rehearsal repairs only baseline; foundation must remain pending after repair.
+rejection fixtures with --url/--admin-url (four reserved-role mutations run
+only in offline PG17 because of supautils). It reapplies both M2 and M2b with CLI
+migration up, compares expected-after and ten local ledger entries, then runs the
+M2 role/ACL/default/future/join/CAS/legacy gates and M2b guest-write guard and
+mutation gates before ledger-adoption rehearsal. Live preapply now requires the exact ordered adopted eight-row ledger (seven markers
+plus 20261027000000 live_baseline); local full-chain mode expects ten rows including M2b. Active SQL names, SHA256 and git tracking are checked.
+Rehearsal asserts exactly baseline, M2 and M2b pending in that order before
+repair: `20261027000000_live_baseline.sql`, `20261027120000_sync_foundation.sql`,
+`20261027130000_guest_write_guard.sql`. It repairs only baseline, then asserts
+exactly M2 and M2b remain pending in that order; physical schema still matches
+live.json and the ledger matches the eight-row baseline prefix.
 
 Normalization now compares **visible ordinal column order**, compressing gaps
 left by PostgreSQL DROP COLUMN. It still detects additions/removals/reordering;
@@ -195,10 +205,12 @@ Live apply is a **box step requiring Augie's yes**, not authorized by these loca
 files. Before any apply, capture read-only catalog/ledger and run
 schema-drift/preapply-check.sh against live.json, verify checksums, finish full
 stack and unchanged old-client gates, archive backup and rollback receipts.
-Repair the baseline ledger only after exact baseline parity and reviewed
-seven-marker adoption; never execute baseline DDL on live. Then apply the
-reviewed pending foundation through `supabase db push` after baseline ledger
-repair. Verify expected-after and ledger, then box may refresh live.json from a
+Baseline ledger adoption was approved and completed on 2026-10-26 at 23:11 MST.
+The preapply guard now requires exactly those eight adopted rows; never execute
+baseline DDL on live or repeat adoption repair. Follow the approved live-apply
+plan to apply M2 (20261027120000_sync_foundation), then M2b
+(20261027130000_guest_write_guard).
+Verify expected-after and ledger, then box may refresh live.json from a
 new read-only capture. Auth enablement is a separate Augie decision. No source
 or remote refs are updated by this local work.
 
@@ -209,14 +221,19 @@ red/green results, skips and the local commit outcome.
 
 ## Port onto final-candidate M1 9023862
 
-Regenerated expected-after.json with the new catalog-query.sql, PG17 single-user
-baseline + foundation, hosted role attributes/memberships, and the default ACL
+At this historical M2-only port, expected-after.json was regenerated with the
+new catalog-query.sql, PG17 single-user baseline + foundation, hosted role
+attributes/memberships, and the default ACL
 statements from platform-emulation.sql. Only unavailable platform extension
 inventory rows are injected by M1's offline platform_ext.inject; no role, ACL,
 relation or publication rows are injected. The baseline prefix and rollback both
 compare equal to the refreshed live.json under the existing normalization.
 
-The complete intentional schema delta is:
+The intentional M2 foundation schema delta is listed below. The current
+expected-after.json also includes the subsequent M2b policy and ACL changes
+documented in M2B-GUEST-GUARD.md; it represents the full ten-row local chain.
+
+The M2 foundation delta is:
 
 - Three tables: contest_memberships, contest_join_requests, operation_receipts,
   with their columns, composite row types, constraints, seven total new indexes

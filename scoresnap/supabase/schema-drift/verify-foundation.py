@@ -68,12 +68,12 @@ with tempfile.TemporaryDirectory() as tmp:
  ROLLBACK;
  """,'probe helper aggregates unexpected SQLSTATE and success across rollback')
  run("DO $$ BEGIN IF has_column_privilege('authenticated','public.profiles','is_premium','UPDATE') OR NOT has_column_privilege('authenticated','public.profiles','display_name','UPDATE') THEN RAISE EXCEPTION 'profile ACL'; END IF; END $$;",'profile entitlement ACL')
- entries=json.loads((here/'expected-ledger.json').read_text())+[{'version':'20261027000000','name':'live_baseline'},{'version':'20261027120000','name':'sync_foundation'},{'version':'20261027130000','name':'guest_write_guard'}]
+ entries=json.loads((here/'expected-ledger.json').read_text())+[{'version':'20261027120000','name':'sync_foundation'},{'version':'20261027130000','name':'guest_write_guard'}]
  run('\n'.join("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('%s','%s');" % (e['version'],e['name']) for e in entries),'full local ledger seed')
  raw=catalog()
  check_guard(m2_catalog,raw)
  ledger(raw,'local')
- print('PASS: ten-entry local ledger (live expectation remains seven)')
+ print('PASS: ten-entry local ledger (live expectation is adopted eight)')
  expected=root/'schema-snapshot/expected-after.json'
  if '--record' in sys.argv: expected.write_text(json.dumps(normalize(raw),indent=2,sort_keys=True)+'\n')
  compare(expected,'full chain equals expected-after.json')

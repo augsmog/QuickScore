@@ -5,7 +5,7 @@ Verified in the isolated clone against final-candidate M1 9023862, using
 change, remote push or source-ref update was performed. Edits are restricted to
 scoresnap/ and .github/workflows/.
 
-Commands and results:
+Historical M2-only commands and results (before M2b and adopted-live preflight):
 
 - `python3 scoresnap/supabase/schema-drift/verify-foundation.py --record`:
   passed; explicitly regenerated expected-after.json with the new catalog query,
@@ -23,7 +23,8 @@ Commands and results:
 - `python3 scoresnap/supabase/schema-drift/check-active-sql.py --record`:
   explicitly refreshed hashes for the new M1 baseline and corrected M2 migration.
 - `python3 scoresnap/supabase/schema-drift/check-active-sql.py`: passed names,
-  SHA256 and Git tracking (all nine migrations are tracked in this clone).
+  SHA256 and Git tracking (nine migrations at that historical M2-only revision;
+  the current manifest requires all ten, including M2b).
 - `git diff --check`: passed.
 - `npm --prefix scoresnap test -- --runInBand`: unavailable, `jest: not found`;
   no dependency download attempted.
@@ -34,12 +35,22 @@ changed normalized catalog sections. app_roles/app_role_memberships, publication
 membership/attributes and existing numeric typmods are unchanged. live.json,
 catalog-query.sql, drift.py and all M1 migration SQL remain untouched.
 
-CI ordering: full start/reset; hosted platform emulation; unused-foundation down;
-baseline prefix/live comparison and eight-entry ledger; expected-red default
-fixture; M1 selftest and SQL fixtures with --url/--admin-url; migration up;
-expected-after/nine-entry ledger; M2 future-default, role/join/CAS and legacy
-compatibility fixtures; ledger-adoption rehearsal. The rehearsal retains hosted
-extensions, platform emulation and exact pending-migration assertions.
+Current CI ordering (`.github/workflows/schema-drift.yml` and
+`schema-drift/verify-foundation-ci.sh`): full start/reset; hosted platform
+emulation; active SQL manifest check; M2b down and ledger removal; specific
+M2B_UNGUARDED guest-contest expected red; unsafe rollback race expected red;
+restore/reapply M2 and run the real rollback race green; unused M2 down and
+ledger removal; baseline/live comparison and eight-entry baseline ledger;
+expected-red default fixture; M1 selftest and SQL fixtures with --url/--admin-url;
+migration up reapplies M2 and M2b; M2b policy/ACL catalog gate;
+expected-after.json comparison and ten-entry local ledger (seven historical
+markers + `20261027000000 live_baseline` + `20261027120000 sync_foundation` +
+`20261027130000 guest_write_guard`); future-default, role/join/CAS, legacy
+compatibility, guest-write and guest-guard mutation gates; ledger-adoption
+rehearsal. The rehearsal asserts exactly baseline, M2 and M2b pending before
+repair, and exactly M2 and M2b afterward, in migration order. It repairs only
+baseline and rechecks unchanged physical schema and the eight-entry baseline
+ledger, retaining hosted extensions and platform emulation.
 
 Supabase CLI and Docker are absent. Full pinned-stack workflow and adoption
 rehearsal remain unexecuted locally. Single-user mode cannot enforce raw RLS row
@@ -63,7 +74,15 @@ Both failed: `Unable to create .../.git/index.lock: Read-only file system`.
 No commit was created. The complete reviewed changes remain in the working tree
 for the box to commit; no source or remote refs changed.
 
-## Final verify-offline output
+## Historical M2-only verify-offline output
+
+This is the original receipt, not output from the current scripts. Its
+nine-entry local / seven-entry live line predates M2b and baseline adoption.
+Current `verify-foundation.py` applies M2 then M2b, seeds and checks ten local
+ledger rows, prints `PASS: ten-entry local ledger (live expectation is adopted eight)`,
+and compares the full chain to expected-after.json. It also checks M2b down
+against the saved M2 catalog, M2 down against live.json, and M2 + M2b reapply
+against expected-after.json. The original output below is retained verbatim.
 
 ```text
 offline: emulated platform extensions supabase_vault, pg_graphql, pg_stat_statements

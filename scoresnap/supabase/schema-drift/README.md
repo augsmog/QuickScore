@@ -48,27 +48,34 @@ Normalizer sorts object arrays, role/config arrays and ACL entries; enum labels,
 formatting whitespace outside quoted strings/identifiers/dollar bodies, and
 retains literal contents and function bodies. Null aggregate sections become
 empty arrays. Visible ordinal column order remains compared; dropped physical attnum gaps are compressed for down/reapply parity. Normalizing an
-already normalized snapshot is safe. Stored function bodies are deliberately
+already normalized snapshot is safe. Only the SQL-bearing keys def, qual, with_check, default, filter,
+argument_defaults and partition_bound receive whitespace normalization.
+Stored function bodies are deliberately
 stricter than semantic SQL equivalence.
 
-Every exception is in `allowlist.json`:
+Normalization exceptions are implemented by drift.py using `allowlist.json`:
+its ledger description is historical (seven live/eight local); executable ledger
+expectations come from expected-ledger.json and drift.py, as described below.
 
 - `taken_at`: capture time is not schema.
 - `server_version`: compare major (17), omit patch/packaging differences
   (hosted 17.6 versus offline 17.11).
 - Only versions of six **named** extensions may differ: pg_graphql,
   pg_stat_statements, pgcrypto, plpgsql, supabase_vault, uuid-ossp. Inventory,
-  schema, relocation flag and dump config/conditions remain compared. No synthetic
-  extension records are injected. Offline PostgreSQL supplies only pgcrypto,
-  uuid-ossp and plpgsql; after hosted inventory is refreshed, offline verification
-  must report any additional hosted inventory as a limitation, rather than hide it.
+  schema, relocation flag and dump config/conditions remain compared by drift.py.
+  Offline PostgreSQL supplies only pgcrypto, uuid-ossp and plpgsql. Before offline
+  comparison, platform_ext.py copies missing pg_graphql, pg_stat_statements and
+  supabase_vault records verbatim from live.json; verify-foundation.py uses the
+  same injection. Offline parity therefore does not independently verify those
+  three extensions or their installation. CI installs real extensions and compares
+  their extracted records without this injection; other missing inventory fails.
 - Default ACL scope: **every role's global** defaults (namespace zero rendered
   `-`) plus **every role's public-schema** defaults. Exact entries compare.
   `reviewed-default-acls.json` records three platform-provided public defaults;
   the baseline does not alter supabase_admin defaults. Offline setup emulates
   them. `platform_differences` is empty; no role-wide exceptions exist.
 - Migration rows are omitted from the physical comparison, then separately
-  checked for exact names/versions: live has seven, local adds baseline and foundation; baseline-prefix mode adds only baseline.
+  checked for exact names/versions: live requires the adopted eight rows in exact order; baseline has the same eight rows; local adds M2 and M2b (ten rows). Historical pre-adoption mode has seven rows. Only live mode checks input order; the other modes sort by version before checking.
   Missing, extra, duplicate, or renamed ledger entries fail.
 
 Public routine ACL text and information_schema EXECUTE grants are both compared.
@@ -83,14 +90,22 @@ event triggers are also compared. See `../BASELINE-NOTES.md` for provenance.
 `rehearse-ledger-adoption.sh` targets only hard-coded loopback URLs. It creates
 `live_rehearsal` from template0 in the same local stack, using the cluster roles,
 minimal Auth stubs and extensions/publication, applies baseline **directly**, then
-inserts exactly the seven live ledger entries. This simulates the live public
+inserts exactly the seven historical pre-adoption ledger entries. This simulates the live public
 schema and ledger, not a second running hosted Auth service. Template0 avoids
 cloning `postgres` while stack services hold active connections.
 
 It compares this schema/ledger, runs `migration list`, asserts dry-run lists
-**baseline plus foundation**, repairs baseline to applied, lists again, asserts
-dry-run lists only foundation, then rechecks unchanged physical schema
-and the eight-row ledger. It drops the disposable database on success. A failed
+exactly these files in order before repair:
+
+1. `20261027000000_live_baseline.sql`
+2. `20261027120000_sync_foundation.sql` (M2)
+3. `20261027130000_guest_write_guard.sql` (M2b)
+
+It repairs only baseline to applied, lists again, and asserts the dry-run lists
+exactly M2 then M2b (`20261027120000_sync_foundation.sql`,
+`20261027130000_guest_write_guard.sql`). It then rechecks unchanged physical
+schema and the eight-row baseline ledger (seven historical markers plus
+`20261027000000 live_baseline`). It drops the disposable database on success. A failed
 run leaves the database for investigation; the CI stack cleanup removes it.
 
 The CLI gets `--db-url` with a non-postgres database name; no `--linked` and no
@@ -111,32 +126,41 @@ bash scoresnap/supabase/schema-drift/preapply-check.sh /path/to/fresh-live-catal
 
 The guard uses only Python and the provided file: it never connects or writes to
 live, reads no credentials, and never invokes Supabase. It normalizes both sides,
-compares schema and exact seven-row live ledger, fails closed with a human diff,
-and only on success prints the permitted next command:
+compares schema and the exact ordered eight-row adopted live ledger in
+`expected-ledger.json`, and fails closed with a human diff. Baseline adoption was
+approved by Augie on 2026-10-26 at 23:11 MST for `pltgbizexllikiwryozm`.
+On success it prints:
 
-```sh
-supabase migration repair 20261027000000 --status applied --linked
+```text
+Schema matches
+Ledger matches: live
+Guard passed.
+Next: apply approved M2 (20261027120000_sync_foundation), then M2b (20261027130000_guest_write_guard), per the live-apply plan.
 ```
 
-Run that command from `scoresnap/` only after verifying the linked project is
-`pltgbizexllikiwryozm` and obtaining **Augie's explicit yes**. A fresh match is an
-engineering guard, not permission. Never execute the baseline SQL on live.
-No live apply/repair is authorized by the guard itself.
+Follow the approved live-apply plan for M2 then M2b. Baseline repair is already
+complete; never execute baseline DDL on live. The guard itself performs no apply.
+See [LIVE-APPLY-PREFLIGHT.md](LIVE-APPLY-PREFLIGHT.md) for checksums.
 
 After an approved future live schema change, save the fresh read-only raw capture,
 review the diff against the expected forward migration, update expected physical
 snapshot with `drift.py normalize RAW schema-snapshot/live.json`, and update the
 ledger expectation/code for that approved milestone. Review those updates in a PR
 and run identity/mutation/local parity/rehearsal checks. Do not refresh merely to
-silence unexpected drift or expand the allowlist to hide app differences. M1's
-guard intentionally refuses already-adopted (eight-entry) live ledgers; subsequent
-milestones must explicitly revise that expectation.
+silence unexpected drift or expand the allowlist to hide app differences. The live guard accepts only the adopted eight-entry ledger, including the exact
+`20261027000000 live_baseline` row. Seven, nine, ten, missing, renamed, reordered,
+duplicate, extra, and other baseline variants fail; subsequent milestones must
+explicitly revise that expectation.
 
-## Verification receipt (fix round 1)
+## Historical verification receipt (fix round 1)
+
+This receipt describes that round, not the current full-chain harness. The
+current offline scripts emulate platform default ACLs and the three extension
+records described above; pinned-stack execution is still a separate gate.
 
 PG17 offline apply, catalog parity, ledger checks, JSON mutation fixtures, and
 15 transactional SQL mutations pass. Every mutation is also rejected by the offline
-pre-apply guard before any repair command is printed. SQL fixtures run through the
+pre-apply guard before any next step is printed. SQL fixtures run through the
 same extractor and comparer in pinned-stack CI. `rls-probe.sql` requires the new
 public table to have RLS enabled and drops it within a rolled-back transaction.
 Single-user PostgreSQL suppresses event triggers, so the behavior probe explicitly
@@ -188,7 +212,7 @@ capture because that deparser rejects aggregate routines.
 | Catalog | Compared columns (directly or semantic definition) | Deliberately excluded columns and reason |
 |---|---|---|
 | `pg_class` | `relname`, `relnamespace`, `reloftype`, `relowner`, `relam`, `reltablespace`, `relpersistence`, `relkind`, `relchecks`, `relrowsecurity`, `relforcerowsecurity`, `relispopulated`, `relreplident`, `relispartition`, `relacl`, `reloptions`, `relpartbound` | `oid`: cluster identity, resolved by names; `reltype`: row type derived from relation and attributes; `relfilenode`: physical storage location; `relpages`: runtime statistics; `reltuples`: runtime statistics; `relallvisible`: runtime visibility statistics; `reltoastrelid`: automatic physical TOAST storage; `relhasindex`: lazy maintenance hint; actual indexes compare; `relisshared`: system-only property; app relations cannot be shared; `relnatts`: derived from attribute positions; dropped slots excluded; `relhasrules`: lazy hint; actual rules compare; `relhastriggers`: lazy hint; actual triggers compare; `relhassubclass`: lazy hint; inheritance edges compare; `relrewrite`: transient rewrite identity; `relfrozenxid`: maintenance transaction horizon; `relminmxid`: maintenance multixact horizon |
-| `pg_attribute` | `attrelid`, `attname`, `atttypid`, `attnum`, `atttypmod`, `attndims`, `attstorage`, `attcompression`, `attnotnull`, `attidentity`, `attgenerated`, `attislocal`, `attinhcount`, `attcollation`, `attstattarget`, `attacl`, `attoptions`, `attfdwoptions` | `attlen`: derived from type; `attcacheoff`: backend cache offset; `attbyval`: derived from type; `attalign`: derived from type; `atthasdef`: derived from attrdef presence; `atthasmissing`: physical fast-default implementation; expression and visible default compare; `attmissingval`: physical fast-default implementation; changes after rewrite without schema change; `attisdropped`: dropped attributes excluded; active physical positions compare |
+| `pg_attribute` | `attrelid`, `attname`, `atttypid`, `attnum`, `atttypmod`, `attndims`, `attstorage`, `attcompression`, `attnotnull`, `attidentity`, `attgenerated`, `attislocal`, `attinhcount`, `attcollation`, `attstattarget`, `attacl`, `attoptions`, `attfdwoptions` | `attlen`: derived from type; `attcacheoff`: backend cache offset; `attbyval`: derived from type; `attalign`: derived from type; `atthasdef`: derived from attrdef presence; `atthasmissing`: physical fast-default implementation; expression and visible default compare; `attmissingval`: physical fast-default implementation; changes after rewrite without schema change; `attisdropped`: dropped attributes excluded; visible ordinal positions compare after gap compression |
 | `pg_attrdef` | `adrelid`, `adnum`, `adbin` | `oid`: cluster identity |
 | `pg_constraint` | `conname`, `connamespace`, `contype`, `condeferrable`, `condeferred`, `convalidated`, `conrelid`, `contypid`, `conparentid`, `confrelid`, `confupdtype`, `confdeltype`, `confmatchtype`, `conislocal`, `coninhcount`, `connoinherit`, `conkey`, `confkey`, `confdelsetcols`, `conexclop`, `conbin` | `oid`: cluster identity; `conindid`: support index definition/constraint semantics compared through indexes; `conpfeqop`: derived FK equality operators from compared types and supporting index opclasses; `conppeqop`: derived FK equality operators from compared types and supporting index opclasses; `conffeqop`: derived FK equality operators from compared types and supporting index opclasses |
 | `pg_index` | `indexrelid`, `indrelid`, `indnatts`, `indnkeyatts`, `indisunique`, `indnullsnotdistinct`, `indisprimary`, `indisexclusion`, `indimmediate`, `indisclustered`, `indisvalid`, `indisready`, `indislive`, `indisreplident`, `indkey`, `indcollation`, `indclass`, `indoption`, `indexprs`, `indpred` | `indcheckxmin`: transient transaction visibility horizon; validity/readiness compared |
@@ -228,7 +252,7 @@ runtime state are intentionally excluded; extended-statistics **definitions** an
 targets compare. Extension member objects in public remain subject to normal
 application comparison.
 
-Round 2 SQL fixtures capture before and after within one rolled-back transaction
+The 41 targeted semantic SQL fixtures capture before and after within one rolled-back transaction
 and assert the **specific semantic section** changes, then require the comparison
 CLI and preapply guard to reject. This prevents fixture setup objects from hiding
 an uncaptured mutation. They include the requested typmod/collation/generated
@@ -243,7 +267,7 @@ The snapshot additions are **pending live capture**, not independently observed
 live facts. See PROVENANCE.md before using preapply against hosted state. The query
 remains one self-contained SELECT, suitable for a single read-only fresh capture.
 
-## Round 2 verification receipt
+## Historical round 2 verification receipt
 
 `PGBIN=/usr/lib/postgresql/17/bin` with verify-offline.sh: baseline DDL apply,
 strict pending-snapshot parity, local ledger, JSON mutations, and **56 real SQL
@@ -254,17 +278,25 @@ Superuser-only leakproof/all-tables publication and extension-owner mutations us
 `--admin-url`, as do platform-owned trigger/default ACL operations. No network,
 live database, Docker or M2 work was used. This verifies the pending local
 expectations; it does not replace the mandatory single fresh hosted capture.
+The current runner has 60 SQL mutations: 41 semantic checks plus 19 regressions.
+Pinned-stack CI skips four reserved-role mutations (supautils); offline PG17
+executes those four, so CI executes 56 SQL mutations plus the RLS behavior probe.
 
 
-## M2 full-chain gate
+## M2 + M2b full-chain gate
 
 `verify-foundation-ci.sh` is the disposable-loopback-only gate used by CI. It
+rolls down M2b first and requires the guest-contest failure, runs the unsafe
+rollback race red, restores/reapplies M2 and runs the guarded race green, then
 rolls down the unused foundation to compare the baseline prefix against live.json,
 checks its ledger, proves baseline default privileges red, and runs M1 JSON and
 SQL mutations with both postgres and supabase_admin connections. It then reapplies
-foundation, compares the full chain to expected-after.json, checks the nine-entry
-ledger, and runs future-default, protocol/role and legacy compatibility tests.
+M2 foundation and M2b guest guard, compares the full chain to expected-after.json,
+and checks the ten-entry local ledger: seven historical markers +
+`20261027000000 live_baseline` + `20261027120000 sync_foundation` +
+`20261027130000 guest_write_guard`. It runs future-default, protocol/role, legacy
+compatibility, guest-write guard and guest-guard mutation tests.
 `check-active-sql.py` requires exact active migration names, reviewed SHA256
 hashes and git tracking. `preapply-check.sh` still uses only the PRE-APPLY live
-snapshot and seven-entry live ledger. See ../M2-FOUNDATION.md for contracts,
+snapshot and adopted eight-entry live ledger. See ../M2-FOUNDATION.md for contracts,
 staged debt and live approval requirements.

@@ -10,11 +10,17 @@ intended target. It runs transactionally, removes only m2b_ policies and restore
 exact M2 client grants, including the original vulnerable profile/guest paths.
 Keep anonymous sign-ins disabled, or disable them before rollback if enabled.
 Only after successful down repair version 20261027130000 to reverted using the
-normal migration-ledger workflow. Verify catalog against the M2-only chain.
+normal migration-ledger workflow. Verify catalog against the M2-only chain
+(nine ledger rows: seven historical markers + live_baseline + sync_foundation),
+rather than expected-after.json, which describes the M2b physical schema.
+Migration rows are omitted from that normalized snapshot and checked separately;
+there is no dedicated nine-row ledger mode in drift.py.
 M2b down must precede M2 down; do not run M2 down under installed M2b policies.
 
 Reapply with normal migration up workflow and verify expected-after.json and
-local ledger. No default ACL, owner or service_role change needs restoration.
+the ten-row local ledger (seven historical markers + `20261027000000 live_baseline` +
+`20261027120000 sync_foundation` + `20261027130000 guest_write_guard`).
+No default ACL, owner or service_role change needs restoration.
 Live apply and later anonymous Auth enablement each require Augie's explicit
 yes. CAPTCHA integration remains mandatory before enabling anonymous sign-ins.
 

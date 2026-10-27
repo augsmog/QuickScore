@@ -30,13 +30,13 @@ psql 'postgresql://supabase_admin:postgres@127.0.0.1:54322/live_rehearsal' -X -v
 psql "$url" -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261027000000_live_baseline.sql
 python3 - "$here/expected-ledger.json" > "$work/ledger.sql" <<'PY'
 import json,sys
-for m in json.load(open(sys.argv[1])):
+for m in json.load(open(sys.argv[1]))[:-1]:
     print("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('%s','%s');" % (m['version'],m['name']))
 PY
 psql "$url" -X -v ON_ERROR_STOP=1 -f "$work/ledger.sql"
 psql "$url" -X -At -v ON_ERROR_STOP=1 -f "$here/catalog-query.sql" > "$work/before.json"
 python3 "$here/drift.py" compare "$here/../schema-snapshot/live.json" "$work/before.json"
-python3 "$here/drift.py" ledger "$work/before.json" --mode live
+python3 "$here/drift.py" ledger "$work/before.json" --mode pre-adoption
 supabase migration list --db-url "$url"
 supabase db push --dry-run --db-url "$url" 2>&1 | tee "$work/before.log"
 # Assert the pending migration list exactly, rather than merely grep for a name.
