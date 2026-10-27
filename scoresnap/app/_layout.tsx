@@ -1,3 +1,5 @@
+import { CAPTCHA_MODE } from "../src/config/captcha";
+import { TurnstileHost } from "../src/components/TurnstileHost";
 import { isPublicShare } from "../src/config/public-share";
 import { OFFLINE_MODE } from "../src/config/offline";
 import { useEffect, useRef, useState } from "react";
@@ -159,6 +161,7 @@ function RootLayoutNav() {
     <ErrorBoundary>
       <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
         <StatusBar style="dark" />
+        {CAPTCHA_MODE !== "off" && <TurnstileHost />}
         <Stack
           screenOptions={{
             headerShown: false,
