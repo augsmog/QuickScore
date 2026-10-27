@@ -1,6 +1,7 @@
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import { COLORS, FONTS } from '../theme';
 import type { RecapModel } from './model';
+import { CROSS_DEVICE_SHARING_ENABLED } from '../../config/features';
 
 /** Screenshot-ready surface. TODO: image export when view-shot is a dependency. */
 export function RecapCard({ model }: { model: RecapModel }) {
@@ -24,9 +25,11 @@ export function RecapCard({ model }: { model: RecapModel }) {
       <Text style={[styles.net, { color: player.net > 0 ? COLORS.primary : player.net < 0 ? COLORS.error : COLORS.textDim }]}>{player.amount}</Text>
     </View>)}
     {!!model.lines.length && <View style={styles.games}>{model.lines.map(line => <Text key={line} style={styles.result}>{line}</Text>)}</View>}
-    <Text style={styles.eyebrow}>FOLLOW THE ROUND</Text>
-    {model.liveUrl ? <Text accessibilityRole="link" onPress={() => void Linking.openURL(model.liveUrl!)} style={styles.link}>{model.liveUrl}</Text>
-      : <Text style={styles.muted}>Use “Share live scoreboard” below to add a live link.</Text>}
+    {(CROSS_DEVICE_SHARING_ENABLED || !!model.liveUrl) && <>
+      <Text style={styles.eyebrow}>FOLLOW THE ROUND</Text>
+      {model.liveUrl ? <Text accessibilityRole="link" onPress={() => void Linking.openURL(model.liveUrl!)} style={styles.link}>{model.liveUrl}</Text>
+        : <Text style={styles.muted}>Use “Share live scoreboard” below to add a live link.</Text>}
+    </>}
   </View>;
 }
 const styles = StyleSheet.create({

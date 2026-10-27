@@ -316,6 +316,12 @@ if (hasJoinCode) {
     "No share/join UI strings visible when flag off",
     foundStrings.length > 0 ? `Found: ${foundStrings.join(", ")}` : "clean"
   );
+  // Settlement recap must not advertise live sharing when the flag is off
+  await vis(page.getByText(/^settlement$/i)).first().click();
+  await page.getByTestId("recap-card").waitFor({ state: "attached" });
+  const recapText = await page.getByTestId("recap-card").innerText();
+  const recapForbidden = ["FOLLOW THE ROUND", "add a live link", "Share live scoreboard"].filter(s => recapText.toUpperCase().includes(s.toUpperCase()));
+  check(recapForbidden.length === 0, "Settlement recap shows no live-sharing prompt when flag off", recapForbidden.length ? `Found: ${recapForbidden.join(", ")}` : "clean");
 }
 
 check(pageErrors.length === 0, "No uncaught page errors", pageErrors.join(" | "));
