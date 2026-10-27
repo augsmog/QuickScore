@@ -108,7 +108,12 @@ for name,(setup,sql,key) in semantic.items():
         assert c.returncode==1 and 'live/'+key in c.stdout,(name,c)
         assert g.returncode!=0 and 'supabase migration repair' not in g.stdout,(name,g)
     print('PASS SQL semantic compare + preapply rejection: '+name)
+# Supabase's supautils reserved-role guard rejects ALTER ROLE/GRANT on anon/authenticated/service_role/
+# authenticator even for local supabase_admin, so these run as real SQL only in offline PG17 (verify-offline.sh).
+ROLE_FIXTURES={'role bypassrls','role login','role membership','authenticator inherit'}
 for name,sql in fixtures.items():
+    if not a.pgdata and name in ROLE_FIXTURES:
+        print('SKIP on pinned stack (supautils reserved roles; covered by offline PG17 SQL fixture): '+name); continue
     out=run('BEGIN;\n\n'+sql+'\n\n'+(HERE/'catalog-query.sql').read_text()+'\n\nROLLBACK;\n',admin=name in ADMIN)
     if a.pgdata:out=out.split('catalog = "',1)[1]
     else:out=next(line for line in out.splitlines() if line.startswith('{'))
