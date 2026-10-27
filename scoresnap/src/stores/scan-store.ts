@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SCAN_STORAGE_KEY, createGatedStorage } from "./persisted-keys";
 
 /**
  * Scan store — manages subscription status and scan access.
@@ -63,8 +64,8 @@ export const useScanStore = create<ScanState>()(
       setPro: (value: boolean) => set({ isPro: value }),
     }),
     {
-      name: "snapscore-scans",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: SCAN_STORAGE_KEY,
+      storage: createJSONStorage(() => createGatedStorage(AsyncStorage)),
       partialize: (state) => ({
         scansUsed: state.scansUsed,
         isPro: state.isPro,

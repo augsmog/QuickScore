@@ -29,6 +29,11 @@ function auth(captcha, real = true) {
     zustand: { create }, 'zustand/middleware': { persist: fn => fn, createJSONStorage: () => ({}) },
     '@react-native-async-storage/async-storage': {}, '../config/auth': { REAL_AUTH_CONFIGURED: real },
     '../db/supabase': { supabase: { auth: api } }, '../services/captcha': captcha,
+    './persisted-keys': {
+      AUTH_STORAGE_KEY: 'snapscore-auth',
+      createGatedStorage: (storage) => storage,
+      persistGate: { suppressed: false, suppressSignedOutPersist: false },
+    },
   });
   return { state, api };
 }
