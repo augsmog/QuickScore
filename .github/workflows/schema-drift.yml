@@ -9,6 +9,9 @@ permissions:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+# Avoid public.ecr.aws anonymous pull throttling on shared GitHub runners.
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
 jobs:
   schema-drift:
     runs-on: ubuntu-latest
@@ -23,7 +26,7 @@ jobs:
           version: 2.122.0
       - name: Start pinned PostgreSQL 17 stack and reset migration chain
         run: |
-          supabase start
+          supabase start -x vector,logflare,studio,imgproxy,mailpit
           supabase db reset
       - name: Extract, normalize, compare, and verify ledger
         run: |
