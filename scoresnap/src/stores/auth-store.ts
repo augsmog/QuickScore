@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
 import { supabase } from "../db/supabase";
 import { getCaptchaToken } from "../services/captcha";
+import { AUTH_STORAGE_KEY, createGatedStorage, persistGate } from "./persisted-keys";
 
 interface UserProfile {
   id: string;
@@ -56,7 +57,16 @@ export const useAuthStore = create<AuthState>()(
           const { data, error } = await supabase.auth.getSession();
           if (error) throw error;
           apply(data.session);
-          supabase.auth.onAuthStateChange((_event, session) => apply(session));
+          supabase.auth.onAuthStateChange((event, session) => {
+            if (event === "SIGNED_OUT" && persistGate.suppressSignedOutPersist) {
+              const previous = persistGate.suppressed;
+              persistGate.suppressed = true;
+              try { apply(session); }
+              finally { persistGate.suppressed = previous; }
+              return;
+            }
+            apply(session);
+          });
           return;
         }
         if (state.session || state.isAnonymous) {
@@ -74,6 +84,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithApple: async (idToken: string, nonce: string) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
@@ -104,6 +115,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithGoogle: async (idToken: string, accessToken?: string) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
@@ -139,6 +151,7 @@ export const useAuthStore = create<AuthState>()(
         firstName: string,
         lastName: string
       ) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
@@ -173,6 +186,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithEmail: async (email: string, password: string) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
@@ -204,6 +218,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       skipSignIn: () => {
+        persistGate.suppressSignedOutPersist = false;
         const user: UserProfile = {
           id: `anon-${Date.now()}`,
           name: "Golfer",
@@ -218,6 +233,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signOut: () => {
+        persistGate.suppressSignedOutPersist = false;
         if (REAL_AUTH_CONFIGURED) void supabase.auth.signOut();
         // Clear auth state
         set({
@@ -237,8 +253,8 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: "snapscore-auth",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: AUTH_STORAGE_KEY,
+      storage: createJSONStorage(() => createGatedStorage(AsyncStorage)),
       partialize: (state) => ({
         session: state.session,
         user: state.user,

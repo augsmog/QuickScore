@@ -5,6 +5,7 @@ import { generateJoinCode } from "../services/guest-join";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CONTEST_STORAGE_KEY, createGatedStorage } from "./persisted-keys";
 import { GameType, GameConfig, Player, Course, HoleInfo, AuxiliaryData } from "../engine/types";
 import { syncRound, syncRoundGroups, syncContestTournamentMeta, syncScore } from "../services/tournament-sync";
 
@@ -352,8 +353,8 @@ export const useContestStore = create<ContestState>()(
       resetAll: () => set({ contests: [], activeContestId: null }),
     }),
     {
-      name: "snapscore-contests",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: CONTEST_STORAGE_KEY,
+      storage: createJSONStorage(() => createGatedStorage(AsyncStorage)),
     }
   )
 );

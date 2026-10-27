@@ -1,0 +1,76 @@
+# Account deletion
+
+Settings → Delete Account asks for confirmation, then calls the `delete-account` edge function and, only after that succeeds, clears on-device storage. The function does not take a user id. It verifies the bearer JWT with Supabase Auth and uses `user.id` from that check. That id is the JWT `sub`, which is the value `auth.uid()` returns in Postgres. `auth.admin.deleteUser` is called with that id only. A body or query id is discarded.
+
+This matches the live schema: scores live on `score_events` and `contest_players.scores`. There are no `contest_groups` or `hole_scores` tables, and this path does not use them. No migration is added. `profiles.id` cascades when the auth user is deleted; the other foreign keys to `auth.users` are `NO ACTION`, so those references are removed or moved first.
+
+`owner_id` on `contests` and `published_rounds` is `NOT NULL` and references `auth.users`. A contest can stay up only when another account can own it. A contest whose only account is the caller is deleted, including a round that also has guest players with a null `user_id`.
+
+## Deleted
+
+Rows that belong only to the caller are removed.
+
+| Table | What happens |
+| --- | --- |
+| `auth.users` | The caller is deleted with the Auth admin API. |
+| `profiles` | The caller's row is deleted. Deleting the auth user also cascades this row. |
+| `scans` | Rows with the caller's `user_id` are deleted. |
+| `marketing_events` | Rows with the caller's `user_id` are deleted. |
+| `feedback` | Rows with the caller's `user_id` or `user_email` are deleted. |
+| `contest_memberships` | The caller's memberships are deleted. |
+| `contest_join_requests` | Requests the caller made are deleted. |
+| `operation_receipts` | Receipts whose `actor` is the caller are deleted. |
+| `settlements` | A row is deleted when both `from_user_id` and `to_user_id` are the caller, or the other side is already null. |
+| `contests` | Deleted when the caller owns it and no other auth user is a player or member. |
+| `contest_players` | Cascade when that contest is deleted. |
+| `score_events` | Cascade when that contest is deleted. |
+| `published_rounds` | Cascade when that contest is deleted. |
+| `share_links` | Cascade with the published round. |
+| `round_messages` | Cascade with the published round. |
+| `contest_memberships`, `contest_join_requests`, `operation_receipts` | Also cascade with that contest. |
+
+## Anonymized or reassigned
+
+Rows other players still need are kept. The caller's name on a surviving round becomes `Deleted player`. Scores stay.
+
+| Table | What happens |
+| --- | --- |
+| `contests` | When another account is on a contest the caller owns, `owner_id` moves to that account (lowest user id). |
+| `contest_players` | On a surviving contest, the caller's `name` becomes `Deleted player` and `user_id` becomes null. `scores` and `putts` are not updated. |
+| `score_events` | On a surviving contest, `strokes`, `hole`, and `player_id` stay. `entered_by` moves to the contest owner. `actor` is cleared when it was the caller. |
+| `published_rounds` | `owner_id` moves with the contest when it was the caller. In `snapshot`, the caller's `displayName` becomes `Deleted player`. Score numbers in the snapshot stay. |
+| `round_messages` | `display_name` becomes `Deleted player` when it equals the caller's player name on that contest. The message body stays. |
+| `share_links` | Kept when the contest stays. They have no user id. |
+| `contest_join_requests` | `decided_by` is set null when the caller decided someone else's request. |
+| `settlements` | The caller's `from_user_id` or `to_user_id` is set null when the other side is someone else. `scan_id` is set null when it pointed at the caller's scan. `amount_cents` stays. |
+| `revenue_events` | `customer_email` is set null when it matches the profile email. Matching text in `metadata` is replaced. The amount stays. There is no user-id column. |
+| `marketing_events` | Rows that belong to someone else but store the caller's email or `referrer_id` have that value removed. |
+| `automation_log` | The caller's email is replaced in `title` and `details`. The log row stays. There is no user-id column. |
+
+A display name is matched exactly to the caller's `contest_players.name` on that contest. Another player on the same round with that same name is relabeled too.
+
+## Left alone
+
+`daily_metrics`, `funnel_snapshots`, `content_performance`, `content_insights`, `golfcore_usage`, `golfcore_usage_drift`, `course_catalog`, `course_search_cache`, and `improvement_actions` have no per-user identity to delete. Other people's profiles, scans, scores, and names stay.
+
+## Device
+
+After the function returns `{ deleted: true }`, the app removes every persisted key and drops persist writes while it resets memory and signs the Supabase session out. A late `SIGNED_OUT` event does not write those keys back. The keys are:
+
+- `snapscore-auth`
+- `snapscore-contests`
+- `snapscore-settings`
+- `snapscore-scans` (the scan store key; the old `snapscore-scan` key is not a store)
+- `snapscore-onboarding`
+- `snapscore-guest`
+- `snapscore.chat.session.v1`
+- `snapscore.chat.name.v1`
+
+The in-memory chat session is cleared so it is not written again during sign-out.
+
+## What the owner still has to approve
+
+Nothing here is deployed or applied to the live database, and no secret is changed.
+
+1. Deploy the `delete-account` edge function. `verify_jwt` is true. It uses `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`, which the platform injects. No new migration.
+2. Deploy `stripe-webhook` so signature checks run. Set `STRIPE_WEBHOOK_SECRET` to the Stripe webhook signing secret if it is not already set. Until that value is present, the function rejects every delivery with HTTP 400. Do not put the secret in the repo. `verify_jwt` is false because Stripe does not send a Supabase JWT.

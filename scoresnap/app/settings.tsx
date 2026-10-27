@@ -27,9 +27,11 @@ import {
   Zap,
   Info,
 } from "lucide-react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../src/ui/theme";
 import { AnimatedPressable } from "../src/ui/AnimatedPressable";
+import { performAccountDeletion } from "../src/services/account-deletion";
+import { deleteServerAccount } from "../src/services/delete-account";
+import { wipeLocalAccount } from "../src/stores/wipe-local-account";
 import {
   useSettingsStore,
   ScoreFormat,
@@ -37,7 +39,6 @@ import {
   DefaultTee,
 } from "../src/stores/settings-store";
 import { useAuthStore } from "../src/stores/auth-store";
-// Contest and scan stores cleared via AsyncStorage.multiRemove in handleDeleteAccount
 
 // ─── Reusable row components ──────────────────────────────────
 
@@ -223,49 +224,22 @@ export default function SettingsScreen() {
   const router = useRouter();
   const settings = useSettingsStore();
   const { user, signOut, isAnonymous } = useAuthStore();
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "This will permanently delete your account and all data including rounds, scores, statistics, and settings. This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete Everything",
-          style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "Are you absolutely sure?",
-              "All your data will be permanently erased.",
-              [
-                { text: "Keep My Account", style: "cancel" },
-                {
-                  text: "Yes, Delete",
-                  style: "destructive",
-                  onPress: async () => {
-                    try {
-                      // Clear all persisted stores
-                      await AsyncStorage.multiRemove([
-                        "snapscore-contests",
-                        "snapscore-auth",
-                        "snapscore-settings",
-                        "snapscore-scan",
-                        "snapscore-onboarding",
-                      ]);
-                      // TODO: When Supabase is live, call supabase.auth.admin.deleteUser()
-                      // and delete all user data from database
-                      signOut();
-                      router.replace("/onboarding");
-                    } catch (e) {
-                      Alert.alert("Error", "Failed to delete account. Please try again.");
-                    }
-                  },
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const confirmDeleteAccount = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await performAccountDeletion({
+        confirmed: true,
+        deleteRemote: () => deleteServerAccount(),
+        wipeLocal: () => wipeLocalAccount(),
+      });
+      router.replace("/onboarding");
+    } catch {
+      setDeleting(false);
+      Alert.alert("Error", "Failed to delete account. Please try again.");
+    }
   };
 
   const handleSignOut = () => {
@@ -705,28 +679,74 @@ export default function SettingsScreen() {
             </Text>
           </AnimatedPressable>
 
-          <AnimatedPressable
-            onPress={handleDeleteAccount}
-            style={{
-              backgroundColor: COLORS.errorContainer + "22",
-              borderRadius: RADII.lg,
-              paddingHorizontal: 16,
-              paddingVertical: 14,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <Trash2 size={18} color={COLORS.error} />
-            <View style={{ flex: 1 }}>
+          {deleteArmed ? (
+            <View
+              style={{
+                backgroundColor: COLORS.errorContainer + "22",
+                borderRadius: RADII.lg,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                gap: 10,
+              }}
+            >
               <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.error }}>
-                Delete Account
+                Delete your account?
               </Text>
-              <Text style={{ fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textDim, marginTop: 2 }}>
-                Permanently erase all data
+              <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim }}>
+                This permanently deletes your sign-in and the private scores, scans, and profile stored for you. In a shared round your name becomes "Deleted player" so the rest of the group keeps the round. This cannot be undone.
               </Text>
+              <AnimatedPressable
+                onPress={() => { if (!deleting) setDeleteArmed(false); }}
+                style={{
+                  borderRadius: RADII.lg,
+                  paddingVertical: 12,
+                  alignItems: "center",
+                  backgroundColor: COLORS.surfaceLow,
+                }}
+              >
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
+                  Keep my account
+                </Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                onPress={confirmDeleteAccount}
+                style={{
+                  borderRadius: RADII.lg,
+                  paddingVertical: 12,
+                  alignItems: "center",
+                  backgroundColor: COLORS.error,
+                  opacity: deleting ? 0.6 : 1,
+                }}
+              >
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: "#fff" }}>
+                  {deleting ? "Deleting..." : "Yes, delete my account"}
+                </Text>
+              </AnimatedPressable>
             </View>
-          </AnimatedPressable>
+          ) : (
+            <AnimatedPressable
+              onPress={() => setDeleteArmed(true)}
+              style={{
+                backgroundColor: COLORS.errorContainer + "22",
+                borderRadius: RADII.lg,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <Trash2 size={18} color={COLORS.error} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.error }}>
+                  Delete Account
+                </Text>
+                <Text style={{ fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textDim, marginTop: 2 }}>
+                  Permanently erase all data
+                </Text>
+              </View>
+            </AnimatedPressable>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
