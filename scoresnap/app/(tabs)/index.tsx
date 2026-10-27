@@ -1,3 +1,5 @@
+import { GAME_SHEET_STYLE } from "../../src/ui/gameSheetStyle";
+import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
 import { localDate } from "../../src/utils/local-date";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useAuthStore } from "../../src/stores/auth-store";
@@ -94,11 +96,12 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       <ScrollView
+        testID="home-scroll"
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={() => router.push("/join/enter")} style={{ padding: 16 }}><Text style={{ color: COLORS.primary, textAlign: "center" }}>Join with code</Text></Pressable>
+        {CROSS_DEVICE_SHARING_ENABLED && (<Pressable onPress={() => router.push("/join/enter")} style={{ padding: 16 }}><Text style={{ color: COLORS.primary, textAlign: "center" }}>Join with code</Text></Pressable>)}
         {/* ── Wordmark ── */}
         <View style={{ alignItems: "center", marginTop: 18, marginBottom: 28 }}>
           <Text
@@ -492,20 +495,19 @@ export default function HomeScreen() {
       >
         <View style={{ flex: 1, justifyContent: "flex-end" }}>
           <Pressable
-            style={{ flex: 1 }}
+            testID="game-info-scrim"
+            style={{ flex: 1, backgroundColor: COLORS.sheetScrim }}
             onPress={() => setSelectedGame(null)}
           />
           {selectedGame && (
             <View
-              style={{
-                backgroundColor: COLORS.surfaceMid,
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
+              testID="game-info-sheet"
+              style={[GAME_SHEET_STYLE, {
                 paddingHorizontal: 24,
                 paddingTop: 20,
                 paddingBottom: 40,
                 maxHeight: "75%",
-              }}
+              }]}
             >
               {/* Handle bar */}
               <View

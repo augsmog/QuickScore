@@ -41,6 +41,8 @@ export const COLORS = {
   tertiaryContainer: "#F3ECDD",
 
   // Paper rules and borders
+  sheetBorder: "rgba(23,92,58,0.30)",
+  sheetScrim: "rgba(23,28,24,0.28)",
   outline: "#E3D9C6",
   outlineVariant: "#E3D9C6",
 
