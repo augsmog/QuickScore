@@ -80,3 +80,10 @@ Auth settings other than anonymous sign-ins are explicit local development
 settings, not a claimed full export of hosted Auth. Anonymous sign-ins remain off.
 No app code or other workflow was changed. Tournament E2E remains OFFLINE and
 receives the new reset chain; web/iOS behavior still needs their existing CI.
+
+## Platform-provided supabase_admin default ACLs (CI emulation)
+Hosted Supabase carries three supabase_admin/public default ACLs (tables, sequences, functions)
+recorded in live.json. The baseline does not set them (postgres lacks permission; SQLSTATE 42501),
+and the local CLI 2.122.0 image does not create them. CI therefore applies
+`schema-drift/platform-emulation.sql` as local supabase_admin after `db reset`. That file is CI/offline
+only and must never be run against live.

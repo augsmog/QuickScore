@@ -28,6 +28,8 @@ jobs:
         run: |
           supabase start -x vector,logflare,studio,imgproxy,mailpit
           supabase db reset
+      - name: Emulate hosted platform-provided supabase_admin default ACLs (local image lacks them; never run on live)
+        run: psql postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/schema-drift/platform-emulation.sql
       - name: Extract, normalize, compare, and verify ledger
         run: |
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -At -v ON_ERROR_STOP=1 -f supabase/schema-drift/catalog-query.sql > /tmp/local-catalog.json
