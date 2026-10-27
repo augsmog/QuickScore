@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
 import { supabase } from "../db/supabase";
+import { getCaptchaToken } from "../services/captcha";
 
 interface UserProfile {
   id: string;
@@ -141,7 +142,8 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
-            const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: `${firstName} ${lastName}`.trim() } } });
+            const captchaToken = await getCaptchaToken("signup");
+            const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: `${firstName} ${lastName}`.trim() }, ...(captchaToken === undefined ? {} : { captchaToken }) } });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
             const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
@@ -174,7 +176,8 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            const captchaToken = await getCaptchaToken("signin");
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password, ...(captchaToken === undefined ? {} : { options: { captchaToken } }) });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
             const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };

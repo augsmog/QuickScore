@@ -157,7 +157,7 @@ export default function SignInScreen() {
       );
       router.replace("/(tabs)");
     } catch (e: any) {
-      setError(e.message || "Sign up failed. Please try again.");
+      setError(e?.message || "Sign up failed. Please try again.");
     }
   };
 
@@ -176,7 +176,7 @@ export default function SignInScreen() {
       await signInWithEmail(email.trim(), password);
       router.replace("/(tabs)");
     } catch (e: any) {
-      setError(e.message || "Sign in failed. Please try again.");
+      setError(e?.message || "Sign in failed. Please try again.");
     }
   };
 
