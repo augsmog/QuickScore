@@ -740,7 +740,7 @@
       "statistics_target": null,
       "storage": "m",
       "table": "content_performance",
-      "type": "numeric",
+      "type": "numeric(5,4)",
       "type_schema": "pg_catalog"
     },
     {
@@ -1614,7 +1614,7 @@
       "statistics_target": null,
       "storage": "m",
       "table": "daily_metrics",
-      "type": "numeric",
+      "type": "numeric(5,2)",
       "type_schema": "pg_catalog"
     },
     {
@@ -1633,7 +1633,7 @@
       "statistics_target": null,
       "storage": "m",
       "table": "daily_metrics",
-      "type": "numeric",
+      "type": "numeric(5,2)",
       "type_schema": "pg_catalog"
     },
     {
@@ -1766,7 +1766,7 @@
       "statistics_target": null,
       "storage": "m",
       "table": "daily_metrics",
-      "type": "numeric",
+      "type": "numeric(5,2)",
       "type_schema": "pg_catalog"
     },
     {
@@ -1956,7 +1956,7 @@
       "statistics_target": null,
       "storage": "m",
       "table": "content_performance",
-      "type": "numeric",
+      "type": "numeric(5,4)",
       "type_schema": "pg_catalog"
     },
     {
@@ -1975,7 +1975,7 @@
       "statistics_target": null,
       "storage": "m",
       "table": "idx_content_perf_engagement",
-      "type": "numeric",
+      "type": "numeric(5,4)",
       "type_schema": "pg_catalog"
     },
     {
@@ -3115,7 +3115,7 @@
       "statistics_target": null,
       "storage": "m",
       "table": "content_performance",
-      "type": "numeric",
+      "type": "numeric(5,4)",
       "type_schema": "pg_catalog"
     },
     {
@@ -3381,7 +3381,7 @@
       "statistics_target": null,
       "storage": "m",
       "table": "daily_metrics",
-      "type": "numeric",
+      "type": "numeric(4,2)",
       "type_schema": "pg_catalog"
     },
     {
@@ -9494,6 +9494,31 @@
   ],
   "extended_statistics": [],
   "extensions": [
+    {
+      "extension_condition": [
+        ""
+      ],
+      "extension_config": [
+        "vault.secrets"
+      ],
+      "name": "supabase_vault",
+      "relocatable": false,
+      "schema": "vault"
+    },
+    {
+      "extension_condition": null,
+      "extension_config": null,
+      "name": "pg_graphql",
+      "relocatable": false,
+      "schema": "graphql"
+    },
+    {
+      "extension_condition": null,
+      "extension_config": null,
+      "name": "pg_stat_statements",
+      "relocatable": true,
+      "schema": "extensions"
+    },
     {
       "extension_condition": null,
       "extension_config": null,

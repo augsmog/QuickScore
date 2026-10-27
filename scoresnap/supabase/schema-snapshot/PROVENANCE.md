@@ -70,3 +70,16 @@ its justification individually in reviewed-default-acls.json; no such difference
 has been authorized or suppressed in this round. The three existing
 supabase_admin/public entries remain platform-provided and are emulated offline;
 the baseline still does not attempt to alter them.
+
+## Refresh 2026-10-26 21:45 MST (2026-10-27T04:45:03Z) — supersedes every "pending live capture" note above
+The box ran the fix-round-2 `catalog-query.sql` once against live QuickScore (pltgbizexllikiwryozm)
+as a single read-only SELECT through the Supabase MCP. live.json is now exactly
+`drift.py normalize` of that capture (raw copy: aos-state/snapscore-xdevice/m1/live-catalog-v3-capture.json).
+The capture disproved two "by construction" assumptions, which is why it was required:
+1. Typmods: live has content_performance.{engagement_rate,click_through_rate,install_rate} numeric(5,4),
+   daily_metrics.{dau_mau_ratio,d7_retention,d30_retention} numeric(5,2), daily_metrics.k_factor numeric(4,2).
+   The archived 001–008 SQL said plain numeric; the baseline now matches live.
+2. Hosted extension inventory adds supabase_vault (vault), pg_graphql (graphql), pg_stat_statements (extensions).
+   verify-offline.sh/sql-fixtures --pgdata emulate those three exact live rows (platform_ext.py) because plain
+   PG17 cannot install them; the pinned Supabase stack in CI compares them for real.
+preapply-check.sh on this capture: Schema matches, Ledger matches: live.

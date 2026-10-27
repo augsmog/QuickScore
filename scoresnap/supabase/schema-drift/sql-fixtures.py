@@ -111,6 +111,8 @@ for name,sql in fixtures.items():
     raw,_=json.JSONDecoder().raw_decode(out)
     # Guard is a live-ledger gate; isolate the schema mutation from local ledger.
     raw['migrations']=load(HERE/'expected-ledger.json')
+    if a.pgdata:
+        from platform_ext import inject; inject(load(HERE.parent/'schema-snapshot/live.json'),raw)
     with tempfile.TemporaryDirectory() as d:
         f=pathlib.Path(d)/'mutation.json'; f.write_text(json.dumps(raw))
         c=subprocess.run([sys.executable,str(HERE/'drift.py'),'compare',str(HERE.parent/'schema-snapshot/live.json'),str(f)],capture_output=True,text=True)

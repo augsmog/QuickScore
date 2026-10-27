@@ -53,6 +53,9 @@ x,_=json.JSONDecoder().raw_decode(s.split('catalog = "',1)[1])
 pathlib.Path(sys.argv[2]).write_text(json.dumps(x))
 PY
 if [[ -n "${CATALOG_OUTPUT:-}" ]]; then cp "$work/local.json" "$CATALOG_OUTPUT"; fi
+# Offline ONLY: plain PG17 cannot install hosted platform extensions (supabase_vault, pg_graphql,
+# pg_stat_statements). Emulate their exact live rows; the pinned Supabase stack in CI compares them for real.
+python3 "$here/platform_ext.py" "$here/../schema-snapshot/live.json" "$work/local.json"
 python3 "$here/drift.py" compare "$here/../schema-snapshot/live.json" "$work/local.json"
 python3 "$here/drift.py" ledger "$work/local.json" --mode local
 python3 "$here/selftest.py"
