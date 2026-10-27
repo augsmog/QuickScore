@@ -54,12 +54,16 @@ def old_shape(x):
     x['regclass_checks']['contest_rounds']='contest_rounds'
 check('archived 001–008 shape',old_shape)
 # The fixture is explicit: the guard must not accept an arbitrary baseline.
-adopted = load(HERE/'expected-ledger.json')
+applied = load(HERE/'expected-ledger.json')
+assert applied == load(HERE/'fixtures/live-applied-ledger.json')
+adopted = applied[:-2]
 assert adopted == load(HERE/'fixtures/live-adopted-ledger.json')
-for mode, entries in [('live', adopted), ('baseline', adopted), ('pre-adoption', adopted[:-1]),
+for mode, entries in [('live', applied), ('baseline', adopted), ('pre-adoption', adopted[:-1]),
                       ('local', adopted + [{'version':'20261027120000','name':'sync_foundation'},
                                            {'version':'20261027130000','name':'guest_write_guard'}])]:
     ledger({'migrations': entries}, mode)
+    if mode != 'live':
+        ledger({'migrations': entries[::-1]}, mode)
     for bad in (entries[:-1], entries + [entries[0]]):
         try:
             ledger({'migrations': bad}, mode)
@@ -71,7 +75,11 @@ for mode, entries in [('live', adopted), ('baseline', adopted), ('pre-adoption',
 bad_ledgers = {
     'seven pre-adoption': adopted[:-1],
     'nine M2 applied': adopted + [{'version':'20261027120000','name':'sync_foundation'}],
-    'ten M2b applied': adopted + [{'version':'20261027120000','name':'sync_foundation'}, {'version':'20261027130000','name':'guest_write_guard'}],
+    'eight adopted': adopted,
+    'eleven extra': applied + [{'version':'99999999999999','name':'unexpected'}],
+    'ten renamed': applied[:-1] + [dict(applied[-1], name='renamed')],
+    'ten reordered': applied[:-2] + applied[-2:][::-1],
+    'ten duplicate': applied[:-1] + [applied[-2]],
     'missing': adopted[:2] + adopted[3:],
     'reordered': [adopted[1], adopted[0]] + adopted[2:],
     'duplicate': adopted[:-1] + [adopted[0]],
@@ -82,16 +90,16 @@ bad_ledgers = {
 }
 with tempfile.TemporaryDirectory() as d:
     p = pathlib.Path(d) / 'capture.json'
-    for name, entries in [('adopted eight', adopted), *bad_ledgers.items()]:
+    for name, entries in [('applied ten', applied), *bad_ledgers.items()]:
         capture = copy.deepcopy(snapshot)
         capture['migrations'] = entries
         p.write_text(json.dumps(capture))
         guard = subprocess.run(['bash', str(HERE/'preapply-check.sh'), str(p)], capture_output=True, text=True)
-        if name == 'adopted eight':
+        if name == 'applied ten':
             assert guard.returncode == 0, guard
             assert guard.stdout.splitlines() == [
                 'Schema matches', 'Ledger matches: live', 'Guard passed.',
-                'Next: apply approved M2 (20261027120000_sync_foundation), then M2b (20261027130000_guest_write_guard), per the live-apply plan.'], guard
+                'Next: M3 requires separate approval; no approved apply is pending.'], guard
         else:
             assert guard.returncode == 1 and 'live ledger mismatch' in guard.stderr, (name, guard)
             assert 'Guard passed.' not in guard.stdout and 'Next:' not in guard.stdout, (name, guard)

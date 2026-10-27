@@ -1,32 +1,50 @@
-# M2 + M2b live apply preflight
+# Next milestone live preflight
 
-Project `pltgbizexllikiwryozm` is ADOPTED: Augie approved baseline ledger repair
-on 2026-10-26 at 23:11 MST. Use a fresh read-only capture with the unchanged
-pre-apply schema and exactly the eight ordered rows in `expected-ledger.json`.
-Run `bash scoresnap/supabase/schema-drift/preapply-check.sh CAPTURE.json`.
+M2 and M2b were applied live with Augie approval on project
+`pltgbizexllikiwryozm` on 2026-10-27 at approximately 02:20 MST.
+Baseline ledger adoption completed on 2026-10-26 at 23:11 MST.
+No approved apply is pending. M3 requires separate approval.
+
+Use a fresh read-only capture of the post-M2b schema and exactly the ten ordered
+rows in `expected-ledger.json`. Run:
+
+```sh
+bash scoresnap/supabase/schema-drift/preapply-check.sh CAPTURE.json
+```
+
 Expected output (exit status 0):
 
 ```text
 Schema matches
 Ledger matches: live
 Guard passed.
-Next: apply approved M2 (20261027120000_sync_foundation), then M2b (20261027130000_guest_write_guard), per the live-apply plan.
+Next: M3 requires separate approval; no approved apply is pending.
 ```
 
-Follow the approved live-apply plan for M2 then M2b. Baseline repair is complete.
 The guard runs only Python against files; it neither connects nor applies SQL.
-Seven-row pre-adoption, already-applied M2/M2b, missing, renamed, extra,
-duplicate, reordered, and wrong baseline name/version ledgers fail closed.
-`baseline` remains the eight-row local prefix; `local` remains the ten-row full
-chain: seven historical markers + `20261027000000 live_baseline` +
-`20261027120000 sync_foundation` + `20261027130000 guest_write_guard`.
-`schema-snapshot/expected-after.json` describes this full chain, including M2b.
-`pre-adoption` exists only for the historical adoption rehearsal.
+Live mode requires exact list equality: eight, nine, eleven, missing, renamed,
+extra, duplicate, reordered and wrong baseline name/version ledgers fail closed.
+The ten rows are the eight adopted rows followed by M2 then M2b.
+`baseline` retains the eight-row prefix; `pre-adoption` retains its first seven;
+`local` retains the full ten-row chain. Those three modes compare sorted rows
+for historical CI/rehearsal semantics; live mode requires input order too.
+`schema-snapshot/live.json` is normalized from the post-apply single capture
+and matches `expected-after.json`. `baseline.json` preserves the pre-M2 physical
+schema for CI, rollback and adoption rehearsal. See snapshot `PROVENANCE.md`.
+Never execute baseline DDL on live or repeat adoption repair.
 
 SHA256 (files in this directory):
 
 ```text
-f94655ff3241dae5506dda5c6efaf97e39bf750084e9e1a01abb2a2a8961a8b2  preapply-check.sh
-41f7ab7a0fcfad492fbe8fa6e9e9c30dcb374cdb6bbb94986e2a51327c35ad07  drift.py
-2b7726e0912d79076322af6e198886e59c73eb92955a869c6dffd6c52d5147a6  expected-ledger.json
+c8fd85bd1acc57ab87dbb6294baa8488f464d9953eacc96068feab2318b99388  preapply-check.sh
+28fe833309d506592aa3201742ce5c1ef1b28d3fcf020e48255bbdacbd484486  drift.py
+b3335057646f63786a439d5e14012d10080ecfb23c907713161320695b28ece7  expected-ledger.json
 ```
+
+Local offline verification for this refresh: `selftest.py`,
+`check-active-sql.py`, `verify-offline.sh`, and standalone
+`verify-foundation.py` all passed. The raw capture passes live/local ledger checks
+and preapply; normalized live matches expected-after. Shell syntax and
+`git diff --check` passed. No migration or rollback SQL changed. Single-user
+PG17 does not verify raw RLS filtering or event-trigger firing; pinned-stack CI
+and concurrent-session races were not run in this offline task.

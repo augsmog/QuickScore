@@ -38,7 +38,7 @@ bash "$here/rollback-race-test.sh" "$url"
 psql_local -f "$here/../rollback/20261027120000_sync_foundation.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261027120000'"
 extract
-python3 "$here/drift.py" compare "$here/../schema-snapshot/live.json" /tmp/m2-catalog.json
+python3 "$here/drift.py" compare "$here/../schema-snapshot/baseline.json" /tmp/m2-catalog.json
 python3 "$here/drift.py" ledger /tmp/m2-catalog.json --mode baseline
 if psql_local -f "$here/../tests/default-privileges.sql" > /tmp/m2-default-red.log 2>&1; then
  echo 'ERROR: baseline default privilege test unexpectedly green'; exit 1

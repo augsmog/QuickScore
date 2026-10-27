@@ -56,7 +56,9 @@ def differences(live, local):
     return out
 
 def ledger(raw, mode):
-    expected = load(HERE / 'expected-ledger.json') + ([FOUNDATION, {"version":"20261027130000","name":"guest_write_guard"}] if mode == 'local' else [])
+    expected = load(HERE / 'expected-ledger.json')
+    if mode in ('baseline', 'pre-adoption'):
+        expected = expected[:-2]
     if mode == 'pre-adoption':
         expected = expected[:-1]
     actual = raw.get('migrations')

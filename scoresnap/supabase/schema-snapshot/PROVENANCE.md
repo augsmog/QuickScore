@@ -1,4 +1,30 @@
-# Snapshot provenance — 2026-10-26 (MST, UTC−07)
+# Snapshot provenance
+
+## Current single-capture snapshot — 2026-10-27 02:20 MST
+
+Augie-approved live apply of M2 (`20261027120000_sync_foundation`) and M2b
+(`20261027130000_guest_write_guard`) completed on project `pltgbizexllikiwryozm`
+on 2026-10-27 at approximately 02:20 MST. The box captured the post-apply catalog
+as postgres using `schema-drift/catalog-query.sql` inside
+`SET TRANSACTION READ ONLY`, via the Management API `/database/query`.
+`taken_at`: `2026-10-27T09:20:22Z` (2026-10-27 02:20:22 MST, UTC−07).
+
+Raw capture: `captures/live-catalog-20261027T0220.json`, copied byte-for-byte
+from `/workspace/aos-work/ss-m2-live-capture-after.json`.
+SHA256: `86bbc66a826bbfd969622e938c84ba1b2867f978c78f4457c6dfad01cad72e39`.
+`live.json` is the output of `drift.py normalize` on this single capture;
+`drift.py compare` against `expected-after.json` reports `Schema matches`.
+The raw capture passes both the exact ordered ten-row live ledger and local
+ledger checks. This local refresh used no network or live database.
+
+`baseline.json` preserves the preceding pre-M2 `live.json` for baseline,
+rollback and adoption rehearsal comparisons. Historical receipts below describe
+that preceding snapshot; this section supersedes their current-snapshot and
+pending-capture statements. Normalization excludes capture time and migration
+rows; ledger validation runs separately.
+
+## Historical pre-M2 provenance
+
 
 This is a normalized merge of live facts, not a local-derived snapshot. Before
 merge the box must run the new catalog-query.sql read-only and normalize a single

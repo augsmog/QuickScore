@@ -121,10 +121,10 @@ for name,sql in fixtures.items():
     # Guard is a live-ledger gate; isolate the schema mutation from local ledger.
     raw['migrations']=load(HERE/'expected-ledger.json')
     if a.pgdata:
-        from platform_ext import inject; inject(load(HERE.parent/'schema-snapshot/live.json'),raw)
+        from platform_ext import inject; inject(load(HERE.parent/'schema-snapshot/baseline.json'),raw)
     with tempfile.TemporaryDirectory() as d:
         f=pathlib.Path(d)/'mutation.json'; f.write_text(json.dumps(raw))
-        c=subprocess.run([sys.executable,str(HERE/'drift.py'),'compare',str(HERE.parent/'schema-snapshot/live.json'),str(f)],capture_output=True,text=True)
+        c=subprocess.run([sys.executable,str(HERE/'drift.py'),'compare',str(HERE.parent/'schema-snapshot/baseline.json'),str(f)],capture_output=True,text=True)
         g=subprocess.run(['bash',str(HERE/'preapply-check.sh'),str(f)],capture_output=True,text=True)
         assert c.returncode==1 and 'live/' in c.stdout,(name,c)
         assert g.returncode!=0 and 'supabase migration repair' not in g.stdout,(name,g)

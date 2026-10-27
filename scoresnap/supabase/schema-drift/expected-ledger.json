@@ -30,5 +30,13 @@
   {
     "name": "live_baseline",
     "version": "20261027000000"
+  },
+  {
+    "name": "sync_foundation",
+    "version": "20261027120000"
+  },
+  {
+    "name": "guest_write_guard",
+    "version": "20261027130000"
   }
 ]

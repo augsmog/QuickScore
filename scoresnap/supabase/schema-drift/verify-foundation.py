@@ -47,7 +47,7 @@ with tempfile.TemporaryDirectory() as tmp:
   diff=differences(json.loads(expected.read_text()),catalog())
   if diff: print('\n'.join(diff)); raise AssertionError(label)
   print('PASS: '+label)
- compare(root/'schema-snapshot/live.json','baseline prefix equals PRE-APPLY live.json')
+ compare(root/'schema-snapshot/baseline.json','baseline prefix equals historical baseline.json')
  run((root/'tests/default-privileges.sql').read_text(),'baseline default privilege fixture',True,'DEFAULT_TABLE_PRIVILEGE')
  up=(root/'migrations/20261027120000_sync_foundation.sql').read_text()
  run(up,'foundation apply')
@@ -68,12 +68,12 @@ with tempfile.TemporaryDirectory() as tmp:
  ROLLBACK;
  """,'probe helper aggregates unexpected SQLSTATE and success across rollback')
  run("DO $$ BEGIN IF has_column_privilege('authenticated','public.profiles','is_premium','UPDATE') OR NOT has_column_privilege('authenticated','public.profiles','display_name','UPDATE') THEN RAISE EXCEPTION 'profile ACL'; END IF; END $$;",'profile entitlement ACL')
- entries=json.loads((here/'expected-ledger.json').read_text())+[{'version':'20261027120000','name':'sync_foundation'},{'version':'20261027130000','name':'guest_write_guard'}]
+ entries=json.loads((here/'expected-ledger.json').read_text())
  run('\n'.join("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('%s','%s');" % (e['version'],e['name']) for e in entries),'full local ledger seed')
  raw=catalog()
  check_guard(m2_catalog,raw)
  ledger(raw,'local')
- print('PASS: ten-entry local ledger (live expectation is adopted eight)')
+ print('PASS: ten-entry local ledger (live expectation is applied ten)')
  expected=root/'schema-snapshot/expected-after.json'
  if '--record' in sys.argv: expected.write_text(json.dumps(normalize(raw),indent=2,sort_keys=True)+'\n')
  compare(expected,'full chain equals expected-after.json')
@@ -87,7 +87,7 @@ with tempfile.TemporaryDirectory() as tmp:
  down=(root/'rollback/20261027120000_sync_foundation.down.sql').read_text()
  run("BEGIN; INSERT INTO auth.users(id) VALUES('10000000-0000-0000-0000-000000000001'); INSERT INTO public.contests(owner_id,course,invite_code,protocol) VALUES('10000000-0000-0000-0000-000000000001','{}','ABCDEF',1);\n"+down+'\nROLLBACK;','rollback refuses enrolled data',True,'M2_DOWN_UNSAFE')
  run(down,'rollback')
- compare(root/'schema-snapshot/live.json','rollback exact baseline catalog')
+ compare(root/'schema-snapshot/baseline.json','rollback exact baseline catalog')
  run(up,'reapply')
  run(guard,'guest guard reapply')
  compare(expected,'reapply exact expected catalog')
