@@ -28,7 +28,7 @@ export function parseReviewData(data: string): ScannedPlayer[] {
 export function subtotal(player: ScannedPlayer): number {
   return player.scores.reduce<number>((sum, s) => sum + (grossScore(s) ?? 0), 0);
 }
-export function blockingReason(players: ScannedPlayer[], requireMapping = false): string | null {
+export function blockingReason(players: ScannedPlayer[], requireMapping = false, courseHoles?: number[]): string | null {
   if (!players.length) return "No players found";
   const ids = new Set<string>();
   for (const p of players) {
@@ -36,17 +36,19 @@ export function blockingReason(players: ScannedPlayer[], requireMapping = false)
     for (let i = 0; i < (p.requiredHoles ?? fullHoles).length; i++) {
       if (grossScore(p.scores[i]) === null) return `Hole ${(p.requiredHoles ?? fullHoles)[i]} is blank for ${p.name}`;
     }
-    if ((p.requiredHoles ?? fullHoles).length !== 18) return "Nine-hole import needs manual entry on matching course holes. Entered scores are retained.";
+    if ((p.requiredHoles ?? fullHoles).length !== 18 &&
+        (!courseHoles || courseHoles.length !== 9 || courseHoles.some((h, i) => h !== i + 1 || h !== p.requiredHoles?.[i]))) return "Nine-hole import needs manual entry on matching course holes. Entered scores are retained.";
     if (requireMapping && (!p.matchedPlayerId || ids.has(p.matchedPlayerId))) return "Match every scanned player to a unique contest player";
     if (p.matchedPlayerId) ids.add(p.matchedPlayerId);
   }
   return null;
 }
 export function completeScores(scores: unknown, count = 18): number[] {
-  if (!Array.isArray(scores) || count !== 18 || scores.length !== count ||
+  if (!Array.isArray(scores) || ![9, 18].includes(count) || ![count, 18].includes(scores.length) ||
       Array.from({length: count}, (_, i) => grossScore(scores[i])).some(s => s === null))
     throw new Error("Every required hole needs a positive whole score; unsupported course mappings require manual entry");
-  return scores.map(s => grossScore(s)!);
+  // Unused engine holes use zero; only required holes must be positive.
+  return Array.from({ length: 18 }, (_, i) => i < count ? grossScore(scores[i])! : 0);
 }
 export function commitQuickSettle(players: ScannedPlayer[], commit: (scores: number[][]) => void) {
   const reason = blockingReason(players);

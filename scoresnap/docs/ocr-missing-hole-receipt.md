@@ -78,3 +78,20 @@ Validation from `scoresnap/` using unchanged local dependency versions:
 - `git diff --check`: passed. Logs: `/tmp/ocr-round3-{jest,client,tsc,baseline-tsc,all-jest}.log`. Browser smoke was not rerun; no remote CI claim. No pushes.
 
 Commit attempted with `SnapScore OCR missing-hole: fix round 3 (empty scan message)`; failed before staging because `.git/index.lock` is on a read-only filesystem. The three changed files remain in this isolated worktree, uncommitted. No pushes or source/remote ref updates.
+
+## Fix round 4
+
+Compared `e2e/web-matrix.mjs`, the paste route (`app/scan/index.tsx` → `applyCourseHoles` → review → store), and main `8ab5ec2`. Main retained zero-valued unplayed cells. The shared engine boundary now validates every required score as a positive integer and pads explicitly selected nine-hole front courses to exactly 18 numeric entries with nine trailing zeros. Review accepts that matching course mapping, including direct scanData routes; scan and paste use the same course metadata helper. Contest-store's existing shared validation applies this to legacy and active tournament imports atomically. Unsupported back-nine engine mappings remain blocked, preserving the cut's manual-entry rule.
+
+Added executable Jest coverage for nine-hole paste parsing, course selection, exact persisted `[nine scores, nine zeros]`, direct store import with nullable unused cells, required-hole rejection with unchanged state, and the scan path, for both legacy and active tournament rounds. Previous missing-hole, multi-group, and empty-scan tests remain green. E2e assertions and excluded surfaces unchanged.
+
+Validation from `scoresnap/`:
+
+- `node_modules/.bin/jest tests/ocr-missing-hole.test.cjs tests/engine.test.cjs tests/error-back.test.cjs tests/scorecard-corpus.test.cjs --runInBand`: **201 passed / 4 suites**.
+- `NODE_OPTIONS=--require=/tmp/ocr-verify-stdio.cjs node_modules/.bin/jest --runInBand`: **356 passed / 21 suites**, using the previously documented external file-backed subprocess stdio preload.
+- `node --import tsx src/services/__tests__/ocr-client.test.ts`: **18 passed / 0 failed**.
+- `node_modules/.bin/tsc --noEmit`: exit 2, **45 diagnostics**, identical to archived head `e9cc25f` with node_modules path prefixes normalized; **0 new**.
+- `OUT_DIR=/tmp/ocr-round4-matrix node e2e/web-matrix.mjs`: Chromium failed at launch with `sandbox_host_linux.cc:41`, shutdown Operation not permitted. No browser/CI pass claimed.
+- Logs: `/tmp/ocr-round4-{jest,all-jest,client,tsc,baseline-tsc,matrix}.log`.
+
+Remaining matrix mismatch: the six `9-paste` fixtures create an 18-hole contest/course (no nine-hole round selection) and paste an explicit 18-column header with nine positive scores followed by nine zeros. The assertion at line 79 checks the scanData URL before confirmation, rather than persisted scores. Under the cut, required eighteen-hole zeros must become blanks and block; neither array length nor trailing blanks can identify a nine-hole round. This fix deliberately does not reinterpret that eighteen-hole payload as a selected nine-hole round. Those six fixtures therefore still need an explicit required-hole selection to exercise the nine-hole persistence behavior safely; assertions have not been changed. Round 4's selected-nine-hole boundary is fixed, but the reported six matrix failures are not claimed resolved.

@@ -27,7 +27,7 @@ import type { Contest, ContestGroup } from "../../src/stores/contest-store";
 import { ConfettiOverlay } from "../../src/ui/animations/ConfettiOverlay";
 
 import type { ScannedPlayer } from "../../src/services/score-parser";
-import { autoMatchPlayers, parseReviewData, grossScore, subtotal, blockingReason, completeScores, commitQuickSettle } from "../../src/services/ocr-review";
+import { applyCourseHoles, autoMatchPlayers, parseReviewData, grossScore, subtotal, blockingReason, completeScores, commitQuickSettle } from "../../src/services/ocr-review";
 
 interface ConcernItem {
   type: "name" | "score";
@@ -69,7 +69,7 @@ export default function ScanReviewScreen() {
           parseError: "Invalid scorecard data: no players found in the scan.",
         };
       }
-      return { initialPlayers: autoMatchPlayers(parseReviewData(scanData), contest?.groups.flatMap(g => g.players) ?? []), parseError: null };
+      return { initialPlayers: autoMatchPlayers(applyCourseHoles(parseReviewData(scanData), contest?.course.holes.map(h => h.num)), contest?.groups.flatMap(g => g.players) ?? []), parseError: null };
     } catch (error) {
       if (error instanceof SyntaxError) {
         return {
@@ -132,7 +132,7 @@ export default function ScanReviewScreen() {
       ? owners[0].group : null;
   });
   const importPlayers = scannedPlayers.filter((_, i) => !excludedGroups[i]);
-  const reason = blockingReason(scannedPlayers, !!contestId) || (contestId &&
+  const reason = blockingReason(scannedPlayers, !!contestId, contest?.course.holes.map(h => h.num)) || (contestId &&
     (!importPlayers.length || !contest?.groups.some(g => g.id === selectedGroupId &&
       importPlayers.every(p => g.players.some(cp => cp.id === p.matchedPlayerId))))
     ? "Match players to the selected group" : null);
@@ -204,7 +204,7 @@ export default function ScanReviewScreen() {
       // Flow 1: Importing into existing contest
       const group = contest?.groups.find((g) => g.id === selectedGroupId);
       if (group) {
-        const playerScores = importPlayers.map(sp => ({ playerId: sp.matchedPlayerId!, scores: completeScores(sp.scores) }));
+        const playerScores = importPlayers.map(sp => ({ playerId: sp.matchedPlayerId!, scores: completeScores(sp.scores, contest?.course.holes.length) }));
         importScores(contestId, selectedGroupId, playerScores);
       }
       setPendingNavTarget(`/contest/${contestId}`);

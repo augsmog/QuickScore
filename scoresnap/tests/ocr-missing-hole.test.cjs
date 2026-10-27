@@ -74,6 +74,33 @@ const store=load('src/stores/contest-store.ts',{
  '../services/guest-join':{generateJoinCode:()=> 'LOCAL'},zustand,'zustand/middleware':{persist:f=>f,createJSONStorage:()=>({})},
  '@react-native-async-storage/async-storage':{},'../services/tournament-sync':{},
 }).useContestStore;
+for (const tournament of [false, true]) test(`nine-hole paste import pads unused engine holes with zero tournament=${tournament}`, async () => {
+ const holes=Array.from({length:9},(_,i)=>({num:i+1,par:4,hcp:i+1}));
+ const course={name:'Nine',holes};
+ const group={id:'g',players:[{id:'a',name:'Player A',scores:Array(18).fill(5)}]};
+ const c={id:'c',course,groups:[group],isTournament:tournament,currentRound:1,rounds:[{id:'r',number:1,course,groups:[group]}]};
+ store.setState({contests:[c]});
+ const scores=[4,5,3,4,5,3,4,5,4];
+ const text=['Hole,'+Array.from({length:18},(_,i)=>i+1).join(','),'Player A,'+[...scores,...Array(9).fill(0)].join(',')].join('\n');
+ const players=review.applyCourseHoles(parser.parseScoreGrid(parser.textToGrid(text)).players,holes.map(h=>h.num));
+ expect(players[0].scores).toEqual(scores);
+ expect(review.blockingReason(players,false,holes.map(h=>h.num))).toBeNull();
+ const expected=[...scores,...Array(9).fill(0)];
+ store.getState().importScores('c','g',[{playerId:'a',scores:review.completeScores(players[0].scores,9)}]);
+ const after=store.getState().contests[0];
+ expect((tournament?after.rounds[0].groups:after.groups)[0].players[0].scores).toEqual(expected);
+ // Direct store imports use the same boundary, including nullable unused cells.
+ store.getState().importScores('c','g',[{playerId:'a',scores:[...scores,...Array(9).fill(null)]}]);
+ const before=JSON.stringify(store.getState().contests);
+ players[0].scores[6]=null;
+ expect(review.blockingReason(players,false,holes.map(h=>h.num))).toBe('Hole 7 is blank for Player A');
+ expect(()=>store.getState().importScores('c','g',[{playerId:'a',scores:players[0].scores}])).toThrow();
+ expect(JSON.stringify(store.getState().contests)).toBe(before);
+ response={data:{players:[raw([...scores,...Array(9).fill(null)])]}};
+ recognized={text:'',blocks:[]};
+ const scanned=(await service.scanScorecard('x',undefined,holes.map(h=>h.num))).players;
+ expect(review.completeScores(scanned[0].scores,9)).toEqual(expected);
+});
 for(const tournament of [false,true]) test(`atomic store batch and corrected engine calculations tournament=${tournament}`,()=>{
  const course={name:'Fixture',holes:Array.from({length:18},(_,i)=>({num:i+1,par:4,hcp:i+1,yards:350}))};
  const players=[{id:'a',name:'Player A',handicap:8,scores:Array(18).fill(5)},{id:'b',name:'Player B',handicap:-2,scores:Array(18).fill(6)}];
