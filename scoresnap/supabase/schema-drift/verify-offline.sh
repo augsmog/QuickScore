@@ -10,7 +10,7 @@ cat "$here/offline-bootstrap.sql" > "$work/apply.sql"
 cat "$here"/../migrations/202603*.sql "$here"/../migrations/20261022*.sql "$here"/../migrations/20261027000000_live_baseline.sql >> "$work/apply.sql"
 python3 - "$here/expected-ledger.json" >> "$work/apply.sql" <<'PY'
 import json,sys
-for m in json.load(open(sys.argv[1]))+[{'version':'20261027000000','name':'live_baseline'}]:
+for m in json.load(open(sys.argv[1])):
     print("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('%s','%s');" % (m['version'],m['name']))
 PY
 "$pgbin/postgres" --single -D "$work/db" -c wal_level=logical -j postgres < "$work/apply.sql" > "$work/apply.log" 2>&1

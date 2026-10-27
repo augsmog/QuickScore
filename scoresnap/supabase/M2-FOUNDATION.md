@@ -153,8 +153,8 @@ compares baseline to live.json (eight local ledger entries), requires the defaul
 fixture to fail on baseline, and runs M1 selftest and SQL mutation/preapply
 rejection fixtures with --url/--admin-url. It reapplies with CLI migration up,
 compares expected-after and nine ledger entries, then runs the M2
-role/ACL/default/future/join/CAS/legacy gates before ledger-adoption rehearsal. Live pre-adoption ledger
-still expects seven. Active SQL names, SHA256 and git tracking are checked.
+role/ACL/default/future/join/CAS/legacy gates before ledger-adoption rehearsal. Live preapply now requires the exact ordered adopted eight-row ledger (seven markers
+plus 20261027000000 live_baseline); local full-chain mode expects ten rows including M2b. Active SQL names, SHA256 and git tracking are checked.
 Rehearsal repairs only baseline; foundation must remain pending after repair.
 
 Normalization now compares **visible ordinal column order**, compressing gaps
@@ -195,10 +195,12 @@ Live apply is a **box step requiring Augie's yes**, not authorized by these loca
 files. Before any apply, capture read-only catalog/ledger and run
 schema-drift/preapply-check.sh against live.json, verify checksums, finish full
 stack and unchanged old-client gates, archive backup and rollback receipts.
-Repair the baseline ledger only after exact baseline parity and reviewed
-seven-marker adoption; never execute baseline DDL on live. Then apply the
-reviewed pending foundation through `supabase db push` after baseline ledger
-repair. Verify expected-after and ledger, then box may refresh live.json from a
+Baseline ledger adoption was approved and completed on 2026-10-26 at 23:11 MST.
+The preapply guard now requires exactly those eight adopted rows; never execute
+baseline DDL on live or repeat adoption repair. Follow the approved live-apply
+plan to apply M2 (20261027120000_sync_foundation), then M2b
+(20261027130000_guest_write_guard).
+Verify expected-after and ledger, then box may refresh live.json from a
 new read-only capture. Auth enablement is a separate Augie decision. No source
 or remote refs are updated by this local work.
 

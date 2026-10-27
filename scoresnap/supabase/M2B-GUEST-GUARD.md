@@ -140,3 +140,11 @@ gates. This task leaves working-tree changes only.
 
 No network, live database or secrets were accessed. Changes remain uncommitted
 in this isolated working tree.
+
+## Adopted live preflight (2026-10-27)
+
+Baseline adoption completed with Augie approval on 2026-10-26 at 23:11 MST.
+The M2 preapply guard requires exactly eight ordered ledger rows, ending in
+`20261027000000 live_baseline`. Follow the approved live-apply plan: M2 then M2b.
+An already applied M2 or M2b fails this preflight. See
+[schema-drift/LIVE-APPLY-PREFLIGHT.md](schema-drift/LIVE-APPLY-PREFLIGHT.md).

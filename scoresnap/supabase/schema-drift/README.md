@@ -68,7 +68,7 @@ Every exception is in `allowlist.json`:
   the baseline does not alter supabase_admin defaults. Offline setup emulates
   them. `platform_differences` is empty; no role-wide exceptions exist.
 - Migration rows are omitted from the physical comparison, then separately
-  checked for exact names/versions: live has seven, local adds baseline and foundation; baseline-prefix mode adds only baseline.
+  checked for exact names/versions: live requires the adopted eight rows in exact order; baseline has the same eight rows; local adds M2 and M2b (ten rows). Historical pre-adoption mode has seven rows.
   Missing, extra, duplicate, or renamed ledger entries fail.
 
 Public routine ACL text and information_schema EXECUTE grants are both compared.
@@ -83,7 +83,7 @@ event triggers are also compared. See `../BASELINE-NOTES.md` for provenance.
 `rehearse-ledger-adoption.sh` targets only hard-coded loopback URLs. It creates
 `live_rehearsal` from template0 in the same local stack, using the cluster roles,
 minimal Auth stubs and extensions/publication, applies baseline **directly**, then
-inserts exactly the seven live ledger entries. This simulates the live public
+inserts exactly the seven historical pre-adoption ledger entries. This simulates the live public
 schema and ledger, not a second running hosted Auth service. Template0 avoids
 cloning `postgres` while stack services hold active connections.
 
@@ -111,32 +111,37 @@ bash scoresnap/supabase/schema-drift/preapply-check.sh /path/to/fresh-live-catal
 
 The guard uses only Python and the provided file: it never connects or writes to
 live, reads no credentials, and never invokes Supabase. It normalizes both sides,
-compares schema and exact seven-row live ledger, fails closed with a human diff,
-and only on success prints the permitted next command:
+compares schema and the exact ordered eight-row adopted live ledger in
+`expected-ledger.json`, and fails closed with a human diff. Baseline adoption was
+approved by Augie on 2026-10-26 at 23:11 MST for `pltgbizexllikiwryozm`.
+On success it prints:
 
-```sh
-supabase migration repair 20261027000000 --status applied --linked
+```text
+Schema matches
+Ledger matches: live
+Guard passed.
+Next: apply approved M2 (20261027120000_sync_foundation), then M2b (20261027130000_guest_write_guard), per the live-apply plan.
 ```
 
-Run that command from `scoresnap/` only after verifying the linked project is
-`pltgbizexllikiwryozm` and obtaining **Augie's explicit yes**. A fresh match is an
-engineering guard, not permission. Never execute the baseline SQL on live.
-No live apply/repair is authorized by the guard itself.
+Follow the approved live-apply plan for M2 then M2b. Baseline repair is already
+complete; never execute baseline DDL on live. The guard itself performs no apply.
+See [LIVE-APPLY-PREFLIGHT.md](LIVE-APPLY-PREFLIGHT.md) for checksums.
 
 After an approved future live schema change, save the fresh read-only raw capture,
 review the diff against the expected forward migration, update expected physical
 snapshot with `drift.py normalize RAW schema-snapshot/live.json`, and update the
 ledger expectation/code for that approved milestone. Review those updates in a PR
 and run identity/mutation/local parity/rehearsal checks. Do not refresh merely to
-silence unexpected drift or expand the allowlist to hide app differences. M1's
-guard intentionally refuses already-adopted (eight-entry) live ledgers; subsequent
-milestones must explicitly revise that expectation.
+silence unexpected drift or expand the allowlist to hide app differences. The live guard accepts only the adopted eight-entry ledger, including the exact
+`20261027000000 live_baseline` row. Seven, nine, ten, missing, renamed, reordered,
+duplicate, extra, and other baseline variants fail; subsequent milestones must
+explicitly revise that expectation.
 
 ## Verification receipt (fix round 1)
 
 PG17 offline apply, catalog parity, ledger checks, JSON mutation fixtures, and
 15 transactional SQL mutations pass. Every mutation is also rejected by the offline
-pre-apply guard before any repair command is printed. SQL fixtures run through the
+pre-apply guard before any next step is printed. SQL fixtures run through the
 same extractor and comparer in pinned-stack CI. `rls-probe.sql` requires the new
 public table to have RLS enabled and drops it within a rolled-back transaction.
 Single-user PostgreSQL suppresses event triggers, so the behavior probe explicitly
@@ -266,5 +271,5 @@ foundation, compares the full chain to expected-after.json, checks the nine-entr
 ledger, and runs future-default, protocol/role and legacy compatibility tests.
 `check-active-sql.py` requires exact active migration names, reviewed SHA256
 hashes and git tracking. `preapply-check.sh` still uses only the PRE-APPLY live
-snapshot and seven-entry live ledger. See ../M2-FOUNDATION.md for contracts,
+snapshot and adopted eight-entry live ledger. See ../M2-FOUNDATION.md for contracts,
 staged debt and live approval requirements.
