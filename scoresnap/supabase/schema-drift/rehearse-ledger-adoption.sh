@@ -44,7 +44,7 @@ python3 - "$work/before.log" <<'PY'
 import pathlib,re,sys
 s=pathlib.Path(sys.argv[1]).read_text()
 files=re.findall(r'\b\d{14}_[A-Za-z0-9_]+\.sql\b',s)
-assert files == ['20261027000000_live_baseline.sql','20261027120000_sync_foundation.sql','20261027130000_guest_write_guard.sql'], ('Unexpected pending migrations',s)
+assert files == ['20261027000000_live_baseline.sql','20261027120000_sync_foundation.sql','20261027130000_guest_write_guard.sql','20261028100000_tournament_rounds_live.sql'], ('Unexpected pending migrations',s)
 PY
 supabase migration repair 20261027000000 --status applied --db-url "$url"
 supabase migration list --db-url "$url"
@@ -52,7 +52,7 @@ supabase db push --dry-run --db-url "$url" 2>&1 | tee "$work/after.log"
 python3 - "$work/after.log" <<'PY'
 import pathlib,re,sys
 s=pathlib.Path(sys.argv[1]).read_text()
-assert re.findall(r'\b\d{14}_[A-Za-z0-9_]+\.sql\b',s)==['20261027120000_sync_foundation.sql','20261027130000_guest_write_guard.sql'],s
+assert re.findall(r'\b\d{14}_[A-Za-z0-9_]+\.sql\b',s)==['20261027120000_sync_foundation.sql','20261027130000_guest_write_guard.sql','20261028100000_tournament_rounds_live.sql'],s
 PY
 psql "$url" -X -At -v ON_ERROR_STOP=1 -f "$here/catalog-query.sql" > "$work/after.json"
 python3 "$here/drift.py" compare "$here/../schema-snapshot/baseline.json" "$work/after.json"

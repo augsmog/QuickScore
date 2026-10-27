@@ -2,6 +2,7 @@
 # PostgreSQL single-user mode: no daemon, sockets, network, Docker, or Supabase CLI.
 set -euo pipefail
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+python3 "$here/reference-guard.py"
 pgbin=${PGBIN:-/usr/lib/postgresql/17/bin}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

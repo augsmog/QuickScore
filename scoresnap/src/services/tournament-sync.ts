@@ -1,199 +1,174 @@
 /**
- * Tournament Supabase sync service
- * Syncs tournament rounds, groups, and scores to Supabase tables
+ * Tournament sync against rewritten 008.
+ * Rounds, groups and player metadata go through sync_round_bundle.
+ * Scores append through write_score. Players are never deleted to rebuild a foursome.
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 import { REAL_AUTH_CONFIGURED } from '../config/auth';
 import { supabase } from '../db/supabase';
-import type { Contest, RoundInfo, ContestGroup } from '../stores/contest-store';
-import type { Player } from '../engine/types';
+import type { Contest, ContestGroup, RoundInfo } from '../stores/contest-store';
+import {
+  cellKey,
+  emptyOutbox,
+  enqueueScore,
+  rememberBundle,
+  resolveWrite,
+  roundPayload,
+  type Outbox,
+  type ScoreOp,
+} from './tournament-sync-plan';
 
-/**
- * Sync a round to Supabase
- */
-export async function syncRound(contestId: string, round: RoundInfo): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
-  
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || session.user.is_anonymous) {
-    throw new Error('Sign in to sync tournaments.');
+const STORAGE_KEY = 'snapscore.tournament.outbox';
+let outbox: Outbox = emptyOutbox();
+let loaded = false;
+
+async function load(): Promise<void> {
+  if (loaded) return;
+  loaded = true;
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Outbox;
+    if (parsed && Array.isArray(parsed.ops) && parsed.ids && parsed.versions) {
+      outbox = {
+        ...emptyOutbox(),
+        ...parsed,
+        ops: parsed.ops ?? [],
+        conflicts: parsed.conflicts ?? [],
+      };
+    }
+  } catch {
+    // A damaged local queue must not block scoring on this device.
   }
-
-  // Upsert round
-  const { error: roundError } = await supabase
-    .from('contest_rounds')
-    .upsert({
-      id: round.id,
-      contest_id: contestId,
-      round_number: round.number,
-      name: round.name,
-      date: round.date || null,
-      course_name: round.course?.name || null,
-      course_data: round.course || null,
-    }, {
-      onConflict: 'id',
-    });
-
-  if (roundError) {
-    console.error('Failed to sync round:', roundError);
-    throw new Error(`Failed to sync round: ${roundError.message}`);
-  }
-
-  // Sync groups for this round
-  await syncRoundGroups(contestId, round.id, round.groups);
 }
 
-/**
- * Sync groups for a specific round
- */
-export async function syncRoundGroups(contestId: string, roundId: string, groups: ContestGroup[]): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
+async function save(): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(outbox));
+}
 
+async function requireHost(): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session || session.user.is_anonymous) return;
+  if (!session || session.user.is_anonymous) throw new Error('Sign in to sync tournaments.');
+}
 
-  // Delete existing groups for this round (we'll recreate them)
-  const { error: deleteError } = await supabase
-    .from('contest_groups')
-    .delete()
-    .eq('round_id', roundId);
-
-  if (deleteError) {
-    console.error('Failed to delete old groups:', deleteError);
-  }
-
-  // Insert new groups
-  for (const group of groups) {
-    const { error: groupError } = await supabase
-      .from('contest_groups')
-      .insert({
-        id: group.id,
-        contest_id: contestId,
-        round_id: roundId,
-        name: group.name,
-        tee_time: group.teeTime || null,
-        external_id: group.externalId || null,
-      });
-
-    if (groupError) {
-      console.error('Failed to sync group:', groupError);
+export async function flushTournamentOutbox(): Promise<void> {
+  if (!REAL_AUTH_CONFIGURED) return;
+  await load();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+  const kept: ScoreOp[] = [];
+  const conflicts = [...outbox.conflicts];
+  const blocked = new Set<string>();
+  let offline = false;
+  for (let index = 0; index < outbox.ops.length; index += 1) {
+    const op = outbox.ops[index];
+    const key = cellKey(op);
+    if (offline || blocked.has(key)) {
+      kept.push(op);
       continue;
     }
-
-    // Sync players in this group
-    await syncGroupPlayers(contestId, group.id, group.players);
-  }
-}
-
-/**
- * Sync players within a group
- */
-export async function syncGroupPlayers(contestId: string, groupId: string, players: Player[]): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || session.user.is_anonymous) return;
-
-  // Delete existing players for this group
-  const { error: deleteError } = await supabase
-    .from('contest_players')
-    .delete()
-    .eq('group_id', groupId);
-
-  if (deleteError) {
-    console.error('Failed to delete old players:', deleteError);
-  }
-
-  // Insert players
-  for (let i = 0; i < players.length; i++) {
-    const player = players[i];
-    const { error: playerError } = await supabase
-      .from('contest_players')
-      .insert({
-        id: player.id,
-        contest_id: contestId,
-        group_id: groupId,
-        name: player.name,
-        handicap: player.handicap,
-        team: player.team || null,
-        sort_order: i,
-        status: player.status || 'active',
-        course_handicaps: player.courseHandicaps || null,
-      });
-
-    if (playerError) {
-      console.error('Failed to sync player:', playerError);
+    const args = resolveWrite(outbox.ids, op);
+    if (!args) {
+      blocked.add(key);
+      kept.push(op);
+      continue;
+    }
+    const { data, error } = await supabase.rpc('write_score', args);
+    const status = (data as { status?: string } | null)?.status;
+    const message = error?.message ?? '';
+    const transport = !!error && /failed to fetch|network|timeout|offline/i.test(message);
+    if (error && !transport && status !== 'conflict' && !/conflict/i.test(message)) {
+      kept.push(op, ...outbox.ops.slice(index + 1));
+      outbox = { ...outbox, ops: kept, conflicts };
+      await save();
+      throw new Error(message || 'Score sync failed.');
+    }
+    if (transport || (!error && status !== 'accepted' && status !== 'conflict')) {
+      offline = true;
+      kept.push(op);
+      continue;
+    }
+    if (status === 'conflict' || /conflict/i.test(message)) {
+      blocked.add(key);
+      conflicts.push(op);
+      console.error('Score conflict kept for review', op.opId);
+      continue;
+    }
+    for (let i = conflicts.length - 1; i >= 0; i -= 1) {
+      if (cellKey(conflicts[i]) === key) conflicts.splice(i, 1);
     }
   }
+  outbox = { ...outbox, ops: kept, conflicts };
+  await save();
 }
 
-/**
- * Sync a player's score for a specific hole and round
- */
+export async function syncRound(contestId: string, round: RoundInfo): Promise<void> {
+  if (!REAL_AUTH_CONFIGURED) return;
+  await load();
+  await requireHost();
+  const { data, error } = await supabase.rpc('sync_round_bundle', {
+    contest_id: contestId,
+    payload: roundPayload(round),
+  });
+  if (error || !data?.round_id) throw new Error(error?.message || 'Failed to sync round.');
+  outbox = rememberBundle(outbox, round.id, data);
+  await save();
+  await flushTournamentOutbox();
+}
+
+export async function syncRoundGroups(
+  contestId: string,
+  roundId: string,
+  groups: ContestGroup[],
+  roundNumber = 1,
+  roundName?: string,
+): Promise<void> {
+  await syncRound(contestId, {
+    id: roundId,
+    number: roundNumber,
+    name: roundName || `Round ${roundNumber}`,
+    groups,
+  });
+}
+
+export async function syncContestTournamentMeta(contestId: string, isTournament: boolean, currentRound: number): Promise<void> {
+  if (!REAL_AUTH_CONFIGURED) return;
+  await requireHost();
+  const { error } = await supabase.rpc('set_tournament_meta', {
+    contest_id: contestId,
+    is_tournament: isTournament,
+    current_round: currentRound,
+  });
+  if (error) console.error('Failed to sync tournament meta:', error.message);
+}
+
 export async function syncScore(
   contestId: string,
   roundId: string,
   playerId: string,
   hole: number,
-  strokes: number
+  strokes: number,
+  roundNumber = 1,
 ): Promise<void> {
   if (!REAL_AUTH_CONFIGURED) return;
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || session.user.is_anonymous) return;
-
-  const { error } = await supabase
-    .from('hole_scores')
-    .upsert({
-      contest_id: contestId,
-      round_id: roundId,
-      player_id: playerId,
-      hole,
-      strokes,
-    }, {
-      onConflict: 'contest_id,player_id,hole,round_id',
-    });
-
-  if (error) {
-    console.error('Failed to sync score:', error);
-    throw new Error(`Failed to sync score: ${error.message}`);
-  }
+  await load();
+  outbox = enqueueScore(outbox, {
+    contestId,
+    roundLocalId: roundId,
+    roundNumber,
+    playerLocalId: playerId,
+    hole,
+    strokes,
+  }, Crypto.randomUUID());
+  await save();
+  await flushTournamentOutbox();
 }
 
-/**
- * Update contest tournament metadata
- */
-export async function syncContestTournamentMeta(contestId: string, isTournament: boolean, currentRound: number): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || session.user.is_anonymous) return;
-
-  const { error } = await supabase
-    .from('contests')
-    .update({
-      is_tournament: isTournament,
-      current_round: currentRound,
-    })
-    .eq('id', contestId);
-
-  if (error) {
-    console.error('Failed to sync tournament meta:', error);
-  }
-}
-
-/**
- * Sync entire tournament structure (rounds and groups)
- */
 export async function syncTournament(contest: Contest): Promise<void> {
   if (!REAL_AUTH_CONFIGURED) return;
   if (!contest.isTournament || !contest.rounds) return;
-
-  // Sync tournament metadata
   await syncContestTournamentMeta(contest.id, true, contest.currentRound || 1);
-
-  // Sync all rounds
-  for (const round of contest.rounds) {
-    await syncRound(contest.id, round);
-  }
+  for (const round of contest.rounds) await syncRound(contest.id, round);
 }
