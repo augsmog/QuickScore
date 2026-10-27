@@ -252,6 +252,11 @@ await shot("14-gs1-empty-scan-data.png");
 await page.goto(contestUrl, { waitUntil: "networkidle" });
 const joinCodeElement = page.getByTestId("organizer-join-code");
 const hasJoinCode = await joinCodeElement.count() > 0;
+// The build's flag state must match what CI expects, so a missing join UI can never silently skip the guest flow
+const expectSharing = process.env.EXPECT_CROSS_DEVICE_SHARING;
+if (expectSharing !== undefined) {
+  check(hasJoinCode === (expectSharing === "true"), `Join UI presence matches EXPECT_CROSS_DEVICE_SHARING=${expectSharing}`, `join code present: ${hasJoinCode}`);
+}
 
 if (hasJoinCode) {
   const joinText = await joinCodeElement.innerText();

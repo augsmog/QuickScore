@@ -54,3 +54,4 @@ dist-ios/
 # Linked offline dependencies and scorecard export
 /node_modules
 /dist-web-scorecard/
+/dist-web-sharing/
