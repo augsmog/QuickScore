@@ -9,6 +9,7 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 permissions:
   contents: read
+  packages: read
 # Avoid public.ecr.aws anonymous pull throttling on shared GitHub runners.
 env:
   SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
@@ -35,10 +36,59 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: latest
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compute Supabase image cache key
+        continue-on-error: true
+        id: img-key
+        run: |
+          version=$(supabase --version)
+          echo "key=supabase-images-v1-${{ runner.os }}-cli${version}-${{ hashFiles('scoresnap/supabase/config.toml') }}" >> "$GITHUB_OUTPUT"
+      - name: Restore Supabase image cache
+        continue-on-error: true
+        id: img-cache
+        if: steps.img-key.outputs.key != ''
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/supabase-images
+          key: ${{ steps.img-key.outputs.key }}
+      - name: Load Supabase image cache
+        continue-on-error: true
+        env:
+          CACHE_HIT: ${{ steps.img-cache.outputs.cache-hit }}
+        run: |
+          if [ "$CACHE_HIT" = true ]; then
+            echo "supabase image cache: HIT"
+          else
+            echo "supabase image cache: MISS"
+          fi
+          bash scripts/ci/supabase-start-cached.sh load "${{ runner.temp }}/supabase-images"
       
       - name: Start Supabase
+        run: bash scripts/ci/supabase-start-cached.sh start --debug -x vector,logflare,studio,imgproxy,mailpit
+      - name: Save Supabase images
+        continue-on-error: true
+        if: steps.img-key.outputs.key != '' && steps.img-cache.outputs.cache-hit != 'true'
+        id: img-save
         run: |
-          supabase start --debug -x vector,logflare,studio,imgproxy,mailpit
+          bash scripts/ci/supabase-start-cached.sh save "${{ runner.temp }}/supabase-images"
+          if [[ -f "${{ runner.temp }}/supabase-images/images.tar.zst" || -f "${{ runner.temp }}/supabase-images/images.tar.gz" ]]; then
+            echo "saved=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Save Supabase image cache
+        continue-on-error: true
+        if: steps.img-key.outputs.key != '' && steps.img-cache.outputs.cache-hit != 'true' && steps.img-save.outputs.saved == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/supabase-images
+          key: ${{ steps.img-key.outputs.key }}
+      - name: Show Supabase status
+        run: |
           supabase status
       
       - name: Apply migrations
