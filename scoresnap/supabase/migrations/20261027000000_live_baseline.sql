@@ -1770,9 +1770,6 @@ REVOKE ALL ON SCHEMA public FROM PUBLIC, postgres, anon, authenticated, service_
 GRANT USAGE, CREATE ON SCHEMA public TO pg_database_owner;
 GRANT USAGE ON SCHEMA public TO PUBLIC, postgres, anon, authenticated, service_role;
 RESET ROLE;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC, supabase_admin, postgres, anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC, supabase_admin, postgres, anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM PUBLIC, supabase_admin, postgres, anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON FUNCTIONS TO postgres, anon, authenticated, service_role;
+-- supabase_admin default privileges in public are platform-provided (created by the
+-- Supabase image at init, both hosted and local); the postgres role cannot alter them.
+-- They are not set here; drift.py compares them against schema-drift/reviewed-default-acls.json.
