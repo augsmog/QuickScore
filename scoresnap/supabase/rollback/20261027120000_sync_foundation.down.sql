@@ -1,4 +1,8 @@
 -- Refuse destructive rollback after protocol use; export/reconcile first.
+-- One transaction; block writers on every checked table BEFORE the guard so no write can commit
+-- between the check and the DROPs (verifier M2-1). Run with: psql -v ON_ERROR_STOP=1 -f <this file>.
+BEGIN;
+LOCK TABLE public.contests, public.contest_join_requests, public.contest_memberships, public.operation_receipts, public.score_events, public.contest_players, public.published_rounds IN ACCESS EXCLUSIVE MODE;
 DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM public.contests WHERE protocol<>0 OR sync_enabled OR sync_revision<>0)
  OR EXISTS(SELECT 1 FROM public.contest_join_requests) OR EXISTS(SELECT 1 FROM public.contest_memberships)
@@ -45,3 +49,4 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON FUNCTIO
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres GRANT EXECUTE ON FUNCTIONS TO PUBLIC;
 
 ALTER TABLE public.score_events REPLICA IDENTITY DEFAULT;
+COMMIT;
