@@ -1,3 +1,4 @@
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
@@ -59,21 +60,22 @@ test("public host and contact are the autumn8 values", () => {
   expect(support.PRIVACY_URL).toBe("https://snapscore.autumn8.me/privacy");
 });
 
-test("Help & Support opens the support page and Privacy Policy opens the privacy page", () => {
+test("Help & Support opens the support page and both Privacy Policy controls use SUPPORT_BASE_URL + /privacy", () => {
   const openURL = jest.fn(() => Promise.resolve());
   const links = load("src/config/support-links.ts", { "react-native": { Linking: { openURL } } });
+  const { SUPPORT_BASE_URL } = load("src/config/support.ts");
   links.openSupport();
-  links.openPrivacyPolicy();
-  expect(openURL).toHaveBeenNthCalledWith(1, "https://snapscore.autumn8.me/support");
-  expect(openURL).toHaveBeenNthCalledWith(2, "https://snapscore.autumn8.me/privacy");
+  expect(openURL).toHaveBeenCalledWith("https://snapscore.autumn8.me/support");
+  expect(SUPPORT_BASE_URL + "/privacy").toBe("https://snapscore.autumn8.me/privacy");
 
   const profile = fs.readFileSync(path.join(root, "app/(tabs)/profile.tsx"), "utf8");
   const settings = fs.readFileSync(path.join(root, "app/settings.tsx"), "utf8");
   const signIn = fs.readFileSync(path.join(root, "app/auth/sign-in.tsx"), "utf8");
   expect(profile).toMatch(/label: "Help & Support", onPress: openSupport/);
   expect(profile).not.toMatch(/Help & Support", onPress: \(\) => \{\}/);
-  expect(settings).toMatch(/onPress=\{openPrivacyPolicy\}/);
-  expect(signIn).toMatch(/onPress=\{openPrivacyPolicy\}/);
+  const privacyOpen = 'Linking.openURL(SUPPORT_BASE_URL + "/privacy")';
+  expect(settings).toContain(privacyOpen);
+  expect(signIn).toContain(privacyOpen);
   for (const source of [profile, settings, signIn]) {
     expect(source).not.toContain("august-industries.com/snapscore/privacy");
     expect(source).not.toContain("johnaugustjones@gmail.com");
@@ -82,10 +84,16 @@ test("Help & Support opens the support page and Privacy Policy opens the privacy
 
 test("support route renders the contact email, deletion request, and no external scripts", async () => {
   const pages = load("src/web/public-pages.ts");
+  const privacyMarkdown = fs.readFileSync(path.join(root, "docs/privacy-policy.md"), "utf8");
+  expect(crypto.createHash("sha256").update(privacyMarkdown).digest("hex")).toBe(
+    "c0ed86fee618ae63668dd28557623aa4e0fdad5a021ef9a7b69166b782601882",
+  );
   const supportHtml = fs.readFileSync(path.join(root, "site/support/index.html"), "utf8");
   const privacyHtml = fs.readFileSync(path.join(root, "site/privacy/index.html"), "utf8");
-  expect(supportHtml).toBe(pages.renderSupportPage().endsWith("\n") ? pages.renderSupportPage() : `${pages.renderSupportPage()}\n`);
-  expect(privacyHtml).toBe(pages.renderPrivacyPage().endsWith("\n") ? pages.renderPrivacyPage() : `${pages.renderPrivacyPage()}\n`);
+  const renderedSupport = pages.renderSupportPage();
+  const renderedPrivacy = pages.renderPrivacyPage(privacyMarkdown);
+  expect(supportHtml).toBe(renderedSupport.endsWith("\n") ? renderedSupport : `${renderedSupport}\n`);
+  expect(privacyHtml).toBe(renderedPrivacy.endsWith("\n") ? renderedPrivacy : `${renderedPrivacy}\n`);
 
   const { server, port } = await startSite();
   try {
@@ -109,9 +117,12 @@ test("support route renders the contact email, deletion request, and no external
     const privacyBody = await privacy.text();
     expect(privacy.status).toBe(200);
     expect(privacyBody).toContain("mailto:augie@autumn8.me");
-    expect(privacyBody).toContain('id="data-deletion"');
-    expect(privacyBody).toContain("no automatic server deletion");
+    expect(privacyBody).toContain('id="deletion-and-how-to-ask-for-it"');
+    expect(privacyBody).toContain("It does not call Supabase to delete the user.");
+    expect(privacyBody).toContain("To ask for deletion of data this button does not remove, write to");
+    expect(privacyBody).toContain("Draft dated 27 October 2026");
     expect(externalScriptTags(privacyBody)).toEqual([]);
+    expect(privacyBody).not.toMatch(/\bsrc\s*=\s*["']https?:/i);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

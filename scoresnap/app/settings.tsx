@@ -37,7 +37,7 @@ import {
   DefaultTee,
 } from "../src/stores/settings-store";
 import { useAuthStore } from "../src/stores/auth-store";
-import { openPrivacyPolicy } from "../src/config/support-links";
+import { SUPPORT_BASE_URL } from "../src/config/support";
 // Contest and scan stores cleared via AsyncStorage.multiRemove in handleDeleteAccount
 
 // ─── Reusable row components ──────────────────────────────────
@@ -608,7 +608,7 @@ export default function SettingsScreen() {
         <SectionHeader title="About" />
 
         <AnimatedPressable
-          onPress={openPrivacyPolicy}
+          onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/privacy")}
           style={{
             backgroundColor: COLORS.surfaceLow,
             borderRadius: RADII.lg,

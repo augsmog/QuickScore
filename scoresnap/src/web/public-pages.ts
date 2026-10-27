@@ -1,4 +1,5 @@
 import { PRIVACY_PATH, SUPPORT_EMAIL, SUPPORT_PATH } from "../config/support";
+import { markdownToHtml } from "./markdown";
 
 const MAILTO = `mailto:${SUPPORT_EMAIL}`;
 
@@ -54,7 +55,14 @@ const CSS = `
   h1 { margin: 20px 0 8px; font-family: Georgia, "Iowan Old Style", Palatino, serif; font-size: 2rem; font-weight: 400; letter-spacing: -0.03em; line-height: 1.2; }
   h2 { margin: 32px 0 8px; font-family: Georgia, "Iowan Old Style", Palatino, serif; font-size: 1.35rem; font-weight: 400; }
   h3 { margin: 0 0 6px; font-size: 1.05rem; }
-  p { margin: 0 0 12px; }
+  p, li { margin: 0 0 12px; }
+  p, li, td, th, code { overflow-wrap: anywhere; }
+  code { font-size: 0.92em; }
+  .policy-table { max-width: 100%; overflow-x: auto; margin: 0 0 16px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #E3D9C6; padding: 8px 10px; text-align: left; vertical-align: top; background: #FFFFFF; }
+  th { font-weight: 600; }
+  ol, ul { padding-left: 1.25rem; }
   .lede, .note { color: #3E463C; }
   .contact { display: inline-block; padding: 8px 0; overflow-wrap: anywhere; }
   article {
@@ -141,28 +149,7 @@ export function renderSupportPage() {
 <p class="note">The <a href="${PRIVACY_PATH}">privacy policy</a> describes what the app handles.</p>`);
 }
 
-export function renderPrivacyPage() {
-  return shell(PRIVACY_PATH, "Privacy policy · SnapScore", `<h1>Privacy policy</h1>
-<p class="lede">This page describes what SnapScore handles. Questions and deletion requests go to ${contactLink()}.</p>
-<h2>Information the app uses</h2>
-<article>
-<h3>Account and scores</h3>
-<p>If you create an account, SnapScore stores the name and email you enter. Rounds, hole scores, game choices, and settings you enter are stored with the app. A guest who joins with a code can play with a display name and no account.</p>
-</article>
-<article>
-<h3>Scorecard photos</h3>
-<p>The camera is used to photograph a scorecard. The phone reads the card first. If that read is uncertain, the photo can be sent to SnapScore's score-reading service. You review the scores before they are saved. Do not include a phone number or email address on a card you scan.</p>
-</article>
-<article>
-<h3>Shared rounds</h3>
-<p>A join code currently works in the same browser on the device where the round was created. A live share link, when you turn one on, shows display names and scores to people who have the link. Do not put contact details in a display name.</p>
-</article>
-<article>
-<h3>Purchases and crash reports</h3>
-<p>Subscriptions are billed by Apple or Google. SnapScore does not receive your full payment card number. The app may send a crash report, with technical details about the device, so failures can be fixed. These public pages do not load crash reporting or any other tracker.</p>
-</article>
-<h2 id="data-deletion">Delete your data</h2>
-<p>In the app, open Settings and tap Delete Account. Confirm twice. That removes the account data stored on that device, including rounds, scores, statistics, and settings, and signs you out.</p>
-<p>That in-app deletion does not automatically delete data stored on SnapScore's servers. Email ${contactLink()} to request deletion of server data. We delete the server data we can tie to that request. There is no automatic server deletion when you delete the account in the app.</p>
-<p class="note">How scanning, scoring, and joining work is on the <a href="${SUPPORT_PATH}">support page</a>.</p>`);
+/** Render the verified privacy-policy markdown. The wording is not rewritten here. */
+export function renderPrivacyPage(markdown: string) {
+  return shell(PRIVACY_PATH, "Privacy policy · SnapScore", markdownToHtml(markdown));
 }
