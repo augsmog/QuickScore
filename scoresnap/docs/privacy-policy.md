@@ -2,13 +2,13 @@
 
 Draft dated 27 October 2026. It describes what the SnapScore application and its Supabase edge functions in this repository actually do, at commit `92b6c9b`. It is not a legal opinion. The support contact is augie@autumn8.me. The support page is https://snapscore.autumn8.me/support. This policy's public URL is https://snapscore.autumn8.me/privacy. Line numbers below are positions in the application files at that commit. This change adds only these documents.
 
-The in-app Privacy Policy control opens `https://august-industries.com/snapscore/privacy` (`scoresnap/app/settings.tsx:610`, `scoresnap/app/auth/sign-in.tsx:613`). The owner-designated URL for this policy is https://snapscore.autumn8.me/privacy. Nothing in this repository publishes this file to either address.
+The in-app Privacy Policy control opens `https://snapscore.autumn8.me/privacy` (`scoresnap/app/settings.tsx:610`, `scoresnap/app/auth/sign-in.tsx:613`). The owner-designated URL for this policy is https://snapscore.autumn8.me/privacy. Nothing in this repository publishes this file to either address.
 
 ## Owner decisions / gaps
 
 These are places where the code is missing, contradictory, or not enough to publish a finished policy. They are decisions for the owner, not behaviors this draft invents.
 
-1. **The binary's privacy link differs from the owner-designated policy URL.** On 27 October 2026 the owner set the support contact to augie@autumn8.me, the support page to https://snapscore.autumn8.me/support, and this policy's public URL to https://snapscore.autumn8.me/privacy. The profile "Help & Support" row still has an empty press handler (`scoresnap/app/(tabs)/profile.tsx:695`). The Privacy Policy control still opens `https://august-industries.com/snapscore/privacy` (`scoresnap/app/settings.tsx:610`, `scoresnap/app/auth/sign-in.tsx:613`). This repository does not serve https://snapscore.autumn8.me/privacy.
+1. **The binary's privacy link differs from the owner-designated policy URL.** On 27 October 2026 the owner set the support contact to augie@autumn8.me, the support page to https://snapscore.autumn8.me/support, and this policy's public URL to https://snapscore.autumn8.me/privacy. The profile "Help & Support" row still has an empty press handler (`scoresnap/app/(tabs)/profile.tsx:695`). The Privacy Policy control still opens `https://snapscore.autumn8.me/privacy` (`scoresnap/app/settings.tsx:610`, `scoresnap/app/auth/sign-in.tsx:613`). This repository does not serve https://snapscore.autumn8.me/privacy.
 2. **Account deletion does not delete the server account or server data.** Settings copy says the action permanently deletes the account and all rounds, scores, statistics, and settings (`scoresnap/app/settings.tsx:226-229`). The implementation removes five AsyncStorage keys, then signs out (`scoresnap/app/settings.tsx:247-256`). A comment says a Supabase `deleteUser` call is still a TODO (`scoresnap/app/settings.tsx:254-255`). There is no deletion job for `profiles`, `published_rounds`, `round_messages`, `marketing_events`, `revenue_events`, `share_links`, course-search cache, or auth users.
 3. **The local wipe misses keys the app actually writes.** It removes `snapscore-scan` (`scoresnap/app/settings.tsx:250`). The scan store key is `snapscore-scans` (`scoresnap/src/stores/scan-store.ts:66`). It does not remove `snapscore-guest` (`scoresnap/src/stores/guest-store.ts:13`), `snapscore.chat.session.v1`, or `snapscore.chat.name.v1` (`scoresnap/src/services/live-chat.ts:6-7`).
 4. **Sign-out rewrites some of the keys the wipe just removed.** `signOut` clears the in-memory auth session and calls `resetAll` on contests (`scoresnap/src/stores/auth-store.ts:220-232`). Both stores persist back to AsyncStorage (`scoresnap/src/stores/auth-store.ts:239-247`, `scoresnap/src/stores/contest-store.ts:352-355`).
@@ -35,7 +35,7 @@ These are places where the code is missing, contradictory, or not enough to publ
 - Whether ML Kit's native binary contacts Google. The wrapper calls `TextRecognition.recognize` on a local URI and has no network call (`scoresnap/src/services/ml-kit-ocr.ts:30-34`).
 - Whether RevenueCat or Sentry generate a device or anonymous app-user identifier inside the SDK. The app calls `Purchases.configure` without a SnapScore user id (`scoresnap/src/services/purchases.ts:76-79`, `scoresnap/app/_layout.tsx:127`). `identifyUser` is never called.
 - Store age rating, region of the Supabase project, and whether backups exist. None of that is in this repository.
-- Whether https://snapscore.autumn8.me/privacy or https://snapscore.autumn8.me/support currently serve these pages. The owner designated both URLs on 27 October 2026. This repository does not publish them. The app opens `https://august-industries.com/snapscore/privacy` and `https://august-industries.com/snapscore/terms` (`scoresnap/app/settings.tsx:610`, `630`). Whether those august-industries.com URLs currently serve a page is also outside this repository.
+- Whether https://snapscore.autumn8.me/privacy or https://snapscore.autumn8.me/support currently serve these pages. The owner designated both URLs on 27 October 2026. This repository does not publish them. The app opens `https://snapscore.autumn8.me/privacy` and `https://snapscore.autumn8.me/terms` (`scoresnap/app/settings.tsx:610`, `630`). Whether those snapscore.autumn8.me URLs currently serve a page is also outside this repository.
 
 ## Who this covers
 
@@ -212,7 +212,7 @@ Support URL: https://snapscore.autumn8.me/support
 
 Privacy policy URL: https://snapscore.autumn8.me/privacy
 
-The app's Help control does not open a page (`scoresnap/app/(tabs)/profile.tsx:695`). The Privacy Policy and Terms controls open `https://august-industries.com/snapscore/privacy` and `https://august-industries.com/snapscore/terms` (`scoresnap/app/settings.tsx:610`, `630`, `scoresnap/app/auth/sign-in.tsx:610-614`). Those in-app links are separate from the support and privacy URLs above.
+The app's Help control does not open a page (`scoresnap/app/(tabs)/profile.tsx:695`). The Privacy Policy and Terms controls open `https://snapscore.autumn8.me/privacy` and `https://snapscore.autumn8.me/terms` (`scoresnap/app/settings.tsx:610`, `630`, `scoresnap/app/auth/sign-in.tsx:610-614`). Those in-app links are separate from the support and privacy URLs above.
 
 ## Off-device data-flow inventory
 

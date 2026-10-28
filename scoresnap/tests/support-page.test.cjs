@@ -58,6 +58,8 @@ test("public host and contact are the autumn8 values", () => {
   expect(support.SUPPORT_EMAIL).toBe("augie@autumn8.me");
   expect(support.SUPPORT_URL).toBe("https://snapscore.autumn8.me/support");
   expect(support.PRIVACY_URL).toBe("https://snapscore.autumn8.me/privacy");
+  expect(support.TERMS_URL).toBe(support.SUPPORT_BASE_URL + "/terms");
+  expect(support.TERMS_URL).toBe("https://snapscore.autumn8.me/terms");
 });
 
 test("Help & Support opens the support page and both Privacy Policy controls use SUPPORT_BASE_URL + /privacy", () => {
@@ -67,6 +69,7 @@ test("Help & Support opens the support page and both Privacy Policy controls use
   links.openSupport();
   expect(openURL).toHaveBeenCalledWith("https://snapscore.autumn8.me/support");
   expect(SUPPORT_BASE_URL + "/privacy").toBe("https://snapscore.autumn8.me/privacy");
+  expect(SUPPORT_BASE_URL + "/terms").toBe("https://snapscore.autumn8.me/terms");
 
   const profile = fs.readFileSync(path.join(root, "app/(tabs)/profile.tsx"), "utf8");
   const settings = fs.readFileSync(path.join(root, "app/settings.tsx"), "utf8");
@@ -74,20 +77,49 @@ test("Help & Support opens the support page and both Privacy Policy controls use
   expect(profile).toMatch(/label: "Help & Support", onPress: openSupport/);
   expect(profile).not.toMatch(/Help & Support", onPress: \(\) => \{\}/);
   const privacyOpen = 'Linking.openURL(SUPPORT_BASE_URL + "/privacy")';
+  const termsOpen = 'Linking.openURL(SUPPORT_BASE_URL + "/terms")';
   expect(settings).toContain(privacyOpen);
   expect(signIn).toContain(privacyOpen);
+  expect(settings).toContain(termsOpen);
+  expect(signIn).toContain(termsOpen);
   for (const source of [profile, settings, signIn]) {
-    expect(source).not.toContain("august-industries.com/snapscore/privacy");
     expect(source).not.toContain("johnaugustjones@gmail.com");
   }
+});
+
+function filesUnder(dir) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...filesUnder(full));
+    else out.push(full);
+  }
+  return out;
+}
+
+test("no august-industries.com URL in the app, the site, or the privacy policy", () => {
+  const files = ["app", "src", "site"].flatMap((dir) => filesUnder(path.join(root, dir)));
+  files.push(path.join(root, "docs/privacy-policy.md"));
+  const hits = files.filter((file) => fs.readFileSync(file, "utf8").includes("august-industries.com"));
+  expect(hits.map((file) => path.relative(root, file))).toEqual([]);
+});
+
+test("Pages deploy targets snapscore-site, not the existing snapscore project", () => {
+  const script = fs.readFileSync(path.join(root, "scripts/deploy-public-pages.sh"), "utf8");
+  expect(script).toContain("project=snapscore-site");
+  expect(script).toContain("snapscore-site.pages.dev");
+  expect(script).toContain('--project-name "$project"');
+  expect(script).not.toMatch(/--project-name snapscore(?!-site)/);
 });
 
 test("support route renders the contact email, deletion request, and no external scripts", async () => {
   const pages = load("src/web/public-pages.ts");
   const privacyMarkdown = fs.readFileSync(path.join(root, "docs/privacy-policy.md"), "utf8");
   expect(crypto.createHash("sha256").update(privacyMarkdown).digest("hex")).toBe(
-    "c0ed86fee618ae63668dd28557623aa4e0fdad5a021ef9a7b69166b782601882",
+    "b4f9779635ea929bf687a8fdcec9b7f73fabb7afde9ac963879872a185ea61f2",
   );
+  expect(privacyMarkdown).toContain("https://snapscore.autumn8.me/terms");
+  expect(privacyMarkdown).not.toContain("august-industries.com");
   const supportHtml = fs.readFileSync(path.join(root, "site/support/index.html"), "utf8");
   const privacyHtml = fs.readFileSync(path.join(root, "site/privacy/index.html"), "utf8");
   const renderedSupport = pages.renderSupportPage();

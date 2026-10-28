@@ -628,7 +628,7 @@ export default function SettingsScreen() {
         </AnimatedPressable>
 
         <AnimatedPressable
-          onPress={() => Linking.openURL("https://august-industries.com/snapscore/terms")}
+          onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/terms")}
           style={{
             backgroundColor: COLORS.surfaceLow,
             borderRadius: RADII.lg,
