@@ -412,6 +412,7 @@ export default function NewContestScreen() {
         keyboardVerticalOffset={60}
       >
       <ScrollView
+        nestedScrollEnabled
         style={{ flex: 1, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
