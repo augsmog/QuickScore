@@ -13,9 +13,9 @@ Rows that belong only to the caller are removed.
 | Table | What happens |
 | --- | --- |
 | `auth.users` | The caller is deleted with the Auth admin API. |
-| `profiles` | The caller's row is deleted. Deleting the auth user also cascades this row. |
+| `profiles` | The caller's row is deleted, including `referred_by` and `referral_code`. Deleting the auth user also cascades this row. |
 | `scans` | Rows with the caller's `user_id` are deleted. |
-| `marketing_events` | Rows with the caller's `user_id` are deleted. |
+| `marketing_events` | Rows with the caller's `user_id` are deleted, including their `campaign`. |
 | `feedback` | Rows with the caller's `user_id` or `user_email` are deleted. |
 | `contest_memberships` | The caller's memberships are deleted. |
 | `contest_join_requests` | Requests the caller made are deleted. |
@@ -38,20 +38,21 @@ Rows other players still need are kept. The caller's name on a surviving round b
 | `contests` | When another account is on a contest the caller owns, `owner_id` moves to that account (lowest user id). |
 | `contest_players` | On a surviving contest, the caller's `name` becomes `Deleted player` and `user_id` becomes null. `scores` and `putts` are not updated. |
 | `score_events` | On a surviving contest, `strokes`, `hole`, and `player_id` stay. `entered_by` moves to the contest owner. `actor` is cleared when it was the caller. |
-| `published_rounds` | `owner_id` moves with the contest when it was the caller. In `snapshot`, the caller's `displayName` becomes `Deleted player`. Score numbers in the snapshot stay. |
-| `round_messages` | `display_name` becomes `Deleted player` when it equals the caller's player name on that contest. The message body stays. |
+| `published_rounds` | `owner_id` moves with the contest when it was the caller. Every published row for that contest is updated, including when a contest has more than one. In each `snapshot`, a `displayName` becomes `Deleted player` when it matches the caller's player name after `trim().slice(0, 80)`, the cut the publisher stores. Score numbers in the snapshot stay. |
+| `round_messages` | `display_name` becomes `Deleted player` when that same cut matches the caller's player name. The message body stays. |
 | `share_links` | Kept when the contest stays. They have no user id. |
 | `contest_join_requests` | `decided_by` is set null when the caller decided someone else's request. |
 | `settlements` | The caller's `from_user_id` or `to_user_id` is set null when the other side is someone else. `scan_id` is set null when it pointed at the caller's scan. `amount_cents` stays. |
 | `revenue_events` | `customer_email` is set null when it matches the profile email. Matching text in `metadata` is replaced. The amount stays. There is no user-id column. |
-| `marketing_events` | Rows that belong to someone else but store the caller's email or `referrer_id` have that value removed. |
+| `profiles` | Another profile whose `referred_by` equals the caller's `referral_code` has `referred_by` set to null. The rest of that profile stays. |
+| `marketing_events` | Rows that belong to someone else but store the caller's email or `referrer_id` have that value removed. `campaign` is set to null when it equals the caller's `referral_code`. The event row stays. |
 | `automation_log` | The caller's email is replaced in `title` and `details`. The log row stays. There is no user-id column. |
 
-A display name is matched exactly to the caller's `contest_players.name` on that contest. Another player on the same round with that same name is relabeled too.
+A published name is `contest_players.name.trim().slice(0, 80)`, which is the string the shared-round publisher writes. Snapshot `displayName` and chat `display_name` are compared after that same cut, so a name with surrounding spaces and a name longer than 80 characters still match. Another player on the same round whose published name is the same is relabeled too.
 
 ## Left alone
 
-`daily_metrics`, `funnel_snapshots`, `content_performance`, `content_insights`, `golfcore_usage`, `golfcore_usage_drift`, `course_catalog`, `course_search_cache`, and `improvement_actions` have no per-user identity to delete. Other people's profiles, scans, scores, and names stay.
+`daily_metrics`, `funnel_snapshots`, `content_performance`, `content_insights`, `golfcore_usage`, `golfcore_usage_drift`, `course_catalog`, `course_search_cache`, and `improvement_actions` have no per-user identity to delete. Other people's profiles, scans, scores, and names stay, except a `referred_by` or `campaign` value that is the caller's referral code.
 
 ## Device
 

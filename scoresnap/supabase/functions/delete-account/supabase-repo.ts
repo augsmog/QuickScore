@@ -1,6 +1,7 @@
 import {
   DELETED_PLAYER,
   anonymizeDisplayNames,
+  matchesCallerName,
   replaceEmailText,
   scrubEmailValue,
   type AccountRepository,
@@ -23,7 +24,7 @@ function ilikeExact(email: string): string {
 export function createSupabaseAccountRepository(admin: Admin): AccountRepository {
   return {
     async getProfile(userId) {
-      const { data, error } = await admin.from("profiles").select("email, display_name").eq("id", userId).maybeSingle();
+      const { data, error } = await admin.from("profiles").select("email, display_name, referral_code").eq("id", userId).maybeSingle();
       fail(error);
       return data ?? null;
     },
@@ -79,20 +80,24 @@ export function createSupabaseAccountRepository(admin: Admin): AccountRepository
       fail(error);
     },
     async anonymizeSnapshots(contestId, names) {
-      const { data, error } = await admin.from("published_rounds").select("snapshot").eq("contest_id", contestId).maybeSingle();
-      fail(error);
-      if (!data) return;
-      const snapshot = anonymizeDisplayNames(data.snapshot, names);
-      const updated = await admin.from("published_rounds").update({ snapshot }).eq("contest_id", contestId);
-      fail(updated.error);
+      const found = await admin.from("published_rounds").select("owner_id, local_id, snapshot").eq("contest_id", contestId);
+      fail(found.error);
+      for (const row of found.data ?? []) {
+        const snapshot = anonymizeDisplayNames(row.snapshot, names);
+        const updated = await admin
+          .from("published_rounds")
+          .update({ snapshot })
+          .eq("contest_id", contestId)
+          .eq("owner_id", row.owner_id)
+          .eq("local_id", row.local_id);
+        fail(updated.error);
+      }
     },
     async anonymizeMessages(contestId, names) {
-      const targets = new Set(names.filter((name) => name && name !== DELETED_PLAYER));
-      if (targets.size === 0) return;
       const { data, error } = await admin.from("round_messages").select("id, display_name").eq("contest_id", contestId);
       fail(error);
       for (const row of data ?? []) {
-        if (!targets.has(row.display_name)) continue;
+        if (!matchesCallerName(row.display_name, names)) continue;
         const updated = await admin.from("round_messages").update({ display_name: DELETED_PLAYER }).eq("id", row.id);
         fail(updated.error);
       }
@@ -208,6 +213,12 @@ export function createSupabaseAccountRepository(admin: Admin): AccountRepository
         }).eq("id", row.id);
         fail(updated.error);
       }
+    },
+    async clearReferralReferences(referralCode) {
+      const profiles = await admin.from("profiles").update({ referred_by: null }).eq("referred_by", referralCode);
+      fail(profiles.error);
+      const campaigns = await admin.from("marketing_events").update({ campaign: null }).eq("campaign", referralCode);
+      fail(campaigns.error);
     },
     async deleteProfile(userId) {
       const { error } = await admin.from("profiles").delete().eq("id", userId);

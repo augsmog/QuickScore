@@ -10,7 +10,7 @@ import {
 } from "../src/stores/persisted-keys.ts";
 import { handleDeleteAccount } from "../supabase/functions/delete-account/handler.ts";
 import { createMemoryAccountRepository, type AccountDb } from "../supabase/functions/delete-account/memory-repo.ts";
-import { DELETED_PLAYER, purgeAccount, replaceEmailText } from "../supabase/functions/delete-account/purge.ts";
+import { DELETED_PLAYER, publishedName, purgeAccount, replaceEmailText } from "../supabase/functions/delete-account/purge.ts";
 import { createSupabaseAccountRepository } from "../supabase/functions/delete-account/supabase-repo.ts";
 
 const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -18,19 +18,25 @@ const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const C = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const emailA = "augie@example.com";
 const emailB = "blair@example.com";
+const codeA = "SS-AUG1";
+const spacedName = " Augie ";
+const longName = "N".repeat(81);
+const publishedLong = "N".repeat(80);
 
 function db(): AccountDb {
   return {
     profiles: [
-      { id: A, email: emailA, display_name: "Augie" },
-      { id: B, email: emailB, display_name: "Blair" },
-      { id: C, email: "casey@example.com", display_name: "Casey" },
+      { id: A, email: emailA, display_name: "Augie", referral_code: codeA, referred_by: null },
+      { id: B, email: emailB, display_name: "Blair", referral_code: "SS-BLAIR", referred_by: codeA },
+      { id: C, email: "casey@example.com", display_name: "Casey", referral_code: "SS-KEEP", referred_by: "SS-OTHER" },
     ],
     contests: [
       { id: "private", owner_id: A },
       { id: "shared", owner_id: A },
       { id: "guests", owner_id: A },
       { id: "hosted", owner_id: B },
+      { id: "spaces", owner_id: A },
+      { id: "long", owner_id: A },
     ],
     contest_players: [
       { id: "p-private", contest_id: "private", user_id: A, name: "Augie Private", scores: [4], putts: [1] },
@@ -40,6 +46,10 @@ function db(): AccountDb {
       { id: "p-guest-sam", contest_id: "guests", user_id: null, name: "Sam", scores: [6] },
       { id: "p-host-b", contest_id: "hosted", user_id: B, name: "Blair Host", scores: [4] },
       { id: "p-host-a", contest_id: "hosted", user_id: A, name: "Augie Guest", scores: [7] },
+      { id: "p-space-a", contest_id: "spaces", user_id: A, name: spacedName, scores: [4] },
+      { id: "p-space-b", contest_id: "spaces", user_id: B, name: "Blair", scores: [3] },
+      { id: "p-long-a", contest_id: "long", user_id: A, name: longName, scores: [5] },
+      { id: "p-long-b", contest_id: "long", user_id: B, name: "Blair Long", scores: [6] },
     ],
     score_events: [
       { id: "e-private", contest_id: "private", player_id: "p-private", hole: 1, strokes: 4, entered_by: A, actor: A },
@@ -77,10 +87,43 @@ function db(): AccountDb {
         },
       },
       { contest_id: "private", owner_id: A, local_id: "local-private", snapshot: { players: [{ displayName: "Augie Private", scores: [4] }] } },
+      {
+        contest_id: "spaces",
+        owner_id: A,
+        local_id: "spaces-1",
+        snapshot: {
+          players: [{ displayName: "Augie", scores: [4] }],
+          games: [{ standings: [{ displayName: "Augie" }] }],
+        },
+      },
+      {
+        contest_id: "spaces",
+        owner_id: A,
+        local_id: "spaces-2",
+        snapshot: {
+          players: [{ displayName: spacedName, scores: [8] }],
+          games: [{ standings: [{ displayName: "Augie" }] }],
+        },
+      },
+      {
+        contest_id: "long",
+        owner_id: A,
+        local_id: "long-1",
+        snapshot: {
+          players: [{ displayName: publishedLong, scores: [5] }],
+          games: [{ standings: [{ displayName: longName }] }],
+        },
+      },
     ],
     round_messages: [
       { id: "m-a", contest_id: "shared", display_name: "Augie", body: "nice shot" },
       { id: "m-b", contest_id: "shared", display_name: "Blair", body: "thanks" },
+      { id: "m-space-raw", contest_id: "spaces", display_name: spacedName, body: "padded" },
+      { id: "m-space-pub", contest_id: "spaces", display_name: "Augie", body: "trimmed" },
+      { id: "m-space-blair", contest_id: "spaces", display_name: "Blair", body: "still here" },
+      { id: "m-long", contest_id: "long", display_name: publishedLong, body: "long name" },
+      { id: "m-long-raw", contest_id: "long", display_name: longName, body: "raw long" },
+      { id: "m-long-short", contest_id: "long", display_name: "N".repeat(79), body: "shorter" },
     ],
     share_links: [
       { token_hash: "shared-link", contest_id: "shared" },
@@ -92,10 +135,10 @@ function db(): AccountDb {
       { id: "scan-c", user_id: C },
     ],
     marketing_events: [
-      { id: "mk-a", user_id: A, properties: { email: emailA } },
-      { id: "mk-b", user_id: B, properties: { email: emailA, referrer_id: A, note: "referred by augie@example.com" } },
-      { id: "mk-c", user_id: C, properties: { email: "casey@example.com" } },
-      { id: "mk-longer", user_id: B, properties: { email: "naugie@example.com" } },
+      { id: "mk-a", user_id: A, campaign: codeA, properties: { email: emailA } },
+      { id: "mk-b", user_id: B, campaign: codeA, properties: { email: emailA, referrer_id: A, note: "referred by augie@example.com" } },
+      { id: "mk-c", user_id: C, campaign: "SS-KEEP", properties: { email: "casey@example.com" } },
+      { id: "mk-longer", user_id: B, campaign: null, properties: { email: "naugie@example.com" } },
     ],
     feedback: [
       { id: "f-a", user_id: A, user_email: emailA, raw_text: "secret" },
@@ -132,18 +175,27 @@ async function purgeScenario() {
   assert.equal(replaceEmailText(emailA, emailA), "[deleted]");
   assert.equal(replaceEmailText(`Hello ${emailA}!`, emailA), "Hello [deleted]!");
   assert.equal(replaceEmailText("naugie@example.com", emailA), "naugie@example.com");
+  assert.equal(publishedName(spacedName), "Augie");
+  assert.equal(publishedName(longName), publishedLong);
+  assert.equal(publishedLong.length, 80);
 
   const state = db();
   await purgeAccount(createMemoryAccountRepository(state), A);
 
   assert.equal(state.profiles.find((row) => row.id === A), undefined);
   assert.equal(state.profiles.find((row) => row.id === B)?.email, emailB);
+  assert.equal(state.profiles.find((row) => row.id === B)?.referral_code, "SS-BLAIR");
+  assert.equal(state.profiles.find((row) => row.id === B)?.referred_by, null);
   assert.equal(state.profiles.find((row) => row.id === C)?.display_name, "Casey");
+  assert.equal(state.profiles.find((row) => row.id === C)?.referred_by, "SS-OTHER");
+  assert.equal(state.profiles.find((row) => row.id === C)?.referral_code, "SS-KEEP");
 
   assert.equal(state.contests.find((row) => row.id === "private"), undefined);
   assert.equal(state.contests.find((row) => row.id === "guests"), undefined);
   assert.equal(state.contests.find((row) => row.id === "shared")?.owner_id, B);
   assert.equal(state.contests.find((row) => row.id === "hosted")?.owner_id, B);
+  assert.equal(state.contests.find((row) => row.id === "spaces")?.owner_id, B);
+  assert.equal(state.contests.find((row) => row.id === "long")?.owner_id, B);
 
   const sharedA = state.contest_players.find((row) => row.id === "p-shared-a");
   assert.equal(sharedA?.name, DELETED_PLAYER);
@@ -192,14 +244,46 @@ async function purgeScenario() {
   assert.equal(state.round_messages.find((row) => row.id === "m-a")?.display_name, DELETED_PLAYER);
   assert.equal(state.round_messages.find((row) => row.id === "m-a")?.body, "nice shot");
   assert.equal(state.round_messages.find((row) => row.id === "m-b")?.display_name, "Blair");
+
+  const spaceRounds = state.published_rounds.filter((row) => row.contest_id === "spaces");
+  assert.equal(spaceRounds.length, 2);
+  for (const row of spaceRounds) {
+    assert.equal(row.owner_id, B);
+    const spaceSnapshot = row.snapshot as { players: { displayName: string; scores: number[] }[]; games: { standings: { displayName: string }[] }[] };
+    assert.equal(spaceSnapshot.players[0].displayName, DELETED_PLAYER);
+    assert.equal(spaceSnapshot.games[0].standings[0].displayName, DELETED_PLAYER);
+  }
+  assert.deepEqual((spaceRounds.find((row) => row.local_id === "spaces-1")?.snapshot as { players: { scores: number[] }[] }).players[0].scores, [4]);
+  assert.deepEqual((spaceRounds.find((row) => row.local_id === "spaces-2")?.snapshot as { players: { scores: number[] }[] }).players[0].scores, [8]);
+  assert.equal(state.contest_players.find((row) => row.id === "p-space-a")?.name, DELETED_PLAYER);
+  assert.equal(state.contest_players.find((row) => row.id === "p-space-b")?.name, "Blair");
+  assert.equal(state.round_messages.find((row) => row.id === "m-space-raw")?.display_name, DELETED_PLAYER);
+  assert.equal(state.round_messages.find((row) => row.id === "m-space-raw")?.body, "padded");
+  assert.equal(state.round_messages.find((row) => row.id === "m-space-pub")?.display_name, DELETED_PLAYER);
+  assert.equal(state.round_messages.find((row) => row.id === "m-space-blair")?.display_name, "Blair");
+
+  const longRound = state.published_rounds.find((row) => row.contest_id === "long");
+  const longSnapshot = longRound?.snapshot as { players: { displayName: string; scores: number[] }[]; games: { standings: { displayName: string }[] }[] };
+  assert.equal(longRound?.owner_id, B);
+  assert.equal(longSnapshot.players[0].displayName, DELETED_PLAYER);
+  assert.deepEqual(longSnapshot.players[0].scores, [5]);
+  assert.equal(longSnapshot.games[0].standings[0].displayName, DELETED_PLAYER);
+  assert.equal(state.contest_players.find((row) => row.id === "p-long-a")?.name, DELETED_PLAYER);
+  assert.deepEqual(state.contest_players.find((row) => row.id === "p-long-a")?.scores, [5]);
+  assert.equal(state.contest_players.find((row) => row.id === "p-long-b")?.name, "Blair Long");
+  assert.equal(state.round_messages.find((row) => row.id === "m-long")?.display_name, DELETED_PLAYER);
+  assert.equal(state.round_messages.find((row) => row.id === "m-long-raw")?.display_name, DELETED_PLAYER);
+  assert.equal(state.round_messages.find((row) => row.id === "m-long-short")?.display_name, "N".repeat(79));
   assert.deepEqual(state.share_links.map((row) => row.token_hash), ["shared-link"]);
 
   assert.deepEqual(state.scans.map((row) => row.id).sort(), ["scan-b", "scan-c"]);
   assert.equal(state.marketing_events.find((row) => row.id === "mk-a"), undefined);
+  assert.equal(state.marketing_events.find((row) => row.id === "mk-b")?.campaign, null);
   assert.equal(state.marketing_events.find((row) => row.id === "mk-b")?.properties.email, "[deleted]");
   assert.equal(state.marketing_events.find((row) => row.id === "mk-b")?.properties.referrer_id, null);
   assert.equal(state.marketing_events.find((row) => row.id === "mk-b")?.properties.note, "referred by [deleted]");
   assert.equal(state.marketing_events.find((row) => row.id === "mk-longer")?.properties.email, "naugie@example.com");
+  assert.equal(state.marketing_events.find((row) => row.id === "mk-c")?.campaign, "SS-KEEP");
   assert.equal(state.marketing_events.find((row) => row.id === "mk-c")?.properties.email, "casey@example.com");
   assert.equal(state.feedback.find((row) => row.id === "f-b")?.raw_text, "fine");
   assert.equal(state.feedback.some((row) => row.id !== "f-b"), false);
@@ -225,6 +309,10 @@ async function purgeScenario() {
   assert.equal(containsAddress(dumped, emailA), false);
   assert.equal(containsAddress(dumped, "Augie@Example.com"), false);
   assert.equal(dumped.includes("naugie@example.com"), true);
+  assert.equal(dumped.includes(codeA), false);
+  assert.equal(dumped.includes("SS-BLAIR"), true);
+  assert.equal(dumped.includes("SS-KEEP"), true);
+  assert.equal(dumped.includes("SS-OTHER"), true);
   for (const row of state.contest_players) assert.notEqual(row.user_id, A);
   for (const row of state.score_events) {
     assert.notEqual(row.entered_by, A);
@@ -384,13 +472,13 @@ async function localScenario() {
 }
 
 function recordingAdmin() {
-  const ops: { table: string; op: string; patch: unknown }[] = [];
+  const ops: { table: string; op: string; patch: unknown; filters: [string, unknown][] }[] = [];
   const admin = {
     from(table: string) {
-      const state = { table, op: "select", patch: null as unknown };
+      const state = { table, op: "select", patch: null as unknown, filters: [] as [string, unknown][] };
       const api: any = {
         select() { return api; },
-        eq() { return api; },
+        eq(column: string, value: unknown) { state.filters.push([column, value]); return api; },
         in() { return api; },
         is() { return api; },
         ilike() { return api; },
@@ -398,8 +486,8 @@ function recordingAdmin() {
         filter() { return api; },
         update(patch: unknown) { state.op = "update"; state.patch = patch; return api; },
         delete() { state.op = "delete"; return api; },
-        maybeSingle() { ops.push({ ...state }); return Promise.resolve({ data: null, error: null }); },
-        then(resolve: (value: unknown) => void) { ops.push({ ...state }); resolve({ data: [], error: null }); },
+        maybeSingle() { ops.push({ table: state.table, op: state.op, patch: state.patch, filters: [...state.filters] }); return Promise.resolve({ data: null, error: null }); },
+        then(resolve: (value: unknown) => void) { ops.push({ table: state.table, op: state.op, patch: state.patch, filters: [...state.filters] }); resolve({ data: [], error: null }); },
       };
       return api;
     },
@@ -423,6 +511,54 @@ async function supabaseShapeScenario() {
   await repo.deleteContest("contest-1");
   assert.equal(ops.some((op) => op.table === "contests" && op.op === "delete"), true);
   assert.equal(ops.some((op) => op.table === "contest_groups" || op.table === "hole_scores"), false);
+
+  await repo.clearReferralReferences(codeA);
+  const referralWrites = ops.filter((op) => op.op === "update" && (op.table === "profiles" || op.table === "marketing_events"));
+  assert.deepEqual(referralWrites.map((op) => ({ table: op.table, patch: op.patch, filters: op.filters })), [
+    { table: "profiles", patch: { referred_by: null }, filters: [["referred_by", codeA]] },
+    { table: "marketing_events", patch: { campaign: null }, filters: [["campaign", codeA]] },
+  ]);
+
+  const rounds = [
+    { contest_id: "spaces", owner_id: A, local_id: "spaces-1", snapshot: { players: [{ displayName: "Augie", scores: [4] }] } },
+    { contest_id: "spaces", owner_id: A, local_id: "spaces-2", snapshot: { players: [{ displayName: spacedName, scores: [8] }] } },
+  ];
+  const multi = createSupabaseAccountRepository({
+    from(table: string) {
+      const filters: Record<string, unknown> = {};
+      let patch: { snapshot?: unknown } | null = null;
+      const api: any = {
+        select() { return api; },
+        eq(column: string, value: unknown) { filters[column] = value; return api; },
+        update(next: { snapshot?: unknown }) { patch = next; return api; },
+        then(resolve: (value: unknown) => void) {
+          if (patch) {
+            for (const row of rounds) {
+              if (row.contest_id === filters.contest_id && row.owner_id === filters.owner_id && row.local_id === filters.local_id) {
+                row.snapshot = patch.snapshot as typeof row.snapshot;
+              }
+            }
+            resolve({ data: null, error: null });
+            return;
+          }
+          resolve({
+            data: rounds.filter((row) => row.contest_id === filters.contest_id).map((row) => ({ ...row })),
+            error: null,
+          });
+        },
+      };
+      return api;
+    },
+  });
+  await multi.anonymizeSnapshots("spaces", [spacedName]);
+  assert.equal((rounds[0].snapshot as { players: { displayName: string; scores: number[] }[] }).players[0].displayName, DELETED_PLAYER);
+  assert.deepEqual((rounds[0].snapshot as { players: { scores: number[] }[] }).players[0].scores, [4]);
+  assert.equal((rounds[1].snapshot as { players: { displayName: string; scores: number[] }[] }).players[0].displayName, DELETED_PLAYER);
+  assert.deepEqual((rounds[1].snapshot as { players: { scores: number[] }[] }).players[0].scores, [8]);
+
+  const snapshots = fs.readFileSync("supabase/functions/delete-account/supabase-repo.ts", "utf8");
+  const body = snapshots.slice(snapshots.indexOf("async anonymizeSnapshots"), snapshots.indexOf("async anonymizeMessages"));
+  assert.equal(body.includes("maybeSingle"), false);
 }
 
 async function main() {

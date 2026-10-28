@@ -9,7 +9,7 @@ export interface ContestPlayerRow {
 }
 
 export interface AccountRepository {
-  getProfile(userId: string): Promise<{ email: string | null; display_name: string | null } | null>;
+  getProfile(userId: string): Promise<{ email: string | null; display_name: string | null; referral_code: string | null } | null>;
   contestIdsFor(userId: string): Promise<string[]>;
   getContestOwner(contestId: string): Promise<string | null>;
   listPlayers(contestId: string): Promise<ContestPlayerRow[]>;
@@ -32,11 +32,33 @@ export interface AccountRepository {
   deleteFeedback(userId: string, email: string | null): Promise<void>;
   anonymizeRevenue(email: string): Promise<void>;
   scrubAutomation(email: string): Promise<void>;
+  /** Null other profiles.referred_by and marketing_events.campaign that store this referral code. */
+  clearReferralReferences(referralCode: string): Promise<void>;
   deleteProfile(userId: string): Promise<void>;
 }
 
+/** The shared-round publisher stores player names as trim().slice(0, 80). */
+export function publishedName(name: string): string {
+  return name.trim().slice(0, 80);
+}
+
+function publishedTargets(names: readonly string[]): Set<string> {
+  const targets = new Set<string>();
+  for (const name of names) {
+    const published = publishedName(name);
+    if (published && published !== DELETED_PLAYER) targets.add(published);
+  }
+  return targets;
+}
+
+/** True when the stored label and a caller name are the same after the publisher's cut. */
+export function matchesCallerName(stored: string, names: readonly string[]): boolean {
+  const published = publishedName(stored);
+  return published.length > 0 && published !== DELETED_PLAYER && publishedTargets(names).has(published);
+}
+
 export function anonymizeDisplayNames(snapshot: unknown, names: readonly string[]): unknown {
-  const targets = new Set(names.filter((name) => name && name !== DELETED_PLAYER));
+  const targets = publishedTargets(names);
   if (targets.size === 0 || snapshot == null) return snapshot;
   const copy = structuredClone(snapshot);
   const walk = (node: unknown) => {
@@ -46,7 +68,7 @@ export function anonymizeDisplayNames(snapshot: unknown, names: readonly string[
     }
     if (!node || typeof node !== "object") return;
     const record = node as Record<string, unknown>;
-    if (typeof record.displayName === "string" && targets.has(record.displayName)) {
+    if (typeof record.displayName === "string" && targets.has(publishedName(record.displayName))) {
       record.displayName = DELETED_PLAYER;
     }
     for (const value of Object.values(record)) walk(value);
@@ -90,6 +112,7 @@ export function scrubEmailValue(value: unknown, email: string, userId: string): 
 export async function purgeAccount(repo: AccountRepository, userId: string): Promise<void> {
   const profile = await repo.getProfile(userId);
   const email = profile?.email ?? null;
+  const referralCode = profile?.referral_code || null;
   const contestIds = await repo.contestIdsFor(userId);
   for (const contestId of contestIds) {
     const ownerId = await repo.getContestOwner(contestId);
@@ -132,5 +155,6 @@ export async function purgeAccount(repo: AccountRepository, userId: string): Pro
     await repo.anonymizeRevenue(email);
     await repo.scrubAutomation(email);
   }
+  if (referralCode) await repo.clearReferralReferences(referralCode);
   await repo.deleteProfile(userId);
 }

@@ -1,6 +1,7 @@
 import {
   DELETED_PLAYER,
   anonymizeDisplayNames,
+  matchesCallerName,
   replaceEmailText,
   scrubEmailValue,
   type AccountRepository,
@@ -8,7 +9,7 @@ import {
 } from "./purge.ts";
 
 export interface AccountDb {
-  profiles: { id: string; email: string | null; display_name: string | null }[];
+  profiles: { id: string; email: string | null; display_name: string | null; referral_code: string | null; referred_by: string | null }[];
   contests: { id: string; owner_id: string }[];
   contest_players: (ContestPlayerRow & { putts?: number[] })[];
   score_events: { id: string; contest_id: string; player_id: string; hole: number; strokes: number | null; entered_by: string; actor: string | null }[];
@@ -19,7 +20,7 @@ export interface AccountDb {
   round_messages: { id: string; contest_id: string; display_name: string; body: string }[];
   share_links: { token_hash: string; contest_id: string }[];
   scans: { id: string; user_id: string | null }[];
-  marketing_events: { id: string; user_id: string | null; properties: Record<string, unknown> }[];
+  marketing_events: { id: string; user_id: string | null; campaign: string | null; properties: Record<string, unknown> }[];
   feedback: { id: string; user_id: string | null; user_email: string | null; raw_text: string }[];
   settlements: { id: string; from_user_id: string | null; to_user_id: string | null; scan_id: string | null; amount_cents: number }[];
   revenue_events: { id: string; customer_email: string | null; amount_cents: number; metadata: Record<string, unknown> }[];
@@ -35,7 +36,7 @@ export function createMemoryAccountRepository(db: AccountDb): AccountRepository 
   return {
     async getProfile(userId) {
       const row = db.profiles.find((profile) => profile.id === userId);
-      return row ? { email: row.email, display_name: row.display_name } : null;
+      return row ? { email: row.email, display_name: row.display_name, referral_code: row.referral_code } : null;
     },
     async contestIdsFor(userId) {
       const ids = new Set<string>();
@@ -81,9 +82,10 @@ export function createMemoryAccountRepository(db: AccountDb): AccountRepository 
       }
     },
     async anonymizeMessages(contestId, names) {
-      const targets = new Set(names);
       for (const message of db.round_messages) {
-        if (message.contest_id === contestId && targets.has(message.display_name)) message.display_name = DELETED_PLAYER;
+        if (message.contest_id === contestId && matchesCallerName(message.display_name, names)) {
+          message.display_name = DELETED_PLAYER;
+        }
       }
     },
     async anonymizePlayer(playerId) {
@@ -160,6 +162,14 @@ export function createMemoryAccountRepository(db: AccountDb): AccountRepository 
       for (const row of db.automation_log) {
         row.title = replaceEmailText(row.title, email);
         if (row.details) row.details = replaceEmailText(row.details, email);
+      }
+    },
+    async clearReferralReferences(referralCode) {
+      for (const profile of db.profiles) {
+        if (profile.referred_by === referralCode) profile.referred_by = null;
+      }
+      for (const event of db.marketing_events) {
+        if (event.campaign === referralCode) event.campaign = null;
       }
     },
     async deleteProfile(userId) {
