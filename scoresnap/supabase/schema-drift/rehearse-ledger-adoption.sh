@@ -30,7 +30,7 @@ psql 'postgresql://supabase_admin:postgres@127.0.0.1:54322/live_rehearsal' -X -v
 psql "$url" -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261027000000_live_baseline.sql
 python3 - "$here/expected-ledger.json" > "$work/ledger.sql" <<'PY'
 import json,sys
-for m in json.load(open(sys.argv[1]))[:-3]:
+for m in json.load(open(sys.argv[1]))[:-4]:
     print("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('%s','%s');" % (m['version'],m['name']))
 PY
 psql "$url" -X -v ON_ERROR_STOP=1 -f "$work/ledger.sql"
@@ -44,7 +44,7 @@ python3 - "$work/before.log" <<'PY'
 import pathlib,re,sys
 s=pathlib.Path(sys.argv[1]).read_text()
 files=re.findall(r'\b\d{14}_[A-Za-z0-9_]+\.sql\b',s)
-assert files == ['20261027000000_live_baseline.sql','20261027120000_sync_foundation.sql','20261027130000_guest_write_guard.sql','20261028100000_tournament_rounds_live.sql'], ('Unexpected pending migrations',s)
+assert files == ['20261027000000_live_baseline.sql','20261027120000_sync_foundation.sql','20261027130000_guest_write_guard.sql','20261028162155_tournament_rounds_live.sql'], ('Unexpected pending migrations',s)
 PY
 supabase migration repair 20261027000000 --status applied --db-url "$url"
 supabase migration list --db-url "$url"
@@ -52,7 +52,7 @@ supabase db push --dry-run --db-url "$url" 2>&1 | tee "$work/after.log"
 python3 - "$work/after.log" <<'PY'
 import pathlib,re,sys
 s=pathlib.Path(sys.argv[1]).read_text()
-assert re.findall(r'\b\d{14}_[A-Za-z0-9_]+\.sql\b',s)==['20261027120000_sync_foundation.sql','20261027130000_guest_write_guard.sql','20261028100000_tournament_rounds_live.sql'],s
+assert re.findall(r'\b\d{14}_[A-Za-z0-9_]+\.sql\b',s)==['20261027120000_sync_foundation.sql','20261027130000_guest_write_guard.sql','20261028162155_tournament_rounds_live.sql'],s
 PY
 psql "$url" -X -At -v ON_ERROR_STOP=1 -f "$here/catalog-query.sql" > "$work/after.json"
 python3 "$here/drift.py" compare "$here/../schema-snapshot/baseline.json" "$work/after.json"

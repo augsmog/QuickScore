@@ -38,5 +38,9 @@
   {
     "name": "guest_write_guard",
     "version": "20261027130000"
+  },
+  {
+    "name": "tournament_rounds_live",
+    "version": "20261028162155"
   }
 ]

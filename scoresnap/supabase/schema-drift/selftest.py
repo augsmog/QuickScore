@@ -56,7 +56,8 @@ check('archived 001–008 shape',old_shape)
 # The fixture is explicit: the guard must not accept an arbitrary baseline.
 applied = load(HERE/'expected-ledger.json')
 assert applied == load(HERE/'fixtures/live-applied-ledger.json')
-adopted = applied[:-2]
+assert len(applied) == 11 and applied[-1] == {'name':'tournament_rounds_live','version':'20261028162155'}
+adopted = applied[:-3]
 assert adopted == load(HERE/'fixtures/live-adopted-ledger.json')
 for mode, entries in [('live', applied), ('baseline', adopted), ('pre-adoption', adopted[:-1]),
                       ('local', adopted + [{'version':'20261027120000','name':'sync_foundation'},
@@ -76,10 +77,12 @@ bad_ledgers = {
     'seven pre-adoption': adopted[:-1],
     'nine M2 applied': adopted + [{'version':'20261027120000','name':'sync_foundation'}],
     'eight adopted': adopted,
-    'eleven extra': applied + [{'version':'99999999999999','name':'unexpected'}],
-    'ten renamed': applied[:-1] + [dict(applied[-1], name='renamed')],
-    'ten reordered': applied[:-2] + applied[-2:][::-1],
-    'ten duplicate': applied[:-1] + [applied[-2]],
+    'ten M2b applied': applied[:-1],
+    'eleven old stamp': applied[:-1] + [{'version':'20261028100000','name':'tournament_rounds_live'}],
+    'twelve extra': applied + [{'version':'99999999999999','name':'unexpected'}],
+    'eleven renamed': applied[:-1] + [dict(applied[-1], name='renamed')],
+    'eleven reordered': applied[:-2] + applied[-2:][::-1],
+    'eleven duplicate': applied[:-1] + [applied[-2]],
     'missing': adopted[:2] + adopted[3:],
     'reordered': [adopted[1], adopted[0]] + adopted[2:],
     'duplicate': adopted[:-1] + [adopted[0]],
@@ -90,16 +93,16 @@ bad_ledgers = {
 }
 with tempfile.TemporaryDirectory() as d:
     p = pathlib.Path(d) / 'capture.json'
-    for name, entries in [('applied ten', applied), *bad_ledgers.items()]:
+    for name, entries in [('applied eleven', applied), *bad_ledgers.items()]:
         capture = copy.deepcopy(snapshot)
         capture['migrations'] = entries
         p.write_text(json.dumps(capture))
         guard = subprocess.run(['bash', str(HERE/'preapply-check.sh'), str(p)], capture_output=True, text=True)
-        if name == 'applied ten':
+        if name == 'applied eleven':
             assert guard.returncode == 0, guard
             assert guard.stdout.splitlines() == [
                 'Schema matches', 'Ledger matches: live', 'Guard passed.',
-                'Next: M3 requires separate approval; no approved apply is pending.'], guard
+                'Next: M3 was applied on 2026-10-28; no approved apply is pending.'], guard
         else:
             assert guard.returncode == 1 and 'live ledger mismatch' in guard.stderr, (name, guard)
             assert 'Guard passed.' not in guard.stdout and 'Next:' not in guard.stdout, (name, guard)

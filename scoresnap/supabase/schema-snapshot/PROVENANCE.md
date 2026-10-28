@@ -1,6 +1,18 @@
 # Snapshot provenance
 
-## Current single-capture snapshot — 2026-10-27 02:20 MST
+## Current snapshot — post-M3, 2026-10-28
+
+M3 (`20261028162155_tournament_rounds_live`) was applied live on 2026-10-28
+at 9:21 AM PT. Supabase recorded version `20261028162155`.
+`live.json` is the post-M3 schema. This refresh ran
+`python3 scoresnap/supabase/schema-drift/drift.py normalize` on
+`schema-snapshot/expected-m3.json` and wrote that output over `live.json`.
+The two files are byte-for-byte equal. No live Supabase query was used.
+The eleven-row live ledger ends with version `20261028162155`, name
+`tournament_rounds_live`. `baseline.json` remains the pre-M2 physical schema.
+`expected-after.json` remains the post-M2b schema.
+
+## Historical post-M2b snapshot — 2026-10-27 02:20 MST
 
 Augie-approved live apply of M2 (`20261027120000_sync_foundation`) and M2b
 (`20261027130000_guest_write_guard`) completed on project `pltgbizexllikiwryozm`
