@@ -1,0 +1,7137 @@
+{
+ "taken_at": "2026-10-27T00:45:19.477651+00:00",
+ "server_version": "17.6",
+ "regclass_checks": {
+  "contest_groups": null,
+  "hole_scores": null,
+  "contest_rounds": null,
+  "contest_games": null
+ },
+ "columns": [
+  {
+   "table": "automation_log",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "automation_log",
+   "col": "title",
+   "pos": 2,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "automation_log",
+   "col": "category",
+   "pos": 3,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "automation_log",
+   "col": "details",
+   "pos": 4,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "automation_log",
+   "col": "source",
+   "pos": 5,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "automation_log",
+   "col": "read",
+   "pos": 6,
+   "type": "boolean",
+   "udt": "bool",
+   "nullable": "YES",
+   "default": "false"
+  },
+  {
+   "table": "automation_log",
+   "col": "created_at",
+   "pos": 7,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "channel_effectiveness",
+   "col": "source",
+   "pos": 1,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "channel_effectiveness",
+   "col": "total_signups",
+   "pos": 2,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "channel_effectiveness",
+   "col": "premium_conversions",
+   "pos": 3,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "channel_effectiveness",
+   "col": "premium_conversion_rate",
+   "pos": 4,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_insights",
+   "col": "platform",
+   "pos": 1,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_insights",
+   "col": "content_type",
+   "pos": 2,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_insights",
+   "col": "total_posts",
+   "pos": 3,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_insights",
+   "col": "avg_engagement_pct",
+   "pos": 4,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_insights",
+   "col": "avg_ctr_pct",
+   "pos": 5,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_insights",
+   "col": "total_installs",
+   "pos": 6,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_insights",
+   "col": "optimal_hour",
+   "pos": 7,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_performance",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "content_performance",
+   "col": "notion_page_id",
+   "pos": 2,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_performance",
+   "col": "title",
+   "pos": 3,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "content_performance",
+   "col": "platform",
+   "pos": 4,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_performance",
+   "col": "published_at",
+   "pos": 5,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_performance",
+   "col": "content_type",
+   "pos": 6,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_performance",
+   "col": "impressions",
+   "pos": 7,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "content_performance",
+   "col": "engagements",
+   "pos": 8,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "content_performance",
+   "col": "clicks",
+   "pos": 9,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "content_performance",
+   "col": "installs_attributed",
+   "pos": 10,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "content_performance",
+   "col": "engagement_rate",
+   "pos": 11,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "content_performance",
+   "col": "click_through_rate",
+   "pos": 12,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "content_performance",
+   "col": "install_rate",
+   "pos": 13,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "content_performance",
+   "col": "best_posting_hour",
+   "pos": 14,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_performance",
+   "col": "tags",
+   "pos": 15,
+   "type": "ARRAY",
+   "udt": "_text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "content_performance",
+   "col": "created_at",
+   "pos": 16,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "content_performance",
+   "col": "updated_at",
+   "pos": 17,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "contest_players",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "contest_players",
+   "col": "contest_id",
+   "pos": 2,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "contest_players",
+   "col": "user_id",
+   "pos": 3,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "contest_players",
+   "col": "group_id",
+   "pos": 4,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": "'group-1'::text"
+  },
+  {
+   "table": "contest_players",
+   "col": "name",
+   "pos": 5,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "contest_players",
+   "col": "handicap",
+   "pos": 6,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "contest_players",
+   "col": "team",
+   "pos": 7,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "contest_players",
+   "col": "scores",
+   "pos": 8,
+   "type": "ARRAY",
+   "udt": "_int4",
+   "nullable": "YES",
+   "default": "ARRAY[]::integer[]"
+  },
+  {
+   "table": "contest_players",
+   "col": "putts",
+   "pos": 9,
+   "type": "ARRAY",
+   "udt": "_int4",
+   "nullable": "YES",
+   "default": "ARRAY[]::integer[]"
+  },
+  {
+   "table": "contest_players",
+   "col": "joined_at",
+   "pos": 10,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "contests",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "contests",
+   "col": "owner_id",
+   "pos": 2,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "contests",
+   "col": "name",
+   "pos": 3,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": "''::text"
+  },
+  {
+   "table": "contests",
+   "col": "course",
+   "pos": 4,
+   "type": "jsonb",
+   "udt": "jsonb",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "contests",
+   "col": "status",
+   "pos": 5,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": "'active'::text"
+  },
+  {
+   "table": "contests",
+   "col": "bet_unit",
+   "pos": 6,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "NO",
+   "default": "1"
+  },
+  {
+   "table": "contests",
+   "col": "has_teams",
+   "pos": 7,
+   "type": "boolean",
+   "udt": "bool",
+   "nullable": "YES",
+   "default": "false"
+  },
+  {
+   "table": "contests",
+   "col": "team_a_name",
+   "pos": 8,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "contests",
+   "col": "team_b_name",
+   "pos": 9,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "contests",
+   "col": "games",
+   "pos": 10,
+   "type": "ARRAY",
+   "udt": "_text",
+   "nullable": "NO",
+   "default": "'{}'::text[]"
+  },
+  {
+   "table": "contests",
+   "col": "game_config",
+   "pos": 11,
+   "type": "jsonb",
+   "udt": "jsonb",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "contests",
+   "col": "auxiliary_data",
+   "pos": 12,
+   "type": "jsonb",
+   "udt": "jsonb",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "contests",
+   "col": "invite_code",
+   "pos": 13,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "contests",
+   "col": "current_hole",
+   "pos": 14,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "1"
+  },
+  {
+   "table": "contests",
+   "col": "created_at",
+   "pos": 15,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "contests",
+   "col": "updated_at",
+   "pos": 16,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "course_catalog",
+   "col": "slug",
+   "pos": 1,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "course_catalog",
+   "col": "source",
+   "pos": 2,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": "'golfcore'::text"
+  },
+  {
+   "table": "course_catalog",
+   "col": "fetched_at",
+   "pos": 3,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "NO",
+   "default": "now()"
+  },
+  {
+   "table": "course_catalog",
+   "col": "payload",
+   "pos": 4,
+   "type": "jsonb",
+   "udt": "jsonb",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "course_search_cache",
+   "col": "query",
+   "pos": 1,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "course_search_cache",
+   "col": "fetched_at",
+   "pos": 2,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "NO",
+   "default": "now()"
+  },
+  {
+   "table": "course_search_cache",
+   "col": "payload",
+   "pos": 3,
+   "type": "jsonb",
+   "udt": "jsonb",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "daily_metrics",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "date",
+   "pos": 2,
+   "type": "date",
+   "udt": "date",
+   "nullable": "NO",
+   "default": "CURRENT_DATE"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "total_users",
+   "pos": 3,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "new_users",
+   "pos": 4,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "dau",
+   "pos": 5,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "mau",
+   "pos": 6,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "dau_mau_ratio",
+   "pos": 7,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "total_scans",
+   "pos": 8,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "total_settlements",
+   "pos": 9,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "revenue_cents",
+   "pos": 10,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "k_factor",
+   "pos": 11,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "d7_retention",
+   "pos": 12,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "d30_retention",
+   "pos": 13,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "daily_metrics",
+   "col": "created_at",
+   "pos": 14,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "feedback",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "feedback",
+   "col": "source",
+   "pos": 2,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "feedback",
+   "col": "source_id",
+   "pos": 3,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback",
+   "col": "user_id",
+   "pos": 4,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback",
+   "col": "user_email",
+   "pos": 5,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback",
+   "col": "sentiment",
+   "pos": 6,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback",
+   "col": "category",
+   "pos": 7,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback",
+   "col": "subcategory",
+   "pos": 8,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback",
+   "col": "raw_text",
+   "pos": 9,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "feedback",
+   "col": "summary",
+   "pos": 10,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback",
+   "col": "actionable",
+   "pos": 11,
+   "type": "boolean",
+   "udt": "bool",
+   "nullable": "YES",
+   "default": "false"
+  },
+  {
+   "table": "feedback",
+   "col": "action_taken",
+   "pos": 12,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback",
+   "col": "linear_issue_id",
+   "pos": 13,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback",
+   "col": "priority",
+   "pos": 14,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "3"
+  },
+  {
+   "table": "feedback",
+   "col": "created_at",
+   "pos": 15,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "feedback_themes",
+   "col": "category",
+   "pos": 1,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback_themes",
+   "col": "subcategory",
+   "pos": 2,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback_themes",
+   "col": "sentiment",
+   "pos": 3,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback_themes",
+   "col": "mention_count",
+   "pos": 4,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback_themes",
+   "col": "mentions_7d",
+   "pos": 5,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback_themes",
+   "col": "mentions_24h",
+   "pos": 6,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback_themes",
+   "col": "unactioned",
+   "pos": 7,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "feedback_themes",
+   "col": "negative_pct",
+   "pos": 8,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_health",
+   "col": "signup_rate_pct",
+   "pos": 1,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_health",
+   "col": "activation_rate_pct",
+   "pos": 2,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_health",
+   "col": "settlement_rate_pct",
+   "pos": 3,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_health",
+   "col": "retention_rate_pct",
+   "pos": 4,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_health",
+   "col": "invite_rate_pct",
+   "pos": 5,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_health",
+   "col": "premium_rate_pct",
+   "pos": 6,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_health",
+   "col": "avg_ttfs_sec",
+   "pos": 7,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_health",
+   "col": "activation_wow_delta",
+   "pos": 8,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_health",
+   "col": "settlement_wow_delta",
+   "pos": 9,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_health",
+   "col": "invite_wow_delta",
+   "pos": 10,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "date",
+   "pos": 2,
+   "type": "date",
+   "udt": "date",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "app_store_impressions",
+   "pos": 3,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "app_store_page_views",
+   "pos": 4,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "downloads",
+   "pos": 5,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "signups",
+   "pos": 6,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "completed_onboarding",
+   "pos": 7,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "first_scan_started",
+   "pos": 8,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "first_scan_completed",
+   "pos": 9,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "first_game_selected",
+   "pos": 10,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "first_settlement_sent",
+   "pos": 11,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "second_scan_within_7d",
+   "pos": 12,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "invited_friend",
+   "pos": 13,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "shared_results_card",
+   "pos": 14,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "viewed_premium",
+   "pos": 15,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "started_trial",
+   "pos": 16,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "converted_premium",
+   "pos": 17,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "avg_time_to_first_scan_sec",
+   "pos": 18,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "avg_time_to_first_settlement_sec",
+   "pos": 19,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "avg_onboarding_duration_sec",
+   "pos": 20,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "funnel_snapshots",
+   "col": "created_at",
+   "pos": 21,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "golfcore_usage",
+   "col": "id",
+   "pos": 1,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage",
+   "col": "called_at",
+   "pos": 2,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "NO",
+   "default": "now()"
+  },
+  {
+   "table": "golfcore_usage",
+   "col": "month",
+   "pos": 3,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage",
+   "col": "endpoint",
+   "pos": 4,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage",
+   "col": "status",
+   "pos": 5,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage",
+   "col": "is_quota_error",
+   "pos": 6,
+   "type": "boolean",
+   "udt": "bool",
+   "nullable": "NO",
+   "default": "false"
+  },
+  {
+   "table": "golfcore_usage",
+   "col": "ratelimit_limit",
+   "pos": 7,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage",
+   "col": "ratelimit_remaining",
+   "pos": 8,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage",
+   "col": "ratelimit_reset",
+   "pos": 9,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage",
+   "col": "retry_after",
+   "pos": 10,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage",
+   "col": "quota_tripped",
+   "pos": 11,
+   "type": "boolean",
+   "udt": "bool",
+   "nullable": "NO",
+   "default": "false"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "col": "id",
+   "pos": 1,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "col": "month",
+   "pos": 2,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "col": "ledger_calls",
+   "pos": 3,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "col": "header_used",
+   "pos": 4,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "col": "observed_at",
+   "pos": 5,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "NO",
+   "default": "now()"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "col": "month",
+   "pos": 1,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "col": "calls",
+   "pos": 2,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "col": "cap",
+   "pos": 3,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "col": "pct_used",
+   "pos": 4,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "col": "projected_month_end",
+   "pos": 5,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "col": "quota_errors",
+   "pos": 6,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "col": "last_remaining",
+   "pos": 7,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "col": "last_call_at",
+   "pos": 8,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "col": "month",
+   "pos": 1,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "col": "ledger_rows",
+   "pos": 2,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "col": "calls",
+   "pos": 3,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "col": "calls_effective",
+   "pos": 4,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "col": "cap",
+   "pos": 5,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "col": "pct_effective",
+   "pos": 6,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "col": "calls_7d",
+   "pos": 7,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "col": "projected_month_end_7d",
+   "pos": 8,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "col": "quota_errors",
+   "pos": 9,
+   "type": "bigint",
+   "udt": "int8",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "col": "quota_tripped",
+   "pos": 10,
+   "type": "boolean",
+   "udt": "bool",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "col": "as_of",
+   "pos": 11,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "improvement_actions",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "improvement_actions",
+   "col": "trigger_type",
+   "pos": 2,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "improvement_actions",
+   "col": "trigger_data",
+   "pos": 3,
+   "type": "jsonb",
+   "udt": "jsonb",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "improvement_actions",
+   "col": "diagnosis",
+   "pos": 4,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "improvement_actions",
+   "col": "recommendation",
+   "pos": 5,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "improvement_actions",
+   "col": "impact_area",
+   "pos": 6,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "improvement_actions",
+   "col": "priority",
+   "pos": 7,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "3"
+  },
+  {
+   "table": "improvement_actions",
+   "col": "status",
+   "pos": 8,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": "'suggested'::text"
+  },
+  {
+   "table": "improvement_actions",
+   "col": "linear_issue_id",
+   "pos": 9,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "improvement_actions",
+   "col": "outcome",
+   "pos": 10,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "improvement_actions",
+   "col": "metric_before",
+   "pos": 11,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "improvement_actions",
+   "col": "metric_after",
+   "pos": 12,
+   "type": "numeric",
+   "udt": "numeric",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "improvement_actions",
+   "col": "created_at",
+   "pos": 13,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "improvement_actions",
+   "col": "resolved_at",
+   "pos": 14,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "marketing_events",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "marketing_events",
+   "col": "event_name",
+   "pos": 2,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "marketing_events",
+   "col": "source",
+   "pos": 3,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "marketing_events",
+   "col": "medium",
+   "pos": 4,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "marketing_events",
+   "col": "campaign",
+   "pos": 5,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "marketing_events",
+   "col": "user_id",
+   "pos": 6,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "marketing_events",
+   "col": "properties",
+   "pos": 7,
+   "type": "jsonb",
+   "udt": "jsonb",
+   "nullable": "YES",
+   "default": "'{}'::jsonb"
+  },
+  {
+   "table": "marketing_events",
+   "col": "created_at",
+   "pos": 8,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "profiles",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "profiles",
+   "col": "email",
+   "pos": 2,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "profiles",
+   "col": "display_name",
+   "pos": 3,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "profiles",
+   "col": "avatar_url",
+   "pos": 4,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "profiles",
+   "col": "is_premium",
+   "pos": 5,
+   "type": "boolean",
+   "udt": "bool",
+   "nullable": "YES",
+   "default": "false"
+  },
+  {
+   "table": "profiles",
+   "col": "premium_since",
+   "pos": 6,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "profiles",
+   "col": "premium_source",
+   "pos": 7,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "profiles",
+   "col": "churned_at",
+   "pos": 8,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "profiles",
+   "col": "signup_source",
+   "pos": 9,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "profiles",
+   "col": "referral_code",
+   "pos": 10,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "profiles",
+   "col": "referred_by",
+   "pos": 11,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "profiles",
+   "col": "referral_count",
+   "pos": 12,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "profiles",
+   "col": "onboarding_email_sent",
+   "pos": 13,
+   "type": "boolean",
+   "udt": "bool",
+   "nullable": "YES",
+   "default": "false"
+  },
+  {
+   "table": "profiles",
+   "col": "onboarding_email_sent_at",
+   "pos": 14,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "profiles",
+   "col": "total_scans",
+   "pos": 15,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "profiles",
+   "col": "total_rounds",
+   "pos": 16,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "profiles",
+   "col": "created_at",
+   "pos": 17,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "profiles",
+   "col": "updated_at",
+   "pos": 18,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "published_rounds",
+   "col": "contest_id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "published_rounds",
+   "col": "owner_id",
+   "pos": 2,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "published_rounds",
+   "col": "local_id",
+   "pos": 3,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "published_rounds",
+   "col": "snapshot",
+   "pos": 4,
+   "type": "jsonb",
+   "udt": "jsonb",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "published_rounds",
+   "col": "ended_at",
+   "pos": 5,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "published_rounds",
+   "col": "updated_at",
+   "pos": 6,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "NO",
+   "default": "now()"
+  },
+  {
+   "table": "revenue_events",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "revenue_events",
+   "col": "stripe_event_id",
+   "pos": 2,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "revenue_events",
+   "col": "event_type",
+   "pos": 3,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "revenue_events",
+   "col": "customer_email",
+   "pos": 4,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "revenue_events",
+   "col": "amount_cents",
+   "pos": 5,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "0"
+  },
+  {
+   "table": "revenue_events",
+   "col": "currency",
+   "pos": 6,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": "'usd'::text"
+  },
+  {
+   "table": "revenue_events",
+   "col": "subscription_id",
+   "pos": 7,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "revenue_events",
+   "col": "metadata",
+   "pos": 8,
+   "type": "jsonb",
+   "udt": "jsonb",
+   "nullable": "YES",
+   "default": "'{}'::jsonb"
+  },
+  {
+   "table": "revenue_events",
+   "col": "created_at",
+   "pos": 9,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "round_messages",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "round_messages",
+   "col": "contest_id",
+   "pos": 2,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "round_messages",
+   "col": "display_name",
+   "pos": 3,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "round_messages",
+   "col": "body",
+   "pos": 4,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "round_messages",
+   "col": "created_at",
+   "pos": 5,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "NO",
+   "default": "clock_timestamp()"
+  },
+  {
+   "table": "round_messages",
+   "col": "removed_at",
+   "pos": 6,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "round_messages",
+   "col": "sender_session_hash",
+   "pos": 7,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "scans",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "scans",
+   "col": "user_id",
+   "pos": 2,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "scans",
+   "col": "scorecard_data",
+   "pos": 3,
+   "type": "jsonb",
+   "udt": "jsonb",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "scans",
+   "col": "game_mode",
+   "pos": 4,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "scans",
+   "col": "players",
+   "pos": 5,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": "4"
+  },
+  {
+   "table": "scans",
+   "col": "course_name",
+   "pos": 6,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "scans",
+   "col": "scan_duration_ms",
+   "pos": 7,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "scans",
+   "col": "created_at",
+   "pos": 8,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "score_events",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "score_events",
+   "col": "contest_id",
+   "pos": 2,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "score_events",
+   "col": "player_id",
+   "pos": 3,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "score_events",
+   "col": "hole",
+   "pos": 4,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "score_events",
+   "col": "strokes",
+   "pos": 5,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "score_events",
+   "col": "entered_by",
+   "pos": 6,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "score_events",
+   "col": "created_at",
+   "pos": 7,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "settlements",
+   "col": "id",
+   "pos": 1,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": "gen_random_uuid()"
+  },
+  {
+   "table": "settlements",
+   "col": "scan_id",
+   "pos": 2,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "settlements",
+   "col": "from_user_id",
+   "pos": 3,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "settlements",
+   "col": "to_user_id",
+   "pos": 4,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "settlements",
+   "col": "amount_cents",
+   "pos": 5,
+   "type": "integer",
+   "udt": "int4",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "settlements",
+   "col": "status",
+   "pos": 6,
+   "type": "text",
+   "udt": "text",
+   "nullable": "YES",
+   "default": "'pending'::text"
+  },
+  {
+   "table": "settlements",
+   "col": "settled_at",
+   "pos": 7,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": null
+  },
+  {
+   "table": "settlements",
+   "col": "created_at",
+   "pos": 8,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": "now()"
+  },
+  {
+   "table": "share_links",
+   "col": "token_hash",
+   "pos": 1,
+   "type": "text",
+   "udt": "text",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "share_links",
+   "col": "contest_id",
+   "pos": 2,
+   "type": "uuid",
+   "udt": "uuid",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "share_links",
+   "col": "expires_at",
+   "pos": 3,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "NO",
+   "default": null
+  },
+  {
+   "table": "share_links",
+   "col": "revoked_at",
+   "pos": 4,
+   "type": "timestamp with time zone",
+   "udt": "timestamptz",
+   "nullable": "YES",
+   "default": null
+  }
+ ],
+ "constraints": [
+  {
+   "table": "automation_log",
+   "name": "automation_log_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "content_performance",
+   "name": "content_performance_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "contest_players",
+   "name": "contest_players_contest_id_fkey",
+   "def": "FOREIGN KEY (contest_id) REFERENCES contests(id) ON DELETE CASCADE"
+  },
+  {
+   "table": "contest_players",
+   "name": "contest_players_contest_id_user_id_key",
+   "def": "UNIQUE (contest_id, user_id)"
+  },
+  {
+   "table": "contest_players",
+   "name": "contest_players_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "contest_players",
+   "name": "contest_players_team_check",
+   "def": "CHECK ((team = ANY (ARRAY['A'::text, 'B'::text])))"
+  },
+  {
+   "table": "contest_players",
+   "name": "contest_players_user_id_fkey",
+   "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)"
+  },
+  {
+   "table": "contests",
+   "name": "contests_invite_code_key",
+   "def": "UNIQUE (invite_code)"
+  },
+  {
+   "table": "contests",
+   "name": "contests_owner_id_fkey",
+   "def": "FOREIGN KEY (owner_id) REFERENCES auth.users(id)"
+  },
+  {
+   "table": "contests",
+   "name": "contests_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "contests",
+   "name": "contests_status_check",
+   "def": "CHECK ((status = ANY (ARRAY['active'::text, 'completed'::text])))"
+  },
+  {
+   "table": "course_catalog",
+   "name": "course_catalog_pkey",
+   "def": "PRIMARY KEY (slug)"
+  },
+  {
+   "table": "course_search_cache",
+   "name": "course_search_cache_pkey",
+   "def": "PRIMARY KEY (query)"
+  },
+  {
+   "table": "daily_metrics",
+   "name": "daily_metrics_date_key",
+   "def": "UNIQUE (date)"
+  },
+  {
+   "table": "daily_metrics",
+   "name": "daily_metrics_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "feedback",
+   "name": "feedback_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "feedback",
+   "name": "feedback_user_id_fkey",
+   "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)"
+  },
+  {
+   "table": "funnel_snapshots",
+   "name": "funnel_snapshots_date_key",
+   "def": "UNIQUE (date)"
+  },
+  {
+   "table": "funnel_snapshots",
+   "name": "funnel_snapshots_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "golfcore_usage",
+   "name": "golfcore_usage_endpoint_check",
+   "def": "CHECK ((endpoint = ANY (ARRAY['search'::text, 'detail'::text, 'count'::text])))"
+  },
+  {
+   "table": "golfcore_usage",
+   "name": "golfcore_usage_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "name": "golfcore_usage_drift_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "improvement_actions",
+   "name": "improvement_actions_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "marketing_events",
+   "name": "marketing_events_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "marketing_events",
+   "name": "marketing_events_user_id_fkey",
+   "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)"
+  },
+  {
+   "table": "profiles",
+   "name": "profiles_id_fkey",
+   "def": "FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE"
+  },
+  {
+   "table": "profiles",
+   "name": "profiles_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "profiles",
+   "name": "profiles_referral_code_key",
+   "def": "UNIQUE (referral_code)"
+  },
+  {
+   "table": "published_rounds",
+   "name": "published_rounds_contest_id_fkey",
+   "def": "FOREIGN KEY (contest_id) REFERENCES contests(id) ON DELETE CASCADE"
+  },
+  {
+   "table": "published_rounds",
+   "name": "published_rounds_owner_id_fkey",
+   "def": "FOREIGN KEY (owner_id) REFERENCES auth.users(id)"
+  },
+  {
+   "table": "published_rounds",
+   "name": "published_rounds_owner_id_local_id_key",
+   "def": "UNIQUE (owner_id, local_id)"
+  },
+  {
+   "table": "published_rounds",
+   "name": "published_rounds_pkey",
+   "def": "PRIMARY KEY (contest_id)"
+  },
+  {
+   "table": "revenue_events",
+   "name": "revenue_events_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "revenue_events",
+   "name": "revenue_events_stripe_event_id_key",
+   "def": "UNIQUE (stripe_event_id)"
+  },
+  {
+   "table": "round_messages",
+   "name": "round_messages_body_check",
+   "def": "CHECK (((char_length(btrim(body)) >= 1) AND (char_length(btrim(body)) <= 500)))"
+  },
+  {
+   "table": "round_messages",
+   "name": "round_messages_contest_id_fkey",
+   "def": "FOREIGN KEY (contest_id) REFERENCES published_rounds(contest_id) ON DELETE CASCADE"
+  },
+  {
+   "table": "round_messages",
+   "name": "round_messages_display_name_check",
+   "def": "CHECK (((char_length(btrim(display_name)) >= 1) AND (char_length(btrim(display_name)) <= 30)))"
+  },
+  {
+   "table": "round_messages",
+   "name": "round_messages_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "round_messages",
+   "name": "round_messages_sender_session_hash_check",
+   "def": "CHECK ((sender_session_hash ~ '^[a-f0-9]{64}$'::text))"
+  },
+  {
+   "table": "scans",
+   "name": "scans_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "scans",
+   "name": "scans_user_id_fkey",
+   "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)"
+  },
+  {
+   "table": "score_events",
+   "name": "score_events_contest_id_fkey",
+   "def": "FOREIGN KEY (contest_id) REFERENCES contests(id) ON DELETE CASCADE"
+  },
+  {
+   "table": "score_events",
+   "name": "score_events_entered_by_fkey",
+   "def": "FOREIGN KEY (entered_by) REFERENCES auth.users(id)"
+  },
+  {
+   "table": "score_events",
+   "name": "score_events_hole_check",
+   "def": "CHECK (((hole >= 1) AND (hole <= 18)))"
+  },
+  {
+   "table": "score_events",
+   "name": "score_events_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "score_events",
+   "name": "score_events_player_id_fkey",
+   "def": "FOREIGN KEY (player_id) REFERENCES contest_players(id) ON DELETE CASCADE"
+  },
+  {
+   "table": "score_events",
+   "name": "score_events_strokes_check",
+   "def": "CHECK (((strokes >= 1) AND (strokes <= 15)))"
+  },
+  {
+   "table": "settlements",
+   "name": "settlements_from_user_id_fkey",
+   "def": "FOREIGN KEY (from_user_id) REFERENCES auth.users(id)"
+  },
+  {
+   "table": "settlements",
+   "name": "settlements_pkey",
+   "def": "PRIMARY KEY (id)"
+  },
+  {
+   "table": "settlements",
+   "name": "settlements_scan_id_fkey",
+   "def": "FOREIGN KEY (scan_id) REFERENCES scans(id)"
+  },
+  {
+   "table": "settlements",
+   "name": "settlements_to_user_id_fkey",
+   "def": "FOREIGN KEY (to_user_id) REFERENCES auth.users(id)"
+  },
+  {
+   "table": "share_links",
+   "name": "share_links_contest_id_fkey",
+   "def": "FOREIGN KEY (contest_id) REFERENCES published_rounds(contest_id) ON DELETE CASCADE"
+  },
+  {
+   "table": "share_links",
+   "name": "share_links_pkey",
+   "def": "PRIMARY KEY (token_hash)"
+  }
+ ],
+ "indexes": [
+  {
+   "table": "automation_log",
+   "name": "automation_log_pkey",
+   "def": "CREATE UNIQUE INDEX automation_log_pkey ON public.automation_log USING btree (id)"
+  },
+  {
+   "table": "automation_log",
+   "name": "idx_automation_log_category",
+   "def": "CREATE INDEX idx_automation_log_category ON public.automation_log USING btree (category)"
+  },
+  {
+   "table": "automation_log",
+   "name": "idx_automation_log_created",
+   "def": "CREATE INDEX idx_automation_log_created ON public.automation_log USING btree (created_at DESC)"
+  },
+  {
+   "table": "automation_log",
+   "name": "idx_automation_log_unread",
+   "def": "CREATE INDEX idx_automation_log_unread ON public.automation_log USING btree (read) WHERE (read = false)"
+  },
+  {
+   "table": "content_performance",
+   "name": "content_performance_pkey",
+   "def": "CREATE UNIQUE INDEX content_performance_pkey ON public.content_performance USING btree (id)"
+  },
+  {
+   "table": "content_performance",
+   "name": "idx_content_perf_engagement",
+   "def": "CREATE INDEX idx_content_perf_engagement ON public.content_performance USING btree (engagement_rate DESC)"
+  },
+  {
+   "table": "content_performance",
+   "name": "idx_content_perf_platform",
+   "def": "CREATE INDEX idx_content_perf_platform ON public.content_performance USING btree (platform)"
+  },
+  {
+   "table": "contest_players",
+   "name": "contest_players_contest_id_user_id_key",
+   "def": "CREATE UNIQUE INDEX contest_players_contest_id_user_id_key ON public.contest_players USING btree (contest_id, user_id)"
+  },
+  {
+   "table": "contest_players",
+   "name": "contest_players_pkey",
+   "def": "CREATE UNIQUE INDEX contest_players_pkey ON public.contest_players USING btree (id)"
+  },
+  {
+   "table": "contest_players",
+   "name": "idx_contest_players_contest",
+   "def": "CREATE INDEX idx_contest_players_contest ON public.contest_players USING btree (contest_id)"
+  },
+  {
+   "table": "contest_players",
+   "name": "idx_contest_players_user",
+   "def": "CREATE INDEX idx_contest_players_user ON public.contest_players USING btree (user_id)"
+  },
+  {
+   "table": "contests",
+   "name": "contests_invite_code_key",
+   "def": "CREATE UNIQUE INDEX contests_invite_code_key ON public.contests USING btree (invite_code)"
+  },
+  {
+   "table": "contests",
+   "name": "contests_pkey",
+   "def": "CREATE UNIQUE INDEX contests_pkey ON public.contests USING btree (id)"
+  },
+  {
+   "table": "contests",
+   "name": "idx_contests_invite_code",
+   "def": "CREATE INDEX idx_contests_invite_code ON public.contests USING btree (invite_code)"
+  },
+  {
+   "table": "contests",
+   "name": "idx_contests_owner",
+   "def": "CREATE INDEX idx_contests_owner ON public.contests USING btree (owner_id)"
+  },
+  {
+   "table": "course_catalog",
+   "name": "course_catalog_pkey",
+   "def": "CREATE UNIQUE INDEX course_catalog_pkey ON public.course_catalog USING btree (slug)"
+  },
+  {
+   "table": "course_search_cache",
+   "name": "course_search_cache_pkey",
+   "def": "CREATE UNIQUE INDEX course_search_cache_pkey ON public.course_search_cache USING btree (query)"
+  },
+  {
+   "table": "daily_metrics",
+   "name": "daily_metrics_date_key",
+   "def": "CREATE UNIQUE INDEX daily_metrics_date_key ON public.daily_metrics USING btree (date)"
+  },
+  {
+   "table": "daily_metrics",
+   "name": "daily_metrics_pkey",
+   "def": "CREATE UNIQUE INDEX daily_metrics_pkey ON public.daily_metrics USING btree (id)"
+  },
+  {
+   "table": "feedback",
+   "name": "feedback_pkey",
+   "def": "CREATE UNIQUE INDEX feedback_pkey ON public.feedback USING btree (id)"
+  },
+  {
+   "table": "feedback",
+   "name": "idx_feedback_actionable",
+   "def": "CREATE INDEX idx_feedback_actionable ON public.feedback USING btree (actionable) WHERE (actionable = true)"
+  },
+  {
+   "table": "feedback",
+   "name": "idx_feedback_category",
+   "def": "CREATE INDEX idx_feedback_category ON public.feedback USING btree (category)"
+  },
+  {
+   "table": "feedback",
+   "name": "idx_feedback_created",
+   "def": "CREATE INDEX idx_feedback_created ON public.feedback USING btree (created_at DESC)"
+  },
+  {
+   "table": "feedback",
+   "name": "idx_feedback_sentiment",
+   "def": "CREATE INDEX idx_feedback_sentiment ON public.feedback USING btree (sentiment)"
+  },
+  {
+   "table": "feedback",
+   "name": "idx_feedback_source",
+   "def": "CREATE INDEX idx_feedback_source ON public.feedback USING btree (source)"
+  },
+  {
+   "table": "funnel_snapshots",
+   "name": "funnel_snapshots_date_key",
+   "def": "CREATE UNIQUE INDEX funnel_snapshots_date_key ON public.funnel_snapshots USING btree (date)"
+  },
+  {
+   "table": "funnel_snapshots",
+   "name": "funnel_snapshots_pkey",
+   "def": "CREATE UNIQUE INDEX funnel_snapshots_pkey ON public.funnel_snapshots USING btree (id)"
+  },
+  {
+   "table": "funnel_snapshots",
+   "name": "idx_funnel_date",
+   "def": "CREATE INDEX idx_funnel_date ON public.funnel_snapshots USING btree (date DESC)"
+  },
+  {
+   "table": "golfcore_usage",
+   "name": "golfcore_usage_called_at",
+   "def": "CREATE INDEX golfcore_usage_called_at ON public.golfcore_usage USING btree (called_at DESC)"
+  },
+  {
+   "table": "golfcore_usage",
+   "name": "golfcore_usage_month_called_at",
+   "def": "CREATE INDEX golfcore_usage_month_called_at ON public.golfcore_usage USING btree (month, called_at DESC)"
+  },
+  {
+   "table": "golfcore_usage",
+   "name": "golfcore_usage_pkey",
+   "def": "CREATE UNIQUE INDEX golfcore_usage_pkey ON public.golfcore_usage USING btree (id)"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "name": "golfcore_usage_drift_pkey",
+   "def": "CREATE UNIQUE INDEX golfcore_usage_drift_pkey ON public.golfcore_usage_drift USING btree (id)"
+  },
+  {
+   "table": "improvement_actions",
+   "name": "idx_improvements_area",
+   "def": "CREATE INDEX idx_improvements_area ON public.improvement_actions USING btree (impact_area)"
+  },
+  {
+   "table": "improvement_actions",
+   "name": "idx_improvements_created",
+   "def": "CREATE INDEX idx_improvements_created ON public.improvement_actions USING btree (created_at DESC)"
+  },
+  {
+   "table": "improvement_actions",
+   "name": "idx_improvements_status",
+   "def": "CREATE INDEX idx_improvements_status ON public.improvement_actions USING btree (status)"
+  },
+  {
+   "table": "improvement_actions",
+   "name": "improvement_actions_pkey",
+   "def": "CREATE UNIQUE INDEX improvement_actions_pkey ON public.improvement_actions USING btree (id)"
+  },
+  {
+   "table": "marketing_events",
+   "name": "idx_marketing_events_campaign",
+   "def": "CREATE INDEX idx_marketing_events_campaign ON public.marketing_events USING btree (campaign)"
+  },
+  {
+   "table": "marketing_events",
+   "name": "idx_marketing_events_created_at",
+   "def": "CREATE INDEX idx_marketing_events_created_at ON public.marketing_events USING btree (created_at DESC)"
+  },
+  {
+   "table": "marketing_events",
+   "name": "idx_marketing_events_source",
+   "def": "CREATE INDEX idx_marketing_events_source ON public.marketing_events USING btree (source)"
+  },
+  {
+   "table": "marketing_events",
+   "name": "marketing_events_pkey",
+   "def": "CREATE UNIQUE INDEX marketing_events_pkey ON public.marketing_events USING btree (id)"
+  },
+  {
+   "table": "profiles",
+   "name": "idx_profiles_email",
+   "def": "CREATE INDEX idx_profiles_email ON public.profiles USING btree (email)"
+  },
+  {
+   "table": "profiles",
+   "name": "idx_profiles_premium",
+   "def": "CREATE INDEX idx_profiles_premium ON public.profiles USING btree (is_premium) WHERE (is_premium = true)"
+  },
+  {
+   "table": "profiles",
+   "name": "idx_profiles_referral_code",
+   "def": "CREATE INDEX idx_profiles_referral_code ON public.profiles USING btree (referral_code)"
+  },
+  {
+   "table": "profiles",
+   "name": "profiles_pkey",
+   "def": "CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)"
+  },
+  {
+   "table": "profiles",
+   "name": "profiles_referral_code_key",
+   "def": "CREATE UNIQUE INDEX profiles_referral_code_key ON public.profiles USING btree (referral_code)"
+  },
+  {
+   "table": "published_rounds",
+   "name": "published_rounds_owner_id_local_id_key",
+   "def": "CREATE UNIQUE INDEX published_rounds_owner_id_local_id_key ON public.published_rounds USING btree (owner_id, local_id)"
+  },
+  {
+   "table": "published_rounds",
+   "name": "published_rounds_pkey",
+   "def": "CREATE UNIQUE INDEX published_rounds_pkey ON public.published_rounds USING btree (contest_id)"
+  },
+  {
+   "table": "revenue_events",
+   "name": "idx_revenue_events_created_at",
+   "def": "CREATE INDEX idx_revenue_events_created_at ON public.revenue_events USING btree (created_at DESC)"
+  },
+  {
+   "table": "revenue_events",
+   "name": "idx_revenue_events_customer_email",
+   "def": "CREATE INDEX idx_revenue_events_customer_email ON public.revenue_events USING btree (customer_email)"
+  },
+  {
+   "table": "revenue_events",
+   "name": "idx_revenue_events_event_type",
+   "def": "CREATE INDEX idx_revenue_events_event_type ON public.revenue_events USING btree (event_type)"
+  },
+  {
+   "table": "revenue_events",
+   "name": "revenue_events_pkey",
+   "def": "CREATE UNIQUE INDEX revenue_events_pkey ON public.revenue_events USING btree (id)"
+  },
+  {
+   "table": "revenue_events",
+   "name": "revenue_events_stripe_event_id_key",
+   "def": "CREATE UNIQUE INDEX revenue_events_stripe_event_id_key ON public.revenue_events USING btree (stripe_event_id)"
+  },
+  {
+   "table": "round_messages",
+   "name": "round_messages_pkey",
+   "def": "CREATE UNIQUE INDEX round_messages_pkey ON public.round_messages USING btree (id)"
+  },
+  {
+   "table": "round_messages",
+   "name": "round_messages_recent",
+   "def": "CREATE INDEX round_messages_recent ON public.round_messages USING btree (contest_id, created_at DESC)"
+  },
+  {
+   "table": "round_messages",
+   "name": "round_messages_session",
+   "def": "CREATE INDEX round_messages_session ON public.round_messages USING btree (contest_id, sender_session_hash, created_at DESC)"
+  },
+  {
+   "table": "scans",
+   "name": "idx_scans_created",
+   "def": "CREATE INDEX idx_scans_created ON public.scans USING btree (created_at DESC)"
+  },
+  {
+   "table": "scans",
+   "name": "idx_scans_user",
+   "def": "CREATE INDEX idx_scans_user ON public.scans USING btree (user_id)"
+  },
+  {
+   "table": "scans",
+   "name": "scans_pkey",
+   "def": "CREATE UNIQUE INDEX scans_pkey ON public.scans USING btree (id)"
+  },
+  {
+   "table": "score_events",
+   "name": "idx_score_events_contest",
+   "def": "CREATE INDEX idx_score_events_contest ON public.score_events USING btree (contest_id)"
+  },
+  {
+   "table": "score_events",
+   "name": "score_events_pkey",
+   "def": "CREATE UNIQUE INDEX score_events_pkey ON public.score_events USING btree (id)"
+  },
+  {
+   "table": "settlements",
+   "name": "idx_settlements_created",
+   "def": "CREATE INDEX idx_settlements_created ON public.settlements USING btree (created_at DESC)"
+  },
+  {
+   "table": "settlements",
+   "name": "idx_settlements_from",
+   "def": "CREATE INDEX idx_settlements_from ON public.settlements USING btree (from_user_id)"
+  },
+  {
+   "table": "settlements",
+   "name": "idx_settlements_to",
+   "def": "CREATE INDEX idx_settlements_to ON public.settlements USING btree (to_user_id)"
+  },
+  {
+   "table": "settlements",
+   "name": "settlements_pkey",
+   "def": "CREATE UNIQUE INDEX settlements_pkey ON public.settlements USING btree (id)"
+  },
+  {
+   "table": "share_links",
+   "name": "share_links_pkey",
+   "def": "CREATE UNIQUE INDEX share_links_pkey ON public.share_links USING btree (token_hash)"
+  }
+ ],
+ "policies": [
+  {
+   "schemaname": "public",
+   "tablename": "automation_log",
+   "policyname": "Service role full access on automation_log",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "ALL",
+   "qual": "(auth.role() = 'service_role'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "content_performance",
+   "policyname": "Service role full access on content_performance",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "ALL",
+   "qual": "(auth.role() = 'service_role'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "contest_players",
+   "policyname": "Owner can insert players",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "authenticated"
+   ],
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "is_contest_owner(contest_id)"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "contest_players",
+   "policyname": "Participants can view players",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "authenticated"
+   ],
+   "cmd": "SELECT",
+   "qual": "is_contest_member(contest_id)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "contest_players",
+   "policyname": "Self or owner can update",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "authenticated"
+   ],
+   "cmd": "UPDATE",
+   "qual": "((user_id = auth.uid()) OR is_contest_owner(contest_id))",
+   "with_check": "((user_id = auth.uid()) OR is_contest_owner(contest_id))"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "contest_players",
+   "policyname": "Users can join contests",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "authenticated"
+   ],
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(user_id = auth.uid())"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "contests",
+   "policyname": "Owner full access",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "authenticated"
+   ],
+   "cmd": "ALL",
+   "qual": "(owner_id = auth.uid())",
+   "with_check": "(owner_id = auth.uid())"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "contests",
+   "policyname": "Participants can view contests",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "authenticated"
+   ],
+   "cmd": "SELECT",
+   "qual": "is_contest_member(id)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "daily_metrics",
+   "policyname": "Service role full access on daily_metrics",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "ALL",
+   "qual": "(auth.role() = 'service_role'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "feedback",
+   "policyname": "Service role full access on feedback",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "ALL",
+   "qual": "(auth.role() = 'service_role'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "funnel_snapshots",
+   "policyname": "Service role full access on funnel_snapshots",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "ALL",
+   "qual": "(auth.role() = 'service_role'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "improvement_actions",
+   "policyname": "Service role full access on improvement_actions",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "ALL",
+   "qual": "(auth.role() = 'service_role'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "marketing_events",
+   "policyname": "Service role full access on marketing_events",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "ALL",
+   "qual": "(auth.role() = 'service_role'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "marketing_events",
+   "policyname": "Users can view own marketing events",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "SELECT",
+   "qual": "(auth.uid() = user_id)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "profiles",
+   "policyname": "Service role full access on profiles",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "ALL",
+   "qual": "(auth.role() = 'service_role'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "profiles",
+   "policyname": "Users can update own profile",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "UPDATE",
+   "qual": "(auth.uid() = id)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "profiles",
+   "policyname": "Users can view own profile",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "SELECT",
+   "qual": "(auth.uid() = id)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "revenue_events",
+   "policyname": "Service role full access on revenue_events",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "ALL",
+   "qual": "(auth.role() = 'service_role'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "scans",
+   "policyname": "Service role full access on scans",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "ALL",
+   "qual": "(auth.role() = 'service_role'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "scans",
+   "policyname": "Users can create scans",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(auth.uid() = user_id)"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "scans",
+   "policyname": "Users can view own scans",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "SELECT",
+   "qual": "(auth.uid() = user_id)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "score_events",
+   "policyname": "Participants can insert scores",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "authenticated"
+   ],
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(is_contest_member(contest_id) AND (entered_by = auth.uid()))"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "score_events",
+   "policyname": "Participants can view scores",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "authenticated"
+   ],
+   "cmd": "SELECT",
+   "qual": "is_contest_member(contest_id)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "settlements",
+   "policyname": "Service role full access on settlements",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "ALL",
+   "qual": "(auth.role() = 'service_role'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "settlements",
+   "policyname": "Users can view own settlements",
+   "permissive": "PERMISSIVE",
+   "roles": [
+    "public"
+   ],
+   "cmd": "SELECT",
+   "qual": "((auth.uid() = from_user_id) OR (auth.uid() = to_user_id))",
+   "with_check": null
+  }
+ ],
+ "rls": [
+  {
+   "table": "automation_log",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "content_performance",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "contest_players",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "contests",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "course_catalog",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "course_search_cache",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "daily_metrics",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "feedback",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "funnel_snapshots",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "golfcore_usage",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "improvement_actions",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "marketing_events",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "profiles",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "published_rounds",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "revenue_events",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "round_messages",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "scans",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "score_events",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "settlements",
+   "rls": true,
+   "force": false
+  },
+  {
+   "table": "share_links",
+   "rls": true,
+   "force": false
+  }
+ ],
+ "functions": [
+  {
+   "name": "calculate_retention",
+   "args": "days integer",
+   "def": "CREATE OR REPLACE FUNCTION public.calculate_retention(days integer)\n RETURNS numeric\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  eligible integer;\n  retained integer;\nBEGIN\n  SELECT count(*)::integer INTO eligible FROM auth.users WHERE created_at <= now() - (days || ' days')::interval;\n  IF eligible = 0 THEN RETURN 0; END IF;\n  SELECT count(*)::integer INTO retained FROM auth.users\n    WHERE created_at <= now() - (days || ' days')::interval\n      AND last_sign_in_at >= now() - (days || ' days')::interval;\n  RETURN round((retained::numeric / eligible::numeric) * 100, 2);\nEND;\n$function$\n"
+  },
+  {
+   "name": "chat_contest",
+   "args": "p_token text",
+   "def": "CREATE OR REPLACE FUNCTION public.chat_contest(p_token text)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare link public.share_links;\nbegin\n  if p_token is null or p_token !~ '^[a-f0-9]{64}$' then raise exception 'invalid link'; end if;\n  select * into link from public.share_links where token_hash=encode(sha256(convert_to(p_token,'UTF8')),'hex');\n  if not found then raise exception 'invalid link'; end if;\n  if link.revoked_at is not null then raise exception 'revoked link'; end if;\n  if link.expires_at <= clock_timestamp() then raise exception 'expired link'; end if;\n  return link.contest_id;\nend $function$\n"
+  },
+  {
+   "name": "create_share_link",
+   "args": "p_local_id text",
+   "def": "CREATE OR REPLACE FUNCTION public.create_share_link(p_local_id text)\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare r public.published_rounds; token text;\nbegin\n  select * into r from public.published_rounds where owner_id=auth.uid() and local_id=p_local_id for update;\n  if not found or not exists(select 1 from public.contests where id=r.contest_id and owner_id=auth.uid()) then raise exception 'owner required'; end if;\n  if r.ended_at + interval '7 days' <= now() then raise exception 'round expired'; end if;\n  token := replace(gen_random_uuid()::text,'-','') || replace(gen_random_uuid()::text,'-','');\n  insert into public.share_links(token_hash,contest_id,expires_at)\n    values(encode(sha256(convert_to(token,'UTF8')),'hex'),r.contest_id,coalesce(r.ended_at + interval '7 days','infinity'::timestamptz));\n  return token;\nend $function$\n"
+  },
+  {
+   "name": "get_dau",
+   "args": "",
+   "def": "CREATE OR REPLACE FUNCTION public.get_dau()\n RETURNS integer\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  RETURN (SELECT count(DISTINCT id)::integer FROM auth.users WHERE last_sign_in_at >= now() - interval '1 day');\nEND;\n$function$\n"
+  },
+  {
+   "name": "get_mau",
+   "args": "",
+   "def": "CREATE OR REPLACE FUNCTION public.get_mau()\n RETURNS integer\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  RETURN (SELECT count(DISTINCT id)::integer FROM auth.users WHERE last_sign_in_at >= now() - interval '30 days');\nEND;\n$function$\n"
+  },
+  {
+   "name": "get_shared_round",
+   "args": "p_token text",
+   "def": "CREATE OR REPLACE FUNCTION public.get_shared_round(p_token text)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare link public.share_links; snapshot jsonb;\nbegin\n  if p_token is null or p_token !~ '^[a-f0-9]{64}$' then raise exception 'invalid link'; end if;\n  select * into link from public.share_links where token_hash=encode(sha256(convert_to(p_token,'UTF8')),'hex');\n  if not found then raise exception 'invalid link'; end if;\n  if link.revoked_at is not null then raise exception 'revoked link'; end if;\n  if link.expires_at <= now() then raise exception 'expired link'; end if;\n  select r.snapshot into snapshot from public.published_rounds r where r.contest_id=link.contest_id;\n  return public.sanitize_shared_round(snapshot);\nend $function$\n"
+  },
+  {
+   "name": "handle_new_user",
+   "args": "",
+   "def": "CREATE OR REPLACE FUNCTION public.handle_new_user()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  INSERT INTO public.profiles (id, email, signup_source)\n  VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_app_meta_data->>'provider', 'email'))\n  ON CONFLICT (id) DO NOTHING;\n  RETURN NEW;\nEND;\n$function$\n"
+  },
+  {
+   "name": "handle_updated_at",
+   "args": "",
+   "def": "CREATE OR REPLACE FUNCTION public.handle_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$\n"
+  },
+  {
+   "name": "increment_daily_revenue",
+   "args": "target_date date, amount integer",
+   "def": "CREATE OR REPLACE FUNCTION public.increment_daily_revenue(target_date date, amount integer)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  INSERT INTO public.daily_metrics (date, revenue_cents)\n  VALUES (target_date, amount)\n  ON CONFLICT (date) DO UPDATE SET revenue_cents = daily_metrics.revenue_cents + amount;\nEND;\n$function$\n"
+  },
+  {
+   "name": "increment_daily_signups",
+   "args": "target_date date",
+   "def": "CREATE OR REPLACE FUNCTION public.increment_daily_signups(target_date date)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  INSERT INTO public.daily_metrics (date, new_users)\n  VALUES (target_date, 1)\n  ON CONFLICT (date) DO UPDATE SET new_users = daily_metrics.new_users + 1;\nEND;\n$function$\n"
+  },
+  {
+   "name": "is_contest_member",
+   "args": "p_contest uuid",
+   "def": "CREATE OR REPLACE FUNCTION public.is_contest_member(p_contest uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\n  select exists(select 1 from public.contest_players p where p.contest_id = p_contest and p.user_id = auth.uid())\n      or exists(select 1 from public.contests c where c.id = p_contest and c.owner_id = auth.uid());\n$function$\n"
+  },
+  {
+   "name": "is_contest_owner",
+   "args": "p_contest uuid",
+   "def": "CREATE OR REPLACE FUNCTION public.is_contest_owner(p_contest uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\n  select exists(select 1 from public.contests c where c.id = p_contest and c.owner_id = auth.uid());\n$function$\n"
+  },
+  {
+   "name": "list_host_messages",
+   "args": "p_local_id text",
+   "def": "CREATE OR REPLACE FUNCTION public.list_host_messages(p_local_id text)\n RETURNS TABLE(id uuid, display_name text, body text, created_at timestamp with time zone)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare cid uuid;\nbegin\n  select r.contest_id into cid from public.published_rounds r join public.contests c on c.id=r.contest_id\n    where r.local_id=p_local_id and r.owner_id=auth.uid() and c.owner_id=auth.uid()\n      and not coalesce((auth.jwt()->>'is_anonymous')::boolean,false);\n  if cid is null then raise exception 'owner required'; end if;\n  return query select m.id,m.display_name,m.body,m.created_at from (\n    select r.* from public.round_messages r where r.contest_id=cid and r.removed_at is null\n    order by r.created_at desc,r.id desc limit 200\n  ) m order by m.created_at,m.id;\nend $function$\n"
+  },
+  {
+   "name": "list_messages",
+   "args": "p_token text, p_since timestamp with time zone",
+   "def": "CREATE OR REPLACE FUNCTION public.list_messages(p_token text, p_since timestamp with time zone DEFAULT NULL::timestamp with time zone)\n RETURNS TABLE(display_name text, body text, created_at timestamp with time zone)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare cid uuid;\nbegin\n  cid := public.chat_contest(p_token);\n  return query select m.display_name,m.body,m.created_at from (\n    select r.* from public.round_messages r where r.contest_id=cid and r.removed_at is null\n      and (p_since is null or r.created_at > p_since)\n    order by r.created_at desc,r.id desc limit 200\n  ) m order by m.created_at,m.id;\nend $function$\n"
+  },
+  {
+   "name": "post_message",
+   "args": "p_token text, p_session text, p_name text, p_body text",
+   "def": "CREATE OR REPLACE FUNCTION public.post_message(p_token text, p_session text, p_name text, p_body text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare cid uuid; session_hash text; at_time timestamptz;\nbegin\n  cid := public.chat_contest(p_token);\n  if p_session is null or p_session !~ '^[a-f0-9]{64}$'\n    or p_name is null or char_length(btrim(p_name)) not between 1 and 30\n    or p_body is null or char_length(btrim(p_body)) not between 1 and 500 then\n    raise exception 'invalid message';\n  end if;\n  -- Same lock as revoke/publish: concurrent posts cannot bypass round/session limits.\n  perform 1 from public.published_rounds where contest_id=cid for update;\n  perform public.chat_contest(p_token); -- Revocation/expiry may have occurred while waiting.\n  at_time := clock_timestamp();\n  session_hash := encode(sha256(convert_to(p_session,'UTF8')),'hex');\n  -- Removed messages still count. A new token does not reset the round's limits.\n  if (select count(*) from public.round_messages where contest_id=cid and sender_session_hash=session_hash\n        and created_at > at_time - interval '30 seconds') >= 5\n    or (select count(*) from public.round_messages where contest_id=cid\n        and created_at > at_time - interval '1 minute') >= 60 then\n    raise exception 'chat rate limit' using errcode='P0001';\n  end if;\n  insert into public.round_messages(contest_id, display_name, body, sender_session_hash, created_at)\n    values(cid, btrim(p_name), btrim(p_body), session_hash, at_time);\nend $function$\n"
+  },
+  {
+   "name": "publish_shared_round",
+   "args": "p_local_id text, p_snapshot jsonb",
+   "def": "CREATE OR REPLACE FUNCTION public.publish_shared_round(p_local_id text, p_snapshot jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare r public.published_rounds; cid uuid; clean jsonb; ended timestamptz;\nbegin\n  if auth.uid() is null or coalesce((auth.jwt()->>'is_anonymous')::boolean,false) then raise exception 'owner required'; end if;\n  if length(p_local_id) not between 1 and 200 or pg_column_size(p_snapshot) > 100000 then raise exception 'invalid snapshot'; end if;\n  -- Serialize creation and updates for a local contest, including across devices.\n  perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text || ':' || p_local_id,0));\n  clean := public.sanitize_shared_round(p_snapshot);\n  select * into r from public.published_rounds where owner_id = auth.uid() and local_id = p_local_id for update;\n  if found then\n    cid := r.contest_id;\n    if not exists(select 1 from public.contests where id = cid and owner_id = auth.uid()) then raise exception 'owner required'; end if;\n    ended := r.ended_at;\n  else\n    insert into public.contests(owner_id,name,course,invite_code)\n      values(auth.uid(),'Shared round','{}'::jsonb,translate(upper(substr(replace(gen_random_uuid()::text,'-',''),1,6)),'01','GH')) returning id into cid;\n  end if;\n  if (clean->>'completed')::boolean and ended is null then ended := now(); end if;\n  insert into public.published_rounds(contest_id,owner_id,local_id,snapshot,ended_at)\n    values(cid,auth.uid(),p_local_id,clean,ended)\n    on conflict(contest_id) do update set snapshot=excluded.snapshot, ended_at=excluded.ended_at, updated_at=now();\n  -- Active links have no scheduled round end. Completion fixes their expiry once.\n  if ended is not null then update public.share_links set expires_at=least(expires_at,ended + interval '7 days') where contest_id=cid; end if;\nend $function$\n"
+  },
+  {
+   "name": "reconcile_golfcore_usage",
+   "args": "p_usage_id bigint",
+   "def": "CREATE OR REPLACE FUNCTION public.reconcile_golfcore_usage(p_usage_id bigint)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nDECLARE v_row golfcore_usage%ROWTYPE; v_count bigint; v_used bigint;\nBEGIN\n PERFORM pg_advisory_xact_lock(706241024);\n SELECT * INTO v_row FROM golfcore_usage WHERE id = p_usage_id;\n IF v_row.ratelimit_limit IS NULL OR v_row.ratelimit_remaining IS NULL THEN RETURN; END IF;\n SELECT count(*) INTO v_count FROM golfcore_usage WHERE month = v_row.month;\n v_used := greatest(0, v_row.ratelimit_limit - v_row.ratelimit_remaining);\n IF abs(v_used - v_count)::numeric / greatest(1, v_count) > 0.02 THEN\n  INSERT INTO golfcore_usage_drift(month, ledger_calls, header_used) VALUES (v_row.month, v_count, v_used);\n END IF;\nEND $function$\n"
+  },
+  {
+   "name": "remove_message",
+   "args": "p_message_id uuid",
+   "def": "CREATE OR REPLACE FUNCTION public.remove_message(p_message_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\nbegin\n  update public.round_messages m set removed_at=coalesce(m.removed_at,clock_timestamp())\n  where m.id=p_message_id and exists (\n    select 1 from public.published_rounds r join public.contests c on c.id=r.contest_id\n    where r.contest_id=m.contest_id and r.owner_id=auth.uid() and c.owner_id=auth.uid()\n      and not coalesce((auth.jwt()->>'is_anonymous')::boolean,false)\n  );\n  if not found then raise exception 'owner required'; end if;\nend $function$\n"
+  },
+  {
+   "name": "reserve_golfcore_call",
+   "args": "p_endpoint text, p_monthly_cap integer, p_minute_cap integer",
+   "def": "CREATE OR REPLACE FUNCTION public.reserve_golfcore_call(p_endpoint text, p_monthly_cap integer, p_minute_cap integer)\n RETURNS bigint\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nDECLARE v_month text := to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM');\nv_calls bigint; v_minute bigint; v_used bigint; v_tripped boolean; v_id bigint;\nBEGIN\n PERFORM pg_advisory_xact_lock(706241024);\n SELECT count(*), coalesce(bool_or(quota_tripped), false) INTO v_calls, v_tripped FROM golfcore_usage WHERE month = v_month;\n SELECT count(*) INTO v_minute FROM golfcore_usage WHERE called_at >= clock_timestamp() - interval '60 seconds';\n SELECT greatest(0, ratelimit_limit - ratelimit_remaining) INTO v_used FROM golfcore_usage\n WHERE month = v_month AND ratelimit_limit IS NOT NULL AND ratelimit_remaining IS NOT NULL ORDER BY called_at DESC, id DESC LIMIT 1;\n IF v_tripped OR greatest(v_calls, coalesce(v_used,0)) >= LEAST(coalesce(p_monthly_cap, 500), 500)\n OR v_minute >= LEAST(coalesce(p_minute_cap, 9), 9) THEN RETURN NULL; END IF;\n INSERT INTO golfcore_usage(month, endpoint, status) VALUES (v_month, p_endpoint, 0) RETURNING id INTO v_id;\n RETURN v_id;\nEND $function$\n"
+  },
+  {
+   "name": "revoke_share_links",
+   "args": "p_local_id text",
+   "def": "CREATE OR REPLACE FUNCTION public.revoke_share_links(p_local_id text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare cid uuid;\nbegin\n  select r.contest_id into cid from public.published_rounds r join public.contests c on c.id=r.contest_id\n    where r.owner_id=auth.uid() and c.owner_id=auth.uid() and r.local_id=p_local_id for update of r;\n  if cid is null then raise exception 'owner required'; end if;\n  update public.share_links set revoked_at=now() where contest_id=cid and revoked_at is null;\nend $function$\n"
+  },
+  {
+   "name": "rls_auto_enable",
+   "args": "",
+   "def": "CREATE OR REPLACE FUNCTION public.rls_auto_enable()\n RETURNS event_trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\nDECLARE\n  cmd record;\nBEGIN\n  FOR cmd IN\n    SELECT *\n    FROM pg_event_trigger_ddl_commands()\n    WHERE command_tag IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')\n      AND object_type IN ('table','partitioned table')\n  LOOP\n     IF cmd.schema_name IS NOT NULL AND cmd.schema_name IN ('public') AND cmd.schema_name NOT IN ('pg_catalog','information_schema') AND cmd.schema_name NOT LIKE 'pg_toast%' AND cmd.schema_name NOT LIKE 'pg_temp%' THEN\n      BEGIN\n        EXECUTE format('alter table if exists %s enable row level security', cmd.object_identity);\n        RAISE LOG 'rls_auto_enable: enabled RLS on %', cmd.object_identity;\n      EXCEPTION\n        WHEN OTHERS THEN\n          RAISE LOG 'rls_auto_enable: failed to enable RLS on %', cmd.object_identity;\n      END;\n     ELSE\n        RAISE LOG 'rls_auto_enable: skip % (either system schema or not in enforced list: %.)', cmd.object_identity, cmd.schema_name;\n     END IF;\n  END LOOP;\nEND;\n$function$\n"
+  },
+  {
+   "name": "sanitize_shared_round",
+   "args": "p jsonb",
+   "def": "CREATE OR REPLACE FUNCTION public.sanitize_shared_round(p jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n IMMUTABLE\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare players jsonb; games jsonb;\nbegin\n  if jsonb_typeof(p->'players') is distinct from 'array' or jsonb_array_length(p->'players') > 40\n    or jsonb_typeof(p->'games') is distinct from 'array' or jsonb_array_length(p->'games') > 30 then\n    raise exception 'invalid snapshot';\n  end if;\n  select coalesce(jsonb_agg(jsonb_build_object(\n    'displayName', left(x->>'displayName',80),\n    'scores', (select coalesce(jsonb_agg((n::text)::integer order by ord), '[]'::jsonb)\n      from jsonb_array_elements(x->'scores') with ordinality as s(n,ord)\n      where ord <= 18 and jsonb_typeof(n) = 'number' and n::text ~ '^[0-9]{1,2}$'),\n    'total', (x->>'total')::integer, 'toPar', (x->>'toPar')::integer\n  )), '[]'::jsonb) into players from jsonb_array_elements(p->'players') x;\n  select coalesce(jsonb_agg(jsonb_build_object(\n    'game', left(x->>'game',40),\n    'standings', (select coalesce(jsonb_agg(jsonb_build_object(\n      'displayName', left(s->>'displayName',80), 'units', (s->>'units')::numeric)), '[]'::jsonb)\n      from jsonb_array_elements(x->'standings') s)\n  )), '[]'::jsonb) into games from jsonb_array_elements(p->'games') x;\n  return jsonb_build_object('completed', coalesce((p->>'completed')::boolean,false), 'players', players, 'games', games);\nend $function$\n"
+  }
+ ],
+ "triggers": [
+  {
+   "table": "contests",
+   "name": "contests_updated_at",
+   "def": "CREATE TRIGGER contests_updated_at BEFORE UPDATE ON public.contests FOR EACH ROW EXECUTE FUNCTION handle_updated_at()"
+  },
+  {
+   "table": "auth.users",
+   "name": "on_auth_user_created",
+   "def": "CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user()"
+  }
+ ],
+ "views": [
+  {
+   "name": "golfcore_usage_summary_v2",
+   "def": " WITH clock AS (\n         SELECT now() AS as_of,\n            to_char((now() AT TIME ZONE 'UTC'::text), 'YYYY-MM'::text) AS month,\n            ((date_trunc('month'::text, (now() AT TIME ZONE 'UTC'::text)) + '1 mon'::interval) AT TIME ZONE 'UTC'::text) AS month_end\n        ), ledger AS (\n         SELECT count(*) AS ledger_rows,\n            count(*) FILTER (WHERE golfcore_usage.is_quota_error) AS quota_errors,\n            COALESCE(bool_or(golfcore_usage.quota_tripped), false) AS quota_tripped\n           FROM golfcore_usage\n          WHERE (golfcore_usage.month = ( SELECT clock.month\n                   FROM clock))\n        ), recent AS (\n         SELECT count(*) AS calls_7d\n           FROM golfcore_usage\n          WHERE (golfcore_usage.called_at >= (now() - '7 days'::interval))\n        ), latest AS (\n         SELECT GREATEST(0, (golfcore_usage.ratelimit_limit - golfcore_usage.ratelimit_remaining)) AS header_used\n           FROM golfcore_usage\n          WHERE ((golfcore_usage.month = ( SELECT clock.month\n                   FROM clock)) AND (golfcore_usage.ratelimit_limit IS NOT NULL) AND (golfcore_usage.ratelimit_remaining IS NOT NULL))\n          ORDER BY golfcore_usage.called_at DESC, golfcore_usage.id DESC\n         LIMIT 1\n        ), effective AS (\n         SELECT clock.as_of,\n            clock.month,\n            clock.month_end,\n            ledger.ledger_rows,\n            ledger.quota_errors,\n            ledger.quota_tripped,\n            recent.calls_7d,\n            GREATEST(ledger.ledger_rows, (COALESCE(( SELECT latest.header_used\n                   FROM latest), 0))::bigint) AS calls_effective\n           FROM ((clock\n             CROSS JOIN ledger)\n             CROSS JOIN recent)\n        )\n SELECT month,\n    ledger_rows,\n    ledger_rows AS calls,\n    calls_effective,\n    500 AS cap,\n    (((calls_effective)::numeric * 100.0) / (500)::numeric) AS pct_effective,\n    calls_7d,\n    ((calls_effective)::numeric + (((calls_7d)::numeric / 7.0) * GREATEST((0)::numeric, (EXTRACT(epoch FROM (month_end - as_of)) / 86400.0)))) AS projected_month_end_7d,\n    quota_errors,\n    quota_tripped,\n    as_of\n   FROM effective;"
+  },
+  {
+   "name": "content_insights",
+   "def": " SELECT platform,\n    content_type,\n    count(*) AS total_posts,\n    round((avg(engagement_rate) * (100)::numeric), 2) AS avg_engagement_pct,\n    round((avg(click_through_rate) * (100)::numeric), 2) AS avg_ctr_pct,\n    sum(installs_attributed) AS total_installs,\n    mode() WITHIN GROUP (ORDER BY best_posting_hour) AS optimal_hour\n   FROM content_performance\n  WHERE (published_at >= (now() - '30 days'::interval))\n  GROUP BY platform, content_type\n  ORDER BY (round((avg(engagement_rate) * (100)::numeric), 2)) DESC;"
+  },
+  {
+   "name": "channel_effectiveness",
+   "def": " SELECT source,\n    count(*) AS total_signups,\n    count(*) FILTER (WHERE (user_id IN ( SELECT profiles.id\n           FROM profiles\n          WHERE (profiles.is_premium = true)))) AS premium_conversions,\n    round((((count(*) FILTER (WHERE (user_id IN ( SELECT profiles.id\n           FROM profiles\n          WHERE (profiles.is_premium = true)))))::numeric / (NULLIF(count(*), 0))::numeric) * (100)::numeric), 2) AS premium_conversion_rate\n   FROM marketing_events\n  WHERE ((event_name = 'user_signup'::text) AND (created_at >= (now() - '30 days'::interval)))\n  GROUP BY source\n  ORDER BY (count(*)) DESC;"
+  },
+  {
+   "name": "feedback_themes",
+   "def": " SELECT category,\n    subcategory,\n    sentiment,\n    count(*) AS mention_count,\n    count(*) FILTER (WHERE (created_at >= (now() - '7 days'::interval))) AS mentions_7d,\n    count(*) FILTER (WHERE (created_at >= (now() - '1 day'::interval))) AS mentions_24h,\n    count(*) FILTER (WHERE ((actionable = true) AND (action_taken IS NULL))) AS unactioned,\n    round((((count(*) FILTER (WHERE (sentiment = 'negative'::text)))::numeric / (NULLIF(count(*), 0))::numeric) * (100)::numeric), 1) AS negative_pct\n   FROM feedback\n  WHERE (created_at >= (now() - '30 days'::interval))\n  GROUP BY category, subcategory, sentiment\n  ORDER BY (count(*)) DESC;"
+  },
+  {
+   "name": "funnel_health",
+   "def": " WITH this_week AS (\n         SELECT avg(\n                CASE\n                    WHEN (funnel_snapshots.downloads > 0) THEN ((funnel_snapshots.signups)::numeric / (funnel_snapshots.downloads)::numeric)\n                    ELSE NULL::numeric\n                END) AS signup_rate,\n            avg(\n                CASE\n                    WHEN (funnel_snapshots.signups > 0) THEN ((funnel_snapshots.first_scan_completed)::numeric / (funnel_snapshots.signups)::numeric)\n                    ELSE NULL::numeric\n                END) AS activation_rate,\n            avg(\n                CASE\n                    WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.first_settlement_sent)::numeric / (funnel_snapshots.first_scan_completed)::numeric)\n                    ELSE NULL::numeric\n                END) AS settlement_rate,\n            avg(\n                CASE\n                    WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.second_scan_within_7d)::numeric / (funnel_snapshots.first_scan_completed)::numeric)\n                    ELSE NULL::numeric\n                END) AS retention_rate,\n            avg(\n                CASE\n                    WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.invited_friend)::numeric / (funnel_snapshots.first_scan_completed)::numeric)\n                    ELSE NULL::numeric\n                END) AS invite_rate,\n            avg(\n                CASE\n                    WHEN (funnel_snapshots.signups > 0) THEN ((funnel_snapshots.converted_premium)::numeric / (funnel_snapshots.signups)::numeric)\n                    ELSE NULL::numeric\n                END) AS premium_rate,\n            avg(funnel_snapshots.avg_time_to_first_scan_sec) AS avg_ttfs\n           FROM funnel_snapshots\n          WHERE (funnel_snapshots.date >= (CURRENT_DATE - 7))\n        ), last_week AS (\n         SELECT avg(\n                CASE\n                    WHEN (funnel_snapshots.downloads > 0) THEN ((funnel_snapshots.signups)::numeric / (funnel_snapshots.downloads)::numeric)\n                    ELSE NULL::numeric\n                END) AS signup_rate,\n            avg(\n                CASE\n                    WHEN (funnel_snapshots.signups > 0) THEN ((funnel_snapshots.first_scan_completed)::numeric / (funnel_snapshots.signups)::numeric)\n                    ELSE NULL::numeric\n                END) AS activation_rate,\n            avg(\n                CASE\n                    WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.first_settlement_sent)::numeric / (funnel_snapshots.first_scan_completed)::numeric)\n                    ELSE NULL::numeric\n                END) AS settlement_rate,\n            avg(\n                CASE\n                    WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.second_scan_within_7d)::numeric / (funnel_snapshots.first_scan_completed)::numeric)\n                    ELSE NULL::numeric\n                END) AS retention_rate,\n            avg(\n                CASE\n                    WHEN (funnel_snapshots.first_scan_completed > 0) THEN ((funnel_snapshots.invited_friend)::numeric / (funnel_snapshots.first_scan_completed)::numeric)\n                    ELSE NULL::numeric\n                END) AS invite_rate,\n            avg(\n                CASE\n                    WHEN (funnel_snapshots.signups > 0) THEN ((funnel_snapshots.converted_premium)::numeric / (funnel_snapshots.signups)::numeric)\n                    ELSE NULL::numeric\n                END) AS premium_rate,\n            avg(funnel_snapshots.avg_time_to_first_scan_sec) AS avg_ttfs\n           FROM funnel_snapshots\n          WHERE ((funnel_snapshots.date >= (CURRENT_DATE - 14)) AND (funnel_snapshots.date < (CURRENT_DATE - 7)))\n        )\n SELECT round((tw.signup_rate * (100)::numeric), 1) AS signup_rate_pct,\n    round((tw.activation_rate * (100)::numeric), 1) AS activation_rate_pct,\n    round((tw.settlement_rate * (100)::numeric), 1) AS settlement_rate_pct,\n    round((tw.retention_rate * (100)::numeric), 1) AS retention_rate_pct,\n    round((tw.invite_rate * (100)::numeric), 1) AS invite_rate_pct,\n    round((tw.premium_rate * (100)::numeric), 1) AS premium_rate_pct,\n    round(tw.avg_ttfs) AS avg_ttfs_sec,\n    round(((tw.activation_rate - lw.activation_rate) * (100)::numeric), 1) AS activation_wow_delta,\n    round(((tw.settlement_rate - lw.settlement_rate) * (100)::numeric), 1) AS settlement_wow_delta,\n    round(((tw.invite_rate - lw.invite_rate) * (100)::numeric), 1) AS invite_wow_delta\n   FROM this_week tw,\n    last_week lw;"
+  },
+  {
+   "name": "golfcore_usage_summary",
+   "def": " SELECT to_char((now() AT TIME ZONE 'UTC'::text), 'YYYY-MM'::text) AS month,\n    (count(*))::integer AS calls,\n    500 AS cap,\n    (((count(*))::numeric * 100.0) / (500)::numeric) AS pct_used,\n        CASE\n            WHEN (count(*) = 0) THEN (0)::numeric\n            ELSE ((count(*))::numeric / GREATEST((EXTRACT(epoch FROM (now() - (date_trunc('month'::text, (now() AT TIME ZONE 'UTC'::text)) AT TIME ZONE 'UTC'::text))) / EXTRACT(epoch FROM ((date_trunc('month'::text, (now() AT TIME ZONE 'UTC'::text)) + '1 mon'::interval) - date_trunc('month'::text, (now() AT TIME ZONE 'UTC'::text))))), 0.000000001))\n        END AS projected_month_end,\n    (count(*) FILTER (WHERE is_quota_error))::integer AS quota_errors,\n    ( SELECT golfcore_usage_1.ratelimit_remaining\n           FROM golfcore_usage golfcore_usage_1\n          WHERE ((golfcore_usage_1.month = to_char((now() AT TIME ZONE 'UTC'::text), 'YYYY-MM'::text)) AND (golfcore_usage_1.ratelimit_remaining IS NOT NULL))\n          ORDER BY golfcore_usage_1.called_at DESC, golfcore_usage_1.id DESC\n         LIMIT 1) AS last_remaining,\n    max(called_at) AS last_call_at\n   FROM golfcore_usage\n  WHERE (month = to_char((now() AT TIME ZONE 'UTC'::text), 'YYYY-MM'::text));"
+  }
+ ],
+ "grants": [
+  {
+   "table": "automation_log",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "automation_log",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "channel_effectiveness",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "content_insights",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "content_performance",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "contest_players",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "contests",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "contests",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "contests",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "contests",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "contests",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "contests",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "contests",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "contests",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "contests",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "contests",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "contests",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "contests",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "contests",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "contests",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "contests",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "contests",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "contests",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "contests",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "contests",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "contests",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "contests",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "contests",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "contests",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "contests",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "contests",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "contests",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "contests",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "contests",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "course_catalog",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "course_search_cache",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "daily_metrics",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "feedback",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "feedback",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "feedback",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "feedback",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "feedback",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "feedback",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "feedback",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "feedback",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "feedback",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "feedback",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "feedback",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "feedback",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "feedback",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "feedback",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "feedback",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "feedback",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "feedback",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "feedback_themes",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "funnel_health",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "funnel_snapshots",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "golfcore_usage",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "golfcore_usage_drift",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "golfcore_usage_summary",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "golfcore_usage_summary_v2",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "improvement_actions",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "marketing_events",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "profiles",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "profiles",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "profiles",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "profiles",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "profiles",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "profiles",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "profiles",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "profiles",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "profiles",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "profiles",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "profiles",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "profiles",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "profiles",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "profiles",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "profiles",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "profiles",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "profiles",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "published_rounds",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "revenue_events",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "round_messages",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "scans",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "scans",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "scans",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "scans",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "scans",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "scans",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "scans",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "scans",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "scans",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "scans",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "scans",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "scans",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "scans",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "scans",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "scans",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "scans",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "scans",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "scans",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "scans",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "scans",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "scans",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "scans",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "scans",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "scans",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "scans",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "scans",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "scans",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "scans",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "score_events",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "score_events",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "score_events",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "score_events",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "score_events",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "score_events",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "score_events",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "score_events",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "score_events",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "score_events",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "score_events",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "score_events",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "score_events",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "score_events",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "score_events",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "score_events",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "score_events",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "anon",
+   "priv": "DELETE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "anon",
+   "priv": "INSERT"
+  },
+  {
+   "table": "settlements",
+   "grantee": "anon",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "settlements",
+   "grantee": "anon",
+   "priv": "SELECT"
+  },
+  {
+   "table": "settlements",
+   "grantee": "anon",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "settlements",
+   "grantee": "anon",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "anon",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "authenticated",
+   "priv": "DELETE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "authenticated",
+   "priv": "INSERT"
+  },
+  {
+   "table": "settlements",
+   "grantee": "authenticated",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "settlements",
+   "grantee": "authenticated",
+   "priv": "SELECT"
+  },
+  {
+   "table": "settlements",
+   "grantee": "authenticated",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "settlements",
+   "grantee": "authenticated",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "authenticated",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "settlements",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "settlements",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "settlements",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "settlements",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "settlements",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "settlements",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "settlements",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "settlements",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "settlements",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "share_links",
+   "grantee": "postgres",
+   "priv": "DELETE"
+  },
+  {
+   "table": "share_links",
+   "grantee": "postgres",
+   "priv": "INSERT"
+  },
+  {
+   "table": "share_links",
+   "grantee": "postgres",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "share_links",
+   "grantee": "postgres",
+   "priv": "SELECT"
+  },
+  {
+   "table": "share_links",
+   "grantee": "postgres",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "share_links",
+   "grantee": "postgres",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "share_links",
+   "grantee": "postgres",
+   "priv": "UPDATE"
+  },
+  {
+   "table": "share_links",
+   "grantee": "service_role",
+   "priv": "DELETE"
+  },
+  {
+   "table": "share_links",
+   "grantee": "service_role",
+   "priv": "INSERT"
+  },
+  {
+   "table": "share_links",
+   "grantee": "service_role",
+   "priv": "REFERENCES"
+  },
+  {
+   "table": "share_links",
+   "grantee": "service_role",
+   "priv": "SELECT"
+  },
+  {
+   "table": "share_links",
+   "grantee": "service_role",
+   "priv": "TRIGGER"
+  },
+  {
+   "table": "share_links",
+   "grantee": "service_role",
+   "priv": "TRUNCATE"
+  },
+  {
+   "table": "share_links",
+   "grantee": "service_role",
+   "priv": "UPDATE"
+  }
+ ],
+ "routine_grants": [
+  {
+   "routine": "handle_updated_at",
+   "grantee": "PUBLIC",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "handle_updated_at",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "handle_updated_at",
+   "grantee": "anon",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "handle_updated_at",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "handle_updated_at",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "is_contest_owner",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "is_contest_owner",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "is_contest_owner",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "is_contest_member",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "is_contest_member",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "is_contest_member",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "rls_auto_enable",
+   "grantee": "PUBLIC",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "rls_auto_enable",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "rls_auto_enable",
+   "grantee": "anon",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "rls_auto_enable",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "rls_auto_enable",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "handle_new_user",
+   "grantee": "PUBLIC",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "handle_new_user",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "handle_new_user",
+   "grantee": "anon",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "handle_new_user",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "handle_new_user",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "increment_daily_signups",
+   "grantee": "PUBLIC",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "increment_daily_signups",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "increment_daily_signups",
+   "grantee": "anon",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "increment_daily_signups",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "increment_daily_signups",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "increment_daily_revenue",
+   "grantee": "PUBLIC",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "increment_daily_revenue",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "increment_daily_revenue",
+   "grantee": "anon",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "increment_daily_revenue",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "increment_daily_revenue",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_dau",
+   "grantee": "PUBLIC",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_dau",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_dau",
+   "grantee": "anon",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_dau",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_dau",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_mau",
+   "grantee": "PUBLIC",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_mau",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_mau",
+   "grantee": "anon",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_mau",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_mau",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "calculate_retention",
+   "grantee": "PUBLIC",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "calculate_retention",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "calculate_retention",
+   "grantee": "anon",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "calculate_retention",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "calculate_retention",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "sanitize_shared_round",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "sanitize_shared_round",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "revoke_share_links",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "revoke_share_links",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "revoke_share_links",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "publish_shared_round",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "publish_shared_round",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "publish_shared_round",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "create_share_link",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "create_share_link",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "create_share_link",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_shared_round",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_shared_round",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_shared_round",
+   "grantee": "anon",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "get_shared_round",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "chat_contest",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "chat_contest",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "post_message",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "post_message",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "post_message",
+   "grantee": "anon",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "post_message",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "list_messages",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "list_messages",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "list_messages",
+   "grantee": "anon",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "list_messages",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "list_host_messages",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "list_host_messages",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "list_host_messages",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "remove_message",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "remove_message",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "remove_message",
+   "grantee": "authenticated",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "reconcile_golfcore_usage",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "reconcile_golfcore_usage",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "reserve_golfcore_call",
+   "grantee": "postgres",
+   "priv": "EXECUTE"
+  },
+  {
+   "routine": "reserve_golfcore_call",
+   "grantee": "service_role",
+   "priv": "EXECUTE"
+  }
+ ],
+ "publication": [
+  {
+   "pub": "supabase_realtime",
+   "schema": "public",
+   "table": "contests"
+  },
+  {
+   "pub": "supabase_realtime",
+   "schema": "public",
+   "table": "contest_players"
+  },
+  {
+   "pub": "supabase_realtime",
+   "schema": "public",
+   "table": "score_events"
+  }
+ ],
+ "extensions": [
+  {
+   "name": "plpgsql",
+   "version": "1.0"
+  },
+  {
+   "name": "pg_stat_statements",
+   "version": "1.11"
+  },
+  {
+   "name": "uuid-ossp",
+   "version": "1.1"
+  },
+  {
+   "name": "pgcrypto",
+   "version": "1.3"
+  },
+  {
+   "name": "supabase_vault",
+   "version": "0.3.1"
+  },
+  {
+   "name": "pg_graphql",
+   "version": "1.5.11"
+  }
+ ],
+ "migrations": [
+  {
+   "version": "20260320041248",
+   "name": "create_revenue_events_and_marketing_tables"
+  },
+  {
+   "version": "20260320042219",
+   "name": "create_profiles_automation_log_and_rpc"
+  },
+  {
+   "version": "20260320043052",
+   "name": "create_feedback_and_funnel_tables"
+  },
+  {
+   "version": "20260326032639",
+   "name": "create_contest_sharing_tables"
+  },
+  {
+   "version": "20261022080416",
+   "name": "live_share_slice1"
+  },
+  {
+   "version": "20261022090456",
+   "name": "fix_contest_rls_recursion"
+  },
+  {
+   "version": "20261022090542",
+   "name": "live_chat_slice2"
+  }
+ ]
+}

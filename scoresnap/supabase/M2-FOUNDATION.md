@@ -146,11 +146,11 @@ assignment/scorer authorization is implied; it is explicitly denied.
 
 ## Verification and drift
 
-`schema-snapshot/live.json` is the normalized post-apply capture; baseline.json
-preserves the pre-M2 schema. expected-after.json is the full-chain catalog, including
-M2b. The separately checked local ledger contains seven historical markers + `20261027000000 live_baseline` +
+`schema-snapshot/live.json` is the normalized post-M3 capture and matches
+`expected-m3.json`; baseline.json preserves the pre-M2 schema. expected-after.json
+is the M2b catalog. The separately checked local ledger contains seven historical markers + `20261027000000 live_baseline` +
 `20261027120000 sync_foundation` + `20261027130000 guest_write_guard` (ten ledger
-rows); normalization removes ledger rows from expected-after.json. CI starts CLI 2.122.0 with ghcr.io, resets the full chain, and applies hosted
+rows); the live ledger adds `20261028162155 tournament_rounds_live` as the eleventh row. Normalization removes ledger rows from expected-after.json. CI starts CLI 2.122.0 with ghcr.io, resets the full chain, and applies hosted
 platform emulation as supabase_admin. It rolls down M2b and requires the guest-contest red result, runs the unsafe
 rollback race red, restores/reapplies M2 and runs the guarded race green, then
 rolls down the unused foundation,
@@ -160,8 +160,8 @@ rejection fixtures with --url/--admin-url (four reserved-role mutations run
 only in offline PG17 because of supautils). It reapplies both M2 and M2b with CLI
 migration up, compares expected-after and ten local ledger entries, then runs the
 M2 role/ACL/default/future/join/CAS/legacy gates and M2b guest-write guard and
-mutation gates before ledger-adoption rehearsal. Live preapply now requires the exact ordered ten-row applied ledger;
-local full-chain mode also expects ten rows including M2b. Active SQL names, SHA256 and git tracking are checked.
+mutation gates before ledger-adoption rehearsal. Live preapply now requires the exact ordered eleven-row applied ledger ending in `20261028162155 tournament_rounds_live`;
+local mode expects the ten-row M2b prefix. Active SQL names, SHA256 and git tracking are checked.
 Rehearsal asserts exactly baseline, M2 and M2b pending in that order before
 repair: `20261027000000_live_baseline.sql`, `20261027120000_sync_foundation.sql`,
 `20261027130000_guest_write_guard.sql`. It repairs only baseline, then asserts
@@ -172,7 +172,7 @@ Normalization now compares **visible ordinal column order**, compressing gaps
 left by PostgreSQL DROP COLUMN. It still detects additions/removals/reordering;
 physical attnum gaps alone do not make a safe down/reapply differ forever.
 The historical pre-apply snapshot is now preserved as baseline.json; live.json
-contains the single post-M2b capture.
+contains the post-M3 schema and matches expected-m3.json. M3 was applied on 2026-10-28.
 
 Offline command (no server, sockets, Docker or network):
 
@@ -204,9 +204,10 @@ same intended target. Reapply via the normal migration workflow. Tests exercise
 both down and reapply on disposable databases.
 
 M2 and M2b were applied live with Augie approval on 2026-10-27 at approximately
-02:20 MST. The post-apply read-only capture matches expected-after.json and the
-exact ordered ten-row ledger. The next milestone is M3 with separate approval;
-no approved apply is pending. Never execute baseline DDL on live or repeat
+02:20 MST. That post-apply capture matches expected-after.json and the
+ten-row M2b ledger. M3 (`20261028162155_tournament_rounds_live`) was applied
+on 2026-10-28. Live preapply now requires the post-M3 schema and the exact
+ordered eleven-row ledger. No approved apply is pending. Never execute baseline DDL on live or repeat
 adoption repair. Auth enablement remains a separate decision. See
 [schema-drift/LIVE-APPLY-PREFLIGHT.md](schema-drift/LIVE-APPLY-PREFLIGHT.md).
 

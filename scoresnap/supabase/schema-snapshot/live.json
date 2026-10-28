@@ -345,6 +345,44 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "assignment_revision",
+      "collation": null,
+      "compression": "",
+      "default": "0",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_rounds",
+      "type": "bigint",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "assignment_revision",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "group_submissions",
+      "type": "bigint",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "auxiliary_data",
       "collation": null,
       "compression": "",
@@ -1024,6 +1062,25 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "contest_groups_id_contest_id_round_id_key",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "contest_join_requests_pending",
       "type": "uuid",
       "type_schema": "pg_catalog"
@@ -1082,6 +1139,82 @@
       "statistics_target": null,
       "storage": "p",
       "table": "contest_players_contest_id_user_id_key",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_players_id_contest",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_rounds_contest_id_round_number_key",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_rounds_id_contest_id_key",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "group_submissions_pkey",
       "type": "uuid",
       "type_schema": "pg_catalog"
     },
@@ -1195,6 +1328,44 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "round_player_assignments_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_scorer_scopes_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "score_events_cell_version",
       "type": "uuid",
       "type_schema": "pg_catalog"
@@ -1215,6 +1386,44 @@
       "statistics_target": null,
       "storage": "p",
       "table": "score_events_revision",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "sync_id_map_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_groups",
       "type": "uuid",
       "type_schema": "pg_catalog"
     },
@@ -1290,6 +1499,44 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "contest_rounds",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "group_submissions",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "operation_receipts",
       "type": "uuid",
       "type_schema": "pg_catalog"
@@ -1347,6 +1594,44 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "round_player_assignments",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_scorer_scopes",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "score_events",
       "type": "uuid",
       "type_schema": "pg_catalog"
@@ -1367,6 +1652,25 @@
       "statistics_target": null,
       "storage": "p",
       "table": "share_links",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "sync_id_map",
       "type": "uuid",
       "type_schema": "pg_catalog"
     },
@@ -1444,6 +1748,63 @@
       "storage": "x",
       "table": "contests",
       "type": "jsonb",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "course_data",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "contest_rounds",
+      "type": "jsonb",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "course_handicaps",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "contest_players",
+      "type": "jsonb",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "course_name",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "contest_rounds",
+      "type": "text",
       "type_schema": "pg_catalog"
     },
     {
@@ -1746,6 +2107,25 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "contest_groups",
+      "type": "timestamp with time zone",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "created_at",
+      "collation": null,
+      "compression": "",
+      "default": "now()",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "contest_join_requests",
       "type": "timestamp with time zone",
       "type_schema": "pg_catalog"
@@ -1784,7 +2164,64 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "contest_rounds",
+      "type": "timestamp with time zone",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "created_at",
+      "collation": null,
+      "compression": "",
+      "default": "now()",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "operation_receipts",
+      "type": "timestamp with time zone",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "created_at",
+      "collation": null,
+      "compression": "",
+      "default": "now()",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_player_assignments",
+      "type": "timestamp with time zone",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "created_at",
+      "collation": null,
+      "compression": "",
+      "default": "now()",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_scorer_scopes",
       "type": "timestamp with time zone",
       "type_schema": "pg_catalog"
     },
@@ -1998,6 +2435,25 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "current_round",
+      "collation": null,
+      "compression": "",
+      "default": "1",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contests",
+      "type": "integer",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "customer_email",
       "collation": null,
       "compression": "",
@@ -2089,6 +2545,25 @@
       "statistics_target": null,
       "storage": "p",
       "table": "daily_metrics",
+      "type": "date",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "date",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_rounds",
       "type": "date",
       "type_schema": "pg_catalog"
     },
@@ -2587,6 +3062,25 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "external_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "contest_groups",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "fetched_at",
       "collation": null,
       "compression": "",
@@ -2815,6 +3309,101 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "group_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "group_submissions_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "group_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_scorer_scopes_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "group_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "group_submissions",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "group_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_player_assignments",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "group_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_scorer_scopes",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "handicap",
       "collation": null,
       "compression": "",
@@ -2962,6 +3551,25 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "contest_groups",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "id",
+      "collation": null,
+      "compression": "",
+      "default": "gen_random_uuid()",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "contest_join_requests",
       "type": "uuid",
       "type_schema": "pg_catalog"
@@ -2982,6 +3590,25 @@
       "statistics_target": null,
       "storage": "p",
       "table": "contest_players",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "id",
+      "collation": null,
+      "compression": "",
+      "default": "gen_random_uuid()",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_rounds",
       "type": "uuid",
       "type_schema": "pg_catalog"
     },
@@ -3247,6 +3874,44 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "contest_groups_id_contest_id_round_id_key",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_groups_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "contest_join_requests_pkey",
       "type": "uuid",
       "type_schema": "pg_catalog"
@@ -3266,7 +3931,64 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "contest_players_id_contest",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "contest_players_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_rounds_id_contest_id_key",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_rounds_pkey",
       "type": "uuid",
       "type_schema": "pg_catalog"
     },
@@ -3898,6 +4620,25 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "is_tournament",
+      "collation": null,
+      "compression": "",
+      "default": "false",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contests",
+      "type": "boolean",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "joined_at",
       "collation": null,
       "compression": "",
@@ -3933,6 +4674,44 @@
       "storage": "m",
       "table": "daily_metrics",
       "type": "numeric(4,2)",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "kind",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "sync_id_map_pkey",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "kind",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "sync_id_map",
+      "type": "text",
       "type_schema": "pg_catalog"
     },
     {
@@ -4117,11 +4896,49 @@
       "identity": "",
       "inheritance_count": 0,
       "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "sync_id_map_pkey",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "local_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
       "notnull": true,
       "options": null,
       "statistics_target": null,
       "storage": "x",
       "table": "published_rounds",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "local_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "sync_id_map",
       "type": "text",
       "type_schema": "pg_catalog"
     },
@@ -4444,7 +5261,45 @@
       "options": null,
       "statistics_target": null,
       "storage": "x",
+      "table": "contest_groups",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "name",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
       "table": "contest_players",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "name",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "contest_rounds",
       "type": "text",
       "type_schema": "pg_catalog"
     },
@@ -4919,7 +5774,45 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "round_player_assignments_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "player_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "score_events_cell_version",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "player_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_player_assignments",
       "type": "uuid",
       "type_schema": "pg_catalog"
     },
@@ -5812,6 +6705,82 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "contest_groups_id_contest_id_round_id_key",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "round_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "group_submissions_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "round_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_player_assignments_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "round_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_scorer_scopes_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "round_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "score_events",
       "type": "uuid",
       "type_schema": "pg_catalog"
@@ -5833,6 +6802,120 @@
       "storage": "p",
       "table": "score_events_cell_version",
       "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "round_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_groups",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "round_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "group_submissions",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "round_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_player_assignments",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "round_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_scorer_scopes",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "round_number",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_rounds_contest_id_round_number_key",
+      "type": "integer",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "round_number",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_rounds",
+      "type": "integer",
       "type_schema": "pg_catalog"
     },
     {
@@ -5871,6 +6954,25 @@
       "storage": "p",
       "table": "settlements",
       "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "score_revision",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "group_submissions",
+      "type": "bigint",
       "type_schema": "pg_catalog"
     },
     {
@@ -6023,6 +7125,25 @@
       "storage": "x",
       "table": "idx_feedback_sentiment",
       "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "server_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "sync_id_map",
+      "type": "uuid",
       "type_schema": "pg_catalog"
     },
     {
@@ -6216,6 +7337,44 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "sort_order",
+      "collation": null,
+      "compression": "",
+      "default": "0",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_groups",
+      "type": "integer",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "sort_order",
+      "collation": null,
+      "compression": "",
+      "default": "0",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "contest_players",
+      "type": "integer",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "source",
       "collation": null,
       "compression": "",
@@ -6401,7 +7560,45 @@
       "options": null,
       "statistics_target": null,
       "storage": "x",
+      "table": "contest_players",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "status",
+      "collation": null,
+      "compression": "",
+      "default": "'active'::text",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
       "table": "contests",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "status",
+      "collation": null,
+      "compression": "",
+      "default": "'approved'::text",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "round_scorer_scopes",
       "type": "text",
       "type_schema": "pg_catalog"
     },
@@ -6615,6 +7812,44 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "submitted_at",
+      "collation": null,
+      "compression": "",
+      "default": "now()",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "group_submissions",
+      "type": "timestamp with time zone",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "submitted_by",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "group_submissions",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "subscription_id",
       "collation": null,
       "compression": "",
@@ -6763,6 +7998,25 @@
       "statistics_target": null,
       "storage": "x",
       "table": "contests",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "tee_time",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "contest_groups",
       "type": "text",
       "type_schema": "pg_catalog"
     },
@@ -7351,6 +8605,25 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "round_scorer_scopes_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "user_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "scans",
       "type": "uuid",
       "type_schema": "pg_catalog"
@@ -7371,6 +8644,25 @@
       "statistics_target": null,
       "storage": "p",
       "table": "contest_memberships",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "user_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "round_scorer_scopes",
       "type": "uuid",
       "type_schema": "pg_catalog"
     },
@@ -7502,6 +8794,24 @@
       "table": "golfcore_usage_summary_v2",
       "type": "timestamp with time zone",
       "udt": "timestamptz"
+    },
+    {
+      "col": "assignment_revision",
+      "default": "0",
+      "nullable": "NO",
+      "pos": 8,
+      "table": "contest_rounds",
+      "type": "bigint",
+      "udt": "int8"
+    },
+    {
+      "col": "assignment_revision",
+      "default": null,
+      "nullable": "NO",
+      "pos": 5,
+      "table": "group_submissions",
+      "type": "bigint",
+      "udt": "int8"
     },
     {
       "col": "auxiliary_data",
@@ -7778,7 +9088,52 @@
       "default": null,
       "nullable": "NO",
       "pos": 1,
+      "table": "group_submissions",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
       "table": "published_rounds",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "round_player_assignments",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "round_scorer_scopes",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "sync_id_map",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "contest_groups",
       "type": "uuid",
       "udt": "uuid"
     },
@@ -7797,6 +9152,15 @@
       "nullable": "NO",
       "pos": 2,
       "table": "contest_players",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "contest_rounds",
       "type": "uuid",
       "udt": "uuid"
     },
@@ -7864,6 +9228,33 @@
       "udt": "jsonb"
     },
     {
+      "col": "course_data",
+      "default": null,
+      "nullable": "YES",
+      "pos": 7,
+      "table": "contest_rounds",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "course_handicaps",
+      "default": null,
+      "nullable": "YES",
+      "pos": 12,
+      "table": "contest_players",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "col": "course_name",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "contest_rounds",
+      "type": "text",
+      "udt": "text"
+    },
+    {
       "col": "course_name",
       "default": null,
       "nullable": "YES",
@@ -7878,6 +9269,15 @@
       "nullable": "NO",
       "pos": 5,
       "table": "round_messages",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "NO",
+      "pos": 5,
+      "table": "round_player_assignments",
       "type": "timestamp with time zone",
       "udt": "timestamptz"
     },
@@ -7903,8 +9303,35 @@
       "col": "created_at",
       "default": "now()",
       "nullable": "NO",
+      "pos": 6,
+      "table": "round_scorer_scopes",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "NO",
+      "pos": 8,
+      "table": "contest_groups",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "NO",
       "pos": 9,
       "table": "contest_join_requests",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "now()",
+      "nullable": "NO",
+      "pos": 9,
+      "table": "contest_rounds",
       "type": "timestamp with time zone",
       "udt": "timestamptz"
     },
@@ -8044,6 +9471,15 @@
       "udt": "int4"
     },
     {
+      "col": "current_round",
+      "default": "1",
+      "nullable": "NO",
+      "pos": 21,
+      "table": "contests",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
       "col": "customer_email",
       "default": null,
       "nullable": "YES",
@@ -8085,6 +9521,15 @@
       "nullable": "NO",
       "pos": 2,
       "table": "funnel_snapshots",
+      "type": "date",
+      "udt": "date"
+    },
+    {
+      "col": "date",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "contest_rounds",
       "type": "date",
       "udt": "date"
     },
@@ -8260,6 +9705,15 @@
       "udt": "timestamptz"
     },
     {
+      "col": "external_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "contest_groups",
+      "type": "text",
+      "udt": "text"
+    },
+    {
       "col": "fetched_at",
       "default": "now()",
       "nullable": "NO",
@@ -8359,6 +9813,33 @@
       "udt": "text"
     },
     {
+      "col": "group_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "group_submissions",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "group_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "round_scorer_scopes",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "group_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "round_player_assignments",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
       "col": "handicap",
       "default": "0",
       "nullable": "YES",
@@ -8417,6 +9898,15 @@
       "default": "gen_random_uuid()",
       "nullable": "NO",
       "pos": 1,
+      "table": "contest_groups",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
       "table": "contest_join_requests",
       "type": "uuid",
       "udt": "uuid"
@@ -8427,6 +9917,15 @@
       "nullable": "NO",
       "pos": 1,
       "table": "contest_players",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
+      "table": "contest_rounds",
       "type": "uuid",
       "udt": "uuid"
     },
@@ -8647,6 +10146,15 @@
       "udt": "bool"
     },
     {
+      "col": "is_tournament",
+      "default": "false",
+      "nullable": "NO",
+      "pos": 20,
+      "table": "contests",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
       "col": "joined_at",
       "default": "now()",
       "nullable": "YES",
@@ -8663,6 +10171,15 @@
       "table": "daily_metrics",
       "type": "numeric",
       "udt": "numeric"
+    },
+    {
+      "col": "kind",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "sync_id_map",
+      "type": "text",
+      "udt": "text"
     },
     {
       "col": "last_call_at",
@@ -8724,6 +10241,15 @@
       "nullable": "NO",
       "pos": 3,
       "table": "published_rounds",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "local_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "sync_id_map",
       "type": "text",
       "udt": "text"
     },
@@ -8841,6 +10367,24 @@
       "nullable": "NO",
       "pos": 3,
       "table": "contests",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "name",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "contest_groups",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "name",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "contest_rounds",
       "type": "text",
       "udt": "text"
     },
@@ -9014,6 +10558,15 @@
       "table": "content_performance",
       "type": "text",
       "udt": "text"
+    },
+    {
+      "col": "player_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "round_player_assignments",
+      "type": "uuid",
+      "udt": "uuid"
     },
     {
       "col": "player_id",
@@ -9396,11 +10949,56 @@
     {
       "col": "round_id",
       "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "group_submissions",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "round_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "round_player_assignments",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "round_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "round_scorer_scopes",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "round_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "contest_groups",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "round_id",
+      "default": null,
       "nullable": "YES",
       "pos": 8,
       "table": "score_events",
       "type": "uuid",
       "udt": "uuid"
+    },
+    {
+      "col": "round_number",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "contest_rounds",
+      "type": "integer",
+      "udt": "int4"
     },
     {
       "col": "scan_duration_ms",
@@ -9419,6 +11017,15 @@
       "table": "settlements",
       "type": "uuid",
       "udt": "uuid"
+    },
+    {
+      "col": "score_revision",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "group_submissions",
+      "type": "bigint",
+      "udt": "int8"
     },
     {
       "col": "scorecard_data",
@@ -9473,6 +11080,15 @@
       "table": "feedback",
       "type": "text",
       "udt": "text"
+    },
+    {
+      "col": "server_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "sync_id_map",
+      "type": "uuid",
+      "udt": "uuid"
     },
     {
       "col": "settled_at",
@@ -9556,6 +11172,24 @@
       "udt": "jsonb"
     },
     {
+      "col": "sort_order",
+      "default": "0",
+      "nullable": "NO",
+      "pos": 13,
+      "table": "contest_players",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "sort_order",
+      "default": "0",
+      "nullable": "NO",
+      "pos": 7,
+      "table": "contest_groups",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
       "col": "source",
       "default": "'golfcore'::text",
       "nullable": "NO",
@@ -9622,8 +11256,26 @@
       "col": "status",
       "default": "'active'::text",
       "nullable": "NO",
+      "pos": 11,
+      "table": "contest_players",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "status",
+      "default": "'active'::text",
+      "nullable": "NO",
       "pos": 5,
       "table": "contests",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "status",
+      "default": "'approved'::text",
+      "nullable": "NO",
+      "pos": 5,
+      "table": "round_scorer_scopes",
       "type": "text",
       "udt": "text"
     },
@@ -9709,6 +11361,24 @@
       "udt": "text"
     },
     {
+      "col": "submitted_at",
+      "default": "now()",
+      "nullable": "NO",
+      "pos": 7,
+      "table": "group_submissions",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "submitted_by",
+      "default": null,
+      "nullable": "NO",
+      "pos": 6,
+      "table": "group_submissions",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
       "col": "subscription_id",
       "default": null,
       "nullable": "YES",
@@ -9777,6 +11447,15 @@
       "nullable": "YES",
       "pos": 9,
       "table": "contests",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "tee_time",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "contest_groups",
       "type": "text",
       "udt": "text"
     },
@@ -9981,6 +11660,15 @@
     {
       "col": "user_id",
       "default": null,
+      "nullable": "NO",
+      "pos": 4,
+      "table": "round_scorer_scopes",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "user_id",
+      "default": null,
       "nullable": "YES",
       "pos": 2,
       "table": "scans",
@@ -10065,6 +11753,19 @@
       "validated": true
     },
     {
+      "def": "CHECK (((current_round >= 1) AND (current_round <= 50)))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contests_current_round_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "contests",
+      "validated": true
+    },
+    {
       "def": "CHECK (((hole >= 1) AND (hole <= 18)))",
       "deferrable": false,
       "deferred": false,
@@ -10075,6 +11776,45 @@
       "noinherit": false,
       "parent": null,
       "table": "score_events",
+      "validated": true
+    },
+    {
+      "def": "CHECK (((length(btrim(name)) >= 1) AND (length(btrim(name)) <= 80)))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_groups_name_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "contest_groups",
+      "validated": true
+    },
+    {
+      "def": "CHECK (((length(btrim(name)) >= 1) AND (length(btrim(name)) <= 80)))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_rounds_name_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "contest_rounds",
+      "validated": true
+    },
+    {
+      "def": "CHECK (((length(local_id) >= 1) AND (length(local_id) <= 80)))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "sync_id_map_local_id_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "sync_id_map",
       "validated": true
     },
     {
@@ -10101,6 +11841,45 @@
       "noinherit": false,
       "parent": null,
       "table": "contest_memberships",
+      "validated": true
+    },
+    {
+      "def": "CHECK (((round_number >= 1) AND (round_number <= 50)))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_rounds_round_number_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "contest_rounds",
+      "validated": true
+    },
+    {
+      "def": "CHECK ((assignment_revision >= 0))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_rounds_assignment_revision_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "contest_rounds",
+      "validated": true
+    },
+    {
+      "def": "CHECK ((assignment_revision >= 0))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "group_submissions_assignment_revision_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "group_submissions",
       "validated": true
     },
     {
@@ -10143,6 +11922,19 @@
       "validated": true
     },
     {
+      "def": "CHECK ((kind = ANY (ARRAY['round'::text, 'group'::text, 'player'::text])))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "sync_id_map_kind_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "sync_id_map",
+      "validated": true
+    },
+    {
       "def": "CHECK ((protocol = ANY (ARRAY[0, 1])))",
       "deferrable": false,
       "deferred": false,
@@ -10169,6 +11961,19 @@
       "validated": true
     },
     {
+      "def": "CHECK ((score_revision >= 0))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "group_submissions_score_revision_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "group_submissions",
+      "validated": true
+    },
+    {
       "def": "CHECK ((sender_session_hash ~ '^[a-f0-9]{64}$'::text))",
       "deferrable": false,
       "deferred": false,
@@ -10182,6 +11987,45 @@
       "validated": true
     },
     {
+      "def": "CHECK ((sort_order >= 0))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_groups_sort_order_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "contest_groups",
+      "validated": true
+    },
+    {
+      "def": "CHECK ((sort_order >= 0))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_players_sort_order_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "contest_players",
+      "validated": true
+    },
+    {
+      "def": "CHECK ((status = ANY (ARRAY['active'::text, 'WD'::text, 'NS'::text])))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_players_status_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "contest_players",
+      "validated": true
+    },
+    {
       "def": "CHECK ((status = ANY (ARRAY['active'::text, 'completed'::text])))",
       "deferrable": false,
       "deferred": false,
@@ -10192,6 +12036,19 @@
       "noinherit": false,
       "parent": null,
       "table": "contests",
+      "validated": true
+    },
+    {
+      "def": "CHECK ((status = ANY (ARRAY['approved'::text, 'revoked'::text])))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "round_scorer_scopes_status_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "round_scorer_scopes",
       "validated": true
     },
     {
@@ -10318,6 +12175,19 @@
       "domain": null,
       "inheritance_count": 0,
       "local": true,
+      "name": "contest_rounds_contest_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "contest_rounds",
+      "validated": true
+    },
+    {
+      "def": "FOREIGN KEY (contest_id) REFERENCES contests(id) ON DELETE CASCADE",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
       "name": "operation_receipts_contest_id_fkey",
       "noinherit": true,
       "parent": null,
@@ -10348,6 +12218,19 @@
       "noinherit": true,
       "parent": null,
       "table": "score_events",
+      "validated": true
+    },
+    {
+      "def": "FOREIGN KEY (contest_id) REFERENCES contests(id) ON DELETE CASCADE",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "sync_id_map_contest_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "sync_id_map",
       "validated": true
     },
     {
@@ -10429,6 +12312,45 @@
       "validated": true
     },
     {
+      "def": "FOREIGN KEY (group_id, contest_id, round_id) REFERENCES contest_groups(id, contest_id, round_id) ON DELETE CASCADE",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "group_submissions_group_id_contest_id_round_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "group_submissions",
+      "validated": true
+    },
+    {
+      "def": "FOREIGN KEY (group_id, contest_id, round_id) REFERENCES contest_groups(id, contest_id, round_id) ON DELETE CASCADE",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "round_player_assignments_group_id_contest_id_round_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "round_player_assignments",
+      "validated": true
+    },
+    {
+      "def": "FOREIGN KEY (group_id, contest_id, round_id) REFERENCES contest_groups(id, contest_id, round_id) ON DELETE CASCADE",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "round_scorer_scopes_group_id_contest_id_round_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "round_scorer_scopes",
+      "validated": true
+    },
+    {
       "def": "FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE",
       "deferrable": false,
       "deferred": false,
@@ -10494,6 +12416,19 @@
       "validated": true
     },
     {
+      "def": "FOREIGN KEY (player_id, contest_id) REFERENCES contest_players(id, contest_id) ON DELETE CASCADE",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "round_player_assignments_player_id_contest_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "round_player_assignments",
+      "validated": true
+    },
+    {
       "def": "FOREIGN KEY (requester) REFERENCES auth.users(id)",
       "deferrable": false,
       "deferred": false,
@@ -10507,6 +12442,45 @@
       "validated": true
     },
     {
+      "def": "FOREIGN KEY (round_id, contest_id) REFERENCES contest_rounds(id, contest_id) ON DELETE CASCADE",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_groups_round_id_contest_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "contest_groups",
+      "validated": true
+    },
+    {
+      "def": "FOREIGN KEY (round_id, contest_id) REFERENCES contest_rounds(id, contest_id) ON DELETE CASCADE",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "round_player_assignments_round_id_contest_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "round_player_assignments",
+      "validated": true
+    },
+    {
+      "def": "FOREIGN KEY (round_id, contest_id) REFERENCES contest_rounds(id, contest_id) ON DELETE RESTRICT",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "score_events_round_fk",
+      "noinherit": true,
+      "parent": null,
+      "table": "score_events",
+      "validated": true
+    },
+    {
       "def": "FOREIGN KEY (scan_id) REFERENCES scans(id)",
       "deferrable": false,
       "deferred": false,
@@ -10517,6 +12491,19 @@
       "noinherit": true,
       "parent": null,
       "table": "settlements",
+      "validated": true
+    },
+    {
+      "def": "FOREIGN KEY (submitted_by) REFERENCES auth.users(id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "group_submissions_submitted_by_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "group_submissions",
       "validated": true
     },
     {
@@ -10591,6 +12578,19 @@
       "domain": null,
       "inheritance_count": 0,
       "local": true,
+      "name": "round_scorer_scopes_user_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "round_scorer_scopes",
+      "validated": true
+    },
+    {
+      "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
       "name": "scans_user_id_fkey",
       "noinherit": true,
       "parent": null,
@@ -10621,6 +12621,58 @@
       "noinherit": true,
       "parent": null,
       "table": "published_rounds",
+      "validated": true
+    },
+    {
+      "def": "PRIMARY KEY (contest_id, kind, local_id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "sync_id_map_pkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "sync_id_map",
+      "validated": true
+    },
+    {
+      "def": "PRIMARY KEY (contest_id, round_id, group_id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "group_submissions_pkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "group_submissions",
+      "validated": true
+    },
+    {
+      "def": "PRIMARY KEY (contest_id, round_id, group_id, user_id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "round_scorer_scopes_pkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "round_scorer_scopes",
+      "validated": true
+    },
+    {
+      "def": "PRIMARY KEY (contest_id, round_id, player_id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "round_player_assignments_pkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "round_player_assignments",
       "validated": true
     },
     {
@@ -10669,6 +12721,19 @@
       "domain": null,
       "inheritance_count": 0,
       "local": true,
+      "name": "contest_groups_pkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "contest_groups",
+      "validated": true
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
       "name": "contest_join_requests_pkey",
       "noinherit": true,
       "parent": null,
@@ -10686,6 +12751,19 @@
       "noinherit": true,
       "parent": null,
       "table": "contest_players",
+      "validated": true
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_rounds_pkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "contest_rounds",
       "validated": true
     },
     {
@@ -10910,6 +12988,19 @@
       "validated": true
     },
     {
+      "def": "UNIQUE (contest_id, round_number)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_rounds_contest_id_round_number_key",
+      "noinherit": true,
+      "parent": null,
+      "table": "contest_rounds",
+      "validated": true
+    },
+    {
       "def": "UNIQUE (contest_id, user_id)",
       "deferrable": false,
       "deferred": false,
@@ -10946,6 +13037,32 @@
       "noinherit": true,
       "parent": null,
       "table": "funnel_snapshots",
+      "validated": true
+    },
+    {
+      "def": "UNIQUE (id, contest_id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_rounds_id_contest_id_key",
+      "noinherit": true,
+      "parent": null,
+      "table": "contest_rounds",
+      "validated": true
+    },
+    {
+      "def": "UNIQUE (id, contest_id, round_id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "contest_groups_id_contest_id_round_id_key",
+      "noinherit": true,
+      "parent": null,
+      "table": "contest_groups",
       "validated": true
     },
     {
@@ -11438,6 +13555,31 @@
     },
     {
       "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "contest uuid, player uuid, round uuid",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.m3_score_insert_allowed(contest uuid, player uuid, round uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\n  SELECT public.is_contest_owner(contest)\n    OR EXISTS (\n      SELECT 1 FROM public.contest_players p\n      WHERE p.id = player AND p.contest_id = contest AND p.user_id = auth.uid()\n    )\n    OR EXISTS (\n      SELECT 1 FROM public.round_player_assignments a\n      JOIN public.round_scorer_scopes s\n        ON s.contest_id = a.contest_id AND s.round_id = a.round_id AND s.group_id = a.group_id\n       AND s.user_id = auth.uid() AND s.status = 'approved'\n      WHERE a.contest_id = contest AND a.player_id = player AND a.round_id IS NOT DISTINCT FROM round\n    );\n$function$",
+      "kind": "f",
+      "language": "sql",
+      "leakproof": false,
+      "name": "m3_score_insert_allowed",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "boolean",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "s"
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
       "args": "contest_id uuid",
       "argument_defaults": null,
       "argument_defaults_count": 0,
@@ -11488,6 +13630,81 @@
     },
     {
       "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "contest_id uuid",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.tournament_snapshot(contest_id uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests; uid uuid := auth.uid(); rounds jsonb;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;\n  SELECT * INTO c FROM public.contests WHERE id = contest_id;\n  IF c.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n  IF NOT (\n    (c.owner_id = uid AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean, false))\n    OR EXISTS (SELECT 1 FROM public.contest_memberships m WHERE m.contest_id = c.id AND m.user_id = uid AND m.status = 'approved' AND m.role IN ('host', 'player', 'scorer'))\n  ) THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n  SELECT coalesce(jsonb_agg(jsonb_build_object(\n    'id', r.id, 'number', r.round_number, 'name', r.name,\n    'groups', (\n      SELECT coalesce(jsonb_agg(jsonb_build_object(\n        'id', g.id, 'name', g.name,\n        'players', (\n          SELECT coalesce(jsonb_agg(jsonb_build_object(\n            'id', p.id, 'name', p.name,\n            'scores', (\n              SELECT jsonb_agg(s.strokes ORDER BY gs.hole)\n              FROM generate_series(1, 18) AS gs(hole)\n              LEFT JOIN LATERAL (\n                SELECT e.strokes FROM public.score_events e\n                WHERE e.contest_id = c.id AND e.round_id = r.id AND e.player_id = p.id AND e.hole = gs.hole AND e.cell_version IS NOT NULL\n                ORDER BY e.cell_version DESC LIMIT 1\n              ) s ON true\n            )\n          ) ORDER BY p.sort_order, p.name), '[]'::jsonb)\n          FROM public.round_player_assignments a\n          JOIN public.contest_players p ON p.id = a.player_id AND p.contest_id = a.contest_id\n          WHERE a.contest_id = c.id AND a.round_id = r.id AND a.group_id = g.id\n        )\n      ) ORDER BY g.sort_order, g.name), '[]'::jsonb)\n      FROM public.contest_groups g WHERE g.contest_id = c.id AND g.round_id = r.id\n    )\n  ) ORDER BY r.round_number), '[]'::jsonb) INTO rounds\n  FROM public.contest_rounds r WHERE r.contest_id = c.id;\n  RETURN jsonb_build_object('revision', c.sync_revision, 'rounds', rounds);\nEND $function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "tournament_snapshot",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "jsonb",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "contest_id uuid, is_tournament boolean, current_round integer",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.set_tournament_meta(contest_id uuid, is_tournament boolean, current_round integer) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests; uid uuid := auth.uid();\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;\n  IF coalesce((auth.jwt()->>'is_anonymous')::boolean, false) THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='HOST_REQUIRED'; END IF;\n  SELECT * INTO c FROM public.contests WHERE id = contest_id FOR UPDATE;\n  IF c.id IS NULL OR c.owner_id <> uid THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='HOST_REQUIRED'; END IF;\n  IF NOT c.sync_enabled OR c.protocol <> 1 OR c.status <> 'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;\n  IF is_tournament IS NULL OR current_round IS NULL OR current_round NOT BETWEEN 1 AND 50 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  IF NOT EXISTS (SELECT 1 FROM public.contest_rounds r WHERE r.contest_id = c.id AND r.round_number = current_round) THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='ROUND_NOT_READY'; END IF;\n  UPDATE public.contests SET is_tournament = set_tournament_meta.is_tournament, current_round = set_tournament_meta.current_round WHERE id = c.id;\n  RETURN jsonb_build_object('status', 'ok', 'is_tournament', is_tournament, 'current_round', current_round);\nEND $function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "set_tournament_meta",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "jsonb",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "contest_id uuid, payload jsonb",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.sync_round_bundle(contest_id uuid, payload jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE\n  c public.contests; uid uuid := auth.uid(); rid uuid; n integer; local text;\n  g jsonb; elem jsonb; gid uuid; pid uuid; glocal text; plocal text;\n  gname text; pname text; tval text; st text; hcap numeric; sorder integer; gorder integer;\n  keep uuid[] := ARRAY[]::uuid[]; seen uuid[] := ARRAY[]::uuid[];\n  players jsonb; groups jsonb := '[]'::jsonb; d date; cdata jsonb;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;\n  IF coalesce((auth.jwt()->>'is_anonymous')::boolean, false) THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='HOST_REQUIRED'; END IF;\n  IF contest_id IS NULL OR payload IS NULL OR jsonb_typeof(payload) <> 'object' OR length(payload::text) > 200000 THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  IF payload ? 'groups' AND jsonb_typeof(payload->'groups') <> 'array' THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  SELECT * INTO c FROM public.contests WHERE id = contest_id FOR UPDATE;\n  IF c.id IS NULL OR c.owner_id <> uid THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='HOST_REQUIRED'; END IF;\n  IF NOT c.sync_enabled OR c.protocol <> 1 OR c.status <> 'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;\n  BEGIN\n    n := CASE WHEN payload ? 'number' AND nullif(payload->>'number','') IS NOT NULL THEN (payload->>'number')::integer ELSE NULL END;\n  EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n  END;\n  IF n IS NOT NULL AND n NOT BETWEEN 1 AND 50 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  local := nullif(btrim(payload->>'local_id'), '');\n  IF local IS NOT NULL THEN\n    IF length(local) > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n    SELECT m.server_id INTO rid FROM public.sync_id_map m WHERE m.contest_id = c.id AND m.kind = 'round' AND m.local_id = local;\n  END IF;\n  IF rid IS NULL AND payload->>'server_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN\n    rid := (payload->>'server_id')::uuid;\n    IF NOT EXISTS (SELECT 1 FROM public.contest_rounds r WHERE r.id = rid AND r.contest_id = c.id) THEN rid := NULL; END IF;\n  END IF;\n  IF n IS NOT NULL THEN\n    SELECT r.id INTO rid FROM public.contest_rounds r WHERE r.contest_id = c.id AND r.round_number = n;\n  END IF;\n  IF rid IS NULL AND n IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='ROUND_NOT_READY'; END IF;\n  BEGIN\n    d := nullif(payload->>'date', '')::date;\n  EXCEPTION WHEN invalid_text_representation OR datetime_field_overflow THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n  END;\n  IF payload ? 'course_data' AND payload->'course_data' IS NOT NULL AND jsonb_typeof(payload->'course_data') NOT IN ('object', 'null') THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  cdata := CASE WHEN payload->'course_data' IS NULL OR jsonb_typeof(payload->'course_data') = 'null' THEN NULL ELSE payload->'course_data' END;\n  IF rid IS NULL THEN\n    IF payload ? 'name' AND (payload->>'name' IS NULL OR length(btrim(payload->>'name')) NOT BETWEEN 1 AND 80) THEN\n      RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n    INSERT INTO public.contest_rounds (contest_id, round_number, name, date, course_name, course_data)\n    VALUES (c.id, n, coalesce(nullif(btrim(payload->>'name'), ''), 'Round ' || n), d, nullif(btrim(payload->>'course_name'), ''), cdata)\n    RETURNING id INTO rid;\n  ELSE\n    UPDATE public.contest_rounds r SET\n      name = CASE WHEN payload ? 'name' AND length(btrim(payload->>'name')) BETWEEN 1 AND 80 THEN btrim(payload->>'name') ELSE r.name END,\n      date = CASE WHEN payload ? 'date' THEN d ELSE r.date END,\n      course_name = CASE WHEN payload ? 'course_name' THEN nullif(btrim(payload->>'course_name'), '') ELSE r.course_name END,\n      course_data = CASE WHEN payload ? 'course_data' THEN cdata ELSE r.course_data END\n    WHERE r.id = rid AND r.contest_id = c.id;\n    IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='ROUND_NOT_READY'; END IF;\n  END IF;\n  IF local IS NOT NULL THEN\n    INSERT INTO public.sync_id_map (contest_id, kind, local_id, server_id) VALUES (c.id, 'round', local, rid)\n    ON CONFLICT ON CONSTRAINT sync_id_map_pkey DO UPDATE SET server_id = excluded.server_id;\n  END IF;\n  IF payload ? 'groups' THEN\n    DELETE FROM public.round_player_assignments a WHERE a.contest_id = c.id AND a.round_id = rid;\n    FOR g IN SELECT value FROM jsonb_array_elements(payload->'groups') LOOP\n      IF jsonb_typeof(g) <> 'object' THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      gname := btrim(g->>'name');\n      IF gname IS NULL OR length(gname) NOT BETWEEN 1 AND 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      IF g ? 'tee_time' AND g->>'tee_time' IS NOT NULL AND length(g->>'tee_time') > 40 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      IF g ? 'external_id' AND g->>'external_id' IS NOT NULL AND length(g->>'external_id') > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      BEGIN\n        gorder := coalesce((nullif(g->>'sort_order', ''))::integer, 0);\n      EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n        RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n      END;\n      IF gorder < 0 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      gid := NULL; glocal := nullif(btrim(g->>'local_id'), '');\n      IF glocal IS NOT NULL THEN\n        IF length(glocal) > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        SELECT m.server_id INTO gid FROM public.sync_id_map m WHERE m.contest_id = c.id AND m.kind = 'group' AND m.local_id = glocal;\n      END IF;\n      IF gid IS NULL AND g->>'server_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN gid := (g->>'server_id')::uuid; END IF;\n      IF gid IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.contest_groups cg WHERE cg.id = gid AND cg.contest_id = c.id) THEN\n        IF EXISTS (SELECT 1 FROM public.contest_groups cg WHERE cg.id = gid) THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      END IF;\n      IF gid IS NULL OR NOT EXISTS (SELECT 1 FROM public.contest_groups cg WHERE cg.id = gid AND cg.contest_id = c.id) THEN\n        INSERT INTO public.contest_groups (id, contest_id, round_id, name, tee_time, external_id, sort_order)\n        VALUES (coalesce(gid, gen_random_uuid()), c.id, rid, gname, nullif(g->>'tee_time', ''), nullif(g->>'external_id', ''), gorder)\n        RETURNING id INTO gid;\n      ELSE\n        DELETE FROM public.round_player_assignments a WHERE a.contest_id = c.id AND a.group_id = gid;\n        UPDATE public.contest_groups cg SET name = gname, tee_time = nullif(g->>'tee_time', ''), external_id = nullif(g->>'external_id', ''),\n          sort_order = gorder, round_id = rid\n        WHERE cg.id = gid AND cg.contest_id = c.id RETURNING cg.id INTO gid;\n      END IF;\n      IF glocal IS NOT NULL THEN\n        INSERT INTO public.sync_id_map (contest_id, kind, local_id, server_id) VALUES (c.id, 'group', glocal, gid)\n        ON CONFLICT ON CONSTRAINT sync_id_map_pkey DO UPDATE SET server_id = excluded.server_id;\n      END IF;\n      keep := keep || gid;\n      players := '[]'::jsonb;\n      FOR elem IN SELECT value FROM jsonb_array_elements(coalesce(g->'players', '[]'::jsonb)) LOOP\n        IF jsonb_typeof(elem) <> 'object' THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        pname := btrim(elem->>'name');\n        IF pname IS NULL OR length(pname) NOT BETWEEN 1 AND 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        st := coalesce(nullif(btrim(elem->>'status'), ''), 'active');\n        IF st NOT IN ('active', 'WD', 'NS') THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        BEGIN\n          hcap := coalesce((nullif(elem->>'handicap', ''))::numeric, 0);\n          sorder := coalesce((nullif(elem->>'sort_order', ''))::integer, 0);\n        EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n          RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n        END;\n        IF sorder < 0 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        IF elem ? 'course_handicaps' AND elem->'course_handicaps' IS NOT NULL AND jsonb_typeof(elem->'course_handicaps') NOT IN ('object', 'null') THEN\n          RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        tval := nullif(btrim(elem->>'team'), '');\n        IF tval IS NOT NULL AND tval NOT IN ('A', 'B') THEN tval := NULL; END IF;\n        pid := NULL; plocal := nullif(btrim(elem->>'local_id'), '');\n        IF plocal IS NOT NULL THEN\n          IF length(plocal) > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n          SELECT m.server_id INTO pid FROM public.sync_id_map m WHERE m.contest_id = c.id AND m.kind = 'player' AND m.local_id = plocal;\n        END IF;\n        IF pid IS NULL AND elem->>'server_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN pid := (elem->>'server_id')::uuid; END IF;\n        IF pid IS NULL THEN pid := gen_random_uuid(); END IF;\n        IF pid = ANY(seen) THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        seen := seen || pid;\n        IF EXISTS (SELECT 1 FROM public.contest_players cp WHERE cp.id = pid AND cp.contest_id <> c.id) THEN\n          RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_PLAYER'; END IF;\n        INSERT INTO public.contest_players (id, contest_id, name, handicap, team, sort_order, status, course_handicaps)\n        VALUES (pid, c.id, pname, hcap, tval, sorder, st,\n          CASE WHEN elem->'course_handicaps' IS NULL OR jsonb_typeof(elem->'course_handicaps') = 'null' THEN NULL ELSE elem->'course_handicaps' END)\n        ON CONFLICT (id) DO UPDATE SET\n          name = excluded.name, handicap = excluded.handicap,\n          team = CASE WHEN excluded.team IN ('A', 'B') THEN excluded.team ELSE public.contest_players.team END,\n          sort_order = excluded.sort_order, status = excluded.status, course_handicaps = excluded.course_handicaps\n        WHERE public.contest_players.contest_id = excluded.contest_id;\n        IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_PLAYER'; END IF;\n        IF plocal IS NOT NULL THEN\n          INSERT INTO public.sync_id_map (contest_id, kind, local_id, server_id) VALUES (c.id, 'player', plocal, pid)\n          ON CONFLICT ON CONSTRAINT sync_id_map_pkey DO UPDATE SET server_id = excluded.server_id;\n        END IF;\n        players := players || jsonb_build_array(jsonb_build_object('local_id', plocal, 'id', pid));\n      END LOOP;\n      groups := groups || jsonb_build_array(jsonb_build_object('local_id', glocal, 'id', gid, 'players', players));\n    END LOOP;\n    DELETE FROM public.contest_groups cg WHERE cg.contest_id = c.id AND cg.round_id = rid AND NOT (cg.id = ANY(keep));\n    FOR g IN SELECT value FROM jsonb_array_elements(groups) LOOP\n      gid := (g->>'id')::uuid;\n      FOR elem IN SELECT value FROM jsonb_array_elements(g->'players') LOOP\n        INSERT INTO public.round_player_assignments (contest_id, round_id, player_id, group_id)\n        VALUES (c.id, rid, (elem->>'id')::uuid, gid);\n      END LOOP;\n    END LOOP;\n    DELETE FROM public.group_submissions s WHERE s.contest_id = c.id AND s.round_id = rid;\n    UPDATE public.contest_rounds r SET assignment_revision = r.assignment_revision + 1 WHERE r.id = rid;\n  END IF;\n  RETURN jsonb_build_object('round_id', rid, 'groups', groups);\nEND $function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "sync_round_bundle",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "jsonb",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
       "args": "contest_id uuid, round_id uuid, player_id uuid, hole integer, action text, strokes integer, expected_version bigint, op_id uuid, request_hash text",
       "argument_defaults": null,
       "argument_defaults_count": 0,
@@ -11495,7 +13712,7 @@
         "search_path=pg_catalog"
       ],
       "cost": 100,
-      "def": "CREATE OR REPLACE FUNCTION public.write_score(contest_id uuid, round_id uuid, player_id uuid, hole integer, action text, strokes integer, expected_version bigint, op_id uuid, request_hash text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests; uid uuid := auth.uid(); prior public.operation_receipts; cell public.score_events;\n version bigint; fingerprint text; answer jsonb;\nBEGIN\n SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;\n IF uid IS NULL OR c.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n -- Permission checks occur after contest lock and before receipt replay.\n IF NOT ((c.owner_id=uid AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false)) OR\n EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=uid AND m.status='approved'\n AND m.role='player' AND m.player_id=$3)) THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n IF NOT c.sync_enabled OR c.protocol<>1 OR c.status<>'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;\n IF $2 IS NOT NULL THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='ROUND_NOT_READY'; END IF;\n IF NOT EXISTS(SELECT 1 FROM public.contest_players p WHERE p.id=$3 AND p.contest_id=$1) OR $4 IS NULL OR $4 NOT BETWEEN 1 AND 18\n OR $5 IS NULL OR $5 NOT IN ('set','clear') OR ($5='set' AND ($6 IS NULL OR $6 NOT BETWEEN 1 AND 15)) OR ($5='clear' AND $6 IS NOT NULL)\n OR $7 IS NULL OR $7<0 OR $8 IS NULL OR $9 IS NULL OR length($9) NOT BETWEEN 1 AND 256 THEN\n  RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_SCORE'; END IF;\n -- Bind all request fields server-side, including caller's immutable hash label.\n fingerprint := encode(extensions.digest(jsonb_build_array($1,$2,$3,$4,$5,$6,$7,$9)::text,'sha256'),'hex');\n PERFORM pg_advisory_xact_lock(hashtextextended(uid::text||':'||$8::text,0));\n SELECT * INTO prior FROM public.operation_receipts r WHERE r.actor=uid AND r.op_id=$8 FOR UPDATE;\n IF FOUND THEN\n  IF prior.contest_id<>$1 OR prior.request_hash<>fingerprint THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='OP_REUSED'; END IF;\n  RETURN prior.result;\n END IF;\n SELECT * INTO cell FROM public.score_events e WHERE e.contest_id=$1 AND e.round_id IS NOT DISTINCT FROM $2 AND e.player_id=$3 AND e.hole=$4\n AND e.cell_version IS NOT NULL ORDER BY e.cell_version DESC LIMIT 1 FOR UPDATE;\n version := coalesce(cell.cell_version,0);\n IF version<>$7 THEN answer := jsonb_build_object('status','conflict','version',version,'strokes',cell.strokes,'revision',c.sync_revision);\n ELSE\n  UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=$1 RETURNING * INTO c;\n  INSERT INTO public.score_events(contest_id,round_id,player_id,hole,action,strokes,entered_by,actor,cell_version,contest_revision,op_id,request_hash)\n   VALUES($1,$2,$3,$4,$5,$6,uid,uid,version+1,c.sync_revision,$8,fingerprint);\n  answer := jsonb_build_object('status','accepted','version',version+1,'strokes',$6,'revision',c.sync_revision);\n END IF;\n INSERT INTO public.operation_receipts(actor,op_id,request_hash,contest_id,result) VALUES(uid,$8,fingerprint,$1,answer);\n RETURN answer;\nEND $function$",
+      "def": "CREATE OR REPLACE FUNCTION public.write_score(contest_id uuid, round_id uuid, player_id uuid, hole integer, action text, strokes integer, expected_version bigint, op_id uuid, request_hash text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests; uid uuid := auth.uid(); prior public.operation_receipts; cell public.score_events;\n version bigint; fingerprint text; answer jsonb; resolved uuid; allowed boolean;\nBEGIN\n SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;\n IF uid IS NULL OR c.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n IF NOT c.sync_enabled OR c.protocol<>1 OR c.status<>'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;\n IF $2 IS NULL THEN SELECT r.id INTO resolved FROM public.contest_rounds r WHERE r.contest_id=$1 AND r.round_number=1;\n ELSE SELECT r.id INTO resolved FROM public.contest_rounds r WHERE r.id=$2 AND r.contest_id=$1; END IF;\n IF resolved IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='ROUND_NOT_READY'; END IF;\n allowed := (c.owner_id=uid AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false))\n  OR EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=uid AND m.status='approved' AND m.role='player' AND m.player_id=$3\n    AND (NOT EXISTS(SELECT 1 FROM public.round_player_assignments a WHERE a.contest_id=$1 AND a.round_id=resolved)\n      OR EXISTS(SELECT 1 FROM public.round_player_assignments a WHERE a.contest_id=$1 AND a.round_id=resolved AND a.player_id=$3)))\n  OR EXISTS(SELECT 1 FROM public.contest_memberships m\n    JOIN public.round_scorer_scopes s ON s.contest_id=m.contest_id AND s.user_id=m.user_id AND s.status='approved' AND s.round_id=resolved\n    JOIN public.round_player_assignments a ON a.contest_id=s.contest_id AND a.round_id=s.round_id AND a.group_id=s.group_id AND a.player_id=$3\n    WHERE m.contest_id=$1 AND m.user_id=uid AND m.status='approved' AND m.role='scorer');\n IF NOT allowed THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n IF NOT EXISTS(SELECT 1 FROM public.contest_players p WHERE p.id=$3 AND p.contest_id=$1) OR $4 IS NULL OR $4 NOT BETWEEN 1 AND 18\n OR $5 IS NULL OR $5 NOT IN ('set','clear') OR ($5='set' AND ($6 IS NULL OR $6 NOT BETWEEN 1 AND 15)) OR ($5='clear' AND $6 IS NOT NULL)\n OR $7 IS NULL OR $7<0 OR $8 IS NULL OR $9 IS NULL OR length($9) NOT BETWEEN 1 AND 256 THEN\n  RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_SCORE'; END IF;\n fingerprint := encode(extensions.digest(jsonb_build_array($1,$2,$3,$4,$5,$6,$7,$9)::text,'sha256'),'hex');\n PERFORM pg_advisory_xact_lock(hashtextextended(uid::text||':'||$8::text,0));\n SELECT * INTO prior FROM public.operation_receipts r WHERE r.actor=uid AND r.op_id=$8 FOR UPDATE;\n IF FOUND THEN\n  IF prior.contest_id<>$1 OR prior.request_hash<>fingerprint THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='OP_REUSED'; END IF;\n  RETURN prior.result;\n END IF;\n SELECT * INTO cell FROM public.score_events e WHERE e.contest_id=$1 AND e.round_id = resolved AND e.player_id=$3 AND e.hole=$4\n AND e.cell_version IS NOT NULL ORDER BY e.cell_version DESC LIMIT 1 FOR UPDATE;\n version := coalesce(cell.cell_version,0);\n IF version<>$7 THEN answer := jsonb_build_object('status','conflict','version',version,'strokes',cell.strokes,'revision',c.sync_revision);\n ELSE\n  UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=$1 RETURNING * INTO c;\n  INSERT INTO public.score_events(contest_id,round_id,player_id,hole,action,strokes,entered_by,actor,cell_version,contest_revision,op_id,request_hash)\n   VALUES($1,resolved,$3,$4,$5,$6,uid,uid,version+1,c.sync_revision,$8,fingerprint);\n  DELETE FROM public.group_submissions s USING public.round_player_assignments a\n   WHERE a.contest_id=$1 AND a.round_id=resolved AND a.player_id=$3 AND s.contest_id=a.contest_id AND s.round_id=a.round_id AND s.group_id=a.group_id;\n  answer := jsonb_build_object('status','accepted','version',version+1,'strokes',$6,'revision',c.sync_revision);\n END IF;\n INSERT INTO public.operation_receipts(actor,op_id,request_hash,contest_id,result) VALUES(uid,$8,fingerprint,$1,answer);\n RETURN answer;\nEND $function$",
       "kind": "f",
       "language": "plpgsql",
       "leakproof": false,
@@ -11728,6 +13945,31 @@
       "owner": "postgres",
       "parallel": "u",
       "return_type": "text",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.ensure_default_round() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nBEGIN\n  INSERT INTO public.contest_rounds (contest_id, round_number, name)\n  VALUES (NEW.id, 1, 'Round 1')\n  ON CONFLICT (contest_id, round_number) DO NOTHING;\n  RETURN NEW;\nEND $function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "ensure_default_round",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "trigger",
       "returns_set": false,
       "rows": 0,
       "secdef": true,
@@ -12536,6 +14778,11 @@
     {
       "grantee": "postgres",
       "priv": "DELETE",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
       "table": "contest_join_requests"
     },
     {
@@ -12547,6 +14794,11 @@
       "grantee": "postgres",
       "priv": "DELETE",
       "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "contest_rounds"
     },
     {
       "grantee": "postgres",
@@ -12611,6 +14863,11 @@
     {
       "grantee": "postgres",
       "priv": "DELETE",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
       "table": "improvement_actions"
     },
     {
@@ -12646,6 +14903,16 @@
     {
       "grantee": "postgres",
       "priv": "DELETE",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
       "table": "scans"
     },
     {
@@ -12662,6 +14929,11 @@
       "grantee": "postgres",
       "priv": "DELETE",
       "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "sync_id_map"
     },
     {
       "grantee": "postgres",
@@ -12686,6 +14958,11 @@
     {
       "grantee": "postgres",
       "priv": "INSERT",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
       "table": "contest_join_requests"
     },
     {
@@ -12697,6 +14974,11 @@
       "grantee": "postgres",
       "priv": "INSERT",
       "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "contest_rounds"
     },
     {
       "grantee": "postgres",
@@ -12761,6 +15043,11 @@
     {
       "grantee": "postgres",
       "priv": "INSERT",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
       "table": "improvement_actions"
     },
     {
@@ -12796,6 +15083,16 @@
     {
       "grantee": "postgres",
       "priv": "INSERT",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
       "table": "scans"
     },
     {
@@ -12812,6 +15109,11 @@
       "grantee": "postgres",
       "priv": "INSERT",
       "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "sync_id_map"
     },
     {
       "grantee": "postgres",
@@ -12836,6 +15138,11 @@
     {
       "grantee": "postgres",
       "priv": "REFERENCES",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
       "table": "contest_join_requests"
     },
     {
@@ -12847,6 +15154,11 @@
       "grantee": "postgres",
       "priv": "REFERENCES",
       "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "contest_rounds"
     },
     {
       "grantee": "postgres",
@@ -12911,6 +15223,11 @@
     {
       "grantee": "postgres",
       "priv": "REFERENCES",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
       "table": "improvement_actions"
     },
     {
@@ -12946,6 +15263,16 @@
     {
       "grantee": "postgres",
       "priv": "REFERENCES",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
       "table": "scans"
     },
     {
@@ -12962,6 +15289,11 @@
       "grantee": "postgres",
       "priv": "REFERENCES",
       "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "sync_id_map"
     },
     {
       "grantee": "postgres",
@@ -12986,6 +15318,11 @@
     {
       "grantee": "postgres",
       "priv": "SELECT",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
       "table": "contest_join_requests"
     },
     {
@@ -12997,6 +15334,11 @@
       "grantee": "postgres",
       "priv": "SELECT",
       "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "contest_rounds"
     },
     {
       "grantee": "postgres",
@@ -13061,6 +15403,11 @@
     {
       "grantee": "postgres",
       "priv": "SELECT",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
       "table": "improvement_actions"
     },
     {
@@ -13096,6 +15443,16 @@
     {
       "grantee": "postgres",
       "priv": "SELECT",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
       "table": "scans"
     },
     {
@@ -13112,6 +15469,11 @@
       "grantee": "postgres",
       "priv": "SELECT",
       "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "sync_id_map"
     },
     {
       "grantee": "postgres",
@@ -13136,6 +15498,11 @@
     {
       "grantee": "postgres",
       "priv": "TRIGGER",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
       "table": "contest_join_requests"
     },
     {
@@ -13147,6 +15514,11 @@
       "grantee": "postgres",
       "priv": "TRIGGER",
       "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "contest_rounds"
     },
     {
       "grantee": "postgres",
@@ -13211,6 +15583,11 @@
     {
       "grantee": "postgres",
       "priv": "TRIGGER",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
       "table": "improvement_actions"
     },
     {
@@ -13246,6 +15623,16 @@
     {
       "grantee": "postgres",
       "priv": "TRIGGER",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
       "table": "scans"
     },
     {
@@ -13262,6 +15649,11 @@
       "grantee": "postgres",
       "priv": "TRIGGER",
       "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "sync_id_map"
     },
     {
       "grantee": "postgres",
@@ -13286,6 +15678,11 @@
     {
       "grantee": "postgres",
       "priv": "TRUNCATE",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
       "table": "contest_join_requests"
     },
     {
@@ -13297,6 +15694,11 @@
       "grantee": "postgres",
       "priv": "TRUNCATE",
       "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "contest_rounds"
     },
     {
       "grantee": "postgres",
@@ -13361,6 +15763,11 @@
     {
       "grantee": "postgres",
       "priv": "TRUNCATE",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
       "table": "improvement_actions"
     },
     {
@@ -13396,6 +15803,16 @@
     {
       "grantee": "postgres",
       "priv": "TRUNCATE",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
       "table": "scans"
     },
     {
@@ -13412,6 +15829,11 @@
       "grantee": "postgres",
       "priv": "TRUNCATE",
       "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "sync_id_map"
     },
     {
       "grantee": "postgres",
@@ -13436,6 +15858,11 @@
     {
       "grantee": "postgres",
       "priv": "UPDATE",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
       "table": "contest_join_requests"
     },
     {
@@ -13447,6 +15874,11 @@
       "grantee": "postgres",
       "priv": "UPDATE",
       "table": "contest_players"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "contest_rounds"
     },
     {
       "grantee": "postgres",
@@ -13511,6 +15943,11 @@
     {
       "grantee": "postgres",
       "priv": "UPDATE",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
       "table": "improvement_actions"
     },
     {
@@ -13546,6 +15983,16 @@
     {
       "grantee": "postgres",
       "priv": "UPDATE",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
       "table": "scans"
     },
     {
@@ -13562,6 +16009,11 @@
       "grantee": "postgres",
       "priv": "UPDATE",
       "table": "share_links"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "sync_id_map"
     },
     {
       "grantee": "service_role",
@@ -13586,6 +16038,11 @@
     {
       "grantee": "service_role",
       "priv": "DELETE",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
       "table": "contest_join_requests"
     },
     {
@@ -13597,6 +16054,11 @@
       "grantee": "service_role",
       "priv": "DELETE",
       "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "contest_rounds"
     },
     {
       "grantee": "service_role",
@@ -13661,6 +16123,11 @@
     {
       "grantee": "service_role",
       "priv": "DELETE",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
       "table": "improvement_actions"
     },
     {
@@ -13696,6 +16163,16 @@
     {
       "grantee": "service_role",
       "priv": "DELETE",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
       "table": "scans"
     },
     {
@@ -13712,6 +16189,11 @@
       "grantee": "service_role",
       "priv": "DELETE",
       "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "sync_id_map"
     },
     {
       "grantee": "service_role",
@@ -13736,6 +16218,11 @@
     {
       "grantee": "service_role",
       "priv": "INSERT",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
       "table": "contest_join_requests"
     },
     {
@@ -13747,6 +16234,11 @@
       "grantee": "service_role",
       "priv": "INSERT",
       "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "contest_rounds"
     },
     {
       "grantee": "service_role",
@@ -13811,6 +16303,11 @@
     {
       "grantee": "service_role",
       "priv": "INSERT",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
       "table": "improvement_actions"
     },
     {
@@ -13846,6 +16343,16 @@
     {
       "grantee": "service_role",
       "priv": "INSERT",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
       "table": "scans"
     },
     {
@@ -13862,6 +16369,11 @@
       "grantee": "service_role",
       "priv": "INSERT",
       "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "sync_id_map"
     },
     {
       "grantee": "service_role",
@@ -13886,6 +16398,11 @@
     {
       "grantee": "service_role",
       "priv": "REFERENCES",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
       "table": "contest_join_requests"
     },
     {
@@ -13897,6 +16414,11 @@
       "grantee": "service_role",
       "priv": "REFERENCES",
       "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "contest_rounds"
     },
     {
       "grantee": "service_role",
@@ -13961,6 +16483,11 @@
     {
       "grantee": "service_role",
       "priv": "REFERENCES",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
       "table": "improvement_actions"
     },
     {
@@ -13996,6 +16523,16 @@
     {
       "grantee": "service_role",
       "priv": "REFERENCES",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
       "table": "scans"
     },
     {
@@ -14012,6 +16549,11 @@
       "grantee": "service_role",
       "priv": "REFERENCES",
       "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "sync_id_map"
     },
     {
       "grantee": "service_role",
@@ -14036,6 +16578,11 @@
     {
       "grantee": "service_role",
       "priv": "SELECT",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
       "table": "contest_join_requests"
     },
     {
@@ -14047,6 +16594,11 @@
       "grantee": "service_role",
       "priv": "SELECT",
       "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "contest_rounds"
     },
     {
       "grantee": "service_role",
@@ -14111,6 +16663,11 @@
     {
       "grantee": "service_role",
       "priv": "SELECT",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
       "table": "improvement_actions"
     },
     {
@@ -14146,6 +16703,16 @@
     {
       "grantee": "service_role",
       "priv": "SELECT",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
       "table": "scans"
     },
     {
@@ -14162,6 +16729,11 @@
       "grantee": "service_role",
       "priv": "SELECT",
       "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "sync_id_map"
     },
     {
       "grantee": "service_role",
@@ -14186,6 +16758,11 @@
     {
       "grantee": "service_role",
       "priv": "TRIGGER",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
       "table": "contest_join_requests"
     },
     {
@@ -14197,6 +16774,11 @@
       "grantee": "service_role",
       "priv": "TRIGGER",
       "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "contest_rounds"
     },
     {
       "grantee": "service_role",
@@ -14261,6 +16843,11 @@
     {
       "grantee": "service_role",
       "priv": "TRIGGER",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
       "table": "improvement_actions"
     },
     {
@@ -14296,6 +16883,16 @@
     {
       "grantee": "service_role",
       "priv": "TRIGGER",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
       "table": "scans"
     },
     {
@@ -14312,6 +16909,11 @@
       "grantee": "service_role",
       "priv": "TRIGGER",
       "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "sync_id_map"
     },
     {
       "grantee": "service_role",
@@ -14336,6 +16938,11 @@
     {
       "grantee": "service_role",
       "priv": "TRUNCATE",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
       "table": "contest_join_requests"
     },
     {
@@ -14347,6 +16954,11 @@
       "grantee": "service_role",
       "priv": "TRUNCATE",
       "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "contest_rounds"
     },
     {
       "grantee": "service_role",
@@ -14411,6 +17023,11 @@
     {
       "grantee": "service_role",
       "priv": "TRUNCATE",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
       "table": "improvement_actions"
     },
     {
@@ -14446,6 +17063,16 @@
     {
       "grantee": "service_role",
       "priv": "TRUNCATE",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
       "table": "scans"
     },
     {
@@ -14462,6 +17089,11 @@
       "grantee": "service_role",
       "priv": "TRUNCATE",
       "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "sync_id_map"
     },
     {
       "grantee": "service_role",
@@ -14486,6 +17118,11 @@
     {
       "grantee": "service_role",
       "priv": "UPDATE",
+      "table": "contest_groups"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
       "table": "contest_join_requests"
     },
     {
@@ -14497,6 +17134,11 @@
       "grantee": "service_role",
       "priv": "UPDATE",
       "table": "contest_players"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "contest_rounds"
     },
     {
       "grantee": "service_role",
@@ -14561,6 +17203,11 @@
     {
       "grantee": "service_role",
       "priv": "UPDATE",
+      "table": "group_submissions"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
       "table": "improvement_actions"
     },
     {
@@ -14596,6 +17243,16 @@
     {
       "grantee": "service_role",
       "priv": "UPDATE",
+      "table": "round_player_assignments"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
       "table": "scans"
     },
     {
@@ -14612,6 +17269,11 @@
       "grantee": "service_role",
       "priv": "UPDATE",
       "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "sync_id_map"
     }
   ],
   "identity_generated": [
@@ -14646,6 +17308,28 @@
       "immediate": true,
       "live": true,
       "name": "content_performance_pkey",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
+      "name": "contest_groups_id_contest_id_round_id_key",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
+      "name": "contest_groups_pkey",
       "nulls_not_distinct": false,
       "ready": true,
       "replica_identity": false,
@@ -14711,7 +17395,51 @@
       "exclusion": false,
       "immediate": true,
       "live": true,
+      "name": "contest_players_id_contest",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
       "name": "contest_players_pkey",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
+      "name": "contest_rounds_contest_id_round_number_key",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
+      "name": "contest_rounds_id_contest_id_key",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
+      "name": "contest_rounds_pkey",
       "nulls_not_distinct": false,
       "ready": true,
       "replica_identity": false,
@@ -14855,6 +17583,17 @@
       "immediate": true,
       "live": true,
       "name": "golfcore_usage_pkey",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
+      "name": "group_submissions_pkey",
       "nulls_not_distinct": false,
       "ready": true,
       "replica_identity": false,
@@ -15360,6 +18099,28 @@
       "exclusion": false,
       "immediate": true,
       "live": true,
+      "name": "round_player_assignments_pkey",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
+      "name": "round_scorer_scopes_pkey",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
       "name": "scans_pkey",
       "nulls_not_distinct": false,
       "ready": true,
@@ -15416,6 +18177,17 @@
       "immediate": true,
       "live": true,
       "name": "share_links_pkey",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
+      "name": "sync_id_map_pkey",
       "nulls_not_distinct": false,
       "ready": true,
       "replica_identity": false,
@@ -15619,6 +18391,16 @@
       "table": "content_performance"
     },
     {
+      "def": "CREATE UNIQUE INDEX contest_groups_id_contest_id_round_id_key ON public.contest_groups USING btree (id, contest_id, round_id)",
+      "name": "contest_groups_id_contest_id_round_id_key",
+      "table": "contest_groups"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX contest_groups_pkey ON public.contest_groups USING btree (id)",
+      "name": "contest_groups_pkey",
+      "table": "contest_groups"
+    },
+    {
       "def": "CREATE UNIQUE INDEX contest_join_requests_pending ON public.contest_join_requests USING btree (contest_id, requester) WHERE (status = 'pending'::text)",
       "name": "contest_join_requests_pending",
       "table": "contest_join_requests"
@@ -15644,9 +18426,29 @@
       "table": "contest_players"
     },
     {
+      "def": "CREATE UNIQUE INDEX contest_players_id_contest ON public.contest_players USING btree (id, contest_id)",
+      "name": "contest_players_id_contest",
+      "table": "contest_players"
+    },
+    {
       "def": "CREATE UNIQUE INDEX contest_players_pkey ON public.contest_players USING btree (id)",
       "name": "contest_players_pkey",
       "table": "contest_players"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX contest_rounds_contest_id_round_number_key ON public.contest_rounds USING btree (contest_id, round_number)",
+      "name": "contest_rounds_contest_id_round_number_key",
+      "table": "contest_rounds"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX contest_rounds_id_contest_id_key ON public.contest_rounds USING btree (id, contest_id)",
+      "name": "contest_rounds_id_contest_id_key",
+      "table": "contest_rounds"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX contest_rounds_pkey ON public.contest_rounds USING btree (id)",
+      "name": "contest_rounds_pkey",
+      "table": "contest_rounds"
     },
     {
       "def": "CREATE UNIQUE INDEX contests_invite_code_key ON public.contests USING btree (invite_code)",
@@ -15704,6 +18506,11 @@
       "table": "golfcore_usage"
     },
     {
+      "def": "CREATE UNIQUE INDEX group_submissions_pkey ON public.group_submissions USING btree (contest_id, round_id, group_id)",
+      "name": "group_submissions_pkey",
+      "table": "group_submissions"
+    },
+    {
       "def": "CREATE UNIQUE INDEX improvement_actions_pkey ON public.improvement_actions USING btree (id)",
       "name": "improvement_actions_pkey",
       "table": "improvement_actions"
@@ -15754,6 +18561,16 @@
       "table": "round_messages"
     },
     {
+      "def": "CREATE UNIQUE INDEX round_player_assignments_pkey ON public.round_player_assignments USING btree (contest_id, round_id, player_id)",
+      "name": "round_player_assignments_pkey",
+      "table": "round_player_assignments"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX round_scorer_scopes_pkey ON public.round_scorer_scopes USING btree (contest_id, round_id, group_id, user_id)",
+      "name": "round_scorer_scopes_pkey",
+      "table": "round_scorer_scopes"
+    },
+    {
       "def": "CREATE UNIQUE INDEX scans_pkey ON public.scans USING btree (id)",
       "name": "scans_pkey",
       "table": "scans"
@@ -15782,6 +18599,11 @@
       "def": "CREATE UNIQUE INDEX share_links_pkey ON public.share_links USING btree (token_hash)",
       "name": "share_links_pkey",
       "table": "share_links"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX sync_id_map_pkey ON public.sync_id_map USING btree (contest_id, kind, local_id)",
+      "name": "sync_id_map_pkey",
+      "table": "sync_id_map"
     }
   ],
   "inheritance": [],
@@ -15909,6 +18731,12 @@
     {
       "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
+      "name": "contest_groups",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
       "name": "contest_join_requests",
       "owner": "postgres"
     },
@@ -15916,6 +18744,12 @@
       "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "contest_memberships",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "contest_rounds",
       "owner": "postgres"
     },
     {
@@ -15945,6 +18779,12 @@
     {
       "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
+      "name": "group_submissions",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
       "name": "operation_receipts",
       "owner": "postgres"
     },
@@ -15963,7 +18803,25 @@
     {
       "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
+      "name": "round_player_assignments",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "round_scorer_scopes",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
       "name": "share_links",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "sync_id_map",
       "owner": "postgres"
     },
     {
@@ -16329,6 +19187,18 @@
       "with_check": "(NOT COALESCE(((auth.jwt() ->> 'is_anonymous'::text))::boolean, false))"
     },
     {
+      "cmd": "INSERT",
+      "permissive": "RESTRICTIVE",
+      "policyname": "m3_score_player_scope",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "score_events",
+      "with_check": "m3_score_insert_allowed(contest_id, player_id, round_id)"
+    },
+    {
       "cmd": "SELECT",
       "permissive": "PERMISSIVE",
       "policyname": "Participants can view contests",
@@ -16550,8 +19420,8 @@
   "ranges": [],
   "regclass_checks": {
     "contest_games": null,
-    "contest_groups": null,
-    "contest_rounds": null,
+    "contest_groups": "contest_groups",
+    "contest_rounds": "contest_rounds",
     "hole_scores": null
   },
   "relation_behavior": [
@@ -16577,6 +19447,38 @@
       "check_count": 0,
       "kind": "i",
       "name": "content_performance_pkey",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
+      "name": "contest_groups_id_contest_id_round_id_key",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
+      "name": "contest_groups_pkey",
       "of_type": null,
       "owner": "postgres",
       "partition": false,
@@ -16672,7 +19574,71 @@
       "acl": null,
       "check_count": 0,
       "kind": "i",
+      "name": "contest_players_id_contest",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
       "name": "contest_players_pkey",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
+      "name": "contest_rounds_contest_id_round_number_key",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
+      "name": "contest_rounds_id_contest_id_key",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
+      "name": "contest_rounds_pkey",
       "of_type": null,
       "owner": "postgres",
       "partition": false,
@@ -16881,6 +19847,22 @@
       "check_count": 0,
       "kind": "i",
       "name": "golfcore_usage_pkey",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
+      "name": "group_submissions_pkey",
       "of_type": null,
       "owner": "postgres",
       "partition": false,
@@ -17616,6 +20598,38 @@
       "acl": null,
       "check_count": 0,
       "kind": "i",
+      "name": "round_player_assignments_pkey",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
+      "name": "round_scorer_scopes_pkey",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
       "name": "scans_pkey",
       "of_type": null,
       "owner": "postgres",
@@ -17697,6 +20711,22 @@
       "check_count": 0,
       "kind": "i",
       "name": "share_links_pkey",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
+      "name": "sync_id_map_pkey",
       "of_type": null,
       "owner": "postgres",
       "partition": false,
@@ -17886,7 +20916,7 @@
     {
       "access_method": "heap",
       "acl": "{anon=rm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
-      "check_count": 1,
+      "check_count": 3,
       "kind": "r",
       "name": "contest_players",
       "of_type": null,
@@ -17902,7 +20932,7 @@
     {
       "access_method": "heap",
       "acl": "{anon=rm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
-      "check_count": 3,
+      "check_count": 4,
       "kind": "r",
       "name": "contests",
       "of_type": null,
@@ -18016,6 +21046,22 @@
       "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
       "kind": "r",
+      "name": "round_player_assignments",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "d",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 0,
+      "kind": "r",
       "name": "share_links",
       "of_type": null,
       "owner": "postgres",
@@ -18046,6 +21092,38 @@
     {
       "access_method": "heap",
       "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 1,
+      "kind": "r",
+      "name": "round_scorer_scopes",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "d",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 2,
+      "kind": "r",
+      "name": "contest_groups",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "d",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 2,
       "kind": "r",
       "name": "contest_join_requests",
@@ -18062,9 +21140,57 @@
     {
       "access_method": "heap",
       "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 2,
+      "kind": "r",
+      "name": "group_submissions",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "d",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 2,
+      "kind": "r",
+      "name": "sync_id_map",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "d",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 3,
       "kind": "r",
       "name": "contest_memberships",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "d",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 3,
+      "kind": "r",
+      "name": "contest_rounds",
       "of_type": null,
       "owner": "postgres",
       "partition": false,
@@ -18330,6 +21456,11 @@
     {
       "force": true,
       "rls": true,
+      "table": "contest_groups"
+    },
+    {
+      "force": true,
+      "rls": true,
       "table": "contest_join_requests"
     },
     {
@@ -18340,7 +21471,32 @@
     {
       "force": true,
       "rls": true,
+      "table": "contest_rounds"
+    },
+    {
+      "force": true,
+      "rls": true,
+      "table": "group_submissions"
+    },
+    {
+      "force": true,
+      "rls": true,
       "table": "operation_receipts"
+    },
+    {
+      "force": true,
+      "rls": true,
+      "table": "round_player_assignments"
+    },
+    {
+      "force": true,
+      "rls": true,
+      "table": "round_scorer_scopes"
+    },
+    {
+      "force": true,
+      "rls": true,
+      "table": "sync_id_map"
     }
   ],
   "routine_grants": [
@@ -18522,6 +21678,11 @@
     {
       "grantee": "authenticated",
       "priv": "EXECUTE",
+      "routine": "m3_score_insert_allowed"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
       "routine": "my_membership"
     },
     {
@@ -18557,6 +21718,21 @@
     {
       "grantee": "authenticated",
       "priv": "EXECUTE",
+      "routine": "set_tournament_meta"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "sync_round_bundle"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "tournament_snapshot"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
       "routine": "write_score"
     },
     {
@@ -18583,6 +21759,11 @@
       "grantee": "postgres",
       "priv": "EXECUTE",
       "routine": "decide_join_request"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "ensure_default_round"
     },
     {
       "grantee": "postgres",
@@ -18662,6 +21843,11 @@
     {
       "grantee": "postgres",
       "priv": "EXECUTE",
+      "routine": "m3_score_insert_allowed"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
       "routine": "my_membership"
     },
     {
@@ -18712,6 +21898,21 @@
     {
       "grantee": "postgres",
       "priv": "EXECUTE",
+      "routine": "set_tournament_meta"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "sync_round_bundle"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "tournament_snapshot"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
       "routine": "write_score"
     },
     {
@@ -18738,6 +21939,11 @@
       "grantee": "service_role",
       "priv": "EXECUTE",
       "routine": "decide_join_request"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "ensure_default_round"
     },
     {
       "grantee": "service_role",
@@ -18817,6 +22023,11 @@
     {
       "grantee": "service_role",
       "priv": "EXECUTE",
+      "routine": "m3_score_insert_allowed"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
       "routine": "my_membership"
     },
     {
@@ -18863,6 +22074,21 @@
       "grantee": "service_role",
       "priv": "EXECUTE",
       "routine": "sanitize_shared_round"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "set_tournament_meta"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "sync_round_bundle"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "tournament_snapshot"
     },
     {
       "grantee": "service_role",
@@ -18951,6 +22177,30 @@
   "server_version_major": 17,
   "triggers": [
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contest_groups FROM group_submissions NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "group_submissions_group_id_contest_id_round_id_fkey:\"RI_FKey_ca",
+      "schema": "public",
+      "table": "contest_groups"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contest_groups FROM round_player_assignments NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_group_id_contest_id_round_id_fkey:\"RI_",
+      "schema": "public",
+      "table": "contest_groups"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contest_groups FROM round_scorer_scopes NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_scorer_scopes_group_id_contest_id_round_id_fkey:\"RI_FKey_",
+      "schema": "public",
+      "table": "contest_groups"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contest_players FROM contest_join_requests NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_del\"()",
       "enabled": "O",
       "internal": true,
@@ -18967,12 +22217,44 @@
       "table": "contest_players"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contest_players FROM round_player_assignments NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_player_id_contest_id_fkey:\"RI_FKey_cas",
+      "schema": "public",
+      "table": "contest_players"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contest_players FROM score_events NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
       "enabled": "O",
       "internal": true,
       "name": "score_events_player_id_fkey:\"RI_FKey_cascade_del\":9",
       "schema": "public",
       "table": "contest_players"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contest_rounds FROM contest_groups NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "contest_groups_round_id_contest_id_fkey:\"RI_FKey_cascade_del\":9",
+      "schema": "public",
+      "table": "contest_rounds"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contest_rounds FROM round_player_assignments NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_round_id_contest_id_fkey:\"RI_FKey_casc",
+      "schema": "public",
+      "table": "contest_rounds"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contest_rounds FROM score_events NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_restrict_del\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "score_events_round_fk:\"RI_FKey_restrict_del\":9",
+      "schema": "public",
+      "table": "contest_rounds"
     },
     {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contests FROM contest_join_requests NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
@@ -18995,6 +22277,14 @@
       "enabled": "O",
       "internal": true,
       "name": "contest_players_contest_id_fkey:\"RI_FKey_cascade_del\":9",
+      "schema": "public",
+      "table": "contests"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contests FROM contest_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "contest_rounds_contest_id_fkey:\"RI_FKey_cascade_del\":9",
       "schema": "public",
       "table": "contests"
     },
@@ -19023,6 +22313,14 @@
       "table": "contests"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.contests FROM sync_id_map NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "sync_id_map_contest_id_fkey:\"RI_FKey_cascade_del\":9",
+      "schema": "public",
+      "table": "contests"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.published_rounds FROM round_messages NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
       "enabled": "O",
       "internal": true,
@@ -19045,6 +22343,14 @@
       "name": "settlements_scan_id_fkey:\"RI_FKey_noaction_del\":9",
       "schema": "public",
       "table": "scans"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.contest_groups FROM contest_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "contest_groups_round_id_contest_id_fkey:\"RI_FKey_check_ins\":5",
+      "schema": "public",
+      "table": "contest_groups"
     },
     {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.contest_join_requests FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
@@ -19119,6 +22425,14 @@
       "table": "contest_players"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.contest_rounds FROM contests NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "contest_rounds_contest_id_fkey:\"RI_FKey_check_ins\":5",
+      "schema": "public",
+      "table": "contest_rounds"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.contests FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
       "enabled": "O",
       "internal": true,
@@ -19133,6 +22447,22 @@
       "name": "feedback_user_id_fkey:\"RI_FKey_check_ins\":5",
       "schema": "public",
       "table": "feedback"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.group_submissions FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "group_submissions_submitted_by_fkey:\"RI_FKey_check_ins\":5",
+      "schema": "public",
+      "table": "group_submissions"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.group_submissions FROM contest_groups NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "group_submissions_group_id_contest_id_round_id_fkey:\"RI_FKey_ch",
+      "schema": "public",
+      "table": "group_submissions"
     },
     {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.marketing_events FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
@@ -19191,6 +22521,46 @@
       "table": "round_messages"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.round_player_assignments FROM contest_groups NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_group_id_contest_id_round_id_fkey:\"RI_",
+      "schema": "public",
+      "table": "round_player_assignments"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.round_player_assignments FROM contest_players NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_player_id_contest_id_fkey:\"RI_FKey_che",
+      "schema": "public",
+      "table": "round_player_assignments"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.round_player_assignments FROM contest_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_round_id_contest_id_fkey:\"RI_FKey_chec",
+      "schema": "public",
+      "table": "round_player_assignments"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.round_scorer_scopes FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_scorer_scopes_user_id_fkey:\"RI_FKey_check_ins\":5",
+      "schema": "public",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.round_scorer_scopes FROM contest_groups NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_scorer_scopes_group_id_contest_id_round_id_fkey:\"RI_FKey_",
+      "schema": "public",
+      "table": "round_scorer_scopes"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.scans FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
       "enabled": "O",
       "internal": true,
@@ -19219,6 +22589,14 @@
       "enabled": "O",
       "internal": true,
       "name": "score_events_player_id_fkey:\"RI_FKey_check_ins\":5",
+      "schema": "public",
+      "table": "score_events"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.score_events FROM contest_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "score_events_round_fk:\"RI_FKey_check_ins\":5",
       "schema": "public",
       "table": "score_events"
     },
@@ -19261,6 +22639,46 @@
       "name": "share_links_contest_id_fkey:\"RI_FKey_check_ins\":5",
       "schema": "public",
       "table": "share_links"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.sync_id_map FROM contests NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "sync_id_map_contest_id_fkey:\"RI_FKey_check_ins\":5",
+      "schema": "public",
+      "table": "sync_id_map"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_groups FROM contest_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "contest_groups_round_id_contest_id_fkey:\"RI_FKey_check_upd\":17",
+      "schema": "public",
+      "table": "contest_groups"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_groups FROM group_submissions NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "group_submissions_group_id_contest_id_round_id_fkey:\"RI_FKey_no",
+      "schema": "public",
+      "table": "contest_groups"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_groups FROM round_player_assignments NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_group_id_contest_id_round_id_fkey:\"RI_",
+      "schema": "public",
+      "table": "contest_groups"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_groups FROM round_scorer_scopes NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_scorer_scopes_group_id_contest_id_round_id_fkey:\"RI_FKey_",
+      "schema": "public",
+      "table": "contest_groups"
     },
     {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_join_requests FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
@@ -19351,12 +22769,52 @@
       "table": "contest_players"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_players FROM round_player_assignments NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_player_id_contest_id_fkey:\"RI_FKey_noa",
+      "schema": "public",
+      "table": "contest_players"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_players FROM score_events NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
       "enabled": "O",
       "internal": true,
       "name": "score_events_player_id_fkey:\"RI_FKey_noaction_upd\":17",
       "schema": "public",
       "table": "contest_players"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_rounds FROM contest_groups NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "contest_groups_round_id_contest_id_fkey:\"RI_FKey_noaction_upd\":",
+      "schema": "public",
+      "table": "contest_rounds"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_rounds FROM contests NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "contest_rounds_contest_id_fkey:\"RI_FKey_check_upd\":17",
+      "schema": "public",
+      "table": "contest_rounds"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_rounds FROM round_player_assignments NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_round_id_contest_id_fkey:\"RI_FKey_noac",
+      "schema": "public",
+      "table": "contest_rounds"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_rounds FROM score_events NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "score_events_round_fk:\"RI_FKey_noaction_upd\":17",
+      "schema": "public",
+      "table": "contest_rounds"
     },
     {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contests FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
@@ -19391,6 +22849,14 @@
       "table": "contests"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contests FROM contest_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "contest_rounds_contest_id_fkey:\"RI_FKey_noaction_upd\":17",
+      "schema": "public",
+      "table": "contests"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contests FROM operation_receipts NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
       "enabled": "O",
       "internal": true,
@@ -19415,12 +22881,36 @@
       "table": "contests"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contests FROM sync_id_map NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "sync_id_map_contest_id_fkey:\"RI_FKey_noaction_upd\":17",
+      "schema": "public",
+      "table": "contests"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.feedback FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
       "enabled": "O",
       "internal": true,
       "name": "feedback_user_id_fkey:\"RI_FKey_check_upd\":17",
       "schema": "public",
       "table": "feedback"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.group_submissions FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "group_submissions_submitted_by_fkey:\"RI_FKey_check_upd\":17",
+      "schema": "public",
+      "table": "group_submissions"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.group_submissions FROM contest_groups NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "group_submissions_group_id_contest_id_round_id_fkey:\"RI_FKey_ch",
+      "schema": "public",
+      "table": "group_submissions"
     },
     {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.marketing_events FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
@@ -19495,6 +22985,46 @@
       "table": "round_messages"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.round_player_assignments FROM contest_groups NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_group_id_contest_id_round_id_fkey:\"RI_",
+      "schema": "public",
+      "table": "round_player_assignments"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.round_player_assignments FROM contest_players NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_player_id_contest_id_fkey:\"RI_FKey_che",
+      "schema": "public",
+      "table": "round_player_assignments"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.round_player_assignments FROM contest_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_player_assignments_round_id_contest_id_fkey:\"RI_FKey_chec",
+      "schema": "public",
+      "table": "round_player_assignments"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.round_scorer_scopes FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_scorer_scopes_user_id_fkey:\"RI_FKey_check_upd\":17",
+      "schema": "public",
+      "table": "round_scorer_scopes"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.round_scorer_scopes FROM contest_groups NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "round_scorer_scopes_group_id_contest_id_round_id_fkey:\"RI_FKey_",
+      "schema": "public",
+      "table": "round_scorer_scopes"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.scans FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
       "enabled": "O",
       "internal": true,
@@ -19531,6 +23061,14 @@
       "enabled": "O",
       "internal": true,
       "name": "score_events_player_id_fkey:\"RI_FKey_check_upd\":17",
+      "schema": "public",
+      "table": "score_events"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.score_events FROM contest_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "score_events_round_fk:\"RI_FKey_check_upd\":17",
       "schema": "public",
       "table": "score_events"
     },
@@ -19575,6 +23113,14 @@
       "table": "share_links"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.sync_id_map FROM contests NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "sync_id_map_contest_id_fkey:\"RI_FKey_check_upd\":17",
+      "schema": "public",
+      "table": "sync_id_map"
+    },
+    {
       "def": "CREATE TRIGGER contests_updated_at BEFORE UPDATE ON public.contests FOR EACH ROW EXECUTE FUNCTION handle_updated_at()",
       "enabled": "O",
       "internal": false,
@@ -19589,6 +23135,14 @@
       "name": "m2_publish_guard",
       "schema": "public",
       "table": "published_rounds"
+    },
+    {
+      "def": "CREATE TRIGGER m3_default_round AFTER INSERT ON public.contests FOR EACH ROW EXECUTE FUNCTION ensure_default_round()",
+      "enabled": "O",
+      "internal": false,
+      "name": "m3_default_round",
+      "schema": "public",
+      "table": "contests"
     },
     {
       "def": "CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user()",
@@ -19728,6 +23282,34 @@
       "input": "record_in",
       "kind": "c",
       "length": -1,
+      "name": "contest_groups",
+      "notnull": false,
+      "output": "record_out",
+      "owner": "postgres",
+      "preferred": false,
+      "receive": "record_recv",
+      "send": "record_send",
+      "storage": "x",
+      "subscript": "-",
+      "typmodin": "-",
+      "typmodout": "-"
+    },
+    {
+      "acl": null,
+      "alignment": "d",
+      "analyze": "-",
+      "base": "-",
+      "byval": false,
+      "category": "C",
+      "collation": "-",
+      "default": null,
+      "defined": true,
+      "delimiter": ",",
+      "dimensions": 0,
+      "element": "-",
+      "input": "record_in",
+      "kind": "c",
+      "length": -1,
       "name": "contest_join_requests",
       "notnull": false,
       "output": "record_out",
@@ -19785,6 +23367,34 @@
       "kind": "c",
       "length": -1,
       "name": "contest_players",
+      "notnull": false,
+      "output": "record_out",
+      "owner": "postgres",
+      "preferred": false,
+      "receive": "record_recv",
+      "send": "record_send",
+      "storage": "x",
+      "subscript": "-",
+      "typmodin": "-",
+      "typmodout": "-"
+    },
+    {
+      "acl": null,
+      "alignment": "d",
+      "analyze": "-",
+      "base": "-",
+      "byval": false,
+      "category": "C",
+      "collation": "-",
+      "default": null,
+      "defined": true,
+      "delimiter": ",",
+      "dimensions": 0,
+      "element": "-",
+      "input": "record_in",
+      "kind": "c",
+      "length": -1,
+      "name": "contest_rounds",
       "notnull": false,
       "output": "record_out",
       "owner": "postgres",
@@ -20148,6 +23758,34 @@
       "input": "record_in",
       "kind": "c",
       "length": -1,
+      "name": "group_submissions",
+      "notnull": false,
+      "output": "record_out",
+      "owner": "postgres",
+      "preferred": false,
+      "receive": "record_recv",
+      "send": "record_send",
+      "storage": "x",
+      "subscript": "-",
+      "typmodin": "-",
+      "typmodout": "-"
+    },
+    {
+      "acl": null,
+      "alignment": "d",
+      "analyze": "-",
+      "base": "-",
+      "byval": false,
+      "category": "C",
+      "collation": "-",
+      "default": null,
+      "defined": true,
+      "delimiter": ",",
+      "dimensions": 0,
+      "element": "-",
+      "input": "record_in",
+      "kind": "c",
+      "length": -1,
       "name": "improvement_actions",
       "notnull": false,
       "output": "record_out",
@@ -20344,6 +23982,62 @@
       "input": "record_in",
       "kind": "c",
       "length": -1,
+      "name": "round_player_assignments",
+      "notnull": false,
+      "output": "record_out",
+      "owner": "postgres",
+      "preferred": false,
+      "receive": "record_recv",
+      "send": "record_send",
+      "storage": "x",
+      "subscript": "-",
+      "typmodin": "-",
+      "typmodout": "-"
+    },
+    {
+      "acl": null,
+      "alignment": "d",
+      "analyze": "-",
+      "base": "-",
+      "byval": false,
+      "category": "C",
+      "collation": "-",
+      "default": null,
+      "defined": true,
+      "delimiter": ",",
+      "dimensions": 0,
+      "element": "-",
+      "input": "record_in",
+      "kind": "c",
+      "length": -1,
+      "name": "round_scorer_scopes",
+      "notnull": false,
+      "output": "record_out",
+      "owner": "postgres",
+      "preferred": false,
+      "receive": "record_recv",
+      "send": "record_send",
+      "storage": "x",
+      "subscript": "-",
+      "typmodin": "-",
+      "typmodout": "-"
+    },
+    {
+      "acl": null,
+      "alignment": "d",
+      "analyze": "-",
+      "base": "-",
+      "byval": false,
+      "category": "C",
+      "collation": "-",
+      "default": null,
+      "defined": true,
+      "delimiter": ",",
+      "dimensions": 0,
+      "element": "-",
+      "input": "record_in",
+      "kind": "c",
+      "length": -1,
       "name": "scans",
       "notnull": false,
       "output": "record_out",
@@ -20429,6 +24123,34 @@
       "kind": "c",
       "length": -1,
       "name": "share_links",
+      "notnull": false,
+      "output": "record_out",
+      "owner": "postgres",
+      "preferred": false,
+      "receive": "record_recv",
+      "send": "record_send",
+      "storage": "x",
+      "subscript": "-",
+      "typmodin": "-",
+      "typmodout": "-"
+    },
+    {
+      "acl": null,
+      "alignment": "d",
+      "analyze": "-",
+      "base": "-",
+      "byval": false,
+      "category": "C",
+      "collation": "-",
+      "default": null,
+      "defined": true,
+      "delimiter": ",",
+      "dimensions": 0,
+      "element": "-",
+      "input": "record_in",
+      "kind": "c",
+      "length": -1,
+      "name": "sync_id_map",
       "notnull": false,
       "output": "record_out",
       "owner": "postgres",
