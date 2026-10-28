@@ -37,6 +37,7 @@ import {
   DefaultTee,
 } from "../src/stores/settings-store";
 import { useAuthStore } from "../src/stores/auth-store";
+import { SUPPORT_BASE_URL } from "../src/config/support";
 // Contest and scan stores cleared via AsyncStorage.multiRemove in handleDeleteAccount
 
 // ─── Reusable row components ──────────────────────────────────
@@ -607,7 +608,7 @@ export default function SettingsScreen() {
         <SectionHeader title="About" />
 
         <AnimatedPressable
-          onPress={() => Linking.openURL("https://august-industries.com/snapscore/privacy")}
+          onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/privacy")}
           style={{
             backgroundColor: COLORS.surfaceLow,
             borderRadius: RADII.lg,
@@ -627,7 +628,7 @@ export default function SettingsScreen() {
         </AnimatedPressable>
 
         <AnimatedPressable
-          onPress={() => Linking.openURL("https://august-industries.com/snapscore/terms")}
+          onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/terms")}
           style={{
             backgroundColor: COLORS.surfaceLow,
             borderRadius: RADII.lg,
