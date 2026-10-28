@@ -24,12 +24,18 @@
       },
       "autoIncrement": true,
       "channel": "testflight",
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_FEATURE_COURSE_SEARCH": "true"
+      }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_FEATURE_COURSE_SEARCH": "true"
+      }
     }
   },
   "submit": {
