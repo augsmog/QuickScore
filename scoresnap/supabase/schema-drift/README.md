@@ -75,7 +75,7 @@ expectations come from expected-ledger.json and drift.py, as described below.
   the baseline does not alter supabase_admin defaults. Offline setup emulates
   them. `platform_differences` is empty; no role-wide exceptions exist.
 - Migration rows are omitted from the physical comparison, then separately
-  checked for exact names/versions: live requires the applied ten rows in exact order; baseline retains the first eight rows; local has the full ten rows. Historical pre-adoption mode has seven rows. Only live mode checks input order; the other modes sort by version before checking.
+  checked for exact names/versions: live requires the applied eleven rows in exact order, ending with `20261028162155 tournament_rounds_live`; baseline retains the first eight rows; local retains the first ten rows through M2b. Historical pre-adoption mode has seven rows. Only live mode checks input order; the other modes sort by version before checking.
   Missing, extra, duplicate, or renamed ledger entries fail.
 
 Public routine ACL text and information_schema EXECUTE grants are both compared.
@@ -100,10 +100,12 @@ exactly these files in order before repair:
 1. `20261027000000_live_baseline.sql`
 2. `20261027120000_sync_foundation.sql` (M2)
 3. `20261027130000_guest_write_guard.sql` (M2b)
+4. `20261028162155_tournament_rounds_live.sql` (M3)
 
 It repairs only baseline to applied, lists again, and asserts the dry-run lists
-exactly M2 then M2b (`20261027120000_sync_foundation.sql`,
-`20261027130000_guest_write_guard.sql`). It then rechecks unchanged physical
+exactly M2, M2b, then M3 (`20261027120000_sync_foundation.sql`,
+`20261027130000_guest_write_guard.sql`,
+`20261028162155_tournament_rounds_live.sql`). It then rechecks unchanged physical
 schema and the eight-row baseline ledger (seven historical markers plus
 `20261027000000 live_baseline`). It drops the disposable database on success. A failed
 run leaves the database for investigation; the CI stack cleanup removes it.
@@ -126,8 +128,9 @@ bash scoresnap/supabase/schema-drift/preapply-check.sh /path/to/fresh-live-catal
 
 The guard uses only Python and the provided file: it never connects or writes to
 live, reads no credentials, and never invokes Supabase. It normalizes both sides,
-compares schema to the post-M2b `live.json` and the exact ordered ten-row live
+compares schema to the post-M3 `live.json` and the exact ordered eleven-row live
 ledger in `expected-ledger.json`, and fails closed with a human diff.
+M3 (`20261028162155_tournament_rounds_live`) was applied on 2026-10-28.
 M2 and M2b were applied live with Augie approval on 2026-10-27 at approximately
 02:20 MST. On success it prints:
 
@@ -135,10 +138,10 @@ M2 and M2b were applied live with Augie approval on 2026-10-27 at approximately
 Schema matches
 Ledger matches: live
 Guard passed.
-Next: M3 requires separate approval; no approved apply is pending.
+Next: M3 was applied on 2026-10-28; no approved apply is pending.
 ```
 
-No approved apply is pending. M3 requires separate approval. Baseline repair is
+M3 was applied on 2026-10-28. No approved apply is pending. Baseline repair is
 complete; never execute baseline DDL on live. The guard performs no apply.
 See [LIVE-APPLY-PREFLIGHT.md](LIVE-APPLY-PREFLIGHT.md) for checksums.
 
@@ -146,16 +149,17 @@ After an approved future live schema change, save the fresh read-only raw captur
 review the diff against the expected migration, normalize it over `live.json`,
 and explicitly update ledger expectations for that milestone. Do not refresh to
 silence unexpected drift or expand the allowlist to hide app differences.
-Eight, nine, eleven, missing, renamed, reordered, duplicate, extra and wrong
-baseline variants fail the live gate. Baseline/local/pre-adoption modes retain
-historical CI/rehearsal semantics; baseline physical checks use `baseline.json`.
+Eight, nine, ten, twelve, the old `20261028100000` stamp, missing, renamed,
+reordered, duplicate, extra and wrong baseline variants fail the live gate.
+Baseline/local/pre-adoption modes retain historical CI/rehearsal semantics;
+baseline physical checks use `baseline.json`.
 
 SHA256 (files in this directory):
 
 ```text
-c8fd85bd1acc57ab87dbb6294baa8488f464d9953eacc96068feab2318b99388  preapply-check.sh
-28fe833309d506592aa3201742ce5c1ef1b28d3fcf020e48255bbdacbd484486  drift.py
-b3335057646f63786a439d5e14012d10080ecfb23c907713161320695b28ece7  expected-ledger.json
+162e9f297ade7278a02d4fd6277cd713cb18b8121b43bda25763772674278b2a  preapply-check.sh
+88e84a4298fd72acb3173eb09395332286c33f476802646e08416e9e9c3ee9a2  drift.py
+0cfbb87b133980ff4063e067e0d5d946a1e2e0d244a6c8b6714ff68cd3681000  expected-ledger.json
 ```
 
 ## Historical verification receipt (fix round 1)
@@ -303,6 +307,7 @@ and checks the ten-entry local ledger: seven historical markers +
 `20261027130000 guest_write_guard`. It runs future-default, protocol/role, legacy
 compatibility, guest-write guard and guest-guard mutation tests.
 `check-active-sql.py` requires exact active migration names, reviewed SHA256
-hashes and git tracking. `preapply-check.sh` uses the post-M2b live
-snapshot and exact ordered ten-entry live ledger. See ../M2-FOUNDATION.md for contracts,
-staged debt and live approval requirements.
+hashes and git tracking. `preapply-check.sh` uses the post-M3 live
+snapshot and exact ordered eleven-entry live ledger ending in
+`20261028162155 tournament_rounds_live`. M3 was applied on 2026-10-28.
+See ../M2-FOUNDATION.md for contracts, staged debt and live approval requirements.

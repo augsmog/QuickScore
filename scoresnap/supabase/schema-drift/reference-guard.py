@@ -208,7 +208,7 @@ def main():
     archived = (ROOT / 'archive/pre-baseline/008_tournament_rounds.sql').read_text()
     base = snapshot_schema()
     for path in migration_files():
-        if path.name.startswith('20261028100000'):
+        if path.name.startswith('20261028162155'):
             break
         apply_sql(base, path.read_text(), path.name)
     archived_errors = apply_sql(base, archived, 'archive/008_tournament_rounds.sql')

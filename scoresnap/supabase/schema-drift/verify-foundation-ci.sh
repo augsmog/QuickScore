@@ -8,8 +8,8 @@ extract() { psql_local -At -f "$here/catalog-query.sql" > /tmp/m2-catalog.json; 
 python3 "$here/check-active-sql.py"
 python3 "$here/reference-guard.py"
 # Reset starts with the full chain. Peel rewritten 008 before the M2 gates.
-psql_local -f "$here/../rollback/20261028100000_tournament_rounds_live.down.sql"
-psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028100000'"
+psql_local -f "$here/../rollback/20261028162155_tournament_rounds_live.down.sql"
+psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028162155'"
 # Remove M2b before all M2 down/race gates.
 psql_local -f "$here/../rollback/20261027130000_guest_write_guard.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261027130000'"
@@ -54,8 +54,8 @@ python3 "$here/sql-fixtures.py" --url "$url" --admin-url postgresql://supabase_a
 # CLI reapplies the pending foundation, guest guard and rewritten 008.
 (cd "$here/../.." && supabase migration up --local)
 # M2b catalog gates stay on the pre-008 schema. M3 is proved again below.
-psql_local -f "$here/../rollback/20261028100000_tournament_rounds_live.down.sql"
-psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028100000'"
+psql_local -f "$here/../rollback/20261028162155_tournament_rounds_live.down.sql"
+psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028162155'"
 extract
 python3 "$here/guest-guard-catalog.py" /tmp/m2-before-guard.json /tmp/m2-catalog.json
 python3 "$here/drift.py" compare "$here/../schema-snapshot/expected-after.json" /tmp/m2-catalog.json
@@ -68,15 +68,15 @@ psql_local -f "$here/../tests/guest-write-guard.sql"
 
 python3 "$here/guest-guard-mutations.py" --url "$url"
 cp /tmp/m2-catalog.json /tmp/m2b-catalog.json
-psql_local -f "$here/../migrations/20261028100000_tournament_rounds_live.sql"
-psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261028100000','tournament_rounds_live') ON CONFLICT DO NOTHING"
+psql_local -f "$here/../migrations/20261028162155_tournament_rounds_live.sql"
+psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261028162155','tournament_rounds_live') ON CONFLICT DO NOTHING"
 extract
 python3 "$here/drift.py" compare "$here/../schema-snapshot/expected-m3.json" /tmp/m2-catalog.json
 psql_local -f "$here/../tests/m3-acl.sql"
 python3 "$here/m3-mutations.py" --url "$url"
-psql_local -f "$here/../rollback/20261028100000_tournament_rounds_live.down.sql"
+psql_local -f "$here/../rollback/20261028162155_tournament_rounds_live.down.sql"
 extract
 python3 "$here/drift.py" compare /tmp/m2b-catalog.json /tmp/m2-catalog.json
-psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028100000'"
-psql_local -f "$here/../migrations/20261028100000_tournament_rounds_live.sql"
-psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261028100000','tournament_rounds_live') ON CONFLICT DO NOTHING"
+psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028162155'"
+psql_local -f "$here/../migrations/20261028162155_tournament_rounds_live.sql"
+psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261028162155','tournament_rounds_live') ON CONFLICT DO NOTHING"

@@ -2,7 +2,7 @@
 -- Live has score_events and contest_players.scores. It does not have contest_groups or hole_scores.
 -- This migration creates those round objects; it does not ALTER the absent tables.
 -- Idempotent: re-running on an already migrated database is a no-op.
--- Rollback: rollback/20261028100000_tournament_rounds_live.down.sql
+-- Rollback: rollback/20261028162155_tournament_rounds_live.down.sql
 --
 -- Creates:
 --   contest_rounds, contest_groups, round_player_assignments,

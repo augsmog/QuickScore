@@ -68,16 +68,16 @@ with tempfile.TemporaryDirectory() as tmp:
  ROLLBACK;
  """,'probe helper aggregates unexpected SQLSTATE and success across rollback')
  run("DO $$ BEGIN IF has_column_privilege('authenticated','public.profiles','is_premium','UPDATE') OR NOT has_column_privilege('authenticated','public.profiles','display_name','UPDATE') THEN RAISE EXCEPTION 'profile ACL'; END IF; END $$;",'profile entitlement ACL')
- entries=json.loads((here/'expected-ledger.json').read_text())
+ entries=json.loads((here/'expected-ledger.json').read_text())[:-1]
  run('\n'.join("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('%s','%s');" % (e['version'],e['name']) for e in entries),'full local ledger seed')
  raw=catalog()
  check_guard(m2_catalog,raw)
  ledger(raw,'local')
- print('PASS: ten-entry local ledger (live expectation is applied ten)')
+ print('PASS: ten-entry local ledger (live expectation is applied eleven)')
  expected=root/'schema-snapshot/expected-after.json'
  compare(expected,'M2b catalog equals expected-after.json')
- m3=(root/'migrations/20261028100000_tournament_rounds_live.sql').read_text()
- m3_down=(root/'rollback/20261028100000_tournament_rounds_live.down.sql').read_text()
+ m3=(root/'migrations/20261028162155_tournament_rounds_live.sql').read_text()
+ m3_down=(root/'rollback/20261028162155_tournament_rounds_live.down.sql').read_text()
  run(m3,'M3 apply')
  raw_m3=catalog()
  m3_expected=root/'schema-snapshot/expected-m3.json'

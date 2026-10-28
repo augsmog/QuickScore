@@ -1,7 +1,7 @@
 -- Reverse rewritten 008. Refuses once a tournament has structure or versioned round scores.
 -- Empty round-1 shells created for legacy contests may be removed. Accepted score_events stay.
 -- Run after M2 is still installed and before rolling M2 back:
---   psql -v ON_ERROR_STOP=1 -f supabase/rollback/20261028100000_tournament_rounds_live.down.sql
+--   psql -v ON_ERROR_STOP=1 -f supabase/rollback/20261028162155_tournament_rounds_live.down.sql
 BEGIN;
 LOCK TABLE public.contests, public.contest_players, public.score_events, public.contest_rounds,
   public.contest_groups, public.round_player_assignments, public.round_scorer_scopes,
