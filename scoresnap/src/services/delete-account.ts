@@ -1,5 +1,6 @@
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
 import { supabase } from "../db/supabase";
+import { requireServerDeletion } from "./account-deletion";
 
 /**
  * Ask the delete-account edge function to remove the signed-in user.
@@ -9,7 +10,7 @@ import { supabase } from "../db/supabase";
 export async function deleteServerAccount(): Promise<void> {
   if (!REAL_AUTH_CONFIGURED) return;
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) return;
+  requireServerDeletion({ realAuth: true, accessToken: session?.access_token });
   const { data, error } = await supabase.functions.invoke("delete-account", {
     method: "POST",
     body: {},

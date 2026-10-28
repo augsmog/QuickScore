@@ -8,12 +8,17 @@ export interface ContestPlayerRow {
   scores: number[];
 }
 
+export interface ContestMembershipRow {
+  user_id: string;
+  player_id: string | null;
+}
+
 export interface AccountRepository {
   getProfile(userId: string): Promise<{ email: string | null; display_name: string | null; referral_code: string | null } | null>;
   contestIdsFor(userId: string): Promise<string[]>;
   getContestOwner(contestId: string): Promise<string | null>;
   listPlayers(contestId: string): Promise<ContestPlayerRow[]>;
-  listMemberUserIds(contestId: string): Promise<string[]>;
+  listMemberships(contestId: string): Promise<ContestMembershipRow[]>;
   deleteContest(contestId: string): Promise<void>;
   setContestOwner(contestId: string, ownerId: string): Promise<void>;
   setPublishedRoundOwner(contestId: string, fromUser: string, toUser: string): Promise<void>;
@@ -32,8 +37,16 @@ export interface AccountRepository {
   deleteFeedback(userId: string, email: string | null): Promise<void>;
   anonymizeRevenue(email: string): Promise<void>;
   scrubAutomation(email: string): Promise<void>;
-  /** Null other profiles.referred_by and marketing_events.campaign that store this referral code. */
+  /**
+   * Remove this referral code from other profiles.referred_by, marketing campaign,
+   * marketing properties.referred_by and properties.referral_code, and automation_log
+   * "Referral:" / "Code:" text.
+   */
   clearReferralReferences(referralCode: string): Promise<void>;
+  /** round_scorer_scopes.user_id has no ON DELETE, so the auth user cannot go until these rows do. */
+  deleteScorerScopes(userId: string): Promise<void>;
+  /** group_submissions.submitted_by is NOT NULL. Point it at the contest owner after ownership moves. */
+  reassignGroupSubmissions(userId: string): Promise<void>;
   deleteProfile(userId: string): Promise<void>;
 }
 
@@ -81,6 +94,43 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * Roster rows whose name should become "Deleted player".
+ * A joined account is stored on contest_memberships.player_id after decide_join_request
+ * clears contest_players.user_id. The host has no membership, so on a contest the caller
+ * still owns, an unclaimed roster row with a null user_id is theirs too. A guest name
+ * the owner typed and nobody claimed is included, because that row looks the same.
+ * On someone else's contest, only the caller's user_id and membership.player_id match.
+ */
+export function callerRosterIds(
+  players: readonly ContestPlayerRow[],
+  memberships: readonly ContestMembershipRow[],
+  userId: string,
+  owns: boolean,
+): string[] {
+  const claimedByOther = new Set<string>();
+  for (const member of memberships) {
+    if (member.user_id !== userId && member.player_id) claimedByOther.add(member.player_id);
+  }
+  const ids = new Set<string>();
+  for (const member of memberships) {
+    if (member.user_id !== userId || !member.player_id) continue;
+    const player = players.find((row) => row.id === member.player_id);
+    if (player && (player.user_id === userId || player.user_id == null)) ids.add(player.id);
+  }
+  for (const player of players) {
+    if (player.user_id === userId) ids.add(player.id);
+    else if (owns && player.user_id == null && !claimedByOther.has(player.id)) ids.add(player.id);
+  }
+  return [...ids];
+}
+
+/** Replace Referral:/Code: values that are exactly this code, leaving a longer code intact. */
+export function scrubReferralText(text: string, code: string): string {
+  const escaped = escapeRegExp(code);
+  return text.replace(new RegExp(`(Referral|Code):\\s*${escaped}(?=$|[^A-Z0-9-])`, "g"), "$1: [deleted]");
+}
+
 /** Replace the account email without eating a longer address that merely ends with it. */
 export function replaceEmailText(text: string, email: string): string {
   const escaped = escapeRegExp(email);
@@ -107,7 +157,9 @@ export function scrubEmailValue(value: unknown, email: string, userId: string): 
  * is NOT NULL and references auth.users. A contest with no other account is
  * deleted, which cascades its players, score_events, and published round.
  * contest_players.scores and surviving score_events.strokes are kept.
- * Live schema only: score_events plus the scores stored on contest_players.
+ * Scores stay on score_events and contest_players. round_scorer_scopes.user_id is
+ * removed. group_submissions.submitted_by moves to the contest owner.
+ * contest_groups, round_player_assignments, and sync_id_map have no auth user id.
  */
 export async function purgeAccount(repo: AccountRepository, userId: string): Promise<void> {
   const profile = await repo.getProfile(userId);
@@ -118,9 +170,9 @@ export async function purgeAccount(repo: AccountRepository, userId: string): Pro
     const ownerId = await repo.getContestOwner(contestId);
     if (!ownerId) continue;
     const players = await repo.listPlayers(contestId);
-    const memberIds = await repo.listMemberUserIds(contestId);
+    const memberships = await repo.listMemberships(contestId);
     const otherAccounts = new Set<string>();
-    for (const id of memberIds) if (id && id !== userId) otherAccounts.add(id);
+    for (const member of memberships) if (member.user_id && member.user_id !== userId) otherAccounts.add(member.user_id);
     for (const player of players) if (player.user_id && player.user_id !== userId) otherAccounts.add(player.user_id);
     const owns = ownerId === userId;
     const successor = [...otherAccounts].sort()[0];
@@ -134,14 +186,15 @@ export async function purgeAccount(repo: AccountRepository, userId: string): Pro
     } else {
       await repo.setPublishedRoundOwner(contestId, userId, ownerId);
     }
-    const names = players.filter((player) => player.user_id === userId).map((player) => player.name);
+    const rosterIds = new Set(callerRosterIds(players, memberships, userId, owns));
+    const names = players.filter((player) => rosterIds.has(player.id)).map((player) => player.name);
     await repo.anonymizeSnapshots(contestId, names);
     await repo.anonymizeMessages(contestId, names);
-    for (const player of players) {
-      if (player.user_id === userId) await repo.anonymizePlayer(player.id);
-    }
+    for (const playerId of rosterIds) await repo.anonymizePlayer(playerId);
     await repo.reassignScoreActor(contestId, userId, owns ? successor! : ownerId);
   }
+  await repo.deleteScorerScopes(userId);
+  await repo.reassignGroupSubmissions(userId);
   await repo.deleteMembership(userId);
   await repo.deleteJoinRequests(userId);
   await repo.nullJoinDecider(userId);

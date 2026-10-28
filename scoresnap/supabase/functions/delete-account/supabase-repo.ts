@@ -4,6 +4,7 @@ import {
   matchesCallerName,
   replaceEmailText,
   scrubEmailValue,
+  scrubReferralText,
   type AccountRepository,
 } from "./purge.ts";
 
@@ -42,12 +43,18 @@ export function createSupabaseAccountRepository(admin: Admin): AccountRepository
       fail(acted.error);
       const published = await admin.from("published_rounds").select("contest_id").eq("owner_id", userId);
       fail(published.error);
+      const scopes = await admin.from("round_scorer_scopes").select("contest_id").eq("user_id", userId);
+      fail(scopes.error);
+      const submissions = await admin.from("group_submissions").select("contest_id").eq("submitted_by", userId);
+      fail(submissions.error);
       for (const row of owned.data ?? []) ids.add(row.id);
       for (const row of played.data ?? []) ids.add(row.contest_id);
       for (const row of members.data ?? []) ids.add(row.contest_id);
       for (const row of entered.data ?? []) ids.add(row.contest_id);
       for (const row of acted.data ?? []) ids.add(row.contest_id);
       for (const row of published.data ?? []) ids.add(row.contest_id);
+      for (const row of scopes.data ?? []) ids.add(row.contest_id);
+      for (const row of submissions.data ?? []) ids.add(row.contest_id);
       return [...ids];
     },
     async getContestOwner(contestId) {
@@ -60,14 +67,19 @@ export function createSupabaseAccountRepository(admin: Admin): AccountRepository
       fail(error);
       return data ?? [];
     },
-    async listMemberUserIds(contestId) {
-      const { data, error } = await admin.from("contest_memberships").select("user_id").eq("contest_id", contestId);
+    async listMemberships(contestId) {
+      const { data, error } = await admin.from("contest_memberships").select("user_id, player_id").eq("contest_id", contestId);
       fail(error);
-      return (data ?? []).map((row: { user_id: string }) => row.user_id);
+      return (data ?? []).map((row: { user_id: string; player_id: string | null }) => ({
+        user_id: row.user_id,
+        player_id: row.player_id ?? null,
+      }));
     },
     async deleteContest(contestId) {
-      // Cascades contest_players, score_events, published_rounds, share_links,
-      // round_messages, memberships, join requests, and receipts for this contest.
+      // score_events.round_id references contest_rounds ON DELETE RESTRICT, so the
+      // score rows have to go before the contest cascades its rounds.
+      const scores = await admin.from("score_events").delete().eq("contest_id", contestId);
+      fail(scores.error);
       const { error } = await admin.from("contests").delete().eq("id", contestId);
       fail(error);
     },
@@ -219,6 +231,58 @@ export function createSupabaseAccountRepository(admin: Admin): AccountRepository
       fail(profiles.error);
       const campaigns = await admin.from("marketing_events").update({ campaign: null }).eq("campaign", referralCode);
       fail(campaigns.error);
+      const pending = new Map<string, Record<string, unknown>>();
+      for (const field of ["referred_by", "referral_code"] as const) {
+        const found = await admin.from("marketing_events").select("id, properties").filter(`properties->>${field}`, "eq", referralCode);
+        fail(found.error);
+        for (const row of found.data ?? []) {
+          const properties = { ...(pending.get(row.id) ?? row.properties ?? {}) };
+          properties[field] = null;
+          pending.set(row.id, properties);
+        }
+      }
+      for (const [id, properties] of pending) {
+        const updated = await admin.from("marketing_events").update({ properties }).eq("id", id);
+        fail(updated.error);
+      }
+      const patterns = [`%Referral: ${referralCode}%`, `%Code: ${referralCode}%`];
+      const logs = new Map<string, { id: string; title: string; details: string | null }>();
+      for (const column of ["title", "details"] as const) {
+        for (const pattern of patterns) {
+          const found = await admin.from("automation_log").select("id, title, details").ilike(column, pattern);
+          fail(found.error);
+          for (const row of found.data ?? []) logs.set(row.id, row);
+        }
+      }
+      for (const row of logs.values()) {
+        const updated = await admin.from("automation_log").update({
+          title: scrubReferralText(row.title ?? "", referralCode),
+          details: row.details ? scrubReferralText(row.details, referralCode) : row.details,
+        }).eq("id", row.id);
+        fail(updated.error);
+      }
+    },
+    async deleteScorerScopes(userId) {
+      const { error } = await admin.from("round_scorer_scopes").delete().eq("user_id", userId);
+      fail(error);
+    },
+    async reassignGroupSubmissions(userId) {
+      const found = await admin.from("group_submissions").select("contest_id, round_id, group_id").eq("submitted_by", userId);
+      fail(found.error);
+      for (const row of found.data ?? []) {
+        const owner = await admin.from("contests").select("owner_id").eq("id", row.contest_id).maybeSingle();
+        fail(owner.error);
+        const ownerId = owner.data?.owner_id;
+        if (!ownerId || ownerId === userId) continue;
+        const updated = await admin
+          .from("group_submissions")
+          .update({ submitted_by: ownerId })
+          .eq("contest_id", row.contest_id)
+          .eq("round_id", row.round_id)
+          .eq("group_id", row.group_id)
+          .eq("submitted_by", userId);
+        fail(updated.error);
+      }
     },
     async deleteProfile(userId) {
       const { error } = await admin.from("profiles").delete().eq("id", userId);

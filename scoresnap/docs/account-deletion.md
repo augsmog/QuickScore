@@ -2,7 +2,7 @@
 
 Settings → Delete Account asks for confirmation, then calls the `delete-account` edge function and, only after that succeeds, clears on-device storage. The function does not take a user id. It verifies the bearer JWT with Supabase Auth and uses `user.id` from that check. That id is the JWT `sub`, which is the value `auth.uid()` returns in Postgres. `auth.admin.deleteUser` is called with that id only. A body or query id is discarded.
 
-This matches the live schema: scores live on `score_events` and `contest_players.scores`. There are no `contest_groups` or `hole_scores` tables, and this path does not use them. No migration is added. `profiles.id` cascades when the auth user is deleted; the other foreign keys to `auth.users` are `NO ACTION`, so those references are removed or moved first.
+Scores live on `score_events` and `contest_players.scores`. There is no `hole_scores` table. No migration is added. `profiles.id` cascades when the auth user is deleted; the other foreign keys to `auth.users` are `NO ACTION`, so those references are removed or moved first.
 
 `owner_id` on `contests` and `published_rounds` is `NOT NULL` and references `auth.users`. A contest can stay up only when another account can own it. A contest whose only account is the caller is deleted, including a round that also has guest players with a null `user_id`.
 
@@ -23,7 +23,7 @@ Rows that belong only to the caller are removed.
 | `settlements` | A row is deleted when both `from_user_id` and `to_user_id` are the caller, or the other side is already null. |
 | `contests` | Deleted when the caller owns it and no other auth user is a player or member. |
 | `contest_players` | Cascade when that contest is deleted. |
-| `score_events` | Cascade when that contest is deleted. |
+| `score_events` | Deleted before the contest. `round_id` references `contest_rounds` with `ON DELETE RESTRICT`, so a contest delete alone can fail while those rows still point at a round. |
 | `published_rounds` | Cascade when that contest is deleted. |
 | `share_links` | Cascade with the published round. |
 | `round_messages` | Cascade with the published round. |
@@ -36,7 +36,7 @@ Rows other players still need are kept. The caller's name on a surviving round b
 | Table | What happens |
 | --- | --- |
 | `contests` | When another account is on a contest the caller owns, `owner_id` moves to that account (lowest user id). |
-| `contest_players` | On a surviving contest, the caller's `name` becomes `Deleted player` and `user_id` becomes null. `scores` and `putts` are not updated. |
+| `contest_players` | On a surviving contest, the caller's `name` becomes `Deleted player` and `user_id` becomes null. `scores` and `putts` are not updated. The caller is a roster row whose `user_id` is the caller, or a row claimed by the caller's `contest_memberships.player_id` (join approval clears `contest_players.user_id` and keeps the account on the membership). On a contest the caller owns, an unclaimed roster row with a null `user_id` is treated the same way. The host has no membership, and signup does not write `profiles.display_name`, so that is how the host's own typed name is removed. A guest name the owner typed, and that nobody else claimed, is relabeled too: the row looks the same as the host slot. On a contest the caller does not own, an unclaimed null `user_id` row is left alone. |
 | `score_events` | On a surviving contest, `strokes`, `hole`, and `player_id` stay. `entered_by` moves to the contest owner. `actor` is cleared when it was the caller. |
 | `published_rounds` | `owner_id` moves with the contest when it was the caller. Every published row for that contest is updated, including when a contest has more than one. In each `snapshot`, a `displayName` becomes `Deleted player` when it matches the caller's player name after `trim().slice(0, 80)`, the cut the publisher stores. Score numbers in the snapshot stay. |
 | `round_messages` | `display_name` becomes `Deleted player` when that same cut matches the caller's player name. The message body stays. |
@@ -45,16 +45,23 @@ Rows other players still need are kept. The caller's name on a surviving round b
 | `settlements` | The caller's `from_user_id` or `to_user_id` is set null when the other side is someone else. `scan_id` is set null when it pointed at the caller's scan. `amount_cents` stays. |
 | `revenue_events` | `customer_email` is set null when it matches the profile email. Matching text in `metadata` is replaced. The amount stays. There is no user-id column. |
 | `profiles` | Another profile whose `referred_by` equals the caller's `referral_code` has `referred_by` set to null. The rest of that profile stays. |
-| `marketing_events` | Rows that belong to someone else but store the caller's email or `referrer_id` have that value removed. `campaign` is set to null when it equals the caller's `referral_code`. The event row stays. |
-| `automation_log` | The caller's email is replaced in `title` and `details`. The log row stays. There is no user-id column. |
+| `marketing_events` | Rows that belong to someone else but store the caller's email or `referrer_id` have that value removed. `campaign` is set to null when it equals the caller's `referral_code`. `properties.referred_by` and `properties.referral_code` are set to null when they equal that same code. The event row stays. `profiles` has no `properties` column; the referral link on a profile is the `referred_by` column. |
+| `automation_log` | The caller's email is replaced in `title` and `details`. A `Referral:` or `Code:` value that is exactly the caller's referral code becomes `[deleted]`. A longer code that only starts with it stays. The log row stays. There is no user-id column. |
+| `round_scorer_scopes` | Rows whose `user_id` is the caller are deleted. `user_id` references `auth.users` with no `ON DELETE`, so the auth user cannot be removed while they remain. |
+| `group_submissions` | `submitted_by` moves to the contest's current owner after ownership has transferred. It is `NOT NULL` and cannot be cleared. Score revisions on the row stay. |
+| `round_player_assignments` | No auth user id. The row stays with an anonymized player. It cascades when the contest is deleted. |
+| `contest_groups`, `contest_rounds` | No auth user id. They cascade with the contest. |
+| `sync_id_map` | `local_id` is a client id, not an auth user. The row stays on a surviving contest and cascades when the contest is deleted. |
 
 A published name is `contest_players.name.trim().slice(0, 80)`, which is the string the shared-round publisher writes. Snapshot `displayName` and chat `display_name` are compared after that same cut, so a name with surrounding spaces and a name longer than 80 characters still match. Another player on the same round whose published name is the same is relabeled too.
 
 ## Left alone
 
-`daily_metrics`, `funnel_snapshots`, `content_performance`, `content_insights`, `golfcore_usage`, `golfcore_usage_drift`, `course_catalog`, `course_search_cache`, and `improvement_actions` have no per-user identity to delete. Other people's profiles, scans, scores, and names stay, except a `referred_by` or `campaign` value that is the caller's referral code.
+`daily_metrics`, `funnel_snapshots`, `content_performance`, `content_insights`, `golfcore_usage`, `golfcore_usage_drift`, `course_catalog`, `course_search_cache`, and `improvement_actions` have no per-user identity to delete. Other people's profiles, scans, scores, and names stay, except a `referred_by`, `campaign`, `properties.referred_by`, `properties.referral_code`, or `Referral:` / `Code:` value that is the caller's referral code.
 
 ## Device
+
+The app calls the function only when real auth is configured and the session has an access token. If real auth is on and the token is missing, deletion throws and Settings shows an error. The device is not wiped, and the screen does not return to onboarding, because the server account is still there. Offline mode has no server account, so that path does not call the function.
 
 After the function returns `{ deleted: true }`, the app removes every persisted key and drops persist writes while it resets memory and signs the Supabase session out. A late `SIGNED_OUT` event does not write those keys back. The keys are:
 

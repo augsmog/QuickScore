@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { performAccountDeletion } from "../src/services/account-deletion.ts";
+import { performAccountDeletion, requireServerDeletion } from "../src/services/account-deletion.ts";
 import {
   createGatedStorage,
   createMemoryStorage,
@@ -10,7 +10,7 @@ import {
 } from "../src/stores/persisted-keys.ts";
 import { handleDeleteAccount } from "../supabase/functions/delete-account/handler.ts";
 import { createMemoryAccountRepository, type AccountDb } from "../supabase/functions/delete-account/memory-repo.ts";
-import { DELETED_PLAYER, publishedName, purgeAccount, replaceEmailText } from "../supabase/functions/delete-account/purge.ts";
+import { DELETED_PLAYER, callerRosterIds, publishedName, purgeAccount, replaceEmailText, scrubReferralText } from "../supabase/functions/delete-account/purge.ts";
 import { createSupabaseAccountRepository } from "../supabase/functions/delete-account/supabase-repo.ts";
 
 const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -37,6 +37,8 @@ function db(): AccountDb {
       { id: "hosted", owner_id: B },
       { id: "spaces", owner_id: A },
       { id: "long", owner_id: A },
+      { id: "joined", owner_id: B },
+      { id: "roster", owner_id: A },
     ],
     contest_players: [
       { id: "p-private", contest_id: "private", user_id: A, name: "Augie Private", scores: [4], putts: [1] },
@@ -50,6 +52,12 @@ function db(): AccountDb {
       { id: "p-space-b", contest_id: "spaces", user_id: B, name: "Blair", scores: [3] },
       { id: "p-long-a", contest_id: "long", user_id: A, name: longName, scores: [5] },
       { id: "p-long-b", contest_id: "long", user_id: B, name: "Blair Long", scores: [6] },
+      { id: "p-joined-a", contest_id: "joined", user_id: null, name: "Augie", scores: [9] },
+      { id: "p-joined-b", contest_id: "joined", user_id: B, name: "Blair", scores: [3] },
+      { id: "p-joined-pat", contest_id: "joined", user_id: null, name: "Pat", scores: [5] },
+      { id: "p-roster-host", contest_id: "roster", user_id: null, name: "Augie", scores: [4] },
+      { id: "p-roster-sam", contest_id: "roster", user_id: null, name: "Sam", scores: [6] },
+      { id: "p-roster-b", contest_id: "roster", user_id: null, name: "Blair Claimed", scores: [3] },
     ],
     score_events: [
       { id: "e-private", contest_id: "private", player_id: "p-private", hole: 1, strokes: 4, entered_by: A, actor: A },
@@ -63,6 +71,9 @@ function db(): AccountDb {
       { contest_id: "shared", user_id: C },
       { contest_id: "hosted", user_id: B },
       { contest_id: "hosted", user_id: A },
+      { contest_id: "joined", user_id: A, player_id: "p-joined-a" },
+      { contest_id: "joined", user_id: B, player_id: "p-joined-b" },
+      { contest_id: "roster", user_id: B, player_id: "p-roster-b" },
     ],
     contest_join_requests: [
       { id: "j-a", contest_id: "shared", requester: A, requested_name: "Augie", decided_by: null },
@@ -114,6 +125,29 @@ function db(): AccountDb {
           games: [{ standings: [{ displayName: longName }] }],
         },
       },
+      {
+        contest_id: "joined",
+        owner_id: B,
+        local_id: "joined-1",
+        snapshot: {
+          players: [
+            { displayName: "Augie", scores: [9] },
+            { displayName: "Pat", scores: [5] },
+          ],
+        },
+      },
+      {
+        contest_id: "roster",
+        owner_id: A,
+        local_id: "roster-1",
+        snapshot: {
+          players: [
+            { displayName: "Augie", scores: [4] },
+            { displayName: "Sam", scores: [6] },
+            { displayName: "Blair Claimed", scores: [3] },
+          ],
+        },
+      },
     ],
     round_messages: [
       { id: "m-a", contest_id: "shared", display_name: "Augie", body: "nice shot" },
@@ -124,6 +158,11 @@ function db(): AccountDb {
       { id: "m-long", contest_id: "long", display_name: publishedLong, body: "long name" },
       { id: "m-long-raw", contest_id: "long", display_name: longName, body: "raw long" },
       { id: "m-long-short", contest_id: "long", display_name: "N".repeat(79), body: "shorter" },
+      { id: "m-joined", contest_id: "joined", display_name: "Augie", body: "joined" },
+      { id: "m-joined-pat", contest_id: "joined", display_name: "Pat", body: "guest" },
+      { id: "m-roster", contest_id: "roster", display_name: "Augie", body: "host" },
+      { id: "m-roster-sam", contest_id: "roster", display_name: "Sam", body: "typed" },
+      { id: "m-roster-b", contest_id: "roster", display_name: "Blair Claimed", body: "claimed" },
     ],
     share_links: [
       { token_hash: "shared-link", contest_id: "shared" },
@@ -139,6 +178,8 @@ function db(): AccountDb {
       { id: "mk-b", user_id: B, campaign: codeA, properties: { email: emailA, referrer_id: A, note: "referred by augie@example.com" } },
       { id: "mk-c", user_id: C, campaign: "SS-KEEP", properties: { email: "casey@example.com" } },
       { id: "mk-longer", user_id: B, campaign: null, properties: { email: "naugie@example.com" } },
+      { id: "mk-props", user_id: B, campaign: null, properties: { referred_by: codeA, referral_code: codeA, note: "keep" } },
+      { id: "mk-other-code", user_id: C, campaign: null, properties: { referred_by: "SS-OTHER", referral_code: "SS-BLAIR" } },
     ],
     feedback: [
       { id: "f-a", user_id: A, user_email: emailA, raw_text: "secret" },
@@ -157,6 +198,30 @@ function db(): AccountDb {
     automation_log: [
       { id: "log-a", title: `New user: ${emailA}`, details: `Provider: email | ${emailA}` },
       { id: "log-b", title: "Blair signed up", details: "organic" },
+      { id: "log-code", title: "Signup", details: `Provider: email | Referral: organic | Code: ${codeA}` },
+      { id: "log-ref", title: "Signup", details: `Provider: email | Referral: ${codeA} | Code: SS-BLAIR` },
+    ],
+    round_scorer_scopes: [
+      { contest_id: "shared", round_id: "r1", group_id: "g1", user_id: A },
+      { contest_id: "shared", round_id: "r1", group_id: "g1", user_id: B },
+      { contest_id: "private", round_id: "rp", group_id: "gp", user_id: A },
+    ],
+    group_submissions: [
+      { contest_id: "shared", round_id: "r1", group_id: "g1", submitted_by: A },
+      { contest_id: "hosted", round_id: "rh", group_id: "gh", submitted_by: A },
+      { contest_id: "hosted", round_id: "rh", group_id: "gh2", submitted_by: B },
+    ],
+    round_player_assignments: [
+      { contest_id: "shared", round_id: "r1", player_id: "p-shared-a", group_id: "g1" },
+      { contest_id: "private", round_id: "rp", player_id: "p-private", group_id: "gp" },
+    ],
+    contest_groups: [
+      { id: "g1", contest_id: "shared", name: "Group A" },
+      { id: "gp", contest_id: "private", name: "Private group" },
+    ],
+    sync_id_map: [
+      { contest_id: "shared", kind: "player", local_id: "local-augie", server_id: "p-shared-a" },
+      { contest_id: "private", kind: "player", local_id: "local-private", server_id: "p-private" },
     ],
   };
 }
@@ -178,6 +243,15 @@ async function purgeScenario() {
   assert.equal(publishedName(spacedName), "Augie");
   assert.equal(publishedName(longName), publishedLong);
   assert.equal(publishedLong.length, 80);
+  assert.equal(scrubReferralText(`Code: ${codeA}`, codeA), "Code: [deleted]");
+  assert.equal(scrubReferralText(`Referral: ${codeA} | Code: SS-BLAIR`, codeA), "Referral: [deleted] | Code: SS-BLAIR");
+  assert.equal(scrubReferralText("Code: SS-AUG10", codeA), "Code: SS-AUG10");
+  assert.deepEqual(callerRosterIds(
+    [{ id: "host", contest_id: "roster", user_id: null, name: "Augie", scores: [] }],
+    [],
+    A,
+    true,
+  ), ["host"]);
 
   const state = db();
   await purgeAccount(createMemoryAccountRepository(state), A);
@@ -196,6 +270,8 @@ async function purgeScenario() {
   assert.equal(state.contests.find((row) => row.id === "hosted")?.owner_id, B);
   assert.equal(state.contests.find((row) => row.id === "spaces")?.owner_id, B);
   assert.equal(state.contests.find((row) => row.id === "long")?.owner_id, B);
+  assert.equal(state.contests.find((row) => row.id === "joined")?.owner_id, B);
+  assert.equal(state.contests.find((row) => row.id === "roster")?.owner_id, B);
 
   const sharedA = state.contest_players.find((row) => row.id === "p-shared-a");
   assert.equal(sharedA?.name, DELETED_PLAYER);
@@ -227,7 +303,18 @@ async function purgeScenario() {
   assert.equal(hostEvent?.entered_by, B);
   assert.equal(hostEvent?.actor, null);
 
-  assert.deepEqual(state.contest_memberships.map((row) => row.user_id).sort(), [B, B, C]);
+  assert.deepEqual(state.contest_memberships.map((row) => row.user_id).sort(), [B, B, B, B, C]);
+  const joined = state.contest_players.find((row) => row.id === "p-joined-a");
+  assert.equal(joined?.name, DELETED_PLAYER);
+  assert.equal(joined?.user_id, null);
+  assert.deepEqual(joined?.scores, [9]);
+  assert.equal(state.contest_players.find((row) => row.id === "p-joined-b")?.name, "Blair");
+  assert.equal(state.contest_players.find((row) => row.id === "p-joined-pat")?.name, "Pat");
+  assert.equal(state.contest_players.find((row) => row.id === "p-roster-host")?.name, DELETED_PLAYER);
+  assert.equal(state.contest_players.find((row) => row.id === "p-roster-sam")?.name, DELETED_PLAYER);
+  assert.deepEqual(state.contest_players.find((row) => row.id === "p-roster-sam")?.scores, [6]);
+  assert.equal(state.contest_players.find((row) => row.id === "p-roster-b")?.name, "Blair Claimed");
+  assert.equal(state.contest_players.find((row) => row.id === "p-roster-b")?.user_id, null);
   assert.equal(state.contest_join_requests.find((row) => row.id === "j-a"), undefined);
   assert.equal(state.contest_join_requests.find((row) => row.id === "j-b")?.decided_by, null);
   assert.deepEqual(state.operation_receipts.map((row) => row.actor), [B]);
@@ -274,6 +361,23 @@ async function purgeScenario() {
   assert.equal(state.round_messages.find((row) => row.id === "m-long")?.display_name, DELETED_PLAYER);
   assert.equal(state.round_messages.find((row) => row.id === "m-long-raw")?.display_name, DELETED_PLAYER);
   assert.equal(state.round_messages.find((row) => row.id === "m-long-short")?.display_name, "N".repeat(79));
+  const joinedRound = state.published_rounds.find((row) => row.contest_id === "joined");
+  const joinedSnapshot = joinedRound?.snapshot as { players: { displayName: string; scores: number[] }[] };
+  assert.equal(joinedSnapshot.players[0].displayName, DELETED_PLAYER);
+  assert.deepEqual(joinedSnapshot.players[0].scores, [9]);
+  assert.equal(joinedSnapshot.players[1].displayName, "Pat");
+  assert.equal(state.round_messages.find((row) => row.id === "m-joined")?.display_name, DELETED_PLAYER);
+  assert.equal(state.round_messages.find((row) => row.id === "m-joined-pat")?.display_name, "Pat");
+  const rosterRound = state.published_rounds.find((row) => row.contest_id === "roster");
+  assert.equal(rosterRound?.owner_id, B);
+  const rosterSnapshot = rosterRound?.snapshot as { players: { displayName: string; scores: number[] }[] };
+  assert.equal(rosterSnapshot.players[0].displayName, DELETED_PLAYER);
+  assert.equal(rosterSnapshot.players[1].displayName, DELETED_PLAYER);
+  assert.deepEqual(rosterSnapshot.players[1].scores, [6]);
+  assert.equal(rosterSnapshot.players[2].displayName, "Blair Claimed");
+  assert.equal(state.round_messages.find((row) => row.id === "m-roster")?.display_name, DELETED_PLAYER);
+  assert.equal(state.round_messages.find((row) => row.id === "m-roster-sam")?.display_name, DELETED_PLAYER);
+  assert.equal(state.round_messages.find((row) => row.id === "m-roster-b")?.display_name, "Blair Claimed");
   assert.deepEqual(state.share_links.map((row) => row.token_hash), ["shared-link"]);
 
   assert.deepEqual(state.scans.map((row) => row.id).sort(), ["scan-b", "scan-c"]);
@@ -285,6 +389,11 @@ async function purgeScenario() {
   assert.equal(state.marketing_events.find((row) => row.id === "mk-longer")?.properties.email, "naugie@example.com");
   assert.equal(state.marketing_events.find((row) => row.id === "mk-c")?.campaign, "SS-KEEP");
   assert.equal(state.marketing_events.find((row) => row.id === "mk-c")?.properties.email, "casey@example.com");
+  assert.equal(state.marketing_events.find((row) => row.id === "mk-props")?.properties.referred_by, null);
+  assert.equal(state.marketing_events.find((row) => row.id === "mk-props")?.properties.referral_code, null);
+  assert.equal(state.marketing_events.find((row) => row.id === "mk-props")?.properties.note, "keep");
+  assert.equal(state.marketing_events.find((row) => row.id === "mk-other-code")?.properties.referred_by, "SS-OTHER");
+  assert.equal(state.marketing_events.find((row) => row.id === "mk-other-code")?.properties.referral_code, "SS-BLAIR");
   assert.equal(state.feedback.find((row) => row.id === "f-b")?.raw_text, "fine");
   assert.equal(state.feedback.some((row) => row.id !== "f-b"), false);
 
@@ -304,6 +413,19 @@ async function purgeScenario() {
   assert.equal(state.automation_log.find((row) => row.id === "log-a")?.title, "New user: [deleted]");
   assert.equal(state.automation_log.find((row) => row.id === "log-a")?.details?.includes(emailA), false);
   assert.equal(state.automation_log.find((row) => row.id === "log-b")?.title, "Blair signed up");
+  assert.equal(state.automation_log.find((row) => row.id === "log-code")?.details, "Provider: email | Referral: organic | Code: [deleted]");
+  assert.equal(state.automation_log.find((row) => row.id === "log-ref")?.details, "Provider: email | Referral: [deleted] | Code: SS-BLAIR");
+  assert.equal(state.round_scorer_scopes.some((row) => row.user_id === A), false);
+  assert.equal(state.round_scorer_scopes.some((row) => row.user_id === B && row.contest_id === "shared"), true);
+  assert.equal(state.round_scorer_scopes.some((row) => row.contest_id === "private"), false);
+  assert.equal(state.group_submissions.find((row) => row.contest_id === "shared")?.submitted_by, B);
+  assert.equal(state.group_submissions.find((row) => row.group_id === "gh")?.submitted_by, B);
+  assert.equal(state.group_submissions.find((row) => row.group_id === "gh2")?.submitted_by, B);
+  assert.equal(state.contest_groups.find((row) => row.id === "g1")?.name, "Group A");
+  assert.equal(state.contest_groups.find((row) => row.id === "gp"), undefined);
+  assert.deepEqual(state.sync_id_map.map((row) => row.local_id), ["local-augie"]);
+  assert.equal(state.round_player_assignments.find((row) => row.player_id === "p-shared-a")?.group_id, "g1");
+  assert.equal(state.round_player_assignments.some((row) => row.contest_id === "private"), false);
 
   const dumped = textOf(state);
   assert.equal(containsAddress(dumped, emailA), false);
@@ -320,7 +442,7 @@ async function purgeScenario() {
   }
   for (const row of state.contests) assert.notEqual(row.owner_id, A);
 
-  const forbidden = ["contest_groups", "hole_scores"];
+  const forbidden = ["hole_scores"];
   for (const file of [
     "supabase/functions/delete-account/purge.ts",
     "supabase/functions/delete-account/supabase-repo.ts",
@@ -444,7 +566,23 @@ async function localScenario() {
   });
   assert.deepEqual(order, ["remote", "remote-ok", "wipe"]);
 
+  assert.throws(() => requireServerDeletion({ realAuth: true, accessToken: null }), /Sign in again/);
+  assert.throws(() => requireServerDeletion({ realAuth: true, accessToken: "" }), /Sign in again/);
+  assert.doesNotThrow(() => requireServerDeletion({ realAuth: false, accessToken: null }));
+  assert.doesNotThrow(() => requireServerDeletion({ realAuth: true, accessToken: "jwt" }));
+  let wiped = false;
+  await assert.rejects(() => performAccountDeletion({
+    confirmed: true,
+    deleteRemote: async () => requireServerDeletion({ realAuth: true, accessToken: null }),
+    wipeLocal: async () => { wiped = true; },
+  }), /Sign in again/);
+  assert.equal(wiped, false);
+  const deleteAccount = fs.readFileSync("src/services/delete-account.ts", "utf8");
+  assert.doesNotMatch(deleteAccount, /if\s*\(\s*!session\?\.access_token\s*\)\s*return/);
+  assert.match(deleteAccount, /requireServerDeletion/);
+
   const settings = fs.readFileSync("app/settings.tsx", "utf8");
+  assert.match(settings, /Failed to delete account/);
   assert.match(settings, /Yes, delete my account/);
   assert.match(settings, /Keep my account/);
   assert.match(settings, /setDeleteArmed\(true\)/);
@@ -481,9 +619,9 @@ function recordingAdmin() {
         eq(column: string, value: unknown) { state.filters.push([column, value]); return api; },
         in() { return api; },
         is() { return api; },
-        ilike() { return api; },
-        or() { return api; },
-        filter() { return api; },
+        ilike(column: string, value: unknown) { state.filters.push([column, value]); return api; },
+        or(value: unknown) { state.filters.push(["or", value]); return api; },
+        filter(column: string, _operator: string, value: unknown) { state.filters.push([column, value]); return api; },
         update(patch: unknown) { state.op = "update"; state.patch = patch; return api; },
         delete() { state.op = "delete"; return api; },
         maybeSingle() { ops.push({ table: state.table, op: state.op, patch: state.patch, filters: [...state.filters] }); return Promise.resolve({ data: null, error: null }); },
@@ -509,14 +647,36 @@ async function supabaseShapeScenario() {
     assert.equal(Object.prototype.hasOwnProperty.call(patch, "scores"), false);
   }
   await repo.deleteContest("contest-1");
-  assert.equal(ops.some((op) => op.table === "contests" && op.op === "delete"), true);
-  assert.equal(ops.some((op) => op.table === "contest_groups" || op.table === "hole_scores"), false);
+  const deletes = ops.filter((op) => op.op === "delete").map((op) => op.table);
+  assert.deepEqual(deletes, ["score_events", "contests"]);
+  assert.equal(ops.some((op) => op.table === "hole_scores"), false);
+
+  await repo.deleteScorerScopes(A);
+  const scopeDelete = ops.find((op) => op.table === "round_scorer_scopes" && op.op === "delete");
+  assert.deepEqual(scopeDelete?.filters, [["user_id", A]]);
+
+  await repo.reassignGroupSubmissions(A);
+  const submissionSelect = ops.find((op) => op.table === "group_submissions" && op.op === "select");
+  assert.deepEqual(submissionSelect?.filters, [["submitted_by", A]]);
+  assert.equal(ops.some((op) => op.table === "group_submissions" && op.op === "update"), false);
 
   await repo.clearReferralReferences(codeA);
   const referralWrites = ops.filter((op) => op.op === "update" && (op.table === "profiles" || op.table === "marketing_events"));
   assert.deepEqual(referralWrites.map((op) => ({ table: op.table, patch: op.patch, filters: op.filters })), [
     { table: "profiles", patch: { referred_by: null }, filters: [["referred_by", codeA]] },
     { table: "marketing_events", patch: { campaign: null }, filters: [["campaign", codeA]] },
+  ]);
+  const propertyReads = ops.filter((op) => op.table === "marketing_events" && op.op === "select");
+  assert.deepEqual(propertyReads.map((op) => op.filters), [
+    [["properties->>referred_by", codeA]],
+    [["properties->>referral_code", codeA]],
+  ]);
+  const logReads = ops.filter((op) => op.table === "automation_log" && op.op === "select").map((op) => op.filters[0]);
+  assert.deepEqual(logReads, [
+    ["title", `%Referral: ${codeA}%`],
+    ["title", `%Code: ${codeA}%`],
+    ["details", `%Referral: ${codeA}%`],
+    ["details", `%Code: ${codeA}%`],
   ]);
 
   const rounds = [

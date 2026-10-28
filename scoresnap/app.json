@@ -32,6 +32,11 @@
       "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -45,6 +50,7 @@
         "expo-camera",
         {
           "cameraPermission": "SnapScore needs camera access to scan scorecards",
+          "microphonePermission": false,
           "recordAudioAndroid": false
         }
       ],
