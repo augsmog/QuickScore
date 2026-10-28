@@ -140,6 +140,7 @@ export const useContestStore = create<ContestState>()(
 
       updateScore: (contestId, groupId, playerId, hole, strokes) => {
         let roundId: string | null = null;
+        let roundNumber = 1;
         set((state) => ({
           contests: state.contests.map((c) => {
             if (c.id !== contestId) return c;
@@ -148,6 +149,7 @@ export const useContestStore = create<ContestState>()(
               const currentRound = c.rounds.find(r => r.number === c.currentRound);
               if (currentRound) {
                 roundId = currentRound.id;
+                roundNumber = currentRound.number;
               }
               return {
                 ...c,
@@ -191,7 +193,7 @@ export const useContestStore = create<ContestState>()(
         }));
         // Sync to Supabase
         if (roundId) {
-          syncScore(contestId, roundId, playerId, hole, strokes).catch(err =>
+          syncScore(contestId, roundId, playerId, hole, strokes, roundNumber).catch(err =>
             console.error('Failed to sync score:', err)
           );
         }
@@ -299,12 +301,14 @@ export const useContestStore = create<ContestState>()(
 
       updateRoundGroups: (contestId, roundNumber, groups) => {
         let roundId: string | null = null;
+        let syncedRoundNumber: number | null = null;
         set((state) => ({
           contests: state.contests.map((c) => {
             if (c.id !== contestId || !c.rounds) return c;
             const targetRound = c.rounds.find(r => r.number === roundNumber);
             if (targetRound) {
               roundId = targetRound.id;
+              syncedRoundNumber = targetRound.number;
             }
             return {
               ...c,
@@ -316,7 +320,7 @@ export const useContestStore = create<ContestState>()(
         }));
         // Sync to Supabase
         if (roundId) {
-          syncRoundGroups(contestId, roundId, groups).catch(err =>
+          syncRoundGroups(contestId, roundId, groups, syncedRoundNumber ?? roundNumber).catch(err =>
             console.error('Failed to sync round groups:', err)
           );
         }
