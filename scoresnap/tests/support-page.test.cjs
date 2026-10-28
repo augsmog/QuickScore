@@ -97,9 +97,10 @@ function filesUnder(dir) {
   return out;
 }
 
-test("no august-industries.com URL in the app, the site, or the privacy policy", () => {
+test("no august-industries.com URL in the app, the site, or the legal docs", () => {
   const files = ["app", "src", "site"].flatMap((dir) => filesUnder(path.join(root, dir)));
   files.push(path.join(root, "docs/privacy-policy.md"));
+  files.push(path.join(root, "docs/terms-of-service.md"));
   const hits = files.filter((file) => fs.readFileSync(file, "utf8").includes("august-industries.com"));
   expect(hits.map((file) => path.relative(root, file))).toEqual([]);
 });
@@ -155,6 +156,37 @@ test("support route renders the contact email, deletion request, and no external
     expect(privacyBody).toContain("Draft dated 27 October 2026");
     expect(externalScriptTags(privacyBody)).toEqual([]);
     expect(privacyBody).not.toMatch(/\bsrc\s*=\s*["']https?:/i);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("terms route is generated from docs/terms-of-service.md", async () => {
+  const pages = load("src/web/public-pages.ts");
+  const termsMarkdown = fs.readFileSync(path.join(root, "docs/terms-of-service.md"), "utf8");
+  expect(termsMarkdown).toContain("Effective Date: March 24, 2026");
+  expect(termsMarkdown).toContain("Email: augie@autumn8.me");
+  expect(termsMarkdown).not.toContain("august-industries.com");
+  expect(termsMarkdown).not.toContain("support@august-industries.com");
+  const termsHtml = fs.readFileSync(path.join(root, "site/terms/index.html"), "utf8");
+  const renderedTerms = pages.renderTermsPage(termsMarkdown);
+  expect(termsHtml).toBe(renderedTerms.endsWith("\n") ? renderedTerms : `${renderedTerms}\n`);
+
+  const { server, port } = await startSite();
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/terms`);
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain("<title>Terms of Service — SnapScore Golf</title>");
+    expect(html).toContain("Effective Date: March 24, 2026");
+    expect(html).toContain("The App is a score-tracking and calculation tool only.");
+    expect(html).toContain("State of Texas");
+    expect(html).toContain("mailto:augie@autumn8.me");
+    expect(html).toContain('href="/terms" aria-current="page"');
+    expect(html).not.toContain("august-industries.com");
+    expect(html).not.toContain("support@august-industries.com");
+    expect(externalScriptTags(html)).toEqual([]);
+    expect(html).not.toMatch(/\bsrc\s*=\s*["']https?:/i);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

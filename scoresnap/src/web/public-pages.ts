@@ -1,4 +1,4 @@
-import { PRIVACY_PATH, SUPPORT_EMAIL, SUPPORT_PATH } from "../config/support";
+import { PRIVACY_PATH, SUPPORT_EMAIL, SUPPORT_PATH, TERMS_PATH } from "../config/support";
 import { markdownToHtml } from "./markdown";
 
 const MAILTO = `mailto:${SUPPORT_EMAIL}`;
@@ -81,6 +81,7 @@ const CSS = `
 function shell(path: string, title: string, main: string) {
   const supportCurrent = path === SUPPORT_PATH ? ' aria-current="page"' : "";
   const privacyCurrent = path === PRIVACY_PATH ? ' aria-current="page"' : "";
+  const termsCurrent = path === TERMS_PATH ? ' aria-current="page"' : "";
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -97,6 +98,7 @@ function shell(path: string, title: string, main: string) {
 <nav aria-label="SnapScore pages">
 <a href="${SUPPORT_PATH}"${supportCurrent}>Support</a>
 <a href="${PRIVACY_PATH}"${privacyCurrent}>Privacy policy</a>
+<a href="${TERMS_PATH}"${termsCurrent}>Terms</a>
 </nav>
 </header>
 <main id="content">
@@ -152,4 +154,9 @@ export function renderSupportPage() {
 /** Render the verified privacy-policy markdown. The wording is not rewritten here. */
 export function renderPrivacyPage(markdown: string) {
   return shell(PRIVACY_PATH, "Privacy policy · SnapScore", markdownToHtml(markdown));
+}
+
+/** Render the terms markdown. The wording is not rewritten here. */
+export function renderTermsPage(markdown: string) {
+  return shell(TERMS_PATH, "Terms of Service — SnapScore Golf", markdownToHtml(markdown));
 }

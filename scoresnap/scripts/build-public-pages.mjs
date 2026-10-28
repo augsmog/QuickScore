@@ -26,6 +26,7 @@ function load(rel) {
 
 const pages = load("src/web/public-pages.ts");
 const privacyMarkdown = fs.readFileSync(path.join(root, "docs/privacy-policy.md"), "utf8");
+const termsMarkdown = fs.readFileSync(path.join(root, "docs/terms-of-service.md"), "utf8");
 const site = path.join(root, "site");
 
 function write(rel, body) {
@@ -37,3 +38,4 @@ function write(rel, body) {
 write("index.html", pages.renderHomePage());
 write("support/index.html", pages.renderSupportPage());
 write("privacy/index.html", pages.renderPrivacyPage(privacyMarkdown));
+write("terms/index.html", pages.renderTermsPage(termsMarkdown));
