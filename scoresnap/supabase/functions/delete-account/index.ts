@@ -1,8 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleDeleteAccount } from "./handler.ts";
-import { purgeAccount } from "./purge.ts";
-import { createSupabaseAccountRepository } from "./supabase-repo.ts";
 
 serve((req) => {
   const url = Deno.env.get("SUPABASE_URL");
@@ -23,7 +21,9 @@ serve((req) => {
     async purge(userId) {
       if (!url || !service) throw new Error("delete-account is not configured");
       const admin = createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } });
-      await purgeAccount(createSupabaseAccountRepository(admin), userId);
+      // One RPC. purge_account runs in a single transaction and rolls back on any error.
+      const { error } = await admin.rpc("purge_account", { p_user_id: userId });
+      if (error) throw new Error(error.message);
     },
     async deleteAuthUser(userId) {
       if (!url || !service) throw new Error("delete-account is not configured");

@@ -96,22 +96,16 @@ function escapeRegExp(value: string): string {
 
 /**
  * Roster rows whose name should become "Deleted player".
- * A joined account is stored on contest_memberships.player_id after decide_join_request
- * clears contest_players.user_id. The host has no membership, so on a contest the caller
- * still owns, an unclaimed roster row with a null user_id is theirs too. A guest name
- * the owner typed and nobody claimed is included, because that row looks the same.
- * On someone else's contest, only the caller's user_id and membership.player_id match.
+ * A row matches when contest_players.user_id is the caller, or when the caller's
+ * membership player_id points at it after decide_join_request clears user_id.
+ * A guest name the owner typed has a null user_id and no membership, so it stays.
+ * The host slot is the roster row sync_round_bundle stamps with the owner's user_id.
  */
 export function callerRosterIds(
   players: readonly ContestPlayerRow[],
   memberships: readonly ContestMembershipRow[],
   userId: string,
-  owns: boolean,
 ): string[] {
-  const claimedByOther = new Set<string>();
-  for (const member of memberships) {
-    if (member.user_id !== userId && member.player_id) claimedByOther.add(member.player_id);
-  }
   const ids = new Set<string>();
   for (const member of memberships) {
     if (member.user_id !== userId || !member.player_id) continue;
@@ -120,15 +114,22 @@ export function callerRosterIds(
   }
   for (const player of players) {
     if (player.user_id === userId) ids.add(player.id);
-    else if (owns && player.user_id == null && !claimedByOther.has(player.id)) ids.add(player.id);
   }
   return [...ids];
 }
 
-/** Replace Referral:/Code: values that are exactly this code, leaving a longer code intact. */
+/**
+ * Replace a Referral: or Code: value only when the whole following token equals
+ * this code. The code may be any length or format. A longer token that merely
+ * starts with it stays.
+ */
 export function scrubReferralText(text: string, code: string): string {
-  const escaped = escapeRegExp(code);
-  return text.replace(new RegExp(`(Referral|Code):\\s*${escaped}(?=$|[^A-Z0-9-])`, "g"), "$1: [deleted]");
+  if (!code) return text;
+  return text.replace(/(Referral|Code):[ \t]*([^\s|]+)/g, (match, label: string, token: string) => {
+    const cleaned = token.replace(/[,;]+$/, "");
+    if (cleaned !== code) return match;
+    return `${label}: [deleted]${token.slice(cleaned.length)}`;
+  });
 }
 
 /** Replace the account email without eating a longer address that merely ends with it. */
@@ -186,7 +187,7 @@ export async function purgeAccount(repo: AccountRepository, userId: string): Pro
     } else {
       await repo.setPublishedRoundOwner(contestId, userId, ownerId);
     }
-    const rosterIds = new Set(callerRosterIds(players, memberships, userId, owns));
+    const rosterIds = new Set(callerRosterIds(players, memberships, userId));
     const names = players.filter((player) => rosterIds.has(player.id)).map((player) => player.name);
     await repo.anonymizeSnapshots(contestId, names);
     await repo.anonymizeMessages(contestId, names);

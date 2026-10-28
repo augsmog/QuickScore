@@ -55,7 +55,7 @@ function db(): AccountDb {
       { id: "p-joined-a", contest_id: "joined", user_id: null, name: "Augie", scores: [9] },
       { id: "p-joined-b", contest_id: "joined", user_id: B, name: "Blair", scores: [3] },
       { id: "p-joined-pat", contest_id: "joined", user_id: null, name: "Pat", scores: [5] },
-      { id: "p-roster-host", contest_id: "roster", user_id: null, name: "Augie", scores: [4] },
+      { id: "p-roster-host", contest_id: "roster", user_id: A, name: "Augie", scores: [4] },
       { id: "p-roster-sam", contest_id: "roster", user_id: null, name: "Sam", scores: [6] },
       { id: "p-roster-b", contest_id: "roster", user_id: null, name: "Blair Claimed", scores: [3] },
     ],
@@ -200,6 +200,8 @@ function db(): AccountDb {
       { id: "log-b", title: "Blair signed up", details: "organic" },
       { id: "log-code", title: "Signup", details: `Provider: email | Referral: organic | Code: ${codeA}` },
       { id: "log-ref", title: "Signup", details: `Provider: email | Referral: ${codeA} | Code: SS-BLAIR` },
+      { id: "log-longer", title: "Signup", details: "Code: SS-AUG10" },
+      { id: "log-dotted", title: "Signup", details: "Referral: friend.ref" },
     ],
     round_scorer_scopes: [
       { contest_id: "shared", round_id: "r1", group_id: "g1", user_id: A },
@@ -236,6 +238,12 @@ function containsAddress(text: string, email: string): boolean {
   return new RegExp(`(^|[^A-Z0-9._%+-])${escaped}(?=$|[^A-Z0-9._%+-])`, "i").test(text);
 }
 
+/** True when the token appears on its own, not as the prefix of a longer code. */
+function containsToken(text: string, token: string): boolean {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^A-Za-z0-9_.+/-])${escaped}(?=$|[^A-Za-z0-9_.+/-])`).test(text);
+}
+
 async function purgeScenario() {
   assert.equal(replaceEmailText(emailA, emailA), "[deleted]");
   assert.equal(replaceEmailText(`Hello ${emailA}!`, emailA), "Hello [deleted]!");
@@ -246,11 +254,21 @@ async function purgeScenario() {
   assert.equal(scrubReferralText(`Code: ${codeA}`, codeA), "Code: [deleted]");
   assert.equal(scrubReferralText(`Referral: ${codeA} | Code: SS-BLAIR`, codeA), "Referral: [deleted] | Code: SS-BLAIR");
   assert.equal(scrubReferralText("Code: SS-AUG10", codeA), "Code: SS-AUG10");
+  assert.equal(scrubReferralText("Provider: email | Referral: organic | Code: SS-AUG10", "SS-AUG10"), "Provider: email | Referral: organic | Code: [deleted]");
+  assert.equal(scrubReferralText("Referral: friend.ref | Code: SS-AUG10", "friend.ref"), "Referral: [deleted] | Code: SS-AUG10");
+  assert.equal(scrubReferralText("Code: SS-AUG100", "SS-AUG10"), "Code: SS-AUG100");
   assert.deepEqual(callerRosterIds(
     [{ id: "host", contest_id: "roster", user_id: null, name: "Augie", scores: [] }],
     [],
     A,
-    true,
+  ), []);
+  assert.deepEqual(callerRosterIds(
+    [
+      { id: "host", contest_id: "roster", user_id: A, name: "Augie", scores: [] },
+      { id: "sam", contest_id: "roster", user_id: null, name: "Sam", scores: [] },
+    ],
+    [],
+    A,
   ), ["host"]);
 
   const state = db();
@@ -311,8 +329,10 @@ async function purgeScenario() {
   assert.equal(state.contest_players.find((row) => row.id === "p-joined-b")?.name, "Blair");
   assert.equal(state.contest_players.find((row) => row.id === "p-joined-pat")?.name, "Pat");
   assert.equal(state.contest_players.find((row) => row.id === "p-roster-host")?.name, DELETED_PLAYER);
-  assert.equal(state.contest_players.find((row) => row.id === "p-roster-sam")?.name, DELETED_PLAYER);
+  assert.equal(state.contest_players.find((row) => row.id === "p-roster-host")?.user_id, null);
+  assert.equal(state.contest_players.find((row) => row.id === "p-roster-sam")?.name, "Sam");
   assert.deepEqual(state.contest_players.find((row) => row.id === "p-roster-sam")?.scores, [6]);
+  assert.equal(state.contest_players.find((row) => row.id === "p-roster-sam")?.user_id, null);
   assert.equal(state.contest_players.find((row) => row.id === "p-roster-b")?.name, "Blair Claimed");
   assert.equal(state.contest_players.find((row) => row.id === "p-roster-b")?.user_id, null);
   assert.equal(state.contest_join_requests.find((row) => row.id === "j-a"), undefined);
@@ -372,11 +392,12 @@ async function purgeScenario() {
   assert.equal(rosterRound?.owner_id, B);
   const rosterSnapshot = rosterRound?.snapshot as { players: { displayName: string; scores: number[] }[] };
   assert.equal(rosterSnapshot.players[0].displayName, DELETED_PLAYER);
-  assert.equal(rosterSnapshot.players[1].displayName, DELETED_PLAYER);
+  assert.equal(rosterSnapshot.players[1].displayName, "Sam");
   assert.deepEqual(rosterSnapshot.players[1].scores, [6]);
   assert.equal(rosterSnapshot.players[2].displayName, "Blair Claimed");
   assert.equal(state.round_messages.find((row) => row.id === "m-roster")?.display_name, DELETED_PLAYER);
-  assert.equal(state.round_messages.find((row) => row.id === "m-roster-sam")?.display_name, DELETED_PLAYER);
+  assert.equal(state.round_messages.find((row) => row.id === "m-roster-sam")?.display_name, "Sam");
+  assert.equal(state.round_messages.find((row) => row.id === "m-roster-sam")?.body, "typed");
   assert.equal(state.round_messages.find((row) => row.id === "m-roster-b")?.display_name, "Blair Claimed");
   assert.deepEqual(state.share_links.map((row) => row.token_hash), ["shared-link"]);
 
@@ -415,6 +436,8 @@ async function purgeScenario() {
   assert.equal(state.automation_log.find((row) => row.id === "log-b")?.title, "Blair signed up");
   assert.equal(state.automation_log.find((row) => row.id === "log-code")?.details, "Provider: email | Referral: organic | Code: [deleted]");
   assert.equal(state.automation_log.find((row) => row.id === "log-ref")?.details, "Provider: email | Referral: [deleted] | Code: SS-BLAIR");
+  assert.equal(state.automation_log.find((row) => row.id === "log-longer")?.details, "Code: SS-AUG10");
+  assert.equal(state.automation_log.find((row) => row.id === "log-dotted")?.details, "Referral: friend.ref");
   assert.equal(state.round_scorer_scopes.some((row) => row.user_id === A), false);
   assert.equal(state.round_scorer_scopes.some((row) => row.user_id === B && row.contest_id === "shared"), true);
   assert.equal(state.round_scorer_scopes.some((row) => row.contest_id === "private"), false);
@@ -431,7 +454,9 @@ async function purgeScenario() {
   assert.equal(containsAddress(dumped, emailA), false);
   assert.equal(containsAddress(dumped, "Augie@Example.com"), false);
   assert.equal(dumped.includes("naugie@example.com"), true);
-  assert.equal(dumped.includes(codeA), false);
+  assert.equal(containsToken(dumped, codeA), false);
+  assert.equal(dumped.includes("SS-AUG10"), true);
+  assert.equal(dumped.includes("friend.ref"), true);
   assert.equal(dumped.includes("SS-BLAIR"), true);
   assert.equal(dumped.includes("SS-KEEP"), true);
   assert.equal(dumped.includes("SS-OTHER"), true);
@@ -646,9 +671,10 @@ async function supabaseShapeScenario() {
     assert.equal(Object.prototype.hasOwnProperty.call(patch, "strokes"), false);
     assert.equal(Object.prototype.hasOwnProperty.call(patch, "scores"), false);
   }
-  await repo.deleteContest("contest-1");
-  const deletes = ops.filter((op) => op.op === "delete").map((op) => op.table);
-  assert.deepEqual(deletes, ["score_events", "contests"]);
+  const live = fs.readFileSync("supabase/functions/delete-account/index.ts", "utf8");
+  assert.match(live, /admin\.rpc\("purge_account", \{ p_user_id: userId \}\)/);
+  assert.equal(live.includes("createSupabaseAccountRepository"), false);
+  assert.equal(live.includes(".from("), false);
   assert.equal(ops.some((op) => op.table === "hole_scores"), false);
 
   await repo.deleteScorerScopes(A);

@@ -1,15 +1,17 @@
+const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.join(__dirname, "..");
 
-test("merged Android permissions are camera, network, and vibrate only", () => {
+test("prebuild release manifest merges to camera, network, and vibrate", () => {
   const app = JSON.parse(fs.readFileSync(path.join(root, "app.json"), "utf8"));
   const blocked = new Set((app.expo.android.blockedPermissions ?? []).map(normalizePermission));
   for (const name of [
     "android.permission.RECORD_AUDIO",
     "android.permission.READ_EXTERNAL_STORAGE",
     "android.permission.WRITE_EXTERNAL_STORAGE",
+    "android.permission.SYSTEM_ALERT_WINDOW",
   ]) {
     if (!blocked.has(name)) throw new Error(`missing blocked permission ${name}`);
   }
@@ -22,15 +24,21 @@ test("merged Android permissions are camera, network, and vibrate only", () => {
     throw new Error("iOS microphone usage string is still set");
   }
 
-  const merged = new Set((app.expo.android.permissions ?? []).map(normalizePermission));
-  for (const manifest of libraryManifests(path.join(root, "node_modules"))) {
-    const text = fs.readFileSync(manifest, "utf8");
-    for (const match of text.matchAll(/<uses-permission\b([^>]*?)\/?>/g)) {
-      const name = match[1].match(/android:name="([^"]+)"/);
-      if (name) merged.add(normalizePermission(name[1]));
-    }
+  execFileSync("npx", ["expo", "prebuild", "--platform", "android", "--no-install", "--non-interactive", "--clean"], {
+    cwd: root,
+    env: { ...process.env, CI: "1", EXPO_NO_TELEMETRY: "1" },
+    stdio: "pipe",
+  });
+
+  const manifestPath = path.join(root, "android", "app", "src", "main", "AndroidManifest.xml");
+  const manifest = fs.readFileSync(manifestPath, "utf8");
+  const merged = new Set();
+  const removed = new Set();
+  collectPermissions(manifest, merged, removed);
+  for (const library of libraryManifests(path.join(root, "node_modules"))) {
+    collectPermissions(fs.readFileSync(library, "utf8"), merged, removed);
   }
-  for (const name of blocked) merged.delete(name);
+  for (const name of removed) merged.delete(name);
 
   const actual = [...merged].sort();
   const expected = [
@@ -40,12 +48,23 @@ test("merged Android permissions are camera, network, and vibrate only", () => {
     "android.permission.VIBRATE",
   ];
   if (actual.join("\n") !== expected.join("\n")) {
-    throw new Error(`merged permissions:\n${actual.join("\n")}`);
+    throw new Error(`prebuild merged permissions:\n${actual.join("\n")}\nmanifest:\n${manifest}`);
   }
-});
+}, 180000);
 
 function normalizePermission(name) {
   return name.includes(".") ? name : `android.permission.${name}`;
+}
+
+function collectPermissions(text, merged, removed) {
+  for (const match of text.matchAll(/<uses-permission\b([^>]*?)\/?>/g)) {
+    const body = match[1];
+    const name = body.match(/android:name="([^"]+)"/);
+    if (!name) continue;
+    const normalized = normalizePermission(name[1]);
+    if (/tools:node="remove"/.test(body)) removed.add(normalized);
+    else merged.add(normalized);
+  }
 }
 
 function libraryManifests(dir) {
