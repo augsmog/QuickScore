@@ -61,3 +61,4 @@ PASS: permission gate rejects column_acls
 PASS: every INSERT/UPDATE probe uses expected-after.json columns
 PASS: each M4b managed-schema app policy deletion is detected
 PASS: adoption expects sync_api and rejects baseline re-execution, missing/extra migrations
+PASS: actual CI five-pending dry run; four pending after baseline adoption

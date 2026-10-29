@@ -12,7 +12,8 @@ BASELINE = '20261027000000_live_baseline.sql'
 def check(log, adopted):
     active = json.loads((HERE / 'active-migrations.json').read_text())
     assert BASELINE in active
-    expected = sorted(name for name in active if not adopted or name != BASELINE)
+    # The seven pre-baseline provenance markers are already in the remote ledger.
+    expected = sorted(name for name in active if name >= BASELINE and (not adopted or name != BASELINE))
     actual = re.findall(r'\b\d{14}_[A-Za-z0-9_]+\.sql\b', log)
     assert actual == expected, ('Unexpected pending migrations', actual, expected)
 

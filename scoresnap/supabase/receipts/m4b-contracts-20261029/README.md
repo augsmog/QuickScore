@@ -37,3 +37,10 @@ CAS and Realtime guards; each unsafe variant must fail a semantic assertion.
 CI results and pushed SHA are appended to the external handoff report after push.
 No milestone completion, M4a integration, real identity/socket/native recovery,
 four-phone acceptance, provider readiness or release is claimed by these logs.
+
+Follow-up CI 40925019734: PG17 native, iOS boot, tournament E2E passed; hosted
+rehearsal caught the helper incorrectly including seven already-seeded historical
+markers from the active manifest. Fixed by excluding versions before baseline.
+Selftest now includes the literal five-file CI dry run and its four-file adopted
+counterpart, plus rejection if a historical marker appears pending. This failure
+was not counted as green. No SQL or contract change in the corrective commit.
