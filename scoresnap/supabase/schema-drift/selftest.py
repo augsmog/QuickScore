@@ -162,3 +162,11 @@ for sql in re.findall(r'\$q\$(.*?)\$q\$', suite, re.S):
         continue
     assert {name.strip() for name in used} <= columns[table], sql
 print('PASS: every INSERT/UPDATE probe uses expected-after.json columns')
+
+full = load(HERE.parent / 'schema-snapshot/expected-after.json')
+assert len(full['realtime_app_policies']) == 3, 'M4b realtime policy inventory missing'
+for index in range(3):
+    changed = copy.deepcopy(full)
+    del changed['realtime_app_policies'][index]
+    assert differences(full, changed), 'Realtime policy drift escaped'
+print('PASS: each M4b managed-schema app policy deletion is detected')

@@ -137,3 +137,14 @@ authenticator) is the MEMBER, i.e. what those roles can inherit or SET ROLE to â
 Edges granting app roles to platform roles (postgres, supabase_storage_admin, local-only
 supabase_realtime_admin) are platform wiring that differs between hosted and the local image and are
 deliberately excluded. live.json = normalize(raw: aos-state/snapscore-xdevice/m1/live-catalog-v5-capture.json).
+
+## M4b authoring, 2026-10-29
+
+`expected-after.json` now describes the complete pending sync_api chain;
+`expected-m2b.json` preserves the previous M2b expectation and `expected-m3.json`
+remains the M3 expectation. `live.json` was not refreshed from a service. Its
+existing physical fields are unchanged; the new `realtime_app_policies: []`
+field records that the pending M4b-named policies are absent before this migration.
+The exporter now inventories those app-owned policies in the managed realtime
+schema; they must not be excluded from future drift comparisons. This is a
+catalog-format extension, not a new hosted read receipt.

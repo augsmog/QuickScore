@@ -59,15 +59,15 @@ def ledger(raw, mode):
     # expected-ledger.json is the eleven-row live chain ending in M3.
     # Local keeps the ten-row M2b prefix. Baseline and pre-adoption then drop
     # M2 and M2b; pre-adoption also drops live_baseline.
-    expected = load(HERE / 'expected-ledger.json')
-    if mode != 'live':
+    expected = load(HERE / ('expected-pending-ledger.json' if mode == 'pending' else 'expected-ledger.json'))
+    if mode not in ('live', 'pending'):
         expected = expected[:-1]
     if mode in ('baseline', 'pre-adoption'):
         expected = expected[:-2]
     if mode == 'pre-adoption':
         expected = expected[:-1]
     actual = raw.get('migrations')
-    if (actual != expected if mode == 'live' else
+    if (actual != expected if mode in ('live','pending') else
             actual is None or sorted(actual,key=lambda m:m['version']) != sorted(expected,key=lambda m:m['version'])):
         raise ValueError(f'{mode} ledger mismatch: expected {expected}; got {actual}')
 
@@ -76,7 +76,7 @@ def main():
     sub=p.add_subparsers(dest='cmd',required=True)
     n=sub.add_parser('normalize'); n.add_argument('input'); n.add_argument('output')
     c=sub.add_parser('compare'); c.add_argument('live'); c.add_argument('local')
-    l=sub.add_parser('ledger'); l.add_argument('input'); l.add_argument('--mode',choices=['live','baseline','local','pre-adoption'],required=True)
+    l=sub.add_parser('ledger'); l.add_argument('input'); l.add_argument('--mode',choices=['live','pending','baseline','local','pre-adoption'],required=True)
     args=p.parse_args()
     if args.cmd=='normalize': pathlib.Path(args.output).write_text(json.dumps(normalize(load(args.input)),indent=2,sort_keys=True)+'\n')
     elif args.cmd=='ledger': ledger(load(args.input),args.mode); print('Ledger matches: '+args.mode)
