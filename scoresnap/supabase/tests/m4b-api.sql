@@ -17,12 +17,32 @@ UPDATE public.contests SET protocol=1,sync_enabled=true WHERE id='42000000-0000-
 INSERT INTO public.contests(id,owner_id,course,invite_code) VALUES('42000000-0000-0000-0000-000000000002','41000000-0000-0000-0000-000000000001','{}','M4BENR');
 INSERT INTO public.contest_players(id,contest_id,name) VALUES('43000000-0000-0000-0000-000000000001','42000000-0000-0000-0000-000000000001','Player');
 INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status) VALUES('42000000-0000-0000-0000-000000000001','41000000-0000-0000-0000-000000000002','player','43000000-0000-0000-0000-000000000001','approved');
+UPDATE public.contests SET course='{"name":"Course One","holes":[{"num":1,"par":4,"hcp":3,"yards":{"secret":"COURSE_SECRET"},"private":"COURSE_SECRET"}],"location":"COURSE_SECRET"}' WHERE id='42000000-0000-0000-0000-000000000001';
+INSERT INTO public.contest_rounds(id,contest_id,round_number,name,course_data) VALUES('45000000-0000-0000-0000-000000000002','42000000-0000-0000-0000-000000000001',2,'Away','{"name":"Course Two","holes":[{"num":1,"par":5,"hcp":1,"yards":510}]}');
+INSERT INTO public.contest_groups(id,contest_id,round_id,name) VALUES('46000000-0000-0000-0000-000000000002','42000000-0000-0000-0000-000000000001','45000000-0000-0000-0000-000000000002','Second group');
+INSERT INTO public.round_player_assignments(contest_id,round_id,player_id,group_id) VALUES('42000000-0000-0000-0000-000000000001','45000000-0000-0000-0000-000000000002','43000000-0000-0000-0000-000000000001','46000000-0000-0000-0000-000000000002');
+INSERT INTO public.sync_id_map(contest_id,kind,local_id,server_id) VALUES('42000000-0000-0000-0000-000000000001','player','local-player','43000000-0000-0000-0000-000000000001');
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claims='{"sub":"41000000-0000-0000-0000-000000000002","is_anonymous":true,"role":"authenticated"}';
 SELECT pg_temp.denied($q$SELECT public.enroll_contest('42000000-0000-0000-0000-000000000002',0)$q$,'42501');
+SELECT pg_temp.assert(jsonb_array_length(public.my_sync_status()->'memberships')=1 AND public.my_sync_status()->'memberships'->0->>'player_id'='43000000-0000-0000-0000-000000000001','own membership discovery');
+SELECT pg_temp.assert(public.fetch_snapshot('42000000-0000-0000-0000-000000000001')->'capabilities'=public.sync_capabilities('42000000-0000-0000-0000-000000000001'),'snapshot handshake');
 SELECT pg_temp.assert(public.sync_capabilities('42000000-0000-0000-0000-000000000001')->>'enabled'='true','authorized capabilities');
+RESET ROLE;
+UPDATE public.contests SET sync_enabled=false WHERE id='42000000-0000-0000-0000-000000000001';
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.assert(public.sync_capabilities('42000000-0000-0000-0000-000000000001')->>'enabled'='false' AND public.fetch_snapshot('42000000-0000-0000-0000-000000000001')->'capabilities'->>'enabled'='false','server pause handshake');
+RESET ROLE;
+UPDATE public.contests SET sync_enabled=true WHERE id='42000000-0000-0000-0000-000000000001';
+SET LOCAL ROLE authenticated;
 SELECT pg_temp.assert(public.fetch_snapshot('42000000-0000-0000-0000-000000000001')->>'revision'='0','approved snapshot');
 SELECT pg_temp.assert(public.fetch_snapshot('42000000-0000-0000-0000-000000000001')::text NOT LIKE '%SENTINEL%','private course absent');
+SELECT pg_temp.assert(public.fetch_snapshot('42000000-0000-0000-0000-000000000001') ?& ARRAY['course','id_map','contest_id'],'snapshot metadata');
+SELECT pg_temp.assert(public.fetch_snapshot('42000000-0000-0000-0000-000000000001')->'rounds'->0->'course'->>'name'='Course One' AND public.fetch_snapshot('42000000-0000-0000-0000-000000000001')->'rounds'->1->'course'->'holes'->0->>'par'='5','per-round course fallback and override');
+SELECT pg_temp.assert(public.fetch_snapshot('42000000-0000-0000-0000-000000000001')::text NOT LIKE '%COURSE_SECRET%','course extensions stripped');
+SELECT pg_temp.assert(public.fetch_snapshot('42000000-0000-0000-0000-000000000001')->'id_map'->0->>'local_id'='local-player' AND public.fetch_snapshot('42000000-0000-0000-0000-000000000001')->'rounds'->1->'players'->0->>'group_id'='46000000-0000-0000-0000-000000000002','stable mapping and assignment');
+SELECT pg_temp.assert(public.sync_capabilities('42000000-0000-0000-0000-000000000001')->'channel'='{"topic":"snapscore:42000000-0000-0000-0000-000000000001","private":true,"event":"revision"}'::jsonb,'frozen channel');
+SELECT pg_temp.assert(public.can_receive_sync('snapscore:42000000-0000-0000-0000-000000000001') AND NOT public.can_receive_sync('snapscore:42000000-0000-0000-0000-000000000002') AND NOT public.can_receive_sync('private:snapscore:42000000-0000-0000-0000-000000000001'),'exact authorized topic');
 SELECT pg_temp.assert(public.submit_score('42000000-0000-0000-0000-000000000001',NULL,'43000000-0000-0000-0000-000000000001',1,'set',4,0,'44000000-0000-0000-0000-000000000001','immutable',0)->>'status'='accepted','first write');
 SELECT pg_temp.assert(public.submit_score('42000000-0000-0000-0000-000000000001',NULL,'43000000-0000-0000-0000-000000000001',1,'set',4,0,'44000000-0000-0000-0000-000000000001','immutable',0)->>'status'='accepted','replay precedes revision CAS');
 SELECT pg_temp.denied($q$SELECT public.submit_score('42000000-0000-0000-0000-000000000001',NULL,'43000000-0000-0000-0000-000000000001',1,'set',5,0,'44000000-0000-0000-0000-000000000001','immutable',0)$q$,'22023');
@@ -46,6 +66,8 @@ SELECT pg_temp.assert((SELECT bool_and(private AND payload=jsonb_build_object('r
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claims='{"sub":"41000000-0000-0000-0000-000000000003","is_anonymous":true,"role":"authenticated"}';
 SELECT pg_temp.assert(public.request_join('M4BAPI','Recovery')='{"status":"pending"}'::jsonb,'generic pending');
+SELECT pg_temp.assert(jsonb_array_length(public.my_sync_status()->'memberships')=0 AND jsonb_array_length(public.my_sync_status()->'requests')=1 AND public.my_sync_status()->'requests'->0->'contest_id'='null'::jsonb,'pending own request without locator');
+SELECT pg_temp.denied($q$SELECT public.sync_capabilities('42000000-0000-0000-0000-000000000001')$q$,'42501');
 SELECT pg_temp.denied($q$SELECT public.fetch_snapshot('42000000-0000-0000-0000-000000000001')$q$,'42501');
 \if :m4b_native
 SELECT pg_temp.assert((SELECT count(*)=0 FROM realtime.messages),'outsider receives no hints');
@@ -61,10 +83,17 @@ SELECT public.decide_join_request(current_setting('m4b.request')::uuid,true,'430
 SET LOCAL request.jwt.claims='{"sub":"41000000-0000-0000-0000-000000000002","is_anonymous":true,"role":"authenticated"}';
 SELECT pg_temp.denied($q$SELECT public.fetch_snapshot('42000000-0000-0000-0000-000000000001')$q$,'42501');
 SELECT pg_temp.denied($q$SELECT public.submit_score('42000000-0000-0000-0000-000000000001',NULL,'43000000-0000-0000-0000-000000000001',1,'set',4,0,'44000000-0000-0000-0000-000000000001','immutable',0)$q$,'42501');
+SET LOCAL request.jwt.claims='{"sub":"41000000-0000-0000-0000-000000000003","is_anonymous":true,"role":"authenticated"}';
+SELECT pg_temp.assert(public.my_sync_status()->'memberships'->0->>'status'='approved' AND public.my_sync_status()->'requests'->0->>'contest_id'='42000000-0000-0000-0000-000000000001','new phone discovers approval');
 SET LOCAL request.jwt.claims='{"sub":"41000000-0000-0000-0000-000000000001","is_anonymous":false,"role":"authenticated"}';
 SELECT public.revoke_membership('42000000-0000-0000-0000-000000000001','41000000-0000-0000-0000-000000000003');
 SET LOCAL request.jwt.claims='{"sub":"41000000-0000-0000-0000-000000000003","is_anonymous":true,"role":"authenticated"}';
 SELECT pg_temp.denied($q$SELECT public.fetch_snapshot('42000000-0000-0000-0000-000000000001')$q$,'42501');
+SELECT pg_temp.assert(public.my_sync_status()->'memberships'->0->>'status'='revoked' AND public.my_sync_status()->'requests'->0->'contest_id'='null'::jsonb,'own revoked status');
+SET LOCAL request.jwt.claims='{"sub":"41000000-0000-0000-0000-000000000004","role":"authenticated"}';
+SELECT pg_temp.assert(public.my_sync_status()='{"api_version":1,"memberships":[],"requests":[]}'::jsonb,'outsider discovers nothing');
+SET LOCAL request.jwt.claims='{}';
+SELECT pg_temp.denied('SELECT public.my_sync_status()','42501');
 RESET ROLE;
 SELECT pg_temp.assert(public.sanitize_shared_round('{"players":[],"games":[{"game":"private","standings":[{"displayName":"Player","units":999}]}]}')->'games'='[]'::jsonb,'legacy spectator games stripped');
 DO $$ DECLARE t text; p text; r text; BEGIN
@@ -73,11 +102,11 @@ DO $$ DECLARE t text; p text; r text; BEGIN
  FOREACH p IN ARRAY ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER'] LOOP
  IF has_table_privilege(r,'public.'||t,p) THEN RAISE EXCEPTION 'M4B_ASSERT: unsafe ACL % % %',r,t,p; END IF;
  END LOOP; END LOOP; END LOOP;
- FOREACH t IN ARRAY ARRAY['sync_score_cache()','sync_revision_hint()','sync_legacy_projection(uuid)'] LOOP
+ FOREACH t IN ARRAY ARRAY['sync_score_cache()','sync_revision_hint()','sync_legacy_projection(uuid)','sync_course(jsonb)'] LOOP
  FOREACH r IN ARRAY ARRAY['anon','authenticated'] LOOP
  IF has_function_privilege(r,'public.'||t,'EXECUTE') THEN RAISE EXCEPTION 'M4B_ASSERT: helper ACL % %',r,t; END IF;
  END LOOP; END LOOP;
- FOREACH t IN ARRAY ARRAY['submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)','fetch_snapshot(uuid,bigint)','revoke_membership(uuid,uuid)','enroll_contest(uuid,bigint)','sync_capabilities(uuid)','can_receive_sync(text)'] LOOP
+ FOREACH t IN ARRAY ARRAY['submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)','fetch_snapshot(uuid,bigint)','revoke_membership(uuid,uuid)','enroll_contest(uuid,bigint)','sync_capabilities(uuid)','my_sync_status()','can_receive_sync(text)'] LOOP
  IF has_function_privilege('anon','public.'||t,'EXECUTE') OR NOT has_function_privilege('authenticated','public.'||t,'EXECUTE') THEN RAISE EXCEPTION 'M4B_ASSERT: RPC ACL %',t; END IF;
  END LOOP;
 END $$;

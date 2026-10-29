@@ -31,15 +31,21 @@ for table in ['contest_memberships','contest_join_requests','operation_receipts'
  for role in ['anon','authenticated']:
   for priv in ['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']:
    mutations.append((f'{table}/{role}/{priv}',f'GRANT {priv} ON public.{table} TO {role};'))
-for sig in ['sync_score_cache()','sync_revision_hint()','sync_legacy_projection(uuid)']:
+for sig in ['sync_score_cache()','sync_revision_hint()','sync_legacy_projection(uuid)','sync_course(jsonb)']:
  for role in ['anon','authenticated']:
   mutations.append((sig+'/'+role,f'GRANT EXECUTE ON FUNCTION public.{sig} TO {role};'))
-for sig in ['submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)','fetch_snapshot(uuid,bigint)','revoke_membership(uuid,uuid)','enroll_contest(uuid,bigint)','sync_capabilities(uuid)','can_receive_sync(text)']:
+for sig in ['submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)','fetch_snapshot(uuid,bigint)','revoke_membership(uuid,uuid)','enroll_contest(uuid,bigint)','sync_capabilities(uuid)','my_sync_status()','can_receive_sync(text)']:
  mutations.append((sig+'/anon',f'GRANT EXECUTE ON FUNCTION public.{sig} TO anon;'))
  mutations.append((sig+'/authenticated',f'REVOKE EXECUTE ON FUNCTION public.{sig} FROM authenticated;'))
 definition=run("SELECT pg_get_functiondef('public.submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)'::regprocedure);")+';\n'
 mutations += [('CAS disabled',definition.replace('version<>$7 OR ($10 IS NOT NULL AND c.sync_revision<>$10)','false')),('authorization disabled',definition.replace('IF NOT allowed THEN','IF false THEN'))]
 mutations += [('receive guard RLS','DROP POLICY m4b_receive_guard ON realtime.messages; CREATE POLICY unsafe_receive ON realtime.messages FOR SELECT TO authenticated USING(true);'),('receive RLS','DROP POLICY m4b_receive ON realtime.messages;'),('send RLS','DROP POLICY m4b_send_guard ON realtime.messages; CREATE POLICY unsafe_send ON realtime.messages FOR INSERT TO authenticated WITH CHECK(true);')]
+status_definition=run("SELECT pg_get_functiondef('public.my_sync_status()'::regprocedure);")+';\n'
+mutations += [('discovery membership privacy',status_definition.replace('m.user_id=auth.uid()', 'true')),('discovery request privacy',status_definition.replace('q.requester=auth.uid()', 'true'))]
+snapshot_definition=run("SELECT pg_get_functiondef('public.fetch_snapshot(uuid,bigint)'::regprocedure);")+';\n'
+mutations += [('snapshot cell versions',snapshot_definition.replace("'version',coalesce(e.cell_version,0)", "'version',0")),('snapshot course',snapshot_definition.replace('public.sync_course(coalesce(r.course_data,c.course))','public.sync_course(c.course)')),('snapshot mapping',snapshot_definition.replace('WHERE m.contest_id=c.id','WHERE false'))]
+capability_definition=run("SELECT pg_get_functiondef('public.sync_capabilities(uuid)'::regprocedure);")+';\n'
+mutations += [('capability ignores pause',capability_definition.replace("c.sync_enabled AND c.protocol=1 AND c.status='active'", 'true'))]
 for label,sql in mutations:
  if sql.startswith('REVOKE EXECUTE'):
   output=run('BEGIN;'+sql+suite+'ROLLBACK;',True)

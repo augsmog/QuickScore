@@ -170,3 +170,20 @@ for index in range(3):
     del changed['realtime_app_policies'][index]
     assert differences(full, changed), 'Realtime policy drift escaped'
 print('PASS: each M4b managed-schema app policy deletion is detected')
+
+# Live ledger rehearsal derives pending files from the reviewed active manifest.
+import runpy
+rehearsal = runpy.run_path(str(HERE/'rehearsal-pending.py'))['check']
+active = sorted(json.loads((HERE/'active-migrations.json').read_text()))
+before = '\n'.join(active)
+after = '\n'.join(n for n in active if not n.startswith('20261027000000_'))
+rehearsal(before, False)
+rehearsal(after, True)
+for log, adopted in [(before, True),(after, False),(before.replace('20261029180000_sync_api.sql',''),False),(after+'\n20261030180000_unreviewed.sql',True)]:
+    try:
+        rehearsal(log, adopted)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError('unsafe adoption pending set accepted')
+print('PASS: adoption expects sync_api and rejects baseline re-execution, missing/extra migrations')

@@ -94,6 +94,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Install PostgreSQL 17 from PGDG
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common ca-certificates
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update
+          sudo apt-get install -y postgresql-17
       - name: Full M4b SQL chain, role matrix, mutations and synchronized races
         run: |
           /usr/lib/postgresql/17/bin/postgres --version | grep -E 'PostgreSQL\) 17\.'

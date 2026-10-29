@@ -13505,6 +13505,31 @@
     },
     {
       "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.my_sync_status() RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nBEGIN\n IF auth.uid() IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;\n RETURN jsonb_build_object('api_version',1,\n 'memberships',(SELECT coalesce(jsonb_agg(jsonb_build_object('contest_id',m.contest_id,'role',m.role,'status',m.status,'player_id',m.player_id) ORDER BY m.contest_id),'[]'::jsonb) FROM public.contest_memberships m WHERE m.user_id=auth.uid()),\n 'requests',(SELECT coalesce(jsonb_agg(jsonb_build_object('request_id',q.id,'status',q.status,\n 'contest_id',CASE WHEN EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=q.contest_id AND m.user_id=auth.uid() AND m.status='approved') THEN q.contest_id ELSE NULL END) ORDER BY q.created_at,q.id),'[]'::jsonb) FROM public.contest_join_requests q WHERE q.requester=auth.uid()));\nEND $function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "my_sync_status",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "jsonb",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
       "args": "cid uuid",
       "argument_defaults": null,
       "argument_defaults_count": 0,
@@ -13637,7 +13662,7 @@
         "search_path=pg_catalog"
       ],
       "cost": 100,
-      "def": "CREATE OR REPLACE FUNCTION public.sync_capabilities(contest_id uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests;\nBEGIN\n SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;\n IF c.id IS NULL OR auth.uid() IS NULL OR NOT ((c.owner_id=auth.uid() AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false)) OR\n EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=auth.uid() AND m.status='approved')) THEN\n RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n RETURN jsonb_build_object('api_version',1,'protocol',c.protocol,'enabled',c.sync_enabled,'revision',c.sync_revision);\nEND $function$",
+      "def": "CREATE OR REPLACE FUNCTION public.sync_capabilities(contest_id uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests;\nBEGIN\n SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;\n IF c.id IS NULL OR auth.uid() IS NULL OR NOT ((c.owner_id=auth.uid() AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false)) OR\n EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=auth.uid() AND m.status='approved')) THEN\n RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n RETURN jsonb_build_object('api_version',1,'contract','snapscore-sync-v1','protocol',c.protocol,'enabled',c.sync_enabled AND c.protocol=1 AND c.status='active','revision',c.sync_revision,'channel',jsonb_build_object('topic','snapscore:'||c.id::text,'private',true,'event','revision'));\nEND $function$",
       "kind": "f",
       "language": "plpgsql",
       "leakproof": false,
@@ -13687,7 +13712,7 @@
         "search_path=pg_catalog"
       ],
       "cost": 100,
-      "def": "CREATE OR REPLACE FUNCTION public.fetch_snapshot(contest_id uuid, after_revision bigint DEFAULT 0) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests; result jsonb;\nBEGIN\n SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;\n IF auth.uid() IS NULL OR c.id IS NULL OR NOT (\n  (c.owner_id=auth.uid() AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false)) OR\n  EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=auth.uid() AND m.status='approved')\n ) THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n IF $2 IS NULL OR $2<0 OR $2>c.sync_revision THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REVISION'; END IF;\n SELECT jsonb_build_object('protocol',c.protocol,'revision',c.sync_revision,'completed',c.status='completed','games','[]'::jsonb,\n 'rounds',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',r.id,'number',r.round_number,\n 'players',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',p.id,'displayName',p.name,\n 'cells',(SELECT jsonb_agg(jsonb_build_object('hole',h,'version',coalesce(e.cell_version,0),'strokes',e.strokes) ORDER BY h)\n FROM generate_series(1,18) h LEFT JOIN LATERAL (\n SELECT x.cell_version,x.strokes FROM public.score_events x WHERE x.contest_id=c.id AND x.round_id=r.id AND x.player_id=p.id AND x.hole=h\n AND x.cell_version IS NOT NULL ORDER BY x.cell_version DESC LIMIT 1) e ON true)) ORDER BY p.sort_order,p.id),'[]'::jsonb)\n FROM public.contest_players p WHERE p.contest_id=c.id)) ORDER BY r.round_number),'[]'::jsonb)\n FROM public.contest_rounds r WHERE r.contest_id=c.id)) INTO result;\n RETURN result;\nEND $function$",
+      "def": "CREATE OR REPLACE FUNCTION public.fetch_snapshot(contest_id uuid, after_revision bigint DEFAULT 0) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests; result jsonb;\nBEGIN\n SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;\n IF auth.uid() IS NULL OR c.id IS NULL OR NOT (\n  (c.owner_id=auth.uid() AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false)) OR\n  EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=auth.uid() AND m.status='approved')\n ) THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n IF $2 IS NULL OR $2<0 OR $2>c.sync_revision THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REVISION'; END IF;\n SELECT jsonb_build_object('contest_id',c.id,'name',c.name,'capabilities',public.sync_capabilities(c.id),'course',public.sync_course(c.course),'protocol',c.protocol,'revision',c.sync_revision,'completed',c.status='completed','games','[]'::jsonb,\n 'rounds',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',r.id,'number',r.round_number,'name',r.name,'date',r.date,\n 'course',public.sync_course(coalesce(r.course_data,c.course)), 'assignment_revision',r.assignment_revision,\n 'groups',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',g.id,'name',g.name,'sort_order',g.sort_order) ORDER BY g.sort_order,g.id),'[]'::jsonb) FROM public.contest_groups g WHERE g.contest_id=c.id AND g.round_id=r.id),\n 'players',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',p.id,'displayName',p.name,'handicap',p.handicap,'status',p.status,'team',p.team,\n 'group_id',(SELECT a.group_id FROM public.round_player_assignments a WHERE a.contest_id=c.id AND a.round_id=r.id AND a.player_id=p.id),\n 'cells',(SELECT jsonb_agg(jsonb_build_object('hole',h,'version',coalesce(e.cell_version,0),'strokes',e.strokes) ORDER BY h)\n FROM generate_series(1,18) h LEFT JOIN LATERAL (\n SELECT x.cell_version,x.strokes FROM public.score_events x WHERE x.contest_id=c.id AND x.round_id=r.id AND x.player_id=p.id AND x.hole=h\n AND x.cell_version IS NOT NULL ORDER BY x.cell_version DESC LIMIT 1) e ON true)) ORDER BY p.sort_order,p.id),'[]'::jsonb)\n FROM public.contest_players p WHERE p.contest_id=c.id)) ORDER BY r.round_number),'[]'::jsonb)\n FROM public.contest_rounds r WHERE r.contest_id=c.id)) INTO result;\n RETURN result || jsonb_build_object('id_map',(SELECT coalesce(jsonb_agg(jsonb_build_object('kind',m.kind,'local_id',m.local_id,'server_id',m.server_id) ORDER BY m.kind,m.local_id),'[]'::jsonb) FROM public.sync_id_map m WHERE m.contest_id=c.id));\nEND $function$",
       "kind": "f",
       "language": "plpgsql",
       "leakproof": false,
@@ -14252,6 +14277,31 @@
       "support": "-",
       "transforms": null,
       "volatility": "s"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "course jsonb",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.sync_course(course jsonb) RETURNS jsonb LANGUAGE sql IMMUTABLE SET search_path TO 'pg_catalog' AS $function$\n SELECT jsonb_build_object('name',CASE WHEN jsonb_typeof($1->'name')='string' THEN left($1->>'name',200) END,'holes',\n (SELECT coalesce(jsonb_agg(jsonb_build_object('num',CASE WHEN jsonb_typeof(h->'num')='number' THEN h->'num' END,'par',CASE WHEN jsonb_typeof(h->'par')='number' THEN h->'par' END,'hcp',CASE WHEN jsonb_typeof(h->'hcp')='number' THEN h->'hcp' END,'yards',CASE WHEN jsonb_typeof(h->'yards')='number' THEN h->'yards' END) ORDER BY ord),'[]'::jsonb)\n FROM jsonb_array_elements(CASE WHEN jsonb_typeof($1->'holes')='array' THEN $1->'holes' ELSE '[]'::jsonb END) WITH ORDINALITY a(h,ord) WHERE ord<=18));\n$function$",
+      "kind": "f",
+      "language": "sql",
+      "leakproof": false,
+      "name": "sync_course",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "jsonb",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": false,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "i"
     },
     {
       "acl": "{postgres=X/postgres,service_role=X/postgres}",
@@ -21966,6 +22016,11 @@
     {
       "grantee": "authenticated",
       "priv": "EXECUTE",
+      "routine": "my_sync_status"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
       "routine": "post_message"
     },
     {
@@ -22161,6 +22216,11 @@
     {
       "grantee": "postgres",
       "priv": "EXECUTE",
+      "routine": "my_sync_status"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
       "routine": "post_message"
     },
     {
@@ -22222,6 +22282,11 @@
       "grantee": "postgres",
       "priv": "EXECUTE",
       "routine": "sync_capabilities"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "sync_course"
     },
     {
       "grantee": "postgres",
@@ -22386,6 +22451,11 @@
     {
       "grantee": "service_role",
       "priv": "EXECUTE",
+      "routine": "my_sync_status"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
       "routine": "post_message"
     },
     {
@@ -22447,6 +22517,11 @@
       "grantee": "service_role",
       "priv": "EXECUTE",
       "routine": "sync_capabilities"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "sync_course"
     },
     {
       "grantee": "service_role",

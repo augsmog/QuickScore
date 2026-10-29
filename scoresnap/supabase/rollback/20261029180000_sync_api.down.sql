@@ -171,6 +171,8 @@ BEGIN
 END $$;
 DROP FUNCTION public.submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint);
 DROP FUNCTION public.fetch_snapshot(uuid,bigint);
+DROP FUNCTION public.my_sync_status();
+DROP FUNCTION public.sync_course(jsonb);
 DROP FUNCTION public.revoke_membership(uuid,uuid);
 CREATE OR REPLACE FUNCTION public.guard_sync_legacy() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE cid uuid; p smallint;

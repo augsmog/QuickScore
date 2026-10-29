@@ -69,16 +69,19 @@ BEGIN
   EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=auth.uid() AND m.status='approved')
  ) THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;
  IF $2 IS NULL OR $2<0 OR $2>c.sync_revision THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REVISION'; END IF;
- SELECT jsonb_build_object('protocol',c.protocol,'revision',c.sync_revision,'completed',c.status='completed','games','[]'::jsonb,
- 'rounds',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',r.id,'number',r.round_number,
- 'players',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',p.id,'displayName',p.name,
+ SELECT jsonb_build_object('contest_id',c.id,'name',c.name,'capabilities',public.sync_capabilities(c.id),'course',public.sync_course(c.course),'protocol',c.protocol,'revision',c.sync_revision,'completed',c.status='completed','games','[]'::jsonb,
+ 'rounds',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',r.id,'number',r.round_number,'name',r.name,'date',r.date,
+ 'course',public.sync_course(coalesce(r.course_data,c.course)), 'assignment_revision',r.assignment_revision,
+ 'groups',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',g.id,'name',g.name,'sort_order',g.sort_order) ORDER BY g.sort_order,g.id),'[]'::jsonb) FROM public.contest_groups g WHERE g.contest_id=c.id AND g.round_id=r.id),
+ 'players',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',p.id,'displayName',p.name,'handicap',p.handicap,'status',p.status,'team',p.team,
+ 'group_id',(SELECT a.group_id FROM public.round_player_assignments a WHERE a.contest_id=c.id AND a.round_id=r.id AND a.player_id=p.id),
  'cells',(SELECT jsonb_agg(jsonb_build_object('hole',h,'version',coalesce(e.cell_version,0),'strokes',e.strokes) ORDER BY h)
  FROM generate_series(1,18) h LEFT JOIN LATERAL (
  SELECT x.cell_version,x.strokes FROM public.score_events x WHERE x.contest_id=c.id AND x.round_id=r.id AND x.player_id=p.id AND x.hole=h
  AND x.cell_version IS NOT NULL ORDER BY x.cell_version DESC LIMIT 1) e ON true)) ORDER BY p.sort_order,p.id),'[]'::jsonb)
  FROM public.contest_players p WHERE p.contest_id=c.id)) ORDER BY r.round_number),'[]'::jsonb)
  FROM public.contest_rounds r WHERE r.contest_id=c.id)) INTO result;
- RETURN result;
+ RETURN result || jsonb_build_object('id_map',(SELECT coalesce(jsonb_agg(jsonb_build_object('kind',m.kind,'local_id',m.local_id,'server_id',m.server_id) ORDER BY m.kind,m.local_id),'[]'::jsonb) FROM public.sync_id_map m WHERE m.contest_id=c.id));
 END $$;
 
 CREATE FUNCTION public.revoke_membership(contest_id uuid, member_id uuid) RETURNS jsonb
@@ -416,9 +419,30 @@ BEGIN
  IF c.id IS NULL OR auth.uid() IS NULL OR NOT ((c.owner_id=auth.uid() AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false)) OR
  EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=auth.uid() AND m.status='approved')) THEN
  RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;
- RETURN jsonb_build_object('api_version',1,'protocol',c.protocol,'enabled',c.sync_enabled,'revision',c.sync_revision);
+ RETURN jsonb_build_object('api_version',1,'contract','snapscore-sync-v1','protocol',c.protocol,'enabled',c.sync_enabled AND c.protocol=1 AND c.status='active','revision',c.sync_revision,'channel',jsonb_build_object('topic','snapscore:'||c.id::text,'private',true,'event','revision'));
 END $$;
 REVOKE ALL ON FUNCTION public.enroll_contest(uuid,bigint),public.sync_capabilities(uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.enroll_contest(uuid,bigint),public.sync_capabilities(uuid) TO authenticated,service_role;
+
+
+-- No locator input: only records belonging to this JWT identity are discoverable.
+CREATE FUNCTION public.my_sync_status() RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+BEGIN
+ IF auth.uid() IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;
+ RETURN jsonb_build_object('api_version',1,
+ 'memberships',(SELECT coalesce(jsonb_agg(jsonb_build_object('contest_id',m.contest_id,'role',m.role,'status',m.status,'player_id',m.player_id) ORDER BY m.contest_id),'[]'::jsonb) FROM public.contest_memberships m WHERE m.user_id=auth.uid()),
+ 'requests',(SELECT coalesce(jsonb_agg(jsonb_build_object('request_id',q.id,'status',q.status,
+ 'contest_id',CASE WHEN EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=q.contest_id AND m.user_id=auth.uid() AND m.status='approved') THEN q.contest_id ELSE NULL END) ORDER BY q.created_at,q.id),'[]'::jsonb) FROM public.contest_join_requests q WHERE q.requester=auth.uid()));
+END $$;
+-- Course projection excludes provider/location/contact/money extensions.
+CREATE FUNCTION public.sync_course(course jsonb) RETURNS jsonb
+LANGUAGE sql IMMUTABLE SET search_path=pg_catalog AS $$
+ SELECT jsonb_build_object('name',CASE WHEN jsonb_typeof($1->'name')='string' THEN left($1->>'name',200) END,'holes',
+ (SELECT coalesce(jsonb_agg(jsonb_build_object('num',CASE WHEN jsonb_typeof(h->'num')='number' THEN h->'num' END,'par',CASE WHEN jsonb_typeof(h->'par')='number' THEN h->'par' END,'hcp',CASE WHEN jsonb_typeof(h->'hcp')='number' THEN h->'hcp' END,'yards',CASE WHEN jsonb_typeof(h->'yards')='number' THEN h->'yards' END) ORDER BY ord),'[]'::jsonb)
+ FROM jsonb_array_elements(CASE WHEN jsonb_typeof($1->'holes')='array' THEN $1->'holes' ELSE '[]'::jsonb END) WITH ORDINALITY a(h,ord) WHERE ord<=18));
+$$;
+REVOKE ALL ON FUNCTION public.my_sync_status(),public.sync_course(jsonb) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.my_sync_status() TO authenticated,service_role;
 
 COMMIT;
