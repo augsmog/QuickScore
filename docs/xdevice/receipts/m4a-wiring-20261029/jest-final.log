@@ -1,0 +1,10 @@
+
+> snapscore@1.0.0 test
+> jest --runInBand
+
+
+Test Suites: 26 passed, 26 total
+Tests:       390 passed, 390 total
+Snapshots:   0 total
+Time:        41.349 s, estimated 47 s
+Ran all test suites.

@@ -85,3 +85,39 @@ ROLLBACK: revert the merge commit; keep
 Retain SQLite/AsyncStorage draft envelopes; never erase accepted remote scores or
 unsent drafts as part of rollback. Do not change the CAPTCHA config as part of this
 client rollback. Keep draft until independent verifier and integration gates pass.
+
+## Frozen v1 wiring (Oct 29 PM)
+
+Copied only `sync-contract-v1.ts` and its companion Markdown from M4b source
+`e99d684b3154a7aee3f7298d305bff093c5e37b5` (PR #50); no merge, SQL, workflow or
+server implementation imported. Contract introduction commit:
+`261103c49244a936017d150379dc8667b365af37`.
+
+Foreground discovery calls `my_sync_status()` without a locator. Approved
+memberships fetch capabilities and `fetch_snapshot`; pending/rejected requests
+never fetch rosters. Revoked/missing memberships clear current views. Identity
+epochs discard late responses. Host repair retains the host-only request check.
+The app-wide restore loop also uses v1; snapshots/revisions commit together and
+late older responses cannot replace a newer scorecard.
+
+The join screen shows approved online scorecards, explicit round/player IDs,
+assignment/course metadata and per-cell CAS versions, including clear tombstones.
+Per-round course gaps display repair text; no pars are invented. Local mappings
+from the authorized snapshot seed host ID lookup. Guest edits target the assigned
+player; server authorization remains authoritative. Conflict/denial/queue state
+and explicit conflict choices are shown separately from authoritative scores.
+Unsent drafts are durable before replay, including when transport is offline.
+Already-materialized requests stay immutable; fresh edits use the newer of the
+snapshot version and a durable receipt version.
+
+Private revision subscriptions use the exact server topic and private config,
+authenticate the socket with the current session, and fetch on subscribe/reconnect
+ack. Only an integer revision payload is accepted; hints cannot mutate scores.
+Foreground polling remains a 30-second fallback. Background/unmount/identity
+cleanup removes subscriptions. Every write transmission rechecks the build flag
+and server enabled/supported v1 handshake; pause retains outbox drafts.
+
+These are client wiring and local/offline receipts. Real Auth issuance, HTTP
+cache headers, PostgREST, socket revocation/reconnect delivery, four-user CAS,
+native force-quit/SecureStore/SQLite recovery and enrollment/import still require
+an integrated disposable stack and native devices. Sharing stays default OFF.

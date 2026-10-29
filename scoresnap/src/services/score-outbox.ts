@@ -38,7 +38,7 @@ export function scoreOutbox(storage: EnvelopeStorage, actor: string, uuid: () =>
         if (blocked.has(target)) continue;
         if (!entry.request) {
           // A successor uses only the durable predecessor receipt, never an optimistic version.
-          const version = box.versions[target] ?? entry.expected;
+          const version = Math.max(box.versions[target] ?? 0, entry.expected);
           entry.request = { ...entry.draft, expected_version: version, op_id: entry.id, request_hash: entry.id };
           await save(box); // immutable before first transmission
         }

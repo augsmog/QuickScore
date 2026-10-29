@@ -7,7 +7,7 @@ import { useOnlineStore } from '../stores/online-store';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
-import { queueOnlineScore, replayOnlineScores, remoteIdentity } from './cross-device';
+import { replayOnlineScores, remoteIdentity, queueSnapshotScore, requireSyncCapability } from './cross-device';
 import { CROSS_DEVICE_SHARING_ENABLED } from '../config/features';
 import { REAL_AUTH_CONFIGURED } from '../config/auth';
 import { supabase } from '../db/supabase';
@@ -33,6 +33,11 @@ async function load(contestId: string): Promise<{ key: string; outbox: Outbox }>
   const raw = await AsyncStorage.getItem(key);
   const outbox = raw ? JSON.parse(raw) : emptyOutbox();
   if (!outbox.ids?.rounds || !outbox.ids?.players) throw new Error('Online ID map is damaged');
+  const snapshot = useOnlineStore.getState().events[contestId]?.snapshot;
+  for (const entry of snapshot?.id_map ?? []) {
+    if (entry.kind === 'round') outbox.ids.rounds[entry.local_id] = entry.server_id;
+    if (entry.kind === 'player') outbox.ids.players[entry.local_id] = entry.server_id;
+  }
   return { key, outbox };
 }
 
@@ -48,6 +53,7 @@ export async function flushTournamentOutbox(): Promise<void> {
 
 export async function syncRound(contestId: string, round: RoundInfo): Promise<void> {
   if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
+  await requireSyncCapability(contestId);
   const saved = await load(contestId);
   await requireHost();
   const { data, error } = await supabase.rpc('sync_round_bundle', {
@@ -78,6 +84,7 @@ export async function syncRoundGroups(
 export async function syncContestTournamentMeta(contestId: string, isTournament: boolean, currentRound: number): Promise<void> {
   if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
   await requireHost();
+  await requireSyncCapability(contestId);
   const { error } = await supabase.rpc('set_tournament_meta', {
     contest_id: contestId,
     is_tournament: isTournament,
@@ -100,7 +107,7 @@ export async function syncScore(
   const op = enqueueScore(emptyOutbox(), { contestId, roundLocalId: roundId, roundNumber, playerLocalId: playerId, hole, strokes }, Crypto.randomUUID()).ops[0];
   const args = resolveWrite(outbox.ids, op);
   if (!args || !args.round_id) throw new Error('Online round is not ready. Score remains local and is not queued.');
-  await queueOnlineScore({ contest_id: args.contest_id, round_id: args.round_id, player_id: args.player_id, hole: args.hole, action: args.action, strokes: args.strokes }, 0);
+  await queueSnapshotScore(args.contest_id, args.round_id, args.player_id, args.hole, args.strokes);
   await flushTournamentOutbox();
   } catch (error) {
     useOnlineStore.setState({ error: 'Online score not confirmed. Review Online sync; this score remains saved locally.' });

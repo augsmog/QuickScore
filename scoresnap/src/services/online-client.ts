@@ -1,14 +1,19 @@
+import type { SyncSnapshotV1 } from '../../../docs/xdevice/sync-contract-v1';
+import { syncV1 } from './sync-v1';
 import { validJoinCode, normalizeJoinCode } from './guest-join';
 export interface OnlineRpc { (name: string, args: Record<string, unknown>): Promise<{ data: any; error: any }> }
 export interface Membership { role: 'host' | 'player' | 'scorer' | 'viewer'; status: string; player_id: string | null }
-export interface OnlineSnapshot { revision: number; rounds: { id: string; number: number; name: string; groups: { id: string; name: string; players: { id: string; name: string; scores: (number | null)[] }[] }[] }[] }
+export type OnlineSnapshot = SyncSnapshotV1;
 export function onlineClient(rpc: OnlineRpc, repair: (contest: string, membership: Membership | null, snapshot: OnlineSnapshot | null) => void) {
   let generation = 0;
   async function call(name: string, args: Record<string, unknown>) {
     const { data, error } = await rpc(name, args); if (error) throw error; return data;
   }
+  const v1 = syncV1(call, repair);
   return {
-    invalidate() { generation++; },
+    discover: v1.discover,
+    restore: v1.restore,
+    invalidate() { generation++; v1.invalidate(); },
     async requestJoin(code: string, name: string) {
       if (!validJoinCode(code) || !name.trim() || name.trim().length > 80) throw Error('Enter a valid code and display name');
       await call('request_join', { code: normalizeJoinCode(code), display_name: name.trim() });
@@ -21,7 +26,7 @@ export function onlineClient(rpc: OnlineRpc, repair: (contest: string, membershi
         // M2 permits owner-hosts without an explicit membership row. The host-only
         // request RPC proves that role; a profile/provider cache never does.
         const requests = await call('list_join_requests', { contest_id: contest });
-        const snapshot = await call('tournament_snapshot', { contest_id: contest }) as OnlineSnapshot;
+        const snapshot = await v1.restore(contest, { role: 'host', status: 'approved', player_id: null });
         if (!Number.isInteger(snapshot?.revision) || !Array.isArray(snapshot.rounds)) throw Error('Invalid online snapshot');
         if (epoch !== generation) throw Error('Identity changed during restore');
         repair(contest, { role: 'host', status: 'approved', player_id: null }, snapshot);
@@ -34,7 +39,7 @@ export function onlineClient(rpc: OnlineRpc, repair: (contest: string, membershi
       try {
         const membership = await call('my_membership', { contest_id: contest }) as Membership | null;
         if (!membership || membership.status !== 'approved') { if (epoch === generation) repair(contest, null, null); return null; }
-        const snapshot = await call('tournament_snapshot', { contest_id: contest }) as OnlineSnapshot;
+        const snapshot = await v1.restore(contest, membership);
         if (!Number.isInteger(snapshot?.revision) || !Array.isArray(snapshot.rounds)) throw Error('Invalid online snapshot');
         if (epoch !== generation) throw Error('Identity changed during restore');
         repair(contest, membership, snapshot); return snapshot;
@@ -43,7 +48,7 @@ export function onlineClient(rpc: OnlineRpc, repair: (contest: string, membershi
   };
 }
 /** Hints contain a revision only; snapshots always pass through authorized RPCs.
- * Subscribe transport is injected until M4b supplies its private-channel contract.
+ * Private v1 subscriptions feed this handler; polling remains the fallback.
  */
 export function foregroundSync(fetch: () => Promise<OnlineSnapshot | null>, report: (error: unknown) => void, interval = 30000) {
   let stopped = false, busy = false, again = false, revision = -1;

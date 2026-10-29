@@ -1,3 +1,4 @@
+import { OnlineGuestScorecard } from "../../src/ui/OnlineGuestScorecard";
 import { onlineEnabled, client, remoteIdentity } from "../../src/services/cross-device";
 import { useState } from "react";
 import { ScrollView, Text, TextInput, Pressable, View } from "react-native";
@@ -30,6 +31,7 @@ export default function JoinContest() {
       if (onlineEnabled) {
         await remoteIdentity();
         await client.requestJoin(code, name);
+        await client.discover();
         setClaim("Request sent. Your host must approve your spot. Keep this device to retain unsent scores.");
         return;
       }
@@ -45,6 +47,7 @@ export default function JoinContest() {
     <Text style={{ fontFamily: FONTS.headline, color: COLORS.text, fontSize: 26 }}>Join with code</Text>
     <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>Play as a guest. No account needed.</Text>
     {onlineEnabled && !!claim && <Text accessibilityRole="alert" style={{ color: COLORS.primary }}>{claim}</Text>}
+    {onlineEnabled && <OnlineGuestScorecard />}
     {!contest && <>
       <TextInput accessibilityLabel="Join code" placeholder="Join code" placeholderTextColor={COLORS.textDim} value={code} onChangeText={setCode} autoCapitalize="characters" maxLength={6} style={{ fontFamily: FONTS.regular, color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />
       <TextInput placeholder="Display name" placeholderTextColor={COLORS.textDim} value={name} onChangeText={setName} style={{ fontFamily: FONTS.regular, color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />

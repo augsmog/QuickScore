@@ -11,6 +11,7 @@ interface OnlineState {
 export const useOnlineStore = create<OnlineState>((set) => ({
   events: {}, error: null,
   repair: (contest, membership, snapshot) => set(state => {
+    if (membership && snapshot && state.events[contest]?.snapshot.revision > snapshot.revision) return {};
     const events = { ...state.events };
     if (membership && snapshot) events[contest] = { membership, snapshot };
     else delete events[contest];

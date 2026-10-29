@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Alert, AppState, Pressable, ScrollView, Text, View } from 'react-native';
-import { client, onlineEnabled, onlineQueue, replayOnlineScores, resolveOnlineConflict } from '../services/cross-device';
+import { client, onlineEnabled, onlineQueue, replayOnlineScores, resolveOnlineConflict, watchOnline } from '../services/cross-device';
 import { useOnlineStore } from '../stores/online-store';
 import { useAuthStore } from '../stores/auth-store';
-import { foregroundSync } from '../services/online-client';
 import type { Entry } from '../services/score-outbox';
 import type { Contest } from '../stores/contest-store';
 import { COLORS } from './theme';
@@ -26,8 +25,8 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
           const host = await client.rejoinHost(contest.id);
           snapshot = host.snapshot;
           setRequests(host.requests.filter((r: { status: string }) => r.status === 'pending'));
-        } catch { snapshot = await client.rejoin(contest.id); setRequests([]); }
-      } else snapshot = await client.rejoin(contest.id);
+        } catch { await client.discover(); snapshot = useOnlineStore.getState().events[contest.id]?.snapshot ?? null; setRequests([]); }
+      } else { await client.discover(); snapshot = useOnlineStore.getState().events[contest.id]?.snapshot ?? null; }
       const box = await onlineQueue();
       setEntries(box.entries.filter(e => e.draft.contest_id === contest.id));
       return snapshot;
@@ -35,14 +34,14 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
   }
   useEffect(() => {
     if (!onlineEnabled || !open) return;
-    let poll: ReturnType<typeof foregroundSync> | undefined;
+    let stop: (() => void) | undefined;
     const change = (state: string) => {
-      poll?.stop(); poll = undefined;
-      if (state === 'active') poll = foregroundSync(refresh, () => setMessage('Waiting to sync'));
+      stop?.(); stop = undefined;
+      if (state === 'active') stop = watchOnline(contest.id, refresh, () => setMessage('Waiting to sync'));
     };
     change(AppState.currentState ?? 'active');
     const subscription = AppState.addEventListener('change', change);
-    return () => { subscription.remove(); poll?.stop(); };
+    return () => { subscription.remove(); stop?.(); };
   }, [open, contest.id, anonymous, actor]);
   if (!onlineEnabled) return null;
   const button = (label: string, action: () => void) => <Pressable accessibilityRole="button" onPress={action} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: COLORS.primary }}>{label}</Text></Pressable>;
@@ -64,7 +63,7 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
       </View>)}
       {requests.map(request => <View key={request.id}>
         <Text style={{ color: COLORS.text }}>{request.requested_name} requests a player slot</Text>
-        {(remote?.snapshot.rounds.flatMap(r => r.groups.flatMap(g => g.players)) ?? []).map(player => <View key={player.id}>{button(`Approve as ${player.name}`, () => {
+        {(remote?.snapshot.rounds.flatMap(r => r.players) ?? []).map(player => <View key={player.id}>{button(`Approve as ${player.displayName}`, () => {
           Alert.alert('Approve player transfer?', 'The previous identity will lose access to this slot.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Approve', onPress: () => { void client.decide(request.id, true, player.id).then(refresh).catch(() => setMessage('Approval failed. Try again.')); } }]);
         })}</View>)}
         {button('Reject request', () => { void client.decide(request.id, false, null).then(refresh).catch(() => setMessage('Decision failed. Try again.')); })}

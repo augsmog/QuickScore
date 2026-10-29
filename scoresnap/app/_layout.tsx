@@ -128,11 +128,12 @@ export default Sentry.wrap(function RootLayout() {
     const report = () => useOnlineStore.setState({ error: "Online sync paused. Your queued scores remain on this device." });
     let polling: ReturnType<typeof foregroundSync> | undefined;
     const refresh = async () => {
-      const known = new Set([...Object.keys(useOnlineStore.getState().events), ...useContestStore.getState().contests.map(c => c.id)]);
-      for (const id of known) {
-        if (useOnlineStore.getState().events[id]?.membership.role === 'host') await client.rejoinHost(id);
-        else await client.rejoin(id);
-      }
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      if (!data.session) return null;
+      const hosts = Object.entries(useOnlineStore.getState().events).filter(([, e]) => e.membership.role === 'host').map(([id]) => id);
+      await client.discover();
+      for (const id of hosts) await client.rejoinHost(id);
       await replayOnlineScores();
       return null;
     };

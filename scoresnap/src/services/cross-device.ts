@@ -1,3 +1,5 @@
+import { canSync, revisionChannel, snapshotScore } from './sync-v1';
+import { foregroundSync } from './online-client';
 import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { supabase } from '../db/supabase';
@@ -36,6 +38,10 @@ async function box() {
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
     if (data.session?.user.id !== actor) throw Object.assign(Error('Identity changed'), { code: '42501' });
+    await requireSyncCapability(args.contest_id);
+    const current = await supabase.auth.getSession();
+    if (current.error) throw current.error;
+    if (current.data.session?.user.id !== actor) throw Object.assign(Error('Identity changed'), { code: '42501' });
     const result = await supabase.rpc('write_score', args);
     if (result.error) throw result.error;
     return result.data as Receipt;
@@ -66,4 +72,35 @@ export async function replayOnlineScores() {
 export async function onlineQueue() { return writer(async () => (await box()).inspect()); }
 export async function resolveOnlineConflict(id: string, choice: 'keep-current' | 'use-mine') {
   return writer(async () => (await box()).resolve(id, choice, true));
+}
+
+export async function requireSyncCapability(contest: string) {
+  if (!onlineEnabled) throw Error('Cross-device sharing is off');
+  const { data, error } = await supabase.rpc('sync_capabilities', { contest_id: contest });
+  if (error) { useOnlineStore.getState().repair(contest, null, null); throw error; }
+  if (!canSync(onlineEnabled, data, contest)) throw Error('Online sharing paused. Drafts retained.');
+  return data;
+}
+export function watchOnline(contest: string, refresh: () => Promise<any>, report: (error: unknown) => void) {
+  if (!onlineEnabled) return () => {};
+  let stopped = false;
+  let remove: (() => void) | undefined;
+  const poll = foregroundSync(refresh, report);
+  void (async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (!data.session) throw Error('Session unavailable');
+    await supabase.realtime.setAuth(data.session.access_token);
+    return requireSyncCapability(contest);
+  })().then(cap => {
+    if (!stopped) remove = revisionChannel(supabase, cap, () => { void refresh().catch(report); }, poll.hint);
+  }).catch(report);
+  return () => { stopped = true; poll.stop(); remove?.(); };
+}
+export async function queueSnapshotScore(contest: string, round: string, player: string, hole: number, strokes: number | null) {
+  const event = useOnlineStore.getState().events[contest];
+  if (!event) throw Error('Refresh the online scorecard before scoring');
+  const { draft, version } = snapshotScore(onlineEnabled, event.snapshot, round, player, hole, strokes);
+  await queueOnlineScore(draft, version);
+  await replayOnlineScores();
 }
