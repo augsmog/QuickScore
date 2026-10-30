@@ -87,6 +87,10 @@ try {
     await Promise.race([subscription, new Promise((_,reject)=>setTimeout(()=>reject(Error('Private Realtime subscription did not settle')),20000))]);
     assert(await b.evaluate(()=>window.__xdevBlockedPolls)>0,'Foreground polling disabled');
     await a.goto(`${contestUrl}/scorecard`);
+    await text(a,'Online sync').click();
+    await text(a,'Retry sync').click();
+    await text(a,'Current online snapshot').waitFor();
+    await a.getByTestId('organizer-join-code').waitFor();
     const beforeRevision = revisionFrames;
     const scoreStarted = Date.now();
     await a.getByTestId('score-par-Xdev Joiner').click();
