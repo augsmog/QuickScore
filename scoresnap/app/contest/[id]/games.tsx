@@ -1,7 +1,6 @@
 import { executionGameConfig } from "../../../src/engine/types";
 import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actual-inputs";
-import { scopedAuxiliary, calculateContestSettlement, teamCardPlayers, contestStableford } from "../../../src/engine/contest-results";
-import { calcMatchPlay } from "../../../src/engine/calculators/match-play";
+import { scopedAuxiliary, calculateContestSettlement, teamCardPlayers, contestStableford, contestMatchPlay } from "../../../src/engine/contest-results";
 import { Link } from "expo-router";
 import { View, Text, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -418,13 +417,10 @@ export default function GamesScreen() {
 
             {/* ── Match Play ── */}
             {gameId === "match_play" &&
-              contest.groups.map((group, gi) => {
-                if (group.players.length < 2) return null;
-                const p1 = group.players[0];
-                const p2 = group.players[1];
-                const status = calcMatchPlay(p1,p2,contest.course,contest.gameConfig,scopedAuxiliary(contest,group.id)).finalStatus;
+              contestMatchPlay(contest).map(({key,roundName,p1,p2,status}) => {
                 return (
-                  <View key={gi} style={{ alignItems: "center", paddingVertical: 8 }}>
+                  <View key={key} style={{ alignItems: "center", paddingVertical: 8 }}>
+                    {roundName && <Text style={{ color: COLORS.textDim, fontSize: 12 }}>{roundName}</Text>}
                     <Text style={{ color: COLORS.textDim, fontSize: 12, fontFamily: FONTS.medium, marginBottom: 8 }}>
                       {p1.name} vs {p2.name}
                     </Text>

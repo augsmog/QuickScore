@@ -1,6 +1,7 @@
 import type { Contest } from '../stores/contest-store';
 import { AuxiliaryData, GameType, SettlementSummary } from './types';
 import { calculateSettlement } from './settlement';
+import { calcMatchPlay } from './calculators/match-play';
 import { calcStableford } from './calculators/stableford';
 export const scopeKey=(roundId:string|undefined,groupId:string)=>`${roundId??'default'}/${groupId}`;
 export function scopedAuxiliary(contest:Contest,groupId:string,roundId?:string):AuxiliaryData {
@@ -56,4 +57,14 @@ export function contestStableford(contest: Contest) {
     }
   }
   return [...totals.values()].sort((a,b)=>b.points-a.points);
+}
+
+/** Display independent matches with the same round cards, course and events used for cash. */
+export function contestMatchPlay(contest: Contest) {
+  const rounds = contest.isTournament && contest.rounds?.length ? contest.rounds : [{id:undefined, name:undefined, course:contest.course, groups:contest.groups}];
+  return rounds.flatMap(round => round.groups.filter(group => group.players.length >= 2).map(group => {
+    const [p1,p2] = group.players;
+    return {key:scopeKey(round.id,group.id),roundName:round.name,p1,p2,
+      status:calcMatchPlay(p1,p2,round.course ?? contest.course,contest.gameConfig,scopedAuxiliary(contest,group.id,round.id)).finalStatus};
+  }));
 }

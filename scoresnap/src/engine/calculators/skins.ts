@@ -43,6 +43,7 @@ export function calcSkins(
   players.forEach((p) => (skinCount[p.name] = 0));
 
   for (let i = 0; i < course.holes.length; i++) {
+    if (config?.rulesVersion === 1 && players.some(p => !Number.isFinite(p.scores[i]) || p.scores[i] <= 0)) break;
     if (!players.some((p) => p.scores[i] > 0)) continue;
     pot++;
     const scores = players.map((p) => {
