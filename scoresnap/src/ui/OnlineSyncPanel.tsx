@@ -1,7 +1,7 @@
 import { TournamentCompletion } from './TournamentCompletion';
 import { hostOrDiscover } from '../services/online-client';
 import { useEffect, useState } from 'react';
-import { Alert, AppState, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, AppState, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { client, onlineEnabled, onlineQueue, replayOnlineScores, resolveOnlineConflict, watchOnline } from '../services/cross-device';
 import { useOnlineStore } from '../stores/online-store';
 import { useAuthStore } from '../stores/auth-store';
@@ -65,7 +65,10 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
       {requests.map(request => <View key={request.id}>
         <Text style={{ color: COLORS.text }}>{request.requested_name} requests a player slot</Text>
         {Array.from(new Map((remote?.snapshot.rounds.flatMap(r => r.players) ?? []).map(player => [player.id, player])).values()).map(player => <View key={player.id}>{button(`Approve as ${player.displayName}`, () => {
-          Alert.alert('Approve player transfer?', 'The previous identity will lose access to this slot.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Approve', onPress: () => { void client.decide(request.id, true, player.id).then(refresh).catch(() => setMessage('Approval failed. Try again.')); } }]);
+          const approve = () => { void client.decide(request.id, true, player.id).then(refresh).catch(() => setMessage('Approval failed. Try again.')); };
+          if (Platform.OS === 'web') {
+            if (globalThis.confirm('Approve player transfer? The previous identity will lose access to this slot.')) approve();
+          } else Alert.alert('Approve player transfer?', 'The previous identity will lose access to this slot.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Approve', onPress: approve }]);
         })}</View>)}
         {button('Reject request', () => { void client.decide(request.id, false, null).then(refresh).catch(() => setMessage('Decision failed. Try again.')); })}
       </View>)}

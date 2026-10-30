@@ -52,7 +52,7 @@ function screenHarness(path,tier,contest=fixture()) {
  const jsx=(type,props)=>({type,props});const deps={react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':new Proxy({Platform:{OS:'ios'}},{get:(o,k)=>o[k]||k}),'expo-router':{useRouter:()=>({push,back:()=>{},replace:()=>{}}),useLocalSearchParams:()=>({id:'c'})},'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'lucide-react-native':{},'expo-haptics':{impactAsync:()=>{},notificationAsync:()=>{},ImpactFeedbackStyle:{Light:1},NotificationFeedbackType:{Success:1}}};
  for(const depth of ['../..','../../..'])Object.assign(deps,{
   [depth+'/src/config/features']:{COURSE_SEARCH_ENABLED:false},[depth+'/src/config/auth']:{REAL_AUTH_CONFIGURED:false},[depth+'/src/stores/auth-store']:{useAuthStore:Object.assign(f=>f({user:null}),{getState:()=>({})})},[depth+'/src/ui/CourseSearch']:{__esModule:true,default:()=>null},
-  [depth+'/src/stores/scan-store']:{useScanStore:f=>f({tier})},[depth+'/src/services/entitlements']:e,[depth+'/src/ui/theme']:theme,[depth+'/src/engine/types']:types,[depth+'/src/ui/AnimatedPressable']:{AnimatedPressable:'Pressable'},
+  'expo-crypto':{randomUUID:()=> '00000000-0000-4000-8000-000000000001'},[depth+'/src/stores/scan-store']:{useScanStore:f=>f({tier})},[depth+'/src/services/entitlements']:e,[depth+'/src/ui/theme']:theme,[depth+'/src/engine/types']:types,[depth+'/src/ui/AnimatedPressable']:{AnimatedPressable:'Pressable'},
   [depth+'/src/stores/contest-store']:{useContestStore:f=>f({contests:[contest],updateContest:save,addContest:save,addRound:save}),defaultCourse:()=>({name:'Course',holes:Array.from({length:18},(_,i)=>({num:i+1,par:4,hcp:i+1}))}),generateId:()=>String(Math.random())},
  });
  const Screen=load(path,deps).default;

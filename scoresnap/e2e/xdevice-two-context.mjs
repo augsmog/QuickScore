@@ -15,6 +15,8 @@ const shot=(p,n)=>p.screenshot({path:path.join(out,`${n}.png`),fullPage:true});
 const text=(p,s)=>p.getByText(s,{exact:true}).filter({visible:true}).first();
 async function signIn(p,who) {
   await p.goto(`${base}/auth/sign-in`);
+  await p.waitForTimeout(700);
+  if(await text(p,'Skip').isVisible()) { await text(p,'Skip').click(); await p.goto(`${base}/auth/sign-in`); }
   await text(p,'Already have an account? Sign in').click();
   await p.getByPlaceholder('Email address').waitFor();
   await shot(p,`${who}-signin`);
@@ -38,7 +40,7 @@ try {
     await shot(a,'01-create');
     await a.getByText(/^Next/i).filter({visible:true}).last().click();
     await a.getByText(/^Next/i).filter({visible:true}).last().click();
-    await text(a,'Start Contest').click();
+    await text(a,/^START CONTEST/i).click();
     await a.waitForURL(/\/contest\/[^/]+$/);
     const contestUrl=a.url();
     await text(a,'Enable online sharing').click();
@@ -63,11 +65,26 @@ try {
     await shot(a,'06-score');
     await b.getByText(/Hole 1 · current 4/).waitFor({timeout:20000});
     await shot(b,'07-received');
-    // A fresh isolated actor has no contests. B sees only this approved round.
+    // Enroll another real contest owned by A without approving B for it.
+    await a.goto(`${base}/contest/new`);
+    await a.getByPlaceholder('Your name').fill('Private Host');
+    await a.getByPlaceholder('Player 2 name').fill('Private Player');
+    await a.getByText(/^Next/i).filter({visible:true}).last().click();
+    await a.getByText(/^Next/i).filter({visible:true}).last().click();
+    await text(a,/^START CONTEST/i).click();
+    await a.waitForURL(/\/contest\/[^/]+$/);
+    const privateUrl=a.url();
+    await text(a,'Enable online sharing').click();
+    await a.getByTestId('organizer-join-code').waitFor();
+    await shot(a,'08-private-host-round');
+    await b.goto(privateUrl);
+    assert(!await text(b,'Private Player').isVisible(),'B cannot see the unrelated contest roster');
+
     await b.goto(`${base}/join/enter`);
     await b.getByText('Xdev Joiner',{exact:true}).first().waitFor();
     assert.equal(await b.getByText(/Confirmed tournament totals/).count(),1,'B must see exactly the approved contest');
-    await shot(b,'08-private');
+    assert(!await text(b,'Private Player').isVisible());
+    await shot(b,'09-private');
     console.log('PASS two isolated signed-in browsers: enrollment, invite, approval, score propagation <=20s, approved-contest discovery');
   }
 } finally { await Promise.all(contexts.map(c=>c.close())); await browser.close(); }

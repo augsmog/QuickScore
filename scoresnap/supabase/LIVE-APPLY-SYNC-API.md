@@ -58,7 +58,7 @@ After enrollment, build `syncapi-request.py pause` and POST. It retains the 13-r
 
 ## Client flow and live Auth
 
-Build with `EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true`, real live Supabase URL/public anon key, and offline mode false. Keep live anonymous sign-ins OFF and captcha OFF. Signed-in host: New Contest → enter host plus second player → Next → choose a free game → Next → Start Contest → Enable online sharing. This explicit action creates an empty protocol-0 remote contest, calls enroll_contest with the server revision, then sync_round_bundle for each round, and restores the host snapshot. Existing nonzero scores fail visibly with import-review guidance. Failures leave the local round available and offer retry; no enrollment success is displayed until the server snapshot is restored.
+Build with `EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true`, real live Supabase URL/public anon key, and offline mode false. Keep live anonymous sign-ins OFF and captcha OFF. Signed-in host: New Contest → enter host plus second player → Next → choose a free game → Next → Start Contest → Enable online sharing. New contests use UUIDs accepted by PostgreSQL. Older local IDs receive explicit new-round/import-review guidance. This explicit action creates an empty protocol-0 remote contest, calls enroll_contest with the server revision, then sync_round_bundle for each round, and restores the host snapshot. Existing nonzero scores fail visibly with import-review guidance. Failures leave the local round available and offer retry; no enrollment success is displayed until the server snapshot is restored.
 
 The header shows the six-character join code and Copy / share invite after enrollment. Web links use `/join/<code>`; native shares `snapscore://join/<code>`. A second user signs in with email/password or Apple, opens the link (or Home → Join with code), enters display name, and taps Find contest. The request reveals no roster. Host opens Online sync → Retry sync → Approve as <player> and confirms the transfer. B's join screen discovers the approved round and assigned scorecard; no separate claim is required after approval. Host enters hole 1 on the scorecard. Versioned write_score queues/replays the edit; private Realtime sends a revision hint, followed by authorized fetch_snapshot. Foreground polling fallback is 30 seconds, so the <=20-second browser criterion needs working Realtime. Reconnect and foreground also trigger discovery/replay.
 
@@ -81,7 +81,7 @@ The privacy-branch migration is byte-identical to the content embedded in the li
 
 - `migrations/20261028223000_account_purge.sql`: `b3a686f382f73495767137393921c8be822835f85f7d76c7958001e0a8c75f70`
 - `migrations/20261029180000_sync_api.sql`: `674b4fff7b65a1baeee47343d665f56dacc2705ed1aa53280257379f7a1f2c94`
-- `rollback/20261028223000_account_purge.down.sql`: `c8e04920fb89be72892f7f24baf5b129167784cc87dbb9af48909099569f894f`
+- `rollback/20261028223000_account_purge.down.sql`: `85c81e585e13bc3b746bb0063bbdfc2854c806ef1220e0471ebdb7630960f41f`
 - `rollback/20261029180000_sync_api.down.sql`: `596986319da7c3dfa25149f30812430d836c1a720fedbbab546a61b5ea4996fc`
 - `rollback/20261029180000_sync_api.pause.sql`: `a3f2cf6f2aabc8e747f3c8286f933bce9177d6f3c965ea6a118559cf672f20d4`
 - `schema-drift/catalog-query.sql`: `24562a0f4149820de795631c2c43e9f1fddd2d5c07c1c2ad6298e1334cfdbbb5`

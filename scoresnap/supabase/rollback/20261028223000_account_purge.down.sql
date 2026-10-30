@@ -168,4 +168,3 @@ BEGIN
   END IF;
   RETURN jsonb_build_object('round_id', rid, 'groups', groups);
 END $$;
-

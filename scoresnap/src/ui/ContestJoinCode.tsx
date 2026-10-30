@@ -21,6 +21,7 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || session.user.is_anonymous) throw Error('Sign in with email or Apple to enable online sharing.');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contest.id)) throw Error('Create a new round to enable online sharing. Older local rounds require import review.');
       await enrollNewRound(contest, session.user.id, {
         create: async row => { const {error} = await supabase.from('contests').insert(row); if (error && error.code !== '23505') throw error; },
         rpc: async (name, args) => { const {data,error} = await supabase.rpc(name,args); if(error) throw error; return data; },
