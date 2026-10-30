@@ -117,9 +117,14 @@ test("support route renders the contact email, deletion request, and no external
   const pages = load("src/web/public-pages.ts");
   const privacyMarkdown = fs.readFileSync(path.join(root, "docs/privacy-policy.md"), "utf8");
   expect(crypto.createHash("sha256").update(privacyMarkdown).digest("hex")).toBe(
-    "b4f9779635ea929bf687a8fdcec9b7f73fabb7afde9ac963879872a185ea61f2",
+    "6529180dd6a730a1cd6df9fd21e32bc298a86980e27eb750d3eaed5a68b1a32f",
   );
-  expect(privacyMarkdown).toContain("https://snapscore.autumn8.me/terms");
+  expect(privacyMarkdown).toContain("Effective date: October 30, 2026");
+  expect(privacyMarkdown).toContain("SnapScore is operated by John August Jones");
+  expect(privacyMarkdown).toContain("email augie@autumn8.me");
+  expect(privacyMarkdown).not.toMatch(/\bOPEN\b/);
+  expect(privacyMarkdown).not.toMatch(/\[E\d+\]/);
+  expect(privacyMarkdown.toLowerCase()).not.toContain("draft");
   expect(privacyMarkdown).not.toContain("august-industries.com");
   const supportHtml = fs.readFileSync(path.join(root, "site/support/index.html"), "utf8");
   const privacyHtml = fs.readFileSync(path.join(root, "site/privacy/index.html"), "utf8");
@@ -150,10 +155,14 @@ test("support route renders the contact email, deletion request, and no external
     const privacyBody = await privacy.text();
     expect(privacy.status).toBe(200);
     expect(privacyBody).toContain("mailto:augie@autumn8.me");
-    expect(privacyBody).toContain('id="deletion-and-how-to-ask-for-it"');
-    expect(privacyBody).toContain("It does not call Supabase to delete the user.");
-    expect(privacyBody).toContain("To ask for deletion of data this button does not remove, write to");
-    expect(privacyBody).toContain("Draft dated 27 October 2026");
+    expect(privacyBody).toContain("<title>Privacy policy · SnapScore</title>");
+    expect(privacyBody).toContain('id="retention-and-deletion"');
+    expect(privacyBody).toContain("Effective date: October 30, 2026");
+    expect(privacyBody).toContain("SnapScore is operated by John August Jones");
+    expect(privacyBody).toContain("To ask us to delete your account and the data stored on SnapScore's servers");
+    expect(privacyBody).toContain("forwards it to Anthropic's API");
+    expect(privacyBody).not.toContain("Draft dated");
+    expect(privacyBody).not.toContain("johnaugustjones@gmail.com");
     expect(externalScriptTags(privacyBody)).toEqual([]);
     expect(privacyBody).not.toMatch(/\bsrc\s*=\s*["']https?:/i);
   } finally {
