@@ -1,3 +1,4 @@
+import { TournamentCompletion } from './TournamentCompletion';
 import { hostOrDiscover } from '../services/online-client';
 import { useEffect, useState } from 'react';
 import { Alert, AppState, Pressable, ScrollView, Text, View } from 'react-native';
@@ -60,6 +61,7 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
         <Text accessibilityRole="alert" style={{ color: COLORS.text }}>Round {entry.draft.round_id} · Hole {entry.draft.hole}: {entry.state === 'queued' ? 'Waiting to sync' : entry.state === 'denied' ? 'Sync denied. Draft retained.' : `Conflict · current ${entry.receipt?.strokes ?? 'clear'} · yours ${entry.draft.strokes ?? 'clear'}`}</Text>
         {entry.state === 'conflict' && <>{button('Keep current', () => resolve(entry, 'keep-current'))}{button('Use my score', () => resolve(entry, 'use-mine'))}</>}
       </View>)}
+      <TournamentCompletion id={contest.id} report={setMessage} />
       {requests.map(request => <View key={request.id}>
         <Text style={{ color: COLORS.text }}>{request.requested_name} requests a player slot</Text>
         {Array.from(new Map((remote?.snapshot.rounds.flatMap(r => r.players) ?? []).map(player => [player.id, player])).values()).map(player => <View key={player.id}>{button(`Approve as ${player.displayName}`, () => {

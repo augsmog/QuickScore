@@ -72,7 +72,8 @@ INSERT INTO public.round_player_assignments(contest_id,round_id,player_id,group_
 INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,status) VALUES('${contest}','${r2}','${users[3].id}','${group}','approved');`);
   const rpc = (i:number) => async (name:string,args:Record<string,unknown>) => {
     const response=await fetch(`${api}${native?'':'/rest/v1'}/rpc/${name}`,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${users[i].token}`,...(anonKey?{apikey:anonKey}:{})},body:JSON.stringify(args)});
-    const data=await response.json();
+    const body=await response.text();
+    const data=body?JSON.parse(body):null;
     if(!response.ok) throw Object.assign(Error(`RPC ${name} failed`),{code:data.code,status:response.status});
     return data;
   };
@@ -274,6 +275,40 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
   requestsNow=await clients[0].listRequests(contest);
   await clients[0].decide(requestsNow.find((r:any)=>r.requester===users[1].id&&r.status==='pending').id,false,null);
   const rejected=await clients[1].discover();assert(!views[1].has(contest));assert(rejected.requests.some((r:any)=>r.status==='rejected'));
+  // M5 uses the production completion coordinator against real RPCs.
+  const completionModule=await import('../../src/services/tournament-completion');
+  const {tournamentCompletion}=(completionModule as any).default??completionModule;
+  const tc=randomUUID(),tr=randomUUID(),tg=randomUUID(),tp=randomUUID();
+  sql(`INSERT INTO public.contests(id,owner_id,course,protocol,sync_enabled) VALUES('${tc}','${users[0].id}','{"holes":[{"num":1,"par":4}]}',0,true);
+INSERT INTO public.contest_players(id,contest_id,name) VALUES('${tp}','${tc}','Finisher');
+UPDATE public.contest_rounds SET id='${tr}',name='Final',course_data=NULL WHERE contest_id='${tc}' AND round_number=1;
+INSERT INTO public.contest_groups(id,contest_id,round_id,name) VALUES('${tg}','${tc}','${tr}','Final group');
+INSERT INTO public.round_player_assignments(contest_id,round_id,player_id,group_id) VALUES('${tc}','${tr}','${tp}','${tg}');
+INSERT INTO public.published_rounds(contest_id,owner_id,local_id,snapshot) VALUES('${tc}','${users[0].id}','m5-chat','{}'); UPDATE public.contests SET protocol=1 WHERE id='${tc}';`);
+  const completion=tournamentCompletion({actor:async()=>users[0].id,queue:async()=>({entries:[]}),refresh:(id:string)=>rpc(0)('fetch_snapshot',{contest_id:id,after_revision:0}),rpc:async(name:string,args:any)=>({data:await rpc(0)(name,args),error:null})});
+  await assert.rejects(completion.submit(tc,tr,tg),{code:'55000'});
+  await rpc(0)('write_score',{contest_id:tc,round_id:tr,player_id:tp,hole:1,action:'set',strokes:4,expected_version:0,op_id:randomUUID(),request_hash:'m5'});
+  await assert.rejects(rpc(1)('submit_group',{contest_id:tc,round_id:tr,group_id:tg,expected_revision:1}),{code:'42501'});
+  await completion.submit(tc,tr,tg);
+  await completion.finalize(tc);
+  assert((await rpc(0)('fetch_snapshot',{contest_id:tc,after_revision:0})).completed);
+  await assert.rejects(rpc(0)('write_score',{contest_id:tc,round_id:tr,player_id:tp,hole:1,action:'clear',strokes:null,expected_version:1,op_id:randomUUID(),request_hash:'late'}),{code:'55000'});
+  const token=await rpc(0)('create_share_link',{p_local_id:'m5-chat'});
+  // No membership in tc: GS14 permits any watch-link holder to chat.
+  const session='a'.repeat(64);
+  await rpc(1)('post_message',{p_token:token,p_session:session,p_name:'Link holder',p_body:'Well played'});
+  const messages=await rpc(1)('list_messages',{p_token:token,p_since:null});
+  assert.equal(messages[0].body,'Well played');
+  assert.deepEqual(Object.keys(messages[0]).sort(),['body','created_at','display_name']);
+  for(let i=0;i<4;i++) await rpc(1)('post_message',{p_token:token,p_session:session,p_name:'Link holder',p_body:'Boundary'});
+  await assert.rejects(rpc(1)('post_message',{p_token:token,p_session:session,p_name:'Link holder',p_body:'Over limit'}),{code:'P0001'});
+  const hostMessages=await rpc(0)('list_host_messages',{p_local_id:'m5-chat'});
+  await rpc(0)('remove_message',{p_message_id:hostMessages[0].id});
+  assert.equal((await rpc(1)('list_messages',{p_token:token,p_since:null})).length,4);
+  sql(`UPDATE public.share_links SET expires_at=now()-interval '1 second' WHERE contest_id='${tc}';`);
+  await assert.rejects(rpc(1)('list_messages',{p_token:token,p_since:null}),{code:'P0001'});
+  await assert.rejects(rpc(1)('post_message',{p_token:token,p_session:session,p_name:'Expired',p_body:'No'}),{code:'P0001'});
+  console.log('PASS M5 production completion: incomplete/foreign groups denied, submit/finalize, late write denied; GS14 link-holder chat, rate limit, moderation, expiry');
   console.log('PASS anonymous enrollment/pending privacy/host approval/transfer/reject; production onlineClient + foreground replay; four-way same-cell overlap in two reconnect orders');
   console.log('PASS four independent identities: durable offline overlap/disjoint, lost response/restart, conflict, tombstone, asymmetric rounds, convergence, revocation and reconnect');
   console.log(native?'LIMIT: native JWT issuance and Realtime SQL stubs; no Auth service or sockets':'PASS disposable Auth signup/refresh, PostgREST, private revision sockets, authorized reconnect and revoked resubscribe denial');

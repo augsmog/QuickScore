@@ -1,3 +1,4 @@
+import { tournamentCompletion } from './tournament-completion';
 import { loadSyncCapability, revisionChannel, snapshotScore } from './sync-v1';
 import { foregroundSync, foregroundRetry } from './online-client';
 import { Platform } from 'react-native';
@@ -50,8 +51,13 @@ async function box(expectedActor?: string) {
   return boxes.get(actor)!;
 }
 // Web Locks excludes other tabs for the entire read/modify/write sequence.
+let nativeWriter: Promise<unknown> = Promise.resolve();
 async function writer<T>(work: () => Promise<T>): Promise<T> {
-  if (Platform.OS !== 'web') return work();
+  if (Platform.OS !== 'web') {
+    const result = nativeWriter.then(work);
+    nativeWriter = result.catch(() => undefined);
+    return result;
+  }
   const locks = (globalThis.navigator as any)?.locks;
   if (!locks) throw Error('This browser cannot safely queue online scores; use one supported browser');
   return locks.request('snapscore-online-outbox', { ifAvailable: true }, (lock: unknown) => {
@@ -113,3 +119,27 @@ export const refreshOnline = foregroundRetry(async () => {
   if (error) throw error;
   return data.session?.user.id ?? null;
 }, replayOnlineScores, async () => { await client.discover(); return null; });
+
+/** No anonymous signup from completion controls; refresh current authorization. */
+const completion = tournamentCompletion({
+  rpc: async (name, args) => {
+    if (!onlineEnabled) throw Error('Cross-device sharing is off');
+    return supabase.rpc(name, args);
+  },
+  actor: async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return data.session?.user.id ?? null;
+  },
+  queue: async () => (await box()).inspect(),
+  refresh: async id => {
+    const event = useOnlineStore.getState().events[id];
+    if (event?.membership.role === 'host') return (await client.rejoinHost(id)).snapshot;
+    return client.rejoin(id);
+  },
+});
+
+export const tournament = {
+  submit: (id: string, round: string, group: string) => writer(() => completion.submit(id, round, group)),
+  finalize: (id: string) => writer(() => completion.finalize(id)),
+};

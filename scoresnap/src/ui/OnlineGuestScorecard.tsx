@@ -1,3 +1,4 @@
+import { TournamentCompletion } from './TournamentCompletion';
 import { confirmedTournamentTotals } from '../services/tournament-totals';
 import { projectScore, pendingConfirmation } from '../services/score-projection';
 import type { Entry } from '../services/score-outbox';
@@ -59,6 +60,7 @@ function ApprovedScorecard({ id, onError }: { id: string; onError: (message: str
     {entries.map(entry => <View key={entry.id}><Text style={{ color: COLORS.text }}>Hole {entry.draft.hole}: {entry.state} · round {entry.draft.round_id} · yours {entry.draft.strokes ?? 'clear'}{entry.receipt ? ` · current ${entry.receipt.strokes ?? 'clear'}` : ''}</Text>
       {entry.state === 'conflict' && (['keep-current', 'use-mine'] as const).map(choice => <Pressable key={choice} accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => Alert.alert('Resolve score conflict?', 'Later queued edits for this hole will be cancelled. Review and enter them again.', [{ text: 'Cancel' }, { text: 'Confirm', onPress: () => { void resolveOnlineConflict(entry.id, choice).then(() => client.discover()).then(() => inspectQueue()).catch(() => onError('Could not save conflict choice')); } }])}><Text style={{ color: COLORS.primary }}>{choice === 'keep-current' ? 'Keep current' : 'Use my score'}</Text></Pressable>)}
     </View>)}
+    <TournamentCompletion id={id} report={onError} />
     <Text style={{ color: COLORS.text }}>Confirmed tournament totals · queued edits excluded</Text>
     {confirmedTournamentTotals(snapshot).map(total => <View key={total.playerId}>
       <Text style={{ color: COLORS.text }}>{total.displayName}: {total.strokes ?? '—'}{total.complete ? '' : ' · incomplete'}</Text>
