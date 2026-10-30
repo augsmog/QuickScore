@@ -75,12 +75,14 @@ try {
     await b.getByText('Xdev Joiner',{exact:true}).first().waitFor({timeout:20000});
     await shot(b,'05-claimed');
     let revisionFrames = 0;
+    let receivedRevision;
+    const revisionDelivered = new Promise(resolve => { receivedRevision = resolve; });
     let subscribed;
     const subscription = new Promise(resolve => { subscribed = resolve; });
     b.on('websocket', ws => ws.on('framereceived', ({payload}) => {
       const frame = String(payload);
       if (frame.includes('phx_reply') && frame.includes('snapscore:') && frame.includes('"status":"ok"')) subscribed();
-      if (frame.includes('broadcast') && frame.includes('revision')) revisionFrames++;
+      if (frame.includes('revision') && !frame.includes('phx_reply')) { revisionFrames++; receivedRevision(); }
     }));
     await b.reload();
     await b.getByText('Xdev Joiner',{exact:true}).first().waitFor();
@@ -91,11 +93,15 @@ try {
     await text(a,'Retry sync').click();
     await text(a,'Current online snapshot').waitFor();
     await a.getByTestId('organizer-join-code').waitFor();
+    await b.waitForLoadState('networkidle');
     const beforeRevision = revisionFrames;
     const scoreStarted = Date.now();
     await a.getByTestId('score-par-Xdev Joiner').click();
     await shot(a,'06-score');
-    await b.getByText(/Hole 1 · current 4/).waitFor({timeout:20000});
+    await Promise.all([
+      b.getByText(/Hole 1 · current 4/).waitFor({timeout:20000}),
+      Promise.race([revisionDelivered, new Promise((_,reject)=>setTimeout(()=>reject(Error('Post-edit Realtime revision deadline')),20000))]),
+    ]);
     assert(Date.now()-scoreStarted <= 20000,'Score arrived within 20 seconds');
     assert(revisionFrames > beforeRevision,'Private Realtime revision delivered');
     await shot(b,'07-received');
