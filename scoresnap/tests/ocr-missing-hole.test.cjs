@@ -69,7 +69,7 @@ for(const first of [1,10]) test(`explicit nine-hole identities ${first} retained
 });
 // Actual Zustand store, with native persistence/auth/sync mocked. No network.
 const zustand=require('zustand');
-const store=load('src/stores/contest-store.ts',{
+const store=load('src/stores/contest-store.ts',{'./online-store':{useOnlineStore:{getState:()=>({events:{}})}},
  '../services/ocr-review':review,'../config/auth':{REAL_AUTH_CONFIGURED:false},'./auth-store':{useAuthStore:{getState:()=>({})}},
  '../services/guest-join':{generateJoinCode:()=> 'LOCAL'},zustand,'zustand/middleware':{persist:f=>f,createJSONStorage:()=>({})},
  '@react-native-async-storage/async-storage':{},'../services/tournament-sync':{},
