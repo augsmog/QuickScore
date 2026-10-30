@@ -13,7 +13,7 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base, { waitUntil: 'networkidle' });
-  await page.getByText('Precision Scoring', { exact: false }).waitFor();
+  await page.getByText('Build contests. Settle up.', { exact: false }).waitFor();
   const joins = page.getByText(/Join with code/i);
   assert.equal(await joins.count(), sharing ? 1 : 0);
   if (sharing) {
@@ -59,7 +59,7 @@ try {
       await page.getByText('Join with code — no account needed', { exact: true }).waitFor({ state: 'detached' });
       await page.getByText('Create Account', { exact: false }).waitFor();
     } else {
-      await page.getByText('Precision Scoring', { exact: false }).waitFor();
+      await page.getByText('Build contests. Settle up.', { exact: false }).waitFor();
       console.log('Offline auth redirected to home; join text remains absent');
     }
     assert.equal(await page.getByText(/Join with code/i).count(), 0);
