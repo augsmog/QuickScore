@@ -1,3 +1,4 @@
+import { OnlineSyncPanel } from "../../../src/ui/OnlineSyncPanel";
 import { LiveShare } from "../../../src/ui/LiveShare";
 import { ContestJoinCode } from "../../../src/ui/ContestJoinCode";
 import { useState, useCallback } from "react";
@@ -74,6 +75,7 @@ export default function ContestLayout() {
     <SafeAreaView testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       <ContestJoinCode contest={contest} />
       <LiveShare contest={contest} />
+      <OnlineSyncPanel contest={contest} />
       {/* Header */}
       <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>

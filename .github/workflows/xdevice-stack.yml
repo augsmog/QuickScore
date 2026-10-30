@@ -1,0 +1,66 @@
+name: Cross-device disposable stack
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: read
+concurrency:
+  group: xdevice-stack-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+jobs:
+  xdevice-four-identities:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pin M4b completion proof server under test
+        uses: actions/checkout@v4
+        with:
+          repository: augsmog/QuickScore
+          ref: f2a98d8b3d7e30b44fbbf9cf4fe74c37cb91eede
+          path: backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - name: Install client dependencies on disposable hosted runner
+        working-directory: scoresnap
+        run: npm ci --no-audit --no-fund
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - uses: docker/login-action@v3
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start disposable PG17, Auth, PostgREST and Realtime (never linked)
+        working-directory: backend/scoresnap
+        run: |
+          # Disposable runner fixture only: real anonymous guest enrollment.
+          # Never linked to a project; no deployed Auth configuration is changed.
+          sed -i 's/enable_anonymous_sign_ins = false/enable_anonymous_sign_ins = true/' supabase/config.toml
+          # CLI start prints disposable API credentials on success; retain only
+          # a private runner-temporary log and never upload or print its contents.
+          if ! bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit > "$RUNNER_TEMP/xdevice-start.log" 2>&1; then
+            echo "Disposable stack startup failed"
+            docker ps --format '{{.Names}} {{.Status}}'
+            exit 1
+          fi
+          supabase db reset
+      - name: Four identities against integrated M4a and M4b
+        working-directory: scoresnap
+        env:
+          XDEVICE_API: http://127.0.0.1:54321
+          XDEVICE_DB: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          XDEVICE_BACKEND: ${{ github.workspace }}/backend/scoresnap
+        run: node --import tsx e2e/xdevice/four-identities.mts
+      - name: Stop disposable stack
+        if: always()
+        working-directory: backend/scoresnap
+        run: supabase stop --no-backup

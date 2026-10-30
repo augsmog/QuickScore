@@ -1,0 +1,60 @@
+
+> snapscore@1.0.0 test
+> jest --runInBand tests/m4a.test.cjs
+
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+1 !== 9
+
+    at file:///workspace/aos-work/snapscore-m4a-20261029/code/scoresnap/[eval1]:4:268 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 9,
+  operator: 'strictEqual'
+}
+
+Node.js v20.19.2
+FAIL tests/m4a.test.cjs
+  ● fresh snapshot version supersedes older durable receipt on next independent edit
+
+    Command failed: /usr/bin/node --import tsx --input-type=module -e import assert from 'node:assert/strict'; const load=async p=>{const m=await import(p);return m.default??m}; const {scoreOutbox}=await load('./src/services/score-outbox.ts');let raw=null,n=0,fail=false;const calls=[];
+    const storage={getItem:async()=>raw,setItem:async(k,v)=>{if(fail)throw Error('disk full');raw=v}};
+    const draft={contest_id:'c',round_id:'r',player_id:'p',hole:1,action:'set',strokes:4};const ids=()=> 'op-'+(++n);
+    const box=scoreOutbox(storage,'actor',ids,async a=>{calls.push(a);return {status:'accepted',version:a.expected_version+1,strokes:a.strokes,revision:1}});await box.enqueue(draft,0);await box.replay();await box.enqueue({...draft,strokes:5},9);await box.replay();assert.equal(calls[1].expected_version,9);
+
+    node:internal/modules/run_main:123
+        triggerUncaughtException(
+        ^
+
+    AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+    1 !== 9
+
+      1 | const {execFileSync}=require('node:child_process');
+    > 2 | const run=body=>void execFileSync(process.execPath,['--import','tsx','--input-type=module','-e',`import assert from 'node:assert/strict'; const load=async p=>{const m=await import(p);return m.default??m}; ${body}`],{encoding:'utf8'});
+        |                      ^
+      3 | test('real session derivation separates anonymous auth and preserves provider',()=>run(`
+      4 | const {deriveSession}=await load('./src/services/auth-session.ts');
+      5 | const result=deriveSession({user:{id:'uuid',is_anonymous:true,app_metadata:{provider:'email'}},refresh_token:'SECRET'});
+
+      at file:/workspace/aos-work/snapscore-m4a-20261029/code/scoresnap/[eval1]:4:268 {
+        generatedMessage: true,
+        code: 'ERR_ASSERTION',
+        actual: 1,
+        expected: 9,
+        operator: 'strictEqual'
+      }
+      Node.js v20.19.2
+      at run (tests/m4a.test.cjs:2:22)
+      at Object.<anonymous> (tests/m4a.test.cjs:57:93)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 11 passed, 12 total
+Snapshots:   0 total
+Time:        3.683 s, estimated 4 s
+Ran all test suites matching tests/m4a.test.cjs.
