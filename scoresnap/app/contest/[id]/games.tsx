@@ -1,6 +1,6 @@
 import { executionGameConfig } from "../../../src/engine/types";
 import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actual-inputs";
-import { scopedAuxiliary, calculateContestSettlement, teamCardPlayers } from "../../../src/engine/contest-results";
+import { scopedAuxiliary, calculateContestSettlement, teamCardPlayers, contestStableford } from "../../../src/engine/contest-results";
 import { calcMatchPlay } from "../../../src/engine/calculators/match-play";
 import { Link } from "expo-router";
 import { View, Text, ScrollView } from "react-native";
@@ -328,7 +328,7 @@ export default function GamesScreen() {
             {/* ── Stableford / Mod Stableford ── */}
             {(gameId === "stableford" || gameId === "mod_stableford") && (
               <View>
-                {(contest.gameConfig?.rulesVersion === 1 && gameId === "stableford" ? calcStableford(allPlayers, contest.course, contest.gameConfig, scopedAuxiliary(contest,contest.groups[0]?.id)) : (gameId === "mod_stableford" ? calcModStableford : calcStableford)(allPlayers, contest.course)).map((r, i) => (
+                {(contest.gameConfig?.rulesVersion === 1 && gameId === "stableford" ? contestStableford(contest) : (gameId === "mod_stableford" ? calcModStableford : calcStableford)(allPlayers, contest.course)).map((r, i) => (
                   <View
                     key={r.playerId}
                     style={{

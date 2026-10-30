@@ -1,6 +1,7 @@
 import type { Contest } from '../stores/contest-store';
 import { AuxiliaryData, GameType, SettlementSummary } from './types';
 import { calculateSettlement } from './settlement';
+import { calcStableford } from './calculators/stableford';
 export const scopeKey=(roundId:string|undefined,groupId:string)=>`${roundId??'default'}/${groupId}`;
 export function scopedAuxiliary(contest:Contest,groupId:string,roundId?:string):AuxiliaryData {
   if (contest.gameConfig?.rulesVersion!==1) return contest.auxiliaryData??{};
@@ -41,4 +42,18 @@ export function teamCardPlayers(contest:Contest,currentOnly=false) {
   const old=cards.get(key);if(old){old.scores=old.scores.map((n,i)=>n+(scores[i]??0));}else cards.set(key,{id:key,name:`Team ${team}`,handicap:0,team,scores});
  }
  return [...cards.values()];
+}
+
+/** Use the same round/group declarations for the points leaderboard and settlement. */
+export function contestStableford(contest: Contest) {
+  const rounds = contest.isTournament && contest.rounds?.length ? contest.rounds : [{id:undefined, course:contest.course, groups:contest.groups}];
+  const totals = new Map<string, ReturnType<typeof calcStableford>[number]>();
+  for (const round of rounds) {
+    const choices = Object.assign({}, ...round.groups.map(g => scopedAuxiliary(contest,g.id,round.id).jokerDeclarations?.[0] ?? {}));
+    for (const result of calcStableford(round.groups.flatMap(g=>g.players),round.course ?? contest.course,contest.gameConfig,{jokerDeclarations:{0:choices}})) {
+      const previous = totals.get(result.playerId);
+      totals.set(result.playerId, previous ? {...result,points:previous.points+result.points,holePoints:[...previous.holePoints,...result.holePoints]} : result);
+    }
+  }
+  return [...totals.values()].sort((a,b)=>b.points-a.points);
 }

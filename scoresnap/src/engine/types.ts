@@ -513,7 +513,7 @@ export const LEGACY_GAME_VARIATIONS: GameVariation[] = [
   {
     id: "bbb_birdie_double",
     label: "Double Points for Birdie",
-    desc: "SnapScore house rule: each confirmed BBB category earned by a player making a gross birdie is worth 2 points. Other categories stay at 1. No automatic sweep or chip-in bonus.",
+    desc: "SnapScore house rule: each confirmed BBB category earned by a player making a gross birdie or better is worth 2 points. Other categories stay at 1. No automatic sweep or chip-in bonus.",
     configKey: "bbbBirdieDouble",
     configValue: true,
     appliesTo: ["bingo_bango_bongo"],

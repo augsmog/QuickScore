@@ -19,10 +19,12 @@ export function calcStableford(
   auxiliary?: AuxiliaryData
 ): StablefordResult[] {
   if(config?.rulesVersion===1)config=configForGame(config,"stableford");
+  const firstMissing = course.holes.findIndex((_, i) => players.some(p => !Number.isFinite(p.scores[i]) || p.scores[i] <= 0));
+  const confirmed = config?.rulesVersion === 1 && firstMissing >= 0 ? firstMissing : course.holes.length;
   return players
     .map((p) => {
       const holePoints = course.holes.map((hole, i) =>
-        p.scores[i] > 0 ? (() => {
+        i < confirmed && p.scores[i] > 0 ? (() => {
           const score = p.scores[i] - (config?.rulesVersion === 1 && config.netHandicap ? handicapStrokesForHole(p.courseHandicaps?.[course.name] ?? p.handicap, hole.hcp) : 0);
           if (config?.rulesVersion === 1 && config.modifiedStableford) {
             const diff = score - hole.par;

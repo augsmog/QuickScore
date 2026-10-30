@@ -46,7 +46,7 @@ export function calcSkins(
     if (!players.some((p) => p.scores[i] > 0)) continue;
     pot++;
     const scores = players.map((p) => {
-      const strokes = handicapStrokesForHole(p.handicap, course.holes[i].hcp);
+      const strokes = handicapStrokesForHole(config?.rulesVersion === 1 ? p.courseHandicaps?.[course.name] ?? p.handicap : p.handicap, course.holes[i].hcp);
       return { name: p.name, score: p.scores[i] > 0 ? p.scores[i] - (mode === "net" ? strokes : 0) : Infinity };
     });
     const min = Math.min(...scores.map((s) => s.score));
