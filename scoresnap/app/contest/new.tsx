@@ -58,6 +58,8 @@ interface PlayerInput {
   handicap: string;
   team: string | null; // team ID, null = no team
   groupIndex: number;
+  /** Player 1 is the signed-in host. The flag stays if they edit the name. */
+  host?: boolean;
 }
 
 interface TeamInput {
@@ -88,7 +90,7 @@ export default function NewContestScreen() {
   const [selectedTeeBox, setSelectedTeeBox] = useState<TeeBox | null>(null);
   const [numGroups, setNumGroups] = useState(1);
   const [players, setPlayers] = useState<PlayerInput[]>([
-    { id: generateId(), name: userFirstName, handicap: "0", team: null, groupIndex: 0 },
+    { id: generateId(), name: userFirstName, handicap: "0", team: null, groupIndex: 0, host: true },
     { id: generateId(), name: "", handicap: "0", team: null, groupIndex: 0 },
   ]);
   const [hasTeams, setHasTeams] = useState(false);
@@ -270,6 +272,7 @@ export default function NewContestScreen() {
           name: p.name.trim(),
           handicap: parseFloat(p.handicap) || 0,
           team: hasTeams ? p.team : null,
+          host: p.host === true,
           scores: new Array(18).fill(0),
         })),
       })

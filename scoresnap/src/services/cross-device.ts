@@ -1,3 +1,4 @@
+import { persistGate } from '../stores/persisted-keys';
 import { tournamentCompletion } from './tournament-completion';
 import { loadSyncCapability, revisionChannel, snapshotScore } from './sync-v1';
 import { foregroundSync, foregroundRetry } from './online-client';
@@ -31,11 +32,23 @@ export async function remoteIdentity() {
   })().finally(() => { signingIn = undefined; });
   return signingIn;
 }
+let generation = 0;
+const active = new Set<Promise<unknown>>();
+export async function resetOnlineQueues() {
+  generation += 1;
+  await Promise.allSettled([...active]);
+  boxes.clear();
+  await outboxStorage.clear();
+}
 const boxes = new Map<string, ReturnType<typeof scoreOutbox>>();
 async function box(expectedActor?: string) {
   const actor = await remoteIdentity();
   if (expectedActor && actor !== expectedActor) throw Error('Identity changed during replay');
-  if (!boxes.has(actor)) boxes.set(actor, scoreOutbox(outboxStorage, actor, Crypto.randomUUID, async args => {
+  if (!boxes.has(actor)) boxes.set(actor, scoreOutbox({
+    getItem: key => outboxStorage.getItem(key),
+    setItem: (key, value) => persistGate.suppressed ? Promise.resolve() : outboxStorage.setItem(key, value),
+  }, actor, Crypto.randomUUID, async args => {
+    if (persistGate.suppressed) throw Object.assign(Error('Account reset'), { code: '42501' });
     // Refresh before replay; never replay an old identity's operations as another user.
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
@@ -44,6 +57,7 @@ async function box(expectedActor?: string) {
     const current = await supabase.auth.getSession();
     if (current.error) throw current.error;
     if (current.data.session?.user.id !== actor) throw Object.assign(Error('Identity changed'), { code: '42501' });
+    if (persistGate.suppressed) throw Object.assign(Error('Account reset'), { code: '42501' });
     const result = await supabase.rpc('write_score', args);
     if (result.error) throw result.error;
     return result.data as Receipt;
@@ -52,7 +66,17 @@ async function box(expectedActor?: string) {
 }
 // Web Locks excludes other tabs for the entire read/modify/write sequence.
 let nativeWriter: Promise<unknown> = Promise.resolve();
-async function writer<T>(work: () => Promise<T>): Promise<T> {
+function writer<T>(work: () => Promise<T>): Promise<T> {
+  const epoch = generation;
+  const guarded = async () => {
+    if (persistGate.suppressed || epoch !== generation) throw Error('Account reset');
+    return work();
+  };
+  const pending = runWriter(guarded);
+  active.add(pending);
+  return pending.finally(() => active.delete(pending));
+}
+async function runWriter<T>(work: () => Promise<T>): Promise<T> {
   if (Platform.OS !== 'web') {
     const result = nativeWriter.then(work);
     nativeWriter = result.catch(() => undefined);

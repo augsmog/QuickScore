@@ -25,8 +25,12 @@ import { COLORS } from "../src/ui/theme";
 import "../global.css";
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
+import { assertNoDefaultPii, assertReplayMask, scrubSentryEvent, sentryReplayMask, sentrySendDefaultPii } from "../src/config/sentry-privacy";
 
 SplashScreen.preventAutoHideAsync();
+
+assertNoDefaultPii(sentrySendDefaultPii);
+assertReplayMask(sentryReplayMask);
 
 const routingInstrumentation = Sentry.reactNavigationIntegration({
   enableTimeToInitialDisplay: true,
@@ -43,7 +47,7 @@ Sentry.init({
   dist: Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode?.toString(),
   environment: __DEV__ ? "development" : "production",
 
-  sendDefaultPii: true,
+  sendDefaultPii: sentrySendDefaultPii,
   enableLogs: true,
 
   // Performance tracing — capture 20% of transactions
@@ -57,16 +61,16 @@ Sentry.init({
   replaysOnErrorSampleRate: 1,
 
   integrations: [
-    Sentry.mobileReplayIntegration(),
+    Sentry.mobileReplayIntegration(sentryReplayMask),
     Sentry.feedbackIntegration(),
     routingInstrumentation,
   ],
 
-  // Filter out noise
+  // Filter out noise. User context keeps an id and drops email and name.
   beforeSend(event) {
-    // Don't send events in dev mode unless explicitly testing
-    if (__DEV__ && !event.tags?.["force_send"]) return null;
-    return event;
+    const scrubbed = scrubSentryEvent(event);
+    if (__DEV__ && !scrubbed.tags?.["force_send"]) return null;
+    return scrubbed;
   },
 
   // Breadcrumb filtering — keep navigation, user actions, network

@@ -9,7 +9,10 @@ async function db() {
   })();
   return database;
 }
-export const outboxStorage: EnvelopeStorage = {
+export const outboxStorage: EnvelopeStorage & { clear(): Promise<void> } = {
+  async clear() {
+    await (await db()).runAsync('DELETE FROM envelopes');
+  },
   async getItem(key) {
     return (await (await db()).getFirstAsync<{ value: string }>('SELECT value FROM envelopes WHERE key = ?', key))?.value ?? null;
   },

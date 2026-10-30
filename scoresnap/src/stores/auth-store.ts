@@ -7,6 +7,7 @@ import { supabase } from "../db/supabase";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../config/features";
 import { deriveSession } from "../services/auth-session";
 import { getCaptchaToken } from "../services/captcha";
+import { AUTH_STORAGE_KEY, createGatedStorage, persistGate } from "./persisted-keys";
 
 interface UserProfile {
   id: string;
@@ -68,7 +69,11 @@ export const useAuthStore = create<AuthState>()(
             set({ session: user ? { user } : null, user, isAnonymous: false, isInitialized: true, isLoading: false });
           };
           authSubscription?.unsubscribe();
-          authSubscription = supabase.auth.onAuthStateChange((_event, session) => apply(session)).data.subscription;
+          authSubscription = supabase.auth.onAuthStateChange((event, session) => {
+            const previous = persistGate.suppressed;
+            if (event === "SIGNED_OUT" && persistGate.suppressSignedOutPersist) persistGate.suppressed = true;
+            try { apply(session); } finally { persistGate.suppressed = previous; }
+          }).data.subscription;
           const { data, error } = await supabase.auth.getSession();
           if (error) { set({ isInitialized: true, isLoading: false }); throw error; }
           apply(data.session);
@@ -89,6 +94,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithApple: async (idToken: string, nonce: string) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
@@ -119,6 +125,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithGoogle: async (idToken: string, accessToken?: string) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
@@ -154,6 +161,7 @@ export const useAuthStore = create<AuthState>()(
         firstName: string,
         lastName: string
       ) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
@@ -188,6 +196,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithEmail: async (email: string, password: string) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
@@ -219,6 +228,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       skipSignIn: () => {
+        persistGate.suppressSignedOutPersist = false;
         const user: UserProfile = {
           id: `anon-${Date.now()}`,
           name: "Golfer",
@@ -234,6 +244,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signOut: () => {
+        persistGate.suppressSignedOutPersist = false;
         if (REAL_AUTH_CONFIGURED) void supabase.auth.signOut();
         // Clear auth state
         set({ remoteUserId: null });
@@ -254,8 +265,8 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: "snapscore-auth",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: AUTH_STORAGE_KEY,
+      storage: createJSONStorage(() => createGatedStorage(AsyncStorage)),
       merge: (persisted: any, current) => CROSS_DEVICE_SHARING_ENABLED
         ? { ...current, ...persisted, isInitialized: false, remoteUserId: null }
         : { ...current, ...persisted },

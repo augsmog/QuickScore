@@ -77,7 +77,7 @@ Provide XDEV_A_EMAIL, XDEV_A_PASSWORD, XDEV_B_EMAIL, XDEV_B_PASSWORD securely in
 
 ## SQL SHA256
 
-The privacy-branch migration is byte-identical to the content embedded in the live wrapper, not to the whole wrapper. The wrapper adds its transaction and ledger INSERT. No other privacy-branch runtime files are ported; its paired down file is included only because historical migration-chain CI must peel account_purge before testing M3/M2.
+The privacy-branch migration is byte-identical to the content embedded in the live wrapper, not to the whole wrapper. The wrapper adds its transaction and ledger INSERT. Main PR #33 is merged, including account deletion and edge functions. Its paired down file is byte-identical to the candidate and is retained for historical migration-chain CI to peel account_purge before testing M3/M2.
 
 - `migrations/20261028223000_account_purge.sql`: `b3a686f382f73495767137393921c8be822835f85f7d76c7958001e0a8c75f70`
 - `migrations/20261029180000_sync_api.sql`: `674b4fff7b65a1baeee47343d665f56dacc2705ed1aa53280257379f7a1f2c94`
