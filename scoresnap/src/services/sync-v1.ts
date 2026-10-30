@@ -51,10 +51,9 @@ export function syncV1(call: (name: string, args: Record<string, unknown>) => Pr
     return () => identity === generation && authorization === (epochs.get(id) ?? 0);
   }
   return { restore, deny, guard, invalidate() { generation++; discovery++; known.clear(); epochs.clear(); }, async discover() {
-    const epoch = generation, request = ++discovery;
+    const epoch = generation, request = ++discovery, started = new Map(epochs);
     const status = await call('my_sync_status', {}) as MySyncStatusV1;
     if (epoch !== generation) throw Error('Identity changed during discovery');
-    if (request !== discovery) return status;
     if (status?.api_version !== 1 || !Array.isArray(status.memberships) || !Array.isArray(status.requests)) throw Error('Unsupported discovery');
     const approved = new Set(status.memberships.filter(m => m.status === 'approved').map(m => m.contest_id));
     for (const id of known) if (!approved.has(id)) { deny(id); }
@@ -62,7 +61,7 @@ export function syncV1(call: (name: string, args: Record<string, unknown>) => Pr
     for (const member of status.memberships) {
       if (epoch !== generation) throw Error('Identity changed during discovery');
       if (request !== discovery) return status;
-      if (member.status === 'approved') await restore(member.contest_id, member);
+      if (member.status === 'approved' && (started.get(member.contest_id) ?? 0) === (epochs.get(member.contest_id) ?? 0)) await restore(member.contest_id, member);
 
     }
     return status;
