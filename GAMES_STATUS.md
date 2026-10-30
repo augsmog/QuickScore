@@ -90,3 +90,4 @@ The unchanged origin/main golden fixture covers all 30 bases with omitted/empty 
 ## Manual QA required
 
 Release-device setup/edit/back/skip/reload, last-hole side-bet capture, complete-round locking, scan category confirmation and declarations, multi-round/multi-group course changes, canonical team cards, Pro/Free/TD access and eventual combined-tree validation with PR #33. No release-device QA was run in this build; it is not a build blocker.
+
