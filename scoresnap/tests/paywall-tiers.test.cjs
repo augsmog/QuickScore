@@ -87,7 +87,7 @@ test('consent prompt persists decline and allows settings withdrawal without rep
  expect(alert.mock.calls[0][1]).toContain('Anthropic (Claude)');alert.mock.calls[0][2][0].onPress();expect(await pending).toBe(false);expect(await svc.requestOCRConsent()).toBe(false);expect(alert).toHaveBeenCalledTimes(1);
  choice=true;expect(await svc.requestOCRConsent()).toBe(true);choice=false;expect(await svc.requestOCRConsent()).toBe(false);
 });
-test('scan allowance uses local calendar rollover and does not persist purchased access',()=>{
+test('scan allowance uses local calendar rollover and TD includes unlimited access',()=>{
  jest.useFakeTimers();try{
  jest.setSystemTime(new Date(2026,9,31,23,59));const store=load('src/stores/scan-store.ts',{'../services/entitlements':entitlement(),zustand:require('zustand'),'zustand/middleware':persistence,'@react-native-async-storage/async-storage':{}}).useScanStore;
  for(let i=0;i<3;i++)expect(store.getState().useScan()).toBe(true);expect(store.getState().canScan()).toBe(false);
@@ -98,4 +98,11 @@ test('scan allowance uses local calendar rollover and does not persist purchased
 test('actual add-round action requires TD and permits TD',()=>{
  const free=screenHarness('app/contest/[id]/tournament-rounds.tsx','free');button(free.render(),'Add Round').props.onPress();expect(free.save).not.toHaveBeenCalled();expect(free.push).toHaveBeenLastCalledWith('/paywall?tier=td');
  const td=screenHarness('app/contest/[id]/tournament-rounds.tsx','td');button(td.render(),'Add Round').props.onPress();expect(td.save).toHaveBeenCalledWith('c','Round 3');
+});
+test('subscription cache survives offline restart and migrates existing Pro users consistently',()=>{
+ let options;
+ const store=load('src/stores/scan-store.ts',{'../services/entitlements':entitlement(),zustand:require('zustand'),'zustand/middleware':{persist:(f,o)=>{options=o;return f;},createJSONStorage:()=>({})},'@react-native-async-storage/async-storage':{}}).useScanStore;
+ expect(options.migrate({isPro:true,scansUsed:1})).toMatchObject({tier:'pro',isPro:true,isTD:false,scanMonth:''});
+ store.getState().setTier('td');expect(options.partialize(store.getState())).toMatchObject({tier:'td',isPro:true,isTD:true});
+ store.getState().setTier('free');expect(options.partialize(store.getState())).toMatchObject({tier:'free',isPro:false,isTD:false});
 });

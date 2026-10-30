@@ -49,11 +49,17 @@ export const useScanStore = create<ScanState>()(
     {
       name: "snapscore-scans",
       version: 1,
-      migrate: (old: any) => ({scansUsed: old?.scansUsed ?? 0, scanMonth: old?.scanMonth ?? ""}) as ScanState,
+      migrate: (old: any) => {
+        const tier: Tier = old?.tier === "td" ? "td" : old?.isPro ? "pro" : "free";
+        return {scansUsed: old?.scansUsed ?? 0, scanMonth: old?.scanMonth ?? "", tier, isPro: tier !== "free", isTD: tier === "td"} as ScanState;
+      },
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         scansUsed: state.scansUsed,
         scanMonth: state.scanMonth,
+        tier: state.tier,
+        isPro: state.isPro,
+        isTD: state.isTD,
       }),
     }
   )

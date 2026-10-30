@@ -1,3 +1,4 @@
+import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -35,6 +36,7 @@ try {
     for (let attempt = 0; attempt <= retries; attempt++) {
       const start = Date.now(), errors = [];
       const context = await browser.newContext({viewport:{width:390,height:844}});
+      await seedPaidTier(context, "pro");
       // Permit Expo Camera's public static QR worker; block external service calls.
       await context.route('**/*', route => (new URL(route.request().url()).origin === new URL(BASE).origin || route.request().url() === 'https://cdn.jsdelivr.net/npm/jsqr@1.2.0/dist/jsQR.min.js') ? route.continue() : route.abort());
       const page = await context.newPage();
