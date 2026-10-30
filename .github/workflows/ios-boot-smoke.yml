@@ -21,6 +21,8 @@ on:
       - 'scoresnap/nativewind-env.d.ts'
       - 'scoresnap/.npmrc'
       - 'scoresnap/pnpm-lock.yaml'
+      - 'scoresnap/supabase/functions/**'
+      - 'docs/xdevice/**'
       - 'scoresnap/eas.json'
       - 'scoresnap/e2e/ios-boot-smoke.cjs'
       - '.github/workflows/ios-boot-smoke.yml'

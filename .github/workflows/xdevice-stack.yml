@@ -19,6 +19,8 @@ on:
       - 'scoresnap/nativewind-env.d.ts'
       - 'scoresnap/.npmrc'
       - 'scoresnap/pnpm-lock.yaml'
+      - 'scoresnap/supabase/functions/**'
+      - 'docs/xdevice/**'
       - 'scoresnap/supabase/**'
       - 'scoresnap/e2e/**'
       - 'scoresnap/scripts/ci/**'

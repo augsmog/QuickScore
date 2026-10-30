@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
       - 'scoresnap/**'
+      - 'GAMES_STATUS.md'
+      - 'docs/xdevice/**'
       - '.github/workflows/web-smoke.yml'
   workflow_dispatch:
 concurrency:
