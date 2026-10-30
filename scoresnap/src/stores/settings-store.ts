@@ -31,6 +31,7 @@ export interface SettingsState {
   darkScorecard: boolean; // alternate scorecard theme
 
   // OCR / Scan
+  ocrConsent: boolean | null; // null = not yet asked
   autoClaude: boolean; // auto-use Claude Vision when ML Kit fails
   confirmBeforeImport: boolean;
 
@@ -63,6 +64,7 @@ const DEFAULT_SETTINGS = {
   showYardage: true,
   compactLeaderboard: false,
   darkScorecard: true,
+  ocrConsent: null as boolean | null,
   autoClaude: true,
   confirmBeforeImport: true,
   roundReminders: true,

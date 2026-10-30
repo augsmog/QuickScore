@@ -1,3 +1,5 @@
+import { useScanStore } from "../../src/stores/scan-store";
+import { canUseGame, canHostTournament } from "../../src/services/entitlements";
 import { COURSE_SEARCH_ENABLED } from "../../src/config/features";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useState, useMemo } from "react";
@@ -66,6 +68,7 @@ interface TeamInput {
 
 export default function NewContestScreen() {
   const router = useRouter();
+  const tier = useScanStore(s => s.tier);
   const addContest = useContestStore((s) => s.addContest);
   const user = useAuthStore((s) => s.user);
 
@@ -186,6 +189,7 @@ export default function NewContestScreen() {
   };
 
   const toggleGame = (gameId: GameType) => {
+    if (!selectedGames.includes(gameId) && !canUseGame(gameId, tier)) { router.push("/paywall"); return; }
     if (!isGameImplemented(gameId)) return; // Coming Soon — can't select
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedGames((prev) =>
@@ -237,6 +241,8 @@ export default function NewContestScreen() {
   const estimatedPot = betAmount * validPlayerCount * 18;
 
   const createContest = () => {
+    if (!canHostTournament({numGroups, numRounds: isTournament ? numRounds : 1}, tier)) { router.push("/paywall?tier=td"); return; }
+    if (selectedGames.some(g => !canUseGame(g, tier))) { router.push("/paywall"); return; }
     if (REAL_AUTH_CONFIGURED && (useAuthStore.getState().isAnonymous || !useAuthStore.getState().session)) {
       router.push("/auth/sign-in"); return;
     }
@@ -314,7 +320,7 @@ export default function NewContestScreen() {
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <Text style={{ fontFamily: isSelected ? FONTS.bold : FONTS.semibold, fontSize: 15, color: isComingSoon ? COLORS.textDim : COLORS.text }}>
-              {game.name}
+              {!canUseGame(game.id, tier) ? "🔒 " : ""}{game.name}
             </Text>
             {isComingSoon ? (
               <View style={{ backgroundColor: COLORS.secondary + "22", borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2 }}>
@@ -466,6 +472,7 @@ export default function NewContestScreen() {
                 testID="tournament-toggle"
                 value={isTournament}
                 onValueChange={(val) => {
+                  if (val && !canHostTournament({numRounds}, tier)) { router.push("/paywall?tier=td"); return; }
                   setIsTournament(val);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
@@ -877,6 +884,7 @@ export default function NewContestScreen() {
                   testID="add-group" accessibilityLabel="Add group"
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    if (!canHostTournament({numGroups: numGroups + 1}, tier)) { router.push("/paywall?tier=td"); return; }
                     setNumGroups(numGroups + 1);
                   }}
                   style={{
@@ -981,7 +989,7 @@ export default function NewContestScreen() {
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: FONTS.medium, fontSize: 15, color: COLORS.textDim }}>
-                        {game.name}
+                        {!canUseGame(game.id, tier) ? "🔒 " : ""}{game.name}
                       </Text>
                       <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
                         {game.minPlayers}-{game.maxPlayers} players

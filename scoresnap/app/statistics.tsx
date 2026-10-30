@@ -1,3 +1,6 @@
+import { useScanStore } from "../src/stores/scan-store";
+import { canSeeStats } from "../src/services/entitlements";
+import { PaywallTeaser } from "../src/ui/PaywallTeaser";
 import { useMemo, useState, useRef } from "react";
 import { View, Text, ScrollView, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
@@ -559,6 +562,11 @@ function ScoreHistoryChart({ rounds }: { rounds: RoundData[] }) {
 // ─── Main Statistics Screen ───────────────────────────────────
 
 export default function StatisticsScreen() {
+  const tier = useScanStore(s => s.tier);
+  return canSeeStats(tier) ? <StatisticsScreenContent /> : <PaywallTeaser feature="Statistics" />;
+}
+
+function StatisticsScreenContent() {
   const router = useRouter();
   const contests = useContestStore((s) => s.contests);
   const stats = useMemo(() => computeAnalytics(contests), [contests]);

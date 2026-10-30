@@ -1,3 +1,5 @@
+import { useSettingsStore } from "../stores/settings-store";
+import { useScanStore } from "../stores/scan-store";
 /**
  * Cloud OCR fallback using Claude Vision API via Supabase Edge Function.
  * Used when ML Kit confidence is too low (handwritten, blurry, etc.)
@@ -19,6 +21,7 @@ interface ClaudeOCRResult {
 export async function recognizeWithClaude(
   imageUri: string
 ): Promise<ClaudeOCRResult> {
+  if (useSettingsStore.getState().ocrConsent !== true) throw new Error("Cloud OCR consent is required. Use manual entry.");
   // Read image as base64
   const base64 = await FileSystem.readAsStringAsync(imageUri, {
     encoding: FileSystem.EncodingType.Base64,
@@ -29,6 +32,9 @@ export async function recognizeWithClaude(
     ? "image/png"
     : "image/jpeg";
 
+  // Recheck after the asynchronous file read so withdrawal takes effect immediately.
+  if (useSettingsStore.getState().ocrConsent !== true) throw new Error("Cloud OCR consent is required. Use manual entry.");
+  if (!useScanStore.getState().useScan()) throw new Error("Monthly cloud scan limit reached. Use manual entry or upgrade.");
   // Call our Edge Function
   const { data, error } = await supabase.functions.invoke("ocr-scorecard", {
     body: {

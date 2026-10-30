@@ -1,3 +1,4 @@
+import { useSettingsStore } from "../stores/settings-store";
 /**
  * OCR Service — orchestrates scorecard scanning.
  *
@@ -38,6 +39,7 @@ export async function scanScorecard(
   onProgress?: ScanProgressCallback,
   requiredHoles?: number[]
 ): Promise<ScanResult> {
+  const cloudEnabled = () => useSettingsStore.getState().ocrConsent === true && useSettingsStore.getState().autoClaude;
   const normalize = (players: ScannedPlayer[]) => applyCourseHoles(players, requiredHoles);
   onProgress?.(5, "Preparing image...");
 
@@ -70,6 +72,7 @@ export async function scanScorecard(
       if (mlResult.players.length > 0) {
         onProgress?.(55, "Enhancing with AI...");
         try {
+          if (!cloudEnabled()) throw new Error("Cloud OCR disabled; use manual entry.");
           const claudeResult = await recognizeWithClaude(photoUri);
           onProgress?.(90, "Validating results...");
 
@@ -112,6 +115,7 @@ export async function scanScorecard(
   // Step 2: Claude Vision as primary (ML Kit unavailable or failed)
   onProgress?.(20, "Reading scores with AI...");
 
+  if (!cloudEnabled()) throw new Error("Cloud OCR disabled; use manual entry.");
   const claudeResult = await recognizeWithClaude(photoUri);
   onProgress?.(85, "Validating data...");
 

@@ -10,9 +10,9 @@ function load(file, imports = {}) {
 const parser = load('src/services/score-parser.ts');
 const review = load('src/services/ocr-review.ts');
 let response, recognized;
-const cloud = load('src/services/claude-ocr.ts', {'./ocr-review':review,'expo-file-system/legacy':{EncodingType:{Base64:'base64'},readAsStringAsync:async()=> 'mock'},'../db/supabase':{supabase:{functions:{invoke:async()=>response}}}});
+const cloud = load('src/services/claude-ocr.ts', {'../stores/settings-store':{useSettingsStore:{getState:()=>({ocrConsent:true})}},'../stores/scan-store':{useScanStore:{getState:()=>({useScan:()=>true})}},'./ocr-review':review,'expo-file-system/legacy':{EncodingType:{Base64:'base64'},readAsStringAsync:async()=> 'mock'},'../db/supabase':{supabase:{functions:{invoke:async()=>response}}}});
 const ml = load('src/services/ml-kit-ocr.ts', {'./score-parser':parser,'@react-native-ml-kit/text-recognition':{recognize:async()=>recognized}});
-const service = load('src/services/ocr-service.ts', {'./ocr-review':review,'./ml-kit-ocr':ml,'./claude-ocr':cloud});
+const service = load('src/services/ocr-service.ts', {'../stores/settings-store':{useSettingsStore:{getState:()=>({ocrConsent:true,autoClaude:true})}},'./ocr-review':review,'./ml-kit-ocr':ml,'./claude-ocr':cloud});
 const raw = (scores=Array(18).fill(4)) => ({name:'Player A',scores,confidence:Array(18).fill(.9),nameConfidence:1});
 function geometry(rows) {
  return {text:'fixture',blocks:[{lines:[{elements:rows.flatMap((r,y)=>r.flatMap((text,x)=>text === null ? [] : [{text,frame:{left:x*100,top:y*40,height:20}}]))}]}]};
@@ -131,6 +131,7 @@ test('actual review screen renders incomplete and corrected states side by side'
   disabled:props.disabled,role:accessibilityRole === 'alert' ? 'alert' : undefined,
  },children); }
  const screen=load('app/scan/review.tsx',{
+ '../../src/services/entitlements':load('src/services/entitlements.ts'),'../../src/stores/scan-store':{useScanStore:{getState:()=>({tier:'free'})}},
  react:React,'react/jsx-runtime':require('react/jsx-runtime'),'react-native':{View:element('div'),Text:element('span'),ScrollView:element('div'),Pressable:element('button'),TextInput:element('input'),Modal:()=>null,Image:()=>null,AccessibilityInfo:{announceForAccessibility:()=>{}}},
  'expo-router':{useRouter:()=>({}),useLocalSearchParams:()=>({scanData:data})},
  'react-native-safe-area-context':{SafeAreaView:element('div')},
@@ -208,6 +209,7 @@ for (const partial of [false,true]) test(`real two-group smoke imports and keeps
  const jsx=(type,props)=>({type,props});
  const hooks={useState:init=>{const i=cursor++;if(!(i in states))states[i]=typeof init==='function'?init():init;return [states[i],value=>{states[i]=typeof value==='function'?value(states[i]):value;}];},useMemo:fn=>fn(),useEffect:()=>{}};
  const screen=load('app/scan/review.tsx',{
+ '../../src/services/entitlements':load('src/services/entitlements.ts'),'../../src/stores/scan-store':{useScanStore:{getState:()=>({tier:'free'})}},
  react:hooks,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':Object.fromEntries(['View','Text','ScrollView','Pressable','TextInput','Modal','Image'].map(n=>[n,n])),
  'expo-router':{useRouter:()=>({replace}),useLocalSearchParams:()=>Object.fromEntries(url.searchParams)},
  'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'lucide-react-native':{},

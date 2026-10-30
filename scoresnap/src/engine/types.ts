@@ -1,3 +1,4 @@
+import { FREE_GAMES } from "../services/entitlements";
 // ═══════════════════════════════════════════════════════════════════
 // SCORING ENGINE TYPES
 // ═══════════════════════════════════════════════════════════════════
@@ -240,9 +241,9 @@ export const GAME_TYPES: { individual: GameTypeInfo[]; team: GameTypeInfo[] } = 
     { id: "match_play", name: "Match Play", desc: "Win individual holes head-to-head", icon: "⚔️", category: "Classic", isPremium: false, minPlayers: 2, maxPlayers: 2, rules: "Two players compete hole by hole. Win a hole by having the lower score. The player who wins the most holes wins the match. Reported as '2 & 1' (2 up with 1 to play)." },
     { id: "stableford", name: "Stableford", desc: "Points per hole based on score vs par", icon: "⭐", category: "Classic", isPremium: false, minPlayers: 2, maxPlayers: 40, rules: "Points awarded per hole: Eagle or better = 4, Birdie = 3, Par = 2, Bogey = 1, Double+ = 0. Highest total points wins. Great for handicap play." },
     { id: "mod_stableford", name: "Modified Stableford", desc: "Rewards birdies/eagles, penalizes bogeys+", icon: "💫", category: "Classic", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Aggressive scoring: Eagle+ = +8, Birdie = +5, Par = +2, Bogey = -1, Double = -3, Triple+ = -5. Rewards attacking play and penalizes blowup holes." },
-    { id: "skins", name: "Skins", desc: "Win the hole outright to take the skin", icon: "💰", category: "Money Games", isPremium: false, minPlayers: 2, maxPlayers: 40, rules: "Each hole is worth 1 skin (bet unit). The player with the lowest score on a hole wins that skin outright. If two or more players tie for low score, the hole is a push." },
-    { id: "skins_carry", name: "Skins (Carryover)", desc: "Tied skins carry to next hole", icon: "💰", category: "Money Games", isPremium: false, minPlayers: 2, maxPlayers: 40, rules: "Same as Skins, but when a hole is tied, the skin carries over to the next hole. This creates big-value skins that build up over multiple tied holes." },
-    { id: "nassau", name: "Nassau", desc: "3 bets: front 9, back 9, overall", icon: "🎰", category: "Money Games", isPremium: false, minPlayers: 2, maxPlayers: 4, rules: "Three separate match play bets: Front 9, Back 9, and Overall 18. Each bet is worth 1 unit. With 2 players, head-to-head. With 4 players, play as 2v2 teams using best ball per hole." },
+    { id: "skins", name: "Skins", desc: "Win the hole outright to take the skin", icon: "💰", category: "Money Games", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Each hole is worth 1 skin (bet unit). The player with the lowest score on a hole wins that skin outright. If two or more players tie for low score, the hole is a push." },
+    { id: "skins_carry", name: "Skins (Carryover)", desc: "Tied skins carry to next hole", icon: "💰", category: "Money Games", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Same as Skins, but when a hole is tied, the skin carries over to the next hole. This creates big-value skins that build up over multiple tied holes." },
+    { id: "nassau", name: "Nassau", desc: "3 bets: front 9, back 9, overall", icon: "🎰", category: "Money Games", isPremium: true, minPlayers: 2, maxPlayers: 4, rules: "Three separate match play bets: Front 9, Back 9, and Overall 18. Each bet is worth 1 unit. With 2 players, head-to-head. With 4 players, play as 2v2 teams using best ball per hole." },
     { id: "nassau_press", name: "Nassau w/ Presses", desc: "Nassau with auto-press when 2 down", icon: "🎰", category: "Money Games", isPremium: true, minPlayers: 2, maxPlayers: 4, rules: "Standard Nassau with automatic presses. When a side falls 2-down in any bet, a new side bet (press) automatically starts from that hole. Works 1v1 or 2v2 teams." },
     { id: "wolf", name: "Wolf", desc: "Choose partner or go lone wolf each hole", icon: "🐺", category: "Strategy", isPremium: true, minPlayers: 4, maxPlayers: 4, rules: "The Wolf rotates each hole. After seeing tee shots, the Wolf picks a partner or goes Lone Wolf. Wolf+partner vs the other 2. Lone Wolf wins/loses 4x; team wins/loses 2x each." },
     { id: "banker", name: "Banker", desc: "Rotating banker takes all bets on hole", icon: "🏦", category: "Strategy", isPremium: true, minPlayers: 3, maxPlayers: 40, rules: "The Banker rotates each hole. If the Banker has the lowest score, they collect 1 unit from each player. If anyone beats the Banker, the Banker pays that player 1 unit." },
@@ -274,7 +275,7 @@ export const GAME_TYPES: { individual: GameTypeInfo[]; team: GameTypeInfo[] } = 
 export const ALL_GAMES: GameTypeInfo[] = [...GAME_TYPES.individual, ...GAME_TYPES.team];
 
 export const FREE_GAME_IDS: GameType[] = [
-  "stroke_play", "match_play", "stableford", "skins", "skins_carry", "nassau", "best_ball",
+  ...FREE_GAMES,
 ];
 
 /** Games with fully working calculators AND settlement integration */

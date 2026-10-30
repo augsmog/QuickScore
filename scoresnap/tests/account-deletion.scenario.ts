@@ -622,6 +622,10 @@ async function localScenario() {
   assert.match(wipe, /PERSISTED_ACCOUNT_KEYS/);
   assert.doesNotMatch(wipe, /useAuthStore\.getState\(\)\.signOut|getState\(\)\.signOut/);
   assert.match(wipe, /supabase\.auth\.signOut\(\)/);
+  // #52 tier + monthly scan-usage fields must reset with the account; OCR consent resets via settings defaults.
+  for (const field of ["scansUsed: 0", 'scanMonth: ""', 'tier: "free"', "isPro: false", "isTD: false"]) assert.ok(wipe.includes(field), `wipe resets ${field}`);
+  assert.match(wipe, /resetToDefaults\(\)/);
+  assert.match(fs.readFileSync("src/stores/settings-store.ts", "utf8"), /ocrConsent: null as boolean \| null/);
   for (const [file, key] of [
     ["src/stores/auth-store.ts", "AUTH_STORAGE_KEY"],
     ["src/stores/contest-store.ts", "CONTEST_STORAGE_KEY"],

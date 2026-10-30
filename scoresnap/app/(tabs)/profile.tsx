@@ -396,8 +396,8 @@ export default function ProfileScreen() {
               {isPro
                 ? "Unlimited scans (Pro)"
                 : freeRemaining > 0
-                ? `${freeRemaining} free scan remaining`
-                : `${scansUsed} scan${scansUsed !== 1 ? "s" : ""} used · Upgrade for more`}
+                ? `${freeRemaining} of 3 free scans left this month`
+                : "0 of 3 free scans left this month · Manual entry available"}
             </Text>
           </View>
           {!isPro && freeRemaining === 0 && (
@@ -670,7 +670,7 @@ export default function ProfileScreen() {
               Unlimited scorecard scans, all game modes, settlement tracking, and more.
             </Text>
             <View style={{ flexDirection: "row", gap: 12, marginTop: 12 }}>
-              {["$2.99/mo", "$19.99/yr", "$29.99 forever"].map((price) => (
+              {["$3.99/mo", "$24.99/yr"].map((price) => (
                 <View
                   key={price}
                   style={{

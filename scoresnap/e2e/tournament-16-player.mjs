@@ -1,3 +1,4 @@
+import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 // Tournament e2e test: 16 players, 2-3 rounds, multiple foursomes
 // Tests join, scoring, regrouping, leaderboard aggregation, and usability
 // Usage: BASE_URL=http://localhost:8089 node e2e/tournament-16-player.mjs
@@ -21,6 +22,7 @@ const browser = await chromium.launch();
 
 // Organizer creates a 16-player tournament
 const orgPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+await seedPaidTier(orgPage, "td");
 const pageErrors = [];
 orgPage.on("pageerror", (e) => pageErrors.push(e.message));
 

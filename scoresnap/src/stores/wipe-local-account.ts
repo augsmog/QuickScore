@@ -31,7 +31,8 @@ export async function wipeLocalAccount(): Promise<void> {
     useContestStore.getState().resetAll();
     useSettingsStore.getState().resetToDefaults();
     useOnboardingStore.setState({ hasCompletedOnboarding: false, hasSeenDemo: false });
-    useScanStore.setState({ scansUsed: 0, isPro: false });
+    // #52 scan-usage + tier fields; ocrConsent resets via settings resetToDefaults (null = ask again).
+    useScanStore.setState({ scansUsed: 0, scanMonth: "", tier: "free", isPro: false, isTD: false });
     useGuestStore.setState({ guestId: null, bindings: [] });
     if (REAL_AUTH_CONFIGURED) await supabase.auth.signOut();
   });

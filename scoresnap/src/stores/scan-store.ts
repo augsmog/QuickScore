@@ -3,29 +3,21 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SCAN_STORAGE_KEY, createGatedStorage } from "./persisted-keys";
 
-/**
- * Scan store — manages subscription status and scan access.
- *
- * Model: 7-day free trial on annual plan ($19.99/yr).
- * - During trial: full access (isPro = true via RevenueCat)
- * - After trial expires without payment: scanning locked, contest creation still works
- * - Manual score entry always free, scanning requires active subscription
- *
- * The first scan is always free (no account needed) to demonstrate value.
- * After that, subscription required.
- */
-
-const FIRST_SCAN_FREE = 1;
+import { scanAllowance, type Tier } from "../services/entitlements";
 
 interface ScanState {
   scansUsed: number;
+  scanMonth: string;
+  tier: Tier;
+  isTD: boolean;
+  setTier: (tier: Tier) => void;
   isPro: boolean; // Set by RevenueCat based on active subscription/trial
 
   // Can the user scan right now?
   canScan: () => boolean;
   // Use a scan (returns false if not allowed)
   useScan: () => boolean;
-  // How many free scans remain (0 or 1)
+  // Remaining scans this calendar month
   getRemainingFreeScans: () => number;
   // Set pro status (called by RevenueCat listener)
   setPro: (value: boolean) => void;
@@ -35,40 +27,40 @@ export const useScanStore = create<ScanState>()(
   persist(
     (set, get) => ({
       scansUsed: 0,
+      scanMonth: "",
+      tier: "free",
       isPro: false,
-
-      canScan: () => {
-        const { scansUsed, isPro } = get();
-        // Pro users (active subscription or trial) can always scan
-        if (isPro) return true;
-        // Everyone gets 1 free scan to see the value
-        return scansUsed < FIRST_SCAN_FREE;
-      },
-
+      isTD: false,
+      canScan: () => get().getRemainingFreeScans() > 0,
       useScan: () => {
-        const { scansUsed, isPro } = get();
-        if (isPro) return true;
-        if (scansUsed < FIRST_SCAN_FREE) {
-          set({ scansUsed: scansUsed + 1 });
-          return true;
-        }
-        return false;
+        const {limit, monthKey} = scanAllowance(get().tier, new Date());
+        if (limit === Infinity) return true;
+        const used = get().scanMonth === monthKey ? get().scansUsed : 0;
+        if (used >= limit) return false;
+        set({scanMonth: monthKey, scansUsed: used + 1});
+        return true;
       },
-
       getRemainingFreeScans: () => {
-        const { scansUsed, isPro } = get();
-        if (isPro) return Infinity;
-        return Math.max(0, FIRST_SCAN_FREE - scansUsed);
+        const {limit, monthKey} = scanAllowance(get().tier, new Date());
+        return Math.max(0, limit - (get().scanMonth === monthKey ? get().scansUsed : 0));
       },
-
-      setPro: (value: boolean) => set({ isPro: value }),
+      setTier: (tier) => set({tier, isPro: tier !== "free", isTD: tier === "td"}),
+      setPro: (value: boolean) => get().setTier(value ? "pro" : "free"),
     }),
     {
       name: SCAN_STORAGE_KEY,
+      version: 1,
+      migrate: (old: any) => {
+        const tier: Tier = old?.tier === "td" ? "td" : old?.isPro ? "pro" : "free";
+        return {scansUsed: old?.scansUsed ?? 0, scanMonth: old?.scanMonth ?? "", tier, isPro: tier !== "free", isTD: tier === "td"} as ScanState;
+      },
       storage: createJSONStorage(() => createGatedStorage(AsyncStorage)),
       partialize: (state) => ({
         scansUsed: state.scansUsed,
+        scanMonth: state.scanMonth,
+        tier: state.tier,
         isPro: state.isPro,
+        isTD: state.isTD,
       }),
     }
   )
