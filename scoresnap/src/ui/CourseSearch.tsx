@@ -6,6 +6,7 @@ import {
   Pressable,
   ActivityIndicator,
   FlatList,
+  ScrollView,
   Modal,
   Platform,
   Keyboard,
@@ -519,7 +520,12 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
               </View>
             ) : (
               /* ── Tee Box Selection View ── */
-              <View style={{ flex: 1, paddingHorizontal: 20 }}>
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled"
+              >
                 <Text
                   style={{
                     color: COLORS.text,
@@ -671,7 +677,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                     Back to Search
                   </Text>
                 </Pressable>
-              </View>
+              </ScrollView>
             )}
           </View>
         </View>

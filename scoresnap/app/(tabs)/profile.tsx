@@ -24,6 +24,7 @@ import { useScanStore } from "../../src/stores/scan-store";
 import { useAuthStore } from "../../src/stores/auth-store";
 import { restorePurchases, getCustomerInfo } from "../../src/services/purchases";
 import { calculateSettlement } from "../../src/engine/settlement";
+import { openSupport } from "../../src/config/support-links";
 
 /** Compute real stats from contest data */
 function computeRealStats(contests: Contest[]) {
@@ -692,7 +693,7 @@ export default function ProfileScreen() {
         {[
           { icon: <Settings size={20} color={COLORS.textDim} />, label: "Settings", onPress: () => router.push("/settings") },
           { icon: <BarChart3 size={20} color={COLORS.textDim} />, label: "Statistics", onPress: () => router.push("/statistics") },
-          { icon: <HelpCircle size={20} color={COLORS.textDim} />, label: "Help & Support", onPress: () => {} },
+          { icon: <HelpCircle size={20} color={COLORS.textDim} />, label: "Help & Support", onPress: openSupport },
         ].map((item) => (
           <AnimatedPressable
             key={item.label}
