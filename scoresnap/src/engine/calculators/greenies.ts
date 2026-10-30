@@ -23,7 +23,7 @@ export interface GreeniesResult {
  * Must score par or better to qualify.
  */
 export function calcGreenies(players: Player[], course: Course, auxiliary?: AuxiliaryData, config?: GameConfig): GreeniesResult {
-  if(config?.rulesVersion===1) return {...actualInputLedger("greenies",players,course,auxiliary,config),greenies:[]};
+  if(config?.rulesVersion===1) {const result=actualInputLedger("greenies",players,course,auxiliary,config);return {...result,greenies:result.greenieHoles};}
 
   const totals: Record<string, number> = {};
   players.forEach((p) => (totals[p.name] = 0));

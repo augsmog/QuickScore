@@ -6,9 +6,9 @@ export interface BBBResult {
   totals: Record<string, number>;
   holeResults: {
     hole: number;
-    bingo: string; // first on green (lowest score approach)
-    bango: string; // closest to pin (simulated)
-    bongo: string; // first in hole (lowest score)
+    bingo: string | null; // first on green (lowest score approach)
+    bango: string | null; // closest to pin (simulated)
+    bongo: string | null; // first in hole (lowest score)
   }[];
 }
 
@@ -26,7 +26,7 @@ export function calcBingoBangoBongo(
   auxiliary?: AuxiliaryData,
   config?: GameConfig
 ): BBBResult {
-  if(config?.rulesVersion===1){const result=actualInputLedger("bingo_bango_bongo",players,_course,auxiliary,config);return {...result,holeResults:[]};}
+  if(config?.rulesVersion===1){const result=actualInputLedger("bingo_bango_bongo",players,_course,auxiliary,config);return {...result,holeResults:result.bbbHoles};}
   const totals: Record<string, number> = {};
   players.forEach((p) => (totals[p.name] = 0));
   const holeResults = [];

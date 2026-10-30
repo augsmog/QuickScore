@@ -26,7 +26,7 @@ export interface WolfResult {
  * wolf pairs with lowest scorer on each hole (best available partner strategy).
  */
 export function calcWolf(players: Player[], course: Course, auxiliary?: AuxiliaryData, config?: GameConfig): WolfResult {
-  if(config?.rulesVersion===1) return {...actualInputLedger("wolf",players,course,auxiliary,config),holeResults:[]};
+  if(config?.rulesVersion===1) {const result=actualInputLedger("wolf",players,course,auxiliary,config);return {...result,holeResults:result.wolfHoles};}
 
   if (players.length !== 4) {
     return { holeResults: [], totals: Object.fromEntries(players.map(p => [p.name, 0])) };

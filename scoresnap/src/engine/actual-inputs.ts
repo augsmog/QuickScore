@@ -9,9 +9,14 @@ export function actualInputLedger(game: GameType, players: Player[], course: Cou
   const totals = Object.fromEntries(players.map(p => [p.name, 0]));
   let holes = 0, snakeHolder = '', changes = 0, carry = 1;
   const events: {hole:number;playerName:string}[] = [];
+  const wolfHoles: import('./calculators/wolf').WolfHoleResult[]=[];
+  const hammerHoles: import('./calculators/hammer').HammerResult['holeResults']=[];
+  const greenieHoles: import('./calculators/greenies').GreenieResult[]=[];
+  const bbbHoles: import('./calculators/bingo-bango-bongo').BBBResult['holeResults']=[];
+  const result=()=>({totals,holes,pending:holes!==course.holes.length,snakeHolder,events,wolfHoles,hammerHoles,greenieHoles,bbbHoles});
   const pay = (winner: Player, loser: Player, units: number) => { totals[winner.name] += units; totals[loser.name] -= units; };
   const find = (id: string | null) => players.find(p => p.id === id);
-  if (game === 'wolf' && players.length !== 4 || game === 'hammer' && players.length !== 2) return { totals, holes, pending:true, snakeHolder, events };
+  if (game === 'wolf' && players.length !== 4 || game === 'hammer' && players.length !== 2) return result();
   for (let i=0; i<course.holes.length; i++) {
     const hole=i+1;
     if (players.some(p => !Number.isInteger(p.scores[i]) || p.scores[i]<=0)) break;
@@ -31,8 +36,9 @@ export function actualInputLedger(game: GameType, players: Player[], course: Cou
       const solo=event.isLoneWolf || event.refused;
       const side=solo?[wolf]:[wolf,partner!], field=players.filter(p=>!side.includes(p));
       const diff=Math.min(...field.map(p=>p.scores[i]))-Math.min(...side.map(p=>p.scores[i]));
+      const rate=event.blind?3:event.refused?4:event.isLoneWolf?2:1;
+      wolfHoles.push({hole,wolfName:wolf.name,partnerName:solo?null:partner!.name,wolfTeamScore:Math.min(...side.map(p=>p.scores[i])),fieldScore:Math.min(...field.map(p=>p.scores[i])),wolfWon:diff>0,points:Math.sign(diff)*rate*carry*field.length});
       if (diff) {
-        const rate=event.blind?3:event.refused?4:event.isLoneWolf?2:1;
         for (const a of side) for (const b of field) pay(diff>0?a:b,diff>0?b:a,rate*carry);
         carry=1;
       } else if (config.wolfCarryover) carry++;
@@ -40,7 +46,9 @@ export function actualInputLedger(game: GameType, players: Player[], course: Cou
       const event=auxiliary.hammer?.[hole]; if (!event || typeof event.hammered!=="boolean" || typeof event.accepted!=="boolean" || event.hammered && !find(event.hammerBy)) break;
       const diff=players[1].scores[i]-players[0].scores[i];
       const winner=event.hammered && !event.accepted?find(event.hammerBy):diff?players[diff>0?0:1]:undefined;
-      if (winner) pay(winner,players.find(p=>p!==winner)!,event.hammered && event.accepted?2:1);
+      const points=winner?(event.hammered && event.accepted?2:1):0;
+      if (winner) pay(winner,players.find(p=>p!==winner)!,points);
+      hammerHoles.push({hole,winnerName:winner?.name??'Push',points});
     } else if (game === 'snake') {
       const ordered=auxiliary.snake?.[hole]; if (!Array.isArray(ordered) || ordered.some(id=>!find(id)) || new Set(ordered).size!==ordered.length) break;
       for (const id of ordered) {
@@ -52,10 +60,12 @@ export function actualInputLedger(game: GameType, players: Player[], course: Cou
       if (course.holes[i].par===3) {
         const id=auxiliary.greenies?.[hole]; if (id===undefined || id!==null && !find(id)) break;
         const winner=find(id!);
+        greenieHoles.push({hole,par:3,winnerName:winner?.name??null,winnerScore:winner?.scores[i]??0,qualified:!!winner && winner.scores[i]<=3});
         if (winner && winner.scores[i]<=3) for (const loser of players.filter(p=>p!==winner)) pay(winner,loser,1);
       }
     } else if (game === 'bingo_bango_bongo') {
       const event=auxiliary.bbb?.[hole]; if (!event || ['bingo','bango','bongo'].some(k=>event[k as keyof typeof event]!==null && !find(event[k as keyof typeof event]))) break;
+      bbbHoles.push({hole,bingo:find(event.bingo)?.name??null,bango:find(event.bango)?.name??null,bongo:find(event.bongo)?.name??null});
       for (const id of [event.bingo,event.bango,event.bongo]) {
         const winner=find(id); if (!winner) continue;
         const points=config.bbbBirdieDouble && winner.scores[i]===course.holes[i].par-1?2:1;
@@ -70,7 +80,7 @@ export function actualInputLedger(game: GameType, players: Player[], course: Cou
     const holder=players.find(p=>p.name===snakeHolder)!;
     for (const winner of players.filter(p=>p!==holder)) pay(winner,holder,units);
   }
-  return {totals,holes,pending:holes!==course.holes.length,snakeHolder,events};
+  return result();
 }
 
 /** Accept the historic scan alias only when unambiguous; conflicting events require review. */
