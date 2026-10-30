@@ -1,7 +1,9 @@
+import { projectScore } from '../services/score-projection';
 import type { Entry } from '../services/score-outbox';
 import { useEffect, useState } from 'react';
 import { Alert, AppState, Pressable, Text, TextInput, View } from 'react-native';
-import { client, onlineEnabled, queueSnapshotScore, watchOnline, onlineQueue, replayOnlineScores, resolveOnlineConflict } from '../services/cross-device';
+import { client, onlineEnabled, queueOnlineScore, watchOnline, onlineQueue, replayOnlineScores, resolveOnlineConflict } from '../services/cross-device';
+import { snapshotScore } from '../services/sync-v1';
 import { foregroundSync } from '../services/online-client';
 import { useOnlineStore } from '../stores/online-store';
 import { useAuthStore } from '../stores/auth-store';
@@ -48,9 +50,9 @@ function ApprovedScorecard({ id, onError }: { id: string; onError: (message: str
   if (!event) return null;
   const { snapshot, membership } = event;
   return <View><Text style={{ color: COLORS.text }}>{snapshot.name} · Approved online scorecard</Text>
-    <Pressable accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => { void replayOnlineScores().then(inspectQueue).catch(() => onError('Waiting to sync. Drafts retained.')); }}><Text style={{ color: COLORS.primary }}>Retry queued scores</Text></Pressable>
-    {entries.map(entry => <View key={entry.id}><Text style={{ color: COLORS.text }}>Hole {entry.draft.hole}: {entry.state} · yours {entry.draft.strokes ?? 'clear'}{entry.receipt ? ` · current ${entry.receipt.strokes ?? 'clear'}` : ''}</Text>
-      {entry.state === 'conflict' && (['keep-current', 'use-mine'] as const).map(choice => <Pressable key={choice} accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => Alert.alert('Resolve score conflict?', 'Later queued edits for this hole will be cancelled. Review and enter them again.', [{ text: 'Cancel' }, { text: 'Confirm', onPress: () => { void resolveOnlineConflict(entry.id, choice).then(inspectQueue).catch(() => onError('Could not save conflict choice')); } }])}><Text style={{ color: COLORS.primary }}>{choice === 'keep-current' ? 'Keep current' : 'Use my score'}</Text></Pressable>)}
+    <Pressable accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => { void replayOnlineScores().then(() => client.discover()).then(inspectQueue).catch(() => onError('Waiting to sync. Drafts retained.')); }}><Text style={{ color: COLORS.primary }}>Retry queued scores</Text></Pressable>
+    {entries.map(entry => <View key={entry.id}><Text style={{ color: COLORS.text }}>Hole {entry.draft.hole}: {entry.state} · round {entry.draft.round_id} · yours {entry.draft.strokes ?? 'clear'}{entry.receipt ? ` · current ${entry.receipt.strokes ?? 'clear'}` : ''}</Text>
+      {entry.state === 'conflict' && (['keep-current', 'use-mine'] as const).map(choice => <Pressable key={choice} accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => Alert.alert('Resolve score conflict?', 'Later queued edits for this hole will be cancelled. Review and enter them again.', [{ text: 'Cancel' }, { text: 'Confirm', onPress: () => { void resolveOnlineConflict(entry.id, choice).then(() => client.discover()).then(inspectQueue).catch(() => onError('Could not save conflict choice')); } }])}><Text style={{ color: COLORS.primary }}>{choice === 'keep-current' ? 'Keep current' : 'Use my score'}</Text></Pressable>)}
     </View>)}
     {snapshot.rounds.map(round => <View key={round.id}>
       <Text style={{ color: COLORS.text }}>{round.name} · {round.course.name || 'Course needs repair'}</Text>
@@ -59,15 +61,28 @@ function ApprovedScorecard({ id, onError }: { id: string; onError: (message: str
         <Text style={{ color: COLORS.text }}>{player.displayName}</Text>
         {player.cells.map(cell => {
           const key = `${round.id}:${player.id}:${cell.hole}`;
-          return <View key={key}><Text style={{ color: COLORS.text }}>Hole {cell.hole} · current {cell.strokes ?? 'clear'} · par {round.course.holes.find(h => h.num === cell.hole)?.par ?? '—'}</Text>
-            <TextInput accessibilityLabel={`${round.name} hole ${cell.hole} strokes`} keyboardType="number-pad" value={drafts[key] ?? (cell.strokes === null ? '' : String(cell.strokes))} onChangeText={value => { if (/^\d{0,2}$/.test(value)) setDrafts(s => ({ ...s, [key]: value })); }} style={{ color: COLORS.text, minHeight: 44 }} />
+          const target = { contest_id: id, round_id: round.id, player_id: player.id, hole: cell.hole };
+          const projection = projectScore(target, cell.strokes, entries);
+          return <View key={key}><Text style={{ color: COLORS.text }}>Hole {cell.hole} · current {cell.strokes ?? 'clear'}{projection.state !== 'current' ? ` · ${projection.state}${projection.state === 'queued' ? ` ${projection.strokes ?? 'clear'}` : ''}` : ''} · par {round.course.holes.find(h => h.num === cell.hole)?.par ?? '—'}</Text>
+            <TextInput accessibilityLabel={`${round.name} hole ${cell.hole} strokes`} keyboardType="number-pad" value={drafts[key] ?? (projection.strokes === null ? '' : String(projection.strokes))} onChangeText={value => { if (/^\d{0,2}$/.test(value)) setDrafts(s => ({ ...s, [key]: value })); }} style={{ color: COLORS.text, minHeight: 44 }} />
             <Pressable accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => {
-              const value = drafts[key] ?? (cell.strokes === null ? '' : String(cell.strokes));
+              const value = drafts[key] ?? (projection.strokes === null ? '' : String(projection.strokes));
               const strokes = value === '' ? null : Number(value);
               if (strokes !== null && (strokes < 1 || strokes > 15)) { onError('Enter 1–15 strokes, or clear the field.'); return; }
-              void queueSnapshotScore(id, round.id, player.id, cell.hole, strokes).then(async () => {
-                await client.discover(); await inspectQueue(); setDrafts(s => { const next = { ...s }; delete next[key]; return next; }); onError('Review the current score and queue below.');
-              }).catch(() => { void inspectQueue().catch(() => undefined); onError('Score not confirmed. Queued drafts are retained.'); });
+              void (async () => {
+                const { draft, version } = snapshotScore(onlineEnabled, snapshot, round.id, player.id, cell.hole, strokes);
+                await queueOnlineScore(draft, version);
+                // Show the durable draft before attempting any network operation.
+                await inspectQueue();
+                setDrafts(s => { const next = { ...s }; delete next[key]; return next; });
+                onError('Saved on this device. Waiting to sync.');
+                try {
+                  await replayOnlineScores();
+                  await client.discover();
+                  await inspectQueue();
+                  onError('Review the current score and queue below.');
+                } catch { await inspectQueue(); onError('Waiting to sync. Saved drafts are retained.'); }
+              })().catch(() => onError('Could not save on this device. Your entered score is retained; try again.'));
             }}><Text style={{ color: COLORS.primary }}>Save hole {cell.hole}</Text></Pressable>
           </View>;
         })}
