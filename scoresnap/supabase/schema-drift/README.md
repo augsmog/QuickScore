@@ -311,3 +311,15 @@ hashes and git tracking. `preapply-check.sh` uses the post-M3 live
 snapshot and exact ordered eleven-entry live ledger ending in
 `20261028162155 tournament_rounds_live`. M3 was applied on 2026-10-28.
 See ../M2-FOUNDATION.md for contracts, staged debt and live approval requirements.
+
+## M4b pending API lane
+
+The full pending-chain expectation is now `schema-snapshot/expected-after.json`.
+M2b-only gates use `expected-m2b.json`; M3-only gates use `expected-m3.json`.
+`live.json` and the eleven-row `expected-ledger.json` remain the live prefix;
+`drift.py ledger --mode pending` checks the twelve-row pending ledger separately.
+The exporter inventories app-owned `m4b_` policies on `realtime.messages`.
+From the repository root run
+`bash scoresnap/supabase/schema-drift/m4b-local.sh`. The script creates
+a disposable native PG17 stack and removes it on exit. See `ROLLBACK-M4B.md` for
+the API contract, rollback safety and remaining integration gates.

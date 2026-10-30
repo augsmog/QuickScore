@@ -8,6 +8,8 @@ extract() { psql_local -At -f "$here/catalog-query.sql" > /tmp/m2-catalog.json; 
 python3 "$here/check-active-sql.py"
 python3 "$here/reference-guard.py"
 # Reset starts with the full chain. Peel rewritten 008 before the M2 gates.
+psql_local -f "$here/../rollback/20261029180000_sync_api.down.sql"
+psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261029180000'"
 psql_local -f "$here/../rollback/20261028162155_tournament_rounds_live.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028162155'"
 # Remove M2b before all M2 down/race gates.
@@ -54,11 +56,13 @@ python3 "$here/sql-fixtures.py" --url "$url" --admin-url postgresql://supabase_a
 # CLI reapplies the pending foundation, guest guard and rewritten 008.
 (cd "$here/../.." && supabase migration up --local)
 # M2b catalog gates stay on the pre-008 schema. M3 is proved again below.
+psql_local -f "$here/../rollback/20261029180000_sync_api.down.sql"
+psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261029180000'"
 psql_local -f "$here/../rollback/20261028162155_tournament_rounds_live.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028162155'"
 extract
 python3 "$here/guest-guard-catalog.py" /tmp/m2-before-guard.json /tmp/m2-catalog.json
-python3 "$here/drift.py" compare "$here/../schema-snapshot/expected-after.json" /tmp/m2-catalog.json
+python3 "$here/drift.py" compare "$here/../schema-snapshot/expected-m2b.json" /tmp/m2-catalog.json
 python3 "$here/drift.py" ledger /tmp/m2-catalog.json --mode local
 psql_local -f "$here/../tests/default-privileges.sql"
 psql_local -f "$here/../tests/foundation.sql"
@@ -80,3 +84,15 @@ python3 "$here/drift.py" compare /tmp/m2b-catalog.json /tmp/m2-catalog.json
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028162155'"
 psql_local -f "$here/../migrations/20261028162155_tournament_rounds_live.sql"
 psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261028162155','tournament_rounds_live') ON CONFLICT DO NOTHING"
+
+# Final expected snapshot is the full pending chain, separate from live.json.
+psql_local -f "$here/../tests/m4b-upgrade.sql"
+psql_local -f "$here/../migrations/20261029180000_sync_api.sql"
+psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261029180000','sync_api') ON CONFLICT DO NOTHING"
+extract
+python3 "$here/drift.py" compare "$here/../schema-snapshot/expected-after.json" /tmp/m2-catalog.json
+python3 "$here/drift.py" ledger /tmp/m2-catalog.json --mode pending
+psql_local -f "$here/../tests/m4b-upgrade-replay.sql"
+psql_local -f "$here/../tests/legacy-compatibility.sql"
+psql_local -v m4b_native=false -f "$here/../tests/m4b-api.sql"
+echo 'SQL API gate passed; native stub Broadcast assertions excluded; real socket delivery/revocation requires M4a integration.'

@@ -74,8 +74,8 @@ with tempfile.TemporaryDirectory() as tmp:
  check_guard(m2_catalog,raw)
  ledger(raw,'local')
  print('PASS: ten-entry local ledger (live expectation is applied eleven)')
- expected=root/'schema-snapshot/expected-after.json'
- compare(expected,'M2b catalog equals expected-after.json')
+ expected=root/'schema-snapshot/expected-m2b.json'
+ compare(expected,'M2b catalog equals expected-m2b.json')
  m3=(root/'migrations/20261028162155_tournament_rounds_live.sql').read_text()
  m3_down=(root/'rollback/20261028162155_tournament_rounds_live.down.sql').read_text()
  run(m3,'M3 apply')

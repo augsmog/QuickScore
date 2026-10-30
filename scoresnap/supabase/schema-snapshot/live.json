@@ -19418,6 +19418,7 @@
   ],
   "publication_schemas": [],
   "ranges": [],
+  "realtime_app_policies": [],
   "regclass_checks": {
     "contest_games": null,
     "contest_groups": "contest_groups",
