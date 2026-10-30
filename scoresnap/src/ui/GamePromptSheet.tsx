@@ -484,7 +484,7 @@ function SnakePrompt({
     <>
       <SheetTitle emoji="\uD83D\uDC0D" label="SNAKE" hole={hole} />
 
-      <SectionLabel text="DID ANYONE 3-PUTT?" />
+      <SectionLabel text="SELECT 3-PUTTERS IN CHRONOLOGICAL ORDER" />
 
       <Pressable
         onPress={handleNoOne}
@@ -508,7 +508,7 @@ function SnakePrompt({
             key={p.id}
             player={p}
             selected={selected.has(p.id)}
-            disabled={scoredParOrBetter}
+            disabled={false}
             onPress={() => toggle(p.id)}
           />
         );
@@ -614,9 +614,9 @@ function BBBPrompt({
   onSubmit: (data: any) => void;
   onSkip: () => void;
 }) {
-  const [bingo, setBingo] = useState<string | null>(null);
-  const [bango, setBango] = useState<string | null>(null);
-  const [bongo, setBongo] = useState<string | null>(null);
+  const [bingo, setBingo] = useState<string | null | undefined>(undefined);
+  const [bango, setBango] = useState<string | null | undefined>(undefined);
+  const [bongo, setBongo] = useState<string | null | undefined>(undefined);
 
   const labels = [
     { key: "bingo", label: "BINGO \u2014 First on green", value: bingo, setter: setBingo },
@@ -624,7 +624,7 @@ function BBBPrompt({
     { key: "bongo", label: "BONGO \u2014 First to hole out", value: bongo, setter: setBongo },
   ] as const;
 
-  const canConfirm = bingo !== null && bango !== null && bongo !== null;
+  const canConfirm = bingo !== undefined && bango !== undefined && bongo !== undefined;
 
   return (
     <>
@@ -633,13 +633,14 @@ function BBBPrompt({
       {labels.map(({ key, label, value, setter }) => (
         <View key={key} style={{ marginBottom: 14 }}>
           <SectionLabel text={label} />
+          <Pressable onPress={()=>setter(null)}><Text style={{color:COLORS.textDim,padding:8}}>No award (tied or void){value===null?" ✓":""}</Text></Pressable>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {players.map((p) => (
               <Pressable
                 key={p.id}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setter(p.id === value ? null : p.id);
+                  setter(p.id === value ? undefined : p.id);
                 }}
                 style={{
                   flex: 1,

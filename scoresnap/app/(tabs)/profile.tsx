@@ -1,3 +1,4 @@
+import { calculateContestSettlement } from "../../src/engine/contest-results";
 import { useState, useMemo } from "react";
 import { View, Text, ScrollView, Button, Alert } from "react-native";
 import { useRouter } from "expo-router";
@@ -81,15 +82,7 @@ function computeRealStats(contests: Contest[]) {
     const allPlayers = contest.groups.flatMap((g) => g.players);
     if (allPlayers.length < 2) continue;
     try {
-      const settlement = calculateSettlement(
-        allPlayers,
-        contest.course,
-        contest.games,
-        contest.betUnit,
-        contest.auxiliaryData,
-        contest.gameConfig,
-        contest.groups
-      );
+      const settlement = calculateContestSettlement(contest);
       // Show net for each player
       for (const [name, net] of Object.entries(settlement.netByPlayer)) {
         if (Math.abs(net) > 0) {
