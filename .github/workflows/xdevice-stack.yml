@@ -97,7 +97,7 @@ jobs:
         run: |
           # Live-equivalent anonymous Auth stays OFF. Local config already has
           # email confirmations OFF; admin-created users are explicitly confirmed.
-          test "$(rg -c '^enable_anonymous_sign_ins = false$' supabase/config.toml)" = 1
+          test "$(grep -c '^enable_anonymous_sign_ins = false$' supabase/config.toml)" = 1
           # CLI start prints disposable API credentials on success; retain only
           # a private runner-temporary log and never upload or print its contents.
           if ! bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit > "$RUNNER_TEMP/xdevice-start.log" 2>&1; then
