@@ -33,7 +33,7 @@ try {
       return content.firstElementChild === el.parentElement;
     }), 'wordmark must be the first scroll content element');
 
-    await page.getByText('Modified Stableford', { exact: true }).click();
+    await page.getByText('Modified Stableford (SnapScore)', { exact: true }).click();
     const sheet = page.getByTestId('game-info-sheet');
     await sheet.waitFor({ state: 'visible' });
     const style = await sheet.evaluate(el => {
