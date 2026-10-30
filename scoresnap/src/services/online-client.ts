@@ -1,5 +1,5 @@
 import type { SyncSnapshotV1 } from '../../../docs/xdevice/sync-contract-v1';
-import { syncV1 } from './sync-v1';
+import { syncV1, isSyncDenial } from './sync-v1';
 import { validJoinCode, normalizeJoinCode } from './guest-join';
 export interface OnlineRpc { (name: string, args: Record<string, unknown>): Promise<{ data: any; error: any }> }
 export interface Membership { role: 'host' | 'player' | 'scorer' | 'viewer'; status: string; player_id: string | null }
@@ -13,6 +13,7 @@ export function onlineClient(rpc: OnlineRpc, repair: (contest: string, membershi
   return {
     discover: v1.discover,
     restore: v1.restore,
+    deny: v1.deny,
     invalidate() { generation++; v1.invalidate(); },
     async requestJoin(code: string, name: string) {
       if (!validJoinCode(code) || !name.trim() || name.trim().length > 80) throw Error('Enter a valid code and display name');
@@ -21,29 +22,31 @@ export function onlineClient(rpc: OnlineRpc, repair: (contest: string, membershi
     },
     listRequests: (contest: string) => call('list_join_requests', { contest_id: contest }),
     async rejoinHost(contest: string) {
-      const epoch = generation;
+      const epoch = generation, authorized = v1.guard(contest);
       try {
         // M2 permits owner-hosts without an explicit membership row. The host-only
         // request RPC proves that role; a profile/provider cache never does.
         const requests = await call('list_join_requests', { contest_id: contest });
+        if (!authorized()) throw Error('Authorization changed during restore');
         const snapshot = await v1.restore(contest, { role: 'host', status: 'approved', player_id: null });
         if (!Number.isInteger(snapshot?.revision) || !Array.isArray(snapshot.rounds)) throw Error('Invalid online snapshot');
         if (epoch !== generation) throw Error('Identity changed during restore');
-        repair(contest, { role: 'host', status: 'approved', player_id: null }, snapshot);
+
         return { requests, snapshot };
-      } catch (error) { if (epoch === generation) repair(contest, null, null); throw error; }
+      } catch (error) { if (epoch === generation && isSyncDenial(error)) v1.deny(contest); throw error; }
     },
     decide: (request: string, approve: boolean, player: string | null) => call('decide_join_request', { request_id: request, approve, player_id: player }),
     async rejoin(contest: string) {
-      const epoch = generation;
+      const epoch = generation, authorized = v1.guard(contest);
       try {
         const membership = await call('my_membership', { contest_id: contest }) as Membership | null;
-        if (!membership || membership.status !== 'approved') { if (epoch === generation) repair(contest, null, null); return null; }
+        if (!membership || membership.status !== 'approved') { if (epoch === generation) v1.deny(contest); return null; }
+        if (!authorized()) throw Error('Authorization changed during restore');
         const snapshot = await v1.restore(contest, membership);
         if (!Number.isInteger(snapshot?.revision) || !Array.isArray(snapshot.rounds)) throw Error('Invalid online snapshot');
         if (epoch !== generation) throw Error('Identity changed during restore');
-        repair(contest, membership, snapshot); return snapshot;
-      } catch (error) { if (epoch === generation) repair(contest, null, null); throw error; }
+        return snapshot;
+      } catch (error) { if (epoch === generation && isSyncDenial(error)) v1.deny(contest); throw error; }
     },
   };
 }
@@ -72,4 +75,22 @@ export function foregroundSync(fetch: () => Promise<OnlineSnapshot | null>, repo
   const timer = setInterval(() => void refresh(), interval);
   void refresh();
   return { hint(value: unknown) { if (typeof value === 'number' && Number.isInteger(value) && value > revision) void refresh(); }, stop() { stopped = true; clearInterval(timer); if (retry) clearTimeout(retry); } };
+}
+
+/** One foreground/reconnect drain per actor, shared by discovery and scorecard watchers. */
+export function foregroundRetry<T>(identity: () => Promise<string | null>, replay: (actor: string) => Promise<unknown>, discover: () => Promise<T>) {
+  const active = new Map<string, Promise<T>>();
+  return async () => {
+    const actor = await identity();
+    if (!actor) return null;
+    const existing = active.get(actor);
+    if (existing) return existing;
+    const work = (async () => {
+      await replay(actor);
+      if (await identity() !== actor) throw Error('Identity changed during reconnect');
+      return discover();
+    })();
+    active.set(actor, work);
+    try { return await work; } finally { if (active.get(actor) === work) active.delete(actor); }
+  };
 }

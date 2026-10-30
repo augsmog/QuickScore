@@ -1,5 +1,5 @@
 import { loadSyncCapability, revisionChannel, snapshotScore } from './sync-v1';
-import { foregroundSync } from './online-client';
+import { foregroundSync, foregroundRetry } from './online-client';
 import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { supabase } from '../db/supabase';
@@ -31,8 +31,9 @@ export async function remoteIdentity() {
   return signingIn;
 }
 const boxes = new Map<string, ReturnType<typeof scoreOutbox>>();
-async function box() {
+async function box(expectedActor?: string) {
   const actor = await remoteIdentity();
+  if (expectedActor && actor !== expectedActor) throw Error('Identity changed during replay');
   if (!boxes.has(actor)) boxes.set(actor, scoreOutbox(outboxStorage, actor, Crypto.randomUUID, async args => {
     // Refresh before replay; never replay an old identity's operations as another user.
     const { data, error } = await supabase.auth.getSession();
@@ -61,13 +62,14 @@ async function writer<T>(work: () => Promise<T>): Promise<T> {
 export async function queueOnlineScore(draft: ScoreDraft, expectedVersion: number) {
   return writer(async () => (await box()).enqueue(draft, expectedVersion));
 }
-export async function replayOnlineScores() {
+export async function replayOnlineScores(expectedActor?: string) {
   if (!onlineEnabled) return;
   // No anonymous signup just because a timer fires.
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
   if (!data.session) return;
-  return writer(async () => (await box()).replay());
+  if (expectedActor && data.session.user.id !== expectedActor) throw Error('Identity changed during replay');
+  return writer(async () => (await box(data.session.user.id)).replay());
 }
 export async function onlineQueue() { return writer(async () => (await box()).inspect()); }
 export async function resolveOnlineConflict(id: string, choice: 'keep-current' | 'use-mine') {
@@ -80,7 +82,7 @@ export async function requireSyncCapability(contest: string) {
     const { data, error } = await supabase.rpc('sync_capabilities', { contest_id: contest });
     if (error) throw error;
     return data;
-  }, () => useOnlineStore.getState().repair(contest, null, null));
+  }, () => client.deny(contest));
 }
 export function watchOnline(contest: string, refresh: () => Promise<any>, report: (error: unknown) => void) {
   if (!onlineEnabled) return () => {};
@@ -105,3 +107,9 @@ export async function queueSnapshotScore(contest: string, round: string, player:
   await queueOnlineScore(draft, version);
   await replayOnlineScores();
 }
+
+export const refreshOnline = foregroundRetry(async () => {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  return data.session?.user.id ?? null;
+}, replayOnlineScores, async () => { await client.discover(); return null; });

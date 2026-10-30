@@ -2,7 +2,7 @@ import { projectScore, pendingConfirmation } from '../services/score-projection'
 import type { Entry } from '../services/score-outbox';
 import { useEffect, useState } from 'react';
 import { Alert, AppState, Pressable, Text, TextInput, View } from 'react-native';
-import { client, onlineEnabled, queueOnlineScore, watchOnline, onlineQueue, replayOnlineScores, resolveOnlineConflict } from '../services/cross-device';
+import { client, refreshOnline, onlineEnabled, queueOnlineScore, watchOnline, onlineQueue, replayOnlineScores, resolveOnlineConflict } from '../services/cross-device';
 import { snapshotScore } from '../services/sync-v1';
 import { foregroundSync } from '../services/online-client';
 import { useOnlineStore } from '../stores/online-store';
@@ -19,7 +19,7 @@ export function OnlineGuestScorecard() {
     const change = (state: string) => {
       stop?.(); stop = undefined;
       if (state === 'active') {
-        const poll = foregroundSync(async () => { await client.discover(); return null; }, () => setMessage('Waiting for approval or connection'));
+        const poll = foregroundSync(async () => { await refreshOnline(); return null; }, () => setMessage('Waiting for approval or connection'));
         stop = poll.stop;
       }
     };
@@ -42,7 +42,7 @@ function ApprovedScorecard({ id, onError }: { id: string; onError: (message: str
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   useEffect(() => {
     let stop: (() => void) | undefined;
-    const refresh = async () => { await client.discover(); await inspectQueue(); return useOnlineStore.getState().events[id]?.snapshot ?? null; };
+    const refresh = async () => { await refreshOnline(); await inspectQueue(); return useOnlineStore.getState().events[id]?.snapshot ?? null; };
     const change = (state: string) => {
       stop?.(); stop = undefined;
       if (state === 'active') stop = watchOnline(id, refresh, () => onError('Waiting to sync. Drafts retained.'));

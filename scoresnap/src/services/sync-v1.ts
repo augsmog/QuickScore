@@ -14,35 +14,54 @@ export async function loadSyncCapability(build: boolean, contest: string, read: 
     throw error;
   }
 }
+export function isSyncDenial(error: any) {
+  return ['42501', '22023', '55000', 'PGRST301', 'PGRST302'].includes(error?.code) || [401, 403].includes(error?.status);
+}
 export function syncV1(call: (name: string, args: Record<string, unknown>) => Promise<any>, repair: (id: string, member: Membership | null, snapshot: SyncSnapshotV1 | null) => void) {
   let generation = 0;
   const known = new Set<string>();
+  const epochs = new Map<string, number>();
+  let discovery = 0;
+  function deny(id: string) {
+    epochs.set(id, (epochs.get(id) ?? 0) + 1);
+    known.add(id); // retain the invalidation marker after deleting the view
+    repair(id, null, null);
+  }
   async function restore(id: string, member: Membership) {
-    const epoch = generation;
+    const epoch = generation, authorization = epochs.get(id) ?? 0;
+    known.add(id);
+    const current = () => epoch === generation && authorization === (epochs.get(id) ?? 0);
     try {
       const cap = await call('sync_capabilities', { contest_id: id }) as SyncCapabilitiesV1;
-      if (epoch !== generation) throw Error('Identity changed during restore');
+      if (!current()) throw Error('Identity changed during restore or authorization invalidated');
       if (!canSync(true, cap, id)) throw Object.assign(Error('Online sharing paused or unsupported. Drafts retained.'), { code: '55000' });
       const snapshot = await call('fetch_snapshot', { contest_id: id, after_revision: 0 }) as SyncSnapshotV1;
-      if (epoch !== generation) throw Error('Identity changed during restore');
+      if (!current()) throw Error('Identity changed during restore or authorization invalidated');
       if (snapshot?.contest_id !== id || !Number.isInteger(snapshot.revision) || !Array.isArray(snapshot.rounds) || !canSync(true, snapshot.capabilities, id)) throw Object.assign(Error('Invalid online snapshot'), { code: '22023' });
       known.add(id);
       repair(id, member, snapshot); return snapshot;
     } catch (error: any) {
-      if (epoch === generation && ['42501', '22023', '55000'].includes(error?.code)) repair(id, null, null);
+      if (current() && isSyncDenial(error)) deny(id);
       throw error;
     }
   }
-  return { restore, invalidate() { generation++; known.clear(); }, async discover() {
-    const epoch = generation;
+  function guard(id: string) {
+    known.add(id);
+    const identity = generation, authorization = epochs.get(id) ?? 0;
+    return () => identity === generation && authorization === (epochs.get(id) ?? 0);
+  }
+  return { restore, deny, guard, invalidate() { generation++; discovery++; known.clear(); epochs.clear(); }, async discover() {
+    const epoch = generation, request = ++discovery;
     const status = await call('my_sync_status', {}) as MySyncStatusV1;
     if (epoch !== generation) throw Error('Identity changed during discovery');
+    if (request !== discovery) return status;
     if (status?.api_version !== 1 || !Array.isArray(status.memberships) || !Array.isArray(status.requests)) throw Error('Unsupported discovery');
     const approved = new Set(status.memberships.filter(m => m.status === 'approved').map(m => m.contest_id));
-    for (const id of known) if (!approved.has(id)) { repair(id, null, null); known.delete(id); }
-    for (const member of status.memberships) if (member.status !== 'approved') repair(member.contest_id, null, null);
+    for (const id of known) if (!approved.has(id)) { deny(id); }
+    for (const member of status.memberships) if (member.status !== 'approved') deny(member.contest_id);
     for (const member of status.memberships) {
       if (epoch !== generation) throw Error('Identity changed during discovery');
+      if (request !== discovery) return status;
       if (member.status === 'approved') await restore(member.contest_id, member);
 
     }

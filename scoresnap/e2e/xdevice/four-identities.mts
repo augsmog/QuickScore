@@ -9,6 +9,8 @@ import { createClient } from '@supabase/supabase-js';
 import WebSocket from 'ws';
 const outboxModule = await import(process.env.XDEVICE_OUTBOX_MODULE || '../../src/services/score-outbox.ts');
 const { scoreOutbox } = outboxModule.default ?? outboxModule;
+import * as onlineModule from '../../src/services/online-client';
+const { onlineClient, foregroundRetry, foregroundSync } = (onlineModule as any).default ?? onlineModule;
 import * as syncModule from '../../src/services/sync-v1';
 const { syncV1, snapshotScore, revisionHint, loadSyncCapability } = (syncModule as any).default ?? syncModule;
 import * as projectionModule from '../../src/services/score-projection';
@@ -21,7 +23,7 @@ const db = process.env.XDEVICE_DB!;
 for (const url of [api, db]) assert(['127.0.0.1', 'localhost'].includes(new URL(url).hostname), 'disposable loopback stack only');
 const sql = (input: string) => execFileSync('psql', [db, '-XAt', '-v', 'ON_ERROR_STOP=1'], {input, encoding:'utf8', stdio:['pipe','pipe','pipe']}).trim();
 const work = await mkdtemp(join(tmpdir(), 'snapscore-four-identities-'));
-const contest = randomUUID(), p1 = randomUUID(), p2 = randomUUID(), r2 = randomUUID(), group = randomUUID();
+const contest = randomUUID(), p1 = randomUUID(), p2 = randomUUID(), p3 = randomUUID(), r2 = randomUUID(), group = randomUUID();
 const users: {id:string; token:string; refresh?:string}[] = [];
 let anonKey = '';
 const sockets:any[]=[];
@@ -56,14 +58,14 @@ try {
       users.push({id,token}); sql(`INSERT INTO auth.users(id) VALUES('${id}');`);
     } else {
       const auth=createClient(api,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
-      const {data,error}=await auth.auth.signUp({email:`xdevice-${randomUUID()}@example.test`,password:randomUUID()+'aA!9'});
-      assert(!error && data.session && data.user, 'disposable Auth signup');
+      const {data,error}=await (i===0 ? auth.auth.signUp({email:`xdevice-${randomUUID()}@example.test`,password:randomUUID()+'aA!9'}) : auth.auth.signInAnonymously());
+      assert(!error && data.session && data.user, 'disposable host/anonymous guest Auth signup');
+      if(i>0)assert.equal(data.user.is_anonymous,true);
       users.push({id:data.user.id,token:data.session.access_token,refresh:data.session.refresh_token});
     }
   }
   sql(`INSERT INTO public.contests(id,owner_id,course,protocol,sync_enabled,invite_code) VALUES('${contest}','${users[0].id}','{"name":"Home","holes":[{"num":1,"par":4}]}',1,true,'R2TEST');
-INSERT INTO public.contest_players(id,contest_id,name) VALUES('${p1}','${contest}','One'),('${p2}','${contest}','Two');
-INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status) VALUES('${contest}','${users[1].id}','player','${p1}','approved'),('${contest}','${users[2].id}','player','${p2}','approved'),('${contest}','${users[3].id}','scorer',NULL,'approved');
+INSERT INTO public.contest_players(id,contest_id,name) VALUES('${p1}','${contest}','One'),('${p2}','${contest}','Two'),('${p3}','${contest}','Three');
 INSERT INTO public.contest_rounds(id,contest_id,round_number,name,course_data) VALUES('${r2}','${contest}',2,'Away','{"name":"Away","holes":[{"num":1,"par":5},{"num":2,"par":3}]}');
 INSERT INTO public.contest_groups(id,contest_id,round_id,name) VALUES('${group}','${contest}','${r2}','Away group');
 INSERT INTO public.round_player_assignments(contest_id,round_id,player_id,group_id) VALUES('${contest}','${r2}','${p1}','${group}');
@@ -74,11 +76,32 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
     if(!response.ok) throw Object.assign(Error(`RPC ${name} failed`),{code:data.code,status:response.status});
     return data;
   };
+  const failures = new Map<number,string>();
   const views = users.map(()=>new Map<string,any>());
-  const clients=users.map((_,i)=>syncV1(rpc(i),(id:string,member:any,snapshot:any)=>{if(member&&snapshot) views[i].set(id,snapshot);else views[i].delete(id)}));
+  const clients=users.map((_,i)=>onlineClient(async (name:string,args:any)=>{if(failures.get(i)===name)throw Error('injected transport offline');return {data:await rpc(i)(name,args),error:null}},(id:string,member:any,snapshot:any)=>{if(member&&snapshot) views[i].set(id,snapshot);else views[i].delete(id)}));
+  // Real production enrollment: pending never yields a roster, only the host decides.
+  for(let i=1;i<4;i++) {
+    assert.deepEqual(await clients[i].requestJoin('R2TEST',`Guest ${i}`),{status:'pending'});
+    const status=await clients[i].discover();
+    assert.equal(status.memberships.length,0);
+    assert(status.requests.every((r:any)=>r.contest_id===null));
+    assert(!views[i].has(contest));
+    await assert.rejects(rpc(i)('fetch_snapshot',{contest_id:contest,after_revision:0}),{code:'42501'});
+    await assert.rejects(clients[i].listRequests(contest),{code:'42501'});
+  }
+  const pending=await clients[0].listRequests(contest);
+  for(let i=1;i<4;i++)await clients[0].decide(pending.find((r:any)=>r.requester===users[i].id).id,true,[p1,p2,p3][i-1]);
+  // Scorer provisioning has no public UI/RPC yet. Only this ancillary role/scope
+  // fixture uses SQL; enrollment and player approval above never do.
+  sql(`UPDATE public.contest_memberships SET role='scorer',player_id=NULL WHERE contest_id='${contest}' AND user_id='${users[3].id}';`);
   // Owner restores directly: discovery intentionally lists memberships only.
   await clients[0].restore(contest,{status:'approved',role:'host'} as any);
   for(let i=1;i<4;i++) await clients[i].discover();
+  for(const name of ['list_join_requests','fetch_snapshot']){
+    failures.set(0,name);await assert.rejects(clients[0].rejoinHost(contest),/transport offline/);
+    assert(views[0].has(contest),'production host refresh must retain authorized view offline');
+  }
+  failures.clear();
   assert(users.every((_,i)=>views[i].has(contest)));
   const first=views[0].get(contest), r1=first.rounds[0].id;
   assert.equal(first.rounds[1].course.holes[0].par,5);
@@ -94,6 +117,10 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
     const receipt=await rpc(i)('write_score',{...args});
     if(i===1&&lose){lose=false;throw Error('injected lost response after commit')}
     return receipt;
+  }));
+  const retries=users.map((user,i)=>foregroundRetry(async()=>user.id,async()=>boxes[i].replay(),async()=>{
+    if(i===0)await clients[i].rejoinHost(contest);else await clients[i].discover();
+    return views[i].get(contest)??null;
   }));
   const enqueue=async(i:number,round:string,player:string,hole:number,strokes:number|null)=>{
     const edit=snapshotScore(true,views[i].get(contest),round,player,hole,strokes);
@@ -122,7 +149,7 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
   assert.equal((await boxes[0].inspect()).entries.length,0);
   assert.equal(sql(`SELECT count(*) FROM public.score_events WHERE contest_id='${contest}';`),'4');
   // Reconnect fetch repairs every authorized view, preserving stable IDs and CAS.
-  const reconnect=async()=>{await clients[0].restore(contest,{status:'approved',role:'host'} as any);for(let i=1;i<4;i++)await clients[i].discover()};
+  const reconnect=async()=>{for(const i of [3,1,0,2])await retries[i]()};
   if(!native){await eventually(()=>hints.some(h=>h.i===1)&&hints.some(h=>h.i===3));for(const h of hints)assert.deepEqual(Object.keys(h.payload),['revision']);await sockets[0].removeAllChannels();await subscribe(1);}
   await reconnect();
   const canonical=views[0].get(contest);
@@ -142,10 +169,49 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
   // Asymmetric assignment is authorization, not merely a UI filter.
   await enqueue(2,r2,p2,1,9); await boxes[2].replay();
   assert.equal((await boxes[2].inspect()).entries[0].state,'denied');
+  // No Save/Retry action: a running foreground poll observes reconnection and
+  // drains a durable offline edit through the same orchestration as the UI.
+  let connected=false, attempted=false;
+  await enqueue(1,r1,p1,2,6);
+  const polling=foregroundSync(async()=>{attempted=true;if(!connected)throw Error('offline');return retries[1]()},()=>{},20);
+  await eventually(()=>attempted);
+  assert.equal((await boxes[1].inspect()).entries.length,1);
+  connected=true;
+  try { await eventually(()=>views[1].get(contest)?.rounds.find((r:any)=>r.id===r1)?.players.find((p:any)=>p.id===p1)?.cells.find((c:any)=>c.hole===2)?.strokes===6); }
+  finally {polling.stop()}
+  assert.equal((await boxes[1].inspect()).entries.length,0);
+  // All four authorized writers overlap the SAME cell, in varied reconnect orders.
+  // Ancillary scorer fixture grants actor 2 the existing Away group after real approval.
+  sql(`UPDATE public.contest_memberships SET role='scorer',player_id=NULL WHERE contest_id='${contest}' AND user_id='${users[2].id}';
+INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,status) VALUES('${contest}','${r2}','${users[2].id}','${group}','approved');`);
+  for(const order of [[2,0,3,1],[3,1,2,0]]) {
+    await reconnect();
+    for(let i=0;i<4;i++)await enqueue(i,r2,p1,1,i+3);
+    for(const i of order)await retries[i](); // same production foreground/reconnect drain
+    for(let i=0;i<4;i++){
+      const entries=(await boxes[i].inspect()).entries.filter((e:any)=>e.draft.round_id===r2&&e.draft.player_id===p1&&e.draft.hole===1);
+      if(i===order[0])assert.equal(entries.length,0);
+      else {assert.equal(entries.length,1);assert.equal(entries[0].state,'conflict');await boxes[i].resolve(entries[0].id,'keep-current',true)}
+    }
+    await reconnect();
+    for(let i=1;i<4;i++)assert.deepEqual(views[i].get(contest),views[0].get(contest));
+    assert.equal(getCell(views[0].get(contest),r2,p1,1).strokes,order[0]+3);
+  }
   // Queue before revocation, then reconnect. View and replay both fail closed.
   await enqueue(3,r2,p1,2,8);
   const count=sql(`SELECT count(*) FROM public.score_events WHERE contest_id='${contest}';`);
+  let releaseSnapshot: (()=>void)|undefined;
+  const staleClient=onlineClient(async(name:string,args:any)=>{
+    const data=await rpc(3)(name,args);
+    if(name==='fetch_snapshot')await new Promise<void>(resolve=>{releaseSnapshot=resolve});
+    return {data,error:null};
+  },(id:string,member:any,snapshot:any)=>{if(member&&snapshot)views[3].set(id,snapshot);else views[3].delete(id)});
+  const heldRestore=staleClient.restore(contest,{status:'approved',role:'scorer',player_id:null});
+  const heldResult=heldRestore.then(()=>false,()=>true);
+  await eventually(()=>!!releaseSnapshot);
   await rpc(0)('revoke_membership',{contest_id:contest,member_id:users[3].id});
+  await staleClient.discover();assert(!views[3].has(contest));
+  releaseSnapshot!();assert(await heldResult,'late authorized snapshot must be discarded');assert(!views[3].has(contest));
   await clients[3].discover(); assert(!views[3].has(contest));
   await assert.rejects(rpc(3)('fetch_snapshot',{contest_id:contest,after_revision:0}),{code:'42501'});
   await assert.rejects(rpc(3)('can_receive_sync',{topic:`snapscore:${contest}`}).then(allowed=>{if(!allowed)throw Object.assign(Error('revoked'),{code:'42501'})}),{code:'42501'});
@@ -164,6 +230,17 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
     await sockets[1].removeAllChannels();
     await assert.rejects(subscribe(3),/denied/);
   }
+  // Transfer through host decision revokes the former slot, then reject its rejoin.
+  await clients[3].requestJoin('R2TEST','Transfer');
+  let requestsNow=await clients[0].listRequests(contest);
+  await clients[0].decide(requestsNow.find((r:any)=>r.requester===users[3].id&&r.status==='pending').id,true,p1);
+  await clients[1].discover();assert(!views[1].has(contest));
+  await clients[3].discover();assert(views[3].has(contest));
+  await clients[1].requestJoin('R2TEST','Rejected rejoin');
+  requestsNow=await clients[0].listRequests(contest);
+  await clients[0].decide(requestsNow.find((r:any)=>r.requester===users[1].id&&r.status==='pending').id,false,null);
+  const rejected=await clients[1].discover();assert(!views[1].has(contest));assert(rejected.requests.some((r:any)=>r.status==='rejected'));
+  console.log('PASS anonymous enrollment/pending privacy/host approval/transfer/reject; production onlineClient + foreground replay; four-way same-cell overlap in two reconnect orders');
   console.log('PASS four independent identities: durable offline overlap/disjoint, lost response/restart, conflict, tombstone, asymmetric rounds, convergence, revocation and reconnect');
   console.log(native?'LIMIT: native JWT issuance and Realtime SQL stubs; no Auth service or sockets':'PASS disposable Auth signup/refresh, PostgREST, private revision sockets, authorized reconnect and revoked resubscribe denial');
 } finally { for(const socket of sockets){await socket.removeAllChannels();socket.realtime.disconnect()} await rm(work,{recursive:true,force:true}); }
