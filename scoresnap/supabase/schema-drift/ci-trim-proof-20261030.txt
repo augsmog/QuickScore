@@ -1,0 +1,1 @@
+-- CI trim proof 2026-10-30: comment-only file, not loaded by any migration. Do not merge.
