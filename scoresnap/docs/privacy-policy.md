@@ -12,7 +12,7 @@ SnapScore stores golf-round information such as player names, scores, courses, g
 
 ## Scorecard photos and AI processing
 
-You can photograph a scorecard so SnapScore can read it. SnapScore first tries to read the card on your device using on-device text recognition when it is available. If that is unavailable, fails, or is not confident enough, the app can send the scorecard image for cloud recognition: the image is sent to a Supabase Edge Function, which forwards it to Anthropic's API to extract player names and scores. Cloud processing therefore includes any other information visible in the photo. Review the extracted results before saving them.
+You can photograph a scorecard so SnapScore can read it. SnapScore first tries to read the card on your device using on-device text recognition when it is available. If that is unavailable, fails, or is not confident enough, the app can send the scorecard image for cloud recognition: the image is sent to a Supabase Edge Function, which forwards it to Anthropic's API to extract player names and scores. Cloud processing therefore includes any other information visible in the photo. Cloud reading only happens when you take a scorecard photo; if you would rather not send a photo, you can enter scores by hand instead. Review the extracted results before saving them.
 
 The scorecard image is sent in the request for recognition; SnapScore does not save it to a SnapScore storage bucket. Supabase and Anthropic handle data they receive under their own terms, which may include logs.
 
@@ -44,7 +44,7 @@ We use information to provide your account, read scorecards, store and sync roun
 - GolfCore: course search queries.
 - Cloudflare: a security check (Turnstile) on sign-in and sign-up, where enabled.
 
-SnapScore does not include advertising SDKs.
+SnapScore does not show ads and does not include advertising SDKs.
 
 ## Retention and deletion
 
@@ -57,6 +57,10 @@ To ask us to delete your account and the data stored on SnapScore's servers (suc
 ## Your choices
 
 SnapScore asks for camera access to photograph scorecards. You can decline camera access and enter scores by hand instead. You can choose not to use cloud features such as live sharing, chat and course search. You can ask us questions about your information, or ask us to delete it, by emailing augie@autumn8.me.
+
+## Children
+
+SnapScore is not directed to children under 13, and we do not knowingly collect personal information from children under 13. If you believe a child has given us personal information, email augie@autumn8.me so we can address it.
 
 ## Changes to this policy
 
