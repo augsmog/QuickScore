@@ -10,7 +10,7 @@ import WebSocket from 'ws';
 const outboxModule = await import(process.env.XDEVICE_OUTBOX_MODULE || '../../src/services/score-outbox.ts');
 const { scoreOutbox } = outboxModule.default ?? outboxModule;
 import * as syncModule from '../../src/services/sync-v1';
-const { syncV1, snapshotScore } = (syncModule as any).default ?? syncModule;
+const { syncV1, snapshotScore, revisionHint } = (syncModule as any).default ?? syncModule;
 import * as projectionModule from '../../src/services/score-projection';
 const { projectScore } = (projectionModule as any).default ?? projectionModule;
 
@@ -30,7 +30,7 @@ async function subscribe(i:number) {
   const transport=createClient(api,anonKey,{auth:{persistSession:false,autoRefreshToken:false},realtime:{transport:WebSocket as any}});
   sockets.push(transport);
   await transport.realtime.setAuth(users[i].token);
-  const channel=transport.channel(`snapscore:${contest}`,{config:{private:true}}).on('broadcast',{event:'revision'},({payload}:any)=>hints.push({i,payload}));
+  const channel=transport.channel(`snapscore:${contest}`,{config:{private:true}}).on('broadcast',{event:'revision'},({payload}:any)=>{const revision=revisionHint(payload);assert.notEqual(revision,null,'only revision plus optional Realtime delivery UUID');hints.push({i,payload:{revision}})});
   await new Promise<void>((resolve,reject)=>{
     const timer=setTimeout(()=>reject(Error('private subscribe timeout')),15000);
     channel.subscribe((status:string)=>{if(status==='SUBSCRIBED'){clearTimeout(timer);resolve()}else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)){clearTimeout(timer);reject(Error('private subscribe denied'))}});

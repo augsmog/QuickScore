@@ -38,12 +38,21 @@ export function syncV1(call: (name: string, args: Record<string, unknown>) => Pr
     return status;
   } };
 }
+/** Realtime adds a delivery UUID to SQL broadcast payloads. It is never score data. */
+export function revisionHint(payload: any): number | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+      !Number.isSafeInteger(payload.revision) || payload.revision < 0 ||
+      Object.keys(payload).some(key => key !== 'revision' && key !== 'id')) return null;
+  if ('id' in payload && (typeof payload.id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.id))) return null;
+  return payload.revision;
+}
 /** No hint changes scores. Ack/reconnect always triggers an authorized full fetch. */
 export function revisionChannel(transport: any, cap: SyncCapabilitiesV1, fetch: () => void, hint: (revision: number) => void) {
   let stopped = false;
   const channel = transport.channel(cap.channel.topic, { config: { private: true } })
     .on('broadcast', { event: 'revision' }, ({ payload }: { payload: any }) => {
-      if (!stopped && payload && Object.keys(payload).length === 1 && Number.isInteger(payload.revision) && payload.revision >= 0) hint(payload.revision);
+      const revision = revisionHint(payload);
+      if (!stopped && revision !== null) hint(revision);
     }).subscribe((status: string) => { if (!stopped && status === 'SUBSCRIBED') fetch(); });
   return () => { stopped = true; void transport.removeChannel(channel); };
 }
