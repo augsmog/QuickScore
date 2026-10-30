@@ -10,7 +10,7 @@ import WebSocket from 'ws';
 const outboxModule = await import(process.env.XDEVICE_OUTBOX_MODULE || '../../src/services/score-outbox.ts');
 const { scoreOutbox } = outboxModule.default ?? outboxModule;
 import * as onlineModule from '../../src/services/online-client';
-const { onlineClient, foregroundRetry, foregroundSync } = (onlineModule as any).default ?? onlineModule;
+const { onlineClient, foregroundRetry, foregroundSync, hostOrDiscover } = (onlineModule as any).default ?? onlineModule;
 import * as syncModule from '../../src/services/sync-v1';
 const { syncV1, snapshotScore, revisionHint, loadSyncCapability } = (syncModule as any).default ?? syncModule;
 import * as projectionModule from '../../src/services/score-projection';
@@ -98,7 +98,7 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
   await clients[0].restore(contest,{status:'approved',role:'host'} as any);
   for(let i=1;i<4;i++) await clients[i].discover();
   for(const name of ['list_join_requests','fetch_snapshot']){
-    failures.set(0,name);await assert.rejects(clients[0].rejoinHost(contest),/transport offline/);
+    failures.set(0,name);await assert.rejects(hostOrDiscover(clients[0],contest),/transport offline/);
     assert(views[0].has(contest),'production host refresh must retain authorized view offline');
   }
   failures.clear();

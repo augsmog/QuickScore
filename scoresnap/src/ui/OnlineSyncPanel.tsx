@@ -1,3 +1,4 @@
+import { hostOrDiscover } from '../services/online-client';
 import { useEffect, useState } from 'react';
 import { Alert, AppState, Pressable, ScrollView, Text, View } from 'react-native';
 import { client, onlineEnabled, onlineQueue, replayOnlineScores, resolveOnlineConflict, watchOnline } from '../services/cross-device';
@@ -21,11 +22,9 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
     try {
       let snapshot;
       if (!anonymous) {
-        try {
-          const host = await client.rejoinHost(contest.id);
-          snapshot = host.snapshot;
-          setRequests(host.requests.filter((r: { status: string }) => r.status === 'pending'));
-        } catch { await client.discover(); snapshot = useOnlineStore.getState().events[contest.id]?.snapshot ?? null; setRequests([]); }
+        const host = await hostOrDiscover(client, contest.id);
+        snapshot = host?.snapshot ?? useOnlineStore.getState().events[contest.id]?.snapshot ?? null;
+        setRequests(host?.requests.filter((r: { status: string }) => r.status === 'pending') ?? []);
       } else { await client.discover(); snapshot = useOnlineStore.getState().events[contest.id]?.snapshot ?? null; }
       const box = await onlineQueue();
       setEntries(box.entries.filter(e => e.draft.contest_id === contest.id));

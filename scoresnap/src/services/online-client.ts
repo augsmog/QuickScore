@@ -94,3 +94,13 @@ export function foregroundRetry<T>(identity: () => Promise<string | null>, repla
     try { return await work; } finally { if (active.get(actor) === work) active.delete(actor); }
   };
 }
+
+/** A host transport outage must not fall back to membership-only discovery. */
+export async function hostOrDiscover<T>(api: { rejoinHost(contest: string): Promise<T>; discover(): Promise<unknown> }, contest: string): Promise<T | null> {
+  try { return await api.rejoinHost(contest); }
+  catch (error) {
+    if (!isSyncDenial(error)) throw error;
+    await api.discover();
+    return null;
+  }
+}
