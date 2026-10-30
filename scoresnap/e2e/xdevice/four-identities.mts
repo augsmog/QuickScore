@@ -87,7 +87,7 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
   const requests:any[]=[];
   const boxes=users.map((user,i)=>scoreOutbox(storage,user.id,randomUUID,async (args:WriteArgs)=>{
     requests.push({i,args:{...args}});
-    const receipt=await rpc(i)('write_score',args);
+    const receipt=await rpc(i)('write_score',{...args});
     if(i===1&&lose){lose=false;throw Error('injected lost response after commit')}
     return receipt;
   }));
@@ -106,7 +106,7 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
   await assert.rejects(boxes[1].replay(),/lost response/);
   const immutable=(await boxes[1].inspect()).entries[0].request;
   // Force process-equivalent outbox reconstruction from disk after lost response.
-  boxes[1]=scoreOutbox(storage,users[1].id,randomUUID,async (args:WriteArgs)=>{requests.push({i:1,args:{...args}});return rpc(1)('write_score',args)});
+  boxes[1]=scoreOutbox(storage,users[1].id,randomUUID,async (args:WriteArgs)=>{requests.push({i:1,args:{...args}});return rpc(1)('write_score',{...args})});
   await boxes[1].replay();
   assert.deepEqual(requests.filter(r=>r.i===1).slice(0,2).map(r=>r.args),[immutable,immutable]);
   await Promise.all([boxes[0].replay(),boxes[2].replay(),boxes[3].replay()]);
