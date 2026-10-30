@@ -117,7 +117,7 @@ test("support route renders the contact email, deletion request, and no external
   const pages = load("src/web/public-pages.ts");
   const privacyMarkdown = fs.readFileSync(path.join(root, "docs/privacy-policy.md"), "utf8");
   expect(crypto.createHash("sha256").update(privacyMarkdown).digest("hex")).toBe(
-    "e83e70b4bf5c3bc1550db7ff6ef220807bcd75b08056eb82e3b4a5e237ff02f9",
+    "7861a05e44871356a6e90f44f5de0b0855e7e5258a4af5c76aee20469b805fb2",
   );
   expect(privacyMarkdown).toContain("Effective date: October 30, 2026");
   expect(privacyMarkdown).toContain("SnapScore is operated by John August Jones");

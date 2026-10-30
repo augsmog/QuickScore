@@ -48,7 +48,7 @@ SnapScore does not show ads and does not include advertising SDKs.
 
 ## Retention and deletion
 
-Round and account records stored on your device stay there until the app's storage is cleared or you remove them in the app. Deleting a contest removes it from your device. The Delete Account control in Settings currently clears five local storage entries on that device (contests, sign-in details, settings, scan count and onboarding status), then signs you out. It does not delete your account or data on SnapScore's servers, and it does not clear every local item, such as queued tournament updates and saved chat identifiers. Signing out does not delete server data either.
+Round and account records stored on your device stay there until the app's storage is cleared or you remove them in the app. Deleting a contest removes it from your device. The Delete Account control in Settings currently clears your contests, sign-in details, settings and onboarding status on that device, then signs you out. It does not delete your account or data on SnapScore's servers, and it does not clear every local item, such as your scan count, queued tournament updates and saved chat identifiers. Signing out does not delete server data either.
 
 SnapScore does not have a set retention or deletion schedule for server records, service-provider request data or logs, image caches, or backups. This policy does not promise complete deletion, a deletion deadline, or automatic expiry of images.
 
