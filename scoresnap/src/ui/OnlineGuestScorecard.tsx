@@ -1,3 +1,4 @@
+import { confirmedTournamentTotals } from '../services/tournament-totals';
 import { projectScore, pendingConfirmation } from '../services/score-projection';
 import type { Entry } from '../services/score-outbox';
 import { useEffect, useState } from 'react';
@@ -57,6 +58,13 @@ function ApprovedScorecard({ id, onError }: { id: string; onError: (message: str
     <Pressable accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => { void replayOnlineScores().then(() => client.discover()).then(() => inspectQueue()).catch(() => onError('Waiting to sync. Drafts retained.')); }}><Text style={{ color: COLORS.primary }}>Retry queued scores</Text></Pressable>
     {entries.map(entry => <View key={entry.id}><Text style={{ color: COLORS.text }}>Hole {entry.draft.hole}: {entry.state} · round {entry.draft.round_id} · yours {entry.draft.strokes ?? 'clear'}{entry.receipt ? ` · current ${entry.receipt.strokes ?? 'clear'}` : ''}</Text>
       {entry.state === 'conflict' && (['keep-current', 'use-mine'] as const).map(choice => <Pressable key={choice} accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => Alert.alert('Resolve score conflict?', 'Later queued edits for this hole will be cancelled. Review and enter them again.', [{ text: 'Cancel' }, { text: 'Confirm', onPress: () => { void resolveOnlineConflict(entry.id, choice).then(() => client.discover()).then(() => inspectQueue()).catch(() => onError('Could not save conflict choice')); } }])}><Text style={{ color: COLORS.primary }}>{choice === 'keep-current' ? 'Keep current' : 'Use my score'}</Text></Pressable>)}
+    </View>)}
+    <Text style={{ color: COLORS.text }}>Confirmed tournament totals · queued edits excluded</Text>
+    {confirmedTournamentTotals(snapshot).map(total => <View key={total.playerId}>
+      <Text style={{ color: COLORS.text }}>{total.displayName}: {total.strokes ?? '—'}{total.complete ? '' : ' · incomplete'}</Text>
+      {total.rounds.map(result => <Text key={result.roundId} style={{ color: COLORS.text }}>
+        {snapshot.rounds.find(round => round.id === result.roundId)?.name}: {result.strokes ?? '—'} · {result.scored}/{result.holes} holes{result.holes ? '' : ' · course needs repair'}
+      </Text>)}
     </View>)}
     {snapshot.rounds.map(round => <View key={round.id}>
       <Text style={{ color: COLORS.text }}>{round.name} · {round.course.name || 'Course needs repair'}</Text>
