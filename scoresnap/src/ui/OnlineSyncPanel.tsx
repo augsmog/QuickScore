@@ -29,6 +29,7 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
       } else { await client.discover(); snapshot = useOnlineStore.getState().events[contest.id]?.snapshot ?? null; }
       const box = await onlineQueue();
       setEntries(box.entries.filter(e => e.draft.contest_id === contest.id));
+      setMessage('');
       return snapshot;
     } catch { setMessage('Online sync unavailable. Local scores and queued requests stay on this device.'); return null; }
   }
