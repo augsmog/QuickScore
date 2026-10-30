@@ -1,7 +1,11 @@
 import type { MySyncStatusV1, SyncCapabilitiesV1, SyncSnapshotV1 } from '../../../docs/xdevice/sync-contract-v1';
 import type { Membership } from './online-client';
 export function canSync(build: boolean, cap: SyncCapabilitiesV1 | null | undefined, contest: string): boolean {
-  return !!(build && cap?.api_version === 1 && cap.contract === 'snapscore-sync-v1' && cap.protocol === 1 && cap.enabled === true && cap.channel?.private === true && cap.channel.event === 'revision' && cap.channel.topic === `snapscore:${contest}`);
+  return !!(build && canReadSync(cap, contest) && cap?.enabled === true);
+}
+/** Completion/operational pause closes mutations, not authorized read-only fetch. */
+export function canReadSync(cap: SyncCapabilitiesV1 | null | undefined, contest: string): boolean {
+  return !!(cap?.api_version === 1 && cap.contract === 'snapscore-sync-v1' && cap.protocol === 1 && typeof cap.enabled === 'boolean' && cap.channel?.private === true && cap.channel.event === 'revision' && cap.channel.topic === `snapscore:${contest}`);
 }
 /** Capability polling must not erase an authorized offline view on transport errors. */
 export async function loadSyncCapability(build: boolean, contest: string, read: () => Promise<SyncCapabilitiesV1>, denied: () => void) {
@@ -40,10 +44,10 @@ export function syncV1(call: (name: string, args: Record<string, unknown>) => Pr
     try {
       const cap = await call('sync_capabilities', { contest_id: id }) as SyncCapabilitiesV1;
       if (!current()) throw Error('Identity changed during restore or authorization invalidated');
-      if (!canSync(true, cap, id)) throw Object.assign(Error('Online sharing paused or unsupported. Drafts retained.'), { code: '55000' });
+      if (!canReadSync(cap, id)) throw Object.assign(Error('Online sharing paused or unsupported. Drafts retained.'), { code: '55000' });
       const snapshot = await call('fetch_snapshot', { contest_id: id, after_revision: 0 }) as SyncSnapshotV1;
       if (!current()) throw Error('Identity changed during restore or authorization invalidated');
-      if (snapshot?.contest_id !== id || !Number.isInteger(snapshot.revision) || !Array.isArray(snapshot.rounds) || !canSync(true, snapshot.capabilities, id)) throw Object.assign(Error('Invalid online snapshot'), { code: '22023' });
+      if (snapshot?.contest_id !== id || !Number.isInteger(snapshot.revision) || !Array.isArray(snapshot.rounds) || !canReadSync(snapshot.capabilities, id)) throw Object.assign(Error('Invalid online snapshot'), { code: '22023' });
       known.add(id);
       if (member.role === 'host') hosts.add(id);
       repair(id, member, snapshot); return snapshot;

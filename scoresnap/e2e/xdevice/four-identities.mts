@@ -285,13 +285,14 @@ UPDATE public.contest_rounds SET id='${tr}',name='Final',course_data=NULL WHERE 
 INSERT INTO public.contest_groups(id,contest_id,round_id,name) VALUES('${tg}','${tc}','${tr}','Final group');
 INSERT INTO public.round_player_assignments(contest_id,round_id,player_id,group_id) VALUES('${tc}','${tr}','${tp}','${tg}');
 INSERT INTO public.published_rounds(contest_id,owner_id,local_id,snapshot) VALUES('${tc}','${users[0].id}','m5-chat','{}'); UPDATE public.contests SET protocol=1 WHERE id='${tc}';`);
-  const completion=tournamentCompletion({actor:async()=>users[0].id,queue:async()=>({entries:[]}),refresh:(id:string)=>rpc(0)('fetch_snapshot',{contest_id:id,after_revision:0}),rpc:async(name:string,args:any)=>({data:await rpc(0)(name,args),error:null})});
+  const completion=tournamentCompletion({actor:async()=>users[0].id,queue:async()=>({entries:[]}),refresh:async(id:string)=>(await clients[0].rejoinHost(id)).snapshot,rpc:async(name:string,args:any)=>({data:await rpc(0)(name,args),error:null})});
   await assert.rejects(completion.submit(tc,tr,tg),{code:'55000'});
   await rpc(0)('write_score',{contest_id:tc,round_id:tr,player_id:tp,hole:1,action:'set',strokes:4,expected_version:0,op_id:randomUUID(),request_hash:'m5'});
   await assert.rejects(rpc(1)('submit_group',{contest_id:tc,round_id:tr,group_id:tg,expected_revision:1}),{code:'42501'});
   await completion.submit(tc,tr,tg);
   await completion.finalize(tc);
-  assert((await rpc(0)('fetch_snapshot',{contest_id:tc,after_revision:0})).completed);
+  assert((await clients[0].rejoinHost(tc)).snapshot.completed);
+  assert(views[0].get(tc).completed, 'completed scorecard remains available read-only');
   await assert.rejects(rpc(0)('write_score',{contest_id:tc,round_id:tr,player_id:tp,hole:1,action:'clear',strokes:null,expected_version:1,op_id:randomUUID(),request_hash:'late'}),{code:'55000'});
   const token=await rpc(0)('create_share_link',{p_local_id:'m5-chat'});
   // No membership in tc: GS14 permits any watch-link holder to chat.
