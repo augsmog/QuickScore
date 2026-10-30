@@ -1,3 +1,5 @@
+> Historical planning/sprint document. Current selectable and settled capabilities are recorded in [GAMES_STATUS.md](../../GAMES_STATUS.md) and the derived engine registry; historical completion statements below are not release evidence.
+
 # SnapScore Golf — Release Gap Analysis
 ## v1.0 App Store Submission Readiness | March 2026
 
@@ -127,7 +129,7 @@ Note: Beezer has raised $2.12M and generates ~$194K/yr with <5K downloads/month.
 | Feature | Status | Notes |
 |---------|--------|-------|
 | 25+ game mode calculators | ✅ Complete | All calculators implemented + tested |
-| Settlement engine (all games) | ✅ Complete | settlement.ts handles all 29 game types |
+| Settlement engine (all games) | ✅ Complete | settlement.ts handles historical game inventory |
 | OCR scanning (ML Kit + Claude Vision) | ✅ Complete | Unique in market — NO competitor has this |
 | Scorecard entry (manual) | ✅ Complete | Full numpad, hole navigation, progress tracking |
 | Leaderboard | ✅ Complete | Score-to-par bug fixed, live color coding |

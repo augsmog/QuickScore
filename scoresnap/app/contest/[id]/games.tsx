@@ -1,3 +1,4 @@
+import { calcMatchPlay } from "../../../src/engine/calculators/match-play";
 import { Link } from "expo-router";
 import { View, Text, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -5,7 +6,7 @@ import { COLORS, FONTS, RADII, TYPOGRAPHY, scoreColor } from "../../../src/ui/th
 import { useContestStore } from "../../../src/stores/contest-store";
 import { ALL_GAMES, GameType } from "../../../src/engine/types";
 import { calcScopedSkins, skinsLabel } from "../../../src/engine/calculators/skins";
-import { calcNassau } from "../../../src/engine/calculators/nassau";
+import { calcNassau, calcNassauRules } from "../../../src/engine/calculators/nassau";
 import { calcStableford } from "../../../src/engine/calculators/stableford";
 import { calcModStableford } from "../../../src/engine/calculators/mod-stableford";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
@@ -263,7 +264,7 @@ export default function GamesScreen() {
             {(gameId === "nassau" || gameId === "nassau_press") &&
               contest.groups.map((group, gi) => {
                 if (group.players.length < 2) return null;
-                const result = calcNassau(group.players[0], group.players[1]);
+                const result = contest.gameConfig?.rulesVersion === 1 ? calcNassauRules(group.players, contest.course, gameId === "nassau_press", contest.gameConfig) : calcNassau(group.players[0], group.players[1]);
                 return (
                   <View key={gi} style={gi > 0 ? { marginTop: 12 } : undefined}>
                     {contest.groups.length > 1 && (
@@ -271,6 +272,7 @@ export default function GamesScreen() {
                         {group.name}: {result.p1} vs {result.p2}
                       </Text>
                     )}
+                    {"bets" in result && (result as ReturnType<typeof calcNassauRules>).bets.map(b => <Text key={b.id} style={{color:COLORS.textDim}}>{b.id}: holes {b.start}–{b.end}, {b.stake} units · {b.complete ? b.status === 0 ? "Push" : b.status > 0 ? result.p1 : result.p2 : "Pending"}</Text>)}
                     <View style={{ flexDirection: "row", gap: 8 }}>
                       {(
                         [
@@ -321,7 +323,7 @@ export default function GamesScreen() {
             {/* ── Stableford / Mod Stableford ── */}
             {(gameId === "stableford" || gameId === "mod_stableford") && (
               <View>
-                {(gameId === "mod_stableford" ? calcModStableford : calcStableford)(allPlayers, contest.course).map((r, i) => (
+                {(contest.gameConfig?.rulesVersion === 1 && gameId === "stableford" ? calcStableford(allPlayers, contest.course, contest.gameConfig) : (gameId === "mod_stableford" ? calcModStableford : calcStableford)(allPlayers, contest.course)).map((r, i) => (
                   <View
                     key={r.playerId}
                     style={{
@@ -415,13 +417,7 @@ export default function GamesScreen() {
                 if (group.players.length < 2) return null;
                 const p1 = group.players[0];
                 const p2 = group.players[1];
-                let status = 0;
-                for (let i = 0; i < 18; i++) {
-                  if (p1.scores[i] > 0 && p2.scores[i] > 0) {
-                    if (p1.scores[i] < p2.scores[i]) status++;
-                    else if (p2.scores[i] < p1.scores[i]) status--;
-                  }
-                }
+                const status = calcMatchPlay(p1,p2,contest.course,contest.gameConfig).finalStatus;
                 return (
                   <View key={gi} style={{ alignItems: "center", paddingVertical: 8 }}>
                     <Text style={{ color: COLORS.textDim, fontSize: 12, fontFamily: FONTS.medium, marginBottom: 8 }}>
@@ -552,7 +548,9 @@ export default function GamesScreen() {
             {gameId === "vegas" &&
               contest.groups.map((group, gi) => {
                 if (group.players.length !== 4) return null;
-                const result = calcVegas(group.players, contest.course);
+                const ids = [...new Set(group.players.map(p => p.team))];
+                if (ids.length !== 2 || ids.some(t => !t) || ids.some(t => group.players.filter(p => p.team === t).length !== 2)) return <Text key={gi}>Vegas requires two assigned pairs.</Text>;
+                const result = calcVegas(group.players.filter(p => p.team === ids[0]), group.players.filter(p => p.team === ids[1]), contest.course, contest.gameConfig);
                 return (
                   <View key={gi}>
                     {contest.groups.length > 1 && (
@@ -671,7 +669,7 @@ export default function GamesScreen() {
             {/* ── Rabbit ── */}
             {gameId === "rabbit" &&
               contest.groups.map((group, gi) => {
-                const result = calcRabbit(group.players, contest.course);
+                const result = calcRabbit(group.players, contest.course, contest.gameConfig);
                 return (
                   <View key={gi}>
                     {contest.groups.length > 1 && (
@@ -730,7 +728,7 @@ export default function GamesScreen() {
             {gameId === "sixes" &&
               contest.groups.map((group, gi) => {
                 if (group.players.length !== 4) return null;
-                const result = calcSixes(group.players, contest.course);
+                const result = calcSixes(group.players, contest.course, contest.gameConfig);
                 return (
                   <View key={gi}>
                     {contest.groups.length > 1 && (

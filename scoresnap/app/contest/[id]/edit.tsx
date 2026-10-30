@@ -19,7 +19,7 @@ import {
   useContestStore,
   generateId,
 } from "../../../src/stores/contest-store";
-import { ALL_GAMES, GameType } from "../../../src/engine/types";
+import { ALL_GAMES, GameType, isGameImplemented } from "../../../src/engine/types";
 
 const BET_UNITS = [1, 2, 5, 10, 20];
 
@@ -102,6 +102,7 @@ export default function EditContestScreen() {
   // --- Game toggle ---
 
   const toggleGame = (gameId: GameType) => {
+    if (!contest.games.includes(gameId) && !isGameImplemented(gameId)) return;
     if (!enabledGames.includes(gameId) && !canUseGame(gameId, tier)) { router.push("/paywall"); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEnabledGames((prev) =>
@@ -152,7 +153,7 @@ export default function EditContestScreen() {
   };
 
   // Saved premium games remain readable; only adding a game requires Pro.
-  const contestGameInfos = ALL_GAMES;
+  const contestGameInfos = ALL_GAMES.filter(g => isGameImplemented(g.id) || contest.games.includes(g.id));
 
   return (
     <SafeAreaView

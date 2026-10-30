@@ -4,6 +4,7 @@ import { View, Text, Pressable, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
+  type SharedValue,
   useSharedValue,
   useAnimatedStyle,
   useAnimatedScrollHandler,
@@ -288,7 +289,7 @@ function SlideIllustration({
   pageWidth,
 }: {
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   pageWidth: number;
 }) {
   const scenes = [GolfBallScene, ScanBeamScene, LeaderboardScene];
@@ -304,7 +305,7 @@ function ParallaxText({
   speedMultiplier,
   children,
 }: {
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   pageIndex: number;
   pageWidth: number;
   speedMultiplier: number;

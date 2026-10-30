@@ -1,3 +1,4 @@
+import { GAME_LIBRARY_CAPTION } from "../src/engine/types";
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,6 +29,7 @@ export default function PaywallScreen() {
       <Pressable accessibilityRole="button" onPress={()=>router.back()}><Text style={{color:COLORS.text}}>Close</Text></Pressable>
       <Text style={{fontSize:26,color:COLORS.text,fontWeight:'700'}}>Choose your SnapScore plan</Text>
       <Text style={{color:COLORS.textDim}}>Free: 4 basic game modes, manual and offline scoring, 3 cloud scans per month, sharing results, and hosting one round with one group. Join and score any tournament free.</Text>
+      <Text style={{color:COLORS.textDim}}>{GAME_LIBRARY_CAPTION}</Text>
       <View style={{flexDirection:'row',gap:12,alignItems:'stretch'}}>
         {PLAN_OPTIONS.map(plan=><View key={plan.tier} style={{flex:1,padding:12,gap:16,borderRadius:16,borderWidth:2,borderColor:target===plan.tier?COLORS.gold:COLORS.border,backgroundColor:COLORS.card}}>
           <Text style={{color:COLORS.text,fontSize:20,fontWeight:'700'}}>{plan.name}</Text>

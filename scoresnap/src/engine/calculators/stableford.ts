@@ -1,4 +1,6 @@
-import { Player, Course, StablefordResult } from "../types";
+import { Player, Course, StablefordResult, GameConfig } from "../types";
+
+import { handicapStrokesForHole } from "./skins";
 
 function stablefordPoints(score: number, par: number): number {
   const diff = score - par;
@@ -12,12 +14,20 @@ function stablefordPoints(score: number, par: number): number {
 
 export function calcStableford(
   players: Player[],
-  course: Course
+  course: Course,
+  config?: GameConfig
 ): StablefordResult[] {
   return players
     .map((p) => {
       const holePoints = course.holes.map((hole, i) =>
-        p.scores[i] > 0 ? stablefordPoints(p.scores[i], hole.par) : 0
+        p.scores[i] > 0 ? (() => {
+          const score = p.scores[i] - (config?.rulesVersion === 1 && config.netHandicap ? handicapStrokesForHole(p.courseHandicaps?.[course.name] ?? p.handicap, hole.hcp) : 0);
+          if (config?.rulesVersion === 1 && config.modifiedStableford) {
+            const diff = score - hole.par;
+            return diff <= -3 ? 8 : diff === -2 ? 5 : diff === -1 ? 2 : diff === 0 ? 0 : diff === 1 ? -1 : -3;
+          }
+          return stablefordPoints(score, hole.par);
+        })() : 0
       );
       return {
         name: p.name,

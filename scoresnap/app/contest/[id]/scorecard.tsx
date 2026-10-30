@@ -1,3 +1,4 @@
+import { calcNassauRules } from "../../../src/engine/calculators/nassau";
 import { useState, useCallback, useMemo } from "react";
 import {
   View,
@@ -94,7 +95,8 @@ export default function ScorecardScreen() {
       (contest.games.includes("nassau") || contest.games.includes("nassau_press")) &&
       players.length >= 2
     ) {
-      const result = calcNassauPress(players[0], players[1]);
+      const ledger = contest.gameConfig?.rulesVersion === 1 ? calcNassauRules(players, contest.course, contest.games.includes("nassau_press"), contest.gameConfig) : undefined;
+      const result = ledger ? {...ledger,presses:ledger.bets.filter(b => b.parent).map(b => ({startHole:b.start}))} : calcNassauPress(players[0], players[1]);
       const isBack9 = currentHole > 9;
       const nineStatus = isBack9 ? result.back : result.front;
       const nineName = isBack9 ? "Back 9" : "Front 9";
@@ -117,7 +119,7 @@ export default function ScorecardScreen() {
       }
 
       // Detect if press is about to trigger (someone is exactly 2 down)
-      if (Math.abs(nineStatus) === 2 && result.presses.length === 0) {
+      if (!ledger && Math.abs(nineStatus) === 2 && result.presses.length === 0) {
         const downPlayer = nineStatus > 0 ? players[1].name : players[0].name;
         statuses.push({
           label: `${downPlayer.split(" ")[0]} is 2-DOWN`,
@@ -133,7 +135,7 @@ export default function ScorecardScreen() {
       players.length >= 2
     ) {
       const isCarry = contest.games.includes("skins_carry");
-      const result = calcSkins(players, contest.course, isCarry, contest.gameConfig?.skinsMode);
+      const result = calcSkins(players, contest.course, isCarry, contest.gameConfig?.skinsMode, contest.gameConfig);
       const carriedSkins = result.remaining;
       if (carriedSkins > 0) {
         statuses.push({
