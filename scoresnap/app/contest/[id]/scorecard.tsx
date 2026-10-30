@@ -1,3 +1,7 @@
+import { executionGameConfig } from "../../../src/engine/types";
+import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actual-inputs";
+import { PrePlayDeclarations } from "../../../src/ui/PrePlayDeclarations";
+import { scopedAuxiliary, calculateContestSettlement } from "../../../src/engine/contest-results";
 import { calcNassauRules } from "../../../src/engine/calculators/nassau";
 import { useState, useCallback, useMemo } from "react";
 import {
@@ -40,9 +44,11 @@ import { calcSkins } from "../../../src/engine/calculators/skins";
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const contest = useContestStore((s) =>
+  const savedContest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
+
+  const contest=savedContest?{...savedContest,gameConfig:executionGameConfig(savedContest.games,savedContest.gameConfig)}:undefined;
   const updateScore = useContestStore((s) => s.updateScore);
   const completeContest = useContestStore((s) => s.completeContest);
   const updateAuxiliaryData = useContestStore((s) => s.updateAuxiliaryData);
@@ -50,6 +56,7 @@ export default function ScorecardScreen() {
   const [currentHole, setCurrentHole] = useState(1);
   const [selectedGroup, setSelectedGroup] = useState(0);
   const [showAuxPrompt, setShowAuxPrompt] = useState(false);
+  const [declaration,setDeclaration]=useState<"wolf"|"bisque"|"jokerDeclarations"|null>(null);
 
   if (!contest) return null;
 
@@ -58,7 +65,11 @@ export default function ScorecardScreen() {
   const group = activeGroups[selectedGroup];
   if (!group) return null;
 
-  const holeData = contest.course.holes[currentHole - 1];
+  const activeRound=contest.isTournament?contest.rounds?.find(r=>r.number===contest.currentRound):undefined;
+  const sharedCard=contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot" || g==="chapman");
+  const auxiliary=scopedAuxiliary(contest,group.id,activeRound?.id);
+  const displayPlayers=sharedCard?group.players.filter((p,i,all)=>all.findIndex(q=>q.team===p.team)===i).map(p=>({...p,name:`Team ${p.team}`,scores:(activeRound?.course??contest.course).holes.map((_,i)=>auxiliary.teamCards?.[i+1]?.[p.team!]??0)})):group.players;
+  const holeData = (activeRound?.course??contest.course).holes[currentHole - 1];
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
   const isCompleted = contest.status === "completed";
@@ -129,6 +140,7 @@ export default function ScorecardScreen() {
       }
     }
 
+    if(contest.gameConfig?.rulesVersion===1)for(const game of contest.games.filter(g=>ACTUAL_INPUT_GAMES.includes(g))){const result=actualInputLedger(game,players,activeRound?.course??contest.course,auxiliary,contest.gameConfig);statuses.push({label:`${game.replace(/_/g," ")}: ${result.pending?"pending":"confirmed"}`,detail:`${result.holes} confirmed holes · ${players.map(p=>`${p.name} ${result.totals[p.name]}u`).join(", ")}`,color:result.pending?COLORS.warn:COLORS.primary});}
     // Skins carryover status
     if (
       (contest.games.includes("skins") || contest.games.includes("skins_carry")) &&
@@ -147,7 +159,7 @@ export default function ScorecardScreen() {
     }
 
     return statuses;
-  }, [group.players, currentHole, contest.games, contest.course, contest.gameConfig]);
+  }, [group.players, currentHole, contest.games, contest.course, contest.gameConfig, auxiliary, activeRound]);
 
   // ── Score adjustment via +/- buttons ──
   const adjustScore = useCallback(
@@ -155,7 +167,7 @@ export default function ScorecardScreen() {
       if (isCompleted) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      const player = group.players.find((p) => p.id === playerId);
+      const player = displayPlayers.find((p) => p.id === playerId);
       if (!player) return;
 
       const currentScore = player.scores[currentHole - 1] || 0;
@@ -163,9 +175,12 @@ export default function ScorecardScreen() {
       const baseScore = currentScore > 0 ? currentScore : par;
       const newScore = Math.max(1, Math.min(15, baseScore + delta));
 
+      if(contest.gameConfig?.bisqueHandicap && !auxiliary.bisque?.[currentHole]) {setDeclaration("bisque");return;}
+      if(contest.gameConfig?.jokerEnabled && !auxiliary.jokerDeclarations?.[0]) {setDeclaration("jokerDeclarations");return;}
+      if(contest.gameConfig?.rulesVersion===1 && contest.games.includes("wolf") && !auxiliary.wolf?.[currentHole]) {setDeclaration("wolf");return;}
       updateScore(contest.id, group.id, playerId, currentHole, newScore);
     },
-    [contest.id, group, currentHole, par, updateScore, isCompleted]
+    [contest, auxiliary, group, displayPlayers, currentHole, par, updateScore, isCompleted]
   );
 
   // Set a player to exactly par (tap the score display)
@@ -173,9 +188,12 @@ export default function ScorecardScreen() {
     (playerId: string) => {
       if (isCompleted) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if(contest.gameConfig?.bisqueHandicap && !auxiliary.bisque?.[currentHole]) {setDeclaration("bisque");return;}
+      if(contest.gameConfig?.jokerEnabled && !auxiliary.jokerDeclarations?.[0]) {setDeclaration("jokerDeclarations");return;}
+      if(contest.gameConfig?.rulesVersion===1 && contest.games.includes("wolf") && !auxiliary.wolf?.[currentHole]) {setDeclaration("wolf");return;}
       updateScore(contest.id, group.id, playerId, currentHole, par);
     },
-    [contest.id, group.id, currentHole, par, updateScore, isCompleted]
+    [contest, auxiliary, group.id, currentHole, par, updateScore, isCompleted]
   );
 
   // Clear a player's score (long press the score)
@@ -199,12 +217,12 @@ export default function ScorecardScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Check if Tier 2 games need aux input before advancing
-    if (needsAuxiliaryPrompt(contest.games, currentHoleInfo, currentPlayerScores)) {
+    if (contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games.filter(g=>g!=="wolf" || !auxiliary.wolf?.[currentHole]), currentHoleInfo, currentPlayerScores)) {
       setShowAuxPrompt(true);
     } else {
       advanceToNextHole();
     }
-  }, [contest.games, currentHoleInfo, currentPlayerScores, advanceToNextHole]);
+  }, [contest.games, contest.gameConfig, auxiliary, currentHole, currentHoleInfo, currentPlayerScores, advanceToNextHole]);
 
   const handlePrevHole = useCallback(() => {
     if (currentHole > 1) {
@@ -216,22 +234,25 @@ export default function ScorecardScreen() {
   // Handle Tier 2 aux prompt results
   const handleAuxComplete = useCallback(
     (results: AuxPromptResult) => {
-      setShowAuxPrompt(false);
+      try {
+      if (results.junk) updateAuxiliaryData(contest.id,"junk",currentHole,results.junk,group.id);
+      if (results.bbb) updateAuxiliaryData(contest.id, "bbb", currentHole, results.bbb, group.id);
       if (results.wolf) {
-        updateAuxiliaryData(contest.id, "wolf", currentHole, results.wolf);
+        updateAuxiliaryData(contest.id, "wolf", currentHole, results.wolf, group.id);
       }
       if (results.hammer) {
-        updateAuxiliaryData(contest.id, "hammer", currentHole, results.hammer);
+        updateAuxiliaryData(contest.id, "hammer", currentHole, results.hammer, group.id);
       }
       if (results.snake) {
-        updateAuxiliaryData(contest.id, "snake", currentHole, results.snake);
+        updateAuxiliaryData(contest.id, "snake", currentHole, results.snake, group.id);
       }
       if (results.greenies !== undefined) {
-        updateAuxiliaryData(contest.id, "greenies", currentHole, results.greenies);
+        updateAuxiliaryData(contest.id, "greenies", currentHole, results.greenies, group.id);
       }
-      advanceToNextHole();
+      setShowAuxPrompt(false);advanceToNextHole();
+      } catch(error){Alert.alert("Confirm inputs",String(error));}
     },
-    [contest.id, currentHole, updateAuxiliaryData, advanceToNextHole]
+    [contest.id, group.id, currentHole, updateAuxiliaryData, advanceToNextHole]
   );
 
   const handleAuxSkip = useCallback(() => {
@@ -240,6 +261,14 @@ export default function ScorecardScreen() {
   }, [advanceToNextHole]);
 
   const handleFinalizeRound = useCallback(() => {
+    if(contest.gameConfig?.rulesVersion===1){
+      const result=calculateContestSettlement(contest);
+      if(result.pending){
+        if((contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games,currentHoleInfo,currentPlayerScores))) setShowAuxPrompt(true);
+        Alert.alert("Confirmation required","Enter every score and confirm side-bet inputs on every hole before finalizing. Skip leaves that hole pending.");
+        return;
+      }
+    }
     const allPlayers = activeGroups.flatMap((g) => g.players);
     const totalScores = allPlayers.reduce(
       (sum, p) => sum + p.scores.filter((s) => s > 0).length,
@@ -284,11 +313,11 @@ export default function ScorecardScreen() {
 
   const doFinalize = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    completeContest(contest.id);
+    try {completeContest(contest.id);} catch(error){Alert.alert("Confirmation required",String(error));}
   };
 
   // Calculate completion
-  const allPlayers = contest.groups.flatMap((g) => g.players);
+  const allPlayers = sharedCard?activeGroups.flatMap(g=>{const aux=scopedAuxiliary(contest,g.id,activeRound?.id);return [...new Set(g.players.map(p=>p.team!))].map(team=>({scores:(activeRound?.course??contest.course).holes.map((_,i)=>aux.teamCards?.[i+1]?.[team]??0)}));}):activeGroups.flatMap((g) => g.players);
   const totalScores = allPlayers.reduce(
     (sum, p) => sum + p.scores.filter((s) => s > 0).length,
     0
@@ -298,7 +327,7 @@ export default function ScorecardScreen() {
     totalExpected > 0 ? Math.round((totalScores / totalExpected) * 100) : 0;
 
   // Check if all players on current hole have scores
-  const allScoredOnHole = group.players.every(
+  const allScoredOnHole = displayPlayers.every(
     (p) => (p.scores[currentHole - 1] || 0) > 0
   );
 
@@ -422,6 +451,13 @@ export default function ScorecardScreen() {
           </View>
         </View>
 
+        {contest.gameConfig?.rulesVersion===1 && <View style={{paddingHorizontal:20}}>
+          {contest.games.includes("wolf") && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("wolf")}><Text style={{color:COLORS.primary,padding:12}}>Record Wolf decision before play {auxiliary.wolf?.[currentHole]?"✓":"— required"}</Text></Pressable>}
+          {contest.gameConfig.bisqueHandicap && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("bisque")}><Text style={{color:COLORS.primary,padding:12}}>Declare 0–2 Bisque strokes before this hole {auxiliary.bisque?.[currentHole]?"✓":"— required"}</Text></Pressable>}
+          {contest.gameConfig.jokerEnabled && <Pressable disabled={group.players.some(p=>p.scores.some(n=>n>0))} onPress={()=>setDeclaration("jokerDeclarations")}><Text style={{color:COLORS.primary,padding:12}}>Record two public Joker holes per player before round {auxiliary.jokerDeclarations?.[0]?"✓":"— required"}</Text></Pressable>}
+        </View>}
+        {declaration && <PrePlayDeclarations kind={declaration} players={group.players} course={activeRound?.course??contest.course} hole={currentHole} config={contest.gameConfig??{}} onClose={()=>setDeclaration(null)} onSave={(key,h,value)=>{try{updateAuxiliaryData(contest.id,key,h,value,group.id);}catch(error){Alert.alert("Invalid declaration",String(error));}}}/>}
+        {contest.gameConfig?.progressiveSnake && <Text style={{color:COLORS.textDim,paddingHorizontal:20}}>Progressive Snake exposure: after N changes of holder, each opponent receives {contest.betUnit} × 2^N from the final holder. Maximum with this group: {group.players.length*(activeRound?.course??contest.course).holes.length-1} changes. Unsafe numeric amounts cannot settle.</Text>}
         {/* Live Game Status Banners */}
         {liveGameStatus.length > 0 && (
           <View style={{ paddingHorizontal: 20, marginBottom: 8, gap: 6 }}>
@@ -509,7 +545,7 @@ export default function ScorecardScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12, gap: 8 }}
           showsVerticalScrollIndicator={false}
         >
-          {group.players.map((player, idx) => {
+          {displayPlayers.map((player, idx) => {
             const score = player.scores[currentHole - 1] || 0;
             const hasScore = score > 0;
             const displayScore = hasScore ? score : par;
@@ -742,7 +778,7 @@ export default function ScorecardScreen() {
             <Pressable
               testID="score-next-hole"
               onPress={handleNextHole}
-              disabled={currentHole >= 18}
+              disabled={isCompleted}
               style={{
                 flex: 1,
                 flexDirection: "row",
@@ -877,6 +913,8 @@ export default function ScorecardScreen() {
         holeNumber={currentHole}
         holeInfo={currentHoleInfo}
         players={group.players}
+        gameConfig={contest.gameConfig}
+        wolfConfirmed={!!auxiliary.wolf?.[currentHole]}
         activeGames={contest.games}
         currentPlayerScores={currentPlayerScores}
         wolfOrder={wolfOrder}

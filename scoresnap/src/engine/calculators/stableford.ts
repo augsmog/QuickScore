@@ -1,4 +1,4 @@
-import { Player, Course, StablefordResult, GameConfig } from "../types";
+import { Player, Course, StablefordResult, GameConfig, AuxiliaryData, configForGame } from "../types";
 
 import { handicapStrokesForHole } from "./skins";
 
@@ -15,8 +15,10 @@ function stablefordPoints(score: number, par: number): number {
 export function calcStableford(
   players: Player[],
   course: Course,
-  config?: GameConfig
+  config?: GameConfig,
+  auxiliary?: AuxiliaryData
 ): StablefordResult[] {
+  if(config?.rulesVersion===1)config=configForGame(config,"stableford");
   return players
     .map((p) => {
       const holePoints = course.holes.map((hole, i) =>
@@ -32,8 +34,8 @@ export function calcStableford(
       return {
         name: p.name,
         playerId: p.id,
-        points: holePoints.reduce((sum, pts) => sum + pts, 0),
-        holePoints,
+        points: holePoints.reduce((sum,pts,i)=>sum+pts*(config?.rulesVersion===1 && config.jokerEnabled && auxiliary?.jokerDeclarations?.[0]?.[p.id]?.includes(i+1)?2:1),0),
+        holePoints:holePoints.map((pts,i)=>pts*(config?.rulesVersion===1 && config.jokerEnabled && auxiliary?.jokerDeclarations?.[0]?.[p.id]?.includes(i+1)?2:1)),
       };
     })
     .sort((a, b) => b.points - a.points);

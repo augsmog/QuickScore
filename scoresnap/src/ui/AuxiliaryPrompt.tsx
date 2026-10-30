@@ -13,19 +13,21 @@
  */
 
 import { useState } from "react";
-import { View, Text, Pressable, Modal } from "react-native";
+import { View, Text, Pressable, Modal, ScrollView } from "react-native";
 import * as Haptics from "expo-haptics";
 import { X, Check, ChevronRight } from "lucide-react-native";
 import { COLORS, FONTS, RADII, TYPOGRAPHY } from "./theme";
 import { AnimatedPressable } from "./AnimatedPressable";
-import { GameType, Player, HoleInfo } from "../engine/types";
+import { GameType, Player, HoleInfo, GameConfig } from "../engine/types";
 
 // ─── Types ────────────────────────────────────────────────────
 
 export interface AuxPromptResult {
+  junk?: {sandies:string[];barkies:string[];greenie:string|null};
   wolf?: { partnerId: string | null; isLoneWolf: boolean };
   hammer?: { hammered: boolean; hammerBy: string; accepted: boolean };
   snake?: string[]; // player IDs who 3-putted
+  bbb?: {bingo:string|null;bango:string|null;bongo:string|null};
   greenies?: string | null; // player ID who won greenie, null = no one
 }
 
@@ -35,6 +37,8 @@ interface AuxiliaryPromptProps {
   holeInfo: HoleInfo;
   players: Player[];
   activeGames: GameType[];
+  gameConfig?: GameConfig;
+  wolfConfirmed?: boolean;
   currentPlayerScores: Map<string, number>; // playerId → score for this hole
   wolfOrder?: string[]; // rotating wolf order (player IDs)
   onComplete: (results: AuxPromptResult) => void;
@@ -58,15 +62,8 @@ function getNeededPrompts(
     needed.push("hammer");
   }
 
-  // Snake: only prompt if ANY player scored bogey or worse (likely 3-putt candidate)
-  if (activeGames.includes("snake")) {
-    const hasBogeyPlus = Array.from(currentPlayerScores.values()).some(
-      (score) => score > 0 && score > holeInfo.par
-    );
-    if (hasBogeyPlus) {
-      needed.push("snake");
-    }
-  }
+  if (activeGames.includes("snake")) needed.push("snake");
+  if (activeGames.includes("bingo_bango_bongo")) needed.push("bingo_bango_bongo");
 
   // Greenies: only on par 3s
   if (activeGames.includes("greenies") && holeInfo.par === 3) {
@@ -183,8 +180,7 @@ function HammerPrompt({
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setHammerBy(p.id);
-              // For simplicity, assume accepted (opponent didn't fold)
-              onSelect(true, p.id, true);
+
             }}
             style={styles.optionButton}
           >
@@ -196,7 +192,10 @@ function HammerPrompt({
     );
   }
 
-  return null;
+  return <View><Text style={styles.promptTitle}>Did the opponent accept?</Text>
+    <AnimatedPressable style={styles.optionButton} onPress={()=>onSelect(true,hammerBy,true)}><Text style={styles.optionText}>Accepted — double stake</Text></AnimatedPressable>
+    <AnimatedPressable style={styles.optionButton} onPress={()=>onSelect(true,hammerBy,false)}><Text style={styles.optionText}>Declined — hammerer wins original stake</Text></AnimatedPressable>
+  </View>;
 }
 
 function SnakePrompt({
@@ -214,11 +213,7 @@ function SnakePrompt({
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Only show players who scored bogey+ (likely 3-putt candidates)
-  const candidates = players.filter((p) => {
-    const score = currentPlayerScores.get(p.id) || 0;
-    return score > holeInfo.par;
-  });
+  const candidates = players;
 
   const togglePlayer = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -232,7 +227,7 @@ function SnakePrompt({
     <View>
       <Text style={styles.promptTitle}>Snake — Hole {holeNumber}</Text>
       <Text style={styles.promptSubtitle}>
-        Did anyone 3-putt? Tap to select.
+        Select 3-putters in chronological order (first to last).
       </Text>
 
       {candidates.map((p) => {
@@ -319,6 +314,27 @@ function GreeniePrompt({
   );
 }
 
+function JunkPrompt({players,par,onSelect}:{players:Player[];par:number;onSelect:(v:{sandies:string[];barkies:string[];greenie:string|null})=>void}) {
+ const [sandies,setSandies]=useState<string[]>([]),[barkies,setBarkies]=useState<string[]>([]),[greenie,setGreenie]=useState<string|null>(null);
+ const toggle=(list:string[],id:string)=>list.includes(id)?list.filter(x=>x!==id):[...list,id];
+ return <View><Text style={styles.promptTitle}>Confirm Nassau Junk</Text><Text style={styles.promptSubtitle}>Sandy: par or better after a greenside bunker. Barkie: par or better after hitting a tree. Gross birdies are automatic. Each feat pays one unit from every other player.</Text>
+ {players.map(p=><View key={p.id}><Text style={styles.optionText}>{p.name}</Text>
+ <AnimatedPressable style={styles.optionButton} onPress={()=>setSandies(toggle(sandies,p.id))}><Text style={styles.optionText}>Sandy {sandies.includes(p.id)?"✓":""}</Text></AnimatedPressable>
+ <AnimatedPressable style={styles.optionButton} onPress={()=>setBarkies(toggle(barkies,p.id))}><Text style={styles.optionText}>Barkie {barkies.includes(p.id)?"✓":""}</Text></AnimatedPressable>
+ {par===3 && <AnimatedPressable style={styles.optionButton} onPress={()=>setGreenie(greenie===p.id?null:p.id)}><Text style={styles.optionText}>Greenie {greenie===p.id?"✓":""}</Text></AnimatedPressable>}</View>)}
+ <AnimatedPressable style={styles.confirmButton} onPress={()=>onSelect({sandies,barkies,greenie})}><Text style={styles.confirmText}>Confirm feats (none if unselected)</Text></AnimatedPressable></View>;
+}
+
+function BBBPrompt({players,onSelect}:{players:Player[];onSelect:(value:{bingo:string|null;bango:string|null;bongo:string|null})=>void}) {
+  const [answers,setAnswers]=useState<(string|null)[]>([]);
+  const category=["Bingo — first on green","Bango — closest once all on","Bongo — first in hole"][answers.length];
+  const choose=(id:string|null)=>{const next=[...answers,id];if(next.length===3)onSelect({bingo:next[0],bango:next[1],bongo:next[2]});else setAnswers(next);};
+  return <View><Text style={styles.promptTitle}>{category}</Text><Text style={styles.promptSubtitle}>Confirm actual play. Scores cannot determine this award.</Text>
+    {players.map(p=><AnimatedPressable key={p.id} style={styles.optionButton} onPress={()=>choose(p.id)}><Text style={styles.optionText}>{p.name}</Text></AnimatedPressable>)}
+    <AnimatedPressable style={styles.optionButton} onPress={()=>choose(null)}><Text style={styles.optionText}>No award (tied or void)</Text></AnimatedPressable>
+  </View>;
+}
+
 // ─── Main AuxiliaryPrompt component ──────────────────────────
 
 export default function AuxiliaryPrompt({
@@ -327,12 +343,15 @@ export default function AuxiliaryPrompt({
   holeInfo,
   players,
   activeGames,
+  gameConfig,
+  wolfConfirmed,
   currentPlayerScores,
   wolfOrder,
   onComplete,
   onSkip,
 }: AuxiliaryPromptProps) {
-  const neededPrompts = getNeededPrompts(activeGames, holeInfo, currentPlayerScores);
+  const neededPrompts = getNeededPrompts(activeGames, holeInfo, currentPlayerScores).filter(g=>g!=="wolf" || !wolfConfirmed);
+  if(gameConfig?.junkNassau && activeGames.some(g=>g==="nassau"||g==="nassau_press")) neededPrompts.push("nassau");
   const [currentStep, setCurrentStep] = useState(0);
   const [results, setResults] = useState<AuxPromptResult>({});
 
@@ -357,7 +376,7 @@ export default function AuxiliaryPrompt({
   // Determine wolf for this hole from rotation
   const wolfPlayerId = wolfOrder
     ? wolfOrder[(holeNumber - 1) % wolfOrder.length]
-    : players[0]?.id || "";
+    : players[(holeNumber - 1) % players.length]?.id || "";
 
   return (
     <Modal
@@ -425,6 +444,9 @@ export default function AuxiliaryPrompt({
             </AnimatedPressable>
           </View>
 
+          <ScrollView>
+          {currentPrompt === "bingo_bango_bongo" && <BBBPrompt players={players} onSelect={bbb=>advance({bbb})} />}
+          {currentPrompt === "nassau" && <JunkPrompt players={players} par={holeInfo.par} onSelect={junk=>advance({junk})}/>}
           {/* Render current prompt */}
           {currentPrompt === "wolf" && (
             <WolfPrompt
@@ -464,6 +486,7 @@ export default function AuxiliaryPrompt({
               onSelect={(winnerId) => advance({ greenies: winnerId })}
             />
           )}
+          </ScrollView>
         </View>
       </View>
     </Modal>

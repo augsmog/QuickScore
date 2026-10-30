@@ -124,7 +124,7 @@ export default function NewContestScreen() {
   const [betUnit, setBetUnit] = useState("5");
 
   // Step 3: Wager settings & game variations
-  const [gameConfig, setGameConfig] = useState<GameConfig>({ rulesVersion: 1, skinsMode: "net", skinsScope: "field" });
+  const [gameConfig, setGameConfig] = useState<GameConfig>({ rulesVersion: 1, inputRulesVersion: 1, skinsMode: "net", skinsScope: "field" });
   const [expandedTooltip, setExpandedTooltip] = useState<string | null>(null);
 
   // Filter variations to only show ones relevant to selected games
@@ -281,7 +281,7 @@ export default function NewContestScreen() {
       })
     );
 
-    const cleanConfig: GameConfig = {rulesVersion:1};
+    const cleanConfig: GameConfig = {rulesVersion:1,inputRulesVersion:1};
     if (selectedGames.some(g => g === "skins" || g === "skins_carry")) { cleanConfig.skinsMode = gameConfig.skinsMode; cleanConfig.skinsScope = gameConfig.skinsScope; }
     for (const v of GAME_VARIATIONS) if (v.appliesTo.some(g => selectedGames.includes(g)) && gameConfig[v.configKey] !== undefined) cleanConfig[v.configKey] = gameConfig[v.configKey];
     const error = validateVariationSetup(groups, selectedGames, cleanConfig, Number(betUnit));

@@ -1,3 +1,4 @@
+import { calculateContestSettlement } from "../../../src/engine/contest-results";
 import { useScanStore } from "../../../src/stores/scan-store";
 import { canSeeSettlement } from "../../../src/services/entitlements";
 import { PaywallTeaser } from "../../../src/ui/PaywallTeaser";
@@ -83,16 +84,8 @@ function SettlementScreenContent() {
     );
   }
 
-  const settlement = calculateSettlement(
-    allPlayers,
-    contest.course,
-    contest.games,
-    contest.betUnit,
-    contest.auxiliaryData,
-    contest.gameConfig,
-    contest.groups
-  );
-  if (settlement.pending) return <View style={{padding:24}}><Text style={{color:COLORS.text}}>Settlement pending. Confirm every player's score on every hole before settling.</Text></View>;
+  const settlement = calculateContestSettlement(contest);
+  if (settlement.pending) return <View style={{padding:24}}><Text style={{color:COLORS.text}}>Settlement pending. Confirm every score and required side-bet event on every hole before settling. Skip leaves inputs pending.</Text></View>;
 
 
   const sortedNet = Object.entries(settlement.netByPlayer).sort(

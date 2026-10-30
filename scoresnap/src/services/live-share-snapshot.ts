@@ -1,3 +1,4 @@
+import { calculateContestSettlement, teamCardPlayers } from "../engine/contest-results";
 import type { Contest } from '../stores/contest-store';
 import { calcStrokePlay } from '../engine/calculators/stroke-play';
 import { calculateSettlement } from '../engine/settlement';
@@ -9,7 +10,7 @@ export const linkExpired = (expiresAt: string, now = Date.now()) => !Number.isFi
 export interface SharedRound {
   completed: boolean;
   players: { displayName: string; scores: number[]; total: number; toPar: number }[];
-  games: { game: string; standings: { displayName: string; units: number }[] }[];
+  games: { game: string; pending?:boolean; standings: { displayName: string; units: number }[] }[];
 }
 
 /**
@@ -20,10 +21,10 @@ function getTournamentPlayers(contest: Contest): Player[] {
   if (!contest.isTournament || !contest.rounds) {
     return contest.groups.flatMap((g) => g.players);
   }
-  
+
   // Aggregate scores across all rounds
   const playerMap = new Map<string, Player>();
-  
+
   for (const round of contest.rounds) {
     for (const group of round.groups) {
       for (const player of group.players) {
@@ -44,13 +45,13 @@ function getTournamentPlayers(contest: Contest): Player[] {
       }
     }
   }
-  
+
   return Array.from(playerMap.values());
 }
 
 export function buildSnapshot(contest: Contest): SharedRound {
   // For tournaments, aggregate scores across all rounds; for legacy, use groups directly
-  const allPlayers = contest.isTournament 
+  const allPlayers = contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot"||g==="chapman")?teamCardPlayers(contest):contest.isTournament
     ? getTournamentPlayers(contest)
     : contest.groups.flatMap(g => g.players);
   const players = allPlayers.map(p => ({ ...p, scores: Array.from({ length: Math.min(18, contest.course.holes.length) }, (_, i) => {
@@ -65,8 +66,8 @@ export function buildSnapshot(contest: Contest): SharedRound {
       return { displayName: p.name.trim().slice(0, 80), scores: p.scores.slice(0, contest.course.holes.length).map(n => Number.isInteger(n) && n >= 0 && n <= 99 ? n : 0), total: r.total, toPar: r.toPar };
     }),
     games: contest.games.map(game => {
-      const result = calculateSettlement(players, contest.course, [game], 1, contest.auxiliaryData, contest.gameConfig, contest.groups);
-      return { game, standings: players.map(p => ({ displayName: p.name.trim().slice(0, 80), units: result.netByPlayer[p.name] || 0 })) };
+      const result = calculateContestSettlement(contest, [game], 1);
+      return { game, ...(result.pending?{pending:true}:{}), standings: players.map(p => ({ displayName: p.name.trim().slice(0, 80), units: p.name.startsWith("Team ") && contest.games.some(g=>g==="alternate_shot"||g==="chapman") ? contest.groups.flatMap(g=>g.players).filter(member=>member.team===p.team).reduce((sum,member)=>sum+(result.netByPlayer[member.name]??0),0) : result.netByPlayer[p.name] || 0 })) };
     }),
   };
 }

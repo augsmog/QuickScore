@@ -2,6 +2,7 @@ import { useScanStore } from "../../../src/stores/scan-store";
 import { canUseGame, canHostTournament } from "../../../src/services/entitlements";
 import { useState, useMemo } from "react";
 import {
+  Alert,
   View,
   Text,
   ScrollView,
@@ -143,11 +144,11 @@ export default function EditContestScreen() {
 
     if (groups.length > contest.groups.length && !canHostTournament({...contest, groups: updatedGroups}, tier)) { router.push("/paywall?tier=td"); return; }
     if (enabledGames.some(g => !contest.games.includes(g) && !canUseGame(g, tier))) { router.push("/paywall"); return; }
-    updateContest(id!, {
+    try { updateContest(id!, {
       groups: updatedGroups,
       games: enabledGames,
       betUnit,
-    });
+    }); } catch(error){Alert.alert("Review contest changes",String(error));return;}
 
     router.back();
   };

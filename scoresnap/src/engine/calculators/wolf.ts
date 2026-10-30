@@ -1,3 +1,5 @@
+import { actualInputLedger } from "../actual-inputs";
+import { AuxiliaryData, GameConfig } from "../types";
 import { Player, Course } from "../types";
 
 export interface WolfHoleResult {
@@ -23,7 +25,9 @@ export interface WolfResult {
  * Since we can't track mid-hole partner selection, we simulate:
  * wolf pairs with lowest scorer on each hole (best available partner strategy).
  */
-export function calcWolf(players: Player[], course: Course): WolfResult {
+export function calcWolf(players: Player[], course: Course, auxiliary?: AuxiliaryData, config?: GameConfig): WolfResult {
+  if(config?.rulesVersion===1) return {...actualInputLedger("wolf",players,course,auxiliary,config),holeResults:[]};
+
   if (players.length !== 4) {
     return { holeResults: [], totals: Object.fromEntries(players.map(p => [p.name, 0])) };
   }

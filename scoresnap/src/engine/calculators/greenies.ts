@@ -1,3 +1,5 @@
+import { actualInputLedger } from "../actual-inputs";
+import { AuxiliaryData, GameConfig } from "../types";
 import { Player, Course } from "../types";
 
 export interface GreenieResult {
@@ -20,7 +22,9 @@ export interface GreeniesResult {
  * Since we don't track proximity, we use lowest score on par 3s as proxy.
  * Must score par or better to qualify.
  */
-export function calcGreenies(players: Player[], course: Course): GreeniesResult {
+export function calcGreenies(players: Player[], course: Course, auxiliary?: AuxiliaryData, config?: GameConfig): GreeniesResult {
+  if(config?.rulesVersion===1) return {...actualInputLedger("greenies",players,course,auxiliary,config),greenies:[]};
+
   const totals: Record<string, number> = {};
   players.forEach((p) => (totals[p.name] = 0));
   const greenies: GreenieResult[] = [];

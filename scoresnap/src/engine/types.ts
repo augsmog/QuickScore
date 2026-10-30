@@ -28,11 +28,15 @@ export interface Player {
 
 // Auxiliary data for games that need per-hole input beyond scores
 export interface AuxiliaryData {
-  wolf?: { [hole: number]: { partnerId: string | null; isLoneWolf: boolean } };
+  jokerDeclarations?: { [hole:number]: Record<string, number[]> };
+  bisque?: { [hole:number]: {beforePlay:true; strokes:Record<string,number>} };
+  junk?: { [hole:number]: {sandies:string[];barkies:string[];greenie:string|null} };
+  teamCards?: { [hole: number]: Record<string, number> };
+  wolf?: { [hole: number]: { partnerId: string | null; isLoneWolf: boolean; blind?:boolean; refused?:boolean; beforePlay?:boolean } };
   hammer?: { [hole: number]: { hammered: boolean; hammerBy: string; accepted: boolean } };
   snake?: { [hole: number]: string[] }; // player IDs who 3-putted
   greenies?: { [hole: number]: string | null }; // player ID of greenie winner
-  bbb?: { [hole: number]: { bingo: string; bango: string; bongo: string } };
+  bbb?: { [hole: number]: { bingo: string | null; bango: string | null; bongo: string | null } };
 }
 
 export interface GamePlayer {
@@ -89,6 +93,7 @@ export interface GameTypeInfo {
 
 // Game configuration options — variation support from research
 export interface GameConfig {
+  inputRulesVersion?: 1; // Explicit adoption of round-two event/declaration variants.
   rulesVersion?: 1; // Absent means legacy: stored variation toggles remain ignored.
   // Skins
   carryover?: boolean;
@@ -116,6 +121,7 @@ export interface GameConfig {
   progressiveSnake?: boolean; // value doubles each time snake changes hands
 
   // Stableford
+  jokerEnabled?: boolean;
   jokerHoles?: number[]; // pre-declared joker holes (points doubled)
   modifiedStableford?: boolean; // Barracuda scoring: par=0, birdie=+2, eagle=+5, bogey=-1, dbl=-3
 
@@ -245,7 +251,7 @@ export const GAME_TYPES: { individual: GameTypeInfo[]; team: GameTypeInfo[] } = 
     { id: "skins_carry", name: "Skins (Carryover)", desc: "Tied skins carry to next hole", icon: "💰", category: "Money Games", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Same as Skins, but when a hole is tied, the skin carries over to the next hole. This creates big-value skins that build up over multiple tied holes." },
     { id: "nassau", name: "Nassau", desc: "3 bets: front 9, back 9, overall", icon: "🎰", category: "Money Games", isPremium: true, minPlayers: 2, maxPlayers: 4, rules: "Three separate match play bets: Front 9, Back 9, and Overall 18. Each bet is worth 1 unit. With 2 players, head-to-head. With 4 players, play as 2v2 teams using best ball per hole." },
     { id: "nassau_press", name: "Nassau w/ Presses", desc: "Nassau with auto-press when 2 down", icon: "🎰", category: "Money Games", isPremium: true, minPlayers: 2, maxPlayers: 4, rules: "Standard Nassau with automatic presses. When a side falls 2-down in any bet, a new side bet (press) starts on the next hole. Works 1v1 or 2v2 teams." },
-    { id: "wolf", name: "Wolf", desc: "Choose partner or go lone wolf each hole", icon: "🐺", category: "Strategy", isPremium: true, minPlayers: 4, maxPlayers: 4, rules: "The Wolf rotates each hole. After seeing tee shots, the Wolf picks a partner or goes Lone Wolf. Wolf+partner vs the other 2. Lone Wolf wins/loses 4x; team wins/loses 2x each." },
+    { id: "wolf", name: "Wolf", desc: "Choose partner or go lone wolf each hole", icon: "🐺", category: "Strategy", isPremium: true, minPlayers: 4, maxPlayers: 4, rules: "The Wolf rotates each hole. After seeing tee shots, the Wolf picks a partner or goes Lone Wolf. Wolf+partner vs the other 2. Ordinary solo pays 2 units per opponent; partnered Wolf pays 1 per opposing-player pair. Confirm actual partner choices." },
     { id: "banker", name: "Banker", desc: "Rotating banker takes all bets on hole", icon: "🏦", category: "Strategy", isPremium: true, minPlayers: 3, maxPlayers: 40, rules: "The Banker rotates each hole. If the Banker has the lowest score, they collect 1 unit from each player. If anyone beats the Banker, the Banker pays that player 1 unit." },
     { id: "hammer", name: "Hammer", desc: "Double the bet mid-hole for pressure", icon: "🔨", category: "Pressure", isPremium: true, minPlayers: 2, maxPlayers: 2, rules: "Each hole starts at 1 unit. Either player can 'hammer' (double the bet) during the hole. Opponent must accept the doubled bet or concede the hole. Creates intense pressure moments." },
     { id: "snake", name: "Snake", desc: "Last to 3-putt holds the snake", icon: "🐍", category: "Putting", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "The last player to 3-putt 'holds the snake.' At the end of the round, the snake holder pays each other player 1 unit. Keeps everyone focused on putting." },
@@ -266,8 +272,8 @@ export const GAME_TYPES: { individual: GameTypeInfo[]; team: GameTypeInfo[] } = 
     { id: "best_ball", name: "Best Ball", desc: "Best score on team counts each hole", icon: "🏆", category: "Team", isPremium: false, minPlayers: 4, maxPlayers: 40, rules: "Teams of 2+. Each hole, the team's best individual score counts. The team with the lower best-ball total wins. Also called Four-Ball in stroke play format." },
     { id: "scramble", name: "Scramble", desc: "All play from best shot each time", icon: "🤝", category: "Team", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "All team members hit, then everyone plays their next shot from the spot of the best shot. Repeat until holed out. Produces very low scores. Most popular team format." },
     { id: "shamble", name: "Shamble", desc: "Best drive, then play own ball", icon: "🔀", category: "Team", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "All team members tee off. The team selects the best drive. From that spot, each player plays their own ball into the hole. Best individual score from the team counts." },
-    { id: "alternate_shot", name: "Alternate Shot", desc: "Partners alternate shots on each hole", icon: "🔁", category: "Team", isPremium: true, minPlayers: 2, maxPlayers: 2, rules: "Partners take turns hitting shots. Player A tees off on odd holes, Player B on even holes. One ball per team, alternating every shot. Very strategic." },
-    { id: "chapman", name: "Chapman", desc: "Drive, swap, pick best, then alternate", icon: "🌲", category: "Team", isPremium: true, minPlayers: 2, maxPlayers: 2, rules: "Both partners drive. Then they swap balls and hit the second shot. After second shots, the team picks the better ball and alternates shots from there until holed." },
+    { id: "alternate_shot", name: "Alternate Shot", desc: "Partners alternate shots on each hole", icon: "🔁", category: "Team", isPremium: true, minPlayers: 4, maxPlayers: 40, rules: "Partners take turns hitting shots. Player A tees off on odd holes, Player B on even holes. One ball per team, alternating every shot. Very strategic. Lowest gross team total wins. Each losing player pays one bet unit total, shared equally by the winning pair. Tied lowest teams push." },
+    { id: "chapman", name: "Chapman", desc: "Drive, swap, pick best, then alternate", icon: "🌲", category: "Team", isPremium: true, minPlayers: 4, maxPlayers: 40, rules: "Both partners drive. Then they swap balls and hit the second shot. After second shots, the team picks the better ball and alternates shots from there until holed. Lowest gross team total wins. Each losing player pays one bet unit total, shared equally by the winning pair. Tied lowest teams push." },
     { id: "fourball", name: "Four-Ball", desc: "Best ball of partner in match play", icon: "4️⃣", category: "Team", isPremium: true, minPlayers: 4, maxPlayers: 40, rules: "Teams of 2 in match play. Each player plays their own ball. The better score from each team is compared hole by hole. Win the hole with the lower best-ball score." },
   ],
 };
@@ -286,6 +292,7 @@ export const IMPLEMENTED_GAME_IDS: GameType[] = [
   "nassau_press", "nines", "vegas", "sixes", "closeout",
   "quota", "chicago", "aces_deuces", "dots", "rabbit",
   "defender", "fourball", "scramble", "shamble", "banker",
+  "wolf", "hammer", "snake", "greenies", "bingo_bango_bongo", "alternate_shot", "chapman",
   // Tier 2 — require auxiliary per-hole input
 ];
 
@@ -406,7 +413,7 @@ export const LEGACY_GAME_VARIATIONS: GameVariation[] = [
   {
     id: "nassau_junk",
     label: "Junk Nassau",
-    desc: "Sandies, Barkies, Greenies, and other dots run alongside the Nassau simultaneously. Tracked separately, settled independently. You might play a $5 Nassau but settle $40 in junk.",
+    desc: "Each gross birdie or better, confirmed sandy, barkie, and qualifying par-3 greenie earns 1 unit from each other player. Feats stack once per player per hole, separate from Nassau weights and presses.",
     configKey: "junkNassau",
     configValue: true,
     appliesTo: ["nassau", "nassau_press"],
@@ -417,7 +424,7 @@ export const LEGACY_GAME_VARIATIONS: GameVariation[] = [
   {
     id: "wolf_blind",
     label: "Blind Wolf",
-    desc: "Wolf declares solo before ANYONE hits — including themselves. Points triple or quadruple. Maximum risk, maximum reward. Psychologically rattles opponents.",
+    desc: "Record Blind Wolf before anyone tees off. The Wolf plays alone for 3 units against EACH opponent, win or lose. Ordinary solo is 2 per opponent.",
     configKey: "blindWolf",
     configValue: true,
     appliesTo: ["wolf"],
@@ -426,7 +433,7 @@ export const LEGACY_GAME_VARIATIONS: GameVariation[] = [
   {
     id: "wolf_pig",
     label: "The Pig",
-    desc: "After Wolf picks a partner, that partner can REFUSE — forcing the Wolf into Lone Wolf automatically. All bets double for that hole. Classic power move.",
+    desc: "A selected partner may refuse before play continues, forcing the Wolf solo at 4 units per opponent, win or lose. Cannot combine with Blind Wolf on the same hole.",
     configKey: "pigVariation",
     configValue: true,
     appliesTo: ["wolf"],
@@ -435,7 +442,7 @@ export const LEGACY_GAME_VARIATIONS: GameVariation[] = [
   {
     id: "wolf_carryover",
     label: "Carryover on Ties",
-    desc: "Tied holes stack the point value to the next hole, often with a doubling multiplier. Massive pressure on the hole after a push.",
+    desc: "Each tied hole carries one base stake. The next decided hole multiplies its normal payout by the number of stacked holes. No exponential doubling; unresolved final ties pay nothing.",
     configKey: "wolfCarryover",
     configValue: true,
     appliesTo: ["wolf"],
@@ -446,7 +453,7 @@ export const LEGACY_GAME_VARIATIONS: GameVariation[] = [
   {
     id: "snake_progressive",
     label: "Progressive Snake",
-    desc: "Every time the Snake changes hands, the bet doubles. 1st 3-putt = 1x, 2nd = 2x, 3rd = 4x. By hole 18, the Snake could be worth 16x+. One late 3-putt can ruin a round financially.",
+    desc: "First ownership is 1 unit per opponent. Each chronological change of holder doubles the final stake; repeat three-putts by the same holder do not double it. Confirm ordered events every hole. Unsafe totals cannot settle.",
     configKey: "progressiveSnake",
     configValue: true,
     appliesTo: ["snake"],
@@ -466,9 +473,9 @@ export const LEGACY_GAME_VARIATIONS: GameVariation[] = [
   {
     id: "stableford_joker",
     label: "Joker Holes",
-    desc: "Before the round, each player secretly selects 1-3 'joker' holes where all points are doubled. Reveal at the end. Creates pre-round strategy and post-round second-guessing.",
-    configKey: "jokerHoles",
-    configValue: [5, 12, 16],
+    desc: "Each player publicly records TWO distinct Joker holes before the round. All points on those holes double, including negative points.",
+    configKey: "jokerEnabled",
+    configValue: true,
     appliesTo: ["stableford"],
     tag: "wild",
   },
@@ -506,7 +513,7 @@ export const LEGACY_GAME_VARIATIONS: GameVariation[] = [
   {
     id: "bbb_birdie_double",
     label: "Double Points for Birdie",
-    desc: "Any of the three points earned on a hole where the player makes birdie is worth 2 instead of 1. Creates incentive to attack rather than just park the ball. Very common house rule.",
+    desc: "SnapScore house rule: each confirmed BBB category earned by a player making a gross birdie is worth 2 points. Other categories stay at 1. No automatic sweep or chip-in bonus.",
     configKey: "bbbBirdieDouble",
     configValue: true,
     appliesTo: ["bingo_bango_bongo"],
@@ -577,7 +584,8 @@ export const LEGACY_GAME_VARIATIONS: GameVariation[] = [
 ];
 
 /** Only delivered capabilities feed the setup panel and advertised count. */
-const WIRED_VARIATION_IDS = ["skins_tiered", "skins_progressive", "skins_birdie_mult", "skins_validation", "skins_team", "nassau_weighted", "nassau_press_press", "nassau_aloha", "nassau_no_press_last", "stableford_modified", "vegas_birdie_flip", "vegas_eagle_doubles", "vegas_birdie_block", "sixes_escalating", "sixes_presses", "rabbit_double", "net_handicap"] as const;
+export const INPUT_VARIATION_IDS = ["nassau_junk","wolf_blind","wolf_pig","wolf_carryover","snake_progressive","stableford_joker","bbb_birdie_double","match_bisque"];
+const WIRED_VARIATION_IDS = ["skins_tiered", "skins_progressive", "skins_birdie_mult", "skins_validation", "skins_team", "nassau_weighted", "nassau_press_press", "nassau_aloha", "nassau_no_press_last", "stableford_modified", "vegas_birdie_flip", "vegas_eagle_doubles", "vegas_birdie_block", "sixes_escalating", "sixes_presses", "rabbit_double", "net_handicap", "wolf_carryover", "snake_progressive", "bbb_birdie_double", "wolf_blind", "wolf_pig", "stableford_joker", "match_bisque", "nassau_junk"] as const;
 export const GAME_VARIATIONS = LEGACY_GAME_VARIATIONS.filter(v => (WIRED_VARIATION_IDS as readonly string[]).includes(v.id));
 export const HIDDEN_VARIATIONS = LEGACY_GAME_VARIATIONS.filter(v => !GAME_VARIATIONS.includes(v));
 export const PLAYABLE_BASE_GAME_IDS = IMPLEMENTED_GAME_IDS;
@@ -590,10 +598,21 @@ export const GAME_LIBRARY_CAPTION = `${PLAYABLE_GAME_COUNT} ways to play across 
 /** New contest checks; legacy contests remain readable without adopting changed rules. */
 export function validateVariationSetup(groups: {players: Player[]}[], games: GameType[], config: GameConfig, betUnit: number): string | undefined {
   if (!Number.isFinite(betUnit) || betUnit < 0 || !Number.isSafeInteger(Math.round(betUnit * 100)) || Math.abs(betUnit * 100 - Math.round(betUnit * 100)) > 1e-7) return "Bet unit must be a nonnegative amount with at most two decimal places.";
+  for(const v of GAME_VARIATIONS) {const value=config[v.configKey];if(value===undefined || value===false && v.configValue===true)continue;if(v.configKey==="nassauWeights" && JSON.stringify(value)==="[1,1,1]")continue;if(v.configKey==="skinsTier" && ["flat","tiered","progressive"].includes(String(value)))continue;if(JSON.stringify(value)!==JSON.stringify(v.configValue) && !GAME_VARIATIONS.some(other=>other.configKey===v.configKey && JSON.stringify(other.configValue)===JSON.stringify(value)))return `Invalid value for ${v.label}`;}
+  if(config.skinsMode!==undefined && !["net","gross"].includes(config.skinsMode) || config.skinsScope!==undefined && !["field","group"].includes(config.skinsScope))return "Invalid Skins mode or scope";
   if (games.some(g => !isGameImplemented(g))) return "This game is unavailable until scoring and settlement are complete.";
   const players = groups.flatMap(g => g.players);
+  if (new Set(games).size !== games.length) return "Select each game only once.";
+  if (games.some(g=>g==="alternate_shot" || g==="chapman")) {
+    if(games.length!==1) return "Shared-ball formats require a separate contest with one team card.";
+    for(const group of groups){const teams=[...new Set(group.players.map(p=>p.team))];if(teams.length<2 || teams.some(t=>!t || group.players.filter(p=>p.team===t).length!==2)) return "Shared-ball formats require two or more complete pairs.";}
+  }
+  if(games.includes("wolf") && groups.some(g=>g.players.length!==4)) return "Wolf requires four players per group.";
+  if(games.includes("hammer") && groups.some(g=>g.players.length!==2)) return "Hammer requires two players per group.";
   if (new Set(players.map(p => p.name)).size !== players.length || new Set(players.map(p => p.id)).size !== players.length) return "Use a unique name and ID for each player.";
   if (games.includes("skins") && games.includes("skins_carry") || games.includes("nassau") && games.includes("nassau_press")) return "Choose one preset for each game.";
+  if(config.junkNassau && games.some(g=>g==="dots" || g==="greenies")) return "Junk Nassau cannot also pay standalone Dots or Greenies.";
+  if(config.bisqueHandicap && players.some(p=>Math.round(p.courseHandicaps?.[""]??p.handicap)<0)) return "Bisque requires nonnegative course handicaps; use indexed net for plus handicaps.";
   if (config.alohaPressOn18 && config.noPressLast) return "Aloha conflicts with No Press on 9 and 18.";
   if (config.birdieBlocksBirdie && !config.birdieFlip) return "Birdie Blocks Birdie requires Flip the Bird.";
   if (config.validationRule && !games.includes("skins_carry")) return "Validation requires Carryover Skins.";
@@ -620,8 +639,13 @@ export function validateVariationSetup(groups: {players: Player[]}[], games: Gam
 
 /** Execute only the selected game's supported rules; unknown saved keys remain stored for audit. */
 export function configForGame(config: GameConfig, game: GameType): GameConfig {
-  const result: GameConfig = {rulesVersion:config.rulesVersion};
+  const result: GameConfig = {rulesVersion:config.rulesVersion,inputRulesVersion:config.inputRulesVersion};
   if (game === "skins" || game === "skins_carry") { result.skinsMode = config.skinsMode; result.skinsScope = config.skinsScope; }
-  for (const v of GAME_VARIATIONS) if (v.appliesTo.includes(game) && config[v.configKey] !== undefined) result[v.configKey] = config[v.configKey];
+  for (const v of GAME_VARIATIONS) if ((!INPUT_VARIATION_IDS.includes(v.id) || config.inputRulesVersion===1) && v.appliesTo.includes(game) && config[v.configKey] !== undefined) result[v.configKey] = config[v.configKey];
   return result;
+}
+
+/** Shared execution normalization leaves the persisted audit record intact. */
+export function executionGameConfig(games:GameType[],stored:GameConfig={}):GameConfig {
+ return stored.rulesVersion===1?Object.assign({rulesVersion:1,inputRulesVersion:stored.inputRulesVersion},...games.map(game=>configForGame(stored,game))):stored;
 }

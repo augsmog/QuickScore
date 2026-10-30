@@ -10,20 +10,20 @@ function check(source){runNode(['--import','tsx','--input-type=module','-e',`
  ${source}
  `]);}
 test('registry derives count without aliases or hidden rules',()=>check(`
- assert.equal(t.PLAYABLE_BASE_GAME_IDS.length,23);
- assert.equal(t.PLAYABLE_OPTION_IDS.length,18);
+ assert.equal(t.PLAYABLE_BASE_GAME_IDS.length,30);
+ assert.equal(t.PLAYABLE_OPTION_IDS.length,26);
  assert.equal(t.PLAYABLE_FORMAT_IDS.length,1);
- assert.equal(t.PLAYABLE_GAME_COUNT,42);
+ assert.equal(t.PLAYABLE_GAME_COUNT,57);
  assert.equal(new Set(t.PLAYABLE_OPTION_IDS).size,t.PLAYABLE_OPTION_IDS.length);
- assert.equal(t.GAME_VARIATIONS.length,17);
- assert.equal(t.HIDDEN_VARIATIONS.length,10);
- for(const id of ['bbb_chip_in_triple','nassau_auto_press','stableford_joker','match_bisque']) assert.ok(t.HIDDEN_VARIATIONS.some(v=>v.id===id));
- for(const id of ['wolf','hammer','snake','greenies','bingo_bango_bongo','alternate_shot','chapman']) assert.ok(!t.isGameImplemented(id));
+ assert.equal(t.GAME_VARIATIONS.length,25);
+ assert.equal(t.HIDDEN_VARIATIONS.length,2);
+ for(const id of ['bbb_chip_in_triple','nassau_auto_press']) assert.ok(t.HIDDEN_VARIATIONS.some(v=>v.id===id));
+ for(const id of ['wolf','hammer','snake','greenies','bingo_bango_bongo','alternate_shot','chapman']) assert.ok(t.isGameImplemented(id));
 `));
 test('each selectable variation config key is actually read by an engine calculator',()=>{
  const fs=require('node:fs'),ts=require('typescript');
  const mod={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync('src/engine/types.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(()=>({FREE_GAMES:[]}),mod,mod.exports);
- const engine=fs.readdirSync('src/engine/calculators').filter(f=>f.endsWith('.ts')).map(f=>fs.readFileSync('src/engine/calculators/'+f,'utf8')).join('\n');
+ const engine=fs.readdirSync('src/engine/calculators').filter(f=>f.endsWith('.ts')).map(f=>fs.readFileSync('src/engine/calculators/'+f,'utf8')).join('\n')+fs.readFileSync('src/engine/actual-inputs.ts','utf8')+fs.readFileSync('src/engine/settlement.ts','utf8');
  for(const v of mod.exports.GAME_VARIATIONS) expect(engine).toMatch(new RegExp('(?:config|gameConfig)\\??\\.'+v.configKey+'\\b'));
  expect(fs.readFileSync('app/contest/new.tsx','utf8')).toContain('GAME_VARIATIONS.filter');
 });

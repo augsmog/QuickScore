@@ -1,3 +1,7 @@
+import { validBisque, validJokers } from "./declarations";
+import { calcAlternateShot } from "./calculators/alternate-shot";
+import { calcChapman } from "./calculators/chapman";
+import { ACTUAL_INPUT_GAMES, actualInputLedger } from "./actual-inputs";
 import { Transaction, SettlementSummary, Player, Course, GameType, GameConfig, AuxiliaryData, validateVariationSetup, configForGame } from "./types";
 import { calcStrokePlay } from "./calculators/stroke-play";
 import { calcSkins, skinsGroups } from "./calculators/skins";
@@ -53,18 +57,37 @@ export function calculateSettlement(
   groups?: { name: string; players: Player[] }[]
 ): SettlementSummary {
   const transactions: Transaction[] = [];
+
   if (gameConfig?.rulesVersion === 1) {
     const stored = gameConfig;
-    const normalized: GameConfig = Object.assign({rulesVersion:1}, ...gameTypes.map(g => configForGame(stored,g)));
+    const normalized: GameConfig = Object.assign({rulesVersion:1,inputRulesVersion:gameConfig.inputRulesVersion}, ...gameTypes.map(g => configForGame(stored,g)));
     gameConfig = normalized;
     const error = validateVariationSetup(groups ?? [{players}], gameTypes, normalized, betUnit);
     if (error) throw new Error(error);
-    if (players.some(p => course.holes.some((_,i) => !Number.isFinite(p.scores[i]) || p.scores[i] <= 0))) {
+  if(gameConfig?.rulesVersion===1 && ((gameTypes.includes("stableford") && gameConfig.jokerEnabled && !validJokers(players,course,auxiliaryData)) || (gameTypes.includes("match_play") && gameConfig.bisqueHandicap && !validBisque(players,course,auxiliaryData)) || (gameConfig.junkNassau && gameTypes.some(g=>g==="nassau"||g==="nassau_press") && actualInputLedger("nassau",players,course,auxiliaryData,gameConfig).pending))) return {transactions:[],netByPlayer:Object.fromEntries(players.map(p=>[p.name,0])),pending:true};
+    if (!gameTypes.some(g=>g==="alternate_shot" || g==="chapman") && players.some(p => course.holes.some((_,i) => !Number.isFinite(p.scores[i]) || p.scores[i] <= 0))) {
       return {transactions:[],netByPlayer:Object.fromEntries(players.map(p => [p.name,0])),pending:true};
     }
   }
 
+  if (gameConfig?.rulesVersion === 1 && gameTypes.some(g => ACTUAL_INPUT_GAMES.includes(g) && actualInputLedger(g, players, course, auxiliaryData, gameConfig).pending)) {
+    return {transactions:[],netByPlayer:Object.fromEntries(players.map(p=>[p.name,0])),pending:true};
+  }
   for (const gameType of gameTypes) {
+    if(gameConfig?.rulesVersion===1 && (gameType==="alternate_shot" || gameType==="chapman")) {
+      const teams=[...new Set(players.map(p=>p.team!))].map(name=>({name,score:course.holes.map((_,i)=>auxiliaryData?.teamCards?.[i+1]?.[name]??0)}));
+      if(teams.some(t=>t.score.some(n=>!Number.isInteger(n)||n<=0))) return {transactions:[],netByPlayer:Object.fromEntries(players.map(p=>[p.name,0])),pending:true};
+      const ranks=(gameType==="chapman"?calcChapman:calcAlternateShot)(teams,course);
+      if(ranks[0].total!==ranks[1].total){const winners=players.filter(p=>p.team===ranks[0].name);for(const loser of players.filter(p=>p.team!==ranks[0].name)) for(const winner of winners) transactions.push({from:loser.name,to:winner.name,amount:betUnit/winners.length,gameType});}
+      continue;
+    }
+    if (gameConfig?.rulesVersion === 1 && ACTUAL_INPUT_GAMES.includes(gameType)) {
+      const result=actualInputLedger(gameType,players,course,auxiliaryData,configForGame(gameConfig,gameType));
+      const winners=players.filter(p=>result.totals[p.name]>0), losers=players.filter(p=>result.totals[p.name]<0);
+      const total=winners.reduce((sum,p)=>sum+result.totals[p.name],0);
+      for (const winner of winners) for (const loser of losers) transactions.push({from:loser.name,to:winner.name,amount:result.totals[winner.name]*-result.totals[loser.name]/total*betUnit,gameType});
+      continue;
+    }
     if (gameConfig?.rulesVersion === 1 && groups && ["nassau","nassau_press","match_play","vegas","sixes","rabbit"].includes(gameType)) {
       for (const group of groups) transactions.push(...calculateSettlement(group.players,course,[gameType],betUnit,auxiliaryData,configForGame(gameConfig,gameType)).transactions);
       continue;
@@ -73,6 +96,7 @@ export function calculateSettlement(
       for (const scope of groups ?? [{players}]) {
       const players = scope.players;
       const result = calcNassauRules(players, course, gameType === "nassau_press", gameConfig);
+      if(gameConfig.junkNassau){const junk=actualInputLedger(gameType,players,course,auxiliaryData,gameConfig);for(const p of players) result.totals[p.name]+=junk.totals[p.name];}
       const winners = players.filter(p => result.totals[p.name] > 0);
       const losers = players.filter(p => result.totals[p.name] < 0);
       const total = winners.reduce((s,p) => s + result.totals[p.name],0);
@@ -154,7 +178,7 @@ export function calculateSettlement(
 
       case "stableford": {
         if (!players.some(p => p.scores.some(score => score > 0))) break;
-        const results = calcStableford(players, course, gameConfig);
+        const results = calcStableford(players, course, gameConfig, auxiliaryData);
         if (results.length >= 2) {
           const winner = results[0];
           if (gameConfig?.rulesVersion === 1 && tiedRank(winner, results[1])) break;
@@ -195,7 +219,7 @@ export function calculateSettlement(
         // MatchPlayResult: { p1, p2, results, finalStatus }
         // finalStatus > 0 means p1 won more holes
         if (players.length >= 2) {
-          const result = calcMatchPlay(players[0], players[1], course, gameConfig);
+          const result = calcMatchPlay(players[0], players[1], course, gameConfig, auxiliaryData);
           if (result.finalStatus > 0) {
             transactions.push({
               from: result.p2,

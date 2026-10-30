@@ -1,3 +1,5 @@
+import { actualInputLedger } from "../actual-inputs";
+import { AuxiliaryData, GameConfig } from "../types";
 import { Player, Course } from "../types";
 
 export interface BBBResult {
@@ -20,8 +22,11 @@ export interface BBBResult {
  */
 export function calcBingoBangoBongo(
   players: Player[],
-  _course: Course
+  _course: Course,
+  auxiliary?: AuxiliaryData,
+  config?: GameConfig
 ): BBBResult {
+  if(config?.rulesVersion===1){const result=actualInputLedger("bingo_bango_bongo",players,_course,auxiliary,config);return {...result,holeResults:[]};}
   const totals: Record<string, number> = {};
   players.forEach((p) => (totals[p.name] = 0));
   const holeResults = [];

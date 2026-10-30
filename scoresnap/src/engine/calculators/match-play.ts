@@ -1,11 +1,17 @@
-import { Player, Course, MatchPlayResult, GameConfig } from "../types";
+import { Player, Course, MatchPlayResult, GameConfig, AuxiliaryData, configForGame } from "../types";
 
 export function calcMatchPlay(
   p1: Player,
   p2: Player,
   _course: Course,
-  config?: GameConfig
+  config?: GameConfig,
+  auxiliary?: AuxiliaryData
 ): MatchPlayResult {
+  if(config?.rulesVersion===1)config=configForGame(config,"match_play");
+  if(config?.rulesVersion===1 && config.bisqueHandicap){
+    const adjusted=(p:Player)=>({...p,scores:p.scores.map((n,i)=>n-(auxiliary?.bisque?.[i+1]?.strokes[p.id]??0))});
+    return calcMatchPlay(adjusted(p1),adjusted(p2),_course);
+  }
   if (config?.rulesVersion === 1 && config.netHandicap) {
     const h1 = Math.round(p1.courseHandicaps?.[_course.name] ?? p1.handicap);
     const h2 = Math.round(p2.courseHandicaps?.[_course.name] ?? p2.handicap);

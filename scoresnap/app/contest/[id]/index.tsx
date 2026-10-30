@@ -1,3 +1,4 @@
+import { teamCardPlayers } from "../../../src/engine/contest-results";
 import { useState } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -32,6 +33,7 @@ export default function LeaderboardScreen() {
     allPlayers = contest.groups.flatMap((g) => g.players);
   }
 
+  if(contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot"||g==="chapman"))allPlayers=teamCardPlayers(contest,!!contest.currentRound);
   const hasScores = allPlayers.some((p) =>
     p.scores.some((s) => s > 0)
   );

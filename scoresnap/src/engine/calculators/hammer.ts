@@ -1,3 +1,5 @@
+import { actualInputLedger } from "../actual-inputs";
+import { AuxiliaryData, GameConfig } from "../types";
 import { Player, Course } from "../types";
 
 export interface HammerResult {
@@ -13,7 +15,8 @@ export interface HammerResult {
  * Since we can't track mid-hole hammering, we simulate:
  * The value doubles on holes where the margin is >= 2 strokes (indicating pressure).
  */
-export function calcHammer(p1: Player, p2: Player, _course: Course): HammerResult {
+export function calcHammer(p1: Player, p2: Player, _course: Course, auxiliary?: AuxiliaryData, config?: GameConfig): HammerResult {
+  if(config?.rulesVersion===1){const result=actualInputLedger("hammer",[p1,p2],_course,auxiliary,config);return {...result,holeResults:[]};}
   const totals: Record<string, number> = { [p1.name]: 0, [p2.name]: 0 };
   const holeResults = [];
 
