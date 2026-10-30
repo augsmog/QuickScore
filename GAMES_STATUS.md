@@ -1,226 +1,92 @@
-# SnapScore Side Games Status
+# SnapScore game library status — 2026-10-30, fix round 5
 
-Complete status of all golf side games/betting formats in the app.
+The implementation inventory is **57 ways to play = 30 selectable base games + 26 distinct options + 1 tournament format**. The single source is `scoresnap/src/engine/types.ts`; `PLAYABLE_GAME_COUNT` derives from the registries. All seven round-one removals are restored. Pro includes games and variants; multi-round or multi-group hosting requires Tournament Director. Free remains Stroke Play, Match Play, Stableford and Best Ball. This is implementation status, not release-device acceptance or approval to publish a store listing.
 
-## ✅ Fully Implemented & Tested (29 games)
+Versioned tournament primary game cards now show every round separately, using that round’s groups, course, cards and scoped events; a separate all-round settlement panel combines cash. Nassau cancelling weighted rounds, Skins, Vegas (including changed pars), Sixes and the common context boundary have red/green regressions. Legacy and single-round contexts retain identity. Live scorecard previews and daily leaderboard results also use the current round’s course, including round-specific course handicaps and pars. Round-2 Nassau/Skins and round-3 course selection have regressions against primary results and settlement. Live Skins uses all current-round groups for field scope and the selected group for group scope, via the same scoped calculator as primary results and cash. Nassau previews preserve engine side labels, including both paired players. Carry banners describe unawarded units without promising a fixed next payout under weighted/validation rules. The tournament format counts in the derived 57. See `/workspace/aos-state/reports/snapscore-game-variations-fix-r5-20261030.md` for current local validation; this round is local commit only.
 
-All games below have:
-- ✅ Complete calculation logic
-- ✅ Settlement integration (money flows)
-- ✅ Comprehensive test coverage (749 tests passing)
-- ✅ Per-hole progressive calculation
-- ✅ Works with manual score entry
-- ✅ Ready for friend-group pilot
+The fix-r2 regressions additionally verify round-scoped Bisque match display against exact cash across two rounds and flat-Skins confirmed prefixes for missing/nonfinite inputs, carry/no-carry and gross/net, preserving versionless behavior. The fix-r1 regressions cover eagle-or-better BBB bonuses, group/round Joker leaderboard agreement with cash, course-handicap Net Skins, confirmed-prefix previews, and the exact Barracuda table. Independent numerical variant fixtures now run under Jest; the 2-to-200 birdie mutation is rejected. No base games or counted options were removed. See `/workspace/aos-state/reports/snapscore-game-variations-fix-r2-20261030.md` for historical validation and CI.
 
-### Individual Games (4)
+The round-two report supersedes the round-one report: `/workspace/aos-state/reports/snapscore-game-variations-continue-20261030.md`.
 
-| Game | Description | Players | Status |
-|------|-------------|---------|--------|
-| **Stroke Play** | Traditional lowest score wins | 1-40 | ✅ Complete |
-| **Match Play** | Head-to-head holes won | 2 | ✅ Complete |
-| **Stableford** | Points-based scoring (par=2, birdie=3, etc.) | 1-40 | ✅ Complete |
-| **Modified Stableford** | Barracuda scoring (par=0, birdie=+2, bogey=-1) | 1-40 | ✅ Complete |
+## Base games
 
-### Betting Games (14)
+- `stroke_play`: selectable, scoring and settlement implemented.
+- `match_play`: selectable, scoring and settlement implemented.
+- `stableford`: selectable, scoring and settlement implemented.
+- `mod_stableford`: selectable, scoring and settlement implemented.
+- `skins`: selectable, scoring and settlement implemented.
+- `skins_carry`: selectable, scoring and settlement implemented.
+- `nassau`: selectable, scoring and settlement implemented.
+- `best_ball`: selectable, scoring and settlement implemented.
+- `nassau_press`: selectable, scoring and settlement implemented.
+- `nines`: selectable, scoring and settlement implemented.
+- `vegas`: selectable, scoring and settlement implemented.
+- `sixes`: selectable, scoring and settlement implemented.
+- `closeout`: selectable, scoring and settlement implemented.
+- `quota`: selectable, scoring and settlement implemented.
+- `chicago`: selectable, scoring and settlement implemented.
+- `aces_deuces`: selectable, scoring and settlement implemented.
+- `dots`: selectable, scoring and settlement implemented.
+- `rabbit`: selectable, scoring and settlement implemented.
+- `defender`: selectable, scoring and settlement implemented.
+- `fourball`: selectable, scoring and settlement implemented.
+- `scramble`: selectable, scoring and settlement implemented.
+- `shamble`: selectable, scoring and settlement implemented.
+- `banker`: selectable, scoring and settlement implemented.
+- `wolf`: selectable, scoring and settlement implemented.
+- `hammer`: selectable, scoring and settlement implemented.
+- `snake`: selectable, scoring and settlement implemented.
+- `greenies`: selectable, scoring and settlement implemented.
+- `bingo_bango_bongo`: selectable, scoring and settlement implemented.
+- `alternate_shot`: selectable, scoring and settlement implemented.
+- `chapman`: selectable, scoring and settlement implemented.
 
-| Game | Description | Players | Status | Notes |
-|------|-------------|---------|--------|-------|
-| **Skins** | Lowest score wins the hole | 2-40 | ✅ Complete | No carryover variant |
-| **Skins (Carryover)** | Ties carry forward | 2-40 | ✅ Complete | Most popular variant |
-| **Nassau** | Front 9 / Back 9 / Overall bets | 2 | ✅ Complete | Classic 3-bet format |
-| **Nassau w/ Presses** | Auto-press when down 2+ | 2 | ✅ Complete | Press detection included |
-| **Wolf** | Rotating "wolf" picks partner | 4 | ✅ Complete | Lone wolf option |
-| **Banker** | One player vs. field per hole | 4-20 | ✅ Complete | Rotating banker |
-| **Hammer** | Double-or-nothing challenges | 2 | ✅ Complete | Hammer tracking |
-| **Snake** | Last to 3-putt holds the snake | 2-20 | ✅ Complete | Requires putt tracking |
-| **Rabbit** | Capture and hold per 9 holes | 2-20 | ✅ Complete | Front/back rabbit |
-| **Defender** | Defend hole-by-hole | 2-20 | ✅ Complete | Attack/defend format |
-| **Closeout** | Matches reset after closeout | 2 | ✅ Complete | Multi-match tracking |
-| **Vegas** | Team score concatenation | 4 (2v2) | ✅ Complete | Lower score = tens digit |
-| **Sixes** | Three 6-hole segments | 4 | ✅ Complete | Rotating partners |
-| **Nines** | 9 points per hole distribution | 4 | ✅ Complete | Zero-sum game |
+Wolf, Hammer, Snake, Greenies and BBB use the shared actual-event ledger. Missing events are pending, never inferred from scores. Snake records ordered putting events even on pars. BBB captures actual categories in live scoring and scan confirmation, including explicit no-award. Alternate Shot and Chapman require two or more pairs and one canonical gross team card, separate from individual-score games. Losing players each pay one bet unit, split across the winning pair; tied low teams push.
 
-### Point Games (6)
+## Variations
 
-| Game | Description | Players | Status |
-|------|-------------|---------|--------|
-| **Bingo Bango Bongo** | First on green, closest, first in | 2-40 | ✅ Complete |
-| **Dots / Trash** | Birdies, sandies, greenies | 2-40 | ✅ Complete |
-| **Quota** | Beat your quota (36 - handicap) | 1-40 | ✅ Complete |
-| **Chicago** | Similar to Quota | 1-40 | ✅ Complete |
-| **Greenies** | Closest to pin on par 3s | 2-40 | ✅ Complete |
-| **Aces & Deuces** | Eagles and birdies vs. bogeys and worse | 2-40 | ✅ Complete |
+| ID | Status | Explanation |
+|---|---|---|
+| `skins_tiered` | WIRED | Skin units: holes 1–6 = 1, 7–12 = 2, 13–18 = 3. Tied units carry only in Carryover Skins. |
+| `skins_progressive` | WIRED | Hole N is worth N skin units; tied units retain their original values. |
+| `skins_birdie_mult` | WIRED | An outright gross birdie doubles that hole's units; eagle or better triples them. Carried units are not multiplied. |
+| `skins_validation` | WIRED | A win containing carried units is pending until the winner makes gross par or better on the next hole. Failure returns the original units to the pot. A win on 18 is exempt. |
+| `skins_team` | WIRED | Two-player teams compete with best ball. Each team's skin entitlement is split equally between its partners. |
+| `nassau_weighted` | WIRED | Front nine 1 bet unit, back nine 1, overall 2. With a $5 unit: $5/$5/$10. Presses inherit their parent bet's stake. |
+| `nassau_press_press` | WIRED | A press that reaches 2 down starts one further press on the next hole, at the same stake and end hole. |
+| `nassau_aloha` | WIRED | Mandatory separate bet on 18 worth HALF the original base unit, regardless of weights or earlier results. A tie pushes. |
+| `nassau_no_press_last` | WIRED | No new press may start on holes 9 or 18. Existing bets continue through their end hole. |
+| `nassau_junk` | WIRED | Each gross birdie or better, confirmed sandy, barkie, and qualifying par-3 greenie earns 1 unit from each other player. Feats stack once per player per hole, separate from Nassau weights and presses. |
+| `wolf_blind` | WIRED | Record Blind Wolf before anyone tees off. The Wolf plays alone for 3 units against EACH opponent, win or lose. Ordinary solo is 2 per opponent. |
+| `wolf_pig` | WIRED | A selected partner may refuse before play continues, forcing the Wolf solo at 4 units per opponent, win or lose. Cannot combine with Blind Wolf on the same hole. |
+| `wolf_carryover` | WIRED | Each tied hole carries one base stake. The next decided hole multiplies its normal payout by the number of stacked holes. No exponential doubling; unresolved final ties pay nothing. |
+| `snake_progressive` | WIRED | First ownership is 1 unit per opponent. Each chronological change of holder doubles the final stake; repeat three-putts by the same holder do not double it. Confirm ordered events every hole. Unsafe totals cannot settle. |
+| `stableford_modified` | WIRED | Barracuda points: albatross or better +8, eagle +5, birdie +2, par 0, bogey −1, double or worse −3. |
+| `stableford_joker` | WIRED | Each player publicly records TWO distinct Joker holes before the round. All points on those holes double, including negative points. |
+| `vegas_birdie_flip` | WIRED | A gross birdie reverses the opposing team's number. Both teams may reverse; no automatic win or extra doubling. Vegas digit cap: 9. |
+| `vegas_eagle_doubles` | WIRED | One team's gross eagle or better flips the opposing number and doubles the difference once, overriding birdie rules. Both teams eagle: no flip or double. Vegas digit cap: 9. |
+| `vegas_birdie_block` | WIRED | Requires Flip the Bird. If both teams make gross birdie, neither number reverses. Eagle Rule takes precedence. Vegas digit cap: 9. |
+| `bbb_birdie_double` | WIRED | SnapScore house rule: each confirmed BBB category earned by a player making a gross birdie is worth 2 points. Other categories stay at 1. No automatic sweep or chip-in bonus. |
+| `sixes_escalating` | WIRED | Segments 1–6, 7–12, 13–18 pay winning-hole margin at 1, 2, 4 bet units per player. |
+| `sixes_presses` | WIRED | Each segment starts one press after its base first reaches 2 down, starting next hole through segment end. Base and press margins settle at the segment stake. No recursive presses. |
+| `rabbit_double` | WIRED | Add a third, full-round Rabbit wager paid by the holder at 18, in addition to front and back nine wagers. This can pay the back-nine holder twice. |
+| `match_bisque` | WIRED | Handicap strokes converted into 'bisques' — strokes used at your discretion on any hole, declared before playing that hole. Save bisques for your worst hole type or the most important holes. |
+| `net_handicap` | WIRED | Net uses course-handicap strokes; match/Nassau play relative to the lowest player, Stableford/Skins use full course handicaps. Natural-score bonuses still use gross scores. |
+| `nassau_auto_press` | FOLDED | Select Nassau with Presses; no additional count. |
+| `bbb_chip_in_triple` | HIDDEN | Unsupported substitution for actual BBB events; deliberately excluded by scope. |
 
-### Team Games (5)
+Gross/Net is counted once, with the Net variation folded into that capability; group Skins scope is one further option. No combinations are counted. Tournament hosting counts once.
 
-| Game | Description | Players | Status |
-|------|-------------|---------|--------|
-| **Best Ball** | Best score per team per hole | 4-40 | ✅ Complete |
-| **Scramble** | All play from best shot | 2-40 | ✅ Complete |
-| **Shamble** | Drive together, then individual | 2-40 | ✅ Complete |
-| **Alternate Shot** | Partners alternate shots | 4 (2v2) | ✅ Complete |
-| **Chapman** | Both drive, swap balls, alt shot | 4 (2v2) | ✅ Complete |
-| **Four-Ball** | Best ball match play format | 4 (2v2) | ✅ Complete |
+## Persistence, safety and compatibility
 
----
+New setup writes `rulesVersion: 1` plus `inputRulesVersion: 1`. Absent rules version retains origin/main calculator/settlement behavior. Existing round-one contests without the input-rules marker do not activate formerly hidden controls. Unknown/hidden keys remain preserved in the stored audit record and are removed only from execution. Rules and money are locked after play starts; legacy adoption requires a separate contest rather than silently changing an outcome.
 
-## 🎮 Multi-Game Support
+Inputs persist in round/group namespaces (`default/<group>` for a single round). Legacy unscoped inputs are read only for one single-round group; ambiguous tournament maps remain pending. BBB's legacy scan alias is normalized with conflict detection. Constituent tournament rounds settle with their own course, player handicaps and events. Settlement, profile wagering and live share use `calculateContestSettlement`; previews use the same event ledger. Team leaderboards read canonical cards.
 
-The app supports running **multiple games concurrently** in the same round. For example:
+Joker choices are public, exactly two per player and locked before scoring. Bisque records 0–2 strokes per player before each hole, validates full nonnegative rounded course-handicap budgets and replaces indexed net. Blind/Pig require recorded pre-play choices, never a global forced-solo switch. Junk records actual sandy/barkie/greenie feats and qualifies them against gross par; birdies are derived from gross scores. Store mutations validate host tiers; guest score/event capture has no new per-hole paywall. Individual OCR imports are rejected for shared-ball formats.
 
-```
-Round: Saturday Morning
-Players: Mike, Dave, Chris, Jay
-Games: Stroke Play + Skins (Carry) + Nassau + Stableford + BBB
-Bet: $5/game
-```
+The unchanged origin/main golden fixture covers all 30 bases with omitted/empty config. Actual-input repairs intentionally replace speculative event money for new rules, fix Wolf conservation, and add the three previously absent settlements. Balanced integer-cent allocation is retained.
 
-Each game is calculated independently and settlement is combined.
+## Manual QA required
 
-**Tested Combinations:**
-- ✅ 2 games: Common (e.g., Skins + Stroke Play)
-- ✅ 4 games: Party format
-- ✅ 6 games: Kitchen sink (tested with 12 players)
-- ✅ 8 games: Max tested (40 players)
-
----
-
-## 📊 Settlement Engine
-
-The settlement engine:
-- ✅ Calculates all money flows per game
-- ✅ Zero-sum validation (total in = total out)
-- ✅ Transaction breakdown per game type
-- ✅ Net position per player
-- ✅ Handles ties and pushes correctly
-- ✅ Works with betUnit ($1, $5, $10, custom)
-
----
-
-## 🚫 Not Implemented (0 games)
-
-All 29 documented golf betting games are fully implemented.
-
----
-
-## ⚠️ Partial / Requires Manual Input
-
-Some games require additional per-hole input beyond just scores:
-
-| Game | What's Needed | How to Enter |
-|------|---------------|--------------|
-| **Snake** | 3-putt tracking | Manual per-hole toggle (UI stubbed) |
-| **Wolf** | Partner selection + lone wolf | Manual per-hole selection (UI stubbed) |
-| **Hammer** | Hammer called + accepted | Manual per-hole toggle (UI stubbed) |
-| **Greenies** | Closest to pin on par 3s | Auto-calculated from score (assumes GIR) |
-| **BBB** | Order of arrival | Auto-calculated by score (best = first on, etc.) |
-
-**Status**: These games calculate correctly if auxiliary data is provided, but the per-hole input UI for Wolf/Hammer/Snake is not yet built. For pilot testing, these can be entered manually or calculated after the round.
-
----
-
-## 🧪 Test Coverage
-
-| Test Suite | Tests | Status |
-|------------|-------|--------|
-| `all-calculators.test.ts` | 320 | ✅ Passing |
-| `per-hole-progressive.test.ts` | 429 | ✅ Passing |
-| **Total** | **749** | **✅ All Passing** |
-
-**Test Scope:**
-- ✅ All 29 game calculators
-- ✅ Settlement for 1-40 player fields
-- ✅ Multi-game concurrent settlement
-- ✅ Zero-sum validation
-- ✅ Edge cases (ties, incomplete rounds, all-same scores)
-- ✅ Regression tests for GS-1 & GS-2
-
----
-
-## 📱 Supported Input Methods
-
-| Method | Status | Notes |
-|--------|--------|-------|
-| **Manual Entry** | ✅ Fully functional | Hole-by-hole score entry |
-| **OCR Scanning** | ✅ iOS/Android only | Camera-based (not on web) |
-| **Bulk Import** | ✅ Via scan review | JSON format |
-
----
-
-## 🌐 Web Preview Limitations
-
-When running on web (Vercel/offline mode):
-
-| Feature | Status | Reason |
-|---------|--------|--------|
-| Manual score entry | ✅ Works | No dependencies |
-| All 29 game calculations | ✅ Works | Pure TypeScript |
-| Settlement | ✅ Works | Pure TypeScript |
-| Leaderboard | ✅ Works | React Native Web |
-| OCR scanning | ❌ Disabled | `expo-camera` doesn't support web |
-| Haptic feedback | ⚠️ No-op | Not available in browsers |
-| Push notifications | ❌ Not implemented | Future feature |
-
-**Recommendation**: For pilot testing, friends can:
-1. Use the web version to enter scores manually
-2. Or use iOS/Android native app with camera scanning
-
----
-
-## 🎯 Recommended Pilot Games
-
-For initial friend-group testing, recommend starting with these proven combinations:
-
-### Casual Round (Low Stakes)
-- Stroke Play
-- Skins (Carryover)
-- Stableford
-
-### Weekend Warrior (Medium Stakes)
-- Stroke Play
-- Skins (Carryover)
-- Nassau
-- Bingo Bango Bongo
-
-### High-Octane (High Stakes)
-- Stroke Play
-- Skins (Carryover)
-- Nassau w/ Presses
-- Wolf
-- Dots
-
-All of these are fully functional and require only score entry (no auxiliary inputs).
-
----
-
-## 🔮 Future Enhancements
-
-Potential additions (not needed for pilot):
-
-- [ ] Per-hole UI for Wolf partner selection
-- [ ] Per-hole UI for Hammer challenges
-- [ ] Per-hole UI for Snake 3-putt tracking
-- [ ] Match Play scorecard format (AS/1UP/2&1, etc.)
-- [ ] Live group leaderboards (realtime sync)
-- [ ] Historical round comparisons
-- [ ] Player stats & trends
-- [ ] Course handicap calculator
-- [ ] GPS range finder integration
-
----
-
-## Summary for Pilot
-
-✅ **Ready for Friends:**
-- All 29 games calculate correctly
-- Manual score entry works perfectly
-- Settlement engine is zero-sum validated
-- Web preview available (no auth required)
-- 749 tests passing
-
-⚠️ **Minor Limitations:**
-- Camera scanning only on iOS/Android (not web)
-- Wolf/Hammer/Snake require manual per-hole input (UI not built yet)
-- BBB and Greenies use score-based approximations
-
-🎉 **Bottom Line:** Friends can start using it today with manual score entry and have full access to all 29 game types. Perfect for testing with a foursome.
+Release-device setup/edit/back/skip/reload, last-hole side-bet capture, complete-round locking, scan category confirmation and declarations, multi-round/multi-group course changes, canonical team cards, Pro/Free/TD access and eventual combined-tree validation with PR #33. No release-device QA was run in this build; it is not a build blocker.

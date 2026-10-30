@@ -1,4 +1,6 @@
-import { Player, Course, StablefordResult } from "../types";
+import { Player, Course, StablefordResult, GameConfig, AuxiliaryData, configForGame } from "../types";
+
+import { handicapStrokesForHole } from "./skins";
 
 function stablefordPoints(score: number, par: number): number {
   const diff = score - par;
@@ -12,18 +14,30 @@ function stablefordPoints(score: number, par: number): number {
 
 export function calcStableford(
   players: Player[],
-  course: Course
+  course: Course,
+  config?: GameConfig,
+  auxiliary?: AuxiliaryData
 ): StablefordResult[] {
+  if(config?.rulesVersion===1)config=configForGame(config,"stableford");
+  const firstMissing = course.holes.findIndex((_, i) => players.some(p => !Number.isFinite(p.scores[i]) || p.scores[i] <= 0));
+  const confirmed = config?.rulesVersion === 1 && firstMissing >= 0 ? firstMissing : course.holes.length;
   return players
     .map((p) => {
       const holePoints = course.holes.map((hole, i) =>
-        p.scores[i] > 0 ? stablefordPoints(p.scores[i], hole.par) : 0
+        i < confirmed && p.scores[i] > 0 ? (() => {
+          const score = p.scores[i] - (config?.rulesVersion === 1 && config.netHandicap ? handicapStrokesForHole(p.courseHandicaps?.[course.name] ?? p.handicap, hole.hcp) : 0);
+          if (config?.rulesVersion === 1 && config.modifiedStableford) {
+            const diff = score - hole.par;
+            return diff <= -3 ? 8 : diff === -2 ? 5 : diff === -1 ? 2 : diff === 0 ? 0 : diff === 1 ? -1 : -3;
+          }
+          return stablefordPoints(score, hole.par);
+        })() : 0
       );
       return {
         name: p.name,
         playerId: p.id,
-        points: holePoints.reduce((sum, pts) => sum + pts, 0),
-        holePoints,
+        points: holePoints.reduce((sum,pts,i)=>sum+pts*(config?.rulesVersion===1 && config.jokerEnabled && auxiliary?.jokerDeclarations?.[0]?.[p.id]?.includes(i+1)?2:1),0),
+        holePoints:holePoints.map((pts,i)=>pts*(config?.rulesVersion===1 && config.jokerEnabled && auxiliary?.jokerDeclarations?.[0]?.[p.id]?.includes(i+1)?2:1)),
       };
     })
     .sort((a, b) => b.points - a.points);

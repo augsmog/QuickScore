@@ -1,4 +1,4 @@
-import { Player, Course } from "../types";
+import { Player, Course, GameConfig } from "../types";
 
 export interface SixesResult {
   rounds: {
@@ -20,7 +20,7 @@ export interface SixesResult {
  * Holes 13-18: A+D vs B+C
  * Best ball within each team per hole. Team with lower best ball wins the hole (1 point).
  */
-export function calcSixes(players: Player[], _course: Course): SixesResult {
+export function calcSixes(players: Player[], _course: Course, config?: GameConfig): SixesResult {
   if (players.length !== 4) {
     return { rounds: [], totals: Object.fromEntries(players.map(p => [p.name, 0])) };
   }
@@ -32,28 +32,42 @@ export function calcSixes(players: Player[], _course: Course): SixesResult {
     { team1: [a, d] as [Player, Player], team2: [b, c] as [Player, Player], start: 12, end: 18, label: "13-18" },
   ];
 
+  let prefix = 18;
+  if (config?.rulesVersion === 1) {
+    for (let i = 0; i < 18; i++) if (players.some(p => !Number.isFinite(p.scores[i]) || p.scores[i] <= 0)) { prefix = i; break; }
+  }
   const totals: Record<string, number> = {};
   players.forEach((p) => (totals[p.name] = 0));
   const rounds = [];
 
   for (const { team1, team2, start, end, label } of pairings) {
+    let pressStart = -1;
+    let pressMargin = 0;
     let t1Wins = 0;
     let t2Wins = 0;
 
     for (let i = start; i < end; i++) {
+      if (config?.rulesVersion === 1 && i >= prefix) break;
       const t1Best = Math.min(team1[0].scores[i], team1[1].scores[i]);
       const t2Best = Math.min(team2[0].scores[i], team2[1].scores[i]);
       if (t1Best < t2Best) t1Wins++;
       else if (t2Best < t1Best) t2Wins++;
+      if (config?.rulesVersion === 1 && config.sixesPresses) {
+        if (pressStart >= 0 && i >= pressStart) pressMargin += Math.sign(t2Best - t1Best);
+        if (pressStart < 0 && Math.abs(t1Wins - t2Wins) >= 2 && i + 1 < end) pressStart = i + 1;
+      }
     }
 
     const winner = t1Wins > t2Wins ? "team1" : t2Wins > t1Wins ? "team2" : "tie";
-    const points = Math.abs(t1Wins - t2Wins);
+    const margin = t1Wins - t2Wins + pressMargin;
+    const factor = config?.rulesVersion === 1 && config.escalatingSegments ? 2 ** (start / 6) : 1;
+    const points = Math.abs(margin) * factor;
+    const payoutWinner = margin > 0 ? "team1" : margin < 0 ? "team2" : "tie";
 
-    if (winner === "team1") {
+    if (payoutWinner === "team1") {
       team1.forEach((p) => (totals[p.name] += points));
       team2.forEach((p) => (totals[p.name] -= points));
-    } else if (winner === "team2") {
+    } else if (payoutWinner === "team2") {
       team2.forEach((p) => (totals[p.name] += points));
       team1.forEach((p) => (totals[p.name] -= points));
     }

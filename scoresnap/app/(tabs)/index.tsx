@@ -1,3 +1,4 @@
+import { PLAYABLE_GAME_COUNT } from "../../src/engine/types";
 import { useScanStore } from "../../src/stores/scan-store";
 import { canUseGame, defaultRoundGames } from "../../src/services/entitlements";
 import { GAME_SHEET_STYLE } from "../../src/ui/gameSheetStyle";
@@ -131,7 +132,7 @@ export default function HomeScreen() {
               lineHeight: 34,
             }}
           >
-            Precision Scoring{"\n"}in a Snap
+            Build contests. Settle up.
           </Text>
           <Text
             style={{
@@ -142,7 +143,7 @@ export default function HomeScreen() {
               marginBottom: 20,
             }}
           >
-            Scan any physical scorecard and let AI read every stroke. Then settle bets across all 30 game modes.
+            Scan a scorecard, confirm scores and side-bet details, and settle up. Explore {PLAYABLE_GAME_COUNT} ways to play, including games, variants and tournament hosting. Plan access varies.
           </Text>
 
           {/* CTA Buttons Row */}

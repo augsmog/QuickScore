@@ -1,6 +1,6 @@
 /**
  * Comprehensive SnapScore Calculator Test Suite
- * 200+ tests covering all 29 game types, edge cases, settlement, and OCR parsing.
+ * Legacy base-game calculator tests, edge cases, settlement, and OCR parsing.
  * Run with: npx tsx src/engine/__tests__/all-calculators.test.ts
  */
 
@@ -1060,7 +1060,7 @@ section("🐰 Large Field Rabbit (8-20 Players)");
   const rabbit8 = calcRabbit(field8, COURSE);
   // Holder is a player name or empty string if no outright winner
   assert(
-    !rabbit8.holder || field8.some((p) => p.name === rabbit8.holder),
+    !rabbit8.back9Holder || field8.some((p) => p.name === rabbit8.back9Holder),
     "8-player rabbit: holder is valid player or unset"
   );
 }
@@ -1114,7 +1114,7 @@ section("🐍 Large Field Snake (8-20 Players)");
   const field8 = generatePlayers(8);
   const snake8 = calcSnake(field8, COURSE);
   assert(
-    !snake8.holder || field8.some((p) => p.name === snake8.holder),
+    !snake8.snakeHolder || field8.some((p) => p.name === snake8.snakeHolder),
     "8-player snake: holder is valid player or unset"
   );
 }

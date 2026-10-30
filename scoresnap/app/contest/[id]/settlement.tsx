@@ -1,3 +1,4 @@
+import { calculateContestSettlement } from "../../../src/engine/contest-results";
 import { useScanStore } from "../../../src/stores/scan-store";
 import { canSeeSettlement } from "../../../src/services/entitlements";
 import { PaywallTeaser } from "../../../src/ui/PaywallTeaser";
@@ -83,15 +84,9 @@ function SettlementScreenContent() {
     );
   }
 
-  const settlement = calculateSettlement(
-    allPlayers,
-    contest.course,
-    contest.games,
-    contest.betUnit,
-    contest.auxiliaryData,
-    contest.gameConfig,
-    contest.groups
-  );
+  const settlement = calculateContestSettlement(contest);
+  if (settlement.pending) return <View style={{padding:24}}><Text style={{color:COLORS.text}}>Settlement pending. Confirm every score and required side-bet event on every hole before settling. Skip leaves inputs pending.</Text></View>;
+
 
   const sortedNet = Object.entries(settlement.netByPlayer).sort(
     ([, a], [, b]) => b - a
@@ -178,6 +173,7 @@ function SettlementScreenContent() {
       showsVerticalScrollIndicator={false}
     >
       {contest.games.some((g) => g === "skins" || g === "skins_carry") && <Text testID="settlement-skins-mode" style={{ color: COLORS.text, marginBottom: 12 }}>{skinsLabel(contest.gameConfig)}</Text>}
+      {contest.gameConfig?.rulesVersion !== 1 && <Text style={{color:COLORS.warn,marginBottom:12}}>This contest used rules that were not applied to payouts. Review rules before recalculating. Legacy outcomes are preserved; supported variations apply only to new contests.</Text>}
       {/* ========== NET WINNERS HERO ========== */}
       <View style={{ marginBottom: 24 }}>
         {/* Section header row */}
@@ -582,7 +578,7 @@ function SettlementScreenContent() {
         >
           {contest.games.map((gameType, gi) => {
             const gameName = gameType === "skins" || gameType === "skins_carry" ? skinsLabel(contest.gameConfig) : gameType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-            const gameResults = settlement.gameBreakdowns?.[gameType];
+
             return (
               <View
                 key={gi}

@@ -37,7 +37,7 @@ const bodyText = () => page.innerText("body");
 // 1. Home
 await page.goto(BASE + "/", { waitUntil: "networkidle" });
 await vis(page.getByText(/^new contest$/i)).first().waitFor();
-check(/Precision Scoring/i.test(await bodyText()), "Home screen renders from real web build");
+check(/Build contests\. Settle up\./i.test(await bodyText()), "Home screen renders from real web build");
 check(!/Sample Round/.test(await bodyText()), "Home has no implicit demo round");
 await shot("01-home.png");
 

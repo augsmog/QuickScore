@@ -6,7 +6,7 @@ import {UH1,UH2,UH3,UH5,UH6,visible} from './shared/usability.mjs';
 const base=process.env.BASE_URL || 'http://127.0.0.1:8089';
 const out=process.env.OUT_DIR || 'e2e/screens/usability';
 fs.mkdirSync(out,{recursive:true});
-const home=p=>p.getByText('Precision Scoring',{exact:false}).locator('visible=true');
+const home=p=>p.getByText('Build contests. Settle up.',{exact:false}).locator('visible=true');
 const cases={
   'join-empty':async p=>{
     await p.getByText('Join with code',{exact:true}).locator('visible=true').click();
