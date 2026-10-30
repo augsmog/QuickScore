@@ -3,6 +3,17 @@ import type { Membership } from './online-client';
 export function canSync(build: boolean, cap: SyncCapabilitiesV1 | null | undefined, contest: string): boolean {
   return !!(build && cap?.api_version === 1 && cap.contract === 'snapscore-sync-v1' && cap.protocol === 1 && cap.enabled === true && cap.channel?.private === true && cap.channel.event === 'revision' && cap.channel.topic === `snapscore:${contest}`);
 }
+/** Capability polling must not erase an authorized offline view on transport errors. */
+export async function loadSyncCapability(build: boolean, contest: string, read: () => Promise<SyncCapabilitiesV1>, denied: () => void) {
+  try {
+    const cap = await read();
+    if (!canSync(build, cap, contest)) throw Error('Online sharing paused. Drafts retained.');
+    return cap;
+  } catch (error: any) {
+    if (['42501', '22023', '55000', 'PGRST301', 'PGRST302'].includes(error?.code) || [401, 403].includes(error?.status)) denied();
+    throw error;
+  }
+}
 export function syncV1(call: (name: string, args: Record<string, unknown>) => Promise<any>, repair: (id: string, member: Membership | null, snapshot: SyncSnapshotV1 | null) => void) {
   let generation = 0;
   const known = new Set<string>();

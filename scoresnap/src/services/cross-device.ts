@@ -1,4 +1,4 @@
-import { canSync, revisionChannel, snapshotScore } from './sync-v1';
+import { loadSyncCapability, revisionChannel, snapshotScore } from './sync-v1';
 import { foregroundSync } from './online-client';
 import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
@@ -76,10 +76,11 @@ export async function resolveOnlineConflict(id: string, choice: 'keep-current' |
 
 export async function requireSyncCapability(contest: string) {
   if (!onlineEnabled) throw Error('Cross-device sharing is off');
-  const { data, error } = await supabase.rpc('sync_capabilities', { contest_id: contest });
-  if (error) { useOnlineStore.getState().repair(contest, null, null); throw error; }
-  if (!canSync(onlineEnabled, data, contest)) throw Error('Online sharing paused. Drafts retained.');
-  return data;
+  return loadSyncCapability(onlineEnabled, contest, async () => {
+    const { data, error } = await supabase.rpc('sync_capabilities', { contest_id: contest });
+    if (error) throw error;
+    return data;
+  }, () => useOnlineStore.getState().repair(contest, null, null));
 }
 export function watchOnline(contest: string, refresh: () => Promise<any>, report: (error: unknown) => void) {
   if (!onlineEnabled) return () => {};
