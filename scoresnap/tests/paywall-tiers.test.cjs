@@ -106,3 +106,10 @@ test('subscription cache survives offline restart and migrates existing Pro user
  store.getState().setTier('td');expect(options.partialize(store.getState())).toMatchObject({tier:'td',isPro:true,isTD:true});
  store.getState().setTier('free');expect(options.partialize(store.getState())).toMatchObject({tier:'free',isPro:false,isTD:false});
 });
+test('free result sharing uses the selected tournament round scores',async()=>{
+ const file='app/contest/[id]/settlement.tsx';const source=ts.createSourceFile(file,read(file),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+ let handler;
+ function visit(node){if(ts.isJsxElement(node)&&node.openingElement.tagName.getText(source)==='Pressable'&&node.children.map(c=>c.getText(source)).join('').includes('Share results — free'))handler=node.openingElement.attributes.properties.find(p=>p.name?.getText(source)==='onPress').initializer.expression.getText(source);ts.forEachChild(node,visit);}visit(source);
+ const contest=fixture();contest.rounds=JSON.parse(JSON.stringify(contest.rounds));contest.rounds[1].groups[1].players[0].scores[0]=4;
+ const Share={share:jest.fn()};await require('vm').runInNewContext('('+handler+')',{contest,Share})();expect(Share.share).toHaveBeenCalledWith({message:expect.stringContaining('Guest 1: 4')});
+});

@@ -35,7 +35,7 @@ export default function SettlementScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const contest = useContestStore(s => s.contests.find(c => c.id === id));
   return canSeeSettlement(tier) ? <SettlementScreenContent /> : <PaywallTeaser feature="Settlement">
-    {contest && <Pressable onPress={() => Share.share({message: [contest.name, ...contest.groups.flatMap(g => g.players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`))].join("\n")})}>
+    {contest && <Pressable onPress={() => Share.share({message: [contest.name, ...(contest.rounds?.find(r => r.number === contest.currentRound)?.groups ?? contest.groups).flatMap(g => g.players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`))].join("\n")})}>
       <Text style={{color:COLORS.primary}}>Share results — free</Text>
     </Pressable>}
     {contest && <LiveShare contest={contest} />}
