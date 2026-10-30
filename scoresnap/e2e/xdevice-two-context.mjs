@@ -114,7 +114,11 @@ try {
     await text(signedOut,'Sign in with email or Apple').waitFor();
     await shot(signedOut,'10-signed-out-recovery');
     await text(signedOut,'Sign in with email or Apple').click();
+    // A fresh visitor completes onboarding before the protected Auth route.
+    await signedOut.getByText(/Skip|Already have an account/).first().waitFor();
+    if (await text(signedOut,'Skip').isVisible()) await text(signedOut,'Skip').click();
     await signedOut.waitForURL(/\/auth\/sign-in/);
+    await text(signedOut,'Already have an account? Sign in').waitFor();
     // Enroll another real contest owned by A without approving B for it.
     await a.goto(`${base}/contest/new`);
     await a.getByPlaceholder('Your name').fill('Private Host');
