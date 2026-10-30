@@ -158,8 +158,9 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
   assert.equal(getCell(canonical,r1,p1,1).strokes,4);
   assert.equal(getCell(canonical,r2,p1,1).strokes,7);
   // Clear is an accepted versioned tombstone; a later edit uses the durable receipt.
+  const clearRevision=views[1].get(contest).revision+1;
   await enqueue(1,r1,p1,1,null); await boxes[1].replay();
-  if(!native)await eventually(()=>hints.some(h=>h.i===1&&h.payload.revision===5));
+  if(!native)await eventually(()=>hints.some(h=>h.i===1&&h.payload.revision===clearRevision));
   await reconnect();
   assert.equal(getCell(views[2].get(contest),r1,p1,1).strokes,null);
   assert.equal(getCell(views[2].get(contest),r1,p1,1).version,2);
