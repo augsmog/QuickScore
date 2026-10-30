@@ -248,7 +248,7 @@ export default function ScanScreen() {
           </Text>
         </Pressable>
         <Pressable
-          onPress={() => setPhase("text-entry")}
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
           style={{ marginTop: 16, padding: 8 }}
         >
           <Text
