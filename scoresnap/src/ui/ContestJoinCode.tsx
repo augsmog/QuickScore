@@ -1,3 +1,5 @@
+import { LocalJoinLimitationBanner } from './LocalJoinLimitationBanner';
+import { getLocalJoinLimitation } from '../services/local-join-limitation';
 import { enrollNewRound } from '../services/online-enrollment';
 import { supabase } from '../db/supabase';
 import { client, onlineEnabled } from '../services/cross-device';
@@ -34,8 +36,8 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
   const share = async () => {
     const link = Platform.OS === "web" ? `${window.location.origin}/join/${contest.joinCode}` : `snapscore://join/${contest.joinCode}`;
     try {
-      if (Platform.OS === "web" && navigator.clipboard) { await navigator.clipboard.writeText(link); setMessage("Online invite link copied"); }
-      else await Share.share({ message: `Sign in with email or Apple. Join with code ${contest.joinCode}: ${link}` });
+      if (Platform.OS === "web" && navigator.clipboard) { await navigator.clipboard.writeText(link); setMessage(onlineEnabled ? "Online invite link copied" : "Local invite link copied · same browser only"); }
+      else await Share.share({ message: onlineEnabled ? `Sign in with email or Apple. Join with code ${contest.joinCode}: ${link}` : `${getLocalJoinLimitation().title} — ${getLocalJoinLimitation().message} Join with code ${contest.joinCode}: ${link}` });
     } catch { setMessage("Could not share. Copy the code shown above."); }
   };
   
@@ -46,9 +48,10 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
   
   return <View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
     {onlineEnabled && !enabled && <Pressable disabled={busy} onPress={() => void enable()}><Text style={{color: COLORS.primary, paddingVertical: 12}}>{busy ? 'Enabling…' : 'Enable online sharing'}</Text></Pressable>}
-    {enabled && <><Text testID="organizer-join-code" style={{ color: COLORS.primary }}>Join code: {contest.joinCode}</Text>
+    {(enabled || !onlineEnabled) && <><Text testID="organizer-join-code" style={{ color: COLORS.primary }}>Join code: {contest.joinCode}</Text>
 
-    <Pressable onPress={share}><Text style={{ color: COLORS.text, paddingVertical: 8 }}>Copy / share invite</Text></Pressable>
+    {!onlineEnabled && <LocalJoinLimitationBanner />}
+    <Pressable onPress={share}><Text style={{ color: COLORS.text, paddingVertical: 8 }}>{onlineEnabled ? "Copy / share invite" : "Copy / share local invite"}</Text></Pressable>
     </>}
     {!!message && <Text style={{ color: COLORS.textDim }}>{message}</Text>}
   </View>;
