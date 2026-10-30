@@ -19,6 +19,7 @@
  */
 
 import { chromium } from "playwright";
+import { seedPaidTier } from "../e2e/shared/paid-tier-fixture.mjs";
 import assert from "node:assert/strict";
 import path from "node:path";
 import fs from "node:fs";
@@ -48,6 +49,9 @@ const page = await browser.newPage({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: DEVICE_SCALE_FACTOR,
 });
+
+// The sample contains premium games; use the normal paid-device fixture.
+await seedPaidTier(page, "pro");
 
 page.setDefaultTimeout(10000);
 page.setDefaultNavigationTimeout(10000);

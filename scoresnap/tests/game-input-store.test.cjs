@@ -35,3 +35,6 @@ test('Store/import cannot bypass public Joker declarations, Bisque budgets, lock
 test('Adding a tournament round preserves the original round and migrates its event namespace',()=>check(`
  tier='td';store.getState().addContest({...fixture,games:['bingo_bango_bongo'],hasTeams:false});store.getState().updateAuxiliaryData('x','bbb',1,{bingo:'A',bango:null,bongo:null},'g');store.getState().addRound('x','Next');const c=store.getState().contests[0];assert.equal(c.rounds.length,2);assert.equal(c.currentRound,2);assert.equal(c.rounds[0].groups[0].id,'g');assert.equal(c.auxiliaryByScope[results.scopeKey(c.rounds[0].id,'g')].bbb[1].bingo,'A');assert.equal(c.auxiliaryByScope[results.scopeKey(c.rounds[1].id,c.rounds[1].groups[0].id)],undefined);
 `));
+test('Premium sample contest respects the same store tier gate as real hosted contests',()=>check(`
+ const sample=module.exports.createSampleContest();tier='free';assert.throws(()=>store.getState().addContest(sample),/plan/);tier='pro';store.getState().addContest(sample);assert.equal(store.getState().contests.length,1);assert.equal(store.getState().contests[0].isDemo,true);
+`));
