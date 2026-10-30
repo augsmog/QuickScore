@@ -11,6 +11,8 @@ export interface PlannedPlayer {
   team?: string | null;
   status?: 'active' | 'WD' | 'NS';
   courseHandicaps?: Record<string, number> | null;
+  /** The signed-in host's own roster row. The server stamps auth.uid() onto that row. */
+  host?: boolean;
 }
 
 export interface PlannedGroup {
@@ -106,6 +108,7 @@ export function roundPayload(round: PlannedRound): Record<string, unknown> {
         sort_order: index,
         status: player.status ?? 'active',
         course_handicaps: player.courseHandicaps ?? null,
+        ...(player.host ? { host: true } : {}),
       })),
     })),
   };

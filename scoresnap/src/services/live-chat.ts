@@ -1,25 +1,35 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { supabase } from '../db/supabase';
+import { CHAT_NAME_KEY, CHAT_SESSION_KEY, persistGate } from '../stores/persisted-keys';
 import { validShareToken } from './live-share-snapshot';
 import { chatError, sanitizeMessages, validateMessage, type HostMessage } from './live-chat-model';
-const SESSION_KEY = 'snapscore.chat.session.v1';
-const NAME_KEY = 'snapscore.chat.name.v1';
 let sessionPromise: Promise<string> | undefined;
+let sessionGeneration = 0;
+export function resetChatSessionCache() {
+  sessionGeneration += 1;
+  sessionPromise = undefined;
+}
 export function getChatSession(): Promise<string> {
+  const generation = sessionGeneration;
   if (!sessionPromise) sessionPromise = (async () => {
-    const stored = await AsyncStorage.getItem(SESSION_KEY);
+    const stored = await AsyncStorage.getItem(CHAT_SESSION_KEY);
+    if (generation !== sessionGeneration) return '';
     if (validShareToken(stored)) return stored;
     const session = Array.from(await Crypto.getRandomBytesAsync(32), b => b.toString(16).padStart(2, '0')).join('');
-    await AsyncStorage.setItem(SESSION_KEY, session);
+    if (generation !== sessionGeneration || persistGate.suppressed) return session;
+    await AsyncStorage.setItem(CHAT_SESSION_KEY, session);
     return session;
-  })().catch(() => { sessionPromise = undefined; throw new Error('Chat needs local storage. Enable it and try again.'); });
+  })().catch(() => {
+    if (sessionGeneration === generation) sessionPromise = undefined;
+    throw new Error('Chat needs local storage. Enable it and try again.');
+  });
   return sessionPromise;
 }
-export const loadChatName = () => AsyncStorage.getItem(NAME_KEY);
+export const loadChatName = () => AsyncStorage.getItem(CHAT_NAME_KEY);
 export async function saveChatName(name: string) {
   const clean = validateMessage(name, 'name').name;
-  await AsyncStorage.setItem(NAME_KEY, clean);
+  if (!persistGate.suppressed) await AsyncStorage.setItem(CHAT_NAME_KEY, clean);
   return clean;
 }
 export async function listMessages(token: string) {

@@ -72,7 +72,8 @@ const zustand=require('zustand');
 const store=load('src/stores/contest-store.ts',{
  '../services/ocr-review':review,'../config/auth':{REAL_AUTH_CONFIGURED:false},'./auth-store':{useAuthStore:{getState:()=>({})}},
  '../services/guest-join':{generateJoinCode:()=> 'LOCAL'},zustand,'zustand/middleware':{persist:f=>f,createJSONStorage:()=>({})},
- '@react-native-async-storage/async-storage':{},'../services/tournament-sync':{},
+ '@react-native-async-storage/async-storage':{}, '../services/tournament-sync':{},
+ './persisted-keys':{ CONTEST_STORAGE_KEY:'snapscore-contests', createGatedStorage:storage=>storage },
 }).useContestStore;
 for (const tournament of [false, true]) test(`nine-hole paste import pads unused engine holes with zero tournament=${tournament}`, async () => {
  const holes=Array.from({length:9},(_,i)=>({num:i+1,par:4,hcp:i+1}));
