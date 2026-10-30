@@ -1,0 +1,8 @@
+{
+  "tasks": {
+    "check": "deno check delete-account/index.ts stripe-webhook/index.ts"
+  },
+  "compilerOptions": {
+    "strict": true
+  }
+}
