@@ -13966,7 +13966,7 @@
         "search_path=pg_catalog"
       ],
       "cost": 100,
-      "def": "CREATE OR REPLACE FUNCTION public.sync_round_bundle(contest_id uuid, payload jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE\n  c public.contests; uid uuid := auth.uid(); rid uuid; n integer; local text;\n  g jsonb; elem jsonb; gid uuid; pid uuid; glocal text; plocal text;\n  gname text; pname text; tval text; st text; hcap numeric; sorder integer; gorder integer;\n  keep uuid[] := ARRAY[]::uuid[]; seen uuid[] := ARRAY[]::uuid[];\n  players jsonb; groups jsonb := '[]'::jsonb; d date; cdata jsonb;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;\n  IF coalesce((auth.jwt()->>'is_anonymous')::boolean, false) THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='HOST_REQUIRED'; END IF;\n  IF contest_id IS NULL OR payload IS NULL OR jsonb_typeof(payload) <> 'object' OR length(payload::text) > 200000 THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  IF payload ? 'groups' AND jsonb_typeof(payload->'groups') <> 'array' THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  SELECT * INTO c FROM public.contests WHERE id = contest_id FOR UPDATE;\n  IF c.id IS NULL OR c.owner_id <> uid THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='HOST_REQUIRED'; END IF;\n  IF NOT c.sync_enabled OR c.protocol <> 1 OR c.status <> 'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;\n  BEGIN\n    n := CASE WHEN payload ? 'number' AND nullif(payload->>'number','') IS NOT NULL THEN (payload->>'number')::integer ELSE NULL END;\n  EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n  END;\n  IF n IS NOT NULL AND n NOT BETWEEN 1 AND 50 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  local := nullif(btrim(payload->>'local_id'), '');\n  IF local IS NOT NULL THEN\n    IF length(local) > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n    SELECT m.server_id INTO rid FROM public.sync_id_map m WHERE m.contest_id = c.id AND m.kind = 'round' AND m.local_id = local;\n  END IF;\n  IF rid IS NULL AND payload->>'server_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN\n    rid := (payload->>'server_id')::uuid;\n    IF NOT EXISTS (SELECT 1 FROM public.contest_rounds r WHERE r.id = rid AND r.contest_id = c.id) THEN rid := NULL; END IF;\n  END IF;\n  IF n IS NOT NULL THEN\n    SELECT r.id INTO rid FROM public.contest_rounds r WHERE r.contest_id = c.id AND r.round_number = n;\n  END IF;\n  IF rid IS NULL AND n IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='ROUND_NOT_READY'; END IF;\n  BEGIN\n    d := nullif(payload->>'date', '')::date;\n  EXCEPTION WHEN invalid_text_representation OR datetime_field_overflow THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n  END;\n  IF payload ? 'course_data' AND payload->'course_data' IS NOT NULL AND jsonb_typeof(payload->'course_data') NOT IN ('object', 'null') THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  cdata := CASE WHEN payload->'course_data' IS NULL OR jsonb_typeof(payload->'course_data') = 'null' THEN NULL ELSE payload->'course_data' END;\n  IF rid IS NULL THEN\n    IF payload ? 'name' AND (payload->>'name' IS NULL OR length(btrim(payload->>'name')) NOT BETWEEN 1 AND 80) THEN\n      RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n    INSERT INTO public.contest_rounds (contest_id, round_number, name, date, course_name, course_data)\n    VALUES (c.id, n, coalesce(nullif(btrim(payload->>'name'), ''), 'Round ' || n), d, nullif(btrim(payload->>'course_name'), ''), cdata)\n    RETURNING id INTO rid;\n  ELSE\n    UPDATE public.contest_rounds r SET\n      name = CASE WHEN payload ? 'name' AND length(btrim(payload->>'name')) BETWEEN 1 AND 80 THEN btrim(payload->>'name') ELSE r.name END,\n      date = CASE WHEN payload ? 'date' THEN d ELSE r.date END,\n      course_name = CASE WHEN payload ? 'course_name' THEN nullif(btrim(payload->>'course_name'), '') ELSE r.course_name END,\n      course_data = CASE WHEN payload ? 'course_data' THEN cdata ELSE r.course_data END\n    WHERE r.id = rid AND r.contest_id = c.id;\n    IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='ROUND_NOT_READY'; END IF;\n  END IF;\n  IF local IS NOT NULL THEN\n    INSERT INTO public.sync_id_map (contest_id, kind, local_id, server_id) VALUES (c.id, 'round', local, rid)\n    ON CONFLICT ON CONSTRAINT sync_id_map_pkey DO UPDATE SET server_id = excluded.server_id;\n  END IF;\n  IF payload ? 'groups' THEN\n    DELETE FROM public.round_player_assignments a WHERE a.contest_id = c.id AND a.round_id = rid;\n    FOR g IN SELECT value FROM jsonb_array_elements(payload->'groups') LOOP\n      IF jsonb_typeof(g) <> 'object' THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      gname := btrim(g->>'name');\n      IF gname IS NULL OR length(gname) NOT BETWEEN 1 AND 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      IF g ? 'tee_time' AND g->>'tee_time' IS NOT NULL AND length(g->>'tee_time') > 40 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      IF g ? 'external_id' AND g->>'external_id' IS NOT NULL AND length(g->>'external_id') > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      BEGIN\n        gorder := coalesce((nullif(g->>'sort_order', ''))::integer, 0);\n      EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n        RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n      END;\n      IF gorder < 0 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      gid := NULL; glocal := nullif(btrim(g->>'local_id'), '');\n      IF glocal IS NOT NULL THEN\n        IF length(glocal) > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        SELECT m.server_id INTO gid FROM public.sync_id_map m WHERE m.contest_id = c.id AND m.kind = 'group' AND m.local_id = glocal;\n      END IF;\n      IF gid IS NULL AND g->>'server_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN gid := (g->>'server_id')::uuid; END IF;\n      IF gid IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.contest_groups cg WHERE cg.id = gid AND cg.contest_id = c.id) THEN\n        IF EXISTS (SELECT 1 FROM public.contest_groups cg WHERE cg.id = gid) THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      END IF;\n      IF gid IS NULL OR NOT EXISTS (SELECT 1 FROM public.contest_groups cg WHERE cg.id = gid AND cg.contest_id = c.id) THEN\n        INSERT INTO public.contest_groups (id, contest_id, round_id, name, tee_time, external_id, sort_order)\n        VALUES (coalesce(gid, gen_random_uuid()), c.id, rid, gname, nullif(g->>'tee_time', ''), nullif(g->>'external_id', ''), gorder)\n        RETURNING id INTO gid;\n      ELSE\n        DELETE FROM public.round_player_assignments a WHERE a.contest_id = c.id AND a.group_id = gid;\n        UPDATE public.contest_groups cg SET name = gname, tee_time = nullif(g->>'tee_time', ''), external_id = nullif(g->>'external_id', ''),\n          sort_order = gorder, round_id = rid\n        WHERE cg.id = gid AND cg.contest_id = c.id RETURNING cg.id INTO gid;\n      END IF;\n      IF glocal IS NOT NULL THEN\n        INSERT INTO public.sync_id_map (contest_id, kind, local_id, server_id) VALUES (c.id, 'group', glocal, gid)\n        ON CONFLICT ON CONSTRAINT sync_id_map_pkey DO UPDATE SET server_id = excluded.server_id;\n      END IF;\n      keep := keep || gid;\n      players := '[]'::jsonb;\n      FOR elem IN SELECT value FROM jsonb_array_elements(coalesce(g->'players', '[]'::jsonb)) LOOP\n        IF jsonb_typeof(elem) <> 'object' THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        pname := btrim(elem->>'name');\n        IF pname IS NULL OR length(pname) NOT BETWEEN 1 AND 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        st := coalesce(nullif(btrim(elem->>'status'), ''), 'active');\n        IF st NOT IN ('active', 'WD', 'NS') THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        BEGIN\n          hcap := coalesce((nullif(elem->>'handicap', ''))::numeric, 0);\n          sorder := coalesce((nullif(elem->>'sort_order', ''))::integer, 0);\n        EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n          RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n        END;\n        IF sorder < 0 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        IF elem ? 'course_handicaps' AND elem->'course_handicaps' IS NOT NULL AND jsonb_typeof(elem->'course_handicaps') NOT IN ('object', 'null') THEN\n          RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        tval := nullif(btrim(elem->>'team'), '');\n        IF tval IS NOT NULL AND tval NOT IN ('A', 'B') THEN tval := NULL; END IF;\n        pid := NULL; plocal := nullif(btrim(elem->>'local_id'), '');\n        IF plocal IS NOT NULL THEN\n          IF length(plocal) > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n          SELECT m.server_id INTO pid FROM public.sync_id_map m WHERE m.contest_id = c.id AND m.kind = 'player' AND m.local_id = plocal;\n        END IF;\n        IF pid IS NULL AND elem->>'server_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN pid := (elem->>'server_id')::uuid; END IF;\n        IF pid IS NULL THEN pid := gen_random_uuid(); END IF;\n        IF pid = ANY(seen) THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        seen := seen || pid;\n        IF EXISTS (SELECT 1 FROM public.contest_players cp WHERE cp.id = pid AND cp.contest_id <> c.id) THEN\n          RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_PLAYER'; END IF;\n        INSERT INTO public.contest_players (id, contest_id, name, handicap, team, sort_order, status, course_handicaps)\n        VALUES (pid, c.id, pname, hcap, tval, sorder, st,\n          CASE WHEN elem->'course_handicaps' IS NULL OR jsonb_typeof(elem->'course_handicaps') = 'null' THEN NULL ELSE elem->'course_handicaps' END)\n        ON CONFLICT (id) DO UPDATE SET\n          name = excluded.name, handicap = excluded.handicap,\n          team = CASE WHEN excluded.team IN ('A', 'B') THEN excluded.team ELSE public.contest_players.team END,\n          sort_order = excluded.sort_order, status = excluded.status, course_handicaps = excluded.course_handicaps\n        WHERE public.contest_players.contest_id = excluded.contest_id;\n        IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_PLAYER'; END IF;\n        IF plocal IS NOT NULL THEN\n          INSERT INTO public.sync_id_map (contest_id, kind, local_id, server_id) VALUES (c.id, 'player', plocal, pid)\n          ON CONFLICT ON CONSTRAINT sync_id_map_pkey DO UPDATE SET server_id = excluded.server_id;\n        END IF;\n        players := players || jsonb_build_array(jsonb_build_object('local_id', plocal, 'id', pid));\n      END LOOP;\n      groups := groups || jsonb_build_array(jsonb_build_object('local_id', glocal, 'id', gid, 'players', players));\n    END LOOP;\n    DELETE FROM public.contest_groups cg WHERE cg.contest_id = c.id AND cg.round_id = rid AND NOT (cg.id = ANY(keep));\n    FOR g IN SELECT value FROM jsonb_array_elements(groups) LOOP\n      gid := (g->>'id')::uuid;\n      FOR elem IN SELECT value FROM jsonb_array_elements(g->'players') LOOP\n        INSERT INTO public.round_player_assignments (contest_id, round_id, player_id, group_id)\n        VALUES (c.id, rid, (elem->>'id')::uuid, gid);\n      END LOOP;\n    END LOOP;\n    DELETE FROM public.group_submissions s WHERE s.contest_id = c.id AND s.round_id = rid;\n    UPDATE public.contest_rounds r SET assignment_revision = r.assignment_revision + 1 WHERE r.id = rid;\n  END IF;\n  RETURN jsonb_build_object('round_id', rid, 'groups', groups);\nEND $function$",
+      "def": "CREATE OR REPLACE FUNCTION public.sync_round_bundle(contest_id uuid, payload jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE\n  c public.contests; uid uuid := auth.uid(); rid uuid; n integer; local text;\n  g jsonb; elem jsonb; gid uuid; pid uuid; glocal text; plocal text;\n  gname text; pname text; tval text; st text; hcap numeric; sorder integer; gorder integer;\n  keep uuid[] := ARRAY[]::uuid[]; seen uuid[] := ARRAY[]::uuid[];\n  players jsonb; groups jsonb := '[]'::jsonb; d date; cdata jsonb;\n  host_seen boolean := false;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;\n  IF coalesce((auth.jwt()->>'is_anonymous')::boolean, false) THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='HOST_REQUIRED'; END IF;\n  IF contest_id IS NULL OR payload IS NULL OR jsonb_typeof(payload) <> 'object' OR length(payload::text) > 200000 THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  IF payload ? 'groups' AND jsonb_typeof(payload->'groups') <> 'array' THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  SELECT * INTO c FROM public.contests WHERE id = contest_id FOR UPDATE;\n  IF c.id IS NULL OR c.owner_id <> uid THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='HOST_REQUIRED'; END IF;\n  IF NOT c.sync_enabled OR c.protocol <> 1 OR c.status <> 'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;\n  BEGIN\n    n := CASE WHEN payload ? 'number' AND nullif(payload->>'number','') IS NOT NULL THEN (payload->>'number')::integer ELSE NULL END;\n  EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n  END;\n  IF n IS NOT NULL AND n NOT BETWEEN 1 AND 50 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  local := nullif(btrim(payload->>'local_id'), '');\n  IF local IS NOT NULL THEN\n    IF length(local) > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n    SELECT m.server_id INTO rid FROM public.sync_id_map m WHERE m.contest_id = c.id AND m.kind = 'round' AND m.local_id = local;\n  END IF;\n  IF rid IS NULL AND payload->>'server_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN\n    rid := (payload->>'server_id')::uuid;\n    IF NOT EXISTS (SELECT 1 FROM public.contest_rounds r WHERE r.id = rid AND r.contest_id = c.id) THEN rid := NULL; END IF;\n  END IF;\n  IF n IS NOT NULL THEN\n    SELECT r.id INTO rid FROM public.contest_rounds r WHERE r.contest_id = c.id AND r.round_number = n;\n  END IF;\n  IF rid IS NULL AND n IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='ROUND_NOT_READY'; END IF;\n  BEGIN\n    d := nullif(payload->>'date', '')::date;\n  EXCEPTION WHEN invalid_text_representation OR datetime_field_overflow THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n  END;\n  IF payload ? 'course_data' AND payload->'course_data' IS NOT NULL AND jsonb_typeof(payload->'course_data') NOT IN ('object', 'null') THEN\n    RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n  cdata := CASE WHEN payload->'course_data' IS NULL OR jsonb_typeof(payload->'course_data') = 'null' THEN NULL ELSE payload->'course_data' END;\n  IF rid IS NULL THEN\n    IF payload ? 'name' AND (payload->>'name' IS NULL OR length(btrim(payload->>'name')) NOT BETWEEN 1 AND 80) THEN\n      RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n    INSERT INTO public.contest_rounds (contest_id, round_number, name, date, course_name, course_data)\n    VALUES (c.id, n, coalesce(nullif(btrim(payload->>'name'), ''), 'Round ' || n), d, nullif(btrim(payload->>'course_name'), ''), cdata)\n    RETURNING id INTO rid;\n  ELSE\n    UPDATE public.contest_rounds r SET\n      name = CASE WHEN payload ? 'name' AND length(btrim(payload->>'name')) BETWEEN 1 AND 80 THEN btrim(payload->>'name') ELSE r.name END,\n      date = CASE WHEN payload ? 'date' THEN d ELSE r.date END,\n      course_name = CASE WHEN payload ? 'course_name' THEN nullif(btrim(payload->>'course_name'), '') ELSE r.course_name END,\n      course_data = CASE WHEN payload ? 'course_data' THEN cdata ELSE r.course_data END\n    WHERE r.id = rid AND r.contest_id = c.id;\n    IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='ROUND_NOT_READY'; END IF;\n  END IF;\n  IF local IS NOT NULL THEN\n    INSERT INTO public.sync_id_map (contest_id, kind, local_id, server_id) VALUES (c.id, 'round', local, rid)\n    ON CONFLICT ON CONSTRAINT sync_id_map_pkey DO UPDATE SET server_id = excluded.server_id;\n  END IF;\n  IF payload ? 'groups' THEN\n    host_seen := false;\n    DELETE FROM public.round_player_assignments a WHERE a.contest_id = c.id AND a.round_id = rid;\n    FOR g IN SELECT value FROM jsonb_array_elements(payload->'groups') LOOP\n      IF jsonb_typeof(g) <> 'object' THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      gname := btrim(g->>'name');\n      IF gname IS NULL OR length(gname) NOT BETWEEN 1 AND 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      IF g ? 'tee_time' AND g->>'tee_time' IS NOT NULL AND length(g->>'tee_time') > 40 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      IF g ? 'external_id' AND g->>'external_id' IS NOT NULL AND length(g->>'external_id') > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      BEGIN\n        gorder := coalesce((nullif(g->>'sort_order', ''))::integer, 0);\n      EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n        RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n      END;\n      IF gorder < 0 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      gid := NULL; glocal := nullif(btrim(g->>'local_id'), '');\n      IF glocal IS NOT NULL THEN\n        IF length(glocal) > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        SELECT m.server_id INTO gid FROM public.sync_id_map m WHERE m.contest_id = c.id AND m.kind = 'group' AND m.local_id = glocal;\n      END IF;\n      IF gid IS NULL AND g->>'server_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN gid := (g->>'server_id')::uuid; END IF;\n      IF gid IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.contest_groups cg WHERE cg.id = gid AND cg.contest_id = c.id) THEN\n        IF EXISTS (SELECT 1 FROM public.contest_groups cg WHERE cg.id = gid) THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n      END IF;\n      IF gid IS NULL OR NOT EXISTS (SELECT 1 FROM public.contest_groups cg WHERE cg.id = gid AND cg.contest_id = c.id) THEN\n        INSERT INTO public.contest_groups (id, contest_id, round_id, name, tee_time, external_id, sort_order)\n        VALUES (coalesce(gid, gen_random_uuid()), c.id, rid, gname, nullif(g->>'tee_time', ''), nullif(g->>'external_id', ''), gorder)\n        RETURNING id INTO gid;\n      ELSE\n        DELETE FROM public.round_player_assignments a WHERE a.contest_id = c.id AND a.group_id = gid;\n        UPDATE public.contest_groups cg SET name = gname, tee_time = nullif(g->>'tee_time', ''), external_id = nullif(g->>'external_id', ''),\n          sort_order = gorder, round_id = rid\n        WHERE cg.id = gid AND cg.contest_id = c.id RETURNING cg.id INTO gid;\n      END IF;\n      IF glocal IS NOT NULL THEN\n        INSERT INTO public.sync_id_map (contest_id, kind, local_id, server_id) VALUES (c.id, 'group', glocal, gid)\n        ON CONFLICT ON CONSTRAINT sync_id_map_pkey DO UPDATE SET server_id = excluded.server_id;\n      END IF;\n      keep := keep || gid;\n      players := '[]'::jsonb;\n      FOR elem IN SELECT value FROM jsonb_array_elements(coalesce(g->'players', '[]'::jsonb)) LOOP\n        IF jsonb_typeof(elem) <> 'object' THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        pname := btrim(elem->>'name');\n        IF pname IS NULL OR length(pname) NOT BETWEEN 1 AND 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        st := coalesce(nullif(btrim(elem->>'status'), ''), 'active');\n        IF st NOT IN ('active', 'WD', 'NS') THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        BEGIN\n          hcap := coalesce((nullif(elem->>'handicap', ''))::numeric, 0);\n          sorder := coalesce((nullif(elem->>'sort_order', ''))::integer, 0);\n        EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n          RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST';\n        END;\n        IF sorder < 0 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        IF elem ? 'course_handicaps' AND elem->'course_handicaps' IS NOT NULL AND jsonb_typeof(elem->'course_handicaps') NOT IN ('object', 'null') THEN\n          RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        tval := nullif(btrim(elem->>'team'), '');\n        IF tval IS NOT NULL AND tval NOT IN ('A', 'B') THEN tval := NULL; END IF;\n        pid := NULL; plocal := nullif(btrim(elem->>'local_id'), '');\n        IF plocal IS NOT NULL THEN\n          IF length(plocal) > 80 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n          SELECT m.server_id INTO pid FROM public.sync_id_map m WHERE m.contest_id = c.id AND m.kind = 'player' AND m.local_id = plocal;\n        END IF;\n        IF pid IS NULL AND elem->>'server_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN pid := (elem->>'server_id')::uuid; END IF;\n        IF pid IS NULL THEN pid := gen_random_uuid(); END IF;\n        IF pid = ANY(seen) THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n        seen := seen || pid;\n        IF EXISTS (SELECT 1 FROM public.contest_players cp WHERE cp.id = pid AND cp.contest_id <> c.id) THEN\n          RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_PLAYER'; END IF;\n        IF lower(coalesce(elem->>'host', '')) IN ('true', 't') THEN\n          IF host_seen THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n          host_seen := true;\n        END IF;\n        INSERT INTO public.contest_players (id, contest_id, name, handicap, team, sort_order, status, course_handicaps, user_id)\n        VALUES (pid, c.id, pname, hcap, tval, sorder, st,\n          CASE WHEN elem->'course_handicaps' IS NULL OR jsonb_typeof(elem->'course_handicaps') = 'null' THEN NULL ELSE elem->'course_handicaps' END,\n          CASE WHEN lower(coalesce(elem->>'host', '')) IN ('true', 't') THEN uid ELSE NULL END)\n        ON CONFLICT (id) DO UPDATE SET\n          name = excluded.name, handicap = excluded.handicap,\n          team = CASE WHEN excluded.team IN ('A', 'B') THEN excluded.team ELSE public.contest_players.team END,\n          sort_order = excluded.sort_order, status = excluded.status, course_handicaps = excluded.course_handicaps,\n          user_id = CASE\n            WHEN lower(coalesce(elem->>'host', '')) IN ('true', 't')\n              AND (public.contest_players.user_id IS NULL OR public.contest_players.user_id = uid)\n            THEN uid\n            ELSE public.contest_players.user_id\n          END\n        WHERE public.contest_players.contest_id = excluded.contest_id;\n        IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_PLAYER'; END IF;\n        IF plocal IS NOT NULL THEN\n          INSERT INTO public.sync_id_map (contest_id, kind, local_id, server_id) VALUES (c.id, 'player', plocal, pid)\n          ON CONFLICT ON CONSTRAINT sync_id_map_pkey DO UPDATE SET server_id = excluded.server_id;\n        END IF;\n        players := players || jsonb_build_array(jsonb_build_object('local_id', plocal, 'id', pid));\n      END LOOP;\n      groups := groups || jsonb_build_array(jsonb_build_object('local_id', glocal, 'id', gid, 'players', players));\n    END LOOP;\n    DELETE FROM public.contest_groups cg WHERE cg.contest_id = c.id AND cg.round_id = rid AND NOT (cg.id = ANY(keep));\n    FOR g IN SELECT value FROM jsonb_array_elements(groups) LOOP\n      gid := (g->>'id')::uuid;\n      FOR elem IN SELECT value FROM jsonb_array_elements(g->'players') LOOP\n        INSERT INTO public.round_player_assignments (contest_id, round_id, player_id, group_id)\n        VALUES (c.id, rid, (elem->>'id')::uuid, gid);\n      END LOOP;\n    END LOOP;\n    DELETE FROM public.group_submissions s WHERE s.contest_id = c.id AND s.round_id = rid;\n    UPDATE public.contest_rounds r SET assignment_revision = r.assignment_revision + 1 WHERE r.id = rid;\n  END IF;\n  RETURN jsonb_build_object('round_id', rid, 'groups', groups);\nEND $function$",
       "kind": "f",
       "language": "plpgsql",
       "leakproof": false,
@@ -14559,6 +14559,131 @@
     },
     {
       "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_name text",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.purge_published_name(p_name text) RETURNS text LANGUAGE sql IMMUTABLE SET search_path TO 'pg_catalog' AS $function$\n  SELECT left(btrim(coalesce(p_name, '')), 80);\n$function$",
+      "kind": "f",
+      "language": "sql",
+      "leakproof": false,
+      "name": "purge_published_name",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "text",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": false,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "i"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_node jsonb, p_email text, p_user uuid",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.purge_scrub_json(p_node jsonb, p_email text, p_user uuid) RETURNS jsonb LANGUAGE plpgsql IMMUTABLE SET search_path TO 'pg_catalog' AS $function$\nDECLARE\n  key text;\n  val jsonb;\n  out jsonb;\n  elem jsonb;\n  user_text text := p_user::text;\nBEGIN\n  IF p_node IS NULL THEN\n    RETURN NULL;\n  END IF;\n  IF jsonb_typeof(p_node) = 'array' THEN\n    out := '[]'::jsonb;\n    FOR elem IN SELECT value FROM jsonb_array_elements(p_node) LOOP\n      out := out || jsonb_build_array(public.purge_scrub_json(elem, p_email, p_user));\n    END LOOP;\n    RETURN out;\n  END IF;\n  IF jsonb_typeof(p_node) = 'object' THEN\n    out := '{}'::jsonb;\n    FOR key, val IN SELECT * FROM jsonb_each(p_node) LOOP\n      IF p_user IS NOT NULL AND key IN ('referrer_id', 'user_id') AND jsonb_typeof(val) = 'string' AND val #>> '{}' = user_text THEN\n        out := out || jsonb_build_object(key, 'null'::jsonb);\n      ELSIF jsonb_typeof(val) = 'string' THEN\n        out := out || jsonb_build_object(key, to_jsonb(public.purge_scrub_email(val #>> '{}', p_email)));\n      ELSE\n        out := out || jsonb_build_object(key, public.purge_scrub_json(val, p_email, p_user));\n      END IF;\n    END LOOP;\n    RETURN out;\n  END IF;\n  IF jsonb_typeof(p_node) = 'string' THEN\n    RETURN to_jsonb(public.purge_scrub_email(p_node #>> '{}', p_email));\n  END IF;\n  RETURN p_node;\nEND\n$function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "purge_scrub_json",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "jsonb",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": false,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "i"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_node jsonb, p_names text[]",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.purge_rewrite_names(p_node jsonb, p_names text[]) RETURNS jsonb LANGUAGE plpgsql IMMUTABLE SET search_path TO 'pg_catalog' AS $function$\nDECLARE\n  targets text[];\n  key text;\n  val jsonb;\n  out jsonb;\n  elem jsonb;\nBEGIN\n  SELECT coalesce(array_agg(DISTINCT public.purge_published_name(n)), ARRAY[]::text[])\n    INTO targets\n  FROM unnest(coalesce(p_names, ARRAY[]::text[])) AS n\n  WHERE public.purge_published_name(n) <> ''\n    AND public.purge_published_name(n) <> 'Deleted player';\n  IF p_node IS NULL OR targets IS NULL OR cardinality(targets) = 0 THEN\n    RETURN p_node;\n  END IF;\n  IF jsonb_typeof(p_node) = 'array' THEN\n    out := '[]'::jsonb;\n    FOR elem IN SELECT value FROM jsonb_array_elements(p_node) LOOP\n      out := out || jsonb_build_array(public.purge_rewrite_names(elem, p_names));\n    END LOOP;\n    RETURN out;\n  END IF;\n  IF jsonb_typeof(p_node) = 'object' THEN\n    out := '{}'::jsonb;\n    FOR key, val IN SELECT * FROM jsonb_each(p_node) LOOP\n      IF key = 'displayName' AND jsonb_typeof(val) = 'string' AND public.purge_published_name(val #>> '{}') = ANY(targets) THEN\n        out := out || jsonb_build_object(key, 'Deleted player');\n      ELSE\n        out := out || jsonb_build_object(key, public.purge_rewrite_names(val, p_names));\n      END IF;\n    END LOOP;\n    RETURN out;\n  END IF;\n  RETURN p_node;\nEND\n$function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "purge_rewrite_names",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "jsonb",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": false,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "i"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_text text, p_code text",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.purge_replace_referral(p_text text, p_code text) RETURNS text LANGUAGE plpgsql IMMUTABLE SET search_path TO 'pg_catalog' AS $function$\nDECLARE\n  src text := p_text;\n  i int := 1;\n  n int;\n  start_at int;\n  label text;\n  token text;\n  cleaned text;\n  ch text;\n  out text := '';\nBEGIN\n  IF src IS NULL OR p_code IS NULL OR p_code = '' THEN\n    RETURN src;\n  END IF;\n  n := char_length(src);\n  WHILE i <= n LOOP\n    IF substr(src, i, 9) = 'Referral:' THEN\n      label := 'Referral';\n      start_at := i;\n      i := i + 9;\n    ELSIF substr(src, i, 5) = 'Code:' THEN\n      label := 'Code';\n      start_at := i;\n      i := i + 5;\n    ELSE\n      out := out || substr(src, i, 1);\n      i := i + 1;\n      CONTINUE;\n    END IF;\n    WHILE i <= n AND substr(src, i, 1) IN (' ', E'\\t') LOOP\n      i := i + 1;\n    END LOOP;\n    token := '';\n    WHILE i <= n LOOP\n      ch := substr(src, i, 1);\n      EXIT WHEN ch ~ '\\s' OR ch = '|';\n      token := token || ch;\n      i := i + 1;\n    END LOOP;\n    cleaned := regexp_replace(token, '[,;]+$', '');\n    IF token <> '' AND cleaned = p_code THEN\n      out := out || label || ': [deleted]' || substr(token, char_length(cleaned) + 1);\n    ELSE\n      out := out || substr(src, start_at, i - start_at);\n    END IF;\n  END LOOP;\n  RETURN out;\nEND\n$function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "purge_replace_referral",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "text",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": false,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "i"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_text text, p_email text",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.purge_scrub_email(p_text text, p_email text) RETURNS text LANGUAGE plpgsql IMMUTABLE SET search_path TO 'pg_catalog' AS $function$\nDECLARE\n  src text := p_text;\n  needle text;\n  from_pos int := 1;\n  found int;\n  prev text;\n  nxt text;\n  out text := '';\nBEGIN\n  IF src IS NULL OR p_email IS NULL OR p_email = '' THEN\n    RETURN src;\n  END IF;\n  needle := lower(p_email);\n  WHILE from_pos <= char_length(src) LOOP\n    found := position(needle IN lower(substr(src, from_pos)));\n    IF found = 0 THEN\n      out := out || substr(src, from_pos);\n      EXIT;\n    END IF;\n    found := from_pos + found - 1;\n    prev := CASE WHEN found = 1 THEN '' ELSE substr(src, found - 1, 1) END;\n    nxt := substr(src, found + char_length(p_email), 1);\n    IF (prev = '' OR prev !~* '[A-Z0-9._%+-]') AND (nxt = '' OR nxt !~* '[A-Z0-9._%+-]') THEN\n      out := out || substr(src, from_pos, found - from_pos) || '[deleted]';\n      from_pos := found + char_length(p_email);\n    ELSE\n      out := out || substr(src, from_pos, found - from_pos + 1);\n      from_pos := found + 1;\n    END IF;\n  END LOOP;\n  RETURN out;\nEND\n$function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "purge_scrub_email",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "text",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": false,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "i"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
       "args": "p_token text",
       "argument_defaults": null,
       "argument_defaults_count": 0,
@@ -14596,6 +14721,31 @@
       "language": "plpgsql",
       "leakproof": false,
       "name": "reconcile_golfcore_usage",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "void",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_user_id uuid",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.purge_account(p_user_id uuid) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE\n  v_email text;\n  v_code text;\n  cid uuid;\n  v_owner uuid;\n  v_successor uuid;\n  v_entered uuid;\n  roster uuid[];\n  names text[];\nBEGIN\n  IF p_user_id IS NULL THEN\n    RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'INVALID_REQUEST';\n  END IF;\n  SELECT email, referral_code INTO v_email, v_code\n  FROM public.profiles\n  WHERE id = p_user_id;\n  IF v_code = '' THEN\n    v_code := NULL;\n  END IF;\n  FOR cid IN\n    SELECT DISTINCT id FROM (\n      SELECT id FROM public.contests WHERE owner_id = p_user_id\n      UNION\n      SELECT contest_id FROM public.contest_players WHERE user_id = p_user_id\n      UNION\n      SELECT contest_id FROM public.contest_memberships WHERE user_id = p_user_id\n      UNION\n      SELECT contest_id FROM public.score_events WHERE entered_by = p_user_id OR actor = p_user_id\n      UNION\n      SELECT contest_id FROM public.published_rounds WHERE owner_id = p_user_id\n      UNION\n      SELECT contest_id FROM public.round_scorer_scopes WHERE user_id = p_user_id\n      UNION\n      SELECT contest_id FROM public.group_submissions WHERE submitted_by = p_user_id\n    ) involved\n  LOOP\n    v_owner := NULL;\n    v_successor := NULL;\n    SELECT owner_id INTO v_owner FROM public.contests WHERE id = cid;\n    IF v_owner IS NULL THEN\n      CONTINUE;\n    END IF;\n    SELECT uid INTO v_successor FROM (\n      SELECT m.user_id AS uid\n      FROM public.contest_memberships m\n      WHERE m.contest_id = cid AND m.user_id <> p_user_id\n      UNION\n      SELECT p.user_id\n      FROM public.contest_players p\n      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id\n    ) others\n    ORDER BY uid::text\n    LIMIT 1;\n    IF v_owner = p_user_id AND v_successor IS NULL THEN\n      DELETE FROM public.score_events WHERE contest_id = cid;\n      DELETE FROM public.contests WHERE id = cid;\n      CONTINUE;\n    END IF;\n    IF v_owner = p_user_id THEN\n      UPDATE public.contests SET owner_id = v_successor WHERE id = cid;\n      UPDATE public.published_rounds SET owner_id = v_successor WHERE contest_id = cid AND owner_id = p_user_id;\n      v_entered := v_successor;\n    ELSE\n      UPDATE public.published_rounds SET owner_id = v_owner WHERE contest_id = cid AND owner_id = p_user_id;\n      v_entered := v_owner;\n    END IF;\n    SELECT coalesce(array_agg(DISTINCT p.id), ARRAY[]::uuid[]) INTO roster\n    FROM public.contest_players p\n    WHERE p.contest_id = cid\n      AND (\n        p.user_id = p_user_id\n        OR EXISTS (\n          SELECT 1 FROM public.contest_memberships m\n          WHERE m.contest_id = p.contest_id\n            AND m.user_id = p_user_id\n            AND m.player_id = p.id\n            AND (p.user_id = p_user_id OR p.user_id IS NULL)\n        )\n      );\n    SELECT coalesce(array_agg(p.name), ARRAY[]::text[]) INTO names\n    FROM public.contest_players p\n    WHERE p.id = ANY(roster);\n    UPDATE public.published_rounds\n    SET snapshot = public.purge_rewrite_names(snapshot, names)\n    WHERE contest_id = cid;\n    UPDATE public.round_messages\n    SET display_name = 'Deleted player'\n    WHERE contest_id = cid\n      AND public.purge_published_name(display_name) = ANY(\n        SELECT public.purge_published_name(n)\n        FROM unnest(names) AS n\n        WHERE public.purge_published_name(n) <> ''\n          AND public.purge_published_name(n) <> 'Deleted player'\n      );\n    UPDATE public.contest_players\n    SET name = 'Deleted player', user_id = NULL\n    WHERE id = ANY(roster);\n    UPDATE public.score_events\n    SET entered_by = v_entered\n    WHERE contest_id = cid AND entered_by = p_user_id;\n    UPDATE public.score_events\n    SET actor = NULL\n    WHERE contest_id = cid AND actor = p_user_id;\n  END LOOP;\n  DELETE FROM public.round_scorer_scopes WHERE user_id = p_user_id;\n  UPDATE public.group_submissions\n  SET submitted_by = public.contests.owner_id\n  FROM public.contests\n  WHERE public.group_submissions.contest_id = public.contests.id\n    AND public.group_submissions.submitted_by = p_user_id\n    AND public.contests.owner_id <> p_user_id;\n  DELETE FROM public.contest_memberships WHERE user_id = p_user_id;\n  DELETE FROM public.contest_join_requests WHERE requester = p_user_id;\n  UPDATE public.contest_join_requests SET decided_by = NULL WHERE decided_by = p_user_id;\n  DELETE FROM public.operation_receipts WHERE actor = p_user_id;\n  UPDATE public.settlements\n  SET scan_id = NULL\n  WHERE scan_id IN (SELECT id FROM public.scans WHERE user_id = p_user_id);\n  WITH touched AS (\n    UPDATE public.settlements\n    SET from_user_id = CASE WHEN from_user_id = p_user_id THEN NULL ELSE from_user_id END,\n        to_user_id = CASE WHEN to_user_id = p_user_id THEN NULL ELSE to_user_id END\n    WHERE from_user_id = p_user_id OR to_user_id = p_user_id\n    RETURNING id, from_user_id, to_user_id\n  )\n  DELETE FROM public.settlements\n  USING touched\n  WHERE public.settlements.id = touched.id\n    AND touched.from_user_id IS NULL\n    AND touched.to_user_id IS NULL;\n  DELETE FROM public.scans WHERE user_id = p_user_id;\n  DELETE FROM public.marketing_events WHERE user_id = p_user_id;\n  IF v_email IS NOT NULL THEN\n    UPDATE public.marketing_events\n    SET properties = public.purge_scrub_json(properties, v_email, p_user_id)\n    WHERE properties IS NOT NULL\n      AND public.purge_scrub_json(properties, v_email, p_user_id) IS DISTINCT FROM properties;\n    DELETE FROM public.feedback\n    WHERE user_id = p_user_id OR lower(user_email) = lower(v_email);\n    UPDATE public.revenue_events\n    SET customer_email = NULL,\n        metadata = public.purge_scrub_json(coalesce(metadata, '{}'::jsonb), v_email, NULL)\n    WHERE lower(customer_email) = lower(v_email);\n    UPDATE public.automation_log\n    SET title = public.purge_scrub_email(title, v_email),\n        details = CASE WHEN details IS NULL THEN NULL ELSE public.purge_scrub_email(details, v_email) END\n    WHERE position(lower(v_email) IN lower(title)) > 0\n       OR position(lower(v_email) IN lower(coalesce(details, ''))) > 0;\n  ELSE\n    DELETE FROM public.feedback WHERE user_id = p_user_id;\n  END IF;\n  IF v_code IS NOT NULL THEN\n    UPDATE public.profiles SET referred_by = NULL WHERE referred_by = v_code AND id <> p_user_id;\n    UPDATE public.marketing_events SET campaign = NULL WHERE campaign = v_code;\n    UPDATE public.marketing_events\n    SET properties = properties\n      || CASE WHEN properties->>'referred_by' = v_code THEN jsonb_build_object('referred_by', 'null'::jsonb) ELSE '{}'::jsonb END\n      || CASE WHEN properties->>'referral_code' = v_code THEN jsonb_build_object('referral_code', 'null'::jsonb) ELSE '{}'::jsonb END\n    WHERE properties->>'referred_by' = v_code OR properties->>'referral_code' = v_code;\n    UPDATE public.automation_log\n    SET title = public.purge_replace_referral(title, v_code),\n        details = CASE WHEN details IS NULL THEN NULL ELSE public.purge_replace_referral(details, v_code) END\n    WHERE public.purge_replace_referral(title, v_code) IS DISTINCT FROM title\n       OR public.purge_replace_referral(details, v_code) IS DISTINCT FROM details;\n  END IF;\n  DELETE FROM public.profiles WHERE id = p_user_id;\nEND\n$function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "purge_account",
       "owner": "postgres",
       "parallel": "u",
       "return_type": "void",
@@ -22584,6 +22734,36 @@
     {
       "grantee": "postgres",
       "priv": "EXECUTE",
+      "routine": "purge_account"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "purge_published_name"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "purge_replace_referral"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "purge_rewrite_names"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "purge_scrub_email"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "purge_scrub_json"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
       "routine": "reconcile_golfcore_usage"
     },
     {
@@ -22830,6 +23010,36 @@
       "grantee": "service_role",
       "priv": "EXECUTE",
       "routine": "publish_shared_round"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "purge_account"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "purge_published_name"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "purge_replace_referral"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "purge_rewrite_names"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "purge_scrub_email"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "purge_scrub_json"
     },
     {
       "grantee": "service_role",

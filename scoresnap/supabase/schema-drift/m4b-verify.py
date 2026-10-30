@@ -10,7 +10,10 @@ if sys.argv[1]=='catalog':
  raw=json.loads(pathlib.Path(sys.argv[2]).read_text())
  raw=inject(json.loads((root/'schema-snapshot/live.json').read_text()),raw)
  path=root/'schema-snapshot/expected-after.json'
- if sys.argv[3]=='record': path.write_text(json.dumps(normalize(raw),indent=2,sort_keys=True)+'\n')
+ if sys.argv[3]=='record':
+  rendered=json.dumps(normalize(raw),indent=2,sort_keys=True)+'\n'
+  path.write_text(rendered)
+  (root/'schema-snapshot/expected-after-syncapi.json').write_text(rendered)
  diff=differences(json.loads(path.read_text()),raw)
  assert not diff,'\n'.join(diff)
  print('PASS: full-chain catalog equals expected-after.json')

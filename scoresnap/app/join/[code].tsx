@@ -45,7 +45,8 @@ export default function JoinContest() {
   };
   return <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><Pressable testID="join-dismiss" accessibilityRole="button" accessibilityLabel="Back to home" onPress={() => router.replace("/")} style={{ paddingVertical: 12 }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>Back to home</Text></Pressable>{!onlineEnabled && <LocalJoinLimitationBanner />}</View><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
     <Text style={{ fontFamily: FONTS.headline, color: COLORS.text, fontSize: 26 }}>Join with code</Text>
-    <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>Play as a guest. No account needed.</Text>
+    <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>Sign in with email or Apple to join this round.</Text>
+    {onlineEnabled && <Pressable onPress={() => router.push('/auth/sign-in')}><Text style={{color: COLORS.primary}}>Sign in with email or Apple</Text></Pressable>}
     {onlineEnabled && !!claim && <Text accessibilityRole="alert" style={{ color: COLORS.primary }}>{claim}</Text>}
     {onlineEnabled && <OnlineGuestScorecard />}
     {!contest && <>

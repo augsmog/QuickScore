@@ -16,11 +16,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Pin M4b completion proof server under test
+      - name: Test the same candidate commit as the client
         uses: actions/checkout@v4
         with:
           repository: augsmog/QuickScore
-          ref: f2a98d8b3d7e30b44fbbf9cf4fe74c37cb91eede
+          ref: ${{ github.sha }}
           path: backend
       - uses: actions/setup-node@v4
         with:

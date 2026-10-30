@@ -68,7 +68,7 @@ with tempfile.TemporaryDirectory() as tmp:
  ROLLBACK;
  """,'probe helper aggregates unexpected SQLSTATE and success across rollback')
  run("DO $$ BEGIN IF has_column_privilege('authenticated','public.profiles','is_premium','UPDATE') OR NOT has_column_privilege('authenticated','public.profiles','display_name','UPDATE') THEN RAISE EXCEPTION 'profile ACL'; END IF; END $$;",'profile entitlement ACL')
- entries=json.loads((here/'expected-ledger.json').read_text())[:-1]
+ entries=[m for m in json.loads((here/'expected-ledger.json').read_text()) if m['version'] < '20261028162155']
  run('\n'.join("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('%s','%s');" % (e['version'],e['name']) for e in entries),'full local ledger seed')
  raw=catalog()
  check_guard(m2_catalog,raw)

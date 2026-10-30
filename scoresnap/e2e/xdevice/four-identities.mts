@@ -64,6 +64,18 @@ try {
       users.push({id:data.user.id,token:data.session.access_token,refresh:data.session.refresh_token});
     }
   }
+  // Production UI enrollment path over the same authenticated REST transport.
+  const { enrollNewRound } = await import('../../src/services/online-enrollment');
+  const fresh = randomUUID();
+  const hostHeaders = {Authorization: `Bearer ${users[0].token}`, apikey: anonKey, 'Content-Type':'application/json'};
+  const freshContest: any = {id:fresh, name:'UI enrollment', joinCode:'UI2345', course:{name:'UI course',holes:[{num:1,par:4}]}, groups:[{id:randomUUID(),name:'Group 1',players:[{id:randomUUID(),name:'Host',scores:[0]},{id:randomUUID(),name:'Guest',scores:[0]}]}]};
+  await enrollNewRound(freshContest,users[0].id,{
+    create: async row => {const r=await fetch(`${api}${native ? "" : "/rest/v1"}/contests`,{method:'POST',headers:hostHeaders,body:JSON.stringify(row)});assert(r.ok,`UI create: ${await r.text()}`)},
+    rpc: async (name,args) => {const r=await fetch(`${api}${native ? "" : "/rest/v1"}/rpc/${name}`,{method:'POST',headers:hostHeaders,body:JSON.stringify(args)});const body=await r.json();assert(r.ok,`UI ${name}: ${JSON.stringify(body)}`);return body},
+  });
+  assert.equal(sql(`SELECT protocol FROM public.contests WHERE id='${fresh}'`),'1');
+  sql(`DELETE FROM public.contests WHERE id='${fresh}'`);
+  console.log('PASS production UI empty-round enrollment through authenticated REST');
   sql(`INSERT INTO public.contests(id,owner_id,course,protocol,sync_enabled,invite_code) VALUES('${contest}','${users[0].id}','{"name":"Home","holes":[{"num":1,"par":4}]}',1,true,'R2TEST');
 INSERT INTO public.contest_players(id,contest_id,name) VALUES('${p1}','${contest}','One'),('${p2}','${contest}','Two'),('${p3}','${contest}','Three');
 INSERT INTO public.contest_rounds(id,contest_id,round_number,name,course_data) VALUES('${r2}','${contest}',2,'Away','{"name":"Away","holes":[{"num":1,"par":5},{"num":2,"par":3}]}');

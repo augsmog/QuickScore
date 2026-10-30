@@ -56,8 +56,8 @@ check('archived 001–008 shape',old_shape)
 # The fixture is explicit: the guard must not accept an arbitrary baseline.
 applied = load(HERE/'expected-ledger.json')
 assert applied == load(HERE/'fixtures/live-applied-ledger.json')
-assert len(applied) == 11 and applied[-1] == {'name':'tournament_rounds_live','version':'20261028162155'}
-adopted = applied[:-3]
+assert len(applied) == 12 and applied[-1] == {'name':'account_purge','version':'20261028223000'}
+adopted = [m for m in applied if m['version'] <= '20261027000000']
 assert adopted == load(HERE/'fixtures/live-adopted-ledger.json')
 for mode, entries in [('live', applied), ('baseline', adopted), ('pre-adoption', adopted[:-1]),
                       ('local', adopted + [{'version':'20261027120000','name':'sync_foundation'},
@@ -102,7 +102,7 @@ with tempfile.TemporaryDirectory() as d:
             assert guard.returncode == 0, guard
             assert guard.stdout.splitlines() == [
                 'Schema matches', 'Ledger matches: live', 'Guard passed.',
-                'Next: M3 was applied on 2026-10-28; no approved apply is pending.'], guard
+                'Next: review LIVE-APPLY-SYNC-API.md before the separately authorized sync_api apply.'], guard
         else:
             assert guard.returncode == 1 and 'live ledger mismatch' in guard.stderr, (name, guard)
             assert 'Guard passed.' not in guard.stdout and 'Next:' not in guard.stdout, (name, guard)
@@ -195,9 +195,10 @@ Would push these migrations:
  • 20261027120000_sync_foundation.sql
  • 20261027130000_guest_write_guard.sql
  • 20261028162155_tournament_rounds_live.sql
+ • 20261028223000_account_purge.sql
  • 20261029180000_sync_api.sql
 Finished supabase db push.
 """
 rehearsal(actual_ci_dry_run, False)
 rehearsal(actual_ci_dry_run.replace(' • 20261027000000_live_baseline.sql\n',''), True)
-print('PASS: actual CI five-pending dry run; four pending after baseline adoption')
+print('PASS: reviewed six-pending dry run; five pending after baseline adoption')

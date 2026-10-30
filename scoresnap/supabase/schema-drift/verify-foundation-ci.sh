@@ -10,6 +10,8 @@ python3 "$here/reference-guard.py"
 # Reset starts with the full chain. Peel rewritten 008 before the M2 gates.
 psql_local -f "$here/../rollback/20261029180000_sync_api.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261029180000'"
+psql_local -f "$here/../rollback/20261028223000_account_purge.down.sql"
+psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028223000'"
 psql_local -f "$here/../rollback/20261028162155_tournament_rounds_live.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028162155'"
 # Remove M2b before all M2 down/race gates.
@@ -58,6 +60,8 @@ python3 "$here/sql-fixtures.py" --url "$url" --admin-url postgresql://supabase_a
 # M2b catalog gates stay on the pre-008 schema. M3 is proved again below.
 psql_local -f "$here/../rollback/20261029180000_sync_api.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261029180000'"
+psql_local -f "$here/../rollback/20261028223000_account_purge.down.sql"
+psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028223000'"
 psql_local -f "$here/../rollback/20261028162155_tournament_rounds_live.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261028162155'"
 extract
@@ -86,6 +90,9 @@ psql_local -f "$here/../migrations/20261028162155_tournament_rounds_live.sql"
 psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261028162155','tournament_rounds_live') ON CONFLICT DO NOTHING"
 
 # Final expected snapshot is the full pending chain, separate from live.json.
+psql_local -f "$here/../migrations/20261028223000_account_purge.sql"
+psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261028223000','account_purge')"
+
 psql_local -f "$here/../tests/m4b-upgrade.sql"
 psql_local -f "$here/../migrations/20261029180000_sync_api.sql"
 psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261029180000','sync_api') ON CONFLICT DO NOTHING"

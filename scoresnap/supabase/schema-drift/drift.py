@@ -56,12 +56,12 @@ def differences(live, local):
     return out
 
 def ledger(raw, mode):
-    # expected-ledger.json is the eleven-row live chain ending in M3.
+    # Live is the twelve-row chain through account_purge.
     # Local keeps the ten-row M2b prefix. Baseline and pre-adoption then drop
     # M2 and M2b; pre-adoption also drops live_baseline.
     expected = load(HERE / ('expected-pending-ledger.json' if mode == 'pending' else 'expected-ledger.json'))
     if mode not in ('live', 'pending'):
-        expected = expected[:-1]
+        expected = [m for m in expected if m['version'] < '20261028162155']
     if mode in ('baseline', 'pre-adoption'):
         expected = expected[:-2]
     if mode == 'pre-adoption':

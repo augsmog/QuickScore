@@ -4,7 +4,7 @@ set -euo pipefail
 : "${XDEVICE_BACKEND:?point to existing M4b scoresnap directory}"
 : "${POSTGREST_BIN:?point to PostgREST 12.2.12 binary}"
 unset PGHOSTADDR PGSERVICE PGSERVICEFILE PGOPTIONS PGDATABASE PGUSER PGPASSWORD
-export PATH="/usr/lib/postgresql/17/bin:$PATH"
+export PATH="${PGBIN:-/usr/lib/postgresql/17/bin}:$PATH"
 work=$(mktemp -d /tmp/snapscore-r2-stack-XXXX)
 cleanup() { if [[ -n ${rest_pid:-} ]]; then kill "$rest_pid" 2>/dev/null || true; wait "$rest_pid" 2>/dev/null || true; fi; pg_ctl -D "$work/db" -m immediate -w stop >/dev/null 2>&1 || true; rm -rf "$work"; }
 trap cleanup EXIT
