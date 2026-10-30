@@ -12,9 +12,10 @@ function load(file, mocks) {
 test('wipe removes versioned round events, declarations and team cards from disk and memory and suppresses late writes', async () => {
   const keys = load('src/stores/persisted-keys.ts', {});
   const disk = keys.createMemoryStorage();
-  const storage = { ...disk, multiRemove: async list => Promise.all(list.map(key => disk.removeItem(key))) };
+  const storage = { ...disk, getAllKeys: async () => Object.keys(disk.snapshot()), multiRemove: async list => Promise.all(list.map(key => disk.removeItem(key))) };
   const store = load('src/stores/contest-store.ts', {
     '../services/ocr-review': {}, '../config/auth': { REAL_AUTH_CONFIGURED: false },
+    './online-store': { useOnlineStore: { getState: () => ({ events: {} }) } },
     './auth-store': {}, '../services/guest-join': {},
     zustand: require('zustand'), 'zustand/middleware': require('zustand/middleware'),
     '@react-native-async-storage/async-storage': storage,

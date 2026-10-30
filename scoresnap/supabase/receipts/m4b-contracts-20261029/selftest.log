@@ -1,0 +1,64 @@
+PASS identity
+PASS detected: added column
+PASS detected: removed column
+PASS detected: column default
+PASS detected: removed policy
+PASS detected: policy qual
+PASS detected: extra anon EXECUTE ACL
+PASS detected: extra routine grant
+PASS detected: function search_path
+PASS detected: SECURITY DEFINER
+PASS detected: removed publication member
+PASS detected: changed auth trigger
+PASS detected: removed auth trigger
+PASS detected: RLS disabled
+PASS detected: extra default ACL
+PASS detected: sequence ACL
+PASS detected: view owner
+PASS detected: unexpected extension
+PASS detected: PostgreSQL major
+PASS detected: archived 001–008 shape
+PASS preapply ledger: applied eleven
+PASS preapply ledger: seven pre-adoption
+PASS preapply ledger: nine M2 applied
+PASS preapply ledger: eight adopted
+PASS preapply ledger: ten M2b applied
+PASS preapply ledger: eleven old stamp
+PASS preapply ledger: twelve extra
+PASS preapply ledger: eleven renamed
+PASS preapply ledger: eleven reordered
+PASS preapply ledger: eleven duplicate
+PASS preapply ledger: missing
+PASS preapply ledger: reordered
+PASS preapply ledger: duplicate
+PASS preapply ledger: extra
+PASS preapply ledger: renamed
+PASS preapply ledger: wrong baseline name
+PASS preapply ledger: wrong baseline version
+PASS detected: generated column
+PASS detected: identity removed
+PASS detected: sequence dependency
+PASS detected: sequence dependency removed
+PASS detected: sequence type
+PASS detected: sequence start
+PASS detected: sequence min
+PASS detected: sequence max
+PASS detected: sequence inc
+PASS detected: sequence cycle
+PASS detected: sequence cache
+PASS detected: schema owner
+PASS detected: event trigger event
+PASS detected: event trigger fn_schema
+PASS detected: event trigger fn
+PASS detected: event trigger owner
+PASS detected: event trigger enabled
+PASS detected: event trigger tags
+All JSON drift fixtures and preapply rejections passed
+PASS: M2b adds no permissive policies or client grants except profile presentation UPDATE
+PASS: permission gate rejects policies
+PASS: permission gate rejects grants
+PASS: permission gate rejects column_acls
+PASS: every INSERT/UPDATE probe uses expected-after.json columns
+PASS: each M4b managed-schema app policy deletion is detected
+PASS: adoption expects sync_api and rejects baseline re-execution, missing/extra migrations
+PASS: actual CI five-pending dry run; four pending after baseline adoption

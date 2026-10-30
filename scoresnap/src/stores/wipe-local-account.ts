@@ -22,8 +22,10 @@ export async function wipeLocalAccount(): Promise<void> {
   resetChatSessionCache();
   await runSuppressed(async () => {
     await resetTournamentOutbox();
-    await AsyncStorage.multiRemove([...PERSISTED_ACCOUNT_KEYS]);
+    const scopedKeys = (await AsyncStorage.getAllKeys()).filter(key => key.startsWith('snapscore.tournament.id-map.v1.'));
+    await AsyncStorage.multiRemove([...PERSISTED_ACCOUNT_KEYS, ...scopedKeys]);
     useAuthStore.setState({
+      remoteUserId: null,
       session: null,
       user: null,
       isLoading: false,

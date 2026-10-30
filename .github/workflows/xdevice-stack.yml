@@ -1,0 +1,144 @@
+name: Cross-device disposable stack
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: read
+concurrency:
+  group: xdevice-stack-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+jobs:
+  xdevice-four-identities:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test the same candidate commit as the client
+        uses: actions/checkout@v4
+        with:
+          repository: augsmog/QuickScore
+          ref: ${{ github.sha }}
+          path: backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - name: Install client dependencies on disposable hosted runner
+        working-directory: scoresnap
+        run: npm ci --no-audit --no-fund
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - uses: docker/login-action@v3
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start disposable PG17, Auth, PostgREST and Realtime (never linked)
+        working-directory: backend/scoresnap
+        run: |
+          # Disposable runner fixture only: real anonymous guest enrollment.
+          # Never linked to a project; no deployed Auth configuration is changed.
+          sed -i 's/enable_anonymous_sign_ins = false/enable_anonymous_sign_ins = true/' supabase/config.toml
+          # CLI start prints disposable API credentials on success; retain only
+          # a private runner-temporary log and never upload or print its contents.
+          if ! bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit > "$RUNNER_TEMP/xdevice-start.log" 2>&1; then
+            echo "Disposable stack startup failed"
+            docker ps --format '{{.Names}} {{.Status}}'
+            exit 1
+          fi
+          supabase db reset
+      - name: Four identities against integrated M4a and M4b
+        working-directory: scoresnap
+        env:
+          XDEVICE_API: http://127.0.0.1:54321
+          XDEVICE_DB: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          XDEVICE_BACKEND: ${{ github.workspace }}/backend/scoresnap
+        run: node --import tsx e2e/xdevice/four-identities.mts
+      - name: Stop disposable stack
+        if: always()
+        working-directory: backend/scoresnap
+        run: supabase stop --no-backup
+  xdevice-browser-two-users:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test the same candidate commit as the client
+        uses: actions/checkout@v4
+        with:
+          repository: augsmog/QuickScore
+          ref: ${{ github.sha }}
+          path: backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - name: Install client dependencies on disposable hosted runner
+        working-directory: scoresnap
+        run: npm ci --no-audit --no-fund
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - uses: docker/login-action@v3
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start disposable PG17, Auth, PostgREST and Realtime (never linked)
+        working-directory: backend/scoresnap
+        run: |
+          # Live-equivalent anonymous Auth stays OFF. Local config already has
+          # email confirmations OFF; admin-created users are explicitly confirmed.
+          test "$(grep -c '^enable_anonymous_sign_ins = false$' supabase/config.toml)" = 1
+          # CLI start prints disposable API credentials on success; retain only
+          # a private runner-temporary log and never upload or print its contents.
+          if ! bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit > "$RUNNER_TEMP/xdevice-start.log" 2>&1; then
+            echo "Disposable stack startup failed"
+            docker ps --format '{{.Names}} {{.Status}}'
+            exit 1
+          fi
+          supabase db reset
+          test "$(docker exec supabase_db_snapscore psql -U postgres -d postgres -Atc 'select count(*) from supabase_migrations.schema_migrations')" = 13
+      - name: Create ordinary users and export browser app
+        working-directory: scoresnap
+        run: |
+          supabase status --workdir ../backend/scoresnap -o json > "$RUNNER_TEMP/xdevice-status.json"
+          node e2e/xdevice-browser-setup.mjs
+          source "$RUNNER_TEMP/xdevice-browser.env"
+          EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true EXPO_PUBLIC_OFFLINE_MODE=false npx expo export --platform web --output-dir dist-web
+      - run: npx playwright install --with-deps chromium
+        working-directory: scoresnap
+      - name: Full two-user browser acceptance (no sign-in-only mode)
+        working-directory: scoresnap
+        run: |
+          set -o pipefail
+          source "$RUNNER_TEMP/xdevice-browser.env"
+          unset XDEV_SIGNIN_ONLY
+          export OUT_DIR="$GITHUB_WORKSPACE/xdevice-browser-evidence"
+          mkdir -p "$OUT_DIR"
+          node e2e/serve.mjs > "$RUNNER_TEMP/xdevice-web.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8089/ > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8089/ > /dev/null
+          node e2e/xdevice-two-context.mjs 2>&1 | tee "$OUT_DIR/browser.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xdevice-browser-two-users
+          path: xdevice-browser-evidence
+      - name: Stop disposable stack
+        if: always()
+        working-directory: backend/scoresnap
+        run: supabase stop --no-backup

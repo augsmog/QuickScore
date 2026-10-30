@@ -1,0 +1,58 @@
+
+> snapscore@1.0.0 test
+> jest --runInBand tests/m4a.test.cjs
+
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+8 !== 9
+
+    at file:///workspace/aos-work/snapscore-m4a-20261029/code/scoresnap/[eval1]:2:281 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 8,
+  expected: 9,
+  operator: 'strictEqual'
+}
+
+Node.js v20.19.2
+FAIL tests/m4a.test.cjs
+  ● snapshot repair commits revision with cells and rejects a late older snapshot
+
+    Command failed: /usr/bin/node --import tsx --input-type=module -e import assert from 'node:assert/strict'; const load=async p=>{const m=await import(p);return m.default??m};
+    const {useOnlineStore}=await load('./src/stores/online-store.ts');const store=useOnlineStore.getState();const member={role:'player',status:'approved',player_id:'p'};store.repair('c',member,{revision:9,rounds:[]});store.repair('c',member,{revision:8,rounds:[{id:'stale'}]});assert.equal(useOnlineStore.getState().events.c.snapshot.revision,9);store.repair('c',null,null);assert.equal(useOnlineStore.getState().events.c,undefined);
+
+    node:internal/modules/run_main:123
+        triggerUncaughtException(
+        ^
+
+    AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+    8 !== 9
+
+      1 | const {execFileSync}=require('node:child_process');
+    > 2 | const run=body=>void execFileSync(process.execPath,['--import','tsx','--input-type=module','-e',`import assert from 'node:assert/strict'; const load=async p=>{const m=await import(p);return m.default??m}; ${body}`],{encoding:'utf8'});
+        |                      ^
+      3 | test('real session derivation separates anonymous auth and preserves provider',()=>run(`
+      4 | const {deriveSession}=await load('./src/services/auth-session.ts');
+      5 | const result=deriveSession({user:{id:'uuid',is_anonymous:true,app_metadata:{provider:'email'}},refresh_token:'SECRET'});
+
+      at file:/workspace/aos-work/snapscore-m4a-20261029/code/scoresnap/[eval1]:2:281 {
+        generatedMessage: true,
+        code: 'ERR_ASSERTION',
+        actual: 8,
+        expected: 9,
+        operator: 'strictEqual'
+      }
+      Node.js v20.19.2
+      at run (tests/m4a.test.cjs:2:22)
+      at Object.<anonymous> (tests/m4a.test.cjs:60:90)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 12 passed, 13 total
+Snapshots:   0 total
+Time:        4.473 s
+Ran all test suites matching tests/m4a.test.cjs.

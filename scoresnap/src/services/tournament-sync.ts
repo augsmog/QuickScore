@@ -1,3 +1,4 @@
+import { useOnlineStore } from '../stores/online-store';
 /**
  * Tournament sync against rewritten 008.
  * Rounds, groups and player metadata go through sync_round_bundle.
@@ -5,65 +6,54 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Crypto from 'expo-crypto';
 import { TOURNAMENT_OUTBOX_KEY, persistGate } from '../stores/persisted-keys';
+import * as Crypto from 'expo-crypto';
+import { resetOnlineQueues, replayOnlineScores, remoteIdentity, queueSnapshotScore, requireSyncCapability } from './cross-device';
+import { CROSS_DEVICE_SHARING_ENABLED } from '../config/features';
 import { REAL_AUTH_CONFIGURED } from '../config/auth';
 import { supabase } from '../db/supabase';
 import type { Contest, ContestGroup, RoundInfo } from '../stores/contest-store';
 import {
-  cellKey,
   emptyOutbox,
   enqueueScore,
   rememberBundle,
   resolveWrite,
   roundPayload,
   type Outbox,
-  type ScoreOp,
 } from './tournament-sync-plan';
 
-const STORAGE_KEY = TOURNAMENT_OUTBOX_KEY;
-let outbox: Outbox = emptyOutbox();
-let loaded = false;
-let loading: Promise<void> | undefined;
 let generation = 0;
 let writers: Promise<void>[] = [];
 const current = (epoch: number) => epoch === generation && !persistGate.suppressed;
-
-/** Invalidate work immediately; drain already-issued writes before disk removal. */
 export async function resetTournamentOutbox(): Promise<void> {
   generation += 1;
-  outbox = emptyOutbox();
-  loaded = false;
-  loading = undefined;
   await Promise.allSettled([...writers]);
+  await resetOnlineQueues();
 }
-
-async function load(epoch: number): Promise<void> {
-  if (!current(epoch) || loaded) return;
-  if (loading) return loading;
-  const task = (async () => {
-    try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      if (!current(epoch)) return;
-      const parsed = raw ? JSON.parse(raw) as Outbox : null;
-      if (parsed && Array.isArray(parsed.ops) && parsed.ids && parsed.versions) {
-        outbox = { ...emptyOutbox(), ...parsed, ops: parsed.ops ?? [], conflicts: parsed.conflicts ?? [] };
-      }
-    } catch {
-      // A damaged local queue must not block scoring on this device.
-    } finally {
-      if (current(epoch)) { loaded = true; loading = undefined; }
-    }
-  })();
-  loading = task;
-  await task;
-}
-
-async function save(epoch: number): Promise<void> {
+async function save(key: string, value: Outbox, epoch: number) {
   if (!current(epoch)) return;
-  const write = AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(outbox));
+  const write = AsyncStorage.setItem(key, JSON.stringify(value));
   writers.push(write);
-  try { await write; } finally { writers = writers.filter(pending => pending !== write); }
+  try { await write; } finally { writers = writers.filter(p => p !== write); }
+}
+const STORAGE_KEY = 'snapscore.tournament.id-map.v1';
+async function load(contestId: string): Promise<{ key: string; outbox: Outbox }> {
+  const actor = await remoteIdentity();
+  const legacy = await AsyncStorage.getItem(TOURNAMENT_OUTBOX_KEY);
+  if (legacy) {
+    const previous = JSON.parse(legacy);
+    if (previous.ops?.length || previous.conflicts?.length) throw new Error('Legacy unsent requests need identity review before online replay. They remain on this device.');
+  }
+  const key = `${STORAGE_KEY}.${actor}.${contestId}`;
+  const raw = await AsyncStorage.getItem(key);
+  const outbox = raw ? JSON.parse(raw) : emptyOutbox();
+  if (!outbox.ids?.rounds || !outbox.ids?.players) throw new Error('Online ID map is damaged');
+  const snapshot = useOnlineStore.getState().events[contestId]?.snapshot;
+  for (const entry of snapshot?.id_map ?? []) {
+    if (entry.kind === 'round') outbox.ids.rounds[entry.local_id] = entry.server_id;
+    if (entry.kind === 'player') outbox.ids.players[entry.local_id] = entry.server_id;
+  }
+  return { key, outbox };
 }
 
 async function requireHost(): Promise<void> {
@@ -72,66 +62,19 @@ async function requireHost(): Promise<void> {
 }
 
 export async function flushTournamentOutbox(): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
+  if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
   const epoch = generation;
   if (!current(epoch)) return;
-  await load(epoch);
-  if (!current(epoch)) return;
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || !current(epoch)) return;
-  const kept: ScoreOp[] = [];
-  const conflicts = [...outbox.conflicts];
-  const blocked = new Set<string>();
-  let offline = false;
-  for (let index = 0; index < outbox.ops.length; index += 1) {
-    if (!current(epoch)) return;
-    const op = outbox.ops[index];
-    const key = cellKey(op);
-    if (offline || blocked.has(key)) {
-      kept.push(op);
-      continue;
-    }
-    const args = resolveWrite(outbox.ids, op);
-    if (!args) {
-      blocked.add(key);
-      kept.push(op);
-      continue;
-    }
-    const { data, error } = await supabase.rpc('write_score', args);
-    if (!current(epoch)) return;
-    const status = (data as { status?: string } | null)?.status;
-    const message = error?.message ?? '';
-    const transport = !!error && /failed to fetch|network|timeout|offline/i.test(message);
-    if (error && !transport && status !== 'conflict' && !/conflict/i.test(message)) {
-      kept.push(op, ...outbox.ops.slice(index + 1));
-      outbox = { ...outbox, ops: kept, conflicts };
-      await save(epoch);
-      throw new Error(message || 'Score sync failed.');
-    }
-    if (transport || (!error && status !== 'accepted' && status !== 'conflict')) {
-      offline = true;
-      kept.push(op);
-      continue;
-    }
-    if (status === 'conflict' || /conflict/i.test(message)) {
-      blocked.add(key);
-      conflicts.push(op);
-      console.error('Score conflict kept for review', op.opId);
-      continue;
-    }
-    for (let i = conflicts.length - 1; i >= 0; i -= 1) {
-      if (cellKey(conflicts[i]) === key) conflicts.splice(i, 1);
-    }
-  }
-  outbox = { ...outbox, ops: kept, conflicts };
-  await save(epoch);
+  await replayOnlineScores();
 }
 
 export async function syncRound(contestId: string, round: RoundInfo): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
+  if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
   const epoch = generation;
   if (!current(epoch)) return;
-  await load(epoch);
+  await requireSyncCapability(contestId);
+  if (!current(epoch)) return;
+  const saved = await load(contestId);
   if (!current(epoch)) return;
   await requireHost();
   if (!current(epoch)) return;
@@ -141,9 +84,10 @@ export async function syncRound(contestId: string, round: RoundInfo): Promise<vo
   });
   if (!current(epoch)) return;
   if (error || !data?.round_id) throw new Error(error?.message || 'Failed to sync round.');
-  outbox = rememberBundle(outbox, round.id, data);
-  await save(epoch);
-  if (current(epoch)) await flushTournamentOutbox();
+  const mapped = rememberBundle(saved.outbox, round.id, data);
+  await save(saved.key, mapped, epoch);
+  if (!current(epoch)) return;
+  await flushTournamentOutbox();
 }
 
 export async function syncRoundGroups(
@@ -162,10 +106,12 @@ export async function syncRoundGroups(
 }
 
 export async function syncContestTournamentMeta(contestId: string, isTournament: boolean, currentRound: number): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
+  if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
   const epoch = generation;
   if (!current(epoch)) return;
   await requireHost();
+  if (!current(epoch)) return;
+  await requireSyncCapability(contestId);
   if (!current(epoch)) return;
   const { error } = await supabase.rpc('set_tournament_meta', {
     contest_id: contestId,
@@ -183,25 +129,27 @@ export async function syncScore(
   strokes: number,
   roundNumber = 1,
 ): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
+  if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
   const epoch = generation;
   if (!current(epoch)) return;
-  await load(epoch);
+  try {
+  const { outbox } = await load(contestId);
   if (!current(epoch)) return;
-  outbox = enqueueScore(outbox, {
-    contestId,
-    roundLocalId: roundId,
-    roundNumber,
-    playerLocalId: playerId,
-    hole,
-    strokes,
-  }, Crypto.randomUUID());
-  await save(epoch);
-  if (current(epoch)) await flushTournamentOutbox();
+  const op = enqueueScore(emptyOutbox(), { contestId, roundLocalId: roundId, roundNumber, playerLocalId: playerId, hole, strokes }, Crypto.randomUUID()).ops[0];
+  const args = resolveWrite(outbox.ids, op);
+  if (!args || !args.round_id) throw new Error('Online round is not ready. Score remains local and is not queued.');
+  await queueSnapshotScore(args.contest_id, args.round_id, args.player_id, args.hole, args.strokes);
+  if (!current(epoch)) return;
+  await flushTournamentOutbox();
+  } catch (error) {
+    if (!current(epoch)) return;
+    useOnlineStore.setState({ error: 'Online score not confirmed. Review Online sync; this score remains saved locally.' });
+    throw error;
+  }
 }
 
 export async function syncTournament(contest: Contest): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
+  if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
   if (!contest.isTournament || !contest.rounds) return;
   const epoch = generation;
   if (!current(epoch)) return;

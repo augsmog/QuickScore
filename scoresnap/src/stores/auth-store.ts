@@ -4,6 +4,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
 import { supabase } from "../db/supabase";
+import { CROSS_DEVICE_SHARING_ENABLED } from "../config/features";
+import { deriveSession } from "../services/auth-session";
 import { getCaptchaToken } from "../services/captcha";
 import { AUTH_STORAGE_KEY, createGatedStorage, persistGate } from "./persisted-keys";
 
@@ -16,7 +18,10 @@ interface UserProfile {
   provider?: "apple" | "google" | "email" | "anonymous";
 }
 
+let authSubscription: { unsubscribe(): void } | undefined;
+
 interface AuthState {
+  remoteUserId: string | null;
   session: { user: UserProfile } | null;
   user: UserProfile | null;
   isLoading: boolean;
@@ -41,6 +46,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
+      remoteUserId: null,
       session: null,
       user: null,
       isLoading: false,
@@ -48,25 +54,29 @@ export const useAuthStore = create<AuthState>()(
       isAnonymous: false,
 
       initialize: async () => {
+        if (CROSS_DEVICE_SHARING_ENABLED && useAuthStore.persist && !useAuthStore.persist.hasHydrated()) await useAuthStore.persist.rehydrate();
         const state = get();
         if (REAL_AUTH_CONFIGURED) {
           const apply = (session: any) => {
+            if (CROSS_DEVICE_SHARING_ENABLED) {
+              const derived = deriveSession(session);
+              // Preserve the explicit local skip when no remote session exists.
+              const local = !session && get().user?.id.startsWith("anon-");
+              set({ ...(local ? { remoteUserId: null } : derived), isInitialized: true, isLoading: false });
+              return;
+            }
             const user = session ? { id: session.user.id, email: session.user.email, provider: "email" as const, name: session.user.user_metadata?.full_name } : null;
             set({ session: user ? { user } : null, user, isAnonymous: false, isInitialized: true, isLoading: false });
           };
+          authSubscription?.unsubscribe();
+          authSubscription = supabase.auth.onAuthStateChange((event, session) => {
+            const previous = persistGate.suppressed;
+            if (event === "SIGNED_OUT" && persistGate.suppressSignedOutPersist) persistGate.suppressed = true;
+            try { apply(session); } finally { persistGate.suppressed = previous; }
+          }).data.subscription;
           const { data, error } = await supabase.auth.getSession();
-          if (error) throw error;
+          if (error) { set({ isInitialized: true, isLoading: false }); throw error; }
           apply(data.session);
-          supabase.auth.onAuthStateChange((event, session) => {
-            if (event === "SIGNED_OUT" && persistGate.suppressSignedOutPersist) {
-              const previous = persistGate.suppressed;
-              persistGate.suppressed = true;
-              try { apply(session); }
-              finally { persistGate.suppressed = previous; }
-              return;
-            }
-            apply(session);
-          });
           return;
         }
         if (state.session || state.isAnonymous) {
@@ -91,7 +101,7 @@ export const useAuthStore = create<AuthState>()(
             const { data, error } = await supabase.auth.signInWithIdToken({ provider: "apple", token: idToken, nonce });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
-            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            const user: UserProfile = CROSS_DEVICE_SHARING_ENABLED ? deriveSession(data.session).user! : { id: data.session.user.id, email: data.session.user.email, provider: "email" };
             set({ session: { user }, user, isLoading: false, isAnonymous: false });
             return;
           }
@@ -122,7 +132,7 @@ export const useAuthStore = create<AuthState>()(
             const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, access_token: accessToken });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
-            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            const user: UserProfile = CROSS_DEVICE_SHARING_ENABLED ? deriveSession(data.session).user! : { id: data.session.user.id, email: data.session.user.email, provider: "email" };
             set({ session: { user }, user, isLoading: false, isAnonymous: false });
             return;
           }
@@ -159,7 +169,7 @@ export const useAuthStore = create<AuthState>()(
             const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: `${firstName} ${lastName}`.trim() }, ...(captchaToken === undefined ? {} : { captchaToken }) } });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
-            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            const user: UserProfile = CROSS_DEVICE_SHARING_ENABLED ? deriveSession(data.session).user! : { id: data.session.user.id, email: data.session.user.email, provider: "email" };
             set({ session: { user }, user, isLoading: false, isAnonymous: false });
             return;
           }
@@ -194,7 +204,7 @@ export const useAuthStore = create<AuthState>()(
             const { data, error } = await supabase.auth.signInWithPassword({ email, password, ...(captchaToken === undefined ? {} : { options: { captchaToken } }) });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
-            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            const user: UserProfile = CROSS_DEVICE_SHARING_ENABLED ? deriveSession(data.session).user! : { id: data.session.user.id, email: data.session.user.email, provider: "email" };
             set({ session: { user }, user, isLoading: false, isAnonymous: false });
             return;
           }
@@ -225,6 +235,7 @@ export const useAuthStore = create<AuthState>()(
           provider: "anonymous",
         };
         set({
+          remoteUserId: null,
           session: { user },
           user,
           isLoading: false,
@@ -236,6 +247,7 @@ export const useAuthStore = create<AuthState>()(
         persistGate.suppressSignedOutPersist = false;
         if (REAL_AUTH_CONFIGURED) void supabase.auth.signOut();
         // Clear auth state
+        set({ remoteUserId: null });
         set({
           session: null,
           user: null,
@@ -255,11 +267,14 @@ export const useAuthStore = create<AuthState>()(
     {
       name: AUTH_STORAGE_KEY,
       storage: createJSONStorage(() => createGatedStorage(AsyncStorage)),
+      merge: (persisted: any, current) => CROSS_DEVICE_SHARING_ENABLED
+        ? { ...current, ...persisted, isInitialized: false, remoteUserId: null }
+        : { ...current, ...persisted },
       partialize: (state) => ({
         session: state.session,
         user: state.user,
         isAnonymous: state.isAnonymous,
-        isInitialized: state.isInitialized,
+        ...(CROSS_DEVICE_SHARING_ENABLED ? {} : { isInitialized: state.isInitialized }),
       }),
     }
   )

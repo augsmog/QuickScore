@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import { useScanStore } from "../../src/stores/scan-store";
 import { canUseGame, canHostTournament } from "../../src/services/entitlements";
 import { COURSE_SEARCH_ENABLED } from "../../src/config/features";
@@ -290,7 +291,7 @@ export default function NewContestScreen() {
     const error = validateVariationSetup(groups, selectedGames, cleanConfig, Number(betUnit));
     if (error) { Alert.alert("Review contest rules", error); return; }
     const contest: Contest = {
-      id: generateId(),
+      id: Crypto.randomUUID(),
       name: contestName || autoName,
       course,
       status: "active",

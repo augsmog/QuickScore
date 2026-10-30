@@ -3,7 +3,7 @@ const vm = require('node:vm');
 const ts = require('typescript');
 const path = require('node:path');
 function load(file, imports, globals = {}) {
-  const filename = path.join(__dirname, '..', file);
+  const filename = path.resolve(__dirname, '..', file);
   const exports = {};
   const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2020 },
@@ -28,6 +28,8 @@ function auth(captcha, real = true) {
   load('src/stores/auth-store.ts', {
     zustand: { create }, 'zustand/middleware': { persist: fn => fn, createJSONStorage: () => ({}) },
     '@react-native-async-storage/async-storage': {}, '../config/auth': { REAL_AUTH_CONFIGURED: real },
+    '../config/features': { CROSS_DEVICE_SHARING_ENABLED: false },
+    '../services/auth-session': load('src/services/auth-session.ts', {}),
     '../db/supabase': { supabase: { auth: api } }, '../services/captcha': captcha,
     './persisted-keys': {
       AUTH_STORAGE_KEY: 'snapscore-auth',
@@ -342,4 +344,57 @@ test('web disposal before script load prevents rendering', async () => {
   expect(h.api.render).not.toHaveBeenCalled();
   expect(h.api.remove).not.toHaveBeenCalled();
   expect(h.complete).not.toHaveBeenCalled();
+});
+
+function restoredAuth(sourceFile = process.env.M4A_AUTH_BASELINE || 'src/stores/auth-store.ts') {
+  let state, listener, unsubscribed = 0;
+  const keys = load("src/stores/persisted-keys.ts", {});
+  const writes = [];
+  const session = { user: { id: 'real-guest', is_anonymous: true, app_metadata: { provider: 'anonymous' } }, refresh_token: 'NEVER_PERSIST' };
+  const store = load(sourceFile, {
+    './persisted-keys': keys,
+    zustand: { create: () => initializer => { state = initializer(p => { Object.assign(state, p); if (!keys.persistGate.suppressed) writes.push(p); }, () => state); return {getState: () => state}; } },
+    'zustand/middleware': {persist: fn => fn, createJSONStorage: () => ({})},
+    '@react-native-async-storage/async-storage': {},
+    '../config/auth': {REAL_AUTH_CONFIGURED: true}, '../config/features': {CROSS_DEVICE_SHARING_ENABLED: true},
+    '../services/auth-session': load('src/services/auth-session.ts', {}),
+    '../db/supabase': {supabase: {auth: {getSession: async () => ({data: {session}, error: null}), onAuthStateChange: cb => {listener = cb; return {data: {subscription: {unsubscribe: () => unsubscribed++}}};}}}},
+    '../services/captcha': {},
+  });
+  return {state, keys, writes, emit: (s, event = 'SIGNED_IN') => listener(event, s), unsubscribed: () => unsubscribed};
+}
+test('cold guest store restore and listener retain anonymous identity; initialization replaces listener', async () => {
+  const {state, emit, unsubscribed} = restoredAuth();
+  await state.initialize();
+  expect(state.isAnonymous).toBe(true); expect(state.remoteUserId).toBe('real-guest'); expect(state.user.provider).toBe('anonymous');
+  expect(JSON.stringify(state.session)).not.toContain('NEVER_PERSIST');
+  await state.initialize(); expect(unsubscribed()).toBe(1);
+  emit({user:{id:'google',is_anonymous:false,app_metadata:{provider:'google'}}});
+  expect(state.isAnonymous).toBe(false); expect(state.user.provider).toBe('google');
+  state.skipSignIn(); expect(state.remoteUserId).toBe(null); expect(state.user.id).toMatch(/^anon-/);
+});
+
+test('native session adapter surfaces read and write errors', async () => {
+  let adapter;
+  load(process.env.M4A_STORAGE_BASELINE || 'src/db/supabase.ts', {
+    '@supabase/supabase-js': {createClient: (_url, _key, options) => { adapter = options.auth.storage; return {}; }},
+    'expo-secure-store': {getItemAsync: async () => {throw Error('keychain unavailable')}, setItemAsync: async () => {throw Error('keychain unavailable')}, deleteItemAsync: async () => {throw Error('keychain unavailable')}},
+    'react-native': {Platform: {OS: 'ios'}}, 'expo-crypto': {randomUUID: () => 'test-id'},
+    './secure-session-storage': load('src/db/secure-session-storage.ts', {}),
+    '../config/features': {CROSS_DEVICE_SHARING_ENABLED: true},
+  }, {process: {env: {}}});
+  await expect(adapter.getItem('session')).rejects.toThrow('keychain unavailable');
+  await expect(adapter.setItem('session', 'value')).rejects.toThrow('keychain unavailable');
+});
+
+test('late deletion SIGNED_OUT clears remote identity without recreating auth persistence', async () => {
+  const h = restoredAuth();
+  await h.state.initialize();
+  const count = h.writes.length;
+  h.keys.persistGate.suppressSignedOutPersist = true;
+  h.emit(null, 'SIGNED_OUT');
+  expect(h.writes).toHaveLength(count);
+  expect(h.state.remoteUserId).toBe(null);
+  expect(h.state.session).toBe(null);
+  expect(h.keys.persistGate.suppressed).toBe(false);
 });

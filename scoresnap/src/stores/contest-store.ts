@@ -1,3 +1,4 @@
+import { useOnlineStore } from './online-store';
 import { completeScores } from "../services/ocr-review";
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
 import { useAuthStore } from "./auth-store";
@@ -151,7 +152,7 @@ export const useContestStore = create<ContestState>()(
       },
 
       updateScore: (contestId, groupId, playerId, hole, strokes) => {
-        let roundId: string | null = null;
+        let roundId: string | null = useOnlineStore.getState().events[contestId]?.snapshot.protocol === 1 ? contestId : null;
         let roundNumber = 1;
         set((state) => ({
           contests: state.contests.map((c) => {
@@ -325,7 +326,7 @@ export const useContestStore = create<ContestState>()(
       },
 
       updateRoundGroups: (contestId, roundNumber, groups) => {
-        let roundId: string | null = null;
+        let roundId: string | null = useOnlineStore.getState().events[contestId]?.snapshot.protocol === 1 ? contestId : null;
         let syncedRoundNumber: number | null = null;
         set((state) => ({
           contests: state.contests.map((c) => {
