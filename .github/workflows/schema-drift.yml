@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - 'scoresnap/supabase/**'
+      - 'scoresnap/src/**'  # reference-guard.py audits client TS/TSX for unknown table names
       - 'scoresnap/scripts/ci/**'
       - '.github/workflows/schema-drift.yml'
   push:
