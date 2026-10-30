@@ -7,9 +7,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import WebSocket from 'ws';
-const { scoreOutbox } = await import(process.env.XDEVICE_OUTBOX_MODULE || '../../src/services/score-outbox.ts');
-import { syncV1, snapshotScore } from '../../src/services/sync-v1';
-import { projectScore } from '../../src/services/score-projection';
+const outboxModule = await import(process.env.XDEVICE_OUTBOX_MODULE || '../../src/services/score-outbox.ts');
+const { scoreOutbox } = outboxModule.default ?? outboxModule;
+import * as syncModule from '../../src/services/sync-v1';
+const { syncV1, snapshotScore } = (syncModule as any).default ?? syncModule;
+import * as projectionModule from '../../src/services/score-projection';
+const { projectScore } = (projectionModule as any).default ?? projectionModule;
 
 const native = process.env.XDEVICE_NATIVE === '1';
 const api = process.env.XDEVICE_API!;
@@ -72,7 +75,7 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
     return data;
   };
   const views = users.map(()=>new Map<string,any>());
-  const clients=users.map((_,i)=>syncV1(rpc(i),(id,member,snapshot)=>{if(member&&snapshot) views[i].set(id,snapshot);else views[i].delete(id)}));
+  const clients=users.map((_,i)=>syncV1(rpc(i),(id:string,member:any,snapshot:any)=>{if(member&&snapshot) views[i].set(id,snapshot);else views[i].delete(id)}));
   // Owner restores directly: discovery intentionally lists memberships only.
   await clients[0].restore(contest,{status:'approved',role:'host'} as any);
   for(let i=1;i<4;i++) await clients[i].discover();
