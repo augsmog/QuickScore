@@ -10,9 +10,9 @@ function load(file, imports = {}) {
 const parser = load('src/services/score-parser.ts');
 const review = load('src/services/ocr-review.ts');
 let response, recognized;
-const cloud = load('src/services/claude-ocr.ts', {'./ocr-review':review,'expo-file-system/legacy':{EncodingType:{Base64:'base64'},readAsStringAsync:async()=> 'mock'},'../db/supabase':{supabase:{functions:{invoke:async()=>response}}}});
+const cloud = load('src/services/claude-ocr.ts', {'../stores/settings-store':{useSettingsStore:{getState:()=>({ocrConsent:true})}},'../stores/scan-store':{useScanStore:{getState:()=>({useScan:()=>true})}},'./ocr-review':review,'expo-file-system/legacy':{EncodingType:{Base64:'base64'},readAsStringAsync:async()=> 'mock'},'../db/supabase':{supabase:{functions:{invoke:async()=>response}}}});
 const ml = load('src/services/ml-kit-ocr.ts', {'./score-parser':parser,'@react-native-ml-kit/text-recognition':{recognize:async()=>recognized}});
-const service = load('src/services/ocr-service.ts', {'./ocr-review':review,'./ml-kit-ocr':ml,'./claude-ocr':cloud});
+const service = load('src/services/ocr-service.ts', {'../stores/settings-store':{useSettingsStore:{getState:()=>({ocrConsent:true,autoClaude:true})}},'./ocr-review':review,'./ml-kit-ocr':ml,'./claude-ocr':cloud});
 const raw = (scores=Array(18).fill(4)) => ({name:'Player A',scores,confidence:Array(18).fill(.9),nameConfidence:1});
 function geometry(rows) {
  return {text:'fixture',blocks:[{lines:[{elements:rows.flatMap((r,y)=>r.flatMap((text,x)=>text === null ? [] : [{text,frame:{left:x*100,top:y*40,height:20}}]))}]}]};

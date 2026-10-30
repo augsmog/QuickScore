@@ -1,3 +1,4 @@
+import { Link } from "expo-router";
 import { View, Text, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, RADII, TYPOGRAPHY, scoreColor } from "../../../src/ui/theme";
@@ -139,6 +140,7 @@ export default function GamesScreen() {
       style={{ flex: 1, paddingHorizontal: 20, paddingTop: 12 }}
       showsVerticalScrollIndicator={false}
     >
+      <Link href={`/contest/${id}/edit`} style={{color: COLORS.primary, padding: 16}}>Add games</Link>
       {contest.games.map((gameId) => {
         const game = ALL_GAMES.find((g) => g.id === gameId);
         if (!game) return null;

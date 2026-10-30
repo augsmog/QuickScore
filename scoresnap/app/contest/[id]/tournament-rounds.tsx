@@ -1,3 +1,5 @@
+import { useScanStore } from "../../../src/stores/scan-store";
+import { canUseGame, canHostTournament } from "../../../src/services/entitlements";
 import { useState } from "react";
 import {
   View,
@@ -23,6 +25,7 @@ import {
 export default function TournamentRoundsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const tier = useScanStore(s => s.tier);
   const contest = useContestStore((s) => s.contests.find((c) => c.id === id));
   const updateContest = useContestStore((s) => s.updateContest);
   const addRound = useContestStore((s) => s.addRound);
@@ -67,6 +70,7 @@ export default function TournamentRoundsScreen() {
   const allPlayers = contest.groups.flatMap((g) => g.players);
 
   const handleAddRound = () => {
+    if (!canHostTournament({...contest, numRounds: rounds.length + 1}, tier)) { router.push("/paywall?tier=td"); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const roundNumber = rounds.length + 1;
     addRound(id!, `Round ${roundNumber}`);

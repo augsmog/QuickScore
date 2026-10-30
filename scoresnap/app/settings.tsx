@@ -552,6 +552,14 @@ export default function SettingsScreen() {
 
         <ToggleRow
           icon={<Camera size={18} color={COLORS.textDim} />}
+          label="Cloud OCR consent"
+          sublabel="Scorecard photos are sent to Anthropic (Claude), an AI service, to read your scores. Turn off to withdraw consent."
+          value={settings.ocrConsent === true}
+          onToggle={(v) => settings.updateSetting("ocrConsent", v)}
+        />
+
+        <ToggleRow
+          icon={<Camera size={18} color={COLORS.textDim} />}
           label="Auto Claude Vision"
           sublabel="Use AI fallback when on-device OCR is uncertain"
           value={settings.autoClaude}

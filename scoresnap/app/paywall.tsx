@@ -1,303 +1,62 @@
-import { useState, useEffect, useCallback } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  X,
-  Check,
-  Crown,
-  Camera,
-  Zap,
-  Trophy,
-  DollarSign,
-  Star,
-} from "lucide-react-native";
-import * as Haptics from "expo-haptics";
-import { COLORS } from "../src/ui/theme";
-import { AnimatedPressable } from "../src/ui/AnimatedPressable";
-import { useScanStore } from "../src/stores/scan-store";
-import {
-  getPackages,
-  purchasePackage,
-  restorePurchases,
-} from "../src/services/purchases";
-import RevenueCatUI from "react-native-purchases-ui";
-import type { PurchasesPackage } from "react-native-purchases";
+import { useEffect, useState } from 'react';
+import { View, Text, ScrollView, Pressable, Alert, Linking } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import RevenueCatUI from 'react-native-purchases-ui';
+import { getPackages, purchasePackage, restorePurchases, syncProStatus } from '../src/services/purchases';
+import { eligibleAnnualTrials, PLAN_OPTIONS } from '../src/services/paywall-plans';
+import { useScanStore } from '../src/stores/scan-store';
+import { PRIVACY_URL, TERMS_URL } from '../src/config/support';
+import { COLORS } from '../src/ui/theme';
 
 export default function PaywallScreen() {
   const router = useRouter();
-  const { scansUsed, isPro } = useScanStore();
-  const [loading, setLoading] = useState(false);
-  const [restoring, setRestoring] = useState(false);
-  const [useNativePaywall, setUseNativePaywall] = useState(true);
-  const [packages, setPackages] = useState<{
-    monthly: PurchasesPackage | null;
-    annual: PurchasesPackage | null;
-    lifetime: PurchasesPackage | null;
-  }>({ monthly: null, annual: null, lifetime: null });
-
-  // Try RevenueCat's native paywall first
-  useEffect(() => {
-    if (isPro) return;
-
-    (async () => {
-      try {
-        // Present RevenueCat's native paywall UI
-        const result = await RevenueCatUI.presentPaywallIfNeeded({
-          requiredEntitlementIdentifier: "SnapScore Pro",
-        });
-
-        if (result === "PURCHASED" || result === "RESTORED") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          router.back();
-          return;
-        }
-
-        // User dismissed — fall through to custom paywall
-        if (result === "NOT_PRESENTED") {
-          // Already has entitlement, go back
-          router.back();
-          return;
-        }
-
-        // CANCELLED — show custom paywall as fallback
-        setUseNativePaywall(false);
-      } catch (e) {
-        // Native paywall not configured yet — use custom
-        console.warn("RevenueCat paywall not available, using custom:", e);
-        setUseNativePaywall(false);
-      }
-    })();
-  }, []);
-
-  // Load packages for custom paywall
-  useEffect(() => {
-    if (useNativePaywall || isPro) return;
-    (async () => {
-      try {
-        const pkgs = await getPackages();
-        setPackages(pkgs);
-      } catch (e) {
-        console.warn("Failed to load packages:", e);
-      }
-    })();
-  }, [useNativePaywall]);
-
-  const handlePurchase = useCallback(
-    async (pkg: PurchasesPackage | null) => {
-      if (!pkg) {
-        Alert.alert(
-          "Not Available",
-          "This product is not yet configured. Please try again later."
-        );
-        return;
-      }
-      setLoading(true);
-      try {
-        const success = await purchasePackage(pkg);
-        if (success) {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          router.back();
-        }
-      } catch (e: any) {
-        Alert.alert("Purchase Failed", e.message || "Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [router]
-  );
-
-  const handleRestore = useCallback(async () => {
-    setRestoring(true);
-    try {
-      const restored = await restorePurchases();
-      Haptics.notificationAsync(
-        restored
-          ? Haptics.NotificationFeedbackType.Success
-          : Haptics.NotificationFeedbackType.Warning
-      );
-      if (restored) {
-        Alert.alert("Restored!", "Your Pro subscription has been restored.", [
-          { text: "OK", onPress: () => router.back() },
-        ]);
-      } else {
-        Alert.alert(
-          "No Subscription Found",
-          "We couldn't find an active subscription for this account."
-        );
-      }
-    } catch (e: any) {
-      Alert.alert("Restore Failed", e.message || "Please try again.");
-    } finally {
-      setRestoring(false);
-    }
-  }, [router]);
-
-  // If already Pro, show confirmation
-  if (isPro) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
-          <Crown size={48} color={COLORS.gold} />
-          <Text style={{ color: COLORS.gold, fontWeight: "800", fontSize: 24, marginTop: 16 }}>
-            You're a Pro!
-          </Text>
-          <Text style={{ color: COLORS.textDim, fontSize: 14, marginTop: 8, textAlign: "center" }}>
-            Unlimited scans, all game modes, and full settlement tracking.
-          </Text>
-          <AnimatedPressable
-            onPress={() => router.back()}
-            style={{ backgroundColor: COLORS.accent, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, marginTop: 24 }}
-          >
-            <Text style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 15 }}>Back to App</Text>
-          </AnimatedPressable>
-        </View>
-      </SafeAreaView>
-    );
+  const {tier: target} = useLocalSearchParams<{tier?: string}>();
+  const tier = useScanStore(s=>s.tier);
+  const [packages,setPackages] = useState<Awaited<ReturnType<typeof getPackages>>>({annual:null,monthly:null,td_annual:null,td_monthly:null});
+  const [eligible,setEligible] = useState<Record<string,boolean>>({});
+  const [busy,setBusy] = useState(false);
+  useEffect(()=>{let live=true; (async()=>{const p=await getPackages();const trials=await eligibleAnnualTrials(p);if(live){setPackages(p);setEligible(trials);}})();return()=>{live=false;};},[]);
+  async function act(work:()=>Promise<unknown>) {
+    if (busy) return;
+    setBusy(true);
+    try { await work(); } catch(e:any) { Alert.alert('Subscription',e.message || 'Please try again.'); }
+    finally {setBusy(false);}
   }
-
-  // While native paywall is being presented, show loading
-  if (useNativePaywall) {
-    return (
-      <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator color={COLORS.accent} size="large" />
+  return <SafeAreaView style={{flex:1,backgroundColor:COLORS.bg}}>
+    <ScrollView contentContainerStyle={{padding:20,gap:20}}>
+      <Pressable accessibilityRole="button" onPress={()=>router.back()}><Text style={{color:COLORS.text}}>Close</Text></Pressable>
+      <Text style={{fontSize:26,color:COLORS.text,fontWeight:'700'}}>Choose your SnapScore plan</Text>
+      <Text style={{color:COLORS.textDim}}>Free: 4 basic game modes, manual and offline scoring, 3 cloud scans per month, sharing results, and hosting one round with one group. Join and score any tournament free.</Text>
+      <View style={{flexDirection:'row',gap:12,alignItems:'stretch'}}>
+        {PLAN_OPTIONS.map(plan=><View key={plan.tier} style={{flex:1,padding:12,gap:16,borderRadius:16,borderWidth:2,borderColor:target===plan.tier?COLORS.gold:COLORS.border,backgroundColor:COLORS.card}}>
+          <Text style={{color:COLORS.text,fontSize:20,fontWeight:'700'}}>{plan.name}</Text>
+          <Text style={{color:COLORS.textDim,lineHeight:22}}>{plan.features}</Text>
+          {plan.options.map(option=>{
+            const pkg=packages[option.key];
+            const trial=option.period==='year' && !!pkg && eligible[pkg.product.identifier] === true;
+            const owned=tier==='td'||(tier==='pro' && plan.tier==='pro');
+            const price=pkg?.product.priceString || option.fallback;
+            return <View key={option.key} style={{gap:8}}>
+              <Pressable disabled={busy||owned||!pkg} accessibilityRole="button" accessibilityState={{disabled:busy||owned||!pkg}}
+                onPress={()=>act(async()=>{if(pkg && await purchasePackage(pkg)) router.back();})}
+                style={{padding:12,borderRadius:12,backgroundColor:COLORS.primary,opacity:busy||owned||!pkg?.product ? 0.55:1}}>
+                <Text style={{color:COLORS.onPrimary,fontWeight:'700'}}>{owned?'Current plan':tier==='pro'&&plan.tier==='td'?'Upgrade to TD':'Subscribe'} — {price}/{option.period}</Text>
+              </Pressable>
+              {trial && <Text style={{color:COLORS.gold}}>7-day free trial, then {price}/{option.period}</Text>}
+              {!pkg && <Text style={{color:COLORS.textDim}}>Currently unavailable</Text>}
+            </View>;
+          })}
+        </View>)}
       </View>
-    );
-  }
-
-  // ─── Custom Fallback Paywall ───────────────────────────────────────
-
-  const features = [
-    { icon: <Camera size={18} color={COLORS.accent} />, label: "Unlimited scorecard scans", desc: "AI-powered OCR for handwritten & printed scorecards" },
-    { icon: <Trophy size={18} color={COLORS.accent} />, label: "All 8 game modes + more coming", desc: "Stroke, Skins, Nassau, Stableford, Best Ball & more" },
-    { icon: <DollarSign size={18} color={COLORS.accent} />, label: "Settlement tracking", desc: "See who owes whom across all games" },
-    { icon: <Zap size={18} color={COLORS.accent} />, label: "Share & export results", desc: "Send results to your group instantly" },
-  ];
-
-  const annualPrice = packages.annual?.product.priceString || "$19.99";
-  const monthlyPrice = packages.monthly?.product.priceString || "$2.99";
-  const lifetimePrice = packages.lifetime?.product.priceString || "$29.99";
-
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
-      {/* Close */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, flexDirection: "row", justifyContent: "flex-end" }}>
-        <AnimatedPressable
-          onPress={() => router.back()}
-          style={{ borderRadius: 20, padding: 8, backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1 }}
-        >
-          <X size={18} color={COLORS.textDim} />
-        </AnimatedPressable>
-      </View>
-
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={{ alignItems: "center", marginTop: 8, marginBottom: 28 }}>
-          <View style={{ width: 72, height: 72, borderRadius: 20, backgroundColor: COLORS.gold + "22", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-            <Crown size={36} color={COLORS.gold} />
-          </View>
-          <Text style={{ color: COLORS.text, fontWeight: "800", fontSize: 26 }}>SnapScore Pro</Text>
-          <Text style={{ color: COLORS.textDim, fontSize: 14, marginTop: 4, textAlign: "center" }}>
-            Unlimited scanning. Every game mode. Full settlement.
-          </Text>
-          {scansUsed > 0 && (
-            <View style={{ marginTop: 12, backgroundColor: COLORS.warn + "15", borderColor: COLORS.warn + "33", borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 }}>
-              <Text style={{ color: COLORS.warn, fontSize: 12, fontWeight: "600", textAlign: "center" }}>
-                Start your 7-day free trial to unlock unlimited scorecard scanning.
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Features */}
-        {features.map((f) => (
-          <View key={f.label} style={{ flexDirection: "row", gap: 14, marginBottom: 16, backgroundColor: COLORS.card, borderRadius: 14, padding: 16, borderColor: COLORS.border, borderWidth: 1 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.accent + "15", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              {f.icon}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: COLORS.text, fontWeight: "700", fontSize: 15 }}>{f.label}</Text>
-              <Text style={{ color: COLORS.textDim, fontSize: 12, marginTop: 2, lineHeight: 17 }}>{f.desc}</Text>
-            </View>
-          </View>
-        ))}
-
-        {/* What's free */}
-        <View style={{ backgroundColor: COLORS.card, borderRadius: 14, padding: 16, borderColor: COLORS.border, borderWidth: 1, marginBottom: 24 }}>
-          <Text style={{ color: COLORS.textDim, fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>Always Free</Text>
-          {["1 scorecard scan to try it out", "Manual score entry (unlimited)", "7 core game types", "Offline scoring"].map((item) => (
-            <View key={item} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <Check size={14} color={COLORS.accent} />
-              <Text style={{ color: COLORS.text, fontSize: 13 }}>{item}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* ─── Annual CTA (Best Value) ─── */}
-        <AnimatedPressable
-          onPress={() => handlePurchase(packages.annual)}
-          disabled={loading}
-          style={{ borderRadius: 20, padding: 24, marginBottom: 12, alignItems: "center", backgroundColor: COLORS.gold + "15", borderColor: COLORS.gold, borderWidth: 2, opacity: loading ? 0.7 : 1 }}
-        >
-          <Text style={{ color: COLORS.textDim, fontSize: 12, fontWeight: "600", marginBottom: 4 }}>BEST VALUE</Text>
-          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4, marginBottom: 2 }}>
-            <Text style={{ color: COLORS.gold, fontWeight: "800", fontSize: 34 }}>{annualPrice}</Text>
-            <Text style={{ color: COLORS.gold, fontSize: 14 }}>/year</Text>
-          </View>
-          <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Just $1.67/month — less than a sleeve of balls</Text>
-          <View style={{ backgroundColor: COLORS.gold, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, marginTop: 16, width: "100%", alignItems: "center" }}>
-            {loading ? <ActivityIndicator color={COLORS.onPrimary} /> : (
-              <Text style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 16 }}>Start Free Trial</Text>
-            )}
-          </View>
-          <Text style={{ color: COLORS.textDim, fontSize: 11, marginTop: 8 }}>7-day free trial, cancel anytime</Text>
-        </AnimatedPressable>
-
-        {/* ─── Monthly ─── */}
-        <AnimatedPressable
-          onPress={() => handlePurchase(packages.monthly)}
-          disabled={loading}
-          style={{ borderRadius: 16, padding: 16, marginBottom: 12, alignItems: "center", backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, opacity: loading ? 0.7 : 1 }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4 }}>
-            <Text style={{ color: COLORS.text, fontWeight: "800", fontSize: 22 }}>{monthlyPrice}</Text>
-            <Text style={{ color: COLORS.textDim, fontSize: 13 }}>/month</Text>
-          </View>
-        </AnimatedPressable>
-
-        {/* ─── Lifetime ─── */}
-        <AnimatedPressable
-          onPress={() => handlePurchase(packages.lifetime)}
-          disabled={loading}
-          style={{ borderRadius: 16, padding: 16, marginBottom: 16, alignItems: "center", backgroundColor: COLORS.accent + "10", borderColor: COLORS.accent + "44", borderWidth: 1, opacity: loading ? 0.7 : 1 }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <Star size={16} color={COLORS.accent} />
-            <Text style={{ color: COLORS.accent, fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }}>One-Time Purchase</Text>
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4 }}>
-            <Text style={{ color: COLORS.text, fontWeight: "800", fontSize: 22 }}>{lifetimePrice}</Text>
-            <Text style={{ color: COLORS.textDim, fontSize: 13 }}>forever</Text>
-          </View>
-          <Text style={{ color: COLORS.textDim, fontSize: 11, marginTop: 4 }}>Pay once, own it for life</Text>
-        </AnimatedPressable>
-
-        {/* Restore */}
-        <AnimatedPressable onPress={handleRestore} disabled={restoring} style={{ alignItems: "center", paddingVertical: 12 }}>
-          {restoring ? (
-            <ActivityIndicator color={COLORS.textDim} size="small" />
-          ) : (
-            <Text style={{ color: COLORS.textDim, fontSize: 13 }}>Restore Purchases</Text>
-          )}
-        </AnimatedPressable>
-      </ScrollView>
-    </SafeAreaView>
-  );
+      <Text style={{color:COLORS.textDim,lineHeight:20}}>Payment is charged to your Apple Account at confirmation of purchase, or after any eligible trial. Subscription auto-renews unless cancelled at least 24 hours before the end of the period. Manage or cancel in Account Settings. One trial per Apple ID across Pro and Tournament Director.</Text>
+      <Pressable disabled={busy} onPress={()=>act(async()=>{const restored=await restorePurchases();Alert.alert('Restore Purchases',restored?'Your subscription has been restored.':'No active subscription found.');})}><Text style={{color:COLORS.primary}}>Restore Purchases</Text></Pressable>
+      <Pressable disabled={busy} onPress={()=>act(async()=>{
+        await RevenueCatUI.presentPaywallIfNeeded({requiredEntitlementIdentifier:target==='td'||tier==='pro'?'SnapScore TD':'SnapScore Pro'});
+        await syncProStatus();
+      })}><Text style={{color:COLORS.primary}}>View native subscription options</Text></Pressable>
+      <Pressable onPress={()=>Linking.openURL(TERMS_URL)}><Text style={{color:COLORS.primary}}>Terms of Use</Text></Pressable>
+      <Pressable onPress={()=>Linking.openURL(PRIVACY_URL)}><Text style={{color:COLORS.primary}}>Privacy Policy</Text></Pressable>
+    </ScrollView>
+  </SafeAreaView>;
 }
