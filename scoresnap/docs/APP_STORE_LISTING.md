@@ -88,7 +88,7 @@ SnapScore Golf is built by golfers who got tired of bad math ruining good bets. 
 ```
 Welcome to SnapScore Golf! This is our launch release featuring:
 - OCR scorecard scanning powered by on-device ML + Claude Vision
-- 29 fully scored and settled game modes
+- 57 ways to play across games, variants and tournament hosting (plan access varies)
 - Smart auxiliary input for Wolf, Hammer, Snake, and Greenies
 - 30,000+ course database
 - Full statistics dashboard

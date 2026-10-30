@@ -1,6 +1,6 @@
 import { executionGameConfig } from "../../../src/engine/types";
 import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actual-inputs";
-import { scopedAuxiliary, calculateContestSettlement, teamCardPlayers, contestStableford, contestMatchPlay } from "../../../src/engine/contest-results";
+import { scopedAuxiliary, calculateContestSettlement, teamCardPlayers, contestStableford, contestMatchPlay, contestPrimaryRounds } from "../../../src/engine/contest-results";
 import { Link } from "expo-router";
 import { View, Text, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -146,13 +146,15 @@ export default function GamesScreen() {
       showsVerticalScrollIndicator={false}
     >
       <Link href={`/contest/${id}/edit`} style={{color: COLORS.primary, padding: 16}}>Add games</Link>
-      {contest.games.map((gameId) => {
+      {contestPrimaryRounds(contest).flatMap(({key:roundKey,roundName,contest}) => {
+        const allPlayers = contest.groups.flatMap((g) => g.players);
+        return contest.games.map((gameId) => {
         const game = ALL_GAMES.find((g) => g.id === gameId);
         if (!game) return null;
 
         return (
           <View
-            key={gameId}
+            key={`${roundKey}/${gameId}`}
             style={{
               backgroundColor: COLORS.card,
               borderColor: COLORS.border,
@@ -162,6 +164,7 @@ export default function GamesScreen() {
               marginBottom: 12,
             }}
           >
+            {roundName && <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.textDim, marginBottom: 8 }}>{roundName}</Text>}
             {/* Game Header */}
             <View
               style={{
@@ -481,7 +484,7 @@ export default function GamesScreen() {
             })}
             {contest.gameConfig?.rulesVersion===1 && (gameId==="alternate_shot" || gameId==="chapman") && (()=>{const result=calculateContestSettlement(contest,[gameId],1);return <View><Text style={{color:COLORS.textDim}}>{result.pending?"Team cards pending — enter one score per team per hole":"Confirmed team-card settlement"}</Text><RankList totals={result.netByPlayer} betUnit={contest.betUnit}/></View>;})()}
             {contest.gameConfig?.junkNassau && (gameId==="nassau" || gameId==="nassau_press") && <View><Text style={{color:COLORS.textDim}}>Nassau including confirmed junk (pending until all inputs)</Text><RankList totals={calculateContestSettlement(contest,[gameId],1).netByPlayer} betUnit={contest.betUnit}/></View>}
-            {contest.gameConfig?.rulesVersion===1 && !ACTUAL_INPUT_GAMES.includes(gameId) && gameId!=="alternate_shot" && gameId!=="chapman" && (()=>{const settled=calculateContestSettlement(contest,[gameId],1);return <View><Text style={{color:COLORS.textDim}}>{settled.pending?"Final settlement pending — confirm all round scores and inputs":"All-round settlement units"}</Text><RankList totals={settled.netByPlayer} betUnit={contest.betUnit}/></View>;})()}
+            {contest.gameConfig?.rulesVersion===1 && !ACTUAL_INPUT_GAMES.includes(gameId) && gameId!=="alternate_shot" && gameId!=="chapman" && (()=>{const settled=calculateContestSettlement(contest,[gameId],1);return <View><Text style={{color:COLORS.textDim}}>{settled.pending?"Final settlement pending — confirm all round scores and inputs":roundName?"Round settlement units":"All-round settlement units"}</Text><RankList totals={settled.netByPlayer} betUnit={contest.betUnit}/></View>;})()}
             {/* ── Wolf ── */}
             {gameId === "wolf" && contest.gameConfig?.rulesVersion !== 1 &&
               contest.groups.map((group, gi) => {
@@ -800,6 +803,11 @@ export default function GamesScreen() {
             )}
           </View>
         );
+        });
+      })}
+      {contest.gameConfig?.rulesVersion === 1 && contest.isTournament && contest.games.map(gameId => {
+        const settled = calculateContestSettlement(contest,[gameId],1);
+        return <View key={`combined/${gameId}`} style={{padding:16}}><Text style={{color:COLORS.textDim}}>{ALL_GAMES.find(g=>g.id===gameId)?.name}: {settled.pending ? "All-round settlement pending" : "All-round settlement units"}</Text><RankList totals={settled.netByPlayer} betUnit={contest.betUnit}/></View>;
       })}
       <View style={{ height: 16 }} />
     </ScrollView>

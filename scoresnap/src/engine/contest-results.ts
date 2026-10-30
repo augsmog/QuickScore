@@ -68,3 +68,19 @@ export function contestMatchPlay(contest: Contest) {
       status:calcMatchPlay(p1,p2,round.course ?? contest.course,contest.gameConfig,scopedAuxiliary(contest,group.id,round.id)).finalStatus};
   }));
 }
+
+/** Primary game cards are independent round results, just like constituent cash ledgers.
+ * Keep legacy/single-round objects intact; remap event namespaces only for versioned tournaments.
+ */
+export function contestPrimaryRounds(contest: Contest): {key:string;roundName?:string;contest:Contest}[] {
+  if (contest.gameConfig?.rulesVersion !== 1 || !contest.isTournament || !contest.rounds?.length) {
+    return [{key:'single',contest}];
+  }
+  return contest.rounds.map(round => ({
+    key:round.id,
+    roundName:round.name || `Round ${round.number}`,
+    contest:{...contest,isTournament:false,rounds:undefined,course:round.course ?? contest.course,groups:round.groups,
+      auxiliaryData:{},auxiliaryByScope:Object.fromEntries(round.groups.map(group =>
+        [scopeKey(undefined,group.id),scopedAuxiliary(contest,group.id,round.id)]))},
+  }));
+}
