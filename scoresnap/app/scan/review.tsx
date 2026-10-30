@@ -1,3 +1,5 @@
+import { defaultRoundGames } from "../../src/services/entitlements";
+import { useScanStore } from "../../src/stores/scan-store";
 import { useState, useMemo, useEffect } from "react";
 import {
   AccessibilityInfo,
@@ -233,7 +235,7 @@ export default function ScanReviewScreen() {
         betUnit: 5,
         hasTeams: false,
         groups: [group],
-        games: ["stroke_play", "skins"],
+        games: defaultRoundGames(useScanStore.getState().tier),
         createdAt: new Date().toISOString(),
       };
 

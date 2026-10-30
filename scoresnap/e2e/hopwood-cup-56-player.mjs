@@ -1,3 +1,4 @@
+import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 /**
  * Hopwood Cup 56-player E2E smoke test
  * 
@@ -29,6 +30,7 @@ const orgContext = await browser.newContext({ viewport: { width: 390, height: 84
 const orgPage = await orgContext.newPage();
 
 // Track page errors
+await seedPaidTier(orgPage, "td");
 const pageErrors = [];
 orgPage.on("pageerror", (e) => pageErrors.push(e.message));
 

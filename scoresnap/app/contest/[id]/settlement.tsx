@@ -1,3 +1,6 @@
+import { useScanStore } from "../../../src/stores/scan-store";
+import { canSeeSettlement } from "../../../src/services/entitlements";
+import { PaywallTeaser } from "../../../src/ui/PaywallTeaser";
 import { RecapCard } from "../../../src/ui/recap/RecapCard";
 import { buildRecapModel } from "../../../src/ui/recap/model";
 import { LiveShare } from "../../../src/ui/LiveShare";
@@ -28,6 +31,18 @@ import { calculateSettlement } from "../../../src/engine/settlement";
 const formatMoney = (amount: number) => `$${Math.abs(amount).toFixed(2)}`;
 
 export default function SettlementScreen() {
+  const tier = useScanStore(s => s.tier);
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const contest = useContestStore(s => s.contests.find(c => c.id === id));
+  return canSeeSettlement(tier) ? <SettlementScreenContent /> : <PaywallTeaser feature="Settlement">
+    {contest && <Pressable onPress={() => Share.share({message: [contest.name, ...(contest.rounds?.find(r => r.number === contest.currentRound)?.groups ?? contest.groups).flatMap(g => g.players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`))].join("\n")})}>
+      <Text style={{color:COLORS.primary}}>Share results — free</Text>
+    </Pressable>}
+    {contest && <LiveShare contest={contest} />}
+  </PaywallTeaser>;
+}
+
+function SettlementScreenContent() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const contest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)

@@ -1,3 +1,5 @@
+import { useScanStore } from "../../src/stores/scan-store";
+import { canUseGame, defaultRoundGames } from "../../src/services/entitlements";
 import { GAME_SHEET_STYLE } from "../../src/ui/gameSheetStyle";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
 import { localDate } from "../../src/utils/local-date";
@@ -23,6 +25,7 @@ import { useOnboardingStore } from "../../src/stores/onboarding-store";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const tier = useScanStore(s => s.tier);
   const storedContests = useContestStore((s) => s.contests);
   const demoMode = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
   // Also hide demo rounds persisted before the explicit isDemo flag existed.
@@ -83,7 +86,7 @@ export default function HomeScreen() {
       betUnit: 5,
       hasTeams: false,
       groups: [group],
-      games: ["stroke_play", "skins"],
+      games: defaultRoundGames(tier),
       createdAt: new Date().toISOString(),
     };
     addContest(contest);
@@ -139,7 +142,7 @@ export default function HomeScreen() {
               marginBottom: 20,
             }}
           >
-            Scan any physical scorecard and let AI read every stroke. Then settle bets across 8 game modes with more coming soon.
+            Scan any physical scorecard and let AI read every stroke. Then settle bets across all 30 game modes.
           </Text>
 
           {/* CTA Buttons Row */}
@@ -682,6 +685,7 @@ export default function HomeScreen() {
                 <AnimatedPressable
                   onPress={() => {
                     setSelectedGame(null);
+                    if (!canUseGame(selectedGame.id, tier)) { router.push("/paywall"); return; }
                     router.push("/contest/new");
                   }}
                   style={{
@@ -707,7 +711,7 @@ export default function HomeScreen() {
                         fontSize: 15,
                       }}
                     >
-                      Play {selectedGame.name}
+                      {!canUseGame(selectedGame.id, tier) ? "🔒 Unlock" : "Play"} {selectedGame.name}
                     </Text>
                   </LinearGradient>
                 </AnimatedPressable>

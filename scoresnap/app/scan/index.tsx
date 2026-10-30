@@ -1,3 +1,4 @@
+import { requestOCRConsent } from "../../src/services/ocr-consent";
 import { applyCourseHoles } from "../../src/services/ocr-review";
 import { useContestStore } from "../../src/stores/contest-store";
 import { useState, useRef, useCallback } from "react";
@@ -31,6 +32,7 @@ const CORNER_SIZE = 32;
 const CORNER_THICKNESS = 3;
 
 type ScanPhase =
+  | "text-entry"
   | "ready"
   | "capturing"
   | "preview"
@@ -58,7 +60,7 @@ export default function ScanScreen() {
   const [facing, setFacing] = useState<"back" | "front">("back");
   const cameraRef = useRef<CameraView>(null);
   const insets = useSafeAreaInsets();
-  const { canScan, useScan, getRemainingFreeScans, isPro } =
+  const { canScan, getRemainingFreeScans, isPro } =
     useScanStore();
 
   const handleCapture = useCallback(async () => {
@@ -93,6 +95,7 @@ export default function ScanScreen() {
 
   const handleConfirmPhoto = useCallback(async () => {
     if (!photoUri) return;
+    if (!(await requestOCRConsent())) { setPhase("text-entry"); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPhase("processing");
     setProgress(0);
@@ -104,12 +107,6 @@ export default function ScanScreen() {
 
       if (result.players.length === 0) {
         throw new Error("No players detected in this scorecard.");
-      }
-
-      const consumed = useScan();
-      if (!consumed) {
-        setPhase("paywall");
-        return;
       }
 
       setProgress(100);
@@ -131,7 +128,7 @@ export default function ScanScreen() {
       );
       setPhase("error");
     }
-  }, [contestId, router, photoUri, useScan, requiredHoles]);
+  }, [contestId, router, photoUri, requiredHoles]);
 
   const handleRetake = useCallback(() => {
     setPhotoUri(null);
@@ -150,7 +147,7 @@ export default function ScanScreen() {
   }, []);
 
   // Text entry does not use OCR or consume scan credits.
-  if (OFFLINE_MODE || Platform.OS === "web") {
+  if (phase === "text-entry" || OFFLINE_MODE || Platform.OS === "web") {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
         <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }} keyboardShouldPersistTaps="handled">
@@ -524,8 +521,8 @@ export default function ScanScreen() {
                   }}
                 >
                   {getRemainingFreeScans() > 0
-                    ? "First scan free"
-                    : "Subscribe for unlimited scans"}
+                    ? `${getRemainingFreeScans()} of 3 free scans left this month`
+                    : "0 of 3 free scans left this month"}
                 </Text>
               </View>
             )}
@@ -899,7 +896,7 @@ export default function ScanScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
+            onPress={() => setPhase("text-entry")}
             style={{ marginTop: 16, padding: 8 }}
           >
             <Text
@@ -961,7 +958,7 @@ export default function ScanScreen() {
               paddingHorizontal: 12,
             }}
           >
-            You've used your free scorecard scan. Upgrade to SnapScore Pro for
+            You've used your 3 free cloud scans this month. Upgrade to SnapScore Pro for
             unlimited AI-powered scanning plus all game modes.
           </Text>
 
@@ -997,12 +994,12 @@ export default function ScanScreen() {
                 marginTop: 2,
               }}
             >
-              $2.99/mo or $19.99/yr
+              $3.99/mo or $24.99/yr
             </Text>
           </Pressable>
 
           <Pressable
-            onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
+            onPress={() => setPhase("text-entry")}
             style={{ padding: 12 }}
           >
             <Text

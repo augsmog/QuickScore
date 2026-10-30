@@ -1,3 +1,4 @@
+import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 // Real-app web verification for SnapScore (no mockups).
 // Drives the REAL exported web build (EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web)
 // served with an SPA fallback, and saves real screenshots.
@@ -20,6 +21,7 @@ const check = (ok, name, detail = "") => {
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+await seedPaidTier(page, "td");
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(e.message));
 
