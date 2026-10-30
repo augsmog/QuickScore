@@ -90,8 +90,18 @@ SELECT public.revoke_membership('42000000-0000-0000-0000-000000000001','41000000
 SET LOCAL request.jwt.claims='{"sub":"41000000-0000-0000-0000-000000000003","is_anonymous":true,"role":"authenticated"}';
 SELECT pg_temp.denied($q$SELECT public.fetch_snapshot('42000000-0000-0000-0000-000000000001')$q$,'42501');
 SELECT pg_temp.assert(public.my_sync_status()->'memberships'->0->>'status'='revoked' AND public.my_sync_status()->'requests'->0->'contest_id'='null'::jsonb,'own revoked status');
-SET LOCAL request.jwt.claims='{"sub":"41000000-0000-0000-0000-000000000004","role":"authenticated"}';
+SET LOCAL request.jwt.claims='{"sub":"41000000-0000-0000-0000-000000000004","is_anonymous":false,"role":"authenticated"}';
 SELECT pg_temp.assert(public.my_sync_status()='{"api_version":1,"memberships":[],"requests":[]}'::jsonb,'outsider discovers nothing');
+-- A real signed-in non-member (anonymous Auth is OFF live) gets no snapshot or payload.
+DO $$ BEGIN
+ PERFORM public.fetch_snapshot('42000000-0000-0000-0000-000000000001');
+ RAISE EXCEPTION 'M4B_ASSERT: signed-in outsider fetched snapshot';
+EXCEPTION WHEN insufficient_privilege THEN
+ IF SQLERRM <> 'FORBIDDEN' THEN RAISE EXCEPTION 'M4B_ASSERT: expected FORBIDDEN, got %',SQLERRM; END IF;
+END $$;
+\if :m4b_native
+SELECT pg_temp.assert((SELECT count(*)=0 FROM realtime.messages),'signed-in non-member receives no realtime payload');
+\endif
 SET LOCAL request.jwt.claims='{}';
 SELECT pg_temp.denied('SELECT public.my_sync_status()','42501');
 RESET ROLE;
