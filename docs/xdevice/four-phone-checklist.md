@@ -6,8 +6,8 @@ release. Record build SHA, iOS versions, four identity IDs, event/round/player I
 and times; never record tokens or CAPTCHA answers.
 
 - [ ] Host signs in with the real provider; three other phones establish separate
-  guest identities through the actual CAPTCHA flow. Request/approve player and
-  scorer slots. Pending guests see no roster; approved guests discover the event.
+  guest identities through the actual CAPTCHA flow. Request/approve distinct
+  player slots. Pending guests see no roster; approved guests discover the event.
 - [ ] In airplane mode, all four enter disjoint scores; host and a player also edit
   the same hole. Include a clear and two rounds with different courses/assignments.
   Every successful local save shows a queued value immediately. Reconnect in a
