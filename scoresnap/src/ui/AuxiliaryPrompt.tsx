@@ -5,11 +5,11 @@
  * where a Tier 2 game needs additional input. Only shows when relevant:
  *   - Wolf:     Every hole (who does the wolf pick?)
  *   - Hammer:   Every hole (was a hammer dropped?)
- *   - Snake:    Only when a player scores bogey+ (did anyone 3-putt?)
+ *   - Snake:    Every hole (did anyone 3-putt?)
  *   - Greenies: Only on par 3s (who won the greenie?)
  *
- * Design: "Skip = $0, not wrong" — skipping never produces inaccurate results,
- * it just means that game isn't scored for that hole.
+ * Omitted input remains pending until explicitly confirmed, including a confirmed
+ * no-event answer; skipping does not record $0.
  */
 
 import { useState } from "react";

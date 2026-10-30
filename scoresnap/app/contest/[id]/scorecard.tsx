@@ -1,7 +1,7 @@
 import { executionGameConfig } from "../../../src/engine/types";
 import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actual-inputs";
 import { PrePlayDeclarations } from "../../../src/ui/PrePlayDeclarations";
-import { scopedAuxiliary, calculateContestSettlement } from "../../../src/engine/contest-results";
+import { scopedAuxiliary, calculateContestSettlement, liveRoundCourse } from "../../../src/engine/contest-results";
 import { calcNassauRules } from "../../../src/engine/calculators/nassau";
 import { useState, useCallback, useMemo } from "react";
 import {
@@ -66,10 +66,11 @@ export default function ScorecardScreen() {
   if (!group) return null;
 
   const activeRound=contest.isTournament?contest.rounds?.find(r=>r.number===contest.currentRound):undefined;
+  const course = liveRoundCourse(contest);
   const sharedCard=contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot" || g==="chapman");
   const auxiliary=scopedAuxiliary(contest,group.id,activeRound?.id);
-  const displayPlayers=sharedCard?group.players.filter((p,i,all)=>all.findIndex(q=>q.team===p.team)===i).map(p=>({...p,name:`Team ${p.team}`,scores:(activeRound?.course??contest.course).holes.map((_,i)=>auxiliary.teamCards?.[i+1]?.[p.team!]??0)})):group.players;
-  const holeData = (activeRound?.course??contest.course).holes[currentHole - 1];
+  const displayPlayers=sharedCard?group.players.filter((p,i,all)=>all.findIndex(q=>q.team===p.team)===i).map(p=>({...p,name:`Team ${p.team}`,scores:course.holes.map((_,i)=>auxiliary.teamCards?.[i+1]?.[p.team!]??0)})):group.players;
+  const holeData = course.holes[currentHole - 1];
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
   const isCompleted = contest.status === "completed";
@@ -106,7 +107,7 @@ export default function ScorecardScreen() {
       (contest.games.includes("nassau") || contest.games.includes("nassau_press")) &&
       players.length >= 2
     ) {
-      const ledger = contest.gameConfig?.rulesVersion === 1 ? calcNassauRules(players, contest.course, contest.games.includes("nassau_press"), contest.gameConfig) : undefined;
+      const ledger = contest.gameConfig?.rulesVersion === 1 ? calcNassauRules(players, course, contest.games.includes("nassau_press"), contest.gameConfig) : undefined;
       const result = ledger ? {...ledger,presses:ledger.bets.filter(b => b.parent).map(b => ({startHole:b.start}))} : calcNassauPress(players[0], players[1]);
       const isBack9 = currentHole > 9;
       const nineStatus = isBack9 ? result.back : result.front;
@@ -140,14 +141,14 @@ export default function ScorecardScreen() {
       }
     }
 
-    if(contest.gameConfig?.rulesVersion===1)for(const game of contest.games.filter(g=>ACTUAL_INPUT_GAMES.includes(g))){const result=actualInputLedger(game,players,activeRound?.course??contest.course,auxiliary,contest.gameConfig);statuses.push({label:`${game.replace(/_/g," ")}: ${result.pending?"pending":"confirmed"}`,detail:`${result.holes} confirmed holes · ${players.map(p=>`${p.name} ${result.totals[p.name]}u`).join(", ")}`,color:result.pending?COLORS.warn:COLORS.primary});}
+    if(contest.gameConfig?.rulesVersion===1)for(const game of contest.games.filter(g=>ACTUAL_INPUT_GAMES.includes(g))){const result=actualInputLedger(game,players,course,auxiliary,contest.gameConfig);statuses.push({label:`${game.replace(/_/g," ")}: ${result.pending?"pending":"confirmed"}`,detail:`${result.holes} confirmed holes · ${players.map(p=>`${p.name} ${result.totals[p.name]}u`).join(", ")}`,color:result.pending?COLORS.warn:COLORS.primary});}
     // Skins carryover status
     if (
       (contest.games.includes("skins") || contest.games.includes("skins_carry")) &&
       players.length >= 2
     ) {
       const isCarry = contest.games.includes("skins_carry");
-      const result = calcSkins(players, contest.course, isCarry, contest.gameConfig?.skinsMode, contest.gameConfig);
+      const result = calcSkins(players, course, isCarry, contest.gameConfig?.skinsMode, contest.gameConfig);
       const carriedSkins = result.remaining;
       if (carriedSkins > 0) {
         statuses.push({
@@ -159,7 +160,7 @@ export default function ScorecardScreen() {
     }
 
     return statuses;
-  }, [group.players, currentHole, contest.games, contest.course, contest.gameConfig, auxiliary, activeRound]);
+  }, [group.players, currentHole, contest.games, course, contest.gameConfig, auxiliary]);
 
   // ── Score adjustment via +/- buttons ──
   const adjustScore = useCallback(
@@ -317,7 +318,7 @@ export default function ScorecardScreen() {
   };
 
   // Calculate completion
-  const allPlayers = sharedCard?activeGroups.flatMap(g=>{const aux=scopedAuxiliary(contest,g.id,activeRound?.id);return [...new Set(g.players.map(p=>p.team!))].map(team=>({scores:(activeRound?.course??contest.course).holes.map((_,i)=>aux.teamCards?.[i+1]?.[team]??0)}));}):activeGroups.flatMap((g) => g.players);
+  const allPlayers = sharedCard?activeGroups.flatMap(g=>{const aux=scopedAuxiliary(contest,g.id,activeRound?.id);return [...new Set(g.players.map(p=>p.team!))].map(team=>({scores:course.holes.map((_,i)=>aux.teamCards?.[i+1]?.[team]??0)}));}):activeGroups.flatMap((g) => g.players);
   const totalScores = allPlayers.reduce(
     (sum, p) => sum + p.scores.filter((s) => s > 0).length,
     0
@@ -456,8 +457,8 @@ export default function ScorecardScreen() {
           {contest.gameConfig.bisqueHandicap && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("bisque")}><Text style={{color:COLORS.primary,padding:12}}>Declare 0–2 Bisque strokes before this hole {auxiliary.bisque?.[currentHole]?"✓":"— required"}</Text></Pressable>}
           {contest.gameConfig.jokerEnabled && <Pressable disabled={group.players.some(p=>p.scores.some(n=>n>0))} onPress={()=>setDeclaration("jokerDeclarations")}><Text style={{color:COLORS.primary,padding:12}}>Record two public Joker holes per player before round {auxiliary.jokerDeclarations?.[0]?"✓":"— required"}</Text></Pressable>}
         </View>}
-        {declaration && <PrePlayDeclarations kind={declaration} players={group.players} course={activeRound?.course??contest.course} hole={currentHole} config={contest.gameConfig??{}} onClose={()=>setDeclaration(null)} onSave={(key,h,value)=>{try{updateAuxiliaryData(contest.id,key,h,value,group.id);}catch(error){Alert.alert("Invalid declaration",String(error));}}}/>}
-        {contest.gameConfig?.progressiveSnake && <Text style={{color:COLORS.textDim,paddingHorizontal:20}}>Progressive Snake exposure: after N changes of holder, each opponent receives {contest.betUnit} × 2^N from the final holder. Maximum with this group: {group.players.length*(activeRound?.course??contest.course).holes.length-1} changes. Unsafe numeric amounts cannot settle.</Text>}
+        {declaration && <PrePlayDeclarations kind={declaration} players={group.players} course={course} hole={currentHole} config={contest.gameConfig??{}} onClose={()=>setDeclaration(null)} onSave={(key,h,value)=>{try{updateAuxiliaryData(contest.id,key,h,value,group.id);}catch(error){Alert.alert("Invalid declaration",String(error));}}}/>}
+        {contest.gameConfig?.progressiveSnake && <Text style={{color:COLORS.textDim,paddingHorizontal:20}}>Progressive Snake exposure: after N changes of holder, each opponent receives {contest.betUnit} × 2^N from the final holder. Maximum with this group: {group.players.length*course.holes.length-1} changes. Unsafe numeric amounts cannot settle.</Text>}
         {/* Live Game Status Banners */}
         {liveGameStatus.length > 0 && (
           <View style={{ paddingHorizontal: 20, marginBottom: 8, gap: 6 }}>
@@ -554,7 +555,7 @@ export default function ScorecardScreen() {
             const label = hasScore ? scoreName(score, par) : "par";
             const total = player.scores.reduce((a, b) => a + b, 0);
             const holesPlayed = player.scores.filter((s) => s > 0).length;
-            const totalPar = contest.course.holes
+            const totalPar = course.holes
               .slice(0, holesPlayed)
               .reduce((a, h) => a + h.par, 0);
             const totalToPar = total - totalPar;

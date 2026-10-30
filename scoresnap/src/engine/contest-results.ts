@@ -84,3 +84,9 @@ export function contestPrimaryRounds(contest: Contest): {key:string;roundName?:s
         [scopeKey(undefined,group.id),scopedAuxiliary(contest,group.id,round.id)]))},
   }));
 }
+
+/** Live cards and previews use the active round's course, including course handicaps. */
+export function liveRoundCourse(contest: Contest) {
+  const round = contest.isTournament ? contest.rounds?.find(r => r.number === contest.currentRound) : undefined;
+  return round?.course ?? contest.course;
+}

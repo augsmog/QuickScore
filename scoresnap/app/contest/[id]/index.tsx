@@ -1,4 +1,4 @@
-import { teamCardPlayers } from "../../../src/engine/contest-results";
+import { teamCardPlayers, liveRoundCourse } from "../../../src/engine/contest-results";
 import { useState } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -52,7 +52,7 @@ export default function LeaderboardScreen() {
     );
   }
 
-  const results = calcStrokePlay(allPlayers, contest.course);
+  const results = calcStrokePlay(allPlayers, scoreView === "daily" ? liveRoundCourse(contest) : contest.course);
   const RANK_COLORS = [COLORS.gold, COLORS.silver, COLORS.bronze];
 
   // Compute team stats if teams exist
