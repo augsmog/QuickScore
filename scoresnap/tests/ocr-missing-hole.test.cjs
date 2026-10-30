@@ -130,6 +130,7 @@ test('actual review screen renders incomplete and corrected states side by side'
   disabled:props.disabled,role:accessibilityRole === 'alert' ? 'alert' : undefined,
  },children); }
  const screen=load('app/scan/review.tsx',{
+ '../../src/services/entitlements':load('src/services/entitlements.ts'),'../../src/stores/scan-store':{useScanStore:{getState:()=>({tier:'free'})}},
  react:React,'react/jsx-runtime':require('react/jsx-runtime'),'react-native':{View:element('div'),Text:element('span'),ScrollView:element('div'),Pressable:element('button'),TextInput:element('input'),Modal:()=>null,Image:()=>null,AccessibilityInfo:{announceForAccessibility:()=>{}}},
  'expo-router':{useRouter:()=>({}),useLocalSearchParams:()=>({scanData:data})},
  'react-native-safe-area-context':{SafeAreaView:element('div')},
@@ -207,6 +208,7 @@ for (const partial of [false,true]) test(`real two-group smoke imports and keeps
  const jsx=(type,props)=>({type,props});
  const hooks={useState:init=>{const i=cursor++;if(!(i in states))states[i]=typeof init==='function'?init():init;return [states[i],value=>{states[i]=typeof value==='function'?value(states[i]):value;}];},useMemo:fn=>fn(),useEffect:()=>{}};
  const screen=load('app/scan/review.tsx',{
+ '../../src/services/entitlements':load('src/services/entitlements.ts'),'../../src/stores/scan-store':{useScanStore:{getState:()=>({tier:'free'})}},
  react:hooks,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':Object.fromEntries(['View','Text','ScrollView','Pressable','TextInput','Modal','Image'].map(n=>[n,n])),
  'expo-router':{useRouter:()=>({replace}),useLocalSearchParams:()=>Object.fromEntries(url.searchParams)},
  'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'lucide-react-native':{},

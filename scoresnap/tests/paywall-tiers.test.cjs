@@ -113,3 +113,7 @@ test('free result sharing uses the selected tournament round scores',async()=>{
  const contest=fixture();contest.rounds=JSON.parse(JSON.stringify(contest.rounds));contest.rounds[1].groups[1].players[0].scores[0]=4;
  const Share={share:jest.fn()};await require('vm').runInNewContext('('+handler+')',{contest,Share})();expect(Share.share).toHaveBeenCalledWith({message:expect.stringContaining('Guest 1: 4')});
 });
+test('quick start and scan quick settle add only free games for a free user',()=>{
+ const e=entitlement();expect(e.defaultRoundGames('free')).toEqual(['stroke_play']);expect(e.defaultRoundGames('pro')).toEqual(['stroke_play','skins']);expect(e.defaultRoundGames('td')).toEqual(['stroke_play','skins']);
+ for(const file of ['app/(tabs)/index.tsx','app/scan/review.tsx'])expect(read(file)).toContain('defaultRoundGames(');
+});

@@ -22,3 +22,6 @@ export const canSeeStats = canSeeSettlement;
 export function scanAllowance(tier: Tier, now: Date) {
   return {limit: tier === 'free' ? 3 : Infinity, monthKey: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`};
 }
+
+/** Automatic round creation must not silently add a locked game. */
+export const defaultRoundGames = (tier: Tier): ('stroke_play' | 'skins')[] => tier === 'free' ? ['stroke_play'] : ['stroke_play', 'skins'];

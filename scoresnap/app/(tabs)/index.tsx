@@ -1,5 +1,5 @@
 import { useScanStore } from "../../src/stores/scan-store";
-import { canUseGame, canHostTournament } from "../../src/services/entitlements";
+import { canUseGame, defaultRoundGames } from "../../src/services/entitlements";
 import { GAME_SHEET_STYLE } from "../../src/ui/gameSheetStyle";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
 import { localDate } from "../../src/utils/local-date";
@@ -86,7 +86,7 @@ export default function HomeScreen() {
       betUnit: 5,
       hasTeams: false,
       groups: [group],
-      games: ["stroke_play", "skins"],
+      games: defaultRoundGames(tier),
       createdAt: new Date().toISOString(),
     };
     addContest(contest);
