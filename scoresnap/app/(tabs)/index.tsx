@@ -132,7 +132,7 @@ export default function HomeScreen() {
               lineHeight: 34,
             }}
           >
-            Precision Scoring{"\n"}in a Snap
+            Build contests. Settle up.
           </Text>
           <Text
             style={{
