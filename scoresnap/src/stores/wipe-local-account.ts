@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
 import { supabase } from "../db/supabase";
+import { resetTournamentOutbox } from "../services/tournament-sync";
 import { resetChatSessionCache } from "../services/live-chat";
 import { useAuthStore } from "./auth-store";
 import { useContestStore } from "./contest-store";
@@ -20,6 +21,7 @@ export async function wipeLocalAccount(): Promise<void> {
   persistGate.suppressSignedOutPersist = true;
   resetChatSessionCache();
   await runSuppressed(async () => {
+    await resetTournamentOutbox();
     await AsyncStorage.multiRemove([...PERSISTED_ACCOUNT_KEYS]);
     useAuthStore.setState({
       session: null,

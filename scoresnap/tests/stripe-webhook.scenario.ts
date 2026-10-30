@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import StripeImport from "stripe";
+import { createRequire } from "node:module";
 import { handleStripeWebhook } from "../supabase/functions/stripe-webhook/handler.ts";
 import { verifyStripeWebhook } from "../supabase/functions/stripe-webhook/verify.ts";
 
+// This Node integration scenario requires the declared SDK at runtime.
+const StripeImport = createRequire(import.meta.url)("stripe");
 const Stripe = (StripeImport as any).default ?? StripeImport;
 const stripe = new Stripe("sk_test_placeholder");
 const secret = "whsec_test_only_not_a_real_secret";

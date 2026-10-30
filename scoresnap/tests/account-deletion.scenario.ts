@@ -577,7 +577,7 @@ async function localScenario() {
     deleteRemote: async () => { order.push("remote"); },
     wipeLocal: async () => { order.push("wipe"); },
   }));
-  assert.deepEqual(order, []);
+  assert.equal(order.length, 0);
   await assert.rejects(() => performAccountDeletion({
     confirmed: true,
     deleteRemote: async () => { order.push("remote"); throw new Error("server"); },

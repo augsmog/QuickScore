@@ -7,6 +7,8 @@ export const GUEST_STORAGE_KEY = "snapscore-guest";
 export const CHAT_SESSION_KEY = "snapscore.chat.session.v1";
 export const CHAT_NAME_KEY = "snapscore.chat.name.v1";
 
+export const TOURNAMENT_OUTBOX_KEY = "snapscore.tournament.outbox";
+
 /** Every AsyncStorage key this app persists for an account. */
 export const PERSISTED_ACCOUNT_KEYS = [
   AUTH_STORAGE_KEY,
@@ -17,6 +19,7 @@ export const PERSISTED_ACCOUNT_KEYS = [
   GUEST_STORAGE_KEY,
   CHAT_SESSION_KEY,
   CHAT_NAME_KEY,
+  TOURNAMENT_OUTBOX_KEY,
 ] as const;
 
 export const persistGate = {
