@@ -2,7 +2,12 @@ name: Web smoke
 on:
   push:
     branches: [main]
+  # CI trim 2026-10-30 (Augie yes 4:21 PM PT): PRs run this suite only when files it tests change.
+  # Main pushes and manual runs are unfiltered.
   pull_request:
+    paths:
+      - 'scoresnap/**'
+      - '.github/workflows/web-smoke.yml'
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

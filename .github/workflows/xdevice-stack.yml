@@ -1,6 +1,28 @@
 name: Cross-device disposable stack
 on:
+  # CI trim 2026-10-30 (Augie yes 4:21 PM PT): PRs run this suite only when files it tests change.
+  # Main pushes and manual runs are unfiltered.
   pull_request:
+    paths:
+      - 'scoresnap/app/**'
+      - 'scoresnap/src/**'
+      - 'scoresnap/assets/**'
+      - 'scoresnap/package.json'
+      - 'scoresnap/package-lock.json'
+      - 'scoresnap/app.json'
+      - 'scoresnap/babel.config.js'
+      - 'scoresnap/metro.config.js'
+      - 'scoresnap/tsconfig.json'
+      - 'scoresnap/index.ts'
+      - 'scoresnap/global.css'
+      - 'scoresnap/tailwind.config.js'
+      - 'scoresnap/nativewind-env.d.ts'
+      - 'scoresnap/.npmrc'
+      - 'scoresnap/pnpm-lock.yaml'
+      - 'scoresnap/supabase/**'
+      - 'scoresnap/e2e/**'
+      - 'scoresnap/scripts/ci/**'
+      - '.github/workflows/xdevice-stack.yml'
   workflow_dispatch:
 permissions:
   contents: read
