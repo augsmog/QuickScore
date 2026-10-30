@@ -45,7 +45,7 @@ test('Live UI routes course reads through the tested helper',()=>check(`
 const ui=fs.readFileSync('app/contest/[id]/scorecard.tsx','utf8');
 assert.ok(!/calc(?:NassauRules|Skins)\\(players,\\s*contest\\.course/.test(ui));
 assert.ok(ui.includes('const course = liveRoundCourse(contest)'));
-assert.ok(ui.includes('calcNassauRules(players, course,'));assert.ok(ui.includes('calcSkins(players, course,'));
-assert.ok(ui.includes('[group.players, currentHole, contest.games, course, contest.gameConfig, auxiliary]'));
+assert.ok(ui.includes('calcNassauRules(players, course,'));assert.ok(ui.includes('liveSkinsStatus(contest, group.id)'));
+assert.ok(ui.includes('[group.players, currentHole, contest.games, course, contest.gameConfig, auxiliary, activeGroups, group.id]'));
 const daily=fs.readFileSync('app/contest/[id]/index.tsx','utf8');assert.ok(daily.includes('scoreView === "daily" ? liveRoundCourse(contest) : contest.course'));
 `));

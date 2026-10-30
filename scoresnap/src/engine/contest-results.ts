@@ -2,6 +2,7 @@ import type { Contest } from '../stores/contest-store';
 import { AuxiliaryData, GameType, SettlementSummary } from './types';
 import { calculateSettlement } from './settlement';
 import { calcMatchPlay } from './calculators/match-play';
+import { calcScopedSkins } from './calculators/skins';
 import { calcStableford } from './calculators/stableford';
 export const scopeKey=(roundId:string|undefined,groupId:string)=>`${roundId??'default'}/${groupId}`;
 export function scopedAuxiliary(contest:Contest,groupId:string,roundId?:string):AuxiliaryData {
@@ -89,4 +90,21 @@ export function contestPrimaryRounds(contest: Contest): {key:string;roundName?:s
 export function liveRoundCourse(contest: Contest) {
   const round = contest.isTournament ? contest.rounds?.find(r => r.number === contest.currentRound) : undefined;
   return round?.course ?? contest.course;
+}
+
+/** Same current-round competition boundary as primary Skins cards and cash. */
+export function liveSkinsStatus(contest: Contest, groupId: string) {
+  const groups = contest.isTournament && contest.rounds && contest.currentRound
+    ? contest.rounds.find(r => r.number === contest.currentRound)?.groups ?? []
+    : contest.groups;
+  const index = groups.findIndex(g => g.id === groupId);
+  if (index < 0) return undefined;
+  const results = calcScopedSkins(groups, liveRoundCourse(contest), contest.games.includes('skins_carry'), contest.gameConfig);
+  return results[contest.gameConfig?.skinsScope === 'group' ? index : 0]?.result;
+}
+
+/** Engine sides may be pairs; never infer their labels from roster position. */
+export function liveNassauLabels(result: {p1:string;p2:string}, status: number) {
+  return {leader:status > 0 ? result.p1 : status < 0 ? result.p2 : null,
+    down:status > 0 ? result.p2 : result.p1};
 }

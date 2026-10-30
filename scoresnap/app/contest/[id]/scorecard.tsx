@@ -1,7 +1,7 @@
 import { executionGameConfig } from "../../../src/engine/types";
 import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actual-inputs";
 import { PrePlayDeclarations } from "../../../src/ui/PrePlayDeclarations";
-import { scopedAuxiliary, calculateContestSettlement, liveRoundCourse } from "../../../src/engine/contest-results";
+import { scopedAuxiliary, calculateContestSettlement, liveRoundCourse, liveSkinsStatus, liveNassauLabels } from "../../../src/engine/contest-results";
 import { calcNassauRules } from "../../../src/engine/calculators/nassau";
 import { useState, useCallback, useMemo } from "react";
 import {
@@ -39,7 +39,7 @@ import AuxiliaryPrompt, {
 } from "../../../src/ui/AuxiliaryPrompt";
 import { HoleInfo, Player } from "../../../src/engine/types";
 import { calcNassauPress } from "../../../src/engine/calculators/nassau-press";
-import { calcSkins } from "../../../src/engine/calculators/skins";
+import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -112,11 +112,11 @@ export default function ScorecardScreen() {
       const isBack9 = currentHole > 9;
       const nineStatus = isBack9 ? result.back : result.front;
       const nineName = isBack9 ? "Back 9" : "Front 9";
-      const leader = nineStatus > 0 ? players[0].name : nineStatus < 0 ? players[1].name : null;
+      const { leader, down: downPlayer } = liveNassauLabels(result, nineStatus);
 
       if (Math.abs(nineStatus) >= 1) {
         statuses.push({
-          label: `${nineName}: ${leader?.split(" ")[0]} ${Math.abs(nineStatus)} UP`,
+          label: `${nineName}: ${leader} ${Math.abs(nineStatus)} UP`,
           detail: "",
           color: COLORS.primary,
         });
@@ -132,9 +132,8 @@ export default function ScorecardScreen() {
 
       // Detect if press is about to trigger (someone is exactly 2 down)
       if (!ledger && Math.abs(nineStatus) === 2 && result.presses.length === 0) {
-        const downPlayer = nineStatus > 0 ? players[1].name : players[0].name;
         statuses.push({
-          label: `${downPlayer.split(" ")[0]} is 2-DOWN`,
+          label: `${downPlayer} is 2-DOWN`,
           detail: "Auto-press triggered!",
           color: COLORS.error,
         });
@@ -144,23 +143,21 @@ export default function ScorecardScreen() {
     if(contest.gameConfig?.rulesVersion===1)for(const game of contest.games.filter(g=>ACTUAL_INPUT_GAMES.includes(g))){const result=actualInputLedger(game,players,course,auxiliary,contest.gameConfig);statuses.push({label:`${game.replace(/_/g," ")}: ${result.pending?"pending":"confirmed"}`,detail:`${result.holes} confirmed holes · ${players.map(p=>`${p.name} ${result.totals[p.name]}u`).join(", ")}`,color:result.pending?COLORS.warn:COLORS.primary});}
     // Skins carryover status
     if (
-      (contest.games.includes("skins") || contest.games.includes("skins_carry")) &&
-      players.length >= 2
+      (contest.games.includes("skins") || contest.games.includes("skins_carry"))
     ) {
-      const isCarry = contest.games.includes("skins_carry");
-      const result = calcSkins(players, course, isCarry, contest.gameConfig?.skinsMode, contest.gameConfig);
-      const carriedSkins = result.remaining;
+      const result = liveSkinsStatus(contest, group.id);
+      const carriedSkins = result?.remaining ?? 0;
       if (carriedSkins > 0) {
         statuses.push({
           label: `${carriedSkins} skin${carriedSkins > 1 ? "s" : ""} carrying`,
-          detail: `${carriedSkins + 1}x value next win`,
+          detail: "Unawarded units in this scope",
           color: COLORS.gold,
         });
       }
     }
 
     return statuses;
-  }, [group.players, currentHole, contest.games, course, contest.gameConfig, auxiliary]);
+  }, [group.players, currentHole, contest.games, course, contest.gameConfig, auxiliary, activeGroups, group.id]);
 
   // ── Score adjustment via +/- buttons ──
   const adjustScore = useCallback(
@@ -555,10 +552,7 @@ export default function ScorecardScreen() {
             const label = hasScore ? scoreName(score, par) : "par";
             const total = player.scores.reduce((a, b) => a + b, 0);
             const holesPlayed = player.scores.filter((s) => s > 0).length;
-            const totalPar = course.holes
-              .slice(0, holesPlayed)
-              .reduce((a, h) => a + h.par, 0);
-            const totalToPar = total - totalPar;
+            const totalToPar = calcStrokePlay([player], course)[0].toPar;
 
             return (
               <Animated.View

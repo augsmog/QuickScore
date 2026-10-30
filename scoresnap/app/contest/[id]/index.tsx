@@ -3,7 +3,7 @@ import { useState } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW, scoreColor } from "../../../src/ui/theme";
-import { useContestStore, getTournamentPlayers } from "../../../src/stores/contest-store";
+import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
@@ -33,7 +33,7 @@ export default function LeaderboardScreen() {
     allPlayers = contest.groups.flatMap((g) => g.players);
   }
 
-  if(contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot"||g==="chapman"))allPlayers=teamCardPlayers(contest,!!contest.currentRound);
+  if(contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot"||g==="chapman"))allPlayers=teamCardPlayers(contest,scoreView === "daily");
   const hasScores = allPlayers.some((p) =>
     p.scores.some((s) => s > 0)
   );
@@ -73,7 +73,7 @@ export default function LeaderboardScreen() {
         {contest.name}
       </Text>
       <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, marginBottom: 16 }}>
-        {contest.course.name}
+        {(scoreView === "daily" ? liveRoundCourse(contest) : contest.course).name}
       </Text>
 
       {/* Tournament: Cumulative / Daily toggle */}
@@ -358,7 +358,7 @@ export default function LeaderboardScreen() {
           <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 12 }}>
             GROUP PERFORMANCE
           </Text>
-          {contest.groups.map((group) => (
+          {(scoreView === "daily" ? getActiveGroups(contest) : contest.groups).map((group) => (
             <View
               key={group.id}
               style={{
