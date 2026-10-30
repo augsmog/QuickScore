@@ -117,7 +117,7 @@ test("support route renders the contact email, deletion request, and no external
   const pages = load("src/web/public-pages.ts");
   const privacyMarkdown = fs.readFileSync(path.join(root, "docs/privacy-policy.md"), "utf8");
   expect(crypto.createHash("sha256").update(privacyMarkdown).digest("hex")).toBe(
-    "6529180dd6a730a1cd6df9fd21e32bc298a86980e27eb750d3eaed5a68b1a32f",
+    "50839955c8c60298c90b337dae6ea4225207156ce2db4972211e3f72469ad570",
   );
   expect(privacyMarkdown).toContain("Effective date: October 30, 2026");
   expect(privacyMarkdown).toContain("SnapScore is operated by John August Jones");
@@ -157,6 +157,7 @@ test("support route renders the contact email, deletion request, and no external
     expect(privacyBody).toContain("mailto:augie@autumn8.me");
     expect(privacyBody).toContain("<title>Privacy policy · SnapScore</title>");
     expect(privacyBody).toContain('id="retention-and-deletion"');
+    expect(privacyBody).toContain("It does not delete your account or data on SnapScore's servers");
     expect(privacyBody).toContain("Effective date: October 30, 2026");
     expect(privacyBody).toContain("SnapScore is operated by John August Jones");
     expect(privacyBody).toContain("To ask us to delete your account and the data stored on SnapScore's servers");

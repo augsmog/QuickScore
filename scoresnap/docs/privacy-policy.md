@@ -26,11 +26,11 @@ SnapScore uses Sentry to report errors, logs, performance traces and session rep
 
 ## Purchases and other services
 
-If you buy or restore a subscription, RevenueCat processes purchase and entitlement information so the app can determine your subscription access and restore purchases; Apple or Google processes the payment itself. SnapScore does not read your card number. SnapScore's backend can also keep profile and referral records and sign-up activity, send welcome or referral emails through Resend, and record subscription and payment events from Stripe for web billing.
+If you buy or restore a subscription, RevenueCat processes purchase and entitlement information so the app can determine your subscription access and restore purchases; Apple or Google processes the payment itself. SnapScore does not read your card number. Where these backend services are active, SnapScore can also keep profile and referral records, sign-up analytics and automation logs linked to your account, send welcome or referral emails through Resend, and record Stripe subscription and payment events for web billing.
 
 ## Course search
 
-If you search for a golf course, your search text is sent to a Supabase function, which can forward it to GolfCore and cache the query and results. If you allow location access, it is used on your device to sort nearby courses.
+If you search for a golf course, your search text is sent to a Supabase function, which can forward it to GolfCore and cache the query and results. Where optional location support is available and you allow location access, your location is used on your device to sort nearby courses. The app's course search sends your search text and course identifiers, not your coordinates, although the backend also supports coordinate-based searches.
 
 ## How information is used and who receives it
 
@@ -48,7 +48,9 @@ SnapScore does not include advertising SDKs.
 
 ## Retention and deletion
 
-Rounds and account information stored on your device remain there until you delete them in the app, reset the app, or remove the app. Deleting a contest removes it from your device. Deleting your account in Settings removes SnapScore data stored on that device and signs you out. Signing out by itself does not delete data from our servers.
+Round and account records stored on your device stay there until the app's storage is cleared or you remove them in the app. Deleting a contest removes it from your device. The Delete Account control in Settings currently clears five local storage entries on that device (contests, sign-in details, settings, scan count and onboarding status), then signs you out. It does not delete your account or data on SnapScore's servers, and it does not clear every local item, such as queued tournament updates and saved chat identifiers. Signing out does not delete server data either.
+
+SnapScore does not have a set retention or deletion schedule for server records, service-provider request data or logs, image caches, or backups. This policy does not promise complete deletion, a deletion deadline, or automatic expiry of images.
 
 To ask us to delete your account and the data stored on SnapScore's servers (such as synced rounds and scores, shared scoreboards and chat messages), email augie@autumn8.me from the email address on your account. Information already sent to the service providers listed above is handled under their terms.
 
