@@ -26,15 +26,17 @@ def run(sql,fail=False,marker=None):
 # Each mutation is transactional, and must trip a semantic assertion, not SQL setup.
 suite=(root/'tests/m4b-api.sql').read_text().removeprefix('BEGIN;').removesuffix('\n')
 suite=suite[:suite.rfind('ROLLBACK;')]
+security=(root/'tests/m5-security.sql').read_text().removeprefix('BEGIN;')
+suite+=security[:security.rfind('ROLLBACK;')]
 mutations=[]
-for table in ['contest_memberships','contest_join_requests','operation_receipts','contest_rounds','contest_groups','round_player_assignments','round_scorer_scopes','group_submissions','sync_id_map']:
+for table in ['contest_memberships','contest_join_requests','operation_receipts','contest_rounds','contest_groups','round_player_assignments','round_scorer_scopes','group_submissions','sync_id_map','sync_join_budgets']:
  for role in ['anon','authenticated']:
   for priv in ['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']:
    mutations.append((f'{table}/{role}/{priv}',f'GRANT {priv} ON public.{table} TO {role};'))
 for sig in ['sync_score_cache()','sync_revision_hint()','sync_legacy_projection(uuid)','sync_course(jsonb)']:
  for role in ['anon','authenticated']:
   mutations.append((sig+'/'+role,f'GRANT EXECUTE ON FUNCTION public.{sig} TO {role};'))
-for sig in ['submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)','fetch_snapshot(uuid,bigint)','revoke_membership(uuid,uuid)','enroll_contest(uuid,bigint)','sync_capabilities(uuid)','my_sync_status()','can_receive_sync(text)']:
+for sig in ['submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)','fetch_snapshot(uuid,bigint)','revoke_membership(uuid,uuid)','enroll_contest(uuid,bigint)','sync_capabilities(uuid)','my_sync_status()','can_receive_sync(text)','submit_group(uuid,uuid,uuid,bigint)','finalize_tournament(uuid,bigint)']:
  mutations.append((sig+'/anon',f'GRANT EXECUTE ON FUNCTION public.{sig} TO anon;'))
  mutations.append((sig+'/authenticated',f'REVOKE EXECUTE ON FUNCTION public.{sig} FROM authenticated;'))
 definition=run("SELECT pg_get_functiondef('public.submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)'::regprocedure);")+';\n'
@@ -87,7 +89,7 @@ try:
  # precise first-cell uniqueness failure; an infrastructure error is not red proof.
  run(definition.replace('WHERE id=$1 FOR UPDATE;', 'WHERE id=$1;'))
  try:
-  race(identity(U)+write(op1),identity(U)+write(op2),'score_events_cell_version')
+  race(identity(U)+write(op1),identity(H)+write(op2),'score_events_cell_version')
   print('EXPECTED RED: unsafe no-lock first-cell race hit unique cell constraint')
  finally:
   run(definition)
@@ -130,6 +132,46 @@ try:
  cleanup();seed()
  race(identity(H)+revoke(),identity(U)+f"SELECT public.fetch_snapshot('{C}');",'FORBIDDEN')
  print('PASS: fetch/revoke in both lock orders')
+ cleanup();seed()
+ # Final-schema group completion: two real sessions, both lock orders.
+ def group_seed():
+  run(f"UPDATE public.contests SET course='{{\"holes\":[{{\"num\":1,\"par\":4}}]}}' WHERE id='{C}'; UPDATE public.contest_rounds SET id='55000000-0000-0000-0000-000000000001',course_data=NULL WHERE contest_id='{C}' AND round_number=1; INSERT INTO public.contest_groups(id,contest_id,round_id,name) VALUES('56000000-0000-0000-0000-000000000001','{C}','55000000-0000-0000-0000-000000000001','Group'); INSERT INTO public.round_player_assignments(contest_id,round_id,player_id,group_id) VALUES('{C}','55000000-0000-0000-0000-000000000001','{P}','56000000-0000-0000-0000-000000000001');")
+  run(identity(H)+write(op1))
+ def rev(): return int(run(f"SELECT sync_revision FROM public.contests WHERE id='{C}';").strip())
+ def submit(expected): return f"SELECT public.submit_group('{C}','55000000-0000-0000-0000-000000000001','56000000-0000-0000-0000-000000000001',{expected});"
+ def finalize(expected): return f"SELECT public.finalize_tournament('{C}',{expected});"
+ group_seed()
+ # Ordinary player is not an assigned group scorer; direct table writes stay denied.
+ run(identity(U)+submit(rev()),True,'SCORER_REQUIRED')
+ run(identity(H)+finalize(rev()),True,'SUBMISSIONS_REQUIRED')
+ before=rev()
+ race(identity(H)+submit(before),identity(U)+write(op2,1,1),'accepted')
+ assert run(f"SELECT count(*) FROM public.group_submissions WHERE contest_id='{C}';").strip()=='0'
+ print('PASS: submit locks first -> later edit invalidates submission')
+ cleanup();seed();group_seed();before=rev()
+ race(identity(U)+write(op2,1,1),identity(H)+submit(before),'REVISION_CONFLICT')
+ print('PASS: edit locks first -> stale submission denied')
+ run(identity(H)+submit(rev()));before=rev()
+ race(identity(H)+finalize(before),identity(U)+write('54000000-0000-0000-0000-000000000021',1,2),'SYNC_PAUSED')
+ assert run(f"SELECT status FROM public.contests WHERE id='{C}';").strip()=='completed'
+ print('PASS: finalize locks first -> late score denied')
+ cleanup();seed();group_seed();run(identity(H)+submit(rev()));before=rev()
+ race(identity(U)+write(op2,1,1),identity(H)+finalize(before),'REVISION_CONFLICT')
+ run(identity(H)+finalize(rev()),True,'SUBMISSIONS_REQUIRED')
+ assert run(f"SELECT status FROM public.contests WHERE id='{C}';").strip()=='active'
+ print('PASS: write locks first -> finalization CAS denied; submission invalidated')
+ run(f"UPDATE public.contest_memberships SET role='scorer',player_id=NULL WHERE contest_id='{C}' AND user_id='{U}'; INSERT INTO public.round_scorer_scopes(contest_id,round_id,group_id,user_id) VALUES('{C}','55000000-0000-0000-0000-000000000001','56000000-0000-0000-0000-000000000001','{U}');")
+ run(identity(U)+submit(rev()))
+ run(identity(H)+revoke())
+ run(identity(H)+finalize(rev()),True,'SUBMISSIONS_REQUIRED')
+ run(identity(U)+submit(rev()),True,'SCORER_REQUIRED')
+ run(identity(H)+submit(rev()))
+ run(f"UPDATE public.contest_rounds SET assignment_revision=assignment_revision+1 WHERE contest_id='{C}';")
+ run(identity(H)+finalize(rev()),True,'SUBMISSIONS_REQUIRED')
+ print('PASS: scoped scorer submission; revoked scorer and stale assignment submissions cannot finalize')
+ run(identity(H)+submit(rev()))
+ run(identity(H)+finalize(rev()))
+ print('PASS: refreshed resubmission/finalization succeeds')
  cleanup();seed()
  down=(root/'rollback/20261029180000_sync_api.down.sql').read_text()
  race(identity(U)+write(op1),down,'M4B_DOWN_UNSAFE')

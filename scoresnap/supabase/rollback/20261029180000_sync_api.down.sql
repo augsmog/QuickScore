@@ -9,6 +9,25 @@ DO $$ BEGIN
  RAISE EXCEPTION USING ERRCODE='P0001', MESSAGE='M4B_DOWN_UNSAFE: use operational pause and fix forward';
  END IF;
 END $$;
+DROP FUNCTION public.submit_group(uuid,uuid,uuid,bigint),public.finalize_tournament(uuid,bigint);
+CREATE OR REPLACE FUNCTION public.request_join(code text, display_name text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE cid uuid; uid uuid := auth.uid();
+BEGIN
+ IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;
+ IF display_name IS NULL OR length(btrim(display_name)) NOT BETWEEN 1 AND 80 OR code IS NULL OR length(code)>32 THEN
+  RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;
+ SELECT id INTO cid FROM public.contests WHERE invite_code=upper(btrim(code)) AND protocol=1 AND sync_enabled AND status='active' FOR UPDATE;
+ IF cid IS NOT NULL THEN
+  INSERT INTO public.contest_join_requests(contest_id,requester,requested_name) VALUES(cid,uid,btrim(display_name))
+   ON CONFLICT (contest_id,requester) WHERE status='pending' DO NOTHING;
+ END IF;
+ -- Unknown and disabled codes intentionally have the identical public result.
+ RETURN '{"status":"pending"}'::jsonb;
+END $$;
+
+DROP TABLE public.sync_join_budgets;
+DROP TRIGGER m4b_completion_guard ON public.contests;
+DROP FUNCTION public.guard_sync_completion();
 DROP POLICY m4b_receive ON realtime.messages;
 DROP POLICY m4b_receive_guard ON realtime.messages;
 DROP POLICY m4b_send_guard ON realtime.messages;

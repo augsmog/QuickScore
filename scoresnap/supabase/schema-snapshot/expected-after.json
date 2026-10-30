@@ -383,6 +383,25 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "attempts",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "sync_join_budgets",
+      "type": "integer",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "auxiliary_data",
       "collation": null,
       "compression": "",
@@ -6957,6 +6976,44 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "scope",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "sync_join_budgets_pkey",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "scope",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "sync_join_budgets",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "score_revision",
       "collation": null,
       "compression": "",
@@ -8684,6 +8741,25 @@
       "table": "funnel_snapshots",
       "type": "integer",
       "type_schema": "pg_catalog"
+    },
+    {
+      "col": "window_start",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "sync_join_budgets",
+      "type": "timestamp with time zone",
+      "type_schema": "pg_catalog"
     }
   ],
   "columns": [
@@ -8812,6 +8888,15 @@
       "table": "group_submissions",
       "type": "bigint",
       "udt": "int8"
+    },
+    {
+      "col": "attempts",
+      "default": null,
+      "nullable": "NO",
+      "pos": 3,
+      "table": "sync_join_budgets",
+      "type": "integer",
+      "udt": "int4"
     },
     {
       "col": "auxiliary_data",
@@ -11019,6 +11104,15 @@
       "udt": "uuid"
     },
     {
+      "col": "scope",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "sync_join_budgets",
+      "type": "text",
+      "udt": "text"
+    },
+    {
       "col": "score_revision",
       "default": null,
       "nullable": "NO",
@@ -11710,6 +11804,15 @@
       "table": "funnel_snapshots",
       "type": "integer",
       "udt": "int4"
+    },
+    {
+      "col": "window_start",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "sync_join_budgets",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
     }
   ],
   "constraints": [
@@ -11724,6 +11827,19 @@
       "noinherit": false,
       "parent": null,
       "table": "score_events",
+      "validated": true
+    },
+    {
+      "def": "CHECK (((attempts >= 0) AND (attempts <= 301)))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "sync_join_budgets_attempts_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "sync_join_budgets",
       "validated": true
     },
     {
@@ -12962,6 +13078,19 @@
       "validated": true
     },
     {
+      "def": "PRIMARY KEY (scope)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "sync_join_budgets_pkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "sync_join_budgets",
+      "validated": true
+    },
+    {
       "def": "PRIMARY KEY (slug)",
       "deferrable": false,
       "deferred": false,
@@ -13562,7 +13691,7 @@
         "search_path=pg_catalog"
       ],
       "cost": 100,
-      "def": "CREATE OR REPLACE FUNCTION public.request_join(code text, display_name text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE cid uuid; uid uuid := auth.uid();\nBEGIN\n IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;\n IF display_name IS NULL OR length(btrim(display_name)) NOT BETWEEN 1 AND 80 OR code IS NULL OR length(code)>32 THEN\n  RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n SELECT id INTO cid FROM public.contests WHERE invite_code=upper(btrim(code)) AND protocol=1 AND sync_enabled AND status='active' FOR UPDATE;\n IF cid IS NOT NULL THEN\n  INSERT INTO public.contest_join_requests(contest_id,requester,requested_name) VALUES(cid,uid,btrim(display_name))\n   ON CONFLICT (contest_id,requester) WHERE status='pending' DO NOTHING;\n END IF;\n -- Unknown and disabled codes intentionally have the identical public result.\n RETURN '{\"status\":\"pending\"}'::jsonb;\nEND $function$",
+      "def": "CREATE OR REPLACE FUNCTION public.request_join(code text, display_name text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE cid uuid; uid uuid:=auth.uid(); n integer; bucket timestamptz:=date_trunc('minute',clock_timestamp()); k text;\nBEGIN\n IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;\n IF display_name IS NULL OR length(btrim(display_name)) NOT BETWEEN 1 AND 80 OR code IS NULL OR length(code)>32 THEN\n RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;\n -- One shared budget covers fresh identities and nonexistent codes. Generic\n -- responses commit the counters; raising an exception would roll them back.\n FOREACH k IN ARRAY ARRAY['global','actor:'||uid::text] LOOP\n INSERT INTO public.sync_join_budgets AS b VALUES(k,bucket,1) ON CONFLICT(scope) DO UPDATE SET\n attempts=CASE WHEN b.window_start=bucket THEN least(b.attempts+1,301) ELSE 1 END,window_start=bucket RETURNING attempts INTO n;\n IF n>(CASE WHEN k='global' THEN 300 ELSE 5 END) THEN RETURN '{\"status\":\"pending\"}'::jsonb; END IF;\n END LOOP;\n SELECT id INTO cid FROM public.contests WHERE invite_code=upper(btrim(code)) AND protocol=1 AND sync_enabled AND status='active' FOR UPDATE;\n IF cid IS NOT NULL THEN\n k:='event:'||cid::text;\n INSERT INTO public.sync_join_budgets AS b VALUES(k,bucket,1) ON CONFLICT(scope) DO UPDATE SET\n attempts=CASE WHEN b.window_start=bucket THEN least(b.attempts+1,301) ELSE 1 END,window_start=bucket RETURNING attempts INTO n;\n IF n<=60 THEN\n INSERT INTO public.contest_join_requests(contest_id,requester,requested_name) VALUES(cid,uid,btrim(display_name)) ON CONFLICT (contest_id,requester) WHERE status='pending' DO NOTHING;\n END IF;\n END IF;\n RETURN '{\"status\":\"pending\"}'::jsonb;\nEND $function$",
       "kind": "f",
       "language": "plpgsql",
       "leakproof": false,
@@ -13755,6 +13884,31 @@
     },
     {
       "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "contest_id uuid, expected_revision bigint",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.finalize_tournament(contest_id uuid, expected_revision bigint) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests;\nBEGIN\n SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;\n IF auth.uid() IS NULL OR c.id IS NULL OR c.owner_id<>auth.uid() OR coalesce((auth.jwt()->>'is_anonymous')::boolean,false)\n THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='HOST_REQUIRED'; END IF;\n IF NOT c.sync_enabled OR c.protocol<>1 OR c.status<>'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;\n IF $2 IS NULL OR $2<>c.sync_revision THEN RAISE EXCEPTION USING ERRCODE='40001', MESSAGE='REVISION_CONFLICT'; END IF;\n IF NOT EXISTS(SELECT 1 FROM public.contest_groups cg WHERE cg.contest_id=$1) OR\n EXISTS(SELECT 1 FROM public.contest_rounds r WHERE r.contest_id=$1 AND NOT EXISTS(SELECT 1 FROM public.contest_groups g WHERE g.round_id=r.id)) OR\n EXISTS(SELECT 1 FROM public.contest_rounds r CROSS JOIN public.contest_players p WHERE r.contest_id=$1 AND p.contest_id=$1 AND p.status='active' AND NOT EXISTS(SELECT 1 FROM public.round_player_assignments a WHERE a.contest_id=$1 AND a.round_id=r.id AND a.player_id=p.id)) OR\n EXISTS(SELECT 1 FROM public.contest_groups g JOIN public.contest_rounds r ON r.id=g.round_id\n LEFT JOIN public.group_submissions s ON s.contest_id=g.contest_id AND s.round_id=g.round_id AND s.group_id=g.id\n WHERE g.contest_id=$1 AND (s.group_id IS NULL OR NOT (s.submitted_by=c.owner_id OR EXISTS(SELECT 1 FROM public.contest_memberships m JOIN public.round_scorer_scopes sc ON sc.contest_id=m.contest_id AND sc.user_id=m.user_id WHERE m.contest_id=$1 AND m.user_id=s.submitted_by AND m.role='scorer' AND m.status='approved' AND sc.round_id=g.round_id AND sc.group_id=g.id AND sc.status='approved')) OR s.assignment_revision<>r.assignment_revision OR s.score_revision<>\n (SELECT coalesce(max(e.contest_revision),0) FROM public.score_events e JOIN public.round_player_assignments a ON a.contest_id=e.contest_id AND a.round_id=e.round_id AND a.player_id=e.player_id WHERE a.contest_id=$1 AND a.round_id=g.round_id AND a.group_id=g.id)))\n THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SUBMISSIONS_REQUIRED'; END IF;\n UPDATE public.contests SET status='completed',sync_revision=sync_revision+1 WHERE id=$1 RETURNING * INTO c;\n -- Freeze GS14's deadline at first completion; later link creation cannot extend it.\n -- Completion projection/expiry is updated inside the contest trigger.\n RETURN jsonb_build_object('status','completed','revision',c.sync_revision);\nEND $function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "finalize_tournament",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "jsonb",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
       "args": "contest_id uuid, is_tournament boolean, current_round integer",
       "argument_defaults": null,
       "argument_defaults_count": 0,
@@ -13830,6 +13984,31 @@
     },
     {
       "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "contest_id uuid, round_id uuid, group_id uuid, expected_revision bigint",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.submit_group(contest_id uuid, round_id uuid, group_id uuid, expected_revision bigint) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests; r public.contest_rounds; score_rev bigint;\nBEGIN\n SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;\n IF auth.uid() IS NULL OR c.id IS NULL OR NOT (\n (c.owner_id=auth.uid() AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false)) OR\n EXISTS(SELECT 1 FROM public.contest_memberships m JOIN public.round_scorer_scopes s ON s.contest_id=m.contest_id AND s.user_id=m.user_id\n WHERE m.contest_id=$1 AND m.user_id=auth.uid() AND m.role='scorer' AND m.status='approved' AND s.status='approved' AND s.round_id=$2 AND s.group_id=$3))\n THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='SCORER_REQUIRED'; END IF;\n IF NOT c.sync_enabled OR c.protocol<>1 OR c.status<>'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;\n IF $4 IS NULL OR $4<>c.sync_revision THEN RAISE EXCEPTION USING ERRCODE='40001', MESSAGE='REVISION_CONFLICT'; END IF;\n SELECT * INTO r FROM public.contest_rounds cr WHERE cr.id=$2 AND cr.contest_id=$1;\n IF r.id IS NULL OR NOT EXISTS(SELECT 1 FROM public.contest_groups g WHERE g.id=$3 AND g.round_id=$2 AND g.contest_id=$1)\n THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_GROUP'; END IF;\n -- A missing course/assignment/cell or a clear cannot certify a completed card.\n IF jsonb_array_length(public.sync_course(coalesce(r.course_data,c.course))->'holes')=0 OR\n NOT EXISTS(SELECT 1 FROM public.round_player_assignments a JOIN public.contest_players p ON p.id=a.player_id WHERE a.contest_id=$1 AND a.round_id=$2 AND a.group_id=$3 AND p.status='active') OR\n EXISTS(SELECT 1 FROM public.round_player_assignments a JOIN public.contest_players p ON p.id=a.player_id\n CROSS JOIN LATERAL jsonb_array_elements(public.sync_course(coalesce(r.course_data,c.course))->'holes') h\n LEFT JOIN LATERAL (SELECT e.strokes FROM public.score_events e WHERE e.contest_id=$1 AND e.round_id=$2 AND e.player_id=a.player_id AND e.hole=(h->>'num')::integer AND e.cell_version IS NOT NULL ORDER BY e.cell_version DESC LIMIT 1) cell ON true\n WHERE a.contest_id=$1 AND a.round_id=$2 AND a.group_id=$3 AND p.status='active' AND cell.strokes IS NULL)\n THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='INCOMPLETE_GROUP'; END IF;\n SELECT coalesce(max(e.contest_revision),0) INTO score_rev FROM public.score_events e JOIN public.round_player_assignments a ON a.contest_id=e.contest_id AND a.round_id=e.round_id AND a.player_id=e.player_id WHERE a.contest_id=$1 AND a.round_id=$2 AND a.group_id=$3;\n INSERT INTO public.group_submissions(contest_id,round_id,group_id,score_revision,assignment_revision,submitted_by)\n VALUES($1,$2,$3,score_rev,r.assignment_revision,auth.uid()) ON CONFLICT ON CONSTRAINT group_submissions_pkey DO UPDATE\n SET score_revision=excluded.score_revision,assignment_revision=excluded.assignment_revision,submitted_by=excluded.submitted_by,submitted_at=now();\n UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=$1 RETURNING * INTO c;\n RETURN jsonb_build_object('status','submitted','revision',c.sync_revision);\nEND $function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "submit_group",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "jsonb",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
       "args": "contest_id uuid, round_id uuid, player_id uuid, hole integer, action text, strokes integer, expected_version bigint, op_id uuid, request_hash text",
       "argument_defaults": null,
       "argument_defaults_count": 0,
@@ -13862,7 +14041,7 @@
         "search_path=pg_catalog"
       ],
       "cost": 100,
-      "def": "CREATE OR REPLACE FUNCTION public.submit_score(contest_id uuid, round_id uuid, player_id uuid, hole integer, action text, strokes integer, expected_version bigint, op_id uuid, request_hash text, expected_revision bigint) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests; uid uuid := auth.uid(); prior public.operation_receipts; cell public.score_events;\n version bigint; fingerprint text; answer jsonb; resolved uuid; allowed boolean;\nBEGIN\n SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;\n IF uid IS NULL OR c.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n IF NOT c.sync_enabled OR c.protocol<>1 OR c.status<>'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;\n IF $2 IS NULL THEN SELECT r.id INTO resolved FROM public.contest_rounds r WHERE r.contest_id=$1 AND r.round_number=1;\n ELSE SELECT r.id INTO resolved FROM public.contest_rounds r WHERE r.id=$2 AND r.contest_id=$1; END IF;\n IF resolved IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='ROUND_NOT_READY'; END IF;\n allowed := (c.owner_id=uid AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false))\n  OR EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=uid AND m.status='approved' AND m.role='player' AND m.player_id=$3\n    AND (NOT EXISTS(SELECT 1 FROM public.round_player_assignments a WHERE a.contest_id=$1 AND a.round_id=resolved)\n      OR EXISTS(SELECT 1 FROM public.round_player_assignments a WHERE a.contest_id=$1 AND a.round_id=resolved AND a.player_id=$3)))\n  OR EXISTS(SELECT 1 FROM public.contest_memberships m\n    JOIN public.round_scorer_scopes s ON s.contest_id=m.contest_id AND s.user_id=m.user_id AND s.status='approved' AND s.round_id=resolved\n    JOIN public.round_player_assignments a ON a.contest_id=s.contest_id AND a.round_id=s.round_id AND a.group_id=s.group_id AND a.player_id=$3\n    WHERE m.contest_id=$1 AND m.user_id=uid AND m.status='approved' AND m.role='scorer');\n IF NOT allowed THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n IF NOT EXISTS(SELECT 1 FROM public.contest_players p WHERE p.id=$3 AND p.contest_id=$1) OR $4 IS NULL OR $4 NOT BETWEEN 1 AND 18\n OR $5 IS NULL OR $5 NOT IN ('set','clear') OR ($5='set' AND ($6 IS NULL OR $6 NOT BETWEEN 1 AND 15)) OR ($5='clear' AND $6 IS NOT NULL)\n OR $10 IS NOT NULL AND $10<0 OR $7 IS NULL OR $7<0 OR $8 IS NULL OR $9 IS NULL OR length($9) NOT BETWEEN 1 AND 256 THEN\n  RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_SCORE'; END IF;\n -- Preserve pre-M4b frozen-interface fingerprints for lost-response retries.\n fingerprint := encode(extensions.digest((CASE WHEN $10 IS NULL THEN jsonb_build_array($1,$2,$3,$4,$5,$6,$7,$9) ELSE jsonb_build_array($1,$2,$3,$4,$5,$6,$7,$9,$10) END)::text,'sha256'),'hex');\n PERFORM pg_advisory_xact_lock(hashtextextended(uid::text||':'||$8::text,0));\n SELECT * INTO prior FROM public.operation_receipts r WHERE r.actor=uid AND r.op_id=$8 FOR UPDATE;\n IF FOUND THEN\n  IF prior.contest_id<>$1 OR prior.request_hash<>fingerprint THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='OP_REUSED'; END IF;\n  RETURN prior.result;\n END IF;\n SELECT * INTO cell FROM public.score_events e WHERE e.contest_id=$1 AND e.round_id = resolved AND e.player_id=$3 AND e.hole=$4\n AND e.cell_version IS NOT NULL ORDER BY e.cell_version DESC LIMIT 1 FOR UPDATE;\n version := coalesce(cell.cell_version,0);\n IF version<>$7 OR ($10 IS NOT NULL AND c.sync_revision<>$10) THEN answer := jsonb_build_object('status','conflict','version',version,'strokes',cell.strokes,'revision',c.sync_revision);\n ELSE\n  UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=$1 RETURNING * INTO c;\n  INSERT INTO public.score_events(contest_id,round_id,player_id,hole,action,strokes,entered_by,actor,cell_version,contest_revision,op_id,request_hash)\n   VALUES($1,resolved,$3,$4,$5,$6,uid,uid,version+1,c.sync_revision,$8,fingerprint);\n  DELETE FROM public.group_submissions s USING public.round_player_assignments a\n   WHERE a.contest_id=$1 AND a.round_id=resolved AND a.player_id=$3 AND s.contest_id=a.contest_id AND s.round_id=a.round_id AND s.group_id=a.group_id;\n  answer := jsonb_build_object('status','accepted','version',version+1,'strokes',$6,'revision',c.sync_revision);\n END IF;\n INSERT INTO public.operation_receipts(actor,op_id,request_hash,contest_id,result) VALUES(uid,$8,fingerprint,$1,answer);\n RETURN answer;\nEND $function$",
+      "def": "CREATE OR REPLACE FUNCTION public.submit_score(contest_id uuid, round_id uuid, player_id uuid, hole integer, action text, strokes integer, expected_version bigint, op_id uuid, request_hash text, expected_revision bigint) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE c public.contests; uid uuid := auth.uid(); prior public.operation_receipts; cell public.score_events;\n version bigint; fingerprint text; answer jsonb; resolved uuid; allowed boolean;\nBEGIN\n SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;\n IF uid IS NULL OR c.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n IF NOT c.sync_enabled OR c.protocol<>1 OR c.status<>'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;\n IF $2 IS NULL THEN SELECT r.id INTO resolved FROM public.contest_rounds r WHERE r.contest_id=$1 AND r.round_number=1;\n ELSE SELECT r.id INTO resolved FROM public.contest_rounds r WHERE r.id=$2 AND r.contest_id=$1; END IF;\n IF resolved IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='ROUND_NOT_READY'; END IF;\n allowed := (c.owner_id=uid AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false))\n  OR EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=uid AND m.status='approved' AND m.role='player' AND m.player_id=$3\n    AND (NOT EXISTS(SELECT 1 FROM public.round_player_assignments a WHERE a.contest_id=$1 AND a.round_id=resolved)\n      OR EXISTS(SELECT 1 FROM public.round_player_assignments a WHERE a.contest_id=$1 AND a.round_id=resolved AND a.player_id=$3)))\n  OR EXISTS(SELECT 1 FROM public.contest_memberships m\n    JOIN public.round_scorer_scopes s ON s.contest_id=m.contest_id AND s.user_id=m.user_id AND s.status='approved' AND s.round_id=resolved\n    JOIN public.round_player_assignments a ON a.contest_id=s.contest_id AND a.round_id=s.round_id AND a.group_id=s.group_id AND a.player_id=$3\n    WHERE m.contest_id=$1 AND m.user_id=uid AND m.status='approved' AND m.role='scorer');\n IF NOT allowed THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;\n IF NOT EXISTS(SELECT 1 FROM public.contest_players p WHERE p.id=$3 AND p.contest_id=$1) OR $4 IS NULL OR $4 NOT BETWEEN 1 AND 18\n OR $5 IS NULL OR $5 NOT IN ('set','clear') OR ($5='set' AND ($6 IS NULL OR $6 NOT BETWEEN 1 AND 15)) OR ($5='clear' AND $6 IS NOT NULL)\n OR $10 IS NOT NULL AND $10<0 OR $7 IS NULL OR $7<0 OR $8 IS NULL OR $9 IS NULL OR length($9) NOT BETWEEN 1 AND 256 THEN\n  RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_SCORE'; END IF;\n -- Preserve pre-M4b frozen-interface fingerprints for lost-response retries.\n fingerprint := encode(extensions.digest((CASE WHEN $10 IS NULL THEN jsonb_build_array($1,$2,$3,$4,$5,$6,$7,$9) ELSE jsonb_build_array($1,$2,$3,$4,$5,$6,$7,$9,$10) END)::text,'sha256'),'hex');\n PERFORM pg_advisory_xact_lock(hashtextextended('score-budget:'||uid::text,0));\n PERFORM pg_advisory_xact_lock(hashtextextended(uid::text||':'||$8::text,0));\n SELECT * INTO prior FROM public.operation_receipts r WHERE r.actor=uid AND r.op_id=$8 FOR UPDATE;\n IF FOUND THEN\n  IF prior.contest_id<>$1 OR prior.request_hash<>fingerprint THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='OP_REUSED'; END IF;\n  RETURN prior.result;\n END IF;\n IF (SELECT count(*) FROM public.operation_receipts r WHERE r.actor=uid AND r.created_at>clock_timestamp()-interval '1 minute')>=120 THEN RAISE EXCEPTION USING ERRCODE='54000', MESSAGE='WRITE_RATE_LIMIT'; END IF;\n SELECT * INTO cell FROM public.score_events e WHERE e.contest_id=$1 AND e.round_id = resolved AND e.player_id=$3 AND e.hole=$4\n AND e.cell_version IS NOT NULL ORDER BY e.cell_version DESC LIMIT 1 FOR UPDATE;\n version := coalesce(cell.cell_version,0);\n IF version<>$7 OR ($10 IS NOT NULL AND c.sync_revision<>$10) THEN answer := jsonb_build_object('status','conflict','version',version,'strokes',cell.strokes,'revision',c.sync_revision);\n ELSE\n  UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=$1 RETURNING * INTO c;\n  INSERT INTO public.score_events(contest_id,round_id,player_id,hole,action,strokes,entered_by,actor,cell_version,contest_revision,op_id,request_hash)\n   VALUES($1,resolved,$3,$4,$5,$6,uid,uid,version+1,c.sync_revision,$8,fingerprint);\n  DELETE FROM public.group_submissions s USING public.round_player_assignments a\n   WHERE a.contest_id=$1 AND a.round_id=resolved AND a.player_id=$3 AND s.contest_id=a.contest_id AND s.round_id=a.round_id AND s.group_id=a.group_id;\n  answer := jsonb_build_object('status','accepted','version',version+1,'strokes',$6,'revision',c.sync_revision);\n END IF;\n INSERT INTO public.operation_receipts(actor,op_id,request_hash,contest_id,result) VALUES(uid,$8,fingerprint,$1,answer);\n RETURN answer;\nEND $function$",
       "kind": "f",
       "language": "plpgsql",
       "leakproof": false,
@@ -14162,7 +14341,32 @@
         "search_path=pg_catalog"
       ],
       "cost": 100,
-      "def": "CREATE OR REPLACE FUNCTION public.guard_sync_legacy() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE cid uuid; p smallint;\nBEGIN\n cid := CASE WHEN TG_OP='DELETE' THEN OLD.contest_id ELSE NEW.contest_id END;\n SELECT protocol INTO p FROM public.contests WHERE id=cid FOR UPDATE;\n IF p=1 THEN\n  IF TG_OP='UPDATE' AND pg_trigger_depth()>1 AND\n   (to_jsonb(NEW)-'snapshot')=(to_jsonb(OLD)-'snapshot') AND NEW.snapshot=public.sync_legacy_projection(cid) THEN RETURN NEW; END IF;\n  RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='LEGACY_PROTOCOL';\n END IF;\n IF TG_OP='DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;\nEND $function$",
+      "def": "CREATE OR REPLACE FUNCTION public.guard_sync_completion() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'pg_catalog' AS $function$\nBEGIN\n IF OLD.protocol=1 AND NEW.status IS DISTINCT FROM OLD.status AND current_user NOT IN ('postgres','service_role') THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='USE_FINALIZE_RPC'; END IF;\n RETURN NEW;\nEND $function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "guard_sync_completion",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "trigger",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": false,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.guard_sync_legacy() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nDECLARE cid uuid; p smallint;\nBEGIN\n cid := CASE WHEN TG_OP='DELETE' THEN OLD.contest_id ELSE NEW.contest_id END;\n SELECT protocol INTO p FROM public.contests WHERE id=cid FOR UPDATE;\n IF p=1 THEN\n  IF TG_OP='UPDATE' AND pg_trigger_depth()>1 AND\n   (to_jsonb(NEW)-'snapshot')=(to_jsonb(OLD)-'snapshot') AND NEW.snapshot=public.sync_legacy_projection(cid) THEN RETURN NEW; END IF;\n  IF TG_OP='UPDATE' AND pg_trigger_depth()>1 AND OLD.ended_at IS NULL AND NEW.ended_at=now() AND\n   (to_jsonb(NEW)-'snapshot'-'ended_at')=(to_jsonb(OLD)-'snapshot'-'ended_at') AND NEW.snapshot=public.sync_legacy_projection(cid) AND EXISTS(SELECT 1 FROM public.contests c WHERE c.id=cid AND c.status='completed') THEN RETURN NEW; END IF;\n  RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='LEGACY_PROTOCOL';\n END IF;\n IF TG_OP='DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;\nEND $function$",
       "kind": "f",
       "language": "plpgsql",
       "leakproof": false,
@@ -14212,7 +14416,7 @@
         "search_path=pg_catalog"
       ],
       "cost": 100,
-      "def": "CREATE OR REPLACE FUNCTION public.sync_revision_hint() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nBEGIN\n IF NEW.protocol=1 AND NEW.sync_revision<>OLD.sync_revision THEN\n  PERFORM realtime.send(jsonb_build_object('revision',NEW.sync_revision),'revision','snapscore:'||NEW.id::text,true);\n END IF;\n RETURN NEW;\nEND $function$",
+      "def": "CREATE OR REPLACE FUNCTION public.sync_revision_hint() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\nBEGIN\n IF NEW.protocol=1 AND NEW.status='completed' AND OLD.status<>'completed' THEN\n  UPDATE public.published_rounds SET ended_at=coalesce(ended_at,now()),snapshot=public.sync_legacy_projection(NEW.id) WHERE contest_id=NEW.id;\n  UPDATE public.share_links SET expires_at=least(expires_at,now()+interval '7 days') WHERE contest_id=NEW.id;\n END IF;\n IF NEW.protocol=1 AND NEW.sync_revision<>OLD.sync_revision THEN\n  PERFORM realtime.send(jsonb_build_object('revision',NEW.sync_revision),'revision','snapscore:'||NEW.id::text,true);\n END IF;\n RETURN NEW;\nEND $function$",
       "kind": "f",
       "language": "plpgsql",
       "leakproof": false,
@@ -15212,6 +15416,11 @@
     },
     {
       "grantee": "postgres",
+      "priv": "DELETE",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "postgres",
       "priv": "INSERT",
       "table": "automation_log"
     },
@@ -15392,6 +15601,11 @@
     },
     {
       "grantee": "postgres",
+      "priv": "INSERT",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "postgres",
       "priv": "REFERENCES",
       "table": "automation_log"
     },
@@ -15572,6 +15786,11 @@
     },
     {
       "grantee": "postgres",
+      "priv": "REFERENCES",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "postgres",
       "priv": "SELECT",
       "table": "automation_log"
     },
@@ -15752,6 +15971,11 @@
     },
     {
       "grantee": "postgres",
+      "priv": "SELECT",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "postgres",
       "priv": "TRIGGER",
       "table": "automation_log"
     },
@@ -15932,6 +16156,11 @@
     },
     {
       "grantee": "postgres",
+      "priv": "TRIGGER",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "postgres",
       "priv": "TRUNCATE",
       "table": "automation_log"
     },
@@ -16112,6 +16341,11 @@
     },
     {
       "grantee": "postgres",
+      "priv": "TRUNCATE",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "postgres",
       "priv": "UPDATE",
       "table": "automation_log"
     },
@@ -16291,6 +16525,11 @@
       "table": "sync_id_map"
     },
     {
+      "grantee": "postgres",
+      "priv": "UPDATE",
+      "table": "sync_join_budgets"
+    },
+    {
       "grantee": "service_role",
       "priv": "DELETE",
       "table": "automation_log"
@@ -16472,6 +16711,11 @@
     },
     {
       "grantee": "service_role",
+      "priv": "DELETE",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "service_role",
       "priv": "INSERT",
       "table": "automation_log"
     },
@@ -16652,6 +16896,11 @@
     },
     {
       "grantee": "service_role",
+      "priv": "INSERT",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "service_role",
       "priv": "REFERENCES",
       "table": "automation_log"
     },
@@ -16832,6 +17081,11 @@
     },
     {
       "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "service_role",
       "priv": "SELECT",
       "table": "automation_log"
     },
@@ -17012,6 +17266,11 @@
     },
     {
       "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "service_role",
       "priv": "TRIGGER",
       "table": "automation_log"
     },
@@ -17192,6 +17451,11 @@
     },
     {
       "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "service_role",
       "priv": "TRUNCATE",
       "table": "automation_log"
     },
@@ -17372,6 +17636,11 @@
     },
     {
       "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "sync_join_budgets"
+    },
+    {
+      "grantee": "service_role",
       "priv": "UPDATE",
       "table": "automation_log"
     },
@@ -17549,6 +17818,11 @@
       "grantee": "service_role",
       "priv": "UPDATE",
       "table": "sync_id_map"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "sync_join_budgets"
     }
   ],
   "identity_generated": [
@@ -18467,6 +18741,17 @@
       "ready": true,
       "replica_identity": false,
       "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
+      "name": "sync_join_budgets_pkey",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
     }
   ],
   "indexes": [
@@ -18879,6 +19164,11 @@
       "def": "CREATE UNIQUE INDEX sync_id_map_pkey ON public.sync_id_map USING btree (contest_id, kind, local_id)",
       "name": "sync_id_map_pkey",
       "table": "sync_id_map"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX sync_join_budgets_pkey ON public.sync_join_budgets USING btree (scope)",
+      "name": "sync_join_budgets_pkey",
+      "table": "sync_join_budgets"
     }
   ],
   "inheritance": [],
@@ -19097,6 +19387,12 @@
       "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "sync_id_map",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "sync_join_budgets",
       "owner": "postgres"
     },
     {
@@ -21051,6 +21347,22 @@
       "tablespace": null
     },
     {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
+      "name": "sync_join_budgets_pkey",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
       "access_method": "heap",
       "acl": "{anon=arwdm/postgres,authenticated=arwdm/postgres,postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 0,
@@ -21408,6 +21720,22 @@
       "check_count": 1,
       "kind": "r",
       "name": "round_scorer_scopes",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "d",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 1,
+      "kind": "r",
+      "name": "sync_join_budgets",
       "of_type": null,
       "owner": "postgres",
       "partition": false,
@@ -21810,6 +22138,11 @@
       "force": true,
       "rls": true,
       "table": "sync_id_map"
+    },
+    {
+      "force": true,
+      "rls": true,
+      "table": "sync_join_budgets"
     }
   ],
   "routine_grants": [
@@ -21941,6 +22274,11 @@
     {
       "grantee": "authenticated",
       "priv": "EXECUTE",
+      "routine": "finalize_tournament"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
       "routine": "get_dau"
     },
     {
@@ -22061,6 +22399,11 @@
     {
       "grantee": "authenticated",
       "priv": "EXECUTE",
+      "routine": "submit_group"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
       "routine": "submit_score"
     },
     {
@@ -22131,6 +22474,11 @@
     {
       "grantee": "postgres",
       "priv": "EXECUTE",
+      "routine": "finalize_tournament"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
       "routine": "get_dau"
     },
     {
@@ -22142,6 +22490,11 @@
       "grantee": "postgres",
       "priv": "EXECUTE",
       "routine": "get_shared_round"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "guard_sync_completion"
     },
     {
       "grantee": "postgres",
@@ -22272,6 +22625,11 @@
       "grantee": "postgres",
       "priv": "EXECUTE",
       "routine": "set_tournament_meta"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "submit_group"
     },
     {
       "grantee": "postgres",
@@ -22366,6 +22724,11 @@
     {
       "grantee": "service_role",
       "priv": "EXECUTE",
+      "routine": "finalize_tournament"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
       "routine": "get_dau"
     },
     {
@@ -22377,6 +22740,11 @@
       "grantee": "service_role",
       "priv": "EXECUTE",
       "routine": "get_shared_round"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "guard_sync_completion"
     },
     {
       "grantee": "service_role",
@@ -22507,6 +22875,11 @@
       "grantee": "service_role",
       "priv": "EXECUTE",
       "routine": "set_tournament_meta"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "submit_group"
     },
     {
       "grantee": "service_role",
@@ -23603,6 +23976,14 @@
       "table": "contests"
     },
     {
+      "def": "CREATE TRIGGER m4b_completion_guard BEFORE UPDATE ON public.contests FOR EACH ROW EXECUTE FUNCTION guard_sync_completion()",
+      "enabled": "O",
+      "internal": false,
+      "name": "m4b_completion_guard",
+      "schema": "public",
+      "table": "contests"
+    },
+    {
       "def": "CREATE TRIGGER m4b_revision_hint AFTER UPDATE ON public.contests FOR EACH ROW EXECUTE FUNCTION sync_revision_hint()",
       "enabled": "O",
       "internal": false,
@@ -24625,6 +25006,34 @@
       "kind": "c",
       "length": -1,
       "name": "sync_id_map",
+      "notnull": false,
+      "output": "record_out",
+      "owner": "postgres",
+      "preferred": false,
+      "receive": "record_recv",
+      "send": "record_send",
+      "storage": "x",
+      "subscript": "-",
+      "typmodin": "-",
+      "typmodout": "-"
+    },
+    {
+      "acl": null,
+      "alignment": "d",
+      "analyze": "-",
+      "base": "-",
+      "byval": false,
+      "category": "C",
+      "collation": "-",
+      "default": null,
+      "defined": true,
+      "delimiter": ",",
+      "dimensions": 0,
+      "element": "-",
+      "input": "record_in",
+      "kind": "c",
+      "length": -1,
+      "name": "sync_join_budgets",
       "notnull": false,
       "output": "record_out",
       "owner": "postgres",

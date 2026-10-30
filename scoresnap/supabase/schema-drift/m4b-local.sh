@@ -46,7 +46,7 @@ echo 'PASS: full baseline/foundation/M2b/M3/sync_api chain'
 q -At -f "$here/catalog-query.sql" > "$work/m4b.json"
 python3 "$here/drift.py" ledger "$work/m4b.json" --mode pending
 python3 "$here/m4b-verify.py" catalog "$work/m4b.json" "${1:-compare}"
-for suite in guest-write-guard legacy-compatibility m3-acl m4b-api; do
+for suite in guest-write-guard legacy-compatibility m3-acl m4b-api m5-security; do
  q -v m4b_native=true -f "$here/../tests/$suite.sql" > "$work/$suite.log" 2>&1 || { cat "$work/$suite.log"; exit 1; }
  echo "PASS: $suite on full M4b chain"
 done

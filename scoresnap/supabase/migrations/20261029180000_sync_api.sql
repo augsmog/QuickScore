@@ -28,12 +28,14 @@ BEGIN
   RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_SCORE'; END IF;
  -- Preserve pre-M4b frozen-interface fingerprints for lost-response retries.
  fingerprint := encode(extensions.digest((CASE WHEN $10 IS NULL THEN jsonb_build_array($1,$2,$3,$4,$5,$6,$7,$9) ELSE jsonb_build_array($1,$2,$3,$4,$5,$6,$7,$9,$10) END)::text,'sha256'),'hex');
+ PERFORM pg_advisory_xact_lock(hashtextextended('score-budget:'||uid::text,0));
  PERFORM pg_advisory_xact_lock(hashtextextended(uid::text||':'||$8::text,0));
  SELECT * INTO prior FROM public.operation_receipts r WHERE r.actor=uid AND r.op_id=$8 FOR UPDATE;
  IF FOUND THEN
   IF prior.contest_id<>$1 OR prior.request_hash<>fingerprint THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='OP_REUSED'; END IF;
   RETURN prior.result;
  END IF;
+ IF (SELECT count(*) FROM public.operation_receipts r WHERE r.actor=uid AND r.created_at>clock_timestamp()-interval '1 minute')>=120 THEN RAISE EXCEPTION USING ERRCODE='54000', MESSAGE='WRITE_RATE_LIMIT'; END IF;
  SELECT * INTO cell FROM public.score_events e WHERE e.contest_id=$1 AND e.round_id = resolved AND e.player_id=$3 AND e.hole=$4
  AND e.cell_version IS NOT NULL ORDER BY e.cell_version DESC LIMIT 1 FOR UPDATE;
  version := coalesce(cell.cell_version,0);
@@ -238,6 +240,8 @@ BEGIN
  IF p=1 THEN
   IF TG_OP='UPDATE' AND pg_trigger_depth()>1 AND
    (to_jsonb(NEW)-'snapshot')=(to_jsonb(OLD)-'snapshot') AND NEW.snapshot=public.sync_legacy_projection(cid) THEN RETURN NEW; END IF;
+  IF TG_OP='UPDATE' AND pg_trigger_depth()>1 AND OLD.ended_at IS NULL AND NEW.ended_at=now() AND
+   (to_jsonb(NEW)-'snapshot'-'ended_at')=(to_jsonb(OLD)-'snapshot'-'ended_at') AND NEW.snapshot=public.sync_legacy_projection(cid) AND EXISTS(SELECT 1 FROM public.contests c WHERE c.id=cid AND c.status='completed') THEN RETURN NEW; END IF;
   RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='LEGACY_PROTOCOL';
  END IF;
  IF TG_OP='DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
@@ -369,6 +373,10 @@ CREATE TRIGGER m4b_score_cache AFTER INSERT ON public.score_events FOR EACH ROW 
 CREATE FUNCTION public.sync_revision_hint() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 BEGIN
+ IF NEW.protocol=1 AND NEW.status='completed' AND OLD.status<>'completed' THEN
+  UPDATE public.published_rounds SET ended_at=coalesce(ended_at,now()),snapshot=public.sync_legacy_projection(NEW.id) WHERE contest_id=NEW.id;
+  UPDATE public.share_links SET expires_at=least(expires_at,now()+interval '7 days') WHERE contest_id=NEW.id;
+ END IF;
  IF NEW.protocol=1 AND NEW.sync_revision<>OLD.sync_revision THEN
   PERFORM realtime.send(jsonb_build_object('revision',NEW.sync_revision),'revision','snapscore:'||NEW.id::text,true);
  END IF;
@@ -444,5 +452,100 @@ LANGUAGE sql IMMUTABLE SET search_path=pg_catalog AS $$
 $$;
 REVOKE ALL ON FUNCTION public.my_sync_status(),public.sync_course(jsonb) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.my_sync_status() TO authenticated,service_role;
+
+-- Pending M4b integration: all checks occur after the common contest lock.
+CREATE FUNCTION public.submit_group(contest_id uuid, round_id uuid, group_id uuid, expected_revision bigint) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE c public.contests; r public.contest_rounds; score_rev bigint;
+BEGIN
+ SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;
+ IF auth.uid() IS NULL OR c.id IS NULL OR NOT (
+ (c.owner_id=auth.uid() AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false)) OR
+ EXISTS(SELECT 1 FROM public.contest_memberships m JOIN public.round_scorer_scopes s ON s.contest_id=m.contest_id AND s.user_id=m.user_id
+ WHERE m.contest_id=$1 AND m.user_id=auth.uid() AND m.role='scorer' AND m.status='approved' AND s.status='approved' AND s.round_id=$2 AND s.group_id=$3))
+ THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='SCORER_REQUIRED'; END IF;
+ IF NOT c.sync_enabled OR c.protocol<>1 OR c.status<>'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;
+ IF $4 IS NULL OR $4<>c.sync_revision THEN RAISE EXCEPTION USING ERRCODE='40001', MESSAGE='REVISION_CONFLICT'; END IF;
+ SELECT * INTO r FROM public.contest_rounds cr WHERE cr.id=$2 AND cr.contest_id=$1;
+ IF r.id IS NULL OR NOT EXISTS(SELECT 1 FROM public.contest_groups g WHERE g.id=$3 AND g.round_id=$2 AND g.contest_id=$1)
+ THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_GROUP'; END IF;
+ -- A missing course/assignment/cell or a clear cannot certify a completed card.
+ IF jsonb_array_length(public.sync_course(coalesce(r.course_data,c.course))->'holes')=0 OR
+ NOT EXISTS(SELECT 1 FROM public.round_player_assignments a JOIN public.contest_players p ON p.id=a.player_id WHERE a.contest_id=$1 AND a.round_id=$2 AND a.group_id=$3 AND p.status='active') OR
+ EXISTS(SELECT 1 FROM public.round_player_assignments a JOIN public.contest_players p ON p.id=a.player_id
+ CROSS JOIN LATERAL jsonb_array_elements(public.sync_course(coalesce(r.course_data,c.course))->'holes') h
+ LEFT JOIN LATERAL (SELECT e.strokes FROM public.score_events e WHERE e.contest_id=$1 AND e.round_id=$2 AND e.player_id=a.player_id AND e.hole=(h->>'num')::integer AND e.cell_version IS NOT NULL ORDER BY e.cell_version DESC LIMIT 1) cell ON true
+ WHERE a.contest_id=$1 AND a.round_id=$2 AND a.group_id=$3 AND p.status='active' AND cell.strokes IS NULL)
+ THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='INCOMPLETE_GROUP'; END IF;
+ SELECT coalesce(max(e.contest_revision),0) INTO score_rev FROM public.score_events e JOIN public.round_player_assignments a ON a.contest_id=e.contest_id AND a.round_id=e.round_id AND a.player_id=e.player_id WHERE a.contest_id=$1 AND a.round_id=$2 AND a.group_id=$3;
+ INSERT INTO public.group_submissions(contest_id,round_id,group_id,score_revision,assignment_revision,submitted_by)
+ VALUES($1,$2,$3,score_rev,r.assignment_revision,auth.uid()) ON CONFLICT ON CONSTRAINT group_submissions_pkey DO UPDATE
+ SET score_revision=excluded.score_revision,assignment_revision=excluded.assignment_revision,submitted_by=excluded.submitted_by,submitted_at=now();
+ UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=$1 RETURNING * INTO c;
+ RETURN jsonb_build_object('status','submitted','revision',c.sync_revision);
+END $$;
+CREATE FUNCTION public.finalize_tournament(contest_id uuid, expected_revision bigint) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE c public.contests;
+BEGIN
+ SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;
+ IF auth.uid() IS NULL OR c.id IS NULL OR c.owner_id<>auth.uid() OR coalesce((auth.jwt()->>'is_anonymous')::boolean,false)
+ THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='HOST_REQUIRED'; END IF;
+ IF NOT c.sync_enabled OR c.protocol<>1 OR c.status<>'active' THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;
+ IF $2 IS NULL OR $2<>c.sync_revision THEN RAISE EXCEPTION USING ERRCODE='40001', MESSAGE='REVISION_CONFLICT'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.contest_groups cg WHERE cg.contest_id=$1) OR
+ EXISTS(SELECT 1 FROM public.contest_rounds r WHERE r.contest_id=$1 AND NOT EXISTS(SELECT 1 FROM public.contest_groups g WHERE g.round_id=r.id)) OR
+ EXISTS(SELECT 1 FROM public.contest_rounds r CROSS JOIN public.contest_players p WHERE r.contest_id=$1 AND p.contest_id=$1 AND p.status='active' AND NOT EXISTS(SELECT 1 FROM public.round_player_assignments a WHERE a.contest_id=$1 AND a.round_id=r.id AND a.player_id=p.id)) OR
+ EXISTS(SELECT 1 FROM public.contest_groups g JOIN public.contest_rounds r ON r.id=g.round_id
+ LEFT JOIN public.group_submissions s ON s.contest_id=g.contest_id AND s.round_id=g.round_id AND s.group_id=g.id
+ WHERE g.contest_id=$1 AND (s.group_id IS NULL OR NOT (s.submitted_by=c.owner_id OR EXISTS(SELECT 1 FROM public.contest_memberships m JOIN public.round_scorer_scopes sc ON sc.contest_id=m.contest_id AND sc.user_id=m.user_id WHERE m.contest_id=$1 AND m.user_id=s.submitted_by AND m.role='scorer' AND m.status='approved' AND sc.round_id=g.round_id AND sc.group_id=g.id AND sc.status='approved')) OR s.assignment_revision<>r.assignment_revision OR s.score_revision<>
+ (SELECT coalesce(max(e.contest_revision),0) FROM public.score_events e JOIN public.round_player_assignments a ON a.contest_id=e.contest_id AND a.round_id=e.round_id AND a.player_id=e.player_id WHERE a.contest_id=$1 AND a.round_id=g.round_id AND a.group_id=g.id)))
+ THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SUBMISSIONS_REQUIRED'; END IF;
+ UPDATE public.contests SET status='completed',sync_revision=sync_revision+1 WHERE id=$1 RETURNING * INTO c;
+ -- Freeze GS14's deadline at first completion; later link creation cannot extend it.
+ -- Completion projection/expiry is updated inside the contest trigger.
+ RETURN jsonb_build_object('status','completed','revision',c.sync_revision);
+END $$;
+REVOKE ALL ON FUNCTION public.submit_group(uuid,uuid,uuid,bigint),public.finalize_tournament(uuid,bigint) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.submit_group(uuid,uuid,uuid,bigint),public.finalize_tournament(uuid,bigint) TO authenticated,service_role;
+
+-- Private bounded-window counters; no caller-supplied IP or budget scope.
+CREATE TABLE public.sync_join_budgets(scope text PRIMARY KEY, window_start timestamptz NOT NULL, attempts integer NOT NULL CHECK(attempts BETWEEN 0 AND 301));
+ALTER TABLE public.sync_join_budgets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sync_join_budgets FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON public.sync_join_budgets FROM PUBLIC,anon,authenticated;
+GRANT ALL ON public.sync_join_budgets TO service_role;
+CREATE OR REPLACE FUNCTION public.request_join(code text, display_name text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE cid uuid; uid uuid:=auth.uid(); n integer; bucket timestamptz:=date_trunc('minute',clock_timestamp()); k text;
+BEGIN
+ IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;
+ IF display_name IS NULL OR length(btrim(display_name)) NOT BETWEEN 1 AND 80 OR code IS NULL OR length(code)>32 THEN
+ RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;
+ -- One shared budget covers fresh identities and nonexistent codes. Generic
+ -- responses commit the counters; raising an exception would roll them back.
+ FOREACH k IN ARRAY ARRAY['global','actor:'||uid::text] LOOP
+ INSERT INTO public.sync_join_budgets AS b VALUES(k,bucket,1) ON CONFLICT(scope) DO UPDATE SET
+ attempts=CASE WHEN b.window_start=bucket THEN least(b.attempts+1,301) ELSE 1 END,window_start=bucket RETURNING attempts INTO n;
+ IF n>(CASE WHEN k='global' THEN 300 ELSE 5 END) THEN RETURN '{"status":"pending"}'::jsonb; END IF;
+ END LOOP;
+ SELECT id INTO cid FROM public.contests WHERE invite_code=upper(btrim(code)) AND protocol=1 AND sync_enabled AND status='active' FOR UPDATE;
+ IF cid IS NOT NULL THEN
+ k:='event:'||cid::text;
+ INSERT INTO public.sync_join_budgets AS b VALUES(k,bucket,1) ON CONFLICT(scope) DO UPDATE SET
+ attempts=CASE WHEN b.window_start=bucket THEN least(b.attempts+1,301) ELSE 1 END,window_start=bucket RETURNING attempts INTO n;
+ IF n<=60 THEN
+ INSERT INTO public.contest_join_requests(contest_id,requester,requested_name) VALUES(cid,uid,btrim(display_name)) ON CONFLICT (contest_id,requester) WHERE status='pending' DO NOTHING;
+ END IF;
+ END IF;
+ RETURN '{"status":"pending"}'::jsonb;
+END $$;
+
+CREATE FUNCTION public.guard_sync_completion() RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog AS $$
+BEGIN
+ IF OLD.protocol=1 AND NEW.status IS DISTINCT FROM OLD.status AND current_user NOT IN ('postgres','service_role') THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='USE_FINALIZE_RPC'; END IF;
+ RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.guard_sync_completion() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER m4b_completion_guard BEFORE UPDATE ON public.contests FOR EACH ROW EXECUTE FUNCTION public.guard_sync_completion();
 
 COMMIT;
