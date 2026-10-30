@@ -1,4 +1,4 @@
-import { projectScore } from '../services/score-projection';
+import { projectScore, pendingConfirmation } from '../services/score-projection';
 import type { Entry } from '../services/score-outbox';
 import { useEffect, useState } from 'react';
 import { Alert, AppState, Pressable, Text, TextInput, View } from 'react-native';
@@ -34,7 +34,11 @@ export function OnlineGuestScorecard() {
 function ApprovedScorecard({ id, onError }: { id: string; onError: (message: string) => void }) {
   const event = useOnlineStore(s => s.events[id]);
   const [entries, setEntries] = useState<Entry[]>([]);
-  async function inspectQueue() { const queue = await onlineQueue(); setEntries(queue.entries.filter(e => e.draft.contest_id === id)); }
+  async function inspectQueue(awaitingFetch = false) {
+    const queue = await onlineQueue();
+    const durable = queue.entries.filter(e => e.draft.contest_id === id);
+    setEntries(previous => awaitingFetch ? pendingConfirmation(previous, durable) : durable);
+  }
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   useEffect(() => {
     let stop: (() => void) | undefined;
@@ -50,9 +54,9 @@ function ApprovedScorecard({ id, onError }: { id: string; onError: (message: str
   if (!event) return null;
   const { snapshot, membership } = event;
   return <View><Text style={{ color: COLORS.text }}>{snapshot.name} · Approved online scorecard</Text>
-    <Pressable accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => { void replayOnlineScores().then(() => client.discover()).then(inspectQueue).catch(() => onError('Waiting to sync. Drafts retained.')); }}><Text style={{ color: COLORS.primary }}>Retry queued scores</Text></Pressable>
+    <Pressable accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => { void replayOnlineScores().then(() => client.discover()).then(() => inspectQueue()).catch(() => onError('Waiting to sync. Drafts retained.')); }}><Text style={{ color: COLORS.primary }}>Retry queued scores</Text></Pressable>
     {entries.map(entry => <View key={entry.id}><Text style={{ color: COLORS.text }}>Hole {entry.draft.hole}: {entry.state} · round {entry.draft.round_id} · yours {entry.draft.strokes ?? 'clear'}{entry.receipt ? ` · current ${entry.receipt.strokes ?? 'clear'}` : ''}</Text>
-      {entry.state === 'conflict' && (['keep-current', 'use-mine'] as const).map(choice => <Pressable key={choice} accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => Alert.alert('Resolve score conflict?', 'Later queued edits for this hole will be cancelled. Review and enter them again.', [{ text: 'Cancel' }, { text: 'Confirm', onPress: () => { void resolveOnlineConflict(entry.id, choice).then(() => client.discover()).then(inspectQueue).catch(() => onError('Could not save conflict choice')); } }])}><Text style={{ color: COLORS.primary }}>{choice === 'keep-current' ? 'Keep current' : 'Use my score'}</Text></Pressable>)}
+      {entry.state === 'conflict' && (['keep-current', 'use-mine'] as const).map(choice => <Pressable key={choice} accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => Alert.alert('Resolve score conflict?', 'Later queued edits for this hole will be cancelled. Review and enter them again.', [{ text: 'Cancel' }, { text: 'Confirm', onPress: () => { void resolveOnlineConflict(entry.id, choice).then(() => client.discover()).then(() => inspectQueue()).catch(() => onError('Could not save conflict choice')); } }])}><Text style={{ color: COLORS.primary }}>{choice === 'keep-current' ? 'Keep current' : 'Use my score'}</Text></Pressable>)}
     </View>)}
     {snapshot.rounds.map(round => <View key={round.id}>
       <Text style={{ color: COLORS.text }}>{round.name} · {round.course.name || 'Course needs repair'}</Text>
@@ -78,10 +82,11 @@ function ApprovedScorecard({ id, onError }: { id: string; onError: (message: str
                 onError('Saved on this device. Waiting to sync.');
                 try {
                   await replayOnlineScores();
+                  await inspectQueue(true);
                   await client.discover();
                   await inspectQueue();
                   onError('Review the current score and queue below.');
-                } catch { await inspectQueue(); onError('Waiting to sync. Saved drafts are retained.'); }
+                } catch { await inspectQueue(true); onError('Waiting for confirmation. Saved drafts are retained.'); }
               })().catch(() => onError('Could not save on this device. Your entered score is retained; try again.'));
             }}><Text style={{ color: COLORS.primary }}>Save hole {cell.hole}</Text></Pressable>
           </View>;

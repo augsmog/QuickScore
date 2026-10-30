@@ -42,7 +42,13 @@ jobs:
       - name: Start disposable PG17, Auth, PostgREST and Realtime (never linked)
         working-directory: backend/scoresnap
         run: |
-          bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit
+          # CLI start prints disposable API credentials on success; retain only
+          # a private runner-temporary log and never upload or print its contents.
+          if ! bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit > "$RUNNER_TEMP/xdevice-start.log" 2>&1; then
+            echo "Disposable stack startup failed"
+            docker ps --format '{{.Names}} {{.Status}}'
+            exit 1
+          fi
           supabase db reset
       - name: Four identities against integrated M4a and M4b
         working-directory: scoresnap

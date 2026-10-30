@@ -8,3 +8,9 @@ export function projectScore(target: Target, current: number | null, entries: En
   const latest = matching[matching.length - 1];
   return latest ? { strokes: latest.draft.strokes, state: 'queued' } : { strokes: current, state: 'current' };
 }
+/** Keep accepted drafts visible until an authorized fetch confirms server state. */
+export function pendingConfirmation(previous: Entry[], durable: Entry[]): Entry[] {
+  const updated = new Map(durable.map(e => [e.id, e]));
+  const known = new Set(previous.map(e => e.id));
+  return [...previous.map(e => updated.get(e.id) ?? e), ...durable.filter(e => !known.has(e.id))];
+}

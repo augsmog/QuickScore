@@ -58,12 +58,12 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
       <Text style={{ color: COLORS.text }}>{message || (remote ? 'Current online snapshot' : 'Checking membership')}</Text>
       {button('Retry sync', () => { void replayOnlineScores().then(refresh).catch(() => setMessage('Waiting to sync. Queued scores are retained.')); })}
       {entries.map(entry => <View key={entry.id}>
-        <Text accessibilityRole="alert" style={{ color: COLORS.text }}>Hole {entry.draft.hole}: {entry.state === 'queued' ? 'Waiting to sync' : entry.state === 'denied' ? 'Sync denied. Draft retained.' : `Conflict · current ${entry.receipt?.strokes ?? 'clear'} · yours ${entry.draft.strokes ?? 'clear'}`}</Text>
+        <Text accessibilityRole="alert" style={{ color: COLORS.text }}>Round {entry.draft.round_id} · Hole {entry.draft.hole}: {entry.state === 'queued' ? 'Waiting to sync' : entry.state === 'denied' ? 'Sync denied. Draft retained.' : `Conflict · current ${entry.receipt?.strokes ?? 'clear'} · yours ${entry.draft.strokes ?? 'clear'}`}</Text>
         {entry.state === 'conflict' && <>{button('Keep current', () => resolve(entry, 'keep-current'))}{button('Use my score', () => resolve(entry, 'use-mine'))}</>}
       </View>)}
       {requests.map(request => <View key={request.id}>
         <Text style={{ color: COLORS.text }}>{request.requested_name} requests a player slot</Text>
-        {(remote?.snapshot.rounds.flatMap(r => r.players) ?? []).map(player => <View key={player.id}>{button(`Approve as ${player.displayName}`, () => {
+        {Array.from(new Map((remote?.snapshot.rounds.flatMap(r => r.players) ?? []).map(player => [player.id, player])).values()).map(player => <View key={player.id}>{button(`Approve as ${player.displayName}`, () => {
           Alert.alert('Approve player transfer?', 'The previous identity will lose access to this slot.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Approve', onPress: () => { void client.decide(request.id, true, player.id).then(refresh).catch(() => setMessage('Approval failed. Try again.')); } }]);
         })}</View>)}
         {button('Reject request', () => { void client.decide(request.id, false, null).then(refresh).catch(() => setMessage('Decision failed. Try again.')); })}
