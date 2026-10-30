@@ -22,15 +22,21 @@ export function syncV1(call: (name: string, args: Record<string, unknown>) => Pr
   const known = new Set<string>();
   const epochs = new Map<string, number>();
   let discovery = 0;
+  // Membership absence revokes membership proof, not an independent owner proof.
+  const membershipEpochs = new Map<string, number>();
+  const hosts = new Set<string>();
+  function denyMembership(id: string) {
+    membershipEpochs.set(id, (membershipEpochs.get(id) ?? 0) + 1);
+    if (!hosts.has(id)) repair(id, null, null);
+  }
   function deny(id: string) {
     epochs.set(id, (epochs.get(id) ?? 0) + 1);
+    hosts.delete(id);
     known.add(id); // retain the invalidation marker after deleting the view
     repair(id, null, null);
   }
   async function restore(id: string, member: Membership) {
-    const epoch = generation, authorization = epochs.get(id) ?? 0;
-    known.add(id);
-    const current = () => epoch === generation && authorization === (epochs.get(id) ?? 0);
+    const current = guard(id, member.role === 'host');
     try {
       const cap = await call('sync_capabilities', { contest_id: id }) as SyncCapabilitiesV1;
       if (!current()) throw Error('Identity changed during restore or authorization invalidated');
@@ -39,29 +45,30 @@ export function syncV1(call: (name: string, args: Record<string, unknown>) => Pr
       if (!current()) throw Error('Identity changed during restore or authorization invalidated');
       if (snapshot?.contest_id !== id || !Number.isInteger(snapshot.revision) || !Array.isArray(snapshot.rounds) || !canSync(true, snapshot.capabilities, id)) throw Object.assign(Error('Invalid online snapshot'), { code: '22023' });
       known.add(id);
+      if (member.role === 'host') hosts.add(id);
       repair(id, member, snapshot); return snapshot;
     } catch (error: any) {
       if (current() && isSyncDenial(error)) deny(id);
       throw error;
     }
   }
-  function guard(id: string) {
+  function guard(id: string, host = false) {
     known.add(id);
-    const identity = generation, authorization = epochs.get(id) ?? 0;
-    return () => identity === generation && authorization === (epochs.get(id) ?? 0);
+    const identity = generation, authorization = epochs.get(id) ?? 0, membership = membershipEpochs.get(id) ?? 0;
+    return () => identity === generation && authorization === (epochs.get(id) ?? 0) && (host || membership === (membershipEpochs.get(id) ?? 0));
   }
-  return { restore, deny, guard, invalidate() { generation++; discovery++; known.clear(); epochs.clear(); }, async discover() {
-    const epoch = generation, request = ++discovery, started = new Map(epochs);
+  return { restore, deny, guard, invalidate() { generation++; discovery++; known.clear(); epochs.clear(); membershipEpochs.clear(); hosts.clear(); }, async discover() {
+    const epoch = generation, request = ++discovery, started = new Map(epochs), membershipsStarted = new Map(membershipEpochs);
     const status = await call('my_sync_status', {}) as MySyncStatusV1;
     if (epoch !== generation) throw Error('Identity changed during discovery');
     if (status?.api_version !== 1 || !Array.isArray(status.memberships) || !Array.isArray(status.requests)) throw Error('Unsupported discovery');
     const approved = new Set(status.memberships.filter(m => m.status === 'approved').map(m => m.contest_id));
-    for (const id of known) if (!approved.has(id)) { deny(id); }
+    for (const id of known) if (!approved.has(id)) { denyMembership(id); }
     for (const member of status.memberships) if (member.status !== 'approved') deny(member.contest_id);
     for (const member of status.memberships) {
       if (epoch !== generation) throw Error('Identity changed during discovery');
       if (request !== discovery) return status;
-      if (member.status === 'approved' && (started.get(member.contest_id) ?? 0) === (epochs.get(member.contest_id) ?? 0)) await restore(member.contest_id, member);
+      if (member.status === 'approved' && (started.get(member.contest_id) ?? 0) === (epochs.get(member.contest_id) ?? 0) && (membershipsStarted.get(member.contest_id) ?? 0) === (membershipEpochs.get(member.contest_id) ?? 0)) await restore(member.contest_id, member);
 
     }
     return status;

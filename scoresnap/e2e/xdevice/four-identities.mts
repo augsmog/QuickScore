@@ -10,7 +10,7 @@ import WebSocket from 'ws';
 const outboxModule = await import(process.env.XDEVICE_OUTBOX_MODULE || '../../src/services/score-outbox.ts');
 const { scoreOutbox } = outboxModule.default ?? outboxModule;
 import * as onlineModule from '../../src/services/online-client';
-const { onlineClient, foregroundRetry, foregroundSync, hostOrDiscover } = (onlineModule as any).default ?? onlineModule;
+const { onlineClient, foregroundRetry, foregroundSync, hostOrDiscover, rootRefresh } = (onlineModule as any).default ?? onlineModule;
 import * as syncModule from '../../src/services/sync-v1';
 const { syncV1, snapshotScore, revisionHint, loadSyncCapability } = (syncModule as any).default ?? syncModule;
 import * as projectionModule from '../../src/services/score-projection';
@@ -95,13 +95,46 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
   // fixture uses SQL; enrollment and player approval above never do.
   sql(`UPDATE public.contest_memberships SET role='scorer',player_id=NULL WHERE contest_id='${contest}' AND user_id='${users[3].id}';`);
   // Owner restores directly: discovery intentionally lists memberships only.
-  await clients[0].restore(contest,{status:'approved',role:'host'} as any);
+  await clients[0].rejoinHost(contest);
   for(let i=1;i<4;i++) await clients[i].discover();
   for(const name of ['list_join_requests','fetch_snapshot']){
     failures.set(0,name);await assert.rejects(hostOrDiscover(clients[0],contest),/transport offline/);
     assert(views[0].has(contest),'production host refresh must retain authorized view offline');
   }
   failures.clear();
+  let rootReplays=0;
+  const root = rootRefresh(async()=>users[0].id,()=>views[0].has(contest)?[contest]:[],clients[0],async()=>{rootReplays++});
+  for(const name of ['list_join_requests','sync_capabilities','fetch_snapshot']) {
+    failures.set(0,name);
+    await assert.rejects(root(),/transport offline/);
+    assert(views[0].has(contest),'root discovery must retain owner-host during transport failure');
+    failures.clear();
+    await root();
+    assert(views[0].has(contest),'healthy root poll must recover without an open host panel');
+  }
+  assert.equal(rootReplays,3);
+  // Hold a real authorized host-proof HTTP response across membership-only
+  // discovery, in both orders. No synthetic authorization is substituted.
+  for(const discoveryFirst of [true,false]) {
+    let release!:()=>void, arrived!:()=>void;
+    const ready=new Promise<void>(resolve=>arrived=resolve);
+    const gate=new Promise<void>(resolve=>release=resolve);
+    let hostView:any=null;
+    const overlapping=onlineClient(async(name:string,args:any)=>{
+      const data=await rpc(0)(name,args);
+      if(name==='list_join_requests'){arrived();await gate;}
+      return {data,error:null};
+    },(_id:string,_member:any,snapshot:any)=>{hostView=snapshot});
+    const proof=rootRefresh(async()=>users[0].id,()=>[contest],overlapping,async()=>{})();
+    await ready;
+    if(discoveryFirst)await overlapping.discover();
+    release();await proof;
+    if(!discoveryFirst)await overlapping.discover();
+    assert(hostView,'owner-host proof survives membership absence in either response order');
+    overlapping.deny(contest);
+    assert.equal(hostView,null,'explicit denial still clears owner-host');
+  }
+  console.log('PASS real root foreground host retention/recovery and overlapping owner proofs in both response orders');
   assert(users.every((_,i)=>views[i].has(contest)));
   const first=views[0].get(contest), r1=first.rounds[0].id;
   assert.equal(first.rounds[1].course.holes[0].par,5);
@@ -119,7 +152,7 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
     return receipt;
   }));
   const retries=users.map((user,i)=>foregroundRetry(async()=>user.id,async()=>boxes[i].replay(),async()=>{
-    if(i===0)await clients[i].rejoinHost(contest);else await clients[i].discover();
+    if(i===0)await rootRefresh(async()=>user.id,()=>views[i].has(contest)?[contest]:[],clients[i],async()=>boxes[i].replay())();else await clients[i].discover();
     return views[i].get(contest)??null;
   }));
   const enqueue=async(i:number,round:string,player:string,hole:number,strokes:number|null)=>{

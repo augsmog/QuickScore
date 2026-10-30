@@ -4,7 +4,7 @@ import { CROSS_DEVICE_SHARING_ENABLED } from "../src/config/features";
 import { REAL_AUTH_CONFIGURED } from "../src/config/auth";
 import { supabase } from "../src/db/supabase";
 import { authLifecycle } from "../src/services/auth-lifecycle";
-import { foregroundSync } from "../src/services/online-client";
+import { foregroundSync, rootRefresh } from "../src/services/online-client";
 import { client, replayOnlineScores } from "../src/services/cross-device";
 import { useOnlineStore } from "../src/stores/online-store";
 import { CAPTCHA_MODE } from "../src/config/captcha";
@@ -127,16 +127,11 @@ export default Sentry.wrap(function RootLayout() {
     if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
     const report = () => useOnlineStore.setState({ error: "Online sync paused. Your queued scores remain on this device." });
     let polling: ReturnType<typeof foregroundSync> | undefined;
-    const refresh = async () => {
+    const refresh = rootRefresh(async () => {
       const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
-      if (!data.session) return null;
-      const hosts = Object.entries(useOnlineStore.getState().events).filter(([, e]) => e.membership.role === 'host').map(([id]) => id);
-      await client.discover();
-      for (const id of hosts) await client.rejoinHost(id);
-      await replayOnlineScores();
-      return null;
-    };
+      return data.session?.user.id ?? null;
+    }, () => Object.entries(useOnlineStore.getState().events).filter(([, e]) => e.membership.role === 'host').map(([id]) => id), client, replayOnlineScores);
     const lifecycle = authLifecycle(supabase.auth, initialize, report);
     const change = (state: string) => {
       polling?.stop(); polling = undefined;

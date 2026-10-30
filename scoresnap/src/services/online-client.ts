@@ -22,7 +22,7 @@ export function onlineClient(rpc: OnlineRpc, repair: (contest: string, membershi
     },
     listRequests: (contest: string) => call('list_join_requests', { contest_id: contest }),
     async rejoinHost(contest: string) {
-      const epoch = generation, authorized = v1.guard(contest);
+      const epoch = generation, authorized = v1.guard(contest, true);
       try {
         // M2 permits owner-hosts without an explicit membership row. The host-only
         // request RPC proves that role; a profile/provider cache never does.
@@ -103,4 +103,18 @@ export async function hostOrDiscover<T>(api: { rejoinHost(contest: string): Prom
     await api.discover();
     return null;
   }
+}
+
+/** Root foreground orchestration, also exercised against the disposable stack. */
+export function rootRefresh(identity: () => Promise<string | null>, hosts: () => string[], api: { discover(): Promise<unknown>; rejoinHost(id: string): Promise<unknown> }, replay: (actor: string) => Promise<unknown>) {
+  return async () => {
+    const actor = await identity();
+    if (!actor) return null;
+    const ids = hosts();
+    await api.discover();
+    for (const id of ids) await api.rejoinHost(id);
+    if (await identity() !== actor) throw Error('Identity changed during reconnect');
+    await replay(actor);
+    return null;
+  };
 }
