@@ -41,7 +41,7 @@ Confirm scores and side-bet details after scanning. Pro unlocks settlement; mult
 ## Description (4000 char max)
 
 ```
-SnapScore Golf is the fastest way to track golf bets and settle up after your round. Snap a photo of your scorecard, verify the scores, and get instant settlement calculations for every game your group is playing — no manual entry required.
+SnapScore Golf is the fastest way to track golf bets and settle up after your round. Snap a photo of your scorecard, verify the scores, and get instant settlement calculations for your group’s games — no manual entry required.
 
 SCORECARD SCANNING — A FIRST IN GOLF APPS
 Point your camera at any printed scorecard. Our OCR engine reads every score automatically, then lets you verify before locking anything in. No other golf betting app does this.
@@ -113,7 +113,7 @@ Show: Scorecard screen with numpad and player cards
 
 ### Screen 4 — Settlement
 **Caption:** "Settle Up Instantly"
-**Subcaption:** "Every game calculated. No napkin math."
+**Subcaption:** "Bets calculated. No napkin math."
 Show: Settlement screen with transaction list and net totals
 
 ### Screen 5 — Statistics

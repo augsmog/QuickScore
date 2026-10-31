@@ -80,10 +80,10 @@ test('AC-PW5 legal strings and actual Linking handlers',()=>{
  const h=screen(),tree=h.render();button(tree,C.terms).props.onPress();button(tree,C.privacy).props.onPress();
  expect(h.openURL.mock.calls).toEqual([[TERMS_URL],[PRIVACY_URL]]);
 });
-test('AC-PW6 contest/library/live without a library body or game-count claims',()=>{
+test('AC-PW6 both tiers and periods remain count-free without approved placements',()=>{
  const countClaim=/\d+\s*\+?\s*(game|games|mode|modes|ways to play|ways)/i;
- for(const period of ['year','month']){
-  const v=view(period);
+ for(const period of ['year','month'])for(const tier of ['pro','td']){
+  const v=view(period,tier);
   expect(v.values.map(v=>v.icon)).toEqual(['contest','library','live']);
   expect(v.values.find(v=>v.icon==='library').body).toBeFalsy();
   expect(v.values.every(v=>!/scan/i.test(v.body))).toBe(true);
@@ -91,7 +91,7 @@ test('AC-PW6 contest/library/live without a library body or game-count claims',(
    expect(value).not.toMatch(countClaim);
    expect(value).not.toMatch(/ways to play/i);
   }
-  const h=screen();h.render();h.states[0]={tier:'pro',period};
+  const h=screen();h.render();h.states[0]={tier,period};
   const rendered=text(h.render());
   expect(rendered).not.toMatch(countClaim);
   expect(rendered).not.toMatch(/ways to play/i);
