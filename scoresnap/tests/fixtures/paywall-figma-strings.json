@@ -1,0 +1,470 @@
+{
+  "1:164": {
+    "1:172": {
+      "id": "1:172",
+      "path": "Content > Top bar",
+      "characters": "Restore Purchases",
+      "font": "Medium",
+      "size": 14,
+      "fill": "#14532d"
+    },
+    "1:174": {
+      "id": "1:174",
+      "path": "Content > Header",
+      "characters": "SNAPSCORE PRO",
+      "font": "Semi Bold",
+      "size": 12,
+      "fill": "#5b665f"
+    },
+    "1:175": {
+      "id": "1:175",
+      "path": "Content > Header",
+      "characters": "Run the game. We settle it.",
+      "font": "Bold",
+      "size": 28,
+      "fill": "#14201a"
+    },
+    "1:185": {
+      "id": "1:185",
+      "path": "Content > Value rows > Value / Easiest contest setup > Copy",
+      "characters": "Easiest contest setup",
+      "font": "Semi Bold",
+      "size": 15,
+      "fill": "#14201a"
+    },
+    "1:186": {
+      "id": "1:186",
+      "path": "Content > Value rows > Value / Easiest contest setup > Copy",
+      "characters": "Build any contest in a few taps. Settlement is automatic.",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:192": {
+      "id": "1:192",
+      "path": "Content > Value rows > Value / Deep game library > Copy",
+      "characters": "Deep game library",
+      "font": "Semi Bold",
+      "size": 15,
+      "fill": "#14201a"
+    },
+    "1:193": {
+      "id": "1:193",
+      "path": "Content > Value rows > Value / Deep game library > Copy",
+      "characters": "30 game modes, from Skins and Nassau to Wolf and Vegas.",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:199": {
+      "id": "1:199",
+      "path": "Content > Value rows > Value / Live tracking anywhere > Copy",
+      "characters": "Live tracking anywhere",
+      "font": "Semi Bold",
+      "size": 15,
+      "fill": "#14201a"
+    },
+    "1:200": {
+      "id": "1:200",
+      "path": "Content > Value rows > Value / Live tracking anywhere > Copy",
+      "characters": "Follow every score live, on or off the course.",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:201": {
+      "id": "1:201",
+      "path": "Content",
+      "characters": "Plus unlimited scorecard scans.",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:207": {
+      "id": "1:207",
+      "path": "Content > Plans > Plan / Free > Text > Title row",
+      "characters": "Free",
+      "font": "Semi Bold",
+      "size": 16,
+      "fill": "#14201a"
+    },
+    "1:209": {
+      "id": "1:209",
+      "path": "Content > Plans > Plan / Free > Text > Title row > Tag / Current plan",
+      "characters": "Current plan",
+      "font": "Semi Bold",
+      "size": 11,
+      "fill": "#5b665f"
+    },
+    "1:210": {
+      "id": "1:210",
+      "path": "Content > Plans > Plan / Free > Text",
+      "characters": "Basic modes \u00b7 3 scans a month",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:216": {
+      "id": "1:216",
+      "path": "Content > Plans > Plan / Pro > Text > Title row",
+      "characters": "Pro",
+      "font": "Semi Bold",
+      "size": 16,
+      "fill": "#14201a"
+    },
+    "1:218": {
+      "id": "1:218",
+      "path": "Content > Plans > Plan / Pro > Text > Title row > Tag / Recommended",
+      "characters": "Recommended",
+      "font": "Semi Bold",
+      "size": 11,
+      "fill": "#14532d"
+    },
+    "1:219": {
+      "id": "1:219",
+      "path": "Content > Plans > Plan / Pro > Text",
+      "characters": "or $3.99/month",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:221": {
+      "id": "1:221",
+      "path": "Content > Plans > Plan / Pro > Price",
+      "characters": "$24.99/year",
+      "font": "Bold",
+      "size": 16,
+      "fill": "#14201a"
+    },
+    "1:223": {
+      "id": "1:223",
+      "path": "Content > Plans > Plan / Pro > Price > Tag / Trial",
+      "characters": "7-day free trial",
+      "font": "Semi Bold",
+      "size": 11,
+      "fill": "#14532d"
+    },
+    "1:228": {
+      "id": "1:228",
+      "path": "Content > Plans > Plan / Tournament Director > Text > Title row",
+      "characters": "Tournament Director",
+      "font": "Semi Bold",
+      "size": 16,
+      "fill": "#14201a"
+    },
+    "1:229": {
+      "id": "1:229",
+      "path": "Content > Plans > Plan / Tournament Director > Text",
+      "characters": "Everything in Pro, plus multiple groups and rounds.",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:230": {
+      "id": "1:230",
+      "path": "Content > Plans > Plan / Tournament Director > Text",
+      "characters": "or $12.99/month",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:232": {
+      "id": "1:232",
+      "path": "Content > Plans > Plan / Tournament Director > Price",
+      "characters": "$79.99/year",
+      "font": "Bold",
+      "size": 16,
+      "fill": "#14201a"
+    },
+    "1:234": {
+      "id": "1:234",
+      "path": "Content > Plans > Plan / Tournament Director > Price > Tag / Trial",
+      "characters": "7-day free trial",
+      "font": "Semi Bold",
+      "size": 11,
+      "fill": "#14532d"
+    },
+    "1:237": {
+      "id": "1:237",
+      "path": "Content > CTA > Button / Primary",
+      "characters": "Start 7-day free trial",
+      "font": "Semi Bold",
+      "size": 17,
+      "fill": "#ffffff"
+    },
+    "1:238": {
+      "id": "1:238",
+      "path": "Content > CTA",
+      "characters": "Then $24.99/year. Cancel anytime.",
+      "font": "Medium",
+      "size": 13,
+      "fill": "#14201a"
+    },
+    "1:239": {
+      "id": "1:239",
+      "path": "Content > CTA",
+      "characters": "One trial per Apple ID across Pro and Tournament Director.",
+      "font": "Regular",
+      "size": 11,
+      "fill": "#5b665f"
+    },
+    "1:240": {
+      "id": "1:240",
+      "path": "Content",
+      "characters": "Payment is charged to your Apple Account at confirmation of purchase, or after any eligible trial. Subscription auto-renews unless cancelled at least 24 hours before the end of the period. Manage or cancel in Account Settings.",
+      "font": "Regular",
+      "size": 11,
+      "fill": "#5b665f"
+    },
+    "1:242": {
+      "id": "1:242",
+      "path": "Content > Footer links",
+      "characters": "Terms of Use",
+      "font": "Medium",
+      "size": 12,
+      "fill": "#14532d"
+    },
+    "1:243": {
+      "id": "1:243",
+      "path": "Content > Footer links",
+      "characters": "\u00b7",
+      "font": "Regular",
+      "size": 12,
+      "fill": "#a39c8e"
+    },
+    "1:244": {
+      "id": "1:244",
+      "path": "Content > Footer links",
+      "characters": "Privacy Policy",
+      "font": "Medium",
+      "size": 12,
+      "fill": "#14532d"
+    }
+  },
+  "1:247": {
+    "1:255": {
+      "id": "1:255",
+      "path": "Content > Top bar",
+      "characters": "Restore Purchases",
+      "font": "Medium",
+      "size": 14,
+      "fill": "#14532d"
+    },
+    "1:257": {
+      "id": "1:257",
+      "path": "Content > Header",
+      "characters": "SNAPSCORE PRO",
+      "font": "Semi Bold",
+      "size": 12,
+      "fill": "#5b665f"
+    },
+    "1:258": {
+      "id": "1:258",
+      "path": "Content > Header",
+      "characters": "Run the game. We settle it.",
+      "font": "Bold",
+      "size": 28,
+      "fill": "#14201a"
+    },
+    "1:268": {
+      "id": "1:268",
+      "path": "Content > Value rows > Value / Easiest contest setup > Copy",
+      "characters": "Easiest contest setup",
+      "font": "Semi Bold",
+      "size": 15,
+      "fill": "#14201a"
+    },
+    "1:269": {
+      "id": "1:269",
+      "path": "Content > Value rows > Value / Easiest contest setup > Copy",
+      "characters": "Build any contest in a few taps. Settlement is automatic.",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:275": {
+      "id": "1:275",
+      "path": "Content > Value rows > Value / Deep game library > Copy",
+      "characters": "Deep game library",
+      "font": "Semi Bold",
+      "size": 15,
+      "fill": "#14201a"
+    },
+    "1:276": {
+      "id": "1:276",
+      "path": "Content > Value rows > Value / Deep game library > Copy",
+      "characters": "30 game modes, from Skins and Nassau to Wolf and Vegas.",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:282": {
+      "id": "1:282",
+      "path": "Content > Value rows > Value / Live tracking anywhere > Copy",
+      "characters": "Live tracking anywhere",
+      "font": "Semi Bold",
+      "size": 15,
+      "fill": "#14201a"
+    },
+    "1:283": {
+      "id": "1:283",
+      "path": "Content > Value rows > Value / Live tracking anywhere > Copy",
+      "characters": "Follow every score live, on or off the course.",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:284": {
+      "id": "1:284",
+      "path": "Content",
+      "characters": "Plus unlimited scorecard scans.",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:290": {
+      "id": "1:290",
+      "path": "Content > Plans > Plan / Free > Text > Title row",
+      "characters": "Free",
+      "font": "Semi Bold",
+      "size": 16,
+      "fill": "#14201a"
+    },
+    "1:292": {
+      "id": "1:292",
+      "path": "Content > Plans > Plan / Free > Text > Title row > Tag / Current plan",
+      "characters": "Current plan",
+      "font": "Semi Bold",
+      "size": 11,
+      "fill": "#5b665f"
+    },
+    "1:293": {
+      "id": "1:293",
+      "path": "Content > Plans > Plan / Free > Text",
+      "characters": "Basic modes \u00b7 3 scans a month",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:299": {
+      "id": "1:299",
+      "path": "Content > Plans > Plan / Pro > Text > Title row",
+      "characters": "Pro",
+      "font": "Semi Bold",
+      "size": 16,
+      "fill": "#14201a"
+    },
+    "1:301": {
+      "id": "1:301",
+      "path": "Content > Plans > Plan / Pro > Text > Title row > Tag / Recommended",
+      "characters": "Recommended",
+      "font": "Semi Bold",
+      "size": 11,
+      "fill": "#14532d"
+    },
+    "1:302": {
+      "id": "1:302",
+      "path": "Content > Plans > Plan / Pro > Text",
+      "characters": "or $24.99/year",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:304": {
+      "id": "1:304",
+      "path": "Content > Plans > Plan / Pro > Price",
+      "characters": "$3.99/month",
+      "font": "Bold",
+      "size": 16,
+      "fill": "#14201a"
+    },
+    "1:309": {
+      "id": "1:309",
+      "path": "Content > Plans > Plan / Tournament Director > Text > Title row",
+      "characters": "Tournament Director",
+      "font": "Semi Bold",
+      "size": 16,
+      "fill": "#14201a"
+    },
+    "1:310": {
+      "id": "1:310",
+      "path": "Content > Plans > Plan / Tournament Director > Text",
+      "characters": "Everything in Pro, plus multiple groups and rounds.",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:311": {
+      "id": "1:311",
+      "path": "Content > Plans > Plan / Tournament Director > Text",
+      "characters": "or $79.99/year",
+      "font": "Regular",
+      "size": 13,
+      "fill": "#5b665f"
+    },
+    "1:313": {
+      "id": "1:313",
+      "path": "Content > Plans > Plan / Tournament Director > Price",
+      "characters": "$12.99/month",
+      "font": "Bold",
+      "size": 16,
+      "fill": "#14201a"
+    },
+    "1:316": {
+      "id": "1:316",
+      "path": "Content > CTA > Button / Primary",
+      "characters": "Subscribe \u2014 $3.99/month",
+      "font": "Semi Bold",
+      "size": 17,
+      "fill": "#ffffff"
+    },
+    "1:317": {
+      "id": "1:317",
+      "path": "Content > CTA",
+      "characters": "Renews monthly. Cancel anytime.",
+      "font": "Medium",
+      "size": 13,
+      "fill": "#14201a"
+    },
+    "1:318": {
+      "id": "1:318",
+      "path": "Content > CTA",
+      "characters": "One trial per Apple ID across Pro and Tournament Director.",
+      "font": "Regular",
+      "size": 11,
+      "fill": "#5b665f"
+    },
+    "1:319": {
+      "id": "1:319",
+      "path": "Content",
+      "characters": "Payment is charged to your Apple Account at confirmation of purchase, or after any eligible trial. Subscription auto-renews unless cancelled at least 24 hours before the end of the period. Manage or cancel in Account Settings.",
+      "font": "Regular",
+      "size": 11,
+      "fill": "#5b665f"
+    },
+    "1:321": {
+      "id": "1:321",
+      "path": "Content > Footer links",
+      "characters": "Terms of Use",
+      "font": "Medium",
+      "size": 12,
+      "fill": "#14532d"
+    },
+    "1:322": {
+      "id": "1:322",
+      "path": "Content > Footer links",
+      "characters": "\u00b7",
+      "font": "Regular",
+      "size": 12,
+      "fill": "#a39c8e"
+    },
+    "1:323": {
+      "id": "1:323",
+      "path": "Content > Footer links",
+      "characters": "Privacy Policy",
+      "font": "Medium",
+      "size": 12,
+      "fill": "#14532d"
+    }
+  }
+}
