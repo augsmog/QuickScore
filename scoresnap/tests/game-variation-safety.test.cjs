@@ -118,8 +118,10 @@ test('two groups settle independent Nassau bets without payments crossing groups
  for(const tr of s.transactions) assert.equal(tr.from.slice(-1),tr.to.slice(-1));
  assert.deepEqual(s,calculateSettlement(all,course,['nassau_press'],.01,undefined,{...rules,alohaPressOn18:true},groups));
 `));
-test('published draft docs use the exported count and supported roster',()=>check(`
+test('published draft has no game-count claims; internal inventory retains exported count',()=>check(`
  const fs=await import('node:fs');
  assert.ok(fs.readFileSync('../GAMES_STATUS.md','utf8').includes(t.PLAYABLE_GAME_COUNT+' ways to play'));
- assert.ok(fs.readFileSync('docs/APP_STORE_LISTING.md','utf8').includes(t.PLAYABLE_GAME_COUNT+' ways to play'));
+ const draft=fs.readFileSync('docs/APP_STORE_LISTING.md','utf8');
+ assert.doesNotMatch(draft,/ways to play/i);
+ assert.doesNotMatch(draft,/\\d+\\s*\\+?\\s*(game|games|mode|modes|ways to play|ways)/i);
 `));

@@ -1,4 +1,3 @@
-import { PLAYABLE_GAME_COUNT } from "../../src/engine/types";
 import { useScanStore } from "../../src/stores/scan-store";
 import { canUseGame, defaultRoundGames } from "../../src/services/entitlements";
 import { GAME_SHEET_STYLE } from "../../src/ui/gameSheetStyle";
@@ -143,7 +142,7 @@ export default function HomeScreen() {
               marginBottom: 20,
             }}
           >
-            Scan a scorecard, confirm scores and side-bet details, and settle up. Explore {PLAYABLE_GAME_COUNT} ways to play, including games, variants and tournament hosting. Plan access varies.
+            Scan a scorecard, confirm scores and side-bet details, and settle up.
           </Text>
 
           {/* CTA Buttons Row */}

@@ -594,7 +594,7 @@ export const PLAYABLE_BASE_GAME_IDS = IMPLEMENTED_GAME_IDS;
 export const PLAYABLE_OPTION_IDS = ["gross_net", "skins_group", ...GAME_VARIATIONS.filter(v => v.id !== "net_handicap").map(v => v.id)];
 export const PLAYABLE_FORMAT_IDS = ["multi_round_multi_group_tournament"];
 export const PLAYABLE_GAME_COUNT = PLAYABLE_BASE_GAME_IDS.length + PLAYABLE_OPTION_IDS.length + PLAYABLE_FORMAT_IDS.length;
-export const GAME_LIBRARY_CAPTION = `${PLAYABLE_GAME_COUNT} ways to play across SnapScore. Pro includes games and variants. Multi-round or multi-group hosting requires Tournament Director.`;
+export const GAME_LIBRARY_CAPTION = `Pro includes games and variants. Multi-round or multi-group hosting requires Tournament Director.`;
 
 
 /** New contest checks; legacy contests remain readable without adopting changed rules. */
