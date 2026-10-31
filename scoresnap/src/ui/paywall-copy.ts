@@ -5,7 +5,6 @@ export const PAYWALL_COPY = {
   "contestTitle": "Easiest contest setup",
   "contestBody": "Build any contest in a few taps. Settlement is automatic.",
   "libraryTitle": "Deep game library",
-  "libraryBody": "30 game modes, from Skins and Nassau to Wolf and Vegas.",
   "liveTitle": "Live tracking anywhere",
   "liveBody": "Follow every score live, on or off the course.",
   "scans": "Plus unlimited scorecard scans.",

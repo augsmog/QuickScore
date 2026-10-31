@@ -35,7 +35,7 @@ function screen({restore=async()=>true,owner='free',target}={}){
  const jsx=(type,props)=>({type,props});
  const alert=jest.fn(),openURL=jest.fn(),back=jest.fn();
  const react={useState:init=>{const i=cursor++;if(!(i in states))states[i]=init;return[states[i],v=>{states[i]=v;}];},useEffect:f=>effects.push(f)};
- const Screen=load('app/paywall.tsx',{'../src/engine/types':{PLAYABLE_GAME_COUNT:30},
+ const Screen=load('app/paywall.tsx',{
  react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{View:'View',Text:'Text',ScrollView:'ScrollView',Pressable:'Pressable',Alert:{alert},Linking:{openURL},StyleSheet:{create:x=>x}},
  'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'expo-router':{useRouter:()=>({back}),useLocalSearchParams:()=>({tier:target})},
  '@expo-google-fonts/inter':{useFonts:()=>[true]},
@@ -80,13 +80,22 @@ test('AC-PW5 legal strings and actual Linking handlers',()=>{
  const h=screen(),tree=h.render();button(tree,C.terms).props.onPress();button(tree,C.privacy).props.onPress();
  expect(h.openURL.mock.calls).toEqual([[TERMS_URL],[PRIVACY_URL]]);
 });
-test('AC-PW6 contest/library/live and claimed count equals shipped playable registry',()=>{
- const e=load('src/services/entitlements.ts');
- const registry=load('src/engine/types.ts',{'../services/entitlements':e});
- expect(view().values.map(v=>v.icon)).toEqual(['contest','library','live']);
- expect(Number(C.libraryBody.match(/^(\d+) game modes/)[1])).toBe(registry.IMPLEMENTED_GAME_IDS.length);
- expect(C.libraryBody).toContain('30 game modes');
- expect(view().values.every(v=>!/scan/i.test(v.body))).toBe(true);
+test('AC-PW6 contest/library/live without a library body or game-count claims',()=>{
+ const countClaim=/\d+\s*\+?\s*(game|games|mode|modes|ways to play|ways)/i;
+ for(const period of ['year','month']){
+  const v=view(period);
+  expect(v.values.map(v=>v.icon)).toEqual(['contest','library','live']);
+  expect(v.values.find(v=>v.icon==='library').body).toBeFalsy();
+  expect(v.values.every(v=>!/scan/i.test(v.body))).toBe(true);
+  for(const value of strings(v)){
+   expect(value).not.toMatch(countClaim);
+   expect(value).not.toMatch(/ways to play/i);
+  }
+  const h=screen();h.render();h.states[0]={tier:'pro',period};
+  const rendered=text(h.render());
+  expect(rendered).not.toMatch(countClaim);
+  expect(rendered).not.toMatch(/ways to play/i);
+ }
 });
 test('actual selection, alternate period switching, TD route, Close and missing CTA',()=>{
  const h=screen({target:'td'});let tree=h.render();expect(h.states[0]).toEqual({tier:'td',period:'year'});
@@ -96,4 +105,3 @@ test('actual selection, alternate period switching, TD route, Close and missing 
  expect(nodes(tree).filter(n=>n.type==='Text').map(text)).not.toContain(C.trial);
  expect(nodes(tree).find(n=>n.props?.accessibilityState?.disabled===true)).toBeDefined();
 });
-test('library count comes from the playable game count, never a hard-coded claim',()=>{const v=plans.buildPaywallView(null,{},'free',{tier:'pro',period:'year'},17);expect(v.values[1].body).toMatch(/^17 ways to play/);expect(plans.buildPaywallView(null,{},'free',{tier:'pro',period:'year'}).values[1].body).toBe(C.libraryBody);});
