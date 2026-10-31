@@ -104,7 +104,22 @@ function scan(root) {
       const text=source.replace(/<\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|td|th|tr|ul)\b[^>]*>/gi,' ').replace(/<[^>]*>/g,'');
       check(text,sf);
       // Also detect separate labels, without inventing a near-miss from approved inline text.
-      if(!normalize(text).includes('50+ game modes'))check(source.replace(/<[^>]*>/g,' '),sf);
+      // Mask only each approved phrase's source span, preserving unrelated labels.
+      const html=normalize(source), offsets=[];
+      let visible='';
+      for(const match of html.matchAll(/<[^>]*>|[^<]+|</g)) {
+        if(match[0].startsWith('<') && match[0].endsWith('>'))continue;
+        for(let i=0;i<match[0].length;i++) {
+          visible+=match[0][i]; offsets.push(match.index+i);
+        }
+      }
+      let separated=html;
+      const approved=[...visible.matchAll(/\b50\+ game modes\b/g)];
+      for(const match of approved.reverse()) {
+        const start=offsets[match.index], end=offsets[match.index+match[0].length-1]+1;
+        separated=separated.slice(0,start)+' approved '+separated.slice(end);
+      }
+      check(separated.replace(/<[^>]*>/g,' '),sf);
     } else visit(sf);
   }
   for(let i=0;i<contestCounts.length;i++)if(!used.has(i))errors.push(`Stale contest allowlist: ${contestCounts[i].join(': ')}`);

@@ -71,3 +71,12 @@ test.each([
  const target=path.join(scratch,file);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,source);
  try{expect(scan(scratch).filter(e=>e.startsWith(file+":"))).toEqual([]);}finally{fs.unlinkSync(target);}
 });
+
+// An approved paragraph must not exempt unrelated separated labels in the file.
+test('approved HTML does not hide the verifier separated-label reproduction',()=>
+ mutation('site/verify-r3-independent.html','<p>50+ game modes</p><div><span style="display:block">30</span><span style="display:block">game</span><span style="display:block">modes</span></div>'));
+test.each(['50+ game modes','<p>50+ game modes</p>'])('approved HTML alone passes: %s',source=>{
+ const file='site/approved-only.html',target=path.join(scratch,file);
+ fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,source);
+ try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
+});
