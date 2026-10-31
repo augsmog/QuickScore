@@ -552,3 +552,27 @@ export function retainOnlineEdit(contestId: string, key: string, token: string, 
     ...c, onlineEdits: { ...c.onlineEdits, [key]: { token, strokes } },
   }) }));
 }
+
+/** Replayable metadata transaction: hydrate first and acknowledge only durable persistence. */
+export async function applyOnlineSettlement(
+  removed: { contestId: string; token: string }[],
+  retained?: { contestId: string; key: string; token: string; strokes: number },
+): Promise<void> {
+  if (!useContestStore.persist.hasHydrated()) {
+    await new Promise<void>(resolve => {
+      const unsubscribe = useContestStore.persist.onFinishHydration(() => { unsubscribe(); resolve(); });
+      if (useContestStore.persist.hasHydrated()) { unsubscribe(); resolve(); }
+    });
+  }
+  // Zustand persist returns storage.setItem's promise at runtime, though StoreApi types
+  // setState as void. Await that exact write, including rejection, before clearing recovery.
+  const write = useContestStore.setState(state => ({ contests: state.contests.map(c => {
+    const tokens = new Set(removed.filter(e => e.contestId === c.id).map(e => e.token));
+    const edits = Object.fromEntries(Object.entries(c.onlineEdits ?? {}).filter(([, edit]) => !tokens.has(edit.token)));
+    if (retained?.contestId === c.id && !edits[retained.key]) {
+      edits[retained.key] = { token: retained.token, strokes: retained.strokes };
+    }
+    return tokens.size || retained?.contestId === c.id ? { ...c, onlineEdits: edits } : c;
+  }) })) as unknown as Promise<void>;
+  await write;
+}

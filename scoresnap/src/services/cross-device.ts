@@ -61,16 +61,17 @@ async function box(expectedActor?: string) {
     const result = await supabase.rpc('write_score', args);
     if (result.error) throw result.error;
     return result.data as Receipt;
-  }, (entries, retained) => {
+  }, async (entries, retained) => {
     if (!entries.some(e => e.localEdit) && !retained?.localEdit) return;
     const store = require('../stores/contest-store');
-    for (const entry of entries) if (entry.localEdit) store.settleOnlineEdit(entry.draft.contest_id, entry.localEdit);
+    let retention;
     if (retained?.localEdit) {
       const d = retained.draft;
       const snapshot = useOnlineStore.getState().events[d.contest_id]?.snapshot;
       const local = (kind: string, id: string | null) => snapshot?.id_map.find(m => m.kind === kind && m.server_id === id)?.local_id ?? id;
-      store.retainOnlineEdit(d.contest_id, retained.localCell ?? JSON.stringify([local('round', d.round_id), local('player', d.player_id), d.hole]), retained.localEdit, d.strokes ?? 0);
+      retention = { contestId: d.contest_id, key: retained.localCell ?? JSON.stringify([local('round', d.round_id), local('player', d.player_id), d.hole]), token: retained.localEdit, strokes: d.strokes ?? 0 };
     }
+    await store.applyOnlineSettlement(entries.filter(e => e.localEdit).map(e => ({ contestId: e.draft.contest_id, token: e.localEdit! })), retention);
   }));
   return boxes.get(actor)!;
 }

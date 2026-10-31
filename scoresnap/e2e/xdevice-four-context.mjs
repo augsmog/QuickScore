@@ -121,6 +121,12 @@ async function converge(indices) {
       }
       if (i === 0) {
         if (!await text(panel(), 'Current online snapshot').isVisible()) return 'context 0: host UI missing Current online snapshot';
+        for (const owner of [1, 2, 3]) {
+          const cells = expected.filter(c => c.i === owner);
+          const sum = cells.reduce((n, c) => n + c.value, 0);
+          const info = pages[i].getByText(names[owner], { exact: true }).locator('..');
+          if (sum && !await info.getByText(new RegExp(`^Thru ${cells.length} — ${sum} \\(`)).isVisible()) return `context 0: host total missing for player ${owner}, expected ${sum}`;
+        }
         const heading = await pages[i].getByText(/^HOLE \d{2}$/).first().allTextContents();
         const hole = Number(heading.join('').match(/\d+/)?.[0]);
         if (!hole) return 'context 0: host UI missing hole heading';
@@ -277,7 +283,10 @@ try {
       assert.equal(result.status, 200, 'Host revoke RPC succeeds'); assert.equal(result.json.status, 'revoked');
       await save(3, 4, 15);
       await guest(3).getByText(/^Hole 4 · current clear · queued 15 · par/).first().waitFor();
-      await contexts[3].setOffline(false); await retry(3);
+      await contexts[3].setOffline(false);
+      // Revocation removes this card (and its Retry button) during foreground replay.
+      // Reload starts discovery/replay deterministically, even if web AppState stayed active.
+      await pages[3].reload();
       await poll('D durable draft denied, never acknowledged', async () => (await queueEntries(pages[3])).some(e => e.draft.hole === 4 && e.draft.strokes === 15 && e.state === 'denied') || 'context 3: expected denied draft for hole 4 value 15 missing');
       const postWriteMarker = sequence;
       for (let attempt = 0; attempt < 2; attempt++) {

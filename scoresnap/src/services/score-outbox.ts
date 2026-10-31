@@ -6,7 +6,7 @@ interface Envelope { settlement?: { removed: Entry[]; retained?: Entry }; format
 export interface EnvelopeStorage { getItem(key: string): Promise<string | null>; setItem(key: string, value: string): Promise<void> }
 const cell = (d: ScoreDraft) => JSON.stringify([d.contest_id, d.round_id, d.player_id, d.hole]);
 /** One durable envelope, serialized writer; never acknowledge enqueue before storage commits. */
-export function scoreOutbox(storage: EnvelopeStorage, actor: string, uuid: () => string, send: (args: WriteArgs) => Promise<Receipt>, settled: (entries: Entry[], retained?: Entry) => void = () => {}) {
+export function scoreOutbox(storage: EnvelopeStorage, actor: string, uuid: () => string, send: (args: WriteArgs) => Promise<Receipt>, settled: (entries: Entry[], retained?: Entry) => Promise<void> = async () => {}) {
   const key = `snapscore.outbox.v1.${actor}`;
   let serial: Promise<unknown> = Promise.resolve();
   const run = <T>(work: () => Promise<T>): Promise<T> => {
@@ -18,7 +18,7 @@ export function scoreOutbox(storage: EnvelopeStorage, actor: string, uuid: () =>
     const box = JSON.parse(raw);
     if (box.format !== 1 || box.actor !== actor || !Array.isArray(box.entries) || !box.versions) throw Error('Outbox damaged; unsent scores retained for recovery');
     if (box.settlement) {
-      settled(box.settlement.removed, box.settlement.retained);
+      await settled(box.settlement.removed, box.settlement.retained);
       delete box.settlement;
       await storage.setItem(key, JSON.stringify(box));
     }
@@ -26,7 +26,7 @@ export function scoreOutbox(storage: EnvelopeStorage, actor: string, uuid: () =>
   }
   async function finish(box: Envelope) {
     if (!box.settlement) return;
-    settled(box.settlement.removed, box.settlement.retained);
+    await settled(box.settlement.removed, box.settlement.retained);
     delete box.settlement;
     await save(box);
   }
