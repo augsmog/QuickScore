@@ -40,6 +40,39 @@ function normalize(s) {
     .normalize('NFKC').replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g,'')
     .replace(/\s+/g,' ').trim();
 }
+// Conservative inline Markdown projection for copy checking, not layout rendering.
+// Preserve labels/alt text and discard balanced destinations (including titles).
+function markdownText(source) {
+  const text=source;
+  let result='';
+  for(let i=0;i<text.length;i++) {
+    if(text[i]==='\\' && i+1<text.length) {result+=text[++i];continue;}
+    const start=text[i]==='!' && text[i+1]==='[' ? i+1 : i;
+    if(text[start]==='[') {
+      let end=start+1, depth=1;
+      for(;end<text.length;end++) {
+        if(text[end]==='\\'){end++;continue;}
+        if(text[end]==='[')depth++;
+        if(text[end]===']' && --depth===0)break;
+      }
+      const open=text[end+1], close=open==='(' ? ')' : ']';
+      if(end<text.length && (open==='(' || open==='[')) {
+        let stop=end+2, nested=1;
+        for(;stop<text.length;stop++) {
+          if(text[stop]==='\\'){stop++;continue;}
+          if(text[stop]===open)nested++;
+          if(text[stop]===close && --nested===0)break;
+        }
+        if(stop<text.length) {
+          result+=markdownText(text.slice(start+1,end)); i=stop; continue;
+        }
+      }
+    }
+    // Formatting delimiters never separate adjacent copy characters.
+    if(!/[*_~`]/.test(text[i]) || text[i]==='_' && /[a-z0-9]/i.test(text[i-1]||'') && /[a-z0-9]/i.test(text[i+1]||''))result+=text[i];
+  }
+  return result;
+}
 const noun = '(?:golf\\s+)?(?:game(?:\\s+modes?)?s?|modes?|ways(?:\\s+to\\s+play)?|formats?|variants?|side\\s+games?|contests?)\\b';
 const number = '(?:\\d+(?:[.,]\\d+)?|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)(?:[ -]+(?:one|two|three|four|five|six|seven|eight|nine|hundred|thousand))*';
 // Count modifiers are open-ended; stop at grammatical boundaries so instructions
@@ -117,7 +150,7 @@ function scan(root) {
     const isMarkup=/\.(html|md|txt)$/.test(file);
     {
       if(!isMarkup) {visit(sf);continue;}
-      const copySource=source;
+      const copySource=/\.md$/i.test(file) ? markdownText(source) : source;
       // Inline tags contribute no characters; block boundaries contribute whitespace.
       const text=copySource.replace(/<\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|td|th|tr|ul)\b[^>]*>/gi,' ').replace(/<[^>]*>/g,'');
       check(text,sf);

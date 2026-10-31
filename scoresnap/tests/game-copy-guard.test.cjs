@@ -144,3 +144,31 @@ test.each([
  ['30&amp;nbsp game modes',false],
  ['30&NonBreakingSpace;game modes',true],
 ])('reference syntax control %s',(source,rejected)=>expect(invalid(source)).toBe(rejected));
+
+// qs50plusc verify-r3: Markdown must be checked as visible inline copy.
+const markdownForms = [
+ s=>`*${s}*`, s=>`_${s}_`, s=>`**${s}**`, s=>`__${s}__`,
+ s=>`~~${s}~~`, s=>'`'+s+'`', s=>'``'+s+'``',
+ s=>`[${s}](x)`, s=>`![${s}](image.png)`,
+ s=>`[${s}](path(with-parens) "title")`,
+ s=>`[${s}][count]`, s=>`![${s}][count]`,
+ s=>`***${s}***`, s=>`[**${s}**](x)`,
+];
+test.each(markdownForms.map((format,i)=>[i,format]))('Markdown form %s rejects forbidden counts',(_,format)=>{
+ for(const count of ['30','25+','fifty','50'])
+  mutation('scoresnap/docs/STORE_LISTING_OWN.md',format(count)+' game modes');
+ mutation('scoresnap/docs/STORE_LISTING_OWN.md',format('50+')+' modes');
+ mutation('scoresnap/docs/STORE_LISTING_OWN.md','30 '+format('game')+' modes');
+});
+test.each(markdownForms.map((format,i)=>[i,format]))('Markdown form %s permits the exact normalized phrase',(_,format)=>{
+ const file='scoresnap/docs/STORE_LISTING_OWN.md',target=path.join(scratch,file);
+ fs.mkdirSync(path.dirname(target),{recursive:true});
+ fs.writeFileSync(target,format('50+')+' '+format('game')+' modes');
+ try{expect(inventory(scratch)).toContain(file);expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
+});
+test.each(['**30** game modes','**25+** game modes','**fifty** game modes','**50** game modes','**50+** modes',String.raw`25\+ game modes`,String.raw`**25\+** game modes`])('Markdown verifier/escape regression: %s',source=>mutation('scoresnap/docs/STORE_LISTING_OWN.md',source));
+test('Markdown escaped plus preserves the approved phrase',()=>{
+ const file='scoresnap/docs/STORE_LISTING_OWN.md',target=path.join(scratch,file);
+ fs.writeFileSync(target,String.raw`**50\+** game modes`);
+ try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
+});
