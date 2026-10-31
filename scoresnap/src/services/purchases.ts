@@ -49,7 +49,12 @@ function isNativeModuleAvailable(): boolean {
  * Gracefully skips in environments where the native module isn't available
  * (Expo Go, simulators without StoreKit config, etc.).
  */
-export async function initPurchases(userId?: string): Promise<void> {
+let initialization: Promise<void> | undefined;
+export function initPurchases(userId?: string): Promise<void> {
+  if (!initialization) initialization = configurePurchases(userId).finally(() => { initialization = undefined; });
+  return initialization;
+}
+async function configurePurchases(userId?: string): Promise<void> {
   if (isConfigured) return;
 
   // Guard: skip entirely if native module isn't linked (Expo Go)
@@ -203,26 +208,30 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
  * Identify user for cross-device subscription sync.
  * Call after sign-in with a stable user ID.
  */
-export async function identifyUser(userId: string): Promise<void> {
-  if (!isConfigured) return;
-  try {
-    await Purchases.logIn(userId);
-    const info = await Purchases.getCustomerInfo();
-    handleCustomerInfoUpdate(info);
-  } catch (e) {
-    console.warn("Failed to identify user:", e);
-  }
+let identityQueue: Promise<void> = Promise.resolve();
+let identified: string | null = null;
+function changeIdentity(userId: string | null): Promise<void> {
+  const pending = identityQueue.then(async () => {
+    await initPurchases();
+    if (!isConfigured) return;
+    if (userId) {
+      if (identified === userId) return;
+      const { customerInfo } = await Purchases.logIn(userId);
+      identified = userId;
+      handleCustomerInfoUpdate(customerInfo);
+    } else {
+      // RevenueCat rejects logging out an already anonymous SDK identity.
+      if (!await Purchases.isAnonymous()) {
+        const info = await Purchases.logOut();
+        handleCustomerInfoUpdate(info);
+      }
+      identified = null;
+    }
+  });
+  identityQueue = pending.catch(e => { console.warn("Could not update purchase account:", e); });
+  return identityQueue;
 }
+export function identifyUser(userId: string): Promise<void> { return changeIdentity(userId); }
 
-/**
- * Log out user (resets to anonymous). Call on sign-out.
- */
-export async function logOutPurchases(): Promise<void> {
-  if (!isConfigured) return;
-  try {
-    const info = await Purchases.logOut();
-    handleCustomerInfoUpdate(info);
-  } catch (e) {
-    console.warn("Failed to log out purchases:", e);
-  }
-}
+/** Anonymous Supabase guests use an anonymous RevenueCat identity. */
+export function logOutPurchases(): Promise<void> { return changeIdentity(null); }

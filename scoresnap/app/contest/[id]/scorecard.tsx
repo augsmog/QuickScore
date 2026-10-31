@@ -1,3 +1,6 @@
+import { onlineEnabled } from '../../../src/services/cross-device';
+import { useOnlineStore } from '../../../src/stores/online-store';
+import { overlayScorecard } from '../../../src/services/scorecard-overlay';
 import { executionGameConfig } from "../../../src/engine/types";
 import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actual-inputs";
 import { PrePlayDeclarations } from "../../../src/ui/PrePlayDeclarations";
@@ -48,7 +51,9 @@ export default function ScorecardScreen() {
     s.contests.find((c) => c.id === id)
   );
 
-  const contest=savedContest?{...savedContest,gameConfig:executionGameConfig(savedContest.games,savedContest.gameConfig)}:undefined;
+  const snapshot = useOnlineStore(s => s.events[id]?.snapshot);
+  const displayContest = savedContest && onlineEnabled ? overlayScorecard(savedContest, snapshot) : savedContest;
+  const contest=displayContest?{...displayContest,gameConfig:executionGameConfig(displayContest.games,displayContest.gameConfig)}:undefined;
   const updateScore = useContestStore((s) => s.updateScore);
   const completeContest = useContestStore((s) => s.completeContest);
   const updateAuxiliaryData = useContestStore((s) => s.updateAuxiliaryData);

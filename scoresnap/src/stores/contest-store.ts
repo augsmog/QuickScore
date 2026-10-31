@@ -10,6 +10,11 @@ import { CONTEST_STORAGE_KEY, createGatedStorage } from "./persisted-keys";
 import { GameType, GameConfig, Player, Course, HoleInfo, AuxiliaryData } from "../engine/types";
 import { syncRound, syncRoundGroups, syncContestTournamentMeta, syncScore } from "../services/tournament-sync";
 
+// Track local edits even before the first authorized snapshot (for example after an offline restart).
+function tracksOnlineEdits(contestId: string): boolean {
+  return !!useOnlineStore.getState().events[contestId] || (REAL_AUTH_CONFIGURED && require('../config/features').CROSS_DEVICE_SHARING_ENABLED);
+}
+
 // Load new-rule validation at the mutation boundary; legacy guest scoring stays independent of host services.
 function validateHostContest(contest:Contest,_tier?:unknown){return require("../engine/contest-validation").validateHostContest(contest,require("./scan-store").useScanStore.getState().tier);}
 function validateContestChange(before:Contest,after:Contest){return require("../engine/contest-validation").validateContestChange(before,after);}
@@ -61,6 +66,7 @@ export interface Contest {
   isDemo?: boolean;
   joinCode?: string;
   liveShareEnabled?: boolean;
+  onlineEdits?: Record<string, { token: string; strokes: number }>;
   // Multi-round tournament support
   rounds?: RoundInfo[];
   currentRound?: number; // 1-indexed
@@ -154,6 +160,7 @@ export const useContestStore = create<ContestState>()(
       updateScore: (contestId, groupId, playerId, hole, strokes) => {
         let roundId: string | null = useOnlineStore.getState().events[contestId]?.snapshot.protocol === 1 ? contestId : null;
         let roundNumber = 1;
+        const onlineEdit = tracksOnlineEdits(contestId) ? require("expo-crypto").randomUUID() as string : undefined;
         set((state) => ({
           contests: state.contests.map((c) => {
             if (c.id !== contestId) return c;
@@ -166,6 +173,10 @@ export const useContestStore = create<ContestState>()(
               if(!player?.team) throw new Error("Choose a complete team");
               const key=scopeKey(round?.id,groupId), existing=c.auxiliaryByScope?.[key]??{};
               return {...c,auxiliaryByScope:{...c.auxiliaryByScope,[key]:{...existing,teamCards:{...existing.teamCards,[hole]:{...existing.teamCards?.[hole],[player.team]:strokes}}}}};
+            }
+            if (onlineEdit) {
+              const localRound = c.isTournament ? c.rounds?.find(r => r.number === c.currentRound)?.id : c.id;
+              c = { ...c, onlineEdits: { ...c.onlineEdits, [JSON.stringify([localRound, playerId, hole])]: { token: onlineEdit, strokes } } };
             }
             // For tournaments, update the current round's groups
             if (c.isTournament && c.rounds && c.currentRound) {
@@ -216,7 +227,7 @@ export const useContestStore = create<ContestState>()(
         }));
         // Sync to Supabase
         if (roundId) {
-          syncScore(contestId, roundId, playerId, hole, strokes, roundNumber).catch(err =>
+          syncScore(contestId, roundId, playerId, hole, strokes, roundNumber, onlineEdit).catch(err =>
             console.error('Failed to sync score:', err)
           );
         }
@@ -243,8 +254,13 @@ export const useContestStore = create<ContestState>()(
           return imported ? { ...p, scores: imported.scores } : p;
         }) }));
         for(const imported of validated) imported.scores.forEach((n,i)=>validateScoreWrite(contest,groupId,imported.playerId,i+1,n));
+        const tracking = tracksOnlineEdits(contestId);
+        const onlineEdits = { ...contest.onlineEdits };
+        if (tracking) for (const imported of validated) imported.scores.forEach((strokes, i) => {
+          onlineEdits[JSON.stringify([round?.id ?? contest.id, imported.playerId, i + 1])] = { token: require('expo-crypto').randomUUID(), strokes };
+        });
         set(state => ({ contests: state.contests.map(c => c.id !== contestId ? c : round ?
-          { ...c, rounds: c.rounds!.map(r => r.id === round.id ? { ...r, groups } : r) } : { ...c, groups }) }));
+          { ...c, ...(tracking ? { onlineEdits } : {}), rounds: c.rounds!.map(r => r.id === round.id ? { ...r, groups } : r) } : { ...c, ...(tracking ? { onlineEdits } : {}), groups }) }));
       },
 
       completeContest: (id) =>
@@ -523,3 +539,16 @@ useContestStore.subscribe((state, previous) => {
     }
   }
 });
+
+/** Release only the edit represented by a settled outbox entry, never a successor. */
+export function settleOnlineEdit(contestId: string, token: string) {
+  useContestStore.setState(state => ({ contests: state.contests.map(c => c.id !== contestId ? c : {
+    ...c, onlineEdits: Object.fromEntries(Object.entries(c.onlineEdits ?? {}).filter(([, edit]) => edit.token !== token)),
+  }) }));
+}
+
+export function retainOnlineEdit(contestId: string, key: string, token: string, strokes: number) {
+  useContestStore.setState(state => ({ contests: state.contests.map(c => c.id !== contestId || c.onlineEdits?.[key] ? c : {
+    ...c, onlineEdits: { ...c.onlineEdits, [key]: { token, strokes } },
+  }) }));
+}

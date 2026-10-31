@@ -102,8 +102,6 @@ async function freshResponse(i, rpc, marker, trigger) {
   return response.json();
 }
 const expected = [];
-const hostEntered = new Set();
-const cellKey = (i, hole) => `${i}:${hole}`;
 function expectCell(i, hole, value) {
   const found = expected.find(c => c.i === i && c.hole === hole);
   if (found) found.value = value; else expected.push({ i, hole, value });
@@ -126,7 +124,7 @@ async function converge(indices) {
         const heading = await pages[i].getByText(/^HOLE \d{2}$/).first().allTextContents();
         const hole = Number(heading.join('').match(/\d+/)?.[0]);
         if (!hole) return 'context 0: host UI missing hole heading';
-        for (const cell of expected.filter(c => c.hole === hole && hostEntered.has(cellKey(c.i, c.hole)))) {
+        for (const cell of expected.filter(c => c.hole === hole)) {
           const displayed = (await pages[i].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
           if (Number(displayed.trim().split(/\s/)[0]) !== cell.value) return `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
         }
@@ -139,6 +137,26 @@ async function converge(indices) {
     }
     return true;
   });
+  if (indices.includes(0)) {
+    const current = async () => Number((await pages[0].getByText(/^HOLE \d{2}$/).first().textContent()).match(/\d+/)[0]);
+    const original = await current();
+    const go = async target => {
+      while (await current() !== target) {
+        const before = await current();
+        await text(pages[0], before < target ? 'NEXT' : 'PREV').click();
+        await text(pages[0], `HOLE ${String(before + (before < target ? 1 : -1)).padStart(2, '0')}`).waitFor();
+      }
+    };
+    for (const hole of [...new Set(expected.map(c => c.hole))].sort((a, b) => a - b)) {
+      await go(hole);
+      for (const cell of expected.filter(c => c.hole === hole)) await poll('host synchronized cell visible', async () => {
+        const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
+        return Number(displayed.trim().split(/\s/)[0]) === cell.value
+          || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
+      });
+    }
+    await go(original);
+  }
 }
 async function queueEntries(p) {
   return p.evaluate(contestId => Object.keys(localStorage).filter(k => k.includes('snapscore.outbox.v1.')).flatMap(k => JSON.parse(localStorage.getItem(k)).entries).filter(e => e.draft.contest_id === contestId), contestId);
@@ -195,7 +213,6 @@ try {
       await retry(0);
       await text(pages[0], 'Current online snapshot').waitFor();
     });
-    console.log('Product gap: host scorecard does not display guest-entered scores (remote cells not merged into local contest store)');
     await step('offline drafts visible immediately; reconnect D B C', async () => {
       for (const i of [1, 2, 3]) {
         await contexts[i].setOffline(true);
@@ -226,7 +243,6 @@ try {
       await poll('conflict removed', async () => (await queueEntries(pages[1])).every(e => e.state !== 'conflict') || 'context 1: durable conflict entry remains');
       await poll('conflict actions gone', async () => (!await guestText(1, 'Keep current').isVisible() && !await guestText(1, 'Use my score').isVisible()) || 'context 1: guest conflict action still visible');
       expectCell(1, 2, current);
-      hostEntered.add(cellKey(1, 2));
       await converge([0, 1, 2, 3]);
     });
     await step('host leaves; players continue; host returns without loss or duplicates', async () => {
@@ -279,10 +295,10 @@ try {
         assert.equal(fresh.rounds[0].players.find(p => p.displayName === names[3]).cells.find(c => c.hole === 4).strokes, null, 'Post-revocation score absent in fresh response');
       }
       await converge([0, 1, 2]);
-      // Fresh authorized snapshots above cover every remote cell. Only host-entered cells have local scorecard UI values.
+      // Check every preserved cell in the host UI as well as the fresh authorized payloads.
       for (let hole = 1; hole <= 4; hole++) {
         await text(pages[0], `HOLE ${String(hole).padStart(2, '0')}`).waitFor();
-        for (const cell of expected.filter(c => c.hole === hole && hostEntered.has(cellKey(c.i, c.hole)))) {
+        for (const cell of expected.filter(c => c.hole === hole)) {
           await poll('host preserved cell visible', async () => {
             const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
             return Number(displayed.trim().split(/\s/)[0]) === cell.value

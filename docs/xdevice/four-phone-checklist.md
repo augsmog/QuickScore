@@ -4,12 +4,6 @@ Allow 35 minutes. Use two iPhones. Players 3–4 use separate signed-in browser
 profiles on a laptop at snapscore.autumn8.me or the test web URL.
 Use a designated test contest. Do not change production configuration.
 
-Known gap: The host scorecard does not display guest-entered scores; remote cells
-are not merged into the local contest store. Online sync → Retry sync shows
-“Current online snapshot” when remote state is present, but no remote score values.
-Compare guest-entered scores and confirmed totals on approved guest devices.
-The automated test checks every remote cell through fresh host-authorized snapshots.
-
 ## 0. Prereqs (2 min)
 
 1. Check the build has cross-device sharing ON.
@@ -34,9 +28,8 @@ Expected: Both phones run the sharing-on build. Each player has a separate ident
    Tap Retry queued scores; on the host tap Retry sync.
 
 Expected: Pending players see no roster or scores. Approved players see the
-confirmed totals and their own editable holes. Guest devices show the saved score.
-The host Online sync panel shows Current online snapshot after Retry sync;
-expect the known gap on its local scorecard.
+confirmed totals and their own editable holes. All devices, including the host, show the saved score and matching totals.
+The host Online sync panel shows Current online snapshot after Retry sync.
 
 - [ ] PASS  - [ ] FAIL
 
@@ -53,9 +46,8 @@ expect the known gap on its local scorecard.
 
 Expected: Offline edits show immediately as queued, separate from confirmed
 scores. Overlap produces a conflict. Each confirmed choice removes the conflict
-and guest confirmed views converge to that choice. On the host, check Online sync
-for Current online snapshot; its local cell can retain the host-entered value
-when the guest choice wins (known gap). No silent overwrite occurs.
+and all confirmed views, including host cells and totals, converge to that choice.
+Pending or conflicted host edits remain local until confirmed or resolved.
 
 - [ ] PASS  - [ ] FAIL
 
@@ -66,8 +58,7 @@ when the guest choice wins (known gap). No silent overwrite occurs.
 2. Force-quit both apps. Reboot phone 2. Relaunch both while still offline.
 3. Check the same identities and pending edits return. Reconnect phone 2, then
    phone 1. Retry sync. Background and reopen each app during replay.
-4. Compare holes and confirmed totals on phone 2 and both web tabs. On phone 1,
-   check Online sync → Retry sync → Current online snapshot (known gap).
+4. Compare holes and confirmed totals on both phones and both web tabs.
    Retry again and check totals do not change a second time.
 
 Expected: Queued edits survive app termination and reboot. Reconnect accepts
@@ -113,19 +104,16 @@ TestFlight purchases are sandbox purchases and are not charged.
 2. Check Profile shows Unlimited scans (Pro) and Manage Subscription. Relaunch
    and check entitlement state again.
 3. Finish section 5 first, then sign phone 2 into the same SnapScore account as the
-   host. Record whether Pro appears, without treating sign-in alone as guaranteed.
-4. Use the same sandbox Apple ID on phone 2. Open the paywall and tap Restore
-   Purchases. Read the result, return to Profile and check Pro is active.
-   If already Pro, check Manage Subscription instead.
+   host. Check Pro appears after sign-in and remains after relaunch.
+4. If Pro is missing, use the same sandbox Apple ID on phone 2, open the paywall
+   and tap Restore Purchases as a fallback. Record whether fallback was needed.
 
-Expected: A successful purchase updates the local entitlement. Restore Purchases
-with the same sandbox Apple ID restores an available entitlement on phone 2.
-The service defines Purchases.logIn through identifyUser, but the app does not
-call it; startup configures RevenueCat without a SnapScore user ID. Therefore
-same SnapScore account sign-in alone is not implemented as guaranteed Pro
-carryover. The supported path to verify here is Apple purchase restoration.
+Expected: Pro follows the same SnapScore account to phone 2 on sign-in.
+Signing out or changing accounts updates entitlement state for the current account.
+Restore Purchases is a fallback for an available Apple entitlement.
 Profile exposes upgrade/manage; Restore Purchases is on the paywall.
-Record a failure if restore reports success but Profile remains free.
+Record a failure if account sign-in does not carry Pro or restore reports success
+but Profile remains free.
 
 - [ ] PASS  - [ ] FAIL
 
