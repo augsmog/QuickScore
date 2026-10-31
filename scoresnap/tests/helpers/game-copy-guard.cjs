@@ -101,12 +101,10 @@ function scan(root) {
       ts.forEachChild(n,visit);
     }
     if(/\.(html|md|txt)$/.test(file)) {
-      // Inline tags contribute no characters; block boundaries contribute whitespace.
-      const text=source.replace(/<\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|td|th|tr|ul)\b[^>]*>/gi,' ').replace(/<[^>]*>/g,'');
-      check(text,sf);
       // Inline CSS order changes the reading order of flex/grid sibling labels.
       // Parse a JSX fragment to retain child boundaries rather than sorting words.
       const markup=ts.createSourceFile('copy.tsx','<>'+source+'</>',ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+      const approvedLayouts=[];
       function style(n) {
         const attr=n.openingElement.attributes.properties.find(a=>a.name?.text==='style');
         return attr?.initializer && ts.isStringLiteral(attr.initializer) ? attr.initializer.text : '';
@@ -119,6 +117,7 @@ function scan(root) {
             ordered.sort((a,b)=>a.order-b.order||a.index-b.index);
             const labels=ordered.map(c=>c.child.getText(markup).replace(/<[^>]*>/g,''));
             check(labels.join(''),sf);
+            if(normalize(labels.join(''))==='50+ game modes')approvedLayouts.push([n.getStart(markup)-2,n.end-2]);
             // Preserve valid inline phrases before introducing label separators.
             if(normalize(labels.join(''))!=='50+ game modes')check(labels.join(' '),sf);
           }
@@ -126,9 +125,14 @@ function scan(root) {
         ts.forEachChild(n,visual);
       }
       visual(markup);
+      let copySource=source;
+      for(const [start,end] of approvedLayouts.sort((a,b)=>b[0]-a[0]))copySource=copySource.slice(0,start)+' approved '+copySource.slice(end);
+      // Inline tags contribute no characters; block boundaries contribute whitespace.
+      const text=copySource.replace(/<\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|td|th|tr|ul)\b[^>]*>/gi,' ').replace(/<[^>]*>/g,'');
+      check(text,sf);
       // Also detect separate labels, without inventing a near-miss from approved inline text.
       // Mask only each approved phrase's source span, preserving unrelated labels.
-      const html=normalize(source), offsets=[];
+      const html=normalize(copySource), offsets=[];
       let visible='';
       for(const match of html.matchAll(/<[^>]*>|[^<]+|</g)) {
         if(match[0].startsWith('<') && match[0].endsWith('>'))continue;
