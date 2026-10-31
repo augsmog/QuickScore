@@ -268,7 +268,7 @@ export default function ScorecardScreen() {
       const result=calculateContestSettlement(contest);
       if(result.pending){
         if((contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games,currentHoleInfo,currentPlayerScores))) setShowAuxPrompt(true);
-        Alert.alert("Confirmation required","Enter every score and confirm side-bet inputs on every hole before finalizing. Skip leaves that hole pending.");
+        Alert.alert("Confirmation required","Enter every score and confirm side-game inputs on every hole before finalizing. Skip leaves that hole pending.");
         return;
       }
     }

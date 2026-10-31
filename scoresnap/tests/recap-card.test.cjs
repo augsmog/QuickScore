@@ -24,7 +24,7 @@ for(const netByPlayer of [{},{Amy:0,Ben:0}]) {
 const even=buildRecapModel({netByPlayer,transactions:[]},details);
 assert.equal(even.winner,null);
 assert.equal(even.headline,'All square');
-assert.ok(even.lines.every(l=>l.endsWith('No net payouts')));
+assert.ok(even.lines.every(l=>l.endsWith('No net settlement amounts')));
 }
 const {sampleRecap}=await import('./src/ui/recap/fixture.ts').then(m=>m.default??m);
 assert.equal(sampleRecap.winner.name,'Alex Rivera');

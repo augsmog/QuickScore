@@ -142,7 +142,7 @@ export default function HomeScreen() {
               marginBottom: 20,
             }}
           >
-            Scan a scorecard, confirm scores and side-bet details, and settle up.
+            Scan a scorecard, confirm scores and side-game details, and settle up.
           </Text>
 
           {/* CTA Buttons Row */}
@@ -222,7 +222,7 @@ export default function HomeScreen() {
                 marginBottom: 12,
               }}
             >
-              YOUR ACTIVE BETS
+              YOUR ACTIVE GAMES
             </Text>
 
             {activeContests.map((contest) => {
@@ -711,7 +711,7 @@ export default function HomeScreen() {
                         fontSize: 15,
                       }}
                     >
-                      {!canUseGame(selectedGame.id, tier) ? "🔒 Unlock" : "Play"} {selectedGame.name}
+                      {!canUseGame(selectedGame.id, tier) ? "Try Pro with" : "Play"} {selectedGame.name}
                     </Text>
                   </LinearGradient>
                 </AnimatedPressable>

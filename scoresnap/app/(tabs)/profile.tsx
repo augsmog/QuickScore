@@ -1,3 +1,4 @@
+import { signedRoundAmount } from "../../src/ui/copy";
 import { calculateContestSettlement } from "../../src/engine/contest-results";
 import { useState, useMemo } from "react";
 import { View, Text, ScrollView, Button, Alert } from "react-native";
@@ -299,7 +300,7 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* ========== WAGERING HISTORY ========== */}
+        {/* ========== ROUND RESULTS ========== */}
         <View style={{ marginBottom: 24 }}>
           <Text
             style={{
@@ -308,7 +309,7 @@ export default function ProfileScreen() {
               marginBottom: 12,
             }}
           >
-            WAGERING HISTORY
+            ROUND RESULTS
           </Text>
           {stats.wageringHistory.length > 0 ? (
             stats.wageringHistory.map((item, i) => (
@@ -324,7 +325,6 @@ export default function ProfileScreen() {
                   gap: 12,
                 }}
               >
-                <Text style={{ fontSize: 22 }}>{item.isWin ? "+" : "-"}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
                     {item.title}
@@ -337,7 +337,7 @@ export default function ProfileScreen() {
                     color: item.isWin ? COLORS.primary : COLORS.error,
                   }}
                 >
-                  {item.isWin ? "+" : ""}${Math.abs(item.amount).toFixed(0)}
+                  {signedRoundAmount(item.amount)}
                 </Text>
               </View>
             ))
@@ -351,7 +351,7 @@ export default function ProfileScreen() {
               }}
             >
               <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
-                Complete a round to see your wagering history
+                Finish a round to see your results here.
               </Text>
             </View>
           )}

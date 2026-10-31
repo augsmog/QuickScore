@@ -41,7 +41,7 @@ const slides: SlideData[] = [
   },
   {
     id: "settle",
-    title: "Settle Bets Instantly",
+    title: "See Who Owes What",
     subtitle:
       "Skins, Nassau, Stableford, and more game modes calculated automatically. No more bar napkin math.",
     accent: COLORS.gold,

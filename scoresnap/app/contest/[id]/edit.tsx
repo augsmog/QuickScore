@@ -412,7 +412,7 @@ export default function EditContestScreen() {
             );
           })}
 
-          {/* ── Bet Unit Section ── */}
+          {/* ── Unit Amount Section ── */}
           <Text
             style={{
               color: COLORS.accent,
@@ -424,7 +424,7 @@ export default function EditContestScreen() {
               marginBottom: 12,
             }}
           >
-            Bet Unit
+            Unit Amount
           </Text>
 
           <View

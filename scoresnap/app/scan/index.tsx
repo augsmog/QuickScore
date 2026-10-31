@@ -945,7 +945,7 @@ export default function ScanScreen() {
               marginBottom: 8,
             }}
           >
-            Unlock Unlimited Scans
+            Try Pro free for 7 days
           </Text>
           <Text
             style={{
