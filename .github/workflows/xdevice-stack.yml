@@ -140,7 +140,7 @@ jobs:
           EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true EXPO_PUBLIC_OFFLINE_MODE=false npx expo export --platform web --output-dir dist-web
       - run: npx playwright install --with-deps chromium
         working-directory: scoresnap
-      - name: Full two-user browser acceptance (no sign-in-only mode)
+      - name: Full two-user then four-user browser acceptance (no sign-in-only mode)
         working-directory: scoresnap
         run: |
           set -o pipefail
@@ -157,6 +157,9 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:8089/ > /dev/null
           node e2e/xdevice-two-context.mjs 2>&1 | tee "$OUT_DIR/browser.log"
+          export OUT_DIR="$GITHUB_WORKSPACE/xdevice-browser-evidence/four"
+          mkdir -p "$OUT_DIR"
+          node e2e/xdevice-four-context.mjs 2>&1 | tee "$OUT_DIR/four.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

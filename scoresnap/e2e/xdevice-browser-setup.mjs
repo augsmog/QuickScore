@@ -8,7 +8,7 @@ const url = status.API_URL;
 assert.equal(url, 'http://127.0.0.1:54321');
 for (const secret of [status.SERVICE_ROLE_KEY, status.ANON_KEY]) console.log(`::add-mask::${secret}`);
 const env = { EXPO_PUBLIC_SUPABASE_URL: url, EXPO_PUBLIC_SUPABASE_ANON_KEY: status.ANON_KEY };
-for (const who of ['A', 'B']) {
+for (const who of ['A', 'B', 'C', 'D']) {
   const email = `xdev-${who.toLowerCase()}-${randomBytes(8).toString('hex')}@example.test`;
   const password = randomBytes(32).toString('hex');
   for (const value of [email, password]) console.log(`::add-mask::${value}`);
@@ -23,4 +23,4 @@ for (const who of ['A', 'B']) {
   env[`XDEV_${who}_PASSWORD`] = password;
 }
 await writeFile(`${dir}/xdevice-browser.env`, Object.entries(env).map(([key, value]) => `export ${key}='${value}'`).join('\n'), { mode: 0o600 });
-console.log('Created two confirmed ordinary email/password users on disposable local Auth');
+console.log('Created four confirmed ordinary email/password users on disposable local Auth');
