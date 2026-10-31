@@ -43,7 +43,10 @@ function strings(file, source) {
     if(ts.isBinaryExpression(n) && n.operatorToken.kind===ts.SyntaxKind.PlusToken) out.push(symbolic(n));
     if(ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isJsxText(n)) out.push(n.text);
     else if(ts.isTemplateExpression(n)) { out.push(n.getText(ast).slice(1,-1)); return; }
-    else if((ts.isJsxElement(n) || ts.isJsxFragment(n)) && n.children.some(c=>(ts.isJsxText(c) && c.text.trim()) || (ts.isJsxExpression(c) && c.expression && (ts.isIdentifier(c.expression) || ts.isPropertyAccessExpression(c.expression))))) out.push(n.children.map(rendered).join(''));
+    // A run can consist entirely of inline children (no direct text).
+    // rendered() keeps block descendants separated with a null delimiter.
+    else if(ts.isJsxFragment(n) || (ts.isJsxElement(n) && /^(Text|span|strong|em|b|i|a|small|label)$/.test(n.openingElement.tagName.getText(ast)))) out.push(rendered(n));
+    else if(ts.isJsxElement(n) && n.children.some(c=>(ts.isJsxText(c) && c.text.trim()) || (ts.isJsxExpression(c) && c.expression && (ts.isIdentifier(c.expression) || ts.isPropertyAccessExpression(c.expression))))) out.push(n.children.map(rendered).join(''));
     ts.forEachChild(n,visit);
   }
   visit(ast); return out;

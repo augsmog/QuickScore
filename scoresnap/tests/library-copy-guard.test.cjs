@@ -34,6 +34,9 @@ test('removed exceptions fail stale checks and path changes do not inherit them'
 });
 
 test.each([
+ ['scoresnap/src/ui/probe.tsx', 'const copy=<Text><Text>30 </Text><Text>game modes</Text></Text>;'],
+ ['scoresnap/src/ui/probe.tsx', 'const copy=<Text><Text>{PLAYABLE_GAME_COUNT} </Text><Text>games</Text></Text>;'],
+ ['scoresnap/src/ui/probe.tsx', 'const copy=<><Text>thirty </Text><Text>modes</Text></>;'],
  ['scoresnap/site/probe.html', '<p>30 <strong>game modes</strong></p>'],
  ['scoresnap/src/ui/probe.tsx', 'const copy=<Text>30 <Text>game modes</Text></Text>;'],
  ['scoresnap/src/ui/probe.tsx', 'const copy=<Text>{PLAYABLE_GAME_COUNT} <Text>games</Text></Text>;'],
@@ -54,4 +57,8 @@ test('new positive Figma fixtures are discovered while negative test vectors sta
   expect(scan(files())).toContainEqual(expect.objectContaining({file:rel}));
   expect(discover()).not.toContain('scoresnap/tests/library-copy-guard.test.cjs');
  } finally {fs.rmSync(file,{force:true});}
+});
+
+test('block descendants keep unrelated text in separate runs',()=>{
+ expect(scan({'scoresnap/src/ui/probe.tsx':'const copy=<Text><View><Text>30 </Text></View><View><Text>games</Text></View></Text>;'})).toEqual([]);
 });
