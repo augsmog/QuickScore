@@ -130,7 +130,7 @@ jobs:
             exit 1
           fi
           supabase db reset
-          test "$(docker exec supabase_db_snapscore psql -U postgres -d postgres -Atc 'select count(*) from supabase_migrations.schema_migrations')" = 13
+          test "$(docker exec supabase_db_snapscore psql -U postgres -d postgres -Atc 'select count(*) from supabase_migrations.schema_migrations')" = 14
       - name: Create ordinary users and export browser app
         working-directory: scoresnap
         run: |
