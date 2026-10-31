@@ -61,7 +61,7 @@ async function sendWelcomeEmail(email: string, referralCode: string) {
             <h3 style="color: white; margin-top: 0;">Your referral code: ${referralCode}</h3>
             <p style="color: #dcfce7; font-size: 14px;">
               Share this with your foursome. When 3 friends sign up and complete a scan,
-              you unlock a <strong>free month of Premium</strong> — games and variants, stats tracking, and league play.
+              you unlock a <strong>free month of Premium</strong> — 50+ game modes, stats tracking, and league play.
             </p>
           </div>
 
