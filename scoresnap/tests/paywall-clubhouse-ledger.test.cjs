@@ -35,7 +35,7 @@ function screen({restore=async()=>true,owner='free',target}={}){
  const jsx=(type,props)=>({type,props});
  const alert=jest.fn(),openURL=jest.fn(),back=jest.fn();
  const react={useState:init=>{const i=cursor++;if(!(i in states))states[i]=init;return[states[i],v=>{states[i]=v;}];},useEffect:f=>effects.push(f)};
- const Screen=load('app/paywall.tsx',{
+ const Screen=load('app/paywall.tsx',{'../src/engine/types':{PLAYABLE_GAME_COUNT:30},
  react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{View:'View',Text:'Text',ScrollView:'ScrollView',Pressable:'Pressable',Alert:{alert},Linking:{openURL},StyleSheet:{create:x=>x}},
  'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'expo-router':{useRouter:()=>({back}),useLocalSearchParams:()=>({tier:target})},
  '@expo-google-fonts/inter':{useFonts:()=>[true]},
@@ -96,3 +96,4 @@ test('actual selection, alternate period switching, TD route, Close and missing 
  expect(nodes(tree).filter(n=>n.type==='Text').map(text)).not.toContain(C.trial);
  expect(nodes(tree).find(n=>n.props?.accessibilityState?.disabled===true)).toBeDefined();
 });
+test('library count comes from the playable game count, never a hard-coded claim',()=>{const v=plans.buildPaywallView(null,{},'free',{tier:'pro',period:'year'},17);expect(v.values[1].body).toMatch(/^17 ways to play/);expect(plans.buildPaywallView(null,{},'free',{tier:'pro',period:'year'}).values[1].body).toBe(C.libraryBody);});

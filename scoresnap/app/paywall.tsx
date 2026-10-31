@@ -1,3 +1,4 @@
+import { PLAYABLE_GAME_COUNT } from '../src/engine/types';
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, Linking, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,7 +40,7 @@ export default function PaywallScreen() {
     catch (e: unknown) { Alert.alert(C.subscription, e instanceof Error ? e.message || C.retry : C.retry); }
     finally { setBusy(false); }
   }
-  const v = buildPaywallView(packages, eligible, tier, selection);
+  const v = buildPaywallView(packages, eligible, tier, selection, PLAYABLE_GAME_COUNT);
   const tag = (label: string) => <Text style={[s.tag, label === C.current && s.current]}>{label}</Text>;
   return <SafeAreaView style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>

@@ -1,4 +1,3 @@
-import { PLAYABLE_GAME_COUNT } from "../engine/types";
 import Purchases, { INTRO_ELIGIBILITY_STATUS, type PurchasesPackage } from 'react-native-purchases';
 export const PLAN_OPTIONS = [
   {tier:'pro', name:'Pro', features:'Games and variants · Unlimited cloud scans · Settlement · Statistics', options:[{key:'annual',fallback:'$24.99',period:'year'},{key:'monthly',fallback:'$3.99',period:'month'}]},
@@ -19,7 +18,7 @@ import { PAYWALL_COPY as C } from '../ui/paywall-copy';
 import type { Tier } from './entitlements';
 export type PaywallSelection = { tier: Tier; period: 'year' | 'month' };
 const format = (template: string, price: string, period: string) => template.replace('{price}', price).replace('{period}', period);
-export function buildPaywallView(packages: Record<string, PurchasesPackage | null> | null, eligible: Record<string, boolean>, tier: Tier, selection: PaywallSelection) {
+export function buildPaywallView(packages: Record<string, PurchasesPackage | null> | null, eligible: Record<string, boolean>, tier: Tier, selection: PaywallSelection, libraryCount?: number) {
   const period = selection.period;
   const rows = [
     { tier: 'free' as Tier, name: C.free, body: C.freeBody, tag: tier === 'free' ? C.current : '', alternate: '', price: '', trial: '', key: '', selected: selection.tier === 'free' },
@@ -46,7 +45,7 @@ export function buildPaywallView(packages: Record<string, PurchasesPackage | nul
     C.then.replace('{price}/year', selected.price) : period === 'year' ? C.yearlyRenew : C.monthlyRenew;
   const values = [
     { icon: 'contest' as const, title: C.contestTitle, body: C.contestBody },
-    { icon: 'library' as const, title: C.libraryTitle, body: C.libraryBody.replace(/^\d+ game modes/, `${PLAYABLE_GAME_COUNT} ways to play`) },
+    { icon: 'library' as const, title: C.libraryTitle, body: libraryCount == null ? C.libraryBody : C.libraryBody.replace(/^\d+ game modes/, `${libraryCount} ways to play`) },
     { icon: 'live' as const, title: C.liveTitle, body: C.liveBody },
   ];
   return { restore: C.restore, eyebrow: C.eyebrow, headline: C.headline, values, scans: C.scans, rows, cta, billed,
