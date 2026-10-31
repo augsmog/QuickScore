@@ -92,14 +92,18 @@ async function retry(i) {
 async function freshResponse(i, rpc, marker, trigger) {
   const pending = pages[i].waitForResponse(r => r.url().endsWith(`/rpc/${rpc}`) && r.ok()
     && r.request().method() === 'POST' && requestSequence.get(r.request()) > marker
-    && (rpc !== 'fetch_snapshot' || requestContest(r) === contestId), { timeout: 30000 });
-  // Arm before triggering; consume rejection even if the trigger fails.
+    && (rpc !== 'fetch_snapshot' || requestContest(r) === contestId), { timeout: 30000 }).then(async response => {
+    // Capture the body as soon as it arrives: the trigger may reload the page.
+    // Waiting for the whole trigger first can discard the pre-navigation response.
+    const body = await response.json();
+    await response.finished();
+    await handledResponses.get(response);
+    return body;
+  });
+  // Arm response and body capture before triggering; consume rejection on failure.
   pending.catch(() => {});
   await trigger();
-  const response = await pending;
-  await response.finished();
-  await handledResponses.get(response);
-  return response.json();
+  return pending;
 }
 const expected = [];
 function expectCell(i, hole, value) {
