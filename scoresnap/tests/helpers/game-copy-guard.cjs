@@ -42,7 +42,10 @@ function normalize(s) {
 }
 // Conservative inline Markdown projection for copy checking, not layout rendering.
 // Preserve labels/alt text and discard balanced destinations (including titles).
-function markdownText(source) {
+function markdownText(source, references) {
+  const referenceKey=label=>label.replace(/\s+/g,' ').trim().toLowerCase();
+  // Collect definitions first: shortcut references may precede their destination.
+  if(!references)references=new Set(Array.from(source.matchAll(/^ {0,3}\[([^\]\n]+)\]:[ \t]*\S+/gm),m=>referenceKey(m[1])));
   const text=source;
   let result='';
   for(let i=0;i<text.length;i++) {
@@ -64,8 +67,11 @@ function markdownText(source) {
           if(text[stop]===close && --nested===0)break;
         }
         if(stop<text.length) {
-          result+=markdownText(text.slice(start+1,end)); i=stop; continue;
+          result+=markdownText(text.slice(start+1,end),references); i=stop; continue;
         }
+      }
+      if(end<text.length && references.has(referenceKey(text.slice(start+1,end)))) {
+        result+=markdownText(text.slice(start+1,end),references); i=end; continue;
       }
     }
     // Formatting delimiters never separate adjacent copy characters.

@@ -172,3 +172,14 @@ test('Markdown escaped plus preserves the approved phrase',()=>{
  fs.writeFileSync(target,String.raw`**50\+** game modes`);
  try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
 });
+
+// qs50plusd verify-r1: shortcut reference labels are visible Markdown copy.
+test.each(['30','25+','fifty','50','50+'])('Markdown shortcut reference rejects %s',label=>{
+ mutation('scoresnap/docs/STORE_LISTING_INDEPENDENT.md',`[${label}] ${label==='50+' ? 'modes' : 'game modes'}\n\n[${label}]: https://example.invalid/`);
+});
+test.each(['50+','**50+**'])('Markdown shortcut reference permits approved %s',label=>{
+ const file='scoresnap/docs/STORE_LISTING_INDEPENDENT.md',target=path.join(scratch,file);
+ fs.mkdirSync(path.dirname(target),{recursive:true});
+ fs.writeFileSync(target,`[${label}] game modes\n\n[${label}]: https://example.invalid/`);
+ try{expect(inventory(scratch)).toContain(file);expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
+});
