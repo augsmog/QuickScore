@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ONBOARDING_STORAGE_KEY, createGatedStorage } from "./persisted-keys";
 
 interface OnboardingState {
   hasCompletedOnboarding: boolean;
@@ -20,8 +21,8 @@ export const useOnboardingStore = create<OnboardingState>()(
       markDemoSeen: () => set({ hasSeenDemo: true }),
     }),
     {
-      name: "snapscore-onboarding",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: ONBOARDING_STORAGE_KEY,
+      storage: createJSONStorage(() => createGatedStorage(AsyncStorage)),
     }
   )
 );

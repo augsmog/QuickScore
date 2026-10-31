@@ -1,3 +1,5 @@
+> DRAFT ONLY: generated count checked against PLAYABLE_GAME_COUNT; not approved for publication. Release-device walkthrough and owner publication approval remain required.
+
 # SnapScore Golf — App Store Listing Draft
 
 ## App Name (30 char max)
@@ -33,7 +35,7 @@ Notes on keyword strategy:
 
 ## Promotional Text (170 char max — can be updated without a new build)
 ```
-Now with 29 game modes, OCR scorecard scanning, and instant bet settlement. The only golf app that turns a photo of your scorecard into settled bets in seconds.
+Build contests and settle bets with 57 ways to play: games, variants and tournament hosting. Confirm scores and side-bet details after scanning. Pro unlocks settlement; multi-round or multi-group hosting requires Tournament Director.
 ```
 
 
@@ -45,7 +47,7 @@ SnapScore Golf is the fastest way to track golf bets and settle up after your ro
 SCORECARD SCANNING — A FIRST IN GOLF APPS
 Point your camera at any printed scorecard. Our OCR engine reads every score automatically, then lets you verify before locking anything in. No other golf betting app does this.
 
-29 GAME MODES — MORE THAN ANY COMPETITOR
+57 WAYS TO PLAY.
 Whether your group plays Skins, Nassau, Wolf, Hammer, Stableford, Best Ball, or something more creative, we've got it covered. Run multiple games simultaneously and get separate settlement breakdowns for each one.
 
 Individual games: Stroke Play, Match Play, Stableford, Modified Stableford, Skins, Skins with Carryover, Nassau, Nassau with Presses, Quota, Chicago, Aces & Deuces, Dots, Rabbit, Defender, Greenies, Banker, Snake, Bingo Bango Bongo
@@ -86,7 +88,7 @@ SnapScore Golf is built by golfers who got tired of bad math ruining good bets. 
 ```
 Welcome to SnapScore Golf! This is our launch release featuring:
 - OCR scorecard scanning powered by on-device ML + Claude Vision
-- 29 fully scored and settled game modes
+- 57 ways to play across games, variants and tournament hosting (plan access varies)
 - Smart auxiliary input for Wolf, Hammer, Snake, and Greenies
 - 30,000+ course database
 - Full statistics dashboard
@@ -102,7 +104,7 @@ Welcome to SnapScore Golf! This is our launch release featuring:
 Show: Camera viewfinder over a scorecard with scores being highlighted
 
 ### Screen 2 — Game Selection
-**Caption:** "29 Game Modes"
+**Caption:** "57 Ways to Play"
 **Subcaption:** "Skins, Nassau, Wolf, Hammer, and 25 more"
 Show: Game picker grid with icons
 

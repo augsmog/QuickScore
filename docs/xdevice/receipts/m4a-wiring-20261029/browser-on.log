@@ -1,0 +1,127 @@
+PASS: Home screen renders from real web build
+PASS: Home has no implicit demo round
+screenshot: ../.receipts/m4a-wiring/screens-on/01-home.png
+screenshot: ../.receipts/m4a-wiring/screens-on/02-new-contest-players.png
+PASS: Skins mode defaults to Net
+PASS: Gross skins toggle can be selected
+screenshot: ../.receipts/m4a-wiring/screens-on/03b-skins-mode-toggle.png
+PASS: Skins scope defaults to Whole field
+PASS: Each group scope can be selected
+screenshot: ../.receipts/m4a-wiring/screens-on/03c-skins-scope-toggle.png
+screenshot: ../.receipts/m4a-wiring/screens-on/03-new-contest-games.png
+PASS: New contest defaults to Scorecard tab (no sample data)
+screenshot: ../.receipts/m4a-wiring/screens-on/04-contest-created-empty.png
+PASS: New contest starts with no scores (no sample data)
+PASS: Empty scorecard text shows error and stays on scan screen
+screenshot: ../.receipts/m4a-wiring/screens-on/05-scan-empty-error.png
+screenshot: ../.receipts/m4a-wiring/screens-on/06-scan-text-entered.png
+PASS: Parser found exactly 4 players — ["Augie","Sam","Lee","Pat"]
+PASS: GS-2: all-4s row is parsed as player Sam (18 x 4), not as par
+PASS: Augie's real scores parsed (total 81) — 5,6,4,3,5,4,4,6,5,4,5,3,6,4,5,3,5,4
+PASS: All four players have 18 scored holes
+PASS: Review screen shows parsed players
+PASS: GS-1: review shows no old sample players
+screenshot: ../.receipts/m4a-wiring/screens-on/07-review-parsed-scorecard.png
+PASS: Confirm returns to the contest — http://127.0.0.1:18150/contest/1793297914629-jtvc3da
+screenshot: ../.receipts/m4a-wiring/screens-on/08-contest-leaderboard.png
+PASS: Leaderboard shows all four real totals (81, 72, 90, 108)
+screenshot: ../.receipts/m4a-wiring/screens-on/09-scorecard.png
+PASS: Skins leaderboard contains calculated results
+PASS: Nassau leaderboard contains front, back and overall results
+screenshot: ../.receipts/m4a-wiring/screens-on/10-games.png
+PASS: Settlement row fully reachable: Augie
+PASS: Settlement row fully reachable: Sam
+PASS: Settlement row fully reachable: Lee
+PASS: Settlement row fully reachable: Pat
+screenshot: ../.receipts/m4a-wiring/screens-on/11-settlement.png
+PASS: Settlement screen shows money results
+PASS: Net mode persisted with contest
+PASS: Player handicap persists through scorecard import
+PASS: Whole field scope persisted
+PASS: Creation UI persists two groups
+PASS: Games shows Net skins · Whole field
+PASS: Net skins · Whole field: Games skin count agrees for Augie
+PASS: Net skins · Whole field: Games skin count agrees for Sam
+PASS: Net skins · Whole field: Games skin count agrees for Lee
+PASS: Net skins · Whole field: Games skin count agrees for Pat
+PASS: Settlement shows Net skins · Whole field
+PASS: Net skins · Whole field: Settlement amount agrees for Augie — +$11.25
+PASS: Net skins · Whole field: Settlement amount agrees for Sam — +$26.25
+PASS: Net skins · Whole field: Settlement amount agrees for Lee — $18.75
+PASS: Net skins · Whole field: Settlement amount agrees for Pat — $18.75
+PASS: Net skins · Whole field: player nets sum to zero
+PASS: Net skins · Whole field: ledger reconciles for Augie
+PASS: Net skins · Whole field: ledger reconciles for Sam
+PASS: Net skins · Whole field: ledger reconciles for Lee
+PASS: Net skins · Whole field: ledger reconciles for Pat
+PASS: Net skins · Whole field: session total equals displayed winners
+PASS: Net skins · Whole field: chip and amount do not overlap at 390x844
+screenshot: ../.receipts/m4a-wiring/screens-on/11-settlement.png
+PASS: Net skins · Whole field: chip and amount do not overlap at 1280x800
+screenshot: ../.receipts/m4a-wiring/screens-on/11-settlement-desktop.png
+PASS: Games shows Gross skins · Whole field
+PASS: Gross skins · Whole field: Games skin count agrees for Augie
+PASS: Gross skins · Whole field: Games skin count agrees for Sam
+PASS: Gross skins · Whole field: Games skin count agrees for Lee
+PASS: Gross skins · Whole field: Games skin count agrees for Pat
+screenshot: ../.receipts/m4a-wiring/screens-on/10b-games-gross.png
+PASS: Settlement shows Gross skins · Whole field
+PASS: Gross skins · Whole field: Settlement amount agrees for Augie — $20.00
+PASS: Gross skins · Whole field: Settlement amount agrees for Sam — +$60.00
+PASS: Gross skins · Whole field: Settlement amount agrees for Lee — $20.00
+PASS: Gross skins · Whole field: Settlement amount agrees for Pat — $20.00
+PASS: Gross skins · Whole field: player nets sum to zero
+PASS: Gross skins · Whole field: ledger reconciles for Augie
+PASS: Gross skins · Whole field: ledger reconciles for Sam
+PASS: Gross skins · Whole field: ledger reconciles for Lee
+PASS: Gross skins · Whole field: ledger reconciles for Pat
+PASS: Gross skins · Whole field: session total equals displayed winners
+PASS: Gross skins · Whole field: chip and amount do not overlap at 390x844
+screenshot: ../.receipts/m4a-wiring/screens-on/11b-settlement-gross.png
+PASS: Gross skins · Whole field: chip and amount do not overlap at 1280x800
+screenshot: ../.receipts/m4a-wiring/screens-on/11b-settlement-gross-desktop.png
+PASS: Games shows Net skins · Each group
+PASS: Net skins · Each group: Games skin count agrees for Augie
+PASS: Net skins · Each group: Games skin count agrees for Sam
+PASS: Net skins · Each group: Games skin count agrees for Lee
+PASS: Net skins · Each group: Games skin count agrees for Pat
+screenshot: ../.receipts/m4a-wiring/screens-on/10c-games-group.png
+PASS: Settlement shows Net skins · Each group
+PASS: Net skins · Each group: Settlement amount agrees for Augie — $5.00
+PASS: Net skins · Each group: Settlement amount agrees for Sam — +$15.00
+PASS: Net skins · Each group: Settlement amount agrees for Lee — +$40.00
+PASS: Net skins · Each group: Settlement amount agrees for Pat — $50.00
+PASS: Net skins · Each group: player nets sum to zero
+PASS: Net skins · Each group: ledger reconciles for Augie
+PASS: Net skins · Each group: ledger reconciles for Sam
+PASS: Net skins · Each group: ledger reconciles for Lee
+PASS: Net skins · Each group: ledger reconciles for Pat
+PASS: Net skins · Each group: session total equals displayed winners
+PASS: Net skins · Each group: chip and amount do not overlap at 390x844
+screenshot: ../.receipts/m4a-wiring/screens-on/11c-settlement-group.png
+PASS: Net skins · Each group: chip and amount do not overlap at 1280x800
+screenshot: ../.receipts/m4a-wiring/screens-on/11c-settlement-group-desktop.png
+PASS: Scopes produce different skins with two UI-created groups
+PASS: Handicaps produce different Net and Gross skins
+PASS: GS-1: no scanData shows error, no sample players
+screenshot: ../.receipts/m4a-wiring/screens-on/12-gs1-no-scan-data.png
+PASS: GS-1: malformed scanData shows error
+screenshot: ../.receipts/m4a-wiring/screens-on/13-gs1-malformed-scan-data.png
+PASS: GS-1: empty player list shows error
+screenshot: ../.receipts/m4a-wiring/screens-on/14-gs1-empty-scan-data.png
+PASS: Join UI presence matches EXPECT_CROSS_DEVICE_SHARING=true — join code present: true
+PASS: Organizer sees a six-character join code
+screenshot: ../.receipts/m4a-wiring/screens-on/15-organizer-join-code.png
+PASS: New browser context explicitly reports offline lookup limitation
+screenshot: ../.receipts/m4a-wiring/screens-on/16-guest-join-code-entry.png
+screenshot: ../.receipts/m4a-wiring/screens-on/17-guest-pick-player.png
+PASS: Guest score updates leaderboard total
+PASS: Guest uses a separate persisted identity
+PASS: Guest leaves other player scores intact
+screenshot: ../.receipts/m4a-wiring/screens-on/18-guest-scoring.png
+PASS: Claim placeholder explains local round retention
+screenshot: ../.receipts/m4a-wiring/screens-on/19-guest-claim-placeholder.png
+PASS: Guest score and slot binding survive reload
+PASS: No uncaught page errors
+
+96/96 checks passed

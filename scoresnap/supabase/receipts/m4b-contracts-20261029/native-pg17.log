@@ -1,0 +1,24 @@
+PASS: seeded M3 accepted receipt replays after M4b with exactly one event
+PASS: full baseline/foundation/M2b/M3/sync_api chain
+Ledger matches: pending
+PASS: full-chain catalog equals expected-after.json
+PASS: guest-write-guard on full M4b chain
+PASS: legacy-compatibility on full M4b chain
+PASS: m3-acl on full M4b chain
+PASS: m4b-api on full M4b chain
+PASS: 201 independent policy/ACL mutations, all rolled back
+PASS: 159 M4b ACL/RLS mutations all RED
+EXPECTED RED: unsafe no-lock first-cell race hit unique cell constraint
+PASS: two-session absent-cell CAS (one accept/one conflict)
+PASS: two-session existing-cell CAS
+PASS: simultaneous distinct-cell writes both accepted
+PASS: revoke locks first -> queued write denied
+PASS: write locks first -> accepted then revoked; subsequent fetch denied
+PASS: transfer locks first -> old identity queued write/fetch denied
+PASS: write locks first -> accepted, transfer revokes old replay
+PASS: fetch/revoke in both lock orders
+PASS: down waits for committed writer, refuses and preserves accepted data
+PASS: operational pause closes writes, retains one accepted event (fixture rolled back)
+Schema matches
+PASS: M4b down restores exact M3 catalog
+PASS: paired full down chain to baseline

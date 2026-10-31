@@ -1,6 +1,7 @@
+import { PLAYABLE_GAME_COUNT } from "../engine/types";
 import Purchases, { INTRO_ELIGIBILITY_STATUS, type PurchasesPackage } from 'react-native-purchases';
 export const PLAN_OPTIONS = [
-  {tier:'pro', name:'Pro', features:'All 30 game modes · Unlimited cloud scans · Settlement · Statistics', options:[{key:'annual',fallback:'$24.99',period:'year'},{key:'monthly',fallback:'$3.99',period:'month'}]},
+  {tier:'pro', name:'Pro', features:'Games and variants · Unlimited cloud scans · Settlement · Statistics', options:[{key:'annual',fallback:'$24.99',period:'year'},{key:'monthly',fallback:'$3.99',period:'month'}]},
   {tier:'td', name:'Tournament Director', features:'Everything in Pro · Host multiple groups and rounds · Players always join and score free', options:[{key:'td_annual',fallback:'$79.99',period:'year'},{key:'td_monthly',fallback:'$12.99',period:'month'}]},
 ] as const;
 export async function eligibleAnnualTrials(packages: Record<string, PurchasesPackage | null>): Promise<Record<string, boolean>> {
@@ -45,7 +46,7 @@ export function buildPaywallView(packages: Record<string, PurchasesPackage | nul
     C.then.replace('{price}/year', selected.price) : period === 'year' ? C.yearlyRenew : C.monthlyRenew;
   const values = [
     { icon: 'contest' as const, title: C.contestTitle, body: C.contestBody },
-    { icon: 'library' as const, title: C.libraryTitle, body: C.libraryBody },
+    { icon: 'library' as const, title: C.libraryTitle, body: C.libraryBody.replace(/^\d+ game modes/, `${PLAYABLE_GAME_COUNT} ways to play`) },
     { icon: 'live' as const, title: C.liveTitle, body: C.liveBody },
   ];
   return { restore: C.restore, eyebrow: C.eyebrow, headline: C.headline, values, scans: C.scans, rows, cta, billed,

@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import { useScanStore } from "../../src/stores/scan-store";
 import { canUseGame, canHostTournament } from "../../src/services/entitlements";
 import { COURSE_SEARCH_ENABLED } from "../../src/config/features";
@@ -5,6 +6,7 @@ import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useState, useMemo } from "react";
 import {
   View,
+  Alert,
   Text,
   ScrollView,
   TextInput,
@@ -47,6 +49,7 @@ import {
   GameTypeInfo,
   GameConfig,
   GAME_VARIATIONS,
+  validateVariationSetup,
   Player,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
@@ -57,6 +60,8 @@ interface PlayerInput {
   handicap: string;
   team: string | null; // team ID, null = no team
   groupIndex: number;
+  /** Player 1 is the signed-in host. The flag stays if they edit the name. */
+  host?: boolean;
 }
 
 interface TeamInput {
@@ -87,7 +92,7 @@ export default function NewContestScreen() {
   const [selectedTeeBox, setSelectedTeeBox] = useState<TeeBox | null>(null);
   const [numGroups, setNumGroups] = useState(1);
   const [players, setPlayers] = useState<PlayerInput[]>([
-    { id: generateId(), name: userFirstName, handicap: "0", team: null, groupIndex: 0 },
+    { id: generateId(), name: userFirstName, handicap: "0", team: null, groupIndex: 0, host: true },
     { id: generateId(), name: "", handicap: "0", team: null, groupIndex: 0 },
   ]);
   const [hasTeams, setHasTeams] = useState(false);
@@ -122,14 +127,14 @@ export default function NewContestScreen() {
   const [betUnit, setBetUnit] = useState("5");
 
   // Step 3: Wager settings & game variations
-  const [gameConfig, setGameConfig] = useState<GameConfig>({ skinsMode: "net", skinsScope: "field" });
+  const [gameConfig, setGameConfig] = useState<GameConfig>({ rulesVersion: 1, inputRulesVersion: 1, skinsMode: "net", skinsScope: "field" });
   const [expandedTooltip, setExpandedTooltip] = useState<string | null>(null);
 
   // Filter variations to only show ones relevant to selected games
   const applicableVariations = useMemo(
     () =>
       GAME_VARIATIONS.filter((v) =>
-        v.appliesTo.some((gameId) => selectedGames.includes(gameId))
+        v.appliesTo.some((gameId) => selectedGames.includes(gameId) && canUseGame(gameId, tier))
       ),
     [selectedGames]
   );
@@ -149,10 +154,15 @@ export default function NewContestScreen() {
       if (valuesMatch(currentVal, variation.configValue)) {
         const next = { ...prev };
         delete next[variation.configKey];
+        if (variation.configKey === "birdieFlip") delete next.birdieBlocksBirdie;
         return next;
       }
       // Otherwise set it
-      return { ...prev, [variation.configKey]: variation.configValue };
+      const next = { ...prev, [variation.configKey]: variation.configValue };
+      if (variation.configKey === "alohaPressOn18") delete next.noPressLast;
+      if (variation.configKey === "noPressLast") delete next.alohaPressOn18;
+      if (variation.configKey === "birdieBlocksBirdie") next.birdieFlip = true;
+      return next;
     });
   };
 
@@ -193,7 +203,7 @@ export default function NewContestScreen() {
     setSelectedGames((prev) =>
       prev.includes(gameId)
         ? prev.filter((g) => g !== gameId)
-        : [...prev, gameId]
+        : [...prev.filter(g => !(["skins", "skins_carry"].includes(gameId) && ["skins", "skins_carry"].includes(g)) && !(["nassau", "nassau_press"].includes(gameId) && ["nassau", "nassau_press"].includes(g))), gameId]
     );
   };
 
@@ -269,24 +279,30 @@ export default function NewContestScreen() {
           name: p.name.trim(),
           handicap: parseFloat(p.handicap) || 0,
           team: hasTeams ? p.team : null,
+          host: p.host === true,
           scores: new Array(18).fill(0),
         })),
       })
     );
 
+    const cleanConfig: GameConfig = {rulesVersion:1,inputRulesVersion:1};
+    if (selectedGames.some(g => g === "skins" || g === "skins_carry")) { cleanConfig.skinsMode = gameConfig.skinsMode; cleanConfig.skinsScope = gameConfig.skinsScope; }
+    for (const v of GAME_VARIATIONS) if (v.appliesTo.some(g => selectedGames.includes(g)) && gameConfig[v.configKey] !== undefined) cleanConfig[v.configKey] = gameConfig[v.configKey];
+    const error = validateVariationSetup(groups, selectedGames, cleanConfig, Number(betUnit));
+    if (error) { Alert.alert("Review contest rules", error); return; }
     const contest: Contest = {
-      id: generateId(),
+      id: Crypto.randomUUID(),
       name: contestName || autoName,
       course,
       status: "active",
-      betUnit: parseFloat(betUnit) || 1,
+      betUnit: Number(betUnit),
       hasTeams,
       teams: hasTeams ? teams.map((t) => ({ id: t.id, name: t.name })) : undefined,
       teamAName: hasTeams ? teams[0]?.name : undefined,
       teamBName: hasTeams ? teams[1]?.name : undefined,
       groups,
       games: selectedGames,
-      gameConfig: Object.keys(gameConfig).length > 0 ? gameConfig : undefined,
+      gameConfig: cleanConfig,
       createdAt: new Date().toISOString(),
     };
 
@@ -474,7 +490,7 @@ export default function NewContestScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
                 trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                thumbColor={COLORS.cardBg}
+                thumbColor={COLORS.card}
               />
               <Text style={{ color: COLORS.text, fontSize: 15, marginLeft: 12 }}>
                 Multi-Day Tournament
@@ -1035,7 +1051,7 @@ export default function NewContestScreen() {
 
             {/* Stake per hole */}
             <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
-              STAKE PER HOLE
+              BET UNIT
             </Text>
             <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: 24 }}>
               <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28, color: COLORS.textDim, marginRight: 2 }}>

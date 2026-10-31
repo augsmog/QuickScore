@@ -1,3 +1,12 @@
+import { useContestStore } from "../src/stores/contest-store";
+import { AppState, Platform } from "react-native";
+import { CROSS_DEVICE_SHARING_ENABLED } from "../src/config/features";
+import { REAL_AUTH_CONFIGURED } from "../src/config/auth";
+import { supabase } from "../src/db/supabase";
+import { authLifecycle } from "../src/services/auth-lifecycle";
+import { foregroundSync, rootRefresh } from "../src/services/online-client";
+import { client, replayOnlineScores } from "../src/services/cross-device";
+import { useOnlineStore } from "../src/stores/online-store";
 import { CAPTCHA_MODE } from "../src/config/captcha";
 import { TurnstileHost } from "../src/components/TurnstileHost";
 import { isPublicShare } from "../src/config/public-share";
@@ -16,15 +25,19 @@ import { COLORS } from "../src/ui/theme";
 import "../global.css";
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
+import { assertNoDefaultPii, assertReplayMask, scrubSentryEvent, sentryReplayMask, sentrySendDefaultPii } from "../src/config/sentry-privacy";
 
 SplashScreen.preventAutoHideAsync();
+
+assertNoDefaultPii(sentrySendDefaultPii);
+assertReplayMask(sentryReplayMask);
 
 const routingInstrumentation = Sentry.reactNavigationIntegration({
   enableTimeToInitialDisplay: true,
 });
 
 Sentry.init({
-  enabled: !isPublicShare,
+  enabled: !isPublicShare && !CROSS_DEVICE_SHARING_ENABLED,
   dsn: 'https://e878c1d1d9a18b64ad7ddc2f6d2b5986@o4511068999385088.ingest.us.sentry.io/4511069003776000',
 
   // Release & environment tracking
@@ -34,7 +47,7 @@ Sentry.init({
   dist: Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode?.toString(),
   environment: __DEV__ ? "development" : "production",
 
-  sendDefaultPii: true,
+  sendDefaultPii: sentrySendDefaultPii,
   enableLogs: true,
 
   // Performance tracing — capture 20% of transactions
@@ -48,16 +61,16 @@ Sentry.init({
   replaysOnErrorSampleRate: 1,
 
   integrations: [
-    Sentry.mobileReplayIntegration(),
+    Sentry.mobileReplayIntegration(sentryReplayMask),
     Sentry.feedbackIntegration(),
     routingInstrumentation,
   ],
 
-  // Filter out noise
+  // Filter out noise. User context keeps an id and drops email and name.
   beforeSend(event) {
-    // Don't send events in dev mode unless explicitly testing
-    if (__DEV__ && !event.tags?.["force_send"]) return null;
-    return event;
+    const scrubbed = scrubSentryEvent(event);
+    if (__DEV__ && !scrubbed.tags?.["force_send"]) return null;
+    return scrubbed;
   },
 
   // Breadcrumb filtering — keep navigation, user actions, network
@@ -71,11 +84,12 @@ function useProtectedRoute() {
   const hasCompletedOnboarding = useOnboardingStore(
     (s) => s.hasCompletedOnboarding
   );
-  const { session, skipSignIn, isAnonymous } = useAuthStore();
+  const { session, skipSignIn, isAnonymous, isInitialized, remoteUserId } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
+    if (CROSS_DEVICE_SHARING_ENABLED && !isInitialized) return;
     if (__DEV__ && segments[0] === "dev") return;
 
     // In offline mode, auto-create anonymous session and skip auth
@@ -90,14 +104,15 @@ function useProtectedRoute() {
     const inOnboarding = segments[0] === "onboarding";
     const inAuth = segments[0] === "auth";
 
-    if (!hasCompletedOnboarding && !inOnboarding) {
+    const ready = hasCompletedOnboarding || (CROSS_DEVICE_SHARING_ENABLED && isAnonymous && !!remoteUserId);
+    if (!ready && !inOnboarding) {
       router.replace("/onboarding");
-    } else if (hasCompletedOnboarding && !session && !inAuth && !OFFLINE_MODE) {
+    } else if (ready && !session && !inAuth && !OFFLINE_MODE) {
       router.replace("/auth/sign-in");
-    } else if (hasCompletedOnboarding && session && !isAnonymous && (inOnboarding || inAuth)) {
+    } else if (ready && session && (!isAnonymous || CROSS_DEVICE_SHARING_ENABLED) && (inOnboarding || inAuth)) {
       router.replace("/");
     }
-  }, [hasCompletedOnboarding, session, isAnonymous, segments]);
+  }, [hasCompletedOnboarding, session, isAnonymous, isInitialized, remoteUserId, segments]);
 }
 
 export default Sentry.wrap(function RootLayout() {
@@ -111,6 +126,35 @@ export default Sentry.wrap(function RootLayout() {
 
   const initialize = useAuthStore((s) => s.initialize);
   const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
+    const report = () => useOnlineStore.setState({ error: "Online sync paused. Your queued scores remain on this device." });
+    let polling: ReturnType<typeof foregroundSync> | undefined;
+    const refresh = rootRefresh(async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      return data.session?.user.id ?? null;
+    }, () => Object.entries(useOnlineStore.getState().events).filter(([, e]) => e.membership.role === 'host').map(([id]) => id), client, replayOnlineScores);
+    const lifecycle = authLifecycle(supabase.auth, initialize, report);
+    const change = (state: string) => {
+      polling?.stop(); polling = undefined;
+      if (Platform.OS !== "web") lifecycle.change(state);
+      if (state === "active") polling = foregroundSync(refresh, report);
+    };
+    const subscription = AppState.addEventListener("change", change);
+    let actor: string | null | undefined;
+    const auth = supabase.auth.onAuthStateChange((_event, session) => {
+      const next = session?.user.id ?? null;
+      if (actor !== next) { client.invalidate(); useOnlineStore.getState().reset(); }
+      actor = next;
+    }).data.subscription;
+    const online = () => { if (AppState.currentState === "active") void refresh().catch(report); };
+    if (Platform.OS === "web") globalThis.addEventListener?.("online", online);
+    change(AppState.currentState ?? "active");
+    return () => { subscription.remove(); auth.unsubscribe(); if (Platform.OS === "web") globalThis.removeEventListener?.("online", online); polling?.stop(); lifecycle.stop(); };
+  }, [initialize]);
+
 
   const [fontsLoaded] = useFonts({
     Marcellus_400Regular: require("../assets/fonts/Marcellus_400Regular.ttf"),

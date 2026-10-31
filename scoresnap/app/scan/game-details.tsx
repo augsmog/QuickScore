@@ -51,8 +51,9 @@ export default function GameDetailsScreen() {
   );
   const updateAuxiliaryData = useContestStore((s) => s.updateAuxiliaryData);
 
-  const group = contest?.groups.find((g) => g.id === groupId);
-  const holes = contest?.course.holes ?? [];
+  const round = contest?.isTournament?contest.rounds?.find(r=>r.number===contest.currentRound):undefined;
+  const group = (round?.groups??contest?.groups)?.find((g) => g.id === groupId);
+  const holes = (round?.course??contest?.course)?.holes ?? [];
 
   // Determine which Tier 2 games are active in this contest
   const activeGames = useMemo<Tier2Game[]>(() => {
@@ -80,14 +81,7 @@ export default function GameDetailsScreen() {
             gamesForHole.push(game);
             break;
 
-          case "snake": {
-            // Only holes where at least one player scored bogey+
-            const anyBogeyPlus = group.players.some(
-              (p) => (p.scores[holeInfo.num - 1] || 0) > holeInfo.par
-            );
-            if (anyBogeyPlus) gamesForHole.push(game);
-            break;
-          }
+          case "snake": gamesForHole.push(game); break;
 
           case "greenies":
             // Only par 3 holes
@@ -197,9 +191,10 @@ export default function GameDetailsScreen() {
       for (const [holeStr, data] of Object.entries(holeData)) {
         updateAuxiliaryData(
           contestId,
-          gameKey as keyof AuxiliaryData,
+          (gameKey === "bingo_bango_bongo" ? "bbb" : gameKey) as keyof AuxiliaryData,
           Number(holeStr),
-          data
+          data,
+          groupId
         );
       }
     }

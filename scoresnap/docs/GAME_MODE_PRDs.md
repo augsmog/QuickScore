@@ -1,3 +1,5 @@
+> Historical planning/sprint document. Current selectable and settled capabilities are recorded in [GAMES_STATUS.md](../../GAMES_STATUS.md) and the derived engine registry; historical completion statements below are not release evidence.
+
 # SnapScore Game Mode PRDs — v1.1 Roadmap
 
 **Last updated:** 2026-03-24
@@ -767,7 +769,7 @@ case "banker":          // per-hole banker rotation
 
 **Estimated effort:** 2-3 hours.
 
-**After this sprint:** 25 of 29 games are fully playable. The remaining 4 (Wolf, Hammer, Snake, Greenies) + BBB stay "Coming Soon" until their input UI is built.
+**After this sprint:** the historical game subset are fully playable. The remaining 4 (Wolf, Hammer, Snake, Greenies) + BBB stay "Coming Soon" until their input UI is built.
 
 ### v1.2 Sprint (This Week / Next) — Tier 2 Input UI
 
@@ -786,7 +788,7 @@ Build the per-hole prompt system and wire up:
 
 **Estimated effort:** 1-2 days.
 
-**After this sprint:** 29 of 29 games playable. BBB can ship as the final addition.
+**After this sprint:** the historical game inventory playable. BBB can ship as the final addition.
 
 ### v1.3 Sprint (Next Week) — BBB + Polish
 

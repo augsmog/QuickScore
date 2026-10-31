@@ -1,6 +1,13 @@
 name: Schema drift
 on:
+  # CI trim 2026-10-30 (Augie yes 4:21 PM PT): PRs run this suite only when files it tests change.
+  # Main pushes and manual runs are unfiltered.
   pull_request:
+    paths:
+      - 'scoresnap/supabase/**'
+      - 'scoresnap/src/**'  # reference-guard.py audits client TS/TSX for unknown table names
+      - 'scoresnap/scripts/ci/**'
+      - '.github/workflows/schema-drift.yml'
   push:
     branches: [main]
   workflow_dispatch:
@@ -88,3 +95,20 @@ jobs:
       - name: Stop local stack
         if: always()
         run: supabase stop
+
+  m4b-native-pg17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL 17 from PGDG
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common ca-certificates
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update
+          sudo apt-get install -y postgresql-17
+      - name: Full M4b SQL chain, role matrix, mutations and synchronized races
+        run: |
+          /usr/lib/postgresql/17/bin/postgres --version | grep -E 'PostgreSQL\) 17\.'
+          bash scoresnap/supabase/schema-drift/m4b-local.sh

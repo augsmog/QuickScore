@@ -6,4 +6,4 @@ here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 python3 "$here/drift.py" compare "$here/../schema-snapshot/live.json" "$1"
 python3 "$here/drift.py" ledger "$1" --mode live
 printf '%s\n' 'Guard passed.' \
-  'Next: M3 was applied on 2026-10-28; no approved apply is pending.'
+  'Next: review LIVE-APPLY-SYNC-API.md before the separately authorized sync_api apply.'

@@ -1,3 +1,5 @@
+import { OnlineGuestScorecard } from "../../src/ui/OnlineGuestScorecard";
+import { onlineEnabled, client, remoteIdentity } from "../../src/services/cross-device";
 import { useState } from "react";
 import { ScrollView, Text, TextInput, Pressable, View } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -26,6 +28,13 @@ export default function JoinContest() {
     try {
       setError("");
       if (!name.trim()) throw new Error("Enter your display name.");
+      if (onlineEnabled) {
+        await remoteIdentity();
+        await client.requestJoin(code, name);
+        await client.discover();
+        setClaim("Request sent. Your host must approve your spot. Keep this device to retain unsent scores.");
+        return;
+      }
       const found = await localContestJoinService(() => useContestStore.getState().contests).lookup(code);
       if (!found) throw new Error("Contest not found on this device. Offline codes work only in the organizer’s browser.");
       setContestId(found.id);
@@ -34,9 +43,12 @@ export default function JoinContest() {
   const join = (c: Contest, playerId: string) => {
     try { guest.join(c, playerId, name); setJoined(true); setError(""); } catch (e: any) { setError(e.message); }
   };
-  return <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><Pressable testID="join-dismiss" accessibilityRole="button" accessibilityLabel="Back to home" onPress={() => router.replace("/")} style={{ paddingVertical: 12 }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>Back to home</Text></Pressable><LocalJoinLimitationBanner /></View><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
+  return <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><Pressable testID="join-dismiss" accessibilityRole="button" accessibilityLabel="Back to home" onPress={() => router.replace("/")} style={{ paddingVertical: 12 }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>Back to home</Text></Pressable>{!onlineEnabled && <LocalJoinLimitationBanner />}</View><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
     <Text style={{ fontFamily: FONTS.headline, color: COLORS.text, fontSize: 26 }}>Join with code</Text>
-    <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>Play as a guest. No account needed.</Text>
+    <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>{onlineEnabled ? 'Sign in with email or Apple to join this round.' : 'Play as a guest. No account needed.'}</Text>
+    {onlineEnabled && <Pressable onPress={() => router.push('/auth/sign-in')}><Text style={{color: COLORS.primary}}>Sign in with email or Apple</Text></Pressable>}
+    {onlineEnabled && !!claim && <Text accessibilityRole="alert" style={{ color: COLORS.primary }}>{claim}</Text>}
+    {onlineEnabled && <OnlineGuestScorecard />}
     {!contest && <>
       <TextInput accessibilityLabel="Join code" placeholder="Join code" placeholderTextColor={COLORS.textDim} value={code} onChangeText={setCode} autoCapitalize="characters" maxLength={6} style={{ fontFamily: FONTS.regular, color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />
       <TextInput placeholder="Display name" placeholderTextColor={COLORS.textDim} value={name} onChangeText={setName} style={{ fontFamily: FONTS.regular, color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />

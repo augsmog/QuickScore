@@ -31,8 +31,19 @@ const payload = roundPayload({
 assert.equal(payload.local_id, 'round-local');
 assert.equal(payload.number, 2);
 assert.equal(payload.groups[0].players.length, 2);
+assert.equal(payload.groups[0].players[0].host, undefined);
 assert.equal(JSON.stringify(payload).includes('hole_scores'), false);
 assert.equal(JSON.stringify(payload).includes('delete'), false);
+const hosted = roundPayload({
+  id: 'round-local', number: 1, name: 'Round 1',
+  groups: [{ id: 'group-local', name: 'Group 1', players: [
+    { id: 'ada', name: 'Ada', handicap: 5, host: true },
+    { id: 'bea', name: 'Bea', handicap: 8 },
+  ]}],
+});
+assert.equal(hosted.groups[0].players[0].host, true);
+assert.equal(hosted.groups[0].players[1].host, undefined);
+assert.equal(JSON.stringify(hosted).includes('user_id'), false);
 `));
 
 test('two clients round-trip and an offline queue replays the same op', () => run(`

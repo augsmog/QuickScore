@@ -197,7 +197,7 @@ export default function SignInScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
-          {CROSS_DEVICE_SHARING_ENABLED && (<Pressable onPress={() => router.push("/join/enter")} style={{ paddingVertical: 16 }}><Text style={{ color: COLORS.primary, textAlign: "center" }}>Join with code — no account needed</Text></Pressable>)}
+          {CROSS_DEVICE_SHARING_ENABLED && (<Pressable onPress={() => router.push("/join/enter")} style={{ paddingVertical: 16 }}><Text style={{ color: COLORS.primary, textAlign: "center" }}>Join with code</Text></Pressable>)}
           {/* Logo */}
           <View style={{ alignItems: "center", marginBottom: 40 }}>
             <Text

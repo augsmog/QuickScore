@@ -1,0 +1,3 @@
+PASS: reference guard (4 post-snapshot migrations; archived 008 rejected)
+PASS: active SQL names, SHA256 hashes and tracking
+PASS: active SQL names, SHA256 hashes and tracking

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SCAN_STORAGE_KEY, createGatedStorage } from "./persisted-keys";
 
 import { scanAllowance, type Tier } from "../services/entitlements";
 
@@ -47,13 +48,13 @@ export const useScanStore = create<ScanState>()(
       setPro: (value: boolean) => get().setTier(value ? "pro" : "free"),
     }),
     {
-      name: "snapscore-scans",
+      name: SCAN_STORAGE_KEY,
       version: 1,
       migrate: (old: any) => {
         const tier: Tier = old?.tier === "td" ? "td" : old?.isPro ? "pro" : "free";
         return {scansUsed: old?.scansUsed ?? 0, scanMonth: old?.scanMonth ?? "", tier, isPro: tier !== "free", isTD: tier === "td"} as ScanState;
       },
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => createGatedStorage(AsyncStorage)),
       partialize: (state) => ({
         scansUsed: state.scansUsed,
         scanMonth: state.scanMonth,
