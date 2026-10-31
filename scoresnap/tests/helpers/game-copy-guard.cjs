@@ -1,3 +1,7 @@
+// COPY TEXT guard: scans literal source/HTML/JSX/Markdown/JSON copy in source order.
+// Normalizes whitespace, entities and Unicode; joins adjacent text nodes/elements.
+// Out of scope: CSS/flex/grid visual order, direction reversal, absolute positioning,
+// and JSX child reordering. This is not a screen-layout or rendered-output guard.
 const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
@@ -24,6 +28,7 @@ function normalize(s) {
     .replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(parseInt(n,16)))
     .replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(+n))
     .replace(/&(nbsp|amp|quot|apos|lt|gt);/gi,(_,n)=>({nbsp:' ',amp:'&',quot:'"',apos:"'",lt:'<',gt:'>'}[n.toLowerCase()]))
+    .normalize('NFKC').replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g,'')
     .replace(/\s+/g,' ').trim();
 }
 const noun = '(?:golf\\s+)?(?:game(?:\\s+modes?)?s?|modes?|ways(?:\\s+to\\s+play)?|formats?|variants?|side\\s+games?|contests?)\\b';
@@ -65,10 +70,8 @@ function scan(root) {
       function collectImported(n){if(ts.isVariableDeclaration(n)&&ts.isIdentifier(n.name)&&n.initializer)exports.set(n.name.text,n.initializer);ts.forEachChild(n,collectImported);} collectImported(imported);
       for(const named of statement.importClause.namedBindings.elements){const initializer=exports.get((named.propertyName||named.name).text);if(initializer)bindings.set(named.name.text,initializer);}
     }
-    const approvedNodes=new Set();
     function value(n, seen=new Set(), separator='') {
       if(!n)return '';
-      if(approvedNodes.has(n))return '50+ game modes';
       if(ts.isStringLiteralLike(n)||ts.isJsxText(n)||ts.isNumericLiteral(n))return n.text;
       if(ts.isParenthesizedExpression(n)||ts.isAsExpression(n))return value(n.expression,seen,separator);
       if(ts.isIdentifier(n)&&bindings.has(n.text)&&!seen.has(n.text)){return value(bindings.get(n.text),new Set([...seen,n.text]),separator);}
@@ -104,41 +107,8 @@ function scan(root) {
     }
     const isMarkup=/\.(html|md|txt)$/.test(file);
     {
-      // Inline CSS order changes the reading order of flex/grid sibling labels.
-      // Parse a JSX fragment to retain child boundaries rather than sorting words.
-      const markup=isMarkup ? ts.createSourceFile('copy.tsx','<>'+source+'</>',ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX) : sf;
-      const approvedLayouts=[];
-      function style(n) {
-        const attr=n.openingElement.attributes.properties.find(a=>a.name?.text==='style');
-        if(attr?.initializer && ts.isStringLiteral(attr.initializer))return attr.initializer.text;
-        const expression=attr?.initializer && ts.isJsxExpression(attr.initializer) && attr.initializer.expression;
-        if(expression && ts.isObjectLiteralExpression(expression))return expression.properties
-          .filter(p=>ts.isPropertyAssignment(p))
-          .map(p=>`${p.name.text}:${value(p.initializer)}`).join(';');
-        return '';
-      }
-      function visual(n) {
-        if(ts.isJsxElement(n) && /(?:^|;)\s*display\s*:\s*(?:inline-)?(?:flex|grid)\s*(?:;|$)/i.test(style(n))) {
-          const children=n.children.filter(c=>ts.isJsxElement(c)||ts.isJsxText(c)&&c.text.trim());
-          const ordered=children.map((child,index)=>({child,index,order:ts.isJsxElement(child) ? Number(style(child).match(/(?:^|;)\s*order\s*:\s*([+-]?\d+)\s*(?:;|$)/i)?.[1]||0) : 0}));
-          if(ordered.some(c=>c.order!==0)) {
-            ordered.sort((a,b)=>a.order-b.order||a.index-b.index);
-            const labels=ordered.map(c=>isMarkup ? c.child.getText(markup).replace(/<[^>]*>/g,'') : value(c.child));
-            check(labels.join(''),sf);
-            if(normalize(labels.join(''))==='50+ game modes') {
-              approvedNodes.add(n);
-              approvedLayouts.push([n.getStart(markup)-2,n.end-2]);
-            }
-            // Preserve valid inline phrases before introducing label separators.
-            if(normalize(labels.join(''))!=='50+ game modes')check(labels.join(' '),sf);
-          }
-        }
-        ts.forEachChild(n,visual);
-      }
-      visual(markup);
       if(!isMarkup) {visit(sf);continue;}
-      let copySource=source;
-      for(const [start,end] of approvedLayouts.sort((a,b)=>b[0]-a[0]))copySource=copySource.slice(0,start)+' approved '+copySource.slice(end);
+      const copySource=source;
       // Inline tags contribute no characters; block boundaries contribute whitespace.
       const text=copySource.replace(/<\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|td|th|tr|ul)\b[^>]*>/gi,' ').replace(/<[^>]*>/g,'');
       check(text,sf);

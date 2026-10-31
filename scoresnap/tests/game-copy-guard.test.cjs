@@ -84,20 +84,29 @@ test.each(['50+ game modes','<p>50+ game modes</p>'])('approved HTML alone passe
 // Round-two fixes for the independent qs50plusb verifier.
 test.each(['ensp','thinsp','emsp','numsp','puncsp','hairsp','MediumSpace','ThickSpace','Tab','NewLine'])('HTML named whitespace %s rejects forbidden copy',entity=>
  mutation('site/verify-r1-own.html',`<p>30&${entity};game modes</p>`));
-test('CSS flex order rejects visually assembled forbidden count',()=>
- mutation('site/verify-r1-own.html','<div style="display:flex"><span style="order:3">modes</span><span style="order:2">game </span><span style="order:1">30 </span></div>'));
+// Copy-text contract: normalize Unicode presentation and invisible separators.
+test.each([
+ '３０ game modes', '30 ｇａｍｅ modes', '30 ga\u200bme modes',
+ '30\u200bgame modes', '30 ga\ufeffme modes',
+])('Unicode copy normalization rejects %s',text=>
+ mutation('scoresnap/app/unicode-copy.tsx','const copy='+JSON.stringify(text)));
 
-test.each(['flex','grid'])('approved visually ordered %s copy passes',display=>{
- const file='site/approved-order.html',target=path.join(scratch,file);
- fs.writeFileSync(target,`<div style="display:${display}"><span style="order:3">modes</span><span style="order:1">50+ </span><span style="order:2">game </span></div>`);
+// CSS must never exempt forbidden text that already occurs in source order.
+test.each([
+ ['site/source-order.html','<div style="display:flex"><span style="order:3">30 </span><span style="order:2">game </span><span style="order:1">modes</span></div>'],
+ ['scoresnap/app/source-order.tsx','const copy=<div style={{display:"flex"}}>{<span style={{order:-1}}>30 </span>}{<span>game </span>}{<span>modes</span>}</div>;'],
+])('source-order text rejects regardless of layout: %s',(file,source)=>mutation(file,source));
+
+// Prior verifier layout probes are outside the copy-text threat model. They stay
+// here to make that boundary reviewable; no CSS-based exemption is implemented.
+test.each([
+ ['site/layout.html','<div style="display:flex"><span>modes</span><span style="order:-1">game </span><span style="order:-2">30 </span></div>'],
+ ['site/layout.html','<div style="display:flex;flex-direction:row-reverse"><span>modes</span><span>game </span><span>30 </span></div>'],
+ ['site/layout.html','<div style="display:grid"><span style="grid-column:3">modes</span><span style="grid-column:2">game </span><span style="grid-column:1">30 </span></div>'],
+ ['scoresnap/app/layout.tsx','const copy=<div style={{display:"flex"}}><span>modes</span><span style={{order:-1}}>game </span><span style={{order:-2}}>30 </span></div>;'],
+ ['scoresnap/app/layout.tsx','const copy=<div style={{display:"flex"}}>{<span style={{order:3}}>modes</span>}{<span style={{order:2}}>game </span>}{<span style={{order:1}}>30 </span>}</div>;'],
+])('layout-only assembly is outside scope: %s',(file,source)=>{
+ const target=path.join(scratch,file);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,source);
  try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
 });
-
-// React-valid object CSS must receive the same visual-order check as HTML.
-test('React inline order rejects verifier reproduction',()=>
- mutation('scoresnap/app/independent.tsx','const copy=<div style={{display:"flex"}}><span style={{order:3}}>modes</span><span style={{order:2}}>game </span><span style={{order:1}}>30 </span></div>;'));
-test.each(['flex','grid'])('approved React ordered %s copy passes',display=>{
- const file='scoresnap/app/positive-order.tsx',target=path.join(scratch,file);
- fs.writeFileSync(target,`const copy=<div style={{display:"${display}"}}><span style={{order:3}}>modes</span><span style={{order:1}}>50+ </span><span style={{order:2}}>game </span></div>;`);
- try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
-});
+test.each(['50+ game modes','５０＋ game modes','50+ ga\u200bme modes'])('normalized approved Unicode copy passes: %s',text=>expect(invalid(text)).toBe(false));

@@ -14,9 +14,15 @@ JS/JSX/HTML apps, web/site/public, repository store-listing drafts and positive
 Figma JSON fixtures. It scans literal strings, local constants, named relative
 import providers, templates, concatenation, JSX children/fragments and HTML text;
 HTML numeric entities, named whitespace entities and whitespace are normalized.
-Static inline CSS `order` on direct flex/grid children is checked in visual order.
-Stylesheet/class-based ordering, reversed flex directions and other layout
-transformations require rendered-output coverage when they assemble copy. HTML inline tags preserve
+The guard checks **copy text in source order**, not screen layout. In scope:
+literal counts in source/HTML/JSX/Markdown/JSON, whitespace/entity/Unicode
+normalization (NFKC and invisible formatting characters), and counts split
+across adjacent text nodes/elements in source order. Out of scope: visual
+reordering via CSS/flex/grid order, direction reversal, absolute positioning,
+and JSX child reordering. Layout-only assembly requires separate rendered-output
+review; a passing copy guard makes no layout claim. CSS never exempts forbidden
+source-order text. This boundary supersedes earlier static inline-order support.
+HTML inline tags preserve
 text adjacency, while block tags separate text. Static array `.join()` calls
 (including local or named-import array constants and explicit delimiters) are
 evaluated and scanned even outside JSX. JSX is checked both with
