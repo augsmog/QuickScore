@@ -69,6 +69,16 @@ function scan(root) {
       if(ts.isStringLiteralLike(n)||ts.isJsxText(n)||ts.isNumericLiteral(n))return n.text;
       if(ts.isParenthesizedExpression(n)||ts.isAsExpression(n))return value(n.expression,seen,separator);
       if(ts.isIdentifier(n)&&bindings.has(n.text)&&!seen.has(n.text)){return value(bindings.get(n.text),new Set([...seen,n.text]),separator);}
+      if(ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text==='join') {
+        let array=n.expression.expression, visited=new Set(seen);
+        while(ts.isIdentifier(array)&&bindings.has(array.text)&&!visited.has(array.text)) {
+          visited.add(array.text); array=bindings.get(array.text);
+        }
+        if(ts.isArrayLiteralExpression(array)) {
+          const delimiter=n.arguments.length ? value(n.arguments[0],seen,separator) : ',';
+          return array.elements.map(e=>value(e,visited,separator)).join(delimiter);
+        }
+      }
       if(ts.isJsxExpression(n))return value(n.expression,seen,separator);
       if(ts.isJsxElement(n)||ts.isJsxFragment(n)) {
         // Do not turn an approved inline phrase into a synthetic near-miss.
@@ -86,10 +96,16 @@ function scan(root) {
     function visit(n){
       // Preserve inline text adjacency; also inspect separate sibling labels.
       if(ts.isJsxElement(n)||ts.isJsxFragment(n))check(value(n,new Set(),' '),n);
-      if(ts.isStringLiteralLike(n)||ts.isTemplateExpression(n)||ts.isJsxElement(n)||ts.isJsxFragment(n)||ts.isBinaryExpression(n)&&n.operatorToken.kind===ts.SyntaxKind.PlusToken)check(value(n),n);
+      if(ts.isCallExpression(n)||ts.isStringLiteralLike(n)||ts.isTemplateExpression(n)||ts.isJsxElement(n)||ts.isJsxFragment(n)||ts.isBinaryExpression(n)&&n.operatorToken.kind===ts.SyntaxKind.PlusToken)check(value(n),n);
       ts.forEachChild(n,visit);
     }
-    if(/\.(html|md|txt)$/.test(file))check(source.replace(/<[^>]*>/g,' '),sf); else visit(sf);
+    if(/\.(html|md|txt)$/.test(file)) {
+      // Inline tags contribute no characters; block boundaries contribute whitespace.
+      const text=source.replace(/<\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|td|th|tr|ul)\b[^>]*>/gi,' ').replace(/<[^>]*>/g,'');
+      check(text,sf);
+      // Also detect separate labels, without inventing a near-miss from approved inline text.
+      if(!normalize(text).includes('50+ game modes'))check(source.replace(/<[^>]*>/g,' '),sf);
+    } else visit(sf);
   }
   for(let i=0;i<contestCounts.length;i++)if(!used.has(i))errors.push(`Stale contest allowlist: ${contestCounts[i].join(': ')}`);
   return [...new Set(errors)];

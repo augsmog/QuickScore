@@ -52,3 +52,22 @@ test('approved count preserves text across nested inline elements',()=>{
  fs.writeFileSync(target,'const copy=<span>50+ ga<span>me</span> modes</span>;');
  try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
 });
+
+// Round-three independent verifier reproductions exercise the real discovery path.
+test.each([
+ '<p>30 ga<span>me mo</span>des</p>',
+ '<p>30 ga<strong>me</strong> modes</p>',
+ '<div><span>30</span><span>game modes</span></div>',
+])('HTML inline adjacency rejects %s',source=>mutation('site/verify-independent.html',source));
+test.each([
+ 'const copy=<Text>{["30", " game modes"].join("")}</Text>;',
+ 'const parts=["30", "game modes"]; const copy=<Text>{parts.join(" ")}</Text>;',
+ 'const copy=["25+", "game modes"].join(" ");',
+])('array join assembly rejects %s',source=>mutation('scoresnap/app/verify-independent.tsx',source));
+test.each([
+ ['site/positive.html','<p>50+ ga<span>me mo</span>des</p>'],
+ ['scoresnap/app/positive.tsx','const copy=<Text>{["50+", " game modes"].join("")}</Text>;'],
+])('approved assembled copy passes in %s',(file,source)=>{
+ const target=path.join(scratch,file);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,source);
+ try{expect(scan(scratch).filter(e=>e.startsWith(file+":"))).toEqual([]);}finally{fs.unlinkSync(target);}
+});

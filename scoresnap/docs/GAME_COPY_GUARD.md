@@ -13,7 +13,10 @@ engine copy providers), app, components, Supabase function email sources, root
 JS/JSX/HTML apps, web/site/public, repository store-listing drafts and positive
 Figma JSON fixtures. It scans literal strings, local constants, named relative
 import providers, templates, concatenation, JSX children/fragments and HTML text;
-HTML numeric entities and whitespace are normalized. JSX is checked both with
+HTML numeric entities and whitespace are normalized. HTML inline tags preserve
+text adjacency, while block tags separate text. Static array `.join()` calls
+(including local or named-import array constants and explicit delimiters) are
+evaluated and scanned even outside JSX. JSX is checked both with
 exact text adjacency (including words split across nested inline elements) and
 with separated sibling labels. Count modifiers are open-ended, including
 “supported” and “available”; grammatical boundaries prevent instructional text
@@ -34,7 +37,9 @@ interpret a green static scan as permission to add such copy without coverage.
 The actual paywall rendering is covered in both periods and Pro/TD tiers by
 paywall-clubhouse-ledger.test.cjs. Mutation tests exercise discovery and reject
 bad strings by filename in every source category, including new files, split
-JSX, entities, templates, imported providers and concatenation.
+JSX, HTML inline split words, entities, templates, imported providers,
+concatenation and array joins. Approved split HTML and joined JSX are positive
+controls; the round-three verifier reproductions are permanent regressions.
 
 No claim publication is authorized. Build 26's EAS/source receipt identifies
 7d3060d76c1edec1e25f9bbd582cb38bf0af5e05, but delivered >=50 playable capabilities
