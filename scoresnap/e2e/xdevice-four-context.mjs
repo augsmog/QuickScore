@@ -92,18 +92,14 @@ async function retry(i) {
 async function freshResponse(i, rpc, marker, trigger) {
   const pending = pages[i].waitForResponse(r => r.url().endsWith(`/rpc/${rpc}`) && r.ok()
     && r.request().method() === 'POST' && requestSequence.get(r.request()) > marker
-    && (rpc !== 'fetch_snapshot' || requestContest(r) === contestId), { timeout: 30000 }).then(async response => {
-    // Capture the body as soon as it arrives: the trigger may reload the page.
-    // Waiting for the whole trigger first can discard the pre-navigation response.
-    const body = await response.json();
-    await response.finished();
-    await handledResponses.get(response);
-    return body;
-  });
-  // Arm response and body capture before triggering; consume rejection on failure.
+    && (rpc !== 'fetch_snapshot' || requestContest(r) === contestId), { timeout: 30000 });
+  // Arm before triggering; consume rejection even if the trigger fails.
   pending.catch(() => {});
   await trigger();
-  return pending;
+  const response = await pending;
+  await response.finished();
+  await handledResponses.get(response);
+  return response.json();
 }
 const expected = [];
 function expectCell(i, hole, value) {
@@ -321,11 +317,13 @@ try {
         if (hole < 4) await text(pages[0], 'NEXT').click();
       }
       const status = await freshResponse(3, 'my_sync_status', sequence, async () => {
+        // Reload first: a focus response from the old document can be discarded
+        // by navigation before freshResponse reads it. Then exercise foreground
+        // discovery on the new document, preserving both lifecycle actions.
+        await pages[3].reload();
         await pages[3].evaluate(() => {
           document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('focus'));
         });
-        // Web AppState may already be active; reload forces discovery after the lifecycle signals.
-        await pages[3].reload();
       });
       assert(!status.memberships.some(m => m.contest_id === contestId && m.status === 'approved'));
       await poll('D remains locked out after foreground discovery', async () => await guest(3).count() === 0 || 'context 3: revoked guest roster/scorecard still present');
