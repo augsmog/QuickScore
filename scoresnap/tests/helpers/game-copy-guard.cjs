@@ -27,7 +27,10 @@ function normalize(s) {
 }
 const noun = '(?:golf\\s+)?(?:game(?:\\s+modes?)?s?|modes?|ways(?:\\s+to\\s+play)?|formats?|variants?|side\\s+games?|contests?)\\b';
 const number = '(?:\\d+(?:[.,]\\d+)?|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)(?:[ -]+(?:one|two|three|four|five|six|seven|eight|nine|hundred|thousand))*';
-const badCount = new RegExp('\\b(?:over\\s+|more\\s+than\\s+)?'+number+'\\s*\\+?\\s*(?:(?:core|active|different|playable|base)\\s+)?'+noun,'i');
+// Count modifiers are open-ended; stop at grammatical boundaries so instructions
+// such as "one preset for each game" and "STEP 02 Select Game Modes" stay valid.
+const modifier = '(?!(?:and|or|for|from|in|of|on|per|to|with|each|select)\\b)[a-z-]+\\s+';
+const badCount = new RegExp('\\b(?:over\\s+|more\\s+than\\s+)?'+number+'\\s*\\+?\\s*(?:'+modifier+')*'+noun,'i');
 function invalid(s) {
   s=normalize(s);
   if(/\b(?:over|more than)\s+50\+ game modes\b/i.test(s))return true;
@@ -61,15 +64,19 @@ function scan(root) {
       function collectImported(n){if(ts.isVariableDeclaration(n)&&ts.isIdentifier(n.name)&&n.initializer)exports.set(n.name.text,n.initializer);ts.forEachChild(n,collectImported);} collectImported(imported);
       for(const named of statement.importClause.namedBindings.elements){const initializer=exports.get((named.propertyName||named.name).text);if(initializer)bindings.set(named.name.text,initializer);}
     }
-    function value(n, seen=new Set()) {
+    function value(n, seen=new Set(), separator='') {
       if(!n)return '';
       if(ts.isStringLiteralLike(n)||ts.isJsxText(n)||ts.isNumericLiteral(n))return n.text;
-      if(ts.isParenthesizedExpression(n)||ts.isAsExpression(n))return value(n.expression,seen);
-      if(ts.isIdentifier(n)&&bindings.has(n.text)&&!seen.has(n.text)){return value(bindings.get(n.text),new Set([...seen,n.text]));}
-      if(ts.isJsxExpression(n))return value(n.expression,seen);
-      if(ts.isJsxElement(n)||ts.isJsxFragment(n))return n.children.map(c=>value(c,seen)).join(' ');
-      if(ts.isBinaryExpression(n)&&n.operatorToken.kind===ts.SyntaxKind.PlusToken)return value(n.left,seen)+value(n.right,seen);
-      if(ts.isTemplateExpression(n))return n.head.text+n.templateSpans.map(s=>value(s.expression,seen)+s.literal.text).join('');
+      if(ts.isParenthesizedExpression(n)||ts.isAsExpression(n))return value(n.expression,seen,separator);
+      if(ts.isIdentifier(n)&&bindings.has(n.text)&&!seen.has(n.text)){return value(bindings.get(n.text),new Set([...seen,n.text]),separator);}
+      if(ts.isJsxExpression(n))return value(n.expression,seen,separator);
+      if(ts.isJsxElement(n)||ts.isJsxFragment(n)) {
+        // Do not turn an approved inline phrase into a synthetic near-miss.
+        if(separator===' ' && normalize(value(n,seen,''))==='50+ game modes')return '50+ game modes';
+        return n.children.map(c=>value(c,seen,separator)).join(separator);
+      }
+      if(ts.isBinaryExpression(n)&&n.operatorToken.kind===ts.SyntaxKind.PlusToken)return value(n.left,seen,separator)+value(n.right,seen,separator);
+      if(ts.isTemplateExpression(n))return n.head.text+n.templateSpans.map(s=>value(s.expression,seen,separator)+s.literal.text).join('');
       const expr=n.getText(n.getSourceFile());
       const allowed=contestCounts.findIndex(([p,e])=>p===file&&e===expr);
       if(allowed>=0){used.add(allowed);return 'current';}
@@ -77,6 +84,8 @@ function scan(root) {
     }
     function check(s,n){if(invalid(s))errors.push(`${file}:${sf.getLineAndCharacterOfPosition(n.getStart(sf)).line+1}: ${normalize(s).slice(0,180)}`);}
     function visit(n){
+      // Preserve inline text adjacency; also inspect separate sibling labels.
+      if(ts.isJsxElement(n)||ts.isJsxFragment(n))check(value(n,new Set(),' '),n);
       if(ts.isStringLiteralLike(n)||ts.isTemplateExpression(n)||ts.isJsxElement(n)||ts.isJsxFragment(n)||ts.isBinaryExpression(n)&&n.operatorToken.kind===ts.SyntaxKind.PlusToken)check(value(n),n);
       ts.forEachChild(n,visit);
     }

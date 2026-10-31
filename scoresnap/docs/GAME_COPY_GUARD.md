@@ -13,7 +13,11 @@ engine copy providers), app, components, Supabase function email sources, root
 JS/JSX/HTML apps, web/site/public, repository store-listing drafts and positive
 Figma JSON fixtures. It scans literal strings, local constants, named relative
 import providers, templates, concatenation, JSX children/fragments and HTML text;
-HTML numeric entities and whitespace are normalized. Engine literals are not
+HTML numeric entities and whitespace are normalized. JSX is checked both with
+exact text adjacency (including words split across nested inline elements) and
+with separated sibling labels. Count modifiers are open-ended, including
+“supported” and “available”; grammatical boundaries prevent instructional text
+such as “one preset for each game” from becoming an inventory claim. Engine literals are not
 blanket exempted. Exact contest expressions have path/reason entries and stale
 entries fail.
 
