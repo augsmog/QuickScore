@@ -92,3 +92,12 @@ test.each(['flex','grid'])('approved visually ordered %s copy passes',display=>{
  fs.writeFileSync(target,`<div style="display:${display}"><span style="order:3">modes</span><span style="order:1">50+ </span><span style="order:2">game </span></div>`);
  try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
 });
+
+// React-valid object CSS must receive the same visual-order check as HTML.
+test('React inline order rejects verifier reproduction',()=>
+ mutation('scoresnap/app/independent.tsx','const copy=<div style={{display:"flex"}}><span style={{order:3}}>modes</span><span style={{order:2}}>game </span><span style={{order:1}}>30 </span></div>;'));
+test.each(['flex','grid'])('approved React ordered %s copy passes',display=>{
+ const file='scoresnap/app/positive-order.tsx',target=path.join(scratch,file);
+ fs.writeFileSync(target,`const copy=<div style={{display:"${display}"}}><span style={{order:3}}>modes</span><span style={{order:1}}>50+ </span><span style={{order:2}}>game </span></div>;`);
+ try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
+});
