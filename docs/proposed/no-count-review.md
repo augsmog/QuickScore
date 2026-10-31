@@ -1,0 +1,18 @@
+# No-count guard and proposed vault amendment
+
+Vault source: `/workspace/augie-os/cuts/2026-10-30-snapscore-paywall-clubhouse-ledger.md` at vault HEAD `08713348641e8fa69bd94137660dab1257a4ba38`, file blob `c6e270c8f9e28e09478d668983d5a2e99021eab5`.
+`no-count-vault-amendment.patch` is a proposed vault diff, not an installed amendment. Review and apply separately against that exact blob; rebase/review if it changes. Do not edit rescued snapshots. It replaces operative instructions at original lines 32, 59, 105, 119, 155, 164 and 202, preserves historical owner quotes, and adds explicit global supersession. Checked the proposed result: no operative instruction mandates counts or authorizes future count updates. Historical concept references and the owner quote are history, not instructions.
+
+## Scanner inventory
+
+`tests/helpers/library-copy-guard.cjs` recursively discovers JS/TS/JSX/TSX, HTML and JSON across the repository: app and onboarding, UI/components, all imported engine/service providers, src/web, site, customer edge-function/email templates, and Figma fixture JSON. Markdown whose path contains `listing` or `store-listing` includes store-listing drafts. Newly added files in these categories are discovered automatically. The legacy root JSX prototype is covered too.
+
+Exclude node_modules, .git, tests/__tests__/e2e (negative vectors), generated dist/build/coverage, reports/review, and internal markdown planning/engineering docs (including GAMES_STATUS inventory and the historical CMO strategy). `august-industries-site` is an empty submodule in this checkout; active app public pages are under scoresnap/site and src/web. The Figma fixture is explicitly re-included. No markdown onboarding surface exists; app/onboarding.tsx is covered.
+
+TS AST extraction scans string literals, templates, JSX text/interpolation and string concatenation. Dynamic expressions adjacent to library nouns are rejected even when their count comes from an imported provider. This is a conservative static copy guard, not a runtime execution engine: arbitrary assembly of fragments across functions is not evaluated. Exact path/text/reason exemptions cover only user contest totals; stale exemptions fail the production scan. Internal number constants remain allowed.
+
+Existing Jest testMatch discovers tests/*.test.cjs; unchanged web-smoke runs npm test -- --runInBand. The requested draft PR publication authorizes the existing automatic PR CI path; no manual CI dispatch or workflow change is required. No merge, EAS/Codemagic build, OTA, upload, submission, deployment or install is authorized by this diff.
+
+## Build 26
+
+Existing local receipts `/workspace/aos-state/snapscore/testflight-26-20261031/{receipt.md,build-view.json}` identify EAS build `dc8eb39d-5192-4e02-b286-eae490f3fe4d`, source `7d3060d76c1edec1e25f9bbd582cb38bf0af5e05`, created Oct 31 2026 03:49:08 PT, completed 03:56:04 PT. Receipt records ASC build `afe32000-640d-438b-af56-16e74b36f68a`, version 26, uploaded 03:57:15 PT, VALID / IN_BETA_TESTING. Build-local eas.json sharing flag differed; receipt says no copy edits. That source contains PR #64 and the paywall has "Deep game library" with no body: the build-26 source does **not** contain the reported count. A future build can use this PR head (a count-free descendant); no build is necessary to deliver test-only enforcement. Binary bytecode copy was not independently disassembled. OTA delivery state remains UNVERIFIED; no supplied receipt ties a later delivered update or observed phone screenshot to this binary. Do not infer installed copy from app.json buildNumber.

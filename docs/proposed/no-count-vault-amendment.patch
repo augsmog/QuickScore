@@ -1,0 +1,77 @@
+--- a/cuts/2026-10-30-snapscore-paywall-clubhouse-ledger.md
++++ b/cuts/2026-10-30-snapscore-paywall-clubhouse-ledger.md
+@@ -29,7 +29,7 @@
+ - Pro: $24.99/yr with a 7-day free trial, or $3.99/mo.
+ - Tournament Director: $79.99/yr with a 7-day free trial, or $12.99/mo.
+ - No lifetime option.
+-- Positioning, in order: (1) easiest contest building and settlement; (2) "Deep game library" (state the real shipped mode count; never claim more modes than have shipped); (3) live tracking anywhere, on or off the course. Scanning stays a supporting feature.
++- Positioning: contest → "Deep game library" (no body) → live tracking. No library-count claims anywhere in customer copy. Scanning remains supporting.
+ - Screen keeps: the full Apple auto-renewal paragraph, Restore Purchases, Terms of Use and Privacy Policy links, and "One trial per Apple ID across Pro and Tournament Director."
+ - RevenueCat/StoreKit stays as wired at 1dee94d: `react-native-purchases`, package keys `annual` / `monthly` / `td_annual` / `td_monthly`, and the existing 7-day intro-offer eligibility check. No product or price changes.
+ 
+@@ -56,7 +56,7 @@
+ - **No App Store Connect review-screenshot change** (the subscription "MISSING_METADATA" screenshot step stays a separate owner-approved task).
+ - No product, price, offering, package, entitlement, intro-offer or subscription-group change in App Store Connect or RevenueCat. No `$rc_lifetime` cleanup.
+ - No edits to `src/services/purchases.ts` logic, `src/services/entitlements.ts`, `eas.json`, `app.json`, `src/ui/theme.ts`, `app/_layout.tsx`, CI workflows, or package versions.
+-- No lifetime option anywhere. The library count on this screen equals the shipped mode count at merge time (30 today, per Figma); it never claims more than shipped.
++- No lifetime option anywhere. No library-count claims, numeric or spelled out, including dynamic registry counts.
+ - The "View native subscription options" (`RevenueCatUI.presentPaywallIfNeeded`) link is **not in Figma, so it is removed from this screen**. `react-native-purchases-ui` stays a dependency (still used by Customer Center in `app/(tabs)/profile.tsx`).
+ - No change to other paywall entry points (`PaywallTeaser.tsx`, `scan/index.tsx` inline paywall phase, profile links) beyond what is needed to keep `/paywall` and `/paywall?tier=td` routing intact.
+ - No new design. No Android-specific layout work (iOS is the delivery platform).
+@@ -102,7 +102,7 @@
+ | Eyebrow | "SNAPSCORE PRO" (1:174) | "SNAPSCORE PRO" (1:257) |
+ | Headline | "Run the game. We settle it." (1:175) | same (1:258) |
+ | Value 1 title / body | "Easiest contest setup" / "Build any contest in a few taps. Settlement is automatic." (1:185/1:186) | same (1:268/1:269) |
+-| Value 2 title / body | "Deep game library" / "30 game modes, from Skins and Nassau to Wolf and Vegas." (1:192/1:193) | same (1:275/1:276) |
++| Value 2 title / body | "Deep game library" / no body | same |
+ | Value 3 title / body | "Live tracking anywhere" / "Follow every score live, on or off the course." (1:199/1:200) | same (1:282/1:283) |
+ | Scan line | "Plus unlimited scorecard scans." (1:201) | same (1:284) |
+ | Free row | "Free" · tag "Current plan" · "Basic modes · 3 scans a month" (1:207/1:209/1:210) | same (1:290/1:292/1:293) |
+@@ -116,7 +116,7 @@
+ 
+ Type/colour reference from Figma: CTA label Inter SemiBold 17; plan price Inter Bold 16; under-CTA line Inter Medium 13; "or …" line Inter Regular 13; trial tag Inter SemiBold 11; one-trial and auto-renew Inter Regular 11; headline Inter Bold 28/32, tracking −0.6.
+ 
+-**Figma vs hard content: no conflict found.** Prices, trial on yearly only, no lifetime, positioning order, "30 game modes" (not "50+"), Restore, Terms/Privacy, auto-renew paragraph and the one-trial line all match. Not an owner question.
++**Figma text precedence:** owner no-count rule supersedes historical count strings. Deep game library has no body; remove count nodes from both frames and fixtures. All other approved Figma strings remain binding.
+ 
+ ## 6. State table (states not drawn in Figma; Proto confirms at AC-PW7)
+ 
+@@ -152,7 +152,7 @@
+ | AC-PW3 | Restore Purchases calls `restorePurchases`; success, nothing-to-restore and error states render. | Mocked unit test (3 cases) + TestFlight sandbox check on device (restore with a sandbox Apple ID: one with an active sub, one without), screenshot each. | UNKNOWN |
+ | AC-PW4 | The four package keys and prices come from RevenueCat offerings, never hardcoded; fallback copy equals hard content. | Unit: mock offerings with non-default priceStrings (e.g. "£19.99") → the screen shows them; offerings `null` → fallbacks "$24.99/$3.99/$79.99/$12.99" and CTA disabled. Grep: no price literal outside the fallback table. Keys `annual`, `monthly`, `td_annual`, `td_monthly` used; `purchases.ts` diff empty. | UNKNOWN |
+ | AC-PW5 | Legal elements present: full auto-renew paragraph, Terms and Privacy links open `TERMS_URL` / `PRIVACY_URL`, one-trial line, Restore. No refund wording. | Unit: strings present in both period views; `Linking.openURL` called with each URL; regex `/refund|money.?back|risk.?free|lifetime/i` absent. Device: tap both links on TestFlight build. | UNKNOWN |
+-| AC-PW6 | Mode count claimed = shipped mode count (no overclaim); positioning order contest → library → live; scanning only the muted line. | Unit: value-row order assertion; the count in the copy equals the length of the shipped mode registry at merge time (30 today, so "30 game modes" is present). | UNKNOWN |
++| AC-PW6 | No library-count claims; contest → library → live; library title "Deep game library" with no body. | Recursive Jest copy guard plus paywall render assertions; numeric and number-word mutation cases. | UNKNOWN |
+ | AC-PW7 | 390px screenshots of both states side by side against Figma frames; visual diff reviewed. | Harness or device screenshots (Yearly-eligible-Pro, Monthly-Pro) next to `paywall-A-yearly.png` / `paywall-A-monthly.png`; **Proto Bot** signs off (and confirms §6 + period switch); QA bot second look. | UNKNOWN |
+ | AC-PW8 | Installable TestFlight build with the new paywall on Augie's phone. | EAS `testflight` build from merged main; record build ID, ASC build number, processing done, and a delivery receipt (TestFlight "Ready to Test" + build visible to Augie's tester account; screenshot of paywall from that build). Web preview never counts. Record paywall first-render time (Foundations perf). | UNKNOWN |
+ 
+@@ -161,7 +161,7 @@
+ ## 9. Collision guard (real, found during scoping)
+ 
+ Draft **PR #57** (`snapscore/game-variations-real`, head 5c9a41c, 11:12 AM PT) also edits `scoresnap/app/paywall.tsx` (adds `<Text>{GAME_LIBRARY_CAPTION}</Text>`, where the caption = "{57} ways to play across SnapScore. Pro includes games and variants. …") and `paywall-plans.ts` (Pro features → "Games and variants · …").
+-**PM ruling (binding):** on the paywall screen this cut wins. The paywall shows exactly the Figma "30 game modes, from Skins and Nassau to Wolf and Vegas." and no `GAME_LIBRARY_CAPTION` / "57 ways" line (hard content: "Deep game library", 30 modes; and AC-PW1 exact match). Whichever PR merges second rebases and drops the other's paywall hunk accordingly: if #57 lands first, this build removes the caption line from `paywall.tsx`; if this lands first, #57 must drop its `paywall.tsx` hunk. #57's other screens are outside this cut. Push under the existing `flock /workspace/aos-state/box-deploy/claims/repo:QuickScore.lock`.
++**PM collision ruling (superseding):** this screen shows "Deep game library" with no body. Neither Figma count text nor GAME_LIBRARY_CAPTION inventory counts may reappear. Resolve colliding paywall hunks to this rule; retain unrelated changes.
+ 
+ ## 10. Owners, lane, spend, ETA
+ 
+@@ -197,9 +197,9 @@
+ Your pick, "Paywall: A Clubhouse Ledger", is going into the app. The new screen copies the Figma design word for word. The prices, the yearly-only 7-day trial and the Apple legal text stay the same, and so does how purchases work. "Free trial" only appears when your Apple ID can actually get one. Target: an installable TestFlight build on your phone by 4:30 PM PT today. Cost: $0. Nothing for you to decide.
+ 
+ 
+-## Amendment 2026-10-30 ~11:35 AM PT: mode-count rule corrected
+-Source check: "never 50+" came from Proto's build brief and the concept evidence `reports/snapscore-paywall-concepts/2026-10-30/game-mode-count.md` (30 shipped modes). It is **not** an Augie quote. Augie, verbatim, Oct 30 2026 at 9:38 AM PT: "Let's get the variants up and running so we can say 50+ game modes". Source: decision `projects/golf-score-app/decisions/2026-10-30-ss-50plus-mode-count.md` (commit 222b3228), originally from the OWNER UPDATE at `aos-state/codex-briefs/_tmpl-snapscore-gamevars/common.md` line 8. Copy may say "50+" only when the exported count is 50 or more; otherwise it uses the real number.
+-Binding rule now: **the claimed count equals the real shipped count.** 50+ is the goal, not banned. This build keeps the Figma string "30 game modes" because 30 have shipped today. When #57 (or later variant work) ships and the registry count rises, the paywall string and the Figma frame update to the real count (for example "50+ game modes" once at least 50 ship) through a one-line amendment and a Proto Figma edit. PR #57's "57 ways to play" stands only if 57 variants are actually shipped and playable at its merge.
++## Historical amendment 2026-10-30 (superseded Oct 31)
++Historical source evidence only (superseded): Source check: "never 50+" came from Proto's build brief and the concept evidence `reports/snapscore-paywall-concepts/2026-10-30/game-mode-count.md` (30 shipped modes). It is **not** an Augie quote. Augie, verbatim, Oct 30 2026 at 9:38 AM PT: "Let's get the variants up and running so we can say 50+ game modes". Source: decision `projects/golf-score-app/decisions/2026-10-30-ss-50plus-mode-count.md` (commit 222b3228), originally from the OWNER UPDATE at `aos-state/codex-briefs/_tmpl-snapscore-gamevars/common.md` line 8.
++Binding rule now: **no library-count claims**, numeric, number-word or interpolated. "Deep game library" has no body. Registry increases never authorize count updates.
+ 
+ ## Links
+ Up: [[cuts/cuts|cuts]]
+@@ -212,3 +212,7 @@
+ Up: [[cuts/cuts|cuts hub]]
+ Project: [[projects/golf-score-app/golf-score-app|golf-score-app hub]] · [[projects/augie-os/augie-os|augie-os hub]]
+ Decision: [[inbox/ask-answer-SS-PAYWALL-C1-20261030|ask-answer-SS-PAYWALL-C1-20261030]] · [[projects/golf-score-app/decisions/2026-10-21-testflight-eas|2026-10-21-testflight-eas]] · [[projects/golf-score-app/decisions/2026-10-30-ss-50plus-mode-count|2026-10-30-ss-50plus-mode-count]]
++
++## Oct 31 no-count supersession (proposed; requires vault review)
++This amendment supersedes every earlier instruction to state, match, maintain or update library counts, including hard content, Out, Figma precedence, AC-PW6, collision rulings and prior final amendments. Historical owner quotes and extracted Figma evidence remain history only. Require "Deep game library" with no body. Prohibit all numeric, number-word and interpolated library-count claims on all customer surfaces. User contest totals and scan/trial allowances remain permitted.
++This proposal authorizes review only: no merge, build, EAS/Codemagic trigger, OTA update, upload, submit, web/function deploy or installation. Prior delivery instructions do not authorize delivery of this amendment.

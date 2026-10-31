@@ -349,7 +349,7 @@ export default function GolfScorecardApp() {
           </span>
         ))}
         <span style={{ background: COLORS.accentGlow, border: `1px solid ${COLORS.accent}33`, borderRadius: 20, padding: "5px 12px", fontSize: 12, color: COLORS.accent }}>
-          +{ALL_GAMES.length - 12} more
+          Explore more games
         </span>
       </div>
     </div>
