@@ -11,14 +11,33 @@ const contexts = await Promise.all(Array.from({ length: 4 }, () => browser.newCo
 const pages = await Promise.all(contexts.map(c => c.newPage()));
 const names = ['Xdev Host', 'Xdev Bravo', 'Xdev Charlie', 'Xdev Delta'];
 const snapshots = new WeakMap();
+const requestSequence = new WeakMap();
+const handledResponses = new WeakMap();
+let sequence = 0;
+const snapshot = p => snapshots.get(p)?.get(contestId);
+const guest = i => pages[i].getByTestId(`online-guest-${contestId}`);
+const panel = () => pages[0].getByTestId(`online-sync-${contestId}`);
+const scope = i => i === 0 ? panel() : guest(i);
+const guestText = (i, value) => text(guest(i), value);
+function requestContest(r) {
+  try { return r.request().postDataJSON()?.contest_id; } catch { return undefined; }
+}
 const text = (p, value) => p.getByText(value, { exact: true }).filter({ visible: true }).first();
 function configure(p) {
   p.setDefaultTimeout(20000);
   p.on('dialog', d => d.accept());
-  p.on('response', async r => {
-    if (r.url().endsWith('/rpc/fetch_snapshot') && r.ok()) {
-      try { const s = await r.json(); if (!snapshots.has(p) || s.revision >= snapshots.get(p).revision) snapshots.set(p, s); } catch {}
-    }
+  p.on('request', r => requestSequence.set(r, ++sequence));
+  p.on('response', r => {
+    const effect = (async () => {
+      if (r.url().endsWith('/rpc/fetch_snapshot') && r.ok() && requestContest(r) === contestId) {
+        const s = await r.json();
+        if (s.contest_id !== contestId) return;
+        if (!snapshots.has(p)) snapshots.set(p, new Map());
+        if (!snapshot(p) || s.revision >= snapshot(p).revision) snapshots.get(p).set(contestId, s);
+      }
+    })();
+    handledResponses.set(r, effect);
+    effect.catch(() => {});
   });
 }
 pages.forEach(configure);
@@ -46,7 +65,7 @@ async function signIn(p, who) {
   if (await text(p, 'Skip').isVisible()) { await text(p, 'Skip').click(); await p.goto(`${base}/auth/sign-in`); }
   await text(p, 'Already have an account? Sign in').click();
   await p.getByPlaceholder('Email address').waitFor();
-  const email = process.env[`XDEV_${who}_EMAIL`], password = process.env[`XDEV_${who}_PASSWORD`];
+  const email = process.env[`XDEV4_${who}_EMAIL`], password = process.env[`XDEV4_${who}_PASSWORD`];
   if (!email || !password) return false;
   await p.getByPlaceholder('Email address').fill(email);
   await p.getByPlaceholder('Password', { exact: true }).fill(password);
@@ -55,13 +74,25 @@ async function signIn(p, who) {
   return true;
 }
 async function save(i, hole, value) {
-  const p = pages[i];
+  const p = guest(i);
   // Scope both controls to the first round if the fixture ever gains more rounds.
   await p.getByLabel(new RegExp(` hole ${hole} strokes$`)).first().fill(String(value));
   await text(p, `Save hole ${hole}`).click();
 }
 async function retry(i) {
-  await text(pages[i], i === 0 ? 'Retry sync' : 'Retry queued scores').click();
+  await text(scope(i), i === 0 ? 'Retry sync' : 'Retry queued scores').click();
+}
+async function freshResponse(i, rpc, marker, trigger) {
+  const pending = pages[i].waitForResponse(r => r.url().endsWith(`/rpc/${rpc}`) && r.ok()
+    && r.request().method() === 'POST' && requestSequence.get(r.request()) > marker
+    && (rpc !== 'fetch_snapshot' || requestContest(r) === contestId), { timeout: 30000 });
+  // Arm before triggering; consume rejection even if the trigger fails.
+  pending.catch(() => {});
+  await trigger();
+  const response = await pending;
+  await response.finished();
+  await handledResponses.get(response);
+  return response.json();
 }
 const expected = [];
 function expectCell(i, hole, value) {
@@ -72,32 +103,32 @@ async function converge(indices) {
   for (const i of indices) await retry(i);
   await poll(`contexts ${indices.join(',')} converge to every expected cell and UI total`, async () => {
     for (const i of indices) {
-      const s = snapshots.get(pages[i]);
+      const s = snapshot(pages[i]);
       if (!s) return false;
       for (const cell of expected) {
         const player = s.rounds[0].players.find(p => p.displayName === names[cell.i]);
         if (player?.cells.find(c => c.hole === cell.hole)?.strokes !== cell.value) return false;
       }
       if (i === 0) {
-        if (!await text(pages[i], 'Current online snapshot').isVisible()) return false;
-        const heading = await pages[i].getByText(/^HOLE \d{2}$/).first().innerText();
-        const hole = Number(heading.match(/\d+/)[0]);
+        if (!await text(panel(), 'Current online snapshot').isVisible()) return false;
+        const heading = await pages[i].getByText(/^HOLE \d{2}$/).first().allTextContents();
+        const hole = Number(heading.join('').match(/\d+/)[0]);
         for (const cell of expected.filter(c => c.hole === hole)) {
-          const displayed = await pages[i].getByTestId(`score-par-${names[cell.i]}`).innerText();
+          const displayed = (await pages[i].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
           if (Number(displayed.trim().split(/\s/)[0]) !== cell.value) return false;
         }
       }
       // Guests expose confirmed totals for every player, even though only their own cells are editable.
       if (i !== 0) for (const owner of [1, 2, 3]) {
         const sum = expected.filter(c => c.i === owner).reduce((n, c) => n + c.value, 0);
-        if (sum && !await text(pages[i], `${names[owner]}: ${sum} · incomplete`).isVisible()) return false;
+        if (sum && !await guestText(i, `${names[owner]}: ${sum} · incomplete`).isVisible()) return false;
       }
     }
     return true;
   });
 }
 async function queueEntries(p) {
-  return p.evaluate(() => Object.keys(localStorage).filter(k => k.includes('snapscore.outbox.v1.')).flatMap(k => JSON.parse(localStorage.getItem(k)).entries));
+  return p.evaluate(contestId => Object.keys(localStorage).filter(k => k.includes('snapscore.outbox.v1.')).flatMap(k => JSON.parse(localStorage.getItem(k)).entries).filter(e => e.draft.contest_id === contestId), contestId);
 }
 let contestId, contestUrl, code;
 try {
@@ -134,16 +165,16 @@ try {
       await p.getByPlaceholder('Display name').fill(names[i]);
       await text(p, 'Find contest').click();
       await p.getByText(/Request sent/).waitFor();
-      assert.equal(await p.getByText(/Confirmed tournament totals/).count(), 0, 'Pending identity has no totals');
-      for (const name of names) assert.equal(await text(p, name).count(), 0, 'Pending identity has no roster');
+      assert.equal(await guest(i).getByText(/Confirmed tournament totals/).count(), 0, 'Pending identity has no totals');
+      for (const name of names) assert.equal(await text(guest(i), name).count(), 0, 'Pending identity has no roster');
       await retry(0);
-      await text(pages[0], `${names[i]} requests a player slot`).waitFor();
+      await text(panel(), `${names[i]} requests a player slot`).waitFor();
       const decided = pages[0].waitForResponse(r => r.url().endsWith('/rpc/decide_join_request') && r.request().method() === 'POST');
-      await text(pages[0], `${names[i]} requests a player slot`).locator('..').getByText(`Approve as ${names[i]}`, { exact: true }).click();
+      await text(panel(), `${names[i]} requests a player slot`).locator('..').getByText(`Approve as ${names[i]}`, { exact: true }).click();
       assert((await decided).ok(), 'Host approval accepted');
       await p.reload();
-      await text(p, names[i]).waitFor();
-      await text(p, 'Confirmed tournament totals · queued edits excluded').waitFor();
+      await guestText(i, names[i]).waitFor();
+      await guestText(i, 'Confirmed tournament totals · queued edits excluded').waitFor();
     });
     await step('host opens synchronized scoring screen', async () => {
       await pages[0].goto(`${contestUrl}/scorecard`);
@@ -155,31 +186,31 @@ try {
       for (const i of [1, 2, 3]) {
         await contexts[i].setOffline(true);
         await save(i, 1, i + 4);
-        await pages[i].getByText(new RegExp(`^Hole 1 · current clear · queued ${i + 4} · par`)).first().waitFor();
+        await guest(i).getByText(new RegExp(`^Hole 1 · current clear · queued ${i + 4} · par`)).first().waitFor();
         expectCell(i, 1, i + 4);
       }
-      for (const i of [3, 1, 2]) { await contexts[i].setOffline(false); await retry(i); await pages[i].getByText(new RegExp(`^Hole 1 · current ${i + 4} · par`)).first().waitFor(); }
+      for (const i of [3, 1, 2]) { await contexts[i].setOffline(false); await retry(i); await guest(i).getByText(new RegExp(`^Hole 1 · current ${i + 4} · par`)).first().waitFor(); }
       await converge([0, 1, 2, 3]);
     });
     await step('same-hole conflict explicit and Keep current resolves', async () => {
       await contexts[1].setOffline(true);
       await save(1, 2, 9);
-      await pages[1].getByText(/^Hole 2 · current clear · queued 9 · par/).first().waitFor();
+      await guest(1).getByText(/^Hole 2 · current clear · queued 9 · par/).first().waitFor();
       await text(pages[0], 'NEXT').click();
       await text(pages[0], 'HOLE 02').waitFor();
       await pages[0].getByTestId(`score-par-${names[1]}`).click();
       await poll('host hole two accepted before B reconnects', async () => {
-        const cell = snapshots.get(pages[0])?.rounds[0].players.find(p => p.displayName === names[1])?.cells.find(c => c.hole === 2);
+        const cell = snapshot(pages[0])?.rounds[0].players.find(p => p.displayName === names[1])?.cells.find(c => c.hole === 2);
         return cell?.strokes != null;
       });
-      const current = snapshots.get(pages[0]).rounds[0].players.find(p => p.displayName === names[1]).cells.find(c => c.hole === 2).strokes;
+      const current = snapshot(pages[0]).rounds[0].players.find(p => p.displayName === names[1]).cells.find(c => c.hole === 2).strokes;
       assert.notEqual(current, 9);
       await contexts[1].setOffline(false); await retry(1);
-      await pages[1].getByText(/^Hole 2: conflict ·/).first().waitFor();
-      await text(pages[1], 'Use my score').waitFor();
-      await text(pages[1], 'Keep current').click();
+      await guest(1).getByText(/^Hole 2: conflict ·/).first().waitFor();
+      await guestText(1, 'Use my score').waitFor();
+      await guestText(1, 'Keep current').click();
       await poll('conflict removed', async () => (await queueEntries(pages[1])).every(e => e.state !== 'conflict'));
-      await poll('conflict actions gone', async () => !await text(pages[1], 'Keep current').isVisible() && !await text(pages[1], 'Use my score').isVisible());
+      await poll('conflict actions gone', async () => !await guestText(1, 'Keep current').isVisible() && !await guestText(1, 'Use my score').isVisible());
       expectCell(1, 2, current);
       await converge([0, 1, 2, 3]);
     });
@@ -214,20 +245,45 @@ try {
       }, { api, anon, contestId, memberId });
       assert.equal(result.status, 200, 'Host revoke RPC succeeds'); assert.equal(result.json.status, 'revoked');
       await save(3, 4, 15);
-      await pages[3].getByText(/^Hole 4 · current clear · queued 15 · par/).first().waitFor();
+      await guest(3).getByText(/^Hole 4 · current clear · queued 15 · par/).first().waitFor();
       await contexts[3].setOffline(false); await retry(3);
       await poll('D durable draft denied, never acknowledged', async () => (await queueEntries(pages[3])).some(e => e.draft.hole === 4 && e.draft.strokes === 15 && e.state === 'denied'));
+      const postWriteMarker = sequence;
       for (let attempt = 0; attempt < 2; attempt++) {
         const discovery = pages[3].waitForResponse(r => r.url().endsWith('/rpc/my_sync_status') && r.request().method() === 'POST');
         await pages[3].reload();
         const response = await discovery; assert(response.ok(), 'Revoked discovery completes');
         const status = await response.json();
         assert(!status.memberships.some(m => m.contest_id === contestId && m.status === 'approved'));
-        await poll('D roster and scorecard absent', async () => !await text(pages[3], 'Confirmed tournament totals · queued edits excluded').isVisible() && !await text(pages[3], names[3]).isVisible());
-        await pages[3].evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('focus')); });
+        await poll('D roster and scorecard absent', async () => await guest(3).count() === 0);
+      }
+      for (const i of [0, 1, 2]) {
+        const fresh = await freshResponse(i, 'fetch_snapshot', Math.max(postWriteMarker, sequence), () => retry(i));
+        assert.equal(fresh.contest_id, contestId);
+        for (const cell of expected) assert.equal(fresh.rounds[0].players.find(p => p.displayName === names[cell.i]).cells.find(c => c.hole === cell.hole).strokes, cell.value, 'Pre-revocation score unchanged in fresh response');
+        assert.equal(fresh.rounds[0].players.find(p => p.displayName === names[3]).cells.find(c => c.hole === 4).strokes, null, 'Post-revocation score absent in fresh response');
       }
       await converge([0, 1, 2]);
-      for (const i of [0, 1, 2]) assert.equal(snapshots.get(pages[i]).rounds[0].players.find(p => p.displayName === names[3]).cells.find(c => c.hole === 4).strokes, null, 'Post-revocation score never propagated');
+      // Guest totals cover all confirmed cells; inspect each host hole in the UI too.
+      for (let hole = 1; hole <= 4; hole++) {
+        await text(pages[0], `HOLE ${String(hole).padStart(2, '0')}`).waitFor();
+        for (const cell of expected.filter(c => c.hole === hole)) {
+          await poll('host preserved cell visible', async () => Number((await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('').trim().split(/\s/)[0]) === cell.value);
+        }
+        if (hole < 4) await text(pages[0], 'NEXT').click();
+      }
+      const par = snapshot(pages[0]).rounds[0].course.holes.find(h => h.num === 4).par;
+      await poll('host shows unscored hole 4 par placeholder', async () =>
+        (await pages[0].getByTestId(`score-par-${names[3]}`).allTextContents()).join('').replace(/\s/g, '') === `${par}par`);
+      const status = await freshResponse(3, 'my_sync_status', sequence, async () => {
+        await pages[3].evaluate(() => {
+          document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('focus'));
+        });
+        // Web AppState may already be active; reload forces discovery after the lifecycle signals.
+        await pages[3].reload();
+      });
+      assert(!status.memberships.some(m => m.contest_id === contestId && m.status === 'approved'));
+      await poll('D remains locked out after foreground discovery', async () => await guest(3).count() === 0);
       const denied = (await queueEntries(pages[3])).filter(e => e.draft.hole === 4);
       assert.equal(denied.length, 1); assert.equal(denied[0].state, 'denied', 'Denied draft survives reload');
       console.log('Product gap: host has no in-app remove-device control; revocation exercised via host-session backend RPC');
