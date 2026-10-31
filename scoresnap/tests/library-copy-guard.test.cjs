@@ -32,3 +32,26 @@ test('removed exceptions fail stale checks and path changes do not inherit them'
  expect(scan({},true).every(h=>h.text==='stale allowlist entry')).toBe(true);
  expect(scan({'scoresnap/app/probe.tsx':'const a = `${t.games.length} Games`;'})).toHaveLength(1);
 });
+
+test.each([
+ ['scoresnap/site/probe.html', '<p>30 <strong>game modes</strong></p>'],
+ ['scoresnap/src/ui/probe.tsx', 'const copy=<Text>30 <Text>game modes</Text></Text>;'],
+ ['scoresnap/src/ui/probe.tsx', 'const copy=<Text>{PLAYABLE_GAME_COUNT} <Text>games</Text></Text>;'],
+])('rendered nested markup is scanned in %s', (file, source)=>{
+ expect(scan({[file]:source})).toContainEqual(expect.objectContaining({file}));
+ const target=path.join(root,file);
+ try {
+  fs.writeFileSync(target,source,{flag:'wx'});
+  expect(scan(files(),true)).toContainEqual(expect.objectContaining({file}));
+ } finally {fs.rmSync(target,{force:true});}
+});
+test('new positive Figma fixtures are discovered while negative test vectors stay excluded',()=>{
+ const rel='scoresnap/tests/fixtures/independent-figma-strings.json';
+ const file=path.join(root,rel);
+ try {
+  fs.writeFileSync(file,JSON.stringify({label:'30 game modes'}),{flag:'wx'});
+  expect(discover()).toContain(rel);
+  expect(scan(files())).toContainEqual(expect.objectContaining({file:rel}));
+  expect(discover()).not.toContain('scoresnap/tests/library-copy-guard.test.cjs');
+ } finally {fs.rmSync(file,{force:true});}
+});
