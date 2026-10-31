@@ -43,6 +43,16 @@ interface AuthState {
   setSession: (session: AuthState["session"]) => void;
 }
 
+let purchaseActor: string | null | undefined;
+function syncPurchaseIdentity(session: any) {
+  const actor = session?.user && !session.user.is_anonymous ? session.user.id as string : null;
+  if (actor === purchaseActor) return;
+  purchaseActor = actor;
+  const purchases = require('../services/purchases');
+  if (actor) void purchases.identifyUser(actor);
+  else void purchases.logOutPurchases();
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -58,6 +68,7 @@ export const useAuthStore = create<AuthState>()(
         const state = get();
         if (REAL_AUTH_CONFIGURED) {
           const apply = (session: any) => {
+            syncPurchaseIdentity(session);
             if (CROSS_DEVICE_SHARING_ENABLED) {
               const derived = deriveSession(session);
               // Preserve the explicit local skip when no remote session exists.
@@ -244,6 +255,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signOut: () => {
+        purchaseActor = null;
+        void require("../services/purchases").logOutPurchases();
         persistGate.suppressSignedOutPersist = false;
         if (REAL_AUTH_CONFIGURED) void supabase.auth.signOut();
         // Clear auth state

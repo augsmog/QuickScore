@@ -26,6 +26,7 @@ function auth(captcha, real = true) {
     return { getState: () => state };
   };
   load('src/stores/auth-store.ts', {
+    '../services/purchases': { identifyUser: async () => {}, logOutPurchases: async () => {} },
     zustand: { create }, 'zustand/middleware': { persist: fn => fn, createJSONStorage: () => ({}) },
     '@react-native-async-storage/async-storage': {}, '../config/auth': { REAL_AUTH_CONFIGURED: real },
     '../config/features': { CROSS_DEVICE_SHARING_ENABLED: false },
@@ -351,7 +352,9 @@ function restoredAuth(sourceFile = process.env.M4A_AUTH_BASELINE || 'src/stores/
   const keys = load("src/stores/persisted-keys.ts", {});
   const writes = [];
   const session = { user: { id: 'real-guest', is_anonymous: true, app_metadata: { provider: 'anonymous' } }, refresh_token: 'NEVER_PERSIST' };
+  const purchases = { identifyUser: jest.fn(async () => {}), logOutPurchases: jest.fn(async () => {}) };
   const store = load(sourceFile, {
+    '../services/purchases': purchases,
     './persisted-keys': keys,
     zustand: { create: () => initializer => { state = initializer(p => { Object.assign(state, p); if (!keys.persistGate.suppressed) writes.push(p); }, () => state); return {getState: () => state}; } },
     'zustand/middleware': {persist: fn => fn, createJSONStorage: () => ({})},
@@ -361,7 +364,7 @@ function restoredAuth(sourceFile = process.env.M4A_AUTH_BASELINE || 'src/stores/
     '../db/supabase': {supabase: {auth: {getSession: async () => ({data: {session}, error: null}), onAuthStateChange: cb => {listener = cb; return {data: {subscription: {unsubscribe: () => unsubscribed++}}};}}}},
     '../services/captcha': {},
   });
-  return {state, keys, writes, emit: (s, event = 'SIGNED_IN') => listener(event, s), unsubscribed: () => unsubscribed};
+  return {state, keys, writes, purchases, emit: (s, event = 'SIGNED_IN') => listener(event, s), unsubscribed: () => unsubscribed};
 }
 test('cold guest store restore and listener retain anonymous identity; initialization replaces listener', async () => {
   const {state, emit, unsubscribed} = restoredAuth();
@@ -397,4 +400,19 @@ test('late deletion SIGNED_OUT clears remote identity without recreating auth pe
   expect(h.state.remoteUserId).toBe(null);
   expect(h.state.session).toBe(null);
   expect(h.keys.persistGate.suppressed).toBe(false);
+});
+
+test('restored auth routes real accounts to purchase identity and guests/signed out sessions to logout', async () => {
+  const h = restoredAuth();
+  await h.state.initialize();
+  expect(h.purchases.identifyUser).not.toHaveBeenCalled();
+  expect(h.purchases.logOutPurchases).toHaveBeenCalledTimes(1);
+  h.emit({user:{id:'account-A',is_anonymous:false}});
+  expect(h.purchases.identifyUser).toHaveBeenLastCalledWith('account-A');
+  h.emit({user:{id:'account-A',is_anonymous:false}}, 'TOKEN_REFRESHED');
+  expect(h.purchases.identifyUser).toHaveBeenCalledTimes(1);
+  h.emit({user:{id:'account-B',is_anonymous:false}});
+  expect(h.purchases.identifyUser).toHaveBeenLastCalledWith('account-B');
+  h.emit(null, 'SIGNED_OUT');
+  expect(h.purchases.logOutPurchases).toHaveBeenCalledTimes(2);
 });

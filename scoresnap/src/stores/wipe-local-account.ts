@@ -20,6 +20,7 @@ import { useSettingsStore } from "./settings-store";
 export async function wipeLocalAccount(): Promise<void> {
   persistGate.suppressSignedOutPersist = true;
   resetChatSessionCache();
+  await require("../services/purchases").logOutPurchases();
   await runSuppressed(async () => {
     await resetTournamentOutbox();
     const scopedKeys = (await AsyncStorage.getAllKeys()).filter(key => key.startsWith('snapscore.tournament.id-map.v1.'));

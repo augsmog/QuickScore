@@ -3,7 +3,7 @@ import { confirmedTournamentTotals } from '../services/tournament-totals';
 import { projectScore, pendingConfirmation } from '../services/score-projection';
 import type { Entry } from '../services/score-outbox';
 import { useEffect, useState } from 'react';
-import { Alert, AppState, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, AppState, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { client, refreshOnline, onlineEnabled, queueOnlineScore, watchOnline, onlineQueue, replayOnlineScores, resolveOnlineConflict } from '../services/cross-device';
 import { snapshotScore } from '../services/sync-v1';
 import { foregroundSync } from '../services/online-client';
@@ -55,10 +55,15 @@ function ApprovedScorecard({ id, onError }: { id: string; onError: (message: str
   }, [id]);
   if (!event) return null;
   const { snapshot, membership } = event;
-  return <View><Text style={{ color: COLORS.text }}>{snapshot.name} · Approved online scorecard</Text>
+  return <View testID={`online-guest-${id}`}><Text style={{ color: COLORS.text }}>{snapshot.name} · Approved online scorecard</Text>
     <Pressable accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => { void replayOnlineScores().then(() => client.discover()).then(() => inspectQueue()).catch(() => onError('Waiting to sync. Drafts retained.')); }}><Text style={{ color: COLORS.primary }}>Retry queued scores</Text></Pressable>
     {entries.map(entry => <View key={entry.id}><Text style={{ color: COLORS.text }}>Hole {entry.draft.hole}: {entry.state} · round {entry.draft.round_id} · yours {entry.draft.strokes ?? 'clear'}{entry.receipt ? ` · current ${entry.receipt.strokes ?? 'clear'}` : ''}</Text>
-      {entry.state === 'conflict' && (['keep-current', 'use-mine'] as const).map(choice => <Pressable key={choice} accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => Alert.alert('Resolve score conflict?', 'Later queued edits for this hole will be cancelled. Review and enter them again.', [{ text: 'Cancel' }, { text: 'Confirm', onPress: () => { void resolveOnlineConflict(entry.id, choice).then(() => client.discover()).then(() => inspectQueue()).catch(() => onError('Could not save conflict choice')); } }])}><Text style={{ color: COLORS.primary }}>{choice === 'keep-current' ? 'Keep current' : 'Use my score'}</Text></Pressable>)}
+      {entry.state === 'conflict' && (['keep-current', 'use-mine'] as const).map(choice => <Pressable key={choice} accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => {
+        const confirm = () => { void resolveOnlineConflict(entry.id, choice).then(() => client.discover()).then(() => inspectQueue()).catch(() => onError('Could not save conflict choice')); };
+        const warning = 'Later queued edits for this hole will be cancelled. Review and enter them again.';
+        if (Platform.OS === 'web') { if (globalThis.confirm(`Resolve score conflict? ${warning}`)) confirm(); }
+        else Alert.alert('Resolve score conflict?', warning, [{ text: 'Cancel' }, { text: 'Confirm', onPress: confirm }]);
+      }}><Text style={{ color: COLORS.primary }}>{choice === 'keep-current' ? 'Keep current' : 'Use my score'}</Text></Pressable>)}
     </View>)}
     <TournamentCompletion id={id} report={onError} />
     <Text style={{ color: COLORS.text }}>Confirmed tournament totals · queued edits excluded</Text>

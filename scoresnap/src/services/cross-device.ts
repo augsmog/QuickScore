@@ -61,6 +61,17 @@ async function box(expectedActor?: string) {
     const result = await supabase.rpc('write_score', args);
     if (result.error) throw result.error;
     return result.data as Receipt;
+  }, async (entries, retained) => {
+    if (!entries.some(e => e.localEdit) && !retained?.localEdit) return;
+    const store = require('../stores/contest-store');
+    let retention;
+    if (retained?.localEdit) {
+      const d = retained.draft;
+      const snapshot = useOnlineStore.getState().events[d.contest_id]?.snapshot;
+      const local = (kind: string, id: string | null) => snapshot?.id_map.find(m => m.kind === kind && m.server_id === id)?.local_id ?? id;
+      retention = { contestId: d.contest_id, key: retained.localCell ?? JSON.stringify([local('round', d.round_id), local('player', d.player_id), d.hole]), token: retained.localEdit, strokes: d.strokes ?? 0 };
+    }
+    await store.applyOnlineSettlement(entries.filter(e => e.localEdit).map(e => ({ contestId: e.draft.contest_id, token: e.localEdit! })), retention);
   }));
   return boxes.get(actor)!;
 }
@@ -77,20 +88,17 @@ function writer<T>(work: () => Promise<T>): Promise<T> {
   return pending.finally(() => active.delete(pending));
 }
 async function runWriter<T>(work: () => Promise<T>): Promise<T> {
-  if (Platform.OS !== 'web') {
-    const result = nativeWriter.then(work);
-    nativeWriter = result.catch(() => undefined);
-    return result;
-  }
-  const locks = (globalThis.navigator as any)?.locks;
-  if (!locks) throw Error('This browser cannot safely queue online scores; use one supported browser');
-  return locks.request('snapscore-online-outbox', { ifAvailable: true }, (lock: unknown) => {
-    if (!lock) throw Error('Online scoring is active in another tab');
-    return work();
+  const result = nativeWriter.then(() => {
+    if (Platform.OS !== 'web') return work();
+    const locks = (globalThis.navigator as any)?.locks;
+    if (!locks) throw Error('This browser cannot safely queue online scores; use one supported browser');
+    return locks.request('snapscore-online-outbox', work);
   });
+  nativeWriter = result.catch(() => undefined);
+  return result;
 }
-export async function queueOnlineScore(draft: ScoreDraft, expectedVersion: number) {
-  return writer(async () => (await box()).enqueue(draft, expectedVersion));
+export async function queueOnlineScore(draft: ScoreDraft, expectedVersion: number, localEdit?: string, localCell?: string) {
+  return writer(async () => (await box()).enqueue(draft, expectedVersion, localEdit, localCell));
 }
 export async function replayOnlineScores(expectedActor?: string) {
   if (!onlineEnabled) return;
@@ -130,11 +138,13 @@ export function watchOnline(contest: string, refresh: () => Promise<any>, report
   }).catch(report);
   return () => { stopped = true; poll.stop(); remove?.(); };
 }
-export async function queueSnapshotScore(contest: string, round: string, player: string, hole: number, strokes: number | null) {
+export async function queueSnapshotScore(contest: string, round: string, player: string, hole: number, strokes: number | null, localEdit?: string) {
   const event = useOnlineStore.getState().events[contest];
   if (!event) throw Error('Refresh the online scorecard before scoring');
   const { draft, version } = snapshotScore(onlineEnabled, event.snapshot, round, player, hole, strokes);
-  await queueOnlineScore(draft, version);
+  const local = (kind: string, id: string) => event.snapshot.id_map.find(m => m.kind === kind && m.server_id === id)?.local_id ?? id;
+  const localCell = localEdit ? JSON.stringify([local('round', round), local('player', player), hole]) : undefined;
+  await queueOnlineScore(draft, version, localEdit, localCell);
   await replayOnlineScores();
 }
 

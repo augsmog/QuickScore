@@ -28,6 +28,7 @@ test('wipe removes versioned round events, declarations and team cards from disk
   expect(JSON.parse(await disk.getItem(keys.CONTEST_STORAGE_KEY)).state.contests[0]).toEqual(contest);
   const otherStores = Object.fromEntries(['auth', 'guest', 'onboarding', 'scan', 'settings'].map(name => [`./${name}-store`, { [`use${name[0].toUpperCase() + name.slice(1)}Store`]: { setState() {}, getState: () => ({ resetToDefaults() {} }) } }]));
   const { wipeLocalAccount } = load('src/stores/wipe-local-account.ts', {
+    '../services/purchases': { logOutPurchases: async () => {} },
     ...otherStores, './contest-store': { useContestStore: store }, './persisted-keys': keys,
     '@react-native-async-storage/async-storage': storage, '../config/auth': { REAL_AUTH_CONFIGURED: true },
     '../db/supabase': { supabase: { auth: { signOut: async () => {

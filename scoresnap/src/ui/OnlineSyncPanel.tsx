@@ -47,12 +47,15 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
   if (!onlineEnabled) return null;
   const button = (label: string, action: () => void) => <Pressable accessibilityRole="button" onPress={action} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: COLORS.primary }}>{label}</Text></Pressable>;
   const resolve = (entry: Entry, choice: 'keep-current' | 'use-mine') => {
-    Alert.alert('Resolve score conflict?', 'This cancels later queued edits for this hole. Review and enter those scores again.', [
+    const confirm = () => { void resolveOnlineConflict(entry.id, choice).then(refresh).catch(() => setMessage('Could not save your choice. Try again.')); };
+    const warning = 'This cancels later queued edits for this hole. Review and enter those scores again.';
+    if (Platform.OS === 'web') { if (globalThis.confirm(`Resolve score conflict? ${warning}`)) confirm(); }
+    else Alert.alert('Resolve score conflict?', warning, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Confirm', onPress: () => { void resolveOnlineConflict(entry.id, choice).then(refresh).catch(() => setMessage('Could not save your choice. Try again.')); } },
+      { text: 'Confirm', onPress: confirm },
     ]);
   };
-  return <View style={{ paddingHorizontal: 20 }}>
+  return <View testID={`online-sync-${contest.id}`} style={{ paddingHorizontal: 20 }}>
     {button(open ? 'Close online sync' : 'Online sync', () => setOpen(!open))}
     {!!error && <Text accessibilityRole="alert" style={{ color: COLORS.error }}>{error}</Text>}
     {open && <ScrollView style={{ maxHeight: 260 }}>

@@ -95,6 +95,7 @@ export async function syncRoundGroups(
   roundId: string,
   groups: ContestGroup[],
   roundNumber = 1,
+  localEdit?: string,
   roundName?: string,
 ): Promise<void> {
   await syncRound(contestId, {
@@ -128,6 +129,7 @@ export async function syncScore(
   hole: number,
   strokes: number,
   roundNumber = 1,
+  localEdit?: string,
 ): Promise<void> {
   if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
   const epoch = generation;
@@ -138,7 +140,7 @@ export async function syncScore(
   const op = enqueueScore(emptyOutbox(), { contestId, roundLocalId: roundId, roundNumber, playerLocalId: playerId, hole, strokes }, Crypto.randomUUID()).ops[0];
   const args = resolveWrite(outbox.ids, op);
   if (!args || !args.round_id) throw new Error('Online round is not ready. Score remains local and is not queued.');
-  await queueSnapshotScore(args.contest_id, args.round_id, args.player_id, args.hole, args.strokes);
+  await queueSnapshotScore(args.contest_id, args.round_id, args.player_id, args.hole, args.strokes, localEdit);
   if (!current(epoch)) return;
   await flushTournamentOutbox();
   } catch (error) {
