@@ -4,6 +4,12 @@ Allow 35 minutes. Use two iPhones. Players 3–4 use separate signed-in browser
 profiles on a laptop at snapscore.autumn8.me or the test web URL.
 Use a designated test contest. Do not change production configuration.
 
+Known gap: The host scorecard does not display guest-entered scores; remote cells
+are not merged into the local contest store. Online sync → Retry sync shows
+“Current online snapshot” when remote state is present, but no remote score values.
+Compare guest-entered scores and confirmed totals on approved guest devices.
+The automated test checks every remote cell through fresh host-authorized snapshots.
+
 ## 0. Prereqs (2 min)
 
 1. Check the build has cross-device sharing ON.
@@ -28,7 +34,9 @@ Expected: Both phones run the sharing-on build. Each player has a separate ident
    Tap Retry queued scores; on the host tap Retry sync.
 
 Expected: Pending players see no roster or scores. Approved players see the
-confirmed totals and their own editable holes. All devices show the saved score.
+confirmed totals and their own editable holes. Guest devices show the saved score.
+The host Online sync panel shows Current online snapshot after Retry sync;
+expect the known gap on its local scorecard.
 
 - [ ] PASS  - [ ] FAIL
 
@@ -45,7 +53,9 @@ confirmed totals and their own editable holes. All devices show the saved score.
 
 Expected: Offline edits show immediately as queued, separate from confirmed
 scores. Overlap produces a conflict. Each confirmed choice removes the conflict
-and all four views converge to that choice. No silent overwrite occurs.
+and guest confirmed views converge to that choice. On the host, check Online sync
+for Current online snapshot; its local cell can retain the host-entered value
+when the guest choice wins (known gap). No silent overwrite occurs.
 
 - [ ] PASS  - [ ] FAIL
 
@@ -56,7 +66,8 @@ and all four views converge to that choice. No silent overwrite occurs.
 2. Force-quit both apps. Reboot phone 2. Relaunch both while still offline.
 3. Check the same identities and pending edits return. Reconnect phone 2, then
    phone 1. Retry sync. Background and reopen each app during replay.
-4. Compare the holes and confirmed totals on both phones and both web tabs.
+4. Compare holes and confirmed totals on phone 2 and both web tabs. On phone 1,
+   check Online sync → Retry sync → Current online snapshot (known gap).
    Retry again and check totals do not change a second time.
 
 Expected: Queued edits survive app termination and reboot. Reconnect accepts

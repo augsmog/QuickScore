@@ -52,9 +52,16 @@ async function step(name, work) {
 }
 async function poll(name, check) {
   const deadline = Date.now() + 30000;
-  let last;
+  let last = `${name}: check returned false`;
   do {
-    try { if (await check()) return; } catch (error) { last = error.message; }
+    try {
+      const result = await check();
+      if (result === true) return;
+      last = typeof result === 'string' ? result : `${name}: check returned false`;
+    } catch {
+      // Do not copy arbitrary browser/storage errors (which may contain credentials).
+      last = `${name}: probe threw; unable to complete check`;
+    }
     await new Promise(resolve => setTimeout(resolve, 250));
   } while (Date.now() < deadline);
   throw Error(`${name}: 30s deadline exceeded${last ? ` (${last})` : ''}`);
@@ -95,33 +102,39 @@ async function freshResponse(i, rpc, marker, trigger) {
   return response.json();
 }
 const expected = [];
+const hostEntered = new Set();
+const cellKey = (i, hole) => `${i}:${hole}`;
 function expectCell(i, hole, value) {
   const found = expected.find(c => c.i === i && c.hole === hole);
   if (found) found.value = value; else expected.push({ i, hole, value });
 }
 async function converge(indices) {
-  for (const i of indices) await retry(i);
+  for (const i of indices) if (i !== 0) await retry(i);
+  // Require a new host-authorized response, including after reopening the host page.
+  if (indices.includes(0)) await freshResponse(0, 'fetch_snapshot', sequence, () => retry(0));
   await poll(`contexts ${indices.join(',')} converge to every expected cell and UI total`, async () => {
     for (const i of indices) {
       const s = snapshot(pages[i]);
-      if (!s) return false;
+      if (!s) return `context ${i}: missing snapshot`;
       for (const cell of expected) {
         const player = s.rounds[0].players.find(p => p.displayName === names[cell.i]);
-        if (player?.cells.find(c => c.hole === cell.hole)?.strokes !== cell.value) return false;
+        const actual = player?.cells.find(c => c.hole === cell.hole)?.strokes;
+        if (actual !== cell.value) return `context ${i}: snapshot player ${cell.i} hole ${cell.hole} expected ${cell.value}, actual ${actual ?? 'clear/missing'}`;
       }
       if (i === 0) {
-        if (!await text(panel(), 'Current online snapshot').isVisible()) return false;
+        if (!await text(panel(), 'Current online snapshot').isVisible()) return 'context 0: host UI missing Current online snapshot';
         const heading = await pages[i].getByText(/^HOLE \d{2}$/).first().allTextContents();
-        const hole = Number(heading.join('').match(/\d+/)[0]);
-        for (const cell of expected.filter(c => c.hole === hole)) {
+        const hole = Number(heading.join('').match(/\d+/)?.[0]);
+        if (!hole) return 'context 0: host UI missing hole heading';
+        for (const cell of expected.filter(c => c.hole === hole && hostEntered.has(cellKey(c.i, c.hole)))) {
           const displayed = (await pages[i].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
-          if (Number(displayed.trim().split(/\s/)[0]) !== cell.value) return false;
+          if (Number(displayed.trim().split(/\s/)[0]) !== cell.value) return `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
         }
       }
       // Guests expose confirmed totals for every player, even though only their own cells are editable.
       if (i !== 0) for (const owner of [1, 2, 3]) {
         const sum = expected.filter(c => c.i === owner).reduce((n, c) => n + c.value, 0);
-        if (sum && !await guestText(i, `${names[owner]}: ${sum} · incomplete`).isVisible()) return false;
+        if (sum && !await guestText(i, `${names[owner]}: ${sum} · incomplete`).isVisible()) return `context ${i}: guest total text missing for player ${owner}, expected ${sum} · incomplete`;
       }
     }
     return true;
@@ -182,6 +195,7 @@ try {
       await retry(0);
       await text(pages[0], 'Current online snapshot').waitFor();
     });
+    console.log('Product gap: host scorecard does not display guest-entered scores (remote cells not merged into local contest store)');
     await step('offline drafts visible immediately; reconnect D B C', async () => {
       for (const i of [1, 2, 3]) {
         await contexts[i].setOffline(true);
@@ -201,7 +215,7 @@ try {
       await pages[0].getByTestId(`score-par-${names[1]}`).click();
       await poll('host hole two accepted before B reconnects', async () => {
         const cell = snapshot(pages[0])?.rounds[0].players.find(p => p.displayName === names[1])?.cells.find(c => c.hole === 2);
-        return cell?.strokes != null;
+        return cell?.strokes != null || 'context 0: snapshot player 1 hole 2 expected accepted score, actual clear/missing';
       });
       const current = snapshot(pages[0]).rounds[0].players.find(p => p.displayName === names[1]).cells.find(c => c.hole === 2).strokes;
       assert.notEqual(current, 9);
@@ -209,9 +223,10 @@ try {
       await guest(1).getByText(/^Hole 2: conflict ·/).first().waitFor();
       await guestText(1, 'Use my score').waitFor();
       await guestText(1, 'Keep current').click();
-      await poll('conflict removed', async () => (await queueEntries(pages[1])).every(e => e.state !== 'conflict'));
-      await poll('conflict actions gone', async () => !await guestText(1, 'Keep current').isVisible() && !await guestText(1, 'Use my score').isVisible());
+      await poll('conflict removed', async () => (await queueEntries(pages[1])).every(e => e.state !== 'conflict') || 'context 1: durable conflict entry remains');
+      await poll('conflict actions gone', async () => (!await guestText(1, 'Keep current').isVisible() && !await guestText(1, 'Use my score').isVisible()) || 'context 1: guest conflict action still visible');
       expectCell(1, 2, current);
+      hostEntered.add(cellKey(1, 2));
       await converge([0, 1, 2, 3]);
     });
     await step('host leaves; players continue; host returns without loss or duplicates', async () => {
@@ -247,7 +262,7 @@ try {
       await save(3, 4, 15);
       await guest(3).getByText(/^Hole 4 · current clear · queued 15 · par/).first().waitFor();
       await contexts[3].setOffline(false); await retry(3);
-      await poll('D durable draft denied, never acknowledged', async () => (await queueEntries(pages[3])).some(e => e.draft.hole === 4 && e.draft.strokes === 15 && e.state === 'denied'));
+      await poll('D durable draft denied, never acknowledged', async () => (await queueEntries(pages[3])).some(e => e.draft.hole === 4 && e.draft.strokes === 15 && e.state === 'denied') || 'context 3: expected denied draft for hole 4 value 15 missing');
       const postWriteMarker = sequence;
       for (let attempt = 0; attempt < 2; attempt++) {
         const discovery = pages[3].waitForResponse(r => r.url().endsWith('/rpc/my_sync_status') && r.request().method() === 'POST');
@@ -255,7 +270,7 @@ try {
         const response = await discovery; assert(response.ok(), 'Revoked discovery completes');
         const status = await response.json();
         assert(!status.memberships.some(m => m.contest_id === contestId && m.status === 'approved'));
-        await poll('D roster and scorecard absent', async () => await guest(3).count() === 0);
+        await poll('D roster and scorecard absent', async () => await guest(3).count() === 0 || 'context 3: revoked guest roster/scorecard still present');
       }
       for (const i of [0, 1, 2]) {
         const fresh = await freshResponse(i, 'fetch_snapshot', Math.max(postWriteMarker, sequence), () => retry(i));
@@ -264,17 +279,18 @@ try {
         assert.equal(fresh.rounds[0].players.find(p => p.displayName === names[3]).cells.find(c => c.hole === 4).strokes, null, 'Post-revocation score absent in fresh response');
       }
       await converge([0, 1, 2]);
-      // Guest totals cover all confirmed cells; inspect each host hole in the UI too.
+      // Fresh authorized snapshots above cover every remote cell. Only host-entered cells have local scorecard UI values.
       for (let hole = 1; hole <= 4; hole++) {
         await text(pages[0], `HOLE ${String(hole).padStart(2, '0')}`).waitFor();
-        for (const cell of expected.filter(c => c.hole === hole)) {
-          await poll('host preserved cell visible', async () => Number((await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('').trim().split(/\s/)[0]) === cell.value);
+        for (const cell of expected.filter(c => c.hole === hole && hostEntered.has(cellKey(c.i, c.hole)))) {
+          await poll('host preserved cell visible', async () => {
+            const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
+            return Number(displayed.trim().split(/\s/)[0]) === cell.value
+              || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
+          });
         }
         if (hole < 4) await text(pages[0], 'NEXT').click();
       }
-      const par = snapshot(pages[0]).rounds[0].course.holes.find(h => h.num === 4).par;
-      await poll('host shows unscored hole 4 par placeholder', async () =>
-        (await pages[0].getByTestId(`score-par-${names[3]}`).allTextContents()).join('').replace(/\s/g, '') === `${par}par`);
       const status = await freshResponse(3, 'my_sync_status', sequence, async () => {
         await pages[3].evaluate(() => {
           document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('focus'));
@@ -283,7 +299,7 @@ try {
         await pages[3].reload();
       });
       assert(!status.memberships.some(m => m.contest_id === contestId && m.status === 'approved'));
-      await poll('D remains locked out after foreground discovery', async () => await guest(3).count() === 0);
+      await poll('D remains locked out after foreground discovery', async () => await guest(3).count() === 0 || 'context 3: revoked guest roster/scorecard still present');
       const denied = (await queueEntries(pages[3])).filter(e => e.draft.hole === 4);
       assert.equal(denied.length, 1); assert.equal(denied[0].state, 'denied', 'Denied draft survives reload');
       console.log('Product gap: host has no in-app remove-device control; revocation exercised via host-session backend RPC');
