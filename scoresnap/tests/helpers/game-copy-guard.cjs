@@ -20,7 +20,8 @@ function inventory(root) {
   walk(root); return result.sort();
 }
 function normalize(s) {
-  return s.replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(parseInt(n,16)))
+  return s.replace(/&(?:ensp|emsp(?:13|14)?|numsp|puncsp|thinsp|hairsp|ThinSpace|VeryThinSpace|MediumSpace|ThickSpace|Tab|NewLine);/g,' ')
+    .replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(parseInt(n,16)))
     .replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(+n))
     .replace(/&(nbsp|amp|quot|apos|lt|gt);/gi,(_,n)=>({nbsp:' ',amp:'&',quot:'"',apos:"'",lt:'<',gt:'>'}[n.toLowerCase()]))
     .replace(/\s+/g,' ').trim();
@@ -103,6 +104,28 @@ function scan(root) {
       // Inline tags contribute no characters; block boundaries contribute whitespace.
       const text=source.replace(/<\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|td|th|tr|ul)\b[^>]*>/gi,' ').replace(/<[^>]*>/g,'');
       check(text,sf);
+      // Inline CSS order changes the reading order of flex/grid sibling labels.
+      // Parse a JSX fragment to retain child boundaries rather than sorting words.
+      const markup=ts.createSourceFile('copy.tsx','<>'+source+'</>',ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+      function style(n) {
+        const attr=n.openingElement.attributes.properties.find(a=>a.name?.text==='style');
+        return attr?.initializer && ts.isStringLiteral(attr.initializer) ? attr.initializer.text : '';
+      }
+      function visual(n) {
+        if(ts.isJsxElement(n) && /(?:^|;)\s*display\s*:\s*(?:inline-)?(?:flex|grid)\s*(?:;|$)/i.test(style(n))) {
+          const children=n.children.filter(c=>ts.isJsxElement(c)||ts.isJsxText(c)&&c.text.trim());
+          const ordered=children.map((child,index)=>({child,index,order:ts.isJsxElement(child) ? Number(style(child).match(/(?:^|;)\s*order\s*:\s*([+-]?\d+)\s*(?:;|$)/i)?.[1]||0) : 0}));
+          if(ordered.some(c=>c.order!==0)) {
+            ordered.sort((a,b)=>a.order-b.order||a.index-b.index);
+            const labels=ordered.map(c=>c.child.getText(markup).replace(/<[^>]*>/g,''));
+            check(labels.join(''),sf);
+            // Preserve valid inline phrases before introducing label separators.
+            if(normalize(labels.join(''))!=='50+ game modes')check(labels.join(' '),sf);
+          }
+        }
+        ts.forEachChild(n,visual);
+      }
+      visual(markup);
       // Also detect separate labels, without inventing a near-miss from approved inline text.
       // Mask only each approved phrase's source span, preserving unrelated labels.
       const html=normalize(source), offsets=[];

@@ -80,3 +80,15 @@ test.each(['50+ game modes','<p>50+ game modes</p>'])('approved HTML alone passe
  fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,source);
  try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
 });
+
+// Round-two fixes for the independent qs50plusb verifier.
+test.each(['ensp','thinsp','emsp','numsp','puncsp','hairsp','MediumSpace','ThickSpace','Tab','NewLine'])('HTML named whitespace %s rejects forbidden copy',entity=>
+ mutation('site/verify-r1-own.html',`<p>30&${entity};game modes</p>`));
+test('CSS flex order rejects visually assembled forbidden count',()=>
+ mutation('site/verify-r1-own.html','<div style="display:flex"><span style="order:3">modes</span><span style="order:2">game </span><span style="order:1">30 </span></div>'));
+
+test.each(['flex','grid'])('approved visually ordered %s copy passes',display=>{
+ const file='site/approved-order.html',target=path.join(scratch,file);
+ fs.writeFileSync(target,`<div style="display:${display}"><span style="order:3">modes</span><span style="order:1">50+ </span><span style="order:2">game </span></div>`);
+ try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
+});

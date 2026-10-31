@@ -13,7 +13,10 @@ engine copy providers), app, components, Supabase function email sources, root
 JS/JSX/HTML apps, web/site/public, repository store-listing drafts and positive
 Figma JSON fixtures. It scans literal strings, local constants, named relative
 import providers, templates, concatenation, JSX children/fragments and HTML text;
-HTML numeric entities and whitespace are normalized. HTML inline tags preserve
+HTML numeric entities, named whitespace entities and whitespace are normalized.
+Static inline CSS `order` on direct flex/grid children is checked in visual order.
+Stylesheet/class-based ordering, reversed flex directions and other layout
+transformations require rendered-output coverage when they assemble copy. HTML inline tags preserve
 text adjacency, while block tags separate text. Static array `.join()` calls
 (including local or named-import array constants and explicit delimiters) are
 evaluated and scanned even outside JSX. JSX is checked both with
