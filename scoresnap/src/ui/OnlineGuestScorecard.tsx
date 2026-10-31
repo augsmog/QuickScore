@@ -55,7 +55,7 @@ function ApprovedScorecard({ id, onError }: { id: string; onError: (message: str
   }, [id]);
   if (!event) return null;
   const { snapshot, membership } = event;
-  return <View><Text style={{ color: COLORS.text }}>{snapshot.name} · Approved online scorecard</Text>
+  return <View testID={`online-guest-${id}`}><Text style={{ color: COLORS.text }}>{snapshot.name} · Approved online scorecard</Text>
     <Pressable accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => { void replayOnlineScores().then(() => client.discover()).then(() => inspectQueue()).catch(() => onError('Waiting to sync. Drafts retained.')); }}><Text style={{ color: COLORS.primary }}>Retry queued scores</Text></Pressable>
     {entries.map(entry => <View key={entry.id}><Text style={{ color: COLORS.text }}>Hole {entry.draft.hole}: {entry.state} · round {entry.draft.round_id} · yours {entry.draft.strokes ?? 'clear'}{entry.receipt ? ` · current ${entry.receipt.strokes ?? 'clear'}` : ''}</Text>
       {entry.state === 'conflict' && (['keep-current', 'use-mine'] as const).map(choice => <Pressable key={choice} accessibilityRole="button" style={{ minHeight: 44 }} onPress={() => {

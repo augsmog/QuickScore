@@ -55,7 +55,7 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
       { text: 'Confirm', onPress: confirm },
     ]);
   };
-  return <View style={{ paddingHorizontal: 20 }}>
+  return <View testID={`online-sync-${contest.id}`} style={{ paddingHorizontal: 20 }}>
     {button(open ? 'Close online sync' : 'Online sync', () => setOpen(!open))}
     {!!error && <Text accessibilityRole="alert" style={{ color: COLORS.error }}>{error}</Text>}
     {open && <ScrollView style={{ maxHeight: 260 }}>
