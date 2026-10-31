@@ -8,6 +8,10 @@ const ts = require('typescript');
 // WHATWG named character references, generated from Python 3 html.entities.html5.
 // Checked in so the guard needs no additional runtime dependency.
 const namedEntities = require('./html-named-entities.json');
+// Longest valid reference wins; only WHATWG legacy names may omit the semicolon.
+// Decode once (including numeric references with an optional semicolon).
+const entityPattern = new RegExp('&(?:#[xX]([0-9a-fA-F]+);?|#([0-9]+);?|(' +
+  Object.keys(namedEntities).sort((a,b)=>b.length-a.length).join('|') + '))','g');
 // Discover new sources rather than maintaining a list of current filenames.
 function inventory(root) {
   const result = [];
@@ -27,7 +31,7 @@ function inventory(root) {
   walk(root); return result.sort();
 }
 function normalize(s) {
-  return s.replace(/&(?:#x([0-9a-f]+)|#(\d+)|([a-z][a-z0-9]+));/gi,(entity,hex,decimal,name)=>{
+  return s.replace(entityPattern,(entity,hex,decimal,name)=>{
       if(name)return Object.hasOwn(namedEntities,name) ? namedEntities[name] : entity;
       const code=hex ? parseInt(hex,16) : Number(decimal);
       return code>0 && code<=0x10ffff && !(code>=0xd800 && code<=0xdfff)

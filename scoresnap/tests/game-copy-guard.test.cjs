@@ -127,3 +127,20 @@ test.each([
  const target=path.join(scratch,file);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,source);
  try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
 });
+
+// qs50plusc verify-r2: HTML permits legacy names and numeric references without ;.
+test.each([
+ '<p>30&nbsp game modes</p>',
+ '<p>30&nbspgame modes</p>',
+ '<p>30&#32game modes</p>',
+ '<p>30&#x20game modes</p>',
+ '<p>30&nbsp<span>ga</span>me modes</p>',
+])('semicolonless reference rejects %s',source=>mutation('site/legacy-reference.html',source));
+test.each([
+ ['50+&nbsp game modes',false],
+ ['30&ensp game modes',false],
+ ['30&NBSP game modes',false],
+ ['30&unknown;game modes',false],
+ ['30&amp;nbsp game modes',false],
+ ['30&NonBreakingSpace;game modes',true],
+])('reference syntax control %s',(source,rejected)=>expect(invalid(source)).toBe(rejected));

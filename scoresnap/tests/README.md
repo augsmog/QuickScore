@@ -13,6 +13,8 @@ controls must still fail regardless of styles. No new count placement is authori
 
 Named character references use the checked-in WHATWG table in
 `helpers/html-named-entities.json`, generated with Python 3's
-`html.entities.html5` (semicolon-terminated keys, with the semicolon removed).
+`html.entities.html5`, preserving semicolon-terminated keys and the legacy
+semicolonless keys. Longest valid names win, case is preserved, and numeric
+references accept an optional semicolon.
 Decode entities once before NFKC, invisible-character and whitespace normalization.
 The regressions exercise discovered HTML files and approved HTML/JSX controls.
