@@ -1,4 +1,3 @@
-import { PLAYABLE_GAME_COUNT } from '../src/engine/types';
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, Linking, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,7 +39,7 @@ export default function PaywallScreen() {
     catch (e: unknown) { Alert.alert(C.subscription, e instanceof Error ? e.message || C.retry : C.retry); }
     finally { setBusy(false); }
   }
-  const v = buildPaywallView(packages, eligible, tier, selection, PLAYABLE_GAME_COUNT);
+  const v = buildPaywallView(packages, eligible, tier, selection);
   const tag = (label: string) => <Text style={[s.tag, label === C.current && s.current]}>{label}</Text>;
   return <SafeAreaView style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>
@@ -53,7 +52,7 @@ export default function PaywallScreen() {
       </View>
       <View style={{ gap: 4 }}><Text style={s.eyebrow}>{v.eyebrow}</Text><Text style={s.headline}>{v.headline}</Text></View>
       <View>{v.values.map((value, i) => <View key={value.icon} style={[s.value, i < 2 && s.rule]}>
-        <PaywallIcon name={value.icon} /><View style={{ flex: 1, gap: 2 }}><Text style={s.valueTitle}>{value.title}</Text><Text style={s.body}>{value.body}</Text></View>
+        <PaywallIcon name={value.icon} /><View style={{ flex: 1, gap: 2 }}><Text style={s.valueTitle}>{value.title}</Text>{!!value.body && <Text style={s.body}>{value.body}</Text>}</View>
       </View>)}</View>
       <Text style={s.body}>{v.scans}</Text>
       <View style={{ gap: 8 }}>{v.rows.map(row => <Pressable key={row.tier} accessibilityRole="radio" accessibilityState={{ checked: row.selected }}

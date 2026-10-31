@@ -52,7 +52,7 @@ async function sendWelcomeEmail(email: string, referralCode: string) {
             <p style="color: #374151; font-size: 15px; line-height: 1.6;"><strong>Get started in 3 steps:</strong></p>
             <ol style="color: #374151; font-size: 15px; line-height: 1.8;">
               <li>🎯 <strong>Scan a scorecard</strong> — point your camera, we'll do the rest</li>
-              <li>🎲 <strong>Pick a game</strong> — Nassau, Skins, Wolf, or 25+ others</li>
+              <li>🎲 <strong>Pick a game</strong> — Nassau, Skins, Wolf and more</li>
               <li>💰 <strong>Settle up</strong> — no more "I'll get you next time"</li>
             </ol>
           </div>

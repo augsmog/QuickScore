@@ -48,14 +48,6 @@
       "size": 15,
       "fill": "#14201a"
     },
-    "1:193": {
-      "id": "1:193",
-      "path": "Content > Value rows > Value / Deep game library > Copy",
-      "characters": "30 game modes, from Skins and Nassau to Wolf and Vegas.",
-      "font": "Regular",
-      "size": 13,
-      "fill": "#5b665f"
-    },
     "1:199": {
       "id": "1:199",
       "path": "Content > Value rows > Value / Live tracking anywhere > Copy",
@@ -289,14 +281,6 @@
       "font": "Semi Bold",
       "size": 15,
       "fill": "#14201a"
-    },
-    "1:276": {
-      "id": "1:276",
-      "path": "Content > Value rows > Value / Deep game library > Copy",
-      "characters": "30 game modes, from Skins and Nassau to Wolf and Vegas.",
-      "font": "Regular",
-      "size": 13,
-      "fill": "#5b665f"
     },
     "1:282": {
       "id": "1:282",
