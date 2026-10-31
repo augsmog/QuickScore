@@ -1442,6 +1442,25 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "chat_reports",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "contest_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "contest_groups",
       "type": "uuid",
       "type_schema": "pg_catalog"
@@ -1843,6 +1862,25 @@
       "storage": "x",
       "table": "scans",
       "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "created_at",
+      "collation": null,
+      "compression": "",
+      "default": "clock_timestamp()",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "chat_reports",
+      "type": "timestamp with time zone",
       "type_schema": "pg_catalog"
     },
     {
@@ -3551,6 +3589,25 @@
       "options": null,
       "statistics_target": null,
       "storage": "p",
+      "table": "chat_reports",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "id",
+      "collation": null,
+      "compression": "",
+      "default": "gen_random_uuid()",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
       "table": "content_performance",
       "type": "uuid",
       "type_schema": "pg_catalog"
@@ -3856,6 +3913,25 @@
       "statistics_target": null,
       "storage": "p",
       "table": "automation_log_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "chat_reports_pkey",
       "type": "uuid",
       "type_schema": "pg_catalog"
     },
@@ -5092,6 +5168,44 @@
       "storage": "p",
       "table": "feedback_themes",
       "type": "bigint",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "message_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "chat_reports_reporter_session_hash_message_id_key",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "message_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "chat_reports",
+      "type": "uuid",
       "type_schema": "pg_catalog"
     },
     {
@@ -6349,6 +6463,25 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "reason",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "chat_reports",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "recommendation",
       "collation": null,
       "compression": "",
@@ -6479,6 +6612,63 @@
       "storage": "p",
       "table": "round_messages",
       "type": "timestamp with time zone",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "reporter_session_hash",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "chat_reports_reporter_session_hash_message_id_key",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "reporter_session_hash",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "chat_reports",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "reporter_user_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "chat_reports",
+      "type": "uuid",
       "type_schema": "pg_catalog"
     },
     {
@@ -9281,6 +9471,15 @@
       "default": null,
       "nullable": "NO",
       "pos": 4,
+      "table": "chat_reports",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "contest_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 4,
       "table": "operation_receipts",
       "type": "uuid",
       "udt": "uuid"
@@ -9354,6 +9553,15 @@
       "nullable": "NO",
       "pos": 5,
       "table": "round_messages",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "created_at",
+      "default": "clock_timestamp()",
+      "nullable": "NO",
+      "pos": 7,
+      "table": "chat_reports",
       "type": "timestamp with time zone",
       "udt": "timestamptz"
     },
@@ -9974,6 +10182,15 @@
       "default": "gen_random_uuid()",
       "nullable": "NO",
       "pos": 1,
+      "table": "chat_reports",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "id",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "pos": 1,
       "table": "content_performance",
       "type": "uuid",
       "udt": "uuid"
@@ -10382,6 +10599,15 @@
       "table": "feedback_themes",
       "type": "bigint",
       "udt": "int8"
+    },
+    {
+      "col": "message_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 5,
+      "table": "chat_reports",
+      "type": "uuid",
+      "udt": "uuid"
     },
     {
       "col": "metadata",
@@ -10888,6 +11114,15 @@
       "udt": "bool"
     },
     {
+      "col": "reason",
+      "default": null,
+      "nullable": "NO",
+      "pos": 6,
+      "table": "chat_reports",
+      "type": "text",
+      "udt": "text"
+    },
+    {
       "col": "recommendation",
       "default": null,
       "nullable": "NO",
@@ -10931,6 +11166,24 @@
       "table": "round_messages",
       "type": "timestamp with time zone",
       "udt": "timestamptz"
+    },
+    {
+      "col": "reporter_session_hash",
+      "default": null,
+      "nullable": "NO",
+      "pos": 2,
+      "table": "chat_reports",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "reporter_user_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 3,
+      "table": "chat_reports",
+      "type": "uuid",
+      "udt": "uuid"
     },
     {
       "col": "request_hash",
@@ -11869,6 +12122,19 @@
       "validated": true
     },
     {
+      "def": "CHECK (((char_length(reason) >= 1) AND (char_length(reason) <= 300)))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "chat_reports_reason_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "chat_reports",
+      "validated": true
+    },
+    {
       "def": "CHECK (((current_round >= 1) AND (current_round <= 50)))",
       "deferrable": false,
       "deferred": false,
@@ -12356,6 +12622,19 @@
       "domain": null,
       "inheritance_count": 0,
       "local": true,
+      "name": "chat_reports_contest_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "chat_reports",
+      "validated": true
+    },
+    {
+      "def": "FOREIGN KEY (contest_id) REFERENCES published_rounds(contest_id) ON DELETE CASCADE",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
       "name": "round_messages_contest_id_fkey",
       "noinherit": true,
       "parent": null,
@@ -12480,6 +12759,19 @@
       "validated": true
     },
     {
+      "def": "FOREIGN KEY (message_id) REFERENCES round_messages(id) ON DELETE CASCADE",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "chat_reports_message_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "chat_reports",
+      "validated": true
+    },
+    {
       "def": "FOREIGN KEY (owner_id) REFERENCES auth.users(id)",
       "deferrable": false,
       "deferred": false,
@@ -12542,6 +12834,19 @@
       "noinherit": true,
       "parent": null,
       "table": "round_player_assignments",
+      "validated": true
+    },
+    {
+      "def": "FOREIGN KEY (reporter_user_id) REFERENCES auth.users(id) ON DELETE SET NULL",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "chat_reports_reporter_user_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "chat_reports",
       "validated": true
     },
     {
@@ -12815,6 +13120,19 @@
       "noinherit": true,
       "parent": null,
       "table": "automation_log",
+      "validated": true
+    },
+    {
+      "def": "PRIMARY KEY (id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "chat_reports_pkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "chat_reports",
       "validated": true
     },
     {
@@ -13234,6 +13552,19 @@
       "validated": true
     },
     {
+      "def": "UNIQUE (reporter_session_hash, message_id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "chat_reports_reporter_session_hash_message_id_key",
+      "noinherit": true,
+      "parent": null,
+      "table": "chat_reports",
+      "validated": true
+    },
+    {
       "def": "UNIQUE (stripe_event_id)",
       "deferrable": false,
       "deferred": false,
@@ -13574,6 +13905,56 @@
       "owner": "postgres",
       "parallel": "u",
       "return_type": "jsonb",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_token text, p_local_id text, p_session text",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.list_moderated_messages(p_token text, p_local_id text, p_session text) RETURNS TABLE(id uuid, display_name text, body text, created_at timestamp with time zone, participant_id text, is_own boolean) LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\ndeclare cid uuid; own_hash text;\nbegin\n  cid := public.chat_moderation_contest(p_token,p_local_id);\n  if p_session is null or p_session !~ '^[a-f0-9]{64}$' then raise exception 'invalid session'; end if;\n  own_hash := encode(sha256(convert_to(p_session,'UTF8')),'hex');\n  return query select m.id,m.display_name,m.body,m.created_at,\n    encode(sha256(convert_to(cid::text || ':' || m.sender_session_hash,'UTF8')),'hex'),\n    m.sender_session_hash=own_hash\n    from (select r.* from public.round_messages r where r.contest_id=cid and r.removed_at is null\n      order by r.created_at desc,r.id desc limit 200) m order by m.created_at,m.id;\nend $function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "list_moderated_messages",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "record",
+      "returns_set": true,
+      "rows": 1000,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{anon=X/postgres,authenticated=X/postgres,postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_token text, p_local_id text, p_session text, p_message_id uuid, p_reason text",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.report_chat_message(p_token text, p_local_id text, p_session text, p_message_id uuid, p_reason text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\ndeclare cid uuid; reporter text;\nbegin\n  cid := public.chat_moderation_contest(p_token,p_local_id);\n  if p_session is null or p_session !~ '^[a-f0-9]{64}$'\n    or p_reason is null or char_length(btrim(p_reason)) not between 1 and 300 then raise exception 'invalid report'; end if;\n  reporter := encode(sha256(convert_to(p_session,'UTF8')),'hex');\n  if not exists (select 1 from public.round_messages m where m.id=p_message_id and m.contest_id=cid\n    and m.sender_session_hash<>reporter) then raise exception 'invalid message'; end if;\n  insert into public.chat_reports(reporter_session_hash,reporter_user_id,contest_id,message_id,reason)\n    values(reporter,auth.uid(),cid,p_message_id,btrim(p_reason))\n    on conflict (reporter_session_hash,message_id) do nothing;\nend $function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "report_chat_message",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "void",
       "returns_set": false,
       "rows": 0,
       "secdef": true,
@@ -14709,6 +15090,31 @@
     },
     {
       "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_token text, p_local_id text",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=pg_catalog"
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.chat_moderation_contest(p_token text, p_local_id text) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog' AS $function$\ndeclare cid uuid;\nbegin\n  if p_token is not null then return public.chat_contest(p_token); end if;\n  select r.contest_id into cid from public.published_rounds r join public.contests c on c.id=r.contest_id\n    where r.local_id=p_local_id and r.owner_id=auth.uid() and c.owner_id=auth.uid()\n    and not coalesce((auth.jwt()->>'is_anonymous')::boolean,false);\n  if cid is null then raise exception 'owner required'; end if;\n  return cid;\nend $function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "chat_moderation_contest",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "uuid",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
       "args": "p_usage_id bigint",
       "argument_defaults": null,
       "argument_defaults_count": 0,
@@ -15397,6 +15803,11 @@
     {
       "grantee": "postgres",
       "priv": "DELETE",
+      "table": "chat_reports"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
       "table": "content_insights"
     },
     {
@@ -15582,6 +15993,11 @@
     {
       "grantee": "postgres",
       "priv": "INSERT",
+      "table": "chat_reports"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
       "table": "content_insights"
     },
     {
@@ -15767,6 +16183,11 @@
     {
       "grantee": "postgres",
       "priv": "REFERENCES",
+      "table": "chat_reports"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
       "table": "content_insights"
     },
     {
@@ -15952,6 +16373,11 @@
     {
       "grantee": "postgres",
       "priv": "SELECT",
+      "table": "chat_reports"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
       "table": "content_insights"
     },
     {
@@ -16137,6 +16563,11 @@
     {
       "grantee": "postgres",
       "priv": "TRIGGER",
+      "table": "chat_reports"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
       "table": "content_insights"
     },
     {
@@ -16322,6 +16753,11 @@
     {
       "grantee": "postgres",
       "priv": "TRUNCATE",
+      "table": "chat_reports"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
       "table": "content_insights"
     },
     {
@@ -16507,6 +16943,11 @@
     {
       "grantee": "postgres",
       "priv": "UPDATE",
+      "table": "chat_reports"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
       "table": "content_insights"
     },
     {
@@ -16692,6 +17133,11 @@
     {
       "grantee": "service_role",
       "priv": "DELETE",
+      "table": "chat_reports"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
       "table": "content_insights"
     },
     {
@@ -16877,6 +17323,11 @@
     {
       "grantee": "service_role",
       "priv": "INSERT",
+      "table": "chat_reports"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
       "table": "content_insights"
     },
     {
@@ -17058,6 +17509,11 @@
       "grantee": "service_role",
       "priv": "REFERENCES",
       "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
+      "table": "chat_reports"
     },
     {
       "grantee": "service_role",
@@ -17243,6 +17699,11 @@
       "grantee": "service_role",
       "priv": "SELECT",
       "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
+      "table": "chat_reports"
     },
     {
       "grantee": "service_role",
@@ -17428,6 +17889,11 @@
       "grantee": "service_role",
       "priv": "TRIGGER",
       "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
+      "table": "chat_reports"
     },
     {
       "grantee": "service_role",
@@ -17613,6 +18079,11 @@
       "grantee": "service_role",
       "priv": "TRUNCATE",
       "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
+      "table": "chat_reports"
     },
     {
       "grantee": "service_role",
@@ -17798,6 +18269,11 @@
       "grantee": "service_role",
       "priv": "UPDATE",
       "table": "channel_effectiveness"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "chat_reports"
     },
     {
       "grantee": "service_role",
@@ -17996,6 +18472,28 @@
       "immediate": true,
       "live": true,
       "name": "automation_log_pkey",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
+      "name": "chat_reports_pkey",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
+      "name": "chat_reports_reporter_session_hash_message_id_key",
       "nulls_not_distinct": false,
       "ready": true,
       "replica_identity": false,
@@ -19096,6 +19594,16 @@
       "table": "automation_log"
     },
     {
+      "def": "CREATE UNIQUE INDEX chat_reports_pkey ON public.chat_reports USING btree (id)",
+      "name": "chat_reports_pkey",
+      "table": "chat_reports"
+    },
+    {
+      "def": "CREATE UNIQUE INDEX chat_reports_reporter_session_hash_message_id_key ON public.chat_reports USING btree (reporter_session_hash, message_id)",
+      "name": "chat_reports_reporter_session_hash_message_id_key",
+      "table": "chat_reports"
+    },
+    {
       "def": "CREATE UNIQUE INDEX content_performance_pkey ON public.content_performance USING btree (id)",
       "name": "content_performance_pkey",
       "table": "content_performance"
@@ -19441,6 +19949,12 @@
       "acl": "{anon=rwU/postgres,authenticated=rwU/postgres,postgres=rwU/postgres,service_role=rwU/postgres}",
       "kind": "S",
       "name": "golfcore_usage_id_seq",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "chat_reports",
       "owner": "postgres"
     },
     {
@@ -20190,6 +20704,38 @@
       "check_count": 0,
       "kind": "i",
       "name": "automation_log_pkey",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
+      "name": "chat_reports_pkey",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
+      "name": "chat_reports_reporter_session_hash_message_id_key",
       "of_type": null,
       "owner": "postgres",
       "partition": false,
@@ -21853,6 +22399,22 @@
       "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 1,
       "kind": "r",
+      "name": "chat_reports",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "d",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 1,
+      "kind": "r",
       "name": "golfcore_usage",
       "of_type": null,
       "owner": "postgres",
@@ -22147,6 +22709,11 @@
     {
       "force": false,
       "rls": true,
+      "table": "chat_reports"
+    },
+    {
+      "force": false,
+      "rls": true,
       "table": "content_performance"
     },
     {
@@ -22384,7 +22951,17 @@
     {
       "grantee": "anon",
       "priv": "EXECUTE",
+      "routine": "list_moderated_messages"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
       "routine": "post_message"
+    },
+    {
+      "grantee": "anon",
+      "priv": "EXECUTE",
+      "routine": "report_chat_message"
     },
     {
       "grantee": "anon",
@@ -22494,6 +23071,11 @@
     {
       "grantee": "authenticated",
       "priv": "EXECUTE",
+      "routine": "list_moderated_messages"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
       "routine": "m3_score_insert_allowed"
     },
     {
@@ -22520,6 +23102,11 @@
       "grantee": "authenticated",
       "priv": "EXECUTE",
       "routine": "remove_message"
+    },
+    {
+      "grantee": "authenticated",
+      "priv": "EXECUTE",
+      "routine": "report_chat_message"
     },
     {
       "grantee": "authenticated",
@@ -22595,6 +23182,11 @@
       "grantee": "postgres",
       "priv": "EXECUTE",
       "routine": "chat_contest"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "chat_moderation_contest"
     },
     {
       "grantee": "postgres",
@@ -22709,6 +23301,11 @@
     {
       "grantee": "postgres",
       "priv": "EXECUTE",
+      "routine": "list_moderated_messages"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
       "routine": "m3_score_insert_allowed"
     },
     {
@@ -22770,6 +23367,11 @@
       "grantee": "postgres",
       "priv": "EXECUTE",
       "routine": "remove_message"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "report_chat_message"
     },
     {
       "grantee": "postgres",
@@ -22879,6 +23481,11 @@
     {
       "grantee": "service_role",
       "priv": "EXECUTE",
+      "routine": "chat_moderation_contest"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
       "routine": "create_share_link"
     },
     {
@@ -22989,6 +23596,11 @@
     {
       "grantee": "service_role",
       "priv": "EXECUTE",
+      "routine": "list_moderated_messages"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
       "routine": "m3_score_insert_allowed"
     },
     {
@@ -23050,6 +23662,11 @@
       "grantee": "service_role",
       "priv": "EXECUTE",
       "routine": "remove_message"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "report_chat_message"
     },
     {
       "grantee": "service_role",
@@ -23362,6 +23979,14 @@
       "table": "contests"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.published_rounds FROM chat_reports NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "chat_reports_contest_id_fkey:\"RI_FKey_cascade_del\":9",
+      "schema": "public",
+      "table": "published_rounds"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.published_rounds FROM round_messages NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
       "enabled": "O",
       "internal": true,
@@ -23378,12 +24003,44 @@
       "table": "published_rounds"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.round_messages FROM chat_reports NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_cascade_del\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "chat_reports_message_id_fkey:\"RI_FKey_cascade_del\":9",
+      "schema": "public",
+      "table": "round_messages"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER DELETE ON public.scans FROM settlements NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_del\"()",
       "enabled": "O",
       "internal": true,
       "name": "settlements_scan_id_fkey:\"RI_FKey_noaction_del\":9",
       "schema": "public",
       "table": "scans"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.chat_reports FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "chat_reports_reporter_user_id_fkey:\"RI_FKey_check_ins\":5",
+      "schema": "public",
+      "table": "chat_reports"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.chat_reports FROM published_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "chat_reports_contest_id_fkey:\"RI_FKey_check_ins\":5",
+      "schema": "public",
+      "table": "chat_reports"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.chat_reports FROM round_messages NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "chat_reports_message_id_fkey:\"RI_FKey_check_ins\":5",
+      "schema": "public",
+      "table": "chat_reports"
     },
     {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.contest_groups FROM contest_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
@@ -23690,6 +24347,30 @@
       "table": "sync_id_map"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.chat_reports FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "chat_reports_reporter_user_id_fkey:\"RI_FKey_check_upd\":17",
+      "schema": "public",
+      "table": "chat_reports"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.chat_reports FROM published_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "chat_reports_contest_id_fkey:\"RI_FKey_check_upd\":17",
+      "schema": "public",
+      "table": "chat_reports"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.chat_reports FROM round_messages NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "chat_reports_message_id_fkey:\"RI_FKey_check_upd\":17",
+      "schema": "public",
+      "table": "chat_reports"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.contest_groups FROM contest_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
       "enabled": "O",
       "internal": true,
@@ -23994,6 +24675,14 @@
       "table": "published_rounds"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.published_rounds FROM chat_reports NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "chat_reports_contest_id_fkey:\"RI_FKey_noaction_upd\":17",
+      "schema": "public",
+      "table": "published_rounds"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.published_rounds FROM contests NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
       "enabled": "O",
       "internal": true,
@@ -24016,6 +24705,14 @@
       "name": "share_links_contest_id_fkey:\"RI_FKey_noaction_upd\":17",
       "schema": "public",
       "table": "published_rounds"
+    },
+    {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.round_messages FROM chat_reports NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_noaction_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "chat_reports_message_id_fkey:\"RI_FKey_noaction_upd\":17",
+      "schema": "public",
+      "table": "round_messages"
     },
     {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.round_messages FROM published_rounds NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
@@ -24264,6 +24961,34 @@
       "kind": "c",
       "length": -1,
       "name": "channel_effectiveness",
+      "notnull": false,
+      "output": "record_out",
+      "owner": "postgres",
+      "preferred": false,
+      "receive": "record_recv",
+      "send": "record_send",
+      "storage": "x",
+      "subscript": "-",
+      "typmodin": "-",
+      "typmodout": "-"
+    },
+    {
+      "acl": null,
+      "alignment": "d",
+      "analyze": "-",
+      "base": "-",
+      "byval": false,
+      "category": "C",
+      "collation": "-",
+      "default": null,
+      "defined": true,
+      "delimiter": ",",
+      "dimensions": 0,
+      "element": "-",
+      "input": "record_in",
+      "kind": "c",
+      "length": -1,
+      "name": "chat_reports",
       "notnull": false,
       "output": "record_out",
       "owner": "postgres",
