@@ -5,6 +5,9 @@
 const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
+// WHATWG named character references, generated from Python 3 html.entities.html5.
+// Checked in so the guard needs no additional runtime dependency.
+const namedEntities = require('./html-named-entities.json');
 // Discover new sources rather than maintaining a list of current filenames.
 function inventory(root) {
   const result = [];
@@ -24,10 +27,12 @@ function inventory(root) {
   walk(root); return result.sort();
 }
 function normalize(s) {
-  return s.replace(/&(?:ensp|emsp(?:13|14)?|numsp|puncsp|thinsp|hairsp|ThinSpace|VeryThinSpace|MediumSpace|ThickSpace|Tab|NewLine);/g,' ')
-    .replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(parseInt(n,16)))
-    .replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(+n))
-    .replace(/&(nbsp|amp|quot|apos|lt|gt);/gi,(_,n)=>({nbsp:' ',amp:'&',quot:'"',apos:"'",lt:'<',gt:'>'}[n.toLowerCase()]))
+  return s.replace(/&(?:#x([0-9a-f]+)|#(\d+)|([a-z][a-z0-9]+));/gi,(entity,hex,decimal,name)=>{
+      if(name)return Object.hasOwn(namedEntities,name) ? namedEntities[name] : entity;
+      const code=hex ? parseInt(hex,16) : Number(decimal);
+      return code>0 && code<=0x10ffff && !(code>=0xd800 && code<=0xdfff)
+        ? String.fromCodePoint(code) : '\ufffd';
+    })
     .normalize('NFKC').replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g,'')
     .replace(/\s+/g,' ').trim();
 }

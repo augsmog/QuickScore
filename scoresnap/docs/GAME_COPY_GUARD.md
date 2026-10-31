@@ -13,7 +13,8 @@ engine copy providers), app, components, Supabase function email sources, root
 JS/JSX/HTML apps, web/site/public, repository store-listing drafts and positive
 Figma JSON fixtures. It scans literal strings, local constants, named relative
 import providers, templates, concatenation, JSX children/fragments and HTML text;
-HTML numeric entities, named whitespace entities and whitespace are normalized.
+HTML numeric entities, the complete semicolon-terminated WHATWG named entity
+table, and whitespace are normalized before Unicode normalization.
 The guard checks **copy text in source order**, not screen layout. In scope:
 literal counts in source/HTML/JSX/Markdown/JSON, whitespace/entity/Unicode
 normalization (NFKC and invisible formatting characters), and counts split

@@ -10,3 +10,9 @@ across adjacent nodes/elements in source order. CSS/flex/grid visual reordering,
 direction reversal, absolute positioning and JSX child reordering are outside
 scope. Layout-only verifier probes document that boundary; source-order negative
 controls must still fail regardless of styles. No new count placement is authorized.
+
+Named character references use the checked-in WHATWG table in
+`helpers/html-named-entities.json`, generated with Python 3's
+`html.entities.html5` (semicolon-terminated keys, with the semicolon removed).
+Decode entities once before NFKC, invisible-character and whitespace normalization.
+The regressions exercise discovered HTML files and approved HTML/JSX controls.

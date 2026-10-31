@@ -110,3 +110,20 @@ test.each([
  try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
 });
 test.each(['50+ game modes','５０＋ game modes','50+ ga\u200bme modes'])('normalized approved Unicode copy passes: %s',text=>expect(invalid(text)).toBe(false));
+
+// qs50plusc verify-r1: decoded customer copy must reject by discovered filename.
+test.each([
+ '<p>30&NonBreakingSpace;game modes</p>',
+ '<p>50&plus; modes</p>',
+ '<p>25&plus; game modes</p>',
+ '<p>30 ga&ZeroWidthSpace;me modes</p>',
+ '<p>30&NonBreakingSpace;<span>ga&ZeroWidthSpace;me</span> modes</p>',
+ '<p>&#x33;&#48;&ThickSpace;game modes</p>',
+])('named entity verifier regression rejects %s',source=>mutation('site/probe.html',source));
+test.each([
+ ['site/entity-positive.html','<p>50&plus;&NonBreakingSpace;ga&ZeroWidthSpace;me modes</p>'],
+ ['scoresnap/app/entity-positive.tsx','const copy=<Text>50&plus; ga&ZeroWidthSpace;me modes</Text>;'],
+])('approved decoded entity copy passes in %s',(file,source)=>{
+ const target=path.join(scratch,file);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,source);
+ try{expect(scan(scratch).filter(e=>e.startsWith(file+':'))).toEqual([]);}finally{fs.unlinkSync(target);}
+});
