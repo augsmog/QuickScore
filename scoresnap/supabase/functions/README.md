@@ -8,3 +8,13 @@ deno task check
 ```
 
 The task is defined in deno.json. Deno was unavailable in the Oct 30, 2026 local fix environment, so that check was not run there. Node integration scenarios additionally require the package.json dependencies, including Stripe.
+
+## Signup onboarding
+
+Environment variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+`RESEND_API_KEY`, `SIGNUP_WEBHOOK_SECRET`, `EMAIL_FROM`, `EMAIL_REPLY_TO`,
+`EMAIL_UNSUBSCRIBE_URL`, `REFERRAL_PREMIUM_REWARD_ENABLED`.
+
+The trigger is NOT wired yet and needs owner approval: a DB webhook on
+`auth.users` INSERT or `profiles`, sending `x-webhook-secret` and the
+service-role Authorization header. Referral Premium rewards default off.

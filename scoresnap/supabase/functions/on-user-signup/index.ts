@@ -1,6 +1,8 @@
-// ScoreSnap — New User Onboarding Handler
+// SnapScore — New User Onboarding Handler
 // Triggered by: Supabase Auth Hook (after signup) or Database Webhook on profiles INSERT
 // Does: Creates profile, generates referral code, sends welcome email, logs event
+
+import { checkWebhookSecret, referralRewardEnabled, referralPlan, emailSettings, buildWelcomeEmail, buildRewardEmail } from "./lib.ts";
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -8,9 +10,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const ALERT_EMAIL = Deno.env.get("ALERT_EMAIL") || "jones.augie1@gmail.com";
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+const settings = emailSettings({
+  EMAIL_FROM: Deno.env.get("EMAIL_FROM"),
+  EMAIL_REPLY_TO: Deno.env.get("EMAIL_REPLY_TO"),
+  EMAIL_UNSUBSCRIBE_URL: Deno.env.get("EMAIL_UNSUBSCRIBE_URL"),
+});
 
 function generateReferralCode(userId: string): string {
   // Short, memorable code: first 4 chars of user ID + random 4 chars
@@ -21,58 +25,14 @@ function generateReferralCode(userId: string): string {
   return `SS-${random}`;
 }
 
-async function sendWelcomeEmail(email: string, referralCode: string) {
-  if (!RESEND_API_KEY) {
-    console.log(`[EMAIL SKIPPED] Welcome email to ${email}`);
-    return;
-  }
-
-  await fetch("https://api.resend.com/emails", {
+async function sendEmail(payload: ReturnType<typeof buildWelcomeEmail>) {
+  if (!RESEND_API_KEY) return;
+  const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
-      from: "ScoreSnap <hello@scoresnap.app>",
-      to: email,
-      subject: "Welcome to ScoreSnap — Your first scan is waiting 🏌️",
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; padding: 20px 0;">
-            <h1 style="color: #16a34a; font-size: 28px; margin: 0;">Welcome to ScoreSnap ⛳</h1>
-            <p style="color: #6b7280; font-size: 16px;">Scan. Score. Settle.</p>
-          </div>
-
-          <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin: 20px 0;">
-            <h2 style="color: #111827; font-size: 20px; margin-top: 0;">Your next round just got better</h2>
-            <p style="color: #374151; font-size: 15px; line-height: 1.6;">
-              You're now part of the crew that settles bets before they hit the parking lot.
-            </p>
-            <p style="color: #374151; font-size: 15px; line-height: 1.6;"><strong>Get started in 3 steps:</strong></p>
-            <ol style="color: #374151; font-size: 15px; line-height: 1.8;">
-              <li>🎯 <strong>Scan a scorecard</strong> — point your camera, we'll do the rest</li>
-              <li>🎲 <strong>Pick a game</strong> — Nassau, Skins, Wolf and more</li>
-              <li>💰 <strong>Settle up</strong> — no more "I'll get you next time"</li>
-            </ol>
-          </div>
-
-          <div style="background: #16a34a; border-radius: 12px; padding: 24px; margin: 20px 0; text-align: center;">
-            <h3 style="color: white; margin-top: 0;">Your referral code: ${referralCode}</h3>
-            <p style="color: #dcfce7; font-size: 14px;">
-              Share this with your foursome. When 3 friends sign up and complete a scan,
-              you unlock a <strong>free month of Premium</strong> — 50+ game modes, stats tracking, and league play.
-            </p>
-          </div>
-
-          <div style="text-align: center; padding: 20px 0; color: #9ca3af; font-size: 13px;">
-            <p>ScoreSnap by Autumn8me, Inc.</p>
-            <p>The app that knows who owes who.</p>
-          </div>
-        </div>
-      `,
-    }),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
+    body: JSON.stringify(payload),
   });
+  if (!response.ok) console.error("Email send failed:", response.status);
 }
 
 serve(async (req) => {
@@ -80,7 +40,11 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  const secretStatus = await checkWebhookSecret(Deno.env.get("SIGNUP_WEBHOOK_SECRET"), req.headers.get("x-webhook-secret"));
+  if (secretStatus) return new Response("Request unavailable", { status: secretStatus });
+
   const payload = await req.json();
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
   // Support both Auth Hook format and Database Webhook format
   const user = payload.record || payload.user || payload;
@@ -126,9 +90,10 @@ serve(async (req) => {
 
     if (referrer) {
       const newCount = (referrer.referral_count || 0) + 1;
+      const plan = referralPlan(newCount, referralRewardEnabled(Deno.env.get("REFERRAL_PREMIUM_REWARD_ENABLED")), new Date().toISOString());
       await supabase
         .from("profiles")
-        .update({ referral_count: newCount })
+        .update(plan.countUpdate)
         .eq("id", referrer.id);
 
       // Self-improving: track which referral codes convert best
@@ -145,42 +110,15 @@ serve(async (req) => {
       });
 
       // Reward at 3 referrals
-      if (newCount === 3) {
-        await supabase
-          .from("profiles")
-          .update({
-            is_premium: true,
-            premium_since: new Date().toISOString(),
-            premium_source: "referral_reward"
-          })
-          .eq("id", referrer.id);
-
-        // Notify referrer
-        if (RESEND_API_KEY) {
-          await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${RESEND_API_KEY}`,
-            },
-            body: JSON.stringify({
-              from: "ScoreSnap <hello@scoresnap.app>",
-              to: referrer.email,
-              subject: "🎉 You earned free Premium! 3 friends joined ScoreSnap",
-              html: `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; text-align: center;">
-                <h1 style="color: #16a34a;">You did it! 🏆</h1>
-                <p>3 of your friends signed up with your code. Your free month of Premium is now active.</p>
-                <p style="font-size: 14px; color: #6b7280;">Keep sharing — every 3 additional referrals = another free month.</p>
-              </div>`,
-            }),
-          });
-        }
+      if (plan.premiumUpdate) {
+        await supabase.from("profiles").update(plan.premiumUpdate).eq("id", referrer.id);
       }
+      if (plan.sendReward) await sendEmail(buildRewardEmail(referrer.email, settings));
     }
   }
 
   // Send welcome email
-  await sendWelcomeEmail(email, referralCode);
+  await sendEmail(buildWelcomeEmail(email, referralCode, settings));
 
   // Log signup event for analytics
   await supabase.from("marketing_events").insert({
