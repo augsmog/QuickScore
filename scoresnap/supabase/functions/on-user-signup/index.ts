@@ -3,7 +3,7 @@ import { checkWebhookSecret, referralRewardEnabled, referralPlan, emailSettings,
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const settings = emailSettings({ EMAIL_FROM: Deno.env.get("EMAIL_FROM"), EMAIL_REPLY_TO: Deno.env.get("EMAIL_REPLY_TO"), EMAIL_UNSUBSCRIBE_URL: Deno.env.get("EMAIL_UNSUBSCRIBE_URL") });
+const settings = emailSettings({ APP_URL: Deno.env.get("APP_URL"), EMAIL_FROM: Deno.env.get("EMAIL_FROM"), EMAIL_REPLY_TO: Deno.env.get("EMAIL_REPLY_TO"), EMAIL_UNSUBSCRIBE_URL: Deno.env.get("EMAIL_UNSUBSCRIBE_URL") });
 let cachedSecret: string | undefined;
 const db = () => createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 async function webhookSecret() {

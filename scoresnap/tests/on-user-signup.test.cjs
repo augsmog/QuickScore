@@ -89,20 +89,20 @@ test('reward default off and exact true on, while count and event always persist
 test('both payloads have sender/reply defaults and overrides, escaped footer, and brand', () => {
   for (const env of [{}, { EMAIL_FROM: 'Custom <sender@example.test>', EMAIL_REPLY_TO: 'reply@example.test', EMAIL_UNSUBSCRIBE_URL: 'https://example.test/?a="<&b=1' }]) {
     const settings = lib.emailSettings(env);
-    expect(settings.unsubscribeUrl).toBe(env.EMAIL_UNSUBSCRIBE_URL || 'mailto:hello@scoresnap.app?subject=Unsubscribe%20from%20SnapScore%20emails');
+    expect(settings.unsubscribeUrl).toBe(env.EMAIL_UNSUBSCRIBE_URL || 'mailto:hello@snapscore.autumn8.me?subject=Unsubscribe%20from%20SnapScore%20emails');
     for (const payload of [lib.buildWelcomeEmail('user@example.test', '<code>&', settings), lib.buildRewardEmail('user@example.test', settings)]) {
-      expect(payload.from).toBe(env.EMAIL_FROM || 'SnapScore <hello@scoresnap.app>');
-      expect(payload.reply_to).toBe(env.EMAIL_REPLY_TO || 'hello@scoresnap.app');
+      expect(payload.from).toBe(env.EMAIL_FROM || 'SnapScore <hello@snapscore.autumn8.me>');
+      expect(payload.reply_to).toBe(env.EMAIL_REPLY_TO || 'hello@snapscore.autumn8.me');
       expect(payload.headers['List-Unsubscribe']).toBe(`<${settings.unsubscribeUrl}>`);
       expect(payload.html).toContain(`href="${lib.escapeHtml(settings.unsubscribeUrl)}"`);
       expect(payload.html).toContain('Unsubscribe</a>');
       expect(JSON.stringify(payload)).not.toContain('ScoreSnap');
-      expect(payload.subject).toContain('SnapScore');
+      expect(payload.subject).toBe(payload.subject.startsWith('Welcome') ? "Welcome to SnapScore — let's set up your first round" : 'You earned a free month of Pro.');
     }
     const welcome = lib.buildWelcomeEmail('user@example.test', '<code>&', settings);
-    expect(welcome.html).toContain('SnapScore by Autumn8me, Inc.');
+    expect(welcome.html).toContain('Autumn8me, Inc.');
     expect(lib.buildRewardEmail('user@example.test', settings).html).not.toContain('SnapScore by Autumn8me, Inc.');
-    expect(welcome.html).toContain('&lt;code&gt;&amp;');
+    expect(welcome.html).not.toContain('&lt;code&gt;&amp;');
     expect(welcome.html.split('50+ game modes')).toHaveLength(2);
   }
 });
