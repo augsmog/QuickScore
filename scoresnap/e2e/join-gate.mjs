@@ -9,12 +9,19 @@ let browser;
 try {
   browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  // Offline smoke must never reach external services.
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    return ['127.0.0.1', 'localhost'].includes(url.hostname) || ['data:', 'blob:'].includes(url.protocol)
+      ? route.continue() : route.abort();
+  });
   page.setDefaultTimeout(10000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base, { waitUntil: 'networkidle' });
   await page.getByText('Build contests. Settle up.', { exact: false }).waitFor();
-  const joins = page.getByText(/Join with code/i);
+  // Use the stable control ID: staged launch copy can change its label.
+  const joins = page.getByTestId('home-join-code');
   assert.equal(await joins.count(), sharing ? 1 : 0);
   if (sharing) {
     assert(await joins.isVisible(), 'sharing-on home join must be visible');
