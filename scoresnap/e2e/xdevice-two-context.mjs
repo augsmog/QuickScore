@@ -22,6 +22,8 @@ const [a,b]=await Promise.all(contexts.slice(0,2).map(c=>c.newPage()));
 for(const p of [a,b]) { p.setDefaultTimeout(20000); p.on('dialog',d=>d.accept()); }
 const shot=(p,n)=>p.screenshot({path:path.join(out,`${n}.png`),fullPage:true});
 const text=(p,s)=>p.getByText(s,{exact:true}).filter({visible:true}).first();
+const openStatus=async p=>{ if(!await p.getByTestId('round-status-sheet').isVisible().catch(()=>false)){ await p.getByTestId('round-status-chip').filter({visible:true}).first().click(); await p.getByTestId('round-status-sheet').waitFor(); } };
+const closeStatus=async p=>{ if(await p.getByTestId('round-status-sheet').isVisible().catch(()=>false)){ await p.getByTestId('round-status-done').click(); await p.getByTestId('round-status-sheet').waitFor({state:'hidden'}); } };
 async function signIn(p,who) {
   await p.goto(`${base}/auth/sign-in`);
   await p.getByText(/Skip|Already have an account/).first().waitFor();
@@ -52,6 +54,7 @@ try {
     await text(a,/^START CONTEST/i).click();
     await a.waitForURL(/\/contest\/[^/]+$/);
     const contestUrl=a.url();
+    await openStatus(a);
     await text(a,'Enable online sharing').click();
     const label=await a.getByTestId('organizer-join-code').innerText();
     const code=label.match(/Join code: ([A-Z0-9]{6})/)[1];
@@ -114,12 +117,14 @@ try {
     const expectedHole = 1;
     const expectedStrokes = round.course.holes.find(h => h.num === expectedHole)?.par;
     assert(Number.isInteger(expectedStrokes), 'Restored course supplies hole 1 par');
+    await openStatus(a);
     await a.getByTestId('organizer-join-code').waitFor();
     assert.equal(await a.getByTestId('organizer-join-code').innerText(), label);
     assert.equal(await text(a,'Enable online sharing').count(), 0);
     await b.waitForLoadState('networkidle');
     const beforeRevision = revisionFrames;
     const scoreStarted = Date.now();
+    await closeStatus(a);
     const scoreReceipt = a.waitForResponse(r => {
       if (!r.url().endsWith('/rpc/write_score') || r.request().method() !== 'POST') return false;
       const args = r.request().postDataJSON();
@@ -164,6 +169,7 @@ try {
     await text(a,/^START CONTEST/i).click();
     await a.waitForURL(/\/contest\/[^/]+$/);
     const privateUrl=a.url();
+    await openStatus(a);
     await text(a,'Enable online sharing').click();
     await a.getByTestId('organizer-join-code').waitFor();
     await shot(a,'08-private-host-round');

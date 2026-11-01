@@ -9,6 +9,7 @@ function load(file, imports, globals = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   vm.runInNewContext(source, { exports, require(name) {
+    if (name.endsWith("/ui/SafeScreen")) return { SheetSurface: "View", FullScreenSheet: "Modal" };
     if (!(name in imports)) throw new Error(`Unexpected import ${name}`);
     return imports[name];
   }, setTimeout, clearTimeout, Date, console, URL, ...globals }, { filename });

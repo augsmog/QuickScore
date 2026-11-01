@@ -1,3 +1,4 @@
+import { SafeScreen } from "../../src/ui/SafeScreen";
 import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
@@ -6,7 +7,6 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { HelpCircle, ChevronLeft, ChevronRight } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
@@ -284,7 +284,7 @@ export default function GameDetailsScreen() {
   const isFirstQuestion = currentIdx === 0 && gameSubIdx === 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* ===== HEADER ===== */}
       <View
         style={{
@@ -612,6 +612,6 @@ export default function GameDetailsScreen() {
           onSubmit={handlePromptSubmit}
         />
       )}
-    </SafeAreaView>
+    </SafeScreen>
   );
 }

@@ -1,9 +1,9 @@
+import { SheetSurface, FullScreenSheet } from "./SafeScreen";
 import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
   Pressable,
-  Modal,
   ScrollView,
   Dimensions,
 } from "react-native";
@@ -750,20 +750,20 @@ export function GamePromptSheet({
   };
 
   return (
-    <Modal
+    <FullScreenSheet
       visible={visible}
       animationType="slide"
       transparent
       onRequestClose={onClose}
     >
-      <View style={{ flex: 1, justifyContent: "flex-end" }}>
+      <View testID="game-prompt-scrim" style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" }}>
         {/* Backdrop */}
         <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)" }}
+          style={{ flex: 1 }}
           onPress={onClose}
         />
         {/* Sheet */}
-        <View
+        <SheetSurface testID="game-prompt-sheet"
           style={{
             backgroundColor: COLORS.surfaceMid,
             borderTopLeftRadius: RADII.xl,
@@ -781,9 +781,9 @@ export function GamePromptSheet({
           >
             {renderContent()}
           </ScrollView>
-        </View>
+        </SheetSurface>
       </View>
-    </Modal>
+    </FullScreenSheet>
   );
 }
 

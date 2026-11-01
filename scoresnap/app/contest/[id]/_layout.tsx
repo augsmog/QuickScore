@@ -1,25 +1,22 @@
-import { OnlineSyncPanel } from "../../../src/ui/OnlineSyncPanel";
-import { LiveShare } from "../../../src/ui/LiveShare";
-import { ContestJoinCode } from "../../../src/ui/ContestJoinCode";
+import { RoundStatusSheet } from "../../../src/ui/RoundStatusSheet";
+import { useLiveSharePublisher } from "../../../src/ui/LiveShare";
+import { onlineEnabled } from "../../../src/services/cross-device";
+import { useOnlineStore } from "../../../src/stores/online-store";
 import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Camera, Edit3, Calendar } from "lucide-react-native";
+import { Slot, usePathname, useLocalSearchParams, useRouter } from "expo-router";
+import { SafeScreen } from "../../../src/ui/SafeScreen";
+import { ChevronLeft, ChevronRight, Camera, Edit3, Calendar, Flag } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
-import LeaderboardScreen from "./index";
-import ScorecardScreen from "./scorecard";
-import GamesScreen from "./games";
-import SettlementScreen from "./settlement";
 
 const TABS = [
-  { key: "scorecard", label: "Scorecard", Screen: ScorecardScreen },
-  { key: "leaderboard", label: "Leaderboard", Screen: LeaderboardScreen },
-  { key: "games", label: "Games", Screen: GamesScreen },
-  { key: "settlement", label: "Settlement", Screen: SettlementScreen },
+  { key: "scorecard", label: "Scorecard" },
+  { key: "leaderboard", label: "Leaderboard" },
+  { key: "games", label: "Games" },
+  { key: "settlement", label: "Settle up" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -30,22 +27,31 @@ export default function ContestLayout() {
   const contest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
-  const [activeTab, setActiveTab] = useState<TabKey>("scorecard");
+  const remote = useOnlineStore((s) => s.events[id]);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const closeStatus = useCallback(() => setStatusOpen(false), []);
+  const pathname = usePathname();
+  const child = pathname.split("/").filter(Boolean).slice(2).join("/");
+  const activeTab: TabKey = child === "" || child === "index" ? "leaderboard"
+    : child === "games" || child === "settlement" ? child : "scorecard";
+  const isTabRoute = ["", "index", "scorecard", "games", "settlement"].includes(child);
+  // Live scoreboard keeps publishing while the round is open, sheet open or not.
+  useLiveSharePublisher(contest);
 
   const handleTabPress = useCallback(
     (tabKey: TabKey) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (tabKey === activeTab) return;
-      setActiveTab(tabKey);
+      router.replace(`/contest/${id}${tabKey === "leaderboard" ? "" : `/${tabKey}`}` as any);
     },
-    [activeTab]
+    [activeTab, id, router]
   );
 
   if (!contest) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+      <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
-          <Text style={{ fontSize: 48, marginBottom: 16 }}>🔍</Text>
+          <Flag size={40} color={COLORS.textDim} style={{ marginBottom: 16 }} />
           <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
             Contest Not Found
           </Text>
@@ -64,26 +70,27 @@ export default function ContestLayout() {
             <Text style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 15 }}>Go Back</Text>
           </AnimatedPressable>
         </View>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
+  if (!isTabRoute) return <Slot />;
+
   const allPlayers = contest.groups.flatMap((g) => g.players);
-  const ActiveScreen = TABS.find((t) => t.key === activeTab)!.Screen;
 
   return (
-    <SafeAreaView testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
-      <ContestJoinCode contest={contest} />
-      <LiveShare contest={contest} />
-      <OnlineSyncPanel contest={contest} />
+    <SafeScreen testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* Header */}
       <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <AnimatedPressable
-            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
             style={{
               borderRadius: RADII.sm,
               padding: 8,
+              minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center",
               backgroundColor: COLORS.card,
               borderColor: COLORS.border,
               borderWidth: 1,
@@ -97,15 +104,19 @@ export default function ContestLayout() {
             </Text>
             <Text style={{ color: COLORS.textDim, fontFamily: FONTS.regular, fontSize: 13 }}>
               {contest.course.name} · {allPlayers.length} players
-              {contest.isTournament && contest.rounds && ` · Round ${contest.currentRound || 1}`}
+              {contest.isTournament && ` · Round ${contest.currentRound || 1}`}
+              {contest.status === "completed" && " · Final"}
             </Text>
           </View>
           {contest.status === "active" && contest.isTournament && (
             <AnimatedPressable
+              accessibilityRole="button"
+              accessibilityLabel="Rounds"
               onPress={() => router.push(`/contest/${id}/tournament-rounds` as any)}
               style={{
                 borderRadius: RADII.sm,
                 padding: 8,
+                minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center",
                 backgroundColor: COLORS.card,
                 borderColor: COLORS.border,
                 borderWidth: 1,
@@ -116,31 +127,58 @@ export default function ContestLayout() {
           )}
           {contest.status === "active" && (
             <AnimatedPressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit round"
               onPress={() => router.push(`/contest/${id}/edit` as any)}
               style={{
                 borderRadius: RADII.sm,
                 padding: 8,
+                minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center",
                 backgroundColor: COLORS.card,
                 borderColor: COLORS.border,
                 borderWidth: 1,
               }}
             >
               <Edit3 size={16} color={COLORS.textDim} />
+              <Text style={{ fontSize: 11, color: COLORS.textDim }}>Edit</Text>
             </AnimatedPressable>
           )}
           <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Scan scorecard"
             onPress={() => router.push(`/scan?contestId=${id}`)}
             style={{
               borderRadius: RADII.sm,
               padding: 8,
+              minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center",
               backgroundColor: COLORS.accentGlow,
               borderColor: COLORS.accent + "44",
               borderWidth: 1,
             }}
           >
             <Camera size={18} color={COLORS.accent} />
+            <Text style={{ fontSize: 11, color: COLORS.textDim }}>Scan</Text>
           </AnimatedPressable>
         </View>
+
+        {/* Final rounds keep sharing, join code and sync reachable through the same sheet. */}
+        <Pressable
+            testID="round-status-chip"
+            accessibilityRole="button"
+            accessibilityLabel={contest.status === "completed" ? "Share and sync" : "Round status"}
+            onPress={() => setStatusOpen(true)}
+            style={{ minHeight: 44, borderRadius: RADII.full, backgroundColor: COLORS.surfaceLow,
+              flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 8,
+              paddingHorizontal: 12, marginBottom: 12 }}
+          >
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary }} />
+            <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
+              {contest.status === "completed"
+                ? "Share and sync"
+                : onlineEnabled && remote ? "Current online snapshot" : "Saved on this phone"}
+            </Text>
+            <ChevronRight size={14} color={COLORS.textDim} />
+          </Pressable>
 
         {/* Team Score Banner */}
         {contest.hasTeams && contest.teamAName && contest.teamBName && (
@@ -189,11 +227,16 @@ export default function ContestLayout() {
           {TABS.map((tab) => (
             <Pressable
               key={tab.key}
+              testID={`round-tab-${tab.key}`}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === tab.key }}
               onPress={() => handleTabPress(tab.key)}
               style={{
                 flex: 1,
                 borderRadius: RADII.sm,
-                paddingVertical: 8,
+                paddingVertical: 12,
+                minHeight: 44,
+                justifyContent: "center",
                 paddingHorizontal: 2,
                 alignItems: "center",
                 backgroundColor:
@@ -205,10 +248,8 @@ export default function ContestLayout() {
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
                 style={{
-                  fontSize: 10,
+                  fontSize: 13,
                   fontFamily: FONTS.bold,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.3,
                   color: activeTab === tab.key ? COLORS.primary : COLORS.textDim,
                 }}
               >
@@ -219,8 +260,9 @@ export default function ContestLayout() {
         </View>
       </View>
 
-      {/* Active screen — rendered directly, no Slot/router */}
-      <ActiveScreen />
-    </SafeAreaView>
+      {/* Keep a nested navigator mounted on tab routes as well as other children. */}
+      <Slot />
+      <RoundStatusSheet contest={contest} visible={statusOpen} onClose={closeStatus} />
+    </SafeScreen>
   );
 }
