@@ -15,7 +15,7 @@ RUN_ROOT=${RUN_ROOT:-/workspace/aos-state/test-program/runs}
 REPO_DIR=${REPO_DIR:-/workspace/aos-state/test-program/repo}
 NODE_MODULES_SRC=${NODE_MODULES_SRC:-/workspace/ss-rc-build-1030/scoresnap/node_modules}
 export RUN_DATE RUN_DIR ATTEMPT_DIR STALE_WARNING
-RUN_DATE=$(date -u +%F)
+RUN_DATE=$(TZ=America/Los_Angeles date +%F)
 RUN_DIR="$RUN_ROOT/$RUN_DATE"
 mkdir -p "$RUN_DIR"
 STALE_WARNING=$(node --input-type=module - "$RUN_ROOT" <<'JS'

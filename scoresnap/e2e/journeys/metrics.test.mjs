@@ -1,8 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createMetrics,count,screen,evaluate,aggregate} from './metrics.mjs';
-const journey=()=>({status:'gated',baseline:null,budget:{activations:20,screens:3,timeoutMs:1000},assertions:['entry','outcome']});
-const attempt=()=>({metrics:{...createMetrics(),activations:5,durationMs:100},assertions:['entry','outcome']});
+const journey=()=>({status:'gated',baseline:null,budget:{activations:20,screens:3,timeoutMs:1000},assertions:['entry','outcome'],requiredSteps:['entry','outcome']});
+const attempt=()=>({metrics:{...createMetrics(),activations:5,durationMs:100},assertions:['entry','outcome'],steps:[{name:'entry'},{name:'outcome'}]});
 test('counters retain independent units and distinct screens/transitions',()=>{
  const m=createMetrics(); for(const k of ['activations','textEdit','focus','scroll']) count(m,k);
  screen(m,'home');screen(m,'form');screen(m,'home');screen(m,'home');
@@ -10,6 +10,22 @@ test('counters retain independent units and distinct screens/transitions',()=>{
  assert.deepEqual(m.screens,['home','form']);assert.equal(m.transitions.length,3);
 });
 test('complete attempt passes',()=>assert.equal(evaluate(journey(),attempt()).status,'passed'));
+test('every required step capture is gated independently of outcome assertions',()=>{
+ const j=journey(),a=attempt();
+ a.steps.pop();
+ assert.deepEqual(evaluate(j,a).errors,['missing step capture: outcome']);
+ assert.equal(evaluate(j,a).status,'failed');
+ a.steps.push({name:'failed'});
+ assert.equal(evaluate(j,a).status,'failed','diagnostic capture cannot replace a required step');
+});
+test('absent capture records and missing, empty or duplicate declarations fail',()=>{
+ const a=attempt();delete a.steps;
+ assert.equal(evaluate(journey(),a).status,'failed');
+ for(const requiredSteps of [undefined,[],['entry','entry']]) {
+   const r=evaluate({...journey(),requiredSteps},attempt());
+   assert.equal(r.status,'failed');assert.deepEqual(r.errors,['invalid required step capture inventory']);
+ }
+});
 for(const [name,change] of [
  ['activation budget', (j,a)=>a.metrics.activations=21],
  ['screen budget',(j,a)=>a.metrics.screens=['a','b','c','d']],
@@ -24,6 +40,11 @@ const issue=()=>({...journey(),status:'known_issue',knownIssue:{date:'2026-10-31
 const broken=()=>({...attempt(),error:'dialog absent',signature:'outcome',assertions:['entry']});
 const now=new Date('2026-10-31T12:00:00Z');
 test('declared xfail passes only at its assertion',()=>assert.equal(evaluate(issue(),broken(),{now}).status,'expected_failure'));
+test('strict xfail still requires all its declared step captures',()=>{
+ const a=broken();a.steps.pop();
+ assert.equal(evaluate(issue(),a,{now}).status,'failed');
+ assert.match(evaluate(issue(),a,{now}).errors.join(),/missing step capture: outcome/);
+});
 test('unrelated xfail failure stays red',()=>{const a=broken();a.signature='startup';assert.equal(evaluate(issue(),a,{now}).status,'failed');});
 test('unexpected pass requires marker removal',()=>assert.match(evaluate(issue(),attempt(),{now}).errors.join(),/remove marker/));
 test('stale known issue fails unless explicitly renewed',()=>{const j=issue();j.knownIssue.date='2026-10-01';assert.match(evaluate(j,broken(),{now}).errors.join(),/stale/);j.knownIssue.renewedUntil='2026-11-02';assert.equal(evaluate(j,broken(),{now}).status,'expected_failure');});

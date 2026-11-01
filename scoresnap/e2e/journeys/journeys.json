@@ -54,6 +54,12 @@
         "activation",
         "destination",
         "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "create",
+        "edit",
+        "cancel-home"
       ]
     },
     {
@@ -105,6 +111,13 @@
         "destination",
         "invalid-code-error",
         "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "join",
+        "invalid-code",
+        "error",
+        "dismiss-home"
       ]
     },
     {
@@ -213,6 +226,14 @@
         "destination",
         "leaderboard-totals",
         "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "score-Augie",
+        "score-Sam",
+        "settle",
+        "leaderboard",
+        "reload-saved"
       ]
     },
     {
@@ -270,6 +291,10 @@
         "activation",
         "destination",
         "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "invite-copied"
       ]
     },
     {
@@ -313,7 +338,12 @@
         "linear": "AUG-289",
         "signature": "finalize confirm dialog not rendered",
         "date": "2026-10-31"
-      }
+      },
+      "requiredSteps": [
+        "entry",
+        "finalize-requested",
+        "failed"
+      ]
     },
     {
       "id": "J-score-hand",
@@ -340,7 +370,8 @@
         "outcome"
       ],
       "deferredReason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only",
-      "linear": "AUG-291"
+      "linear": "AUG-291",
+      "requiredSteps": []
     },
     {
       "id": "J-delete-account",
@@ -367,7 +398,8 @@
         "outcome"
       ],
       "deferredReason": "AUG-292: Settings below fold and unnamed rows; account deletion adapter deferred",
-      "linear": "AUG-292"
+      "linear": "AUG-292",
+      "requiredSteps": []
     },
     {
       "id": "J-free-paywall-recover",
@@ -394,7 +426,8 @@
         "outcome"
       ],
       "deferredReason": "AUG-293: double paywall; form/paywall adapter deferred",
-      "linear": "AUG-293"
+      "linear": "AUG-293",
+      "requiredSteps": []
     },
     {
       "id": "J-create-8p-multiday",
@@ -420,7 +453,8 @@
         "destination",
         "outcome"
       ],
-      "deferredReason": "Multiday creation outside the phase 1 slice"
+      "deferredReason": "Multiday creation outside the phase 1 slice",
+      "requiredSteps": []
     },
     {
       "id": "J-join-code",
@@ -446,7 +480,8 @@
         "destination",
         "outcome"
       ],
-      "deferredReason": "Offline error path does not prove successful backend or cross-device join"
+      "deferredReason": "Offline error path does not prove successful backend or cross-device join",
+      "requiredSteps": []
     },
     {
       "id": "J-guest-join-web",
@@ -472,7 +507,8 @@
         "destination",
         "outcome"
       ],
-      "deferredReason": "Guest identity and backend joining deferred; existing sharing suites retained"
+      "deferredReason": "Guest identity and backend joining deferred; existing sharing suites retained",
+      "requiredSteps": []
     },
     {
       "id": "J-reopen-after-crash",
@@ -498,7 +534,8 @@
         "destination",
         "outcome"
       ],
-      "deferredReason": "Reload persistence is gated; process kill/crash recovery is separate coverage"
+      "deferredReason": "Reload persistence is gated; process kill/crash recovery is separate coverage",
+      "requiredSteps": []
     },
     {
       "id": "J-game-rules",
@@ -524,7 +561,8 @@
         "destination",
         "outcome"
       ],
-      "deferredReason": "Rules discovery adapter deferred to next phase"
+      "deferredReason": "Rules discovery adapter deferred to next phase",
+      "requiredSteps": []
     }
   ]
 }

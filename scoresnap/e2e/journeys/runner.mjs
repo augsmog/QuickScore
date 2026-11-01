@@ -27,8 +27,18 @@ async function geometry(locator,{text}={}) {
   demand(await locator.isEnabled()&&await locator.getAttribute('aria-disabled')!=='true','control-disabled');
   const state=await locator.evaluate((el,text)=>{
     const r=el.getBoundingClientRect(), inset=Math.min(10,r.width/4,r.height/4), points=[[r.x+r.width/2,r.y+r.height/2],[r.x+inset,r.y+inset],[r.right-inset,r.y+inset],[r.x+inset,r.bottom-inset],[r.right-inset,r.bottom-inset]];
-    let rendered=true;
-    for(let a=el;a;a=a.parentElement) {const s=getComputedStyle(a);if(s.visibility!=='visible'||Number(s.opacity)===0)rendered=false;}
+    // Include every ancestor, including descendants between a label and its
+    // actionable container. Individually nonzero opacities can still hide text.
+    const renderedChain=node=>{
+      let opacity=1;
+      for(let a=node;a;a=a.parentElement) {
+        const s=getComputedStyle(a);
+        if(s.display==='none'||s.visibility!=='visible')return false;
+        opacity*=Number(s.opacity);
+      }
+      return opacity>0.1;
+    };
+    const rendered=renderedChain(el);
     let inside=r.width>0&&r.height>0&&r.x>=0&&r.y>=0&&r.right<=innerWidth&&r.bottom<=innerHeight;
     for(let a=el.parentElement;a;a=a.parentElement) {
       const s=getComputedStyle(a),b=a.getBoundingClientRect();
@@ -36,15 +46,37 @@ async function geometry(locator,{text}={}) {
       if(/hidden|clip|auto|scroll/.test(s.overflowY)) inside=inside&&r.y>=b.y&&r.bottom<=b.bottom;
     }
     const hits=points.every(([x,y])=>{const hit=document.elementFromPoint(x,y);return hit===el||el.contains(hit);});
-    // innerText excludes display:none descendants. Verify a rendered text node
-    // also intersects the target, so hidden labels cannot satisfy visible text.
+    // Resolve CSS colors in sRGB and composite ancestor background colors over
+    // the browser's default white canvas. Preserve exact computed alpha for the
+    // >0.1 threshold rather than quantizing it to an 8-bit canvas channel.
+    const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const rgba=value=>{
+      ctx.clearRect(0,0,1,1);ctx.fillStyle=value;ctx.fillRect(0,0,1,1);
+      const c=[...ctx.getImageData(0,0,1,1).data];
+      const alpha=value.includes('/')?value.split('/')[1].replace(')','').trim():value.startsWith('rgba(')?value.slice(5,-1).split(',')[3].trim():null;
+      c[3]=alpha===null?c[3]/255:parseFloat(alpha)/(alpha.endsWith('%')?100:1);
+      return c;
+    };
+    const textContrasts=node=>{
+      const foreground=rgba(getComputedStyle(node).color);
+      if(foreground[3]<=0.1)return false;
+      const ancestors=[];for(let a=node;a;a=a.parentElement)ancestors.push(a);
+      let background=[255,255,255];
+      for(const a of ancestors.reverse()) {
+        const c=rgba(getComputedStyle(a).backgroundColor);
+        background=background.map((v,i)=>c[i]*c[3]+v*(1-c[3]));
+      }
+      return background.some((v,i)=>Math.abs(v-foreground[i])>0.5);
+    };
+    // Require a contrasting text node with geometry inside the target as well
+    // as visibility along the entire text-to-root chain.
     let visibleText=!text;
     const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
     while(text && walker.nextNode()) {
       const n=walker.currentNode;if(!n.textContent.toLowerCase().includes(text.toLowerCase())) continue;
       const range=document.createRange();range.selectNodeContents(n);const b=range.getBoundingClientRect();
-      const s=getComputedStyle(n.parentElement);
-      if(b.width>0&&b.height>0&&b.x>=r.x-1&&b.right<=r.right+1&&b.y>=r.y-1&&b.bottom<=r.bottom+1&&s.visibility==='visible'&&s.opacity!=='0') visibleText=true;
+      if(b.width>0&&b.height>0&&b.x>=r.x-1&&b.right<=r.right+1&&b.y>=r.y-1&&b.bottom<=r.bottom+1&&renderedChain(n.parentElement)&&textContrasts(n.parentElement)) visibleText=true;
     }
     return {inside,hits,visibleText,rendered,rect:{x:r.x,y:r.y,width:r.width,height:r.height}};
   },text);
@@ -153,6 +185,15 @@ async function runJourney(browser,j) {
       if(mutation==='hide')await target.evaluate(el=>el.style.visibility='hidden');
       else if(mutation==='rename')await target.evaluate(el=>el.setAttribute('aria-label','Mutated name'));
       else if(mutation==='disable')await target.evaluate(el=>el.setAttribute('aria-disabled','true'));
+      else if(['hide-label','transparent-label'].includes(mutation))await target.evaluate((el,mutation)=>{
+        const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let label;
+        while(walker.nextNode())if(walker.currentNode.textContent.trim()==='New Contest'){label=walker.currentNode;break;}
+        if(!label)throw Error('mutation label missing');
+        const outer=document.createElement('span'),inner=document.createElement('span');
+        if(mutation==='hide-label')outer.style.opacity='0';
+        else outer.style.color='transparent';
+        label.replaceWith(outer);outer.append(inner);inner.append(label);
+      },mutation);
       else throw Error(`unknown mutation ${mutation}`);
     }
     screen(m,j.start==='home'?'home':'round-scorecard');

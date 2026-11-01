@@ -64,6 +64,9 @@ export function evaluate(journey, attempt, {baseline=journey.baseline, now=new D
     } else if(r.status!=='passed') errors.push(`${feature.name}: reachability failed`);
   }
   if (attempt.captureError) errors.push('screenshot capture failed');
+  const steps=journey.requiredSteps;
+  if (!Array.isArray(steps)||!steps.length||new Set(steps).size!==steps.length) errors.push('invalid required step capture inventory');
+  else for (const name of steps) if (!attempt.steps?.some(s=>s.name===name)) errors.push(`missing step capture: ${name}`);
   if (attempt.pageErrors?.length) errors.push('browser runtime error');
   return {status:errors.length?'failed':journey.status==='known_issue'?'expected_failure':'passed',errors};
 }
