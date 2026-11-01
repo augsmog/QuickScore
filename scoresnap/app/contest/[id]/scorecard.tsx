@@ -1,3 +1,4 @@
+import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { onlineEnabled } from '../../../src/services/cross-device';
 import { useOnlineStore } from '../../../src/stores/online-store';
 import { overlayScorecard } from '../../../src/services/scorecard-overlay';
@@ -35,7 +36,6 @@ import {
   scoreName,
 } from "../../../src/ui/theme";
 import { useContestStore, getActiveGroups } from "../../../src/stores/contest-store";
-import { SafeAreaView } from "react-native-safe-area-context";
 import AuxiliaryPrompt, {
   needsAuxiliaryPrompt,
   AuxPromptResult,
@@ -336,7 +336,7 @@ export default function ScorecardScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
+      <SafeScreen edges={["top"]} style={{ flex: 1 }}>
         {/* Completed Banner */}
         {isCompleted && (
           <View
@@ -905,7 +905,7 @@ export default function ScorecardScreen() {
             </View>
           )}
         </View>
-      </SafeAreaView>
+      </SafeScreen>
 
       {/* Tier 2 Game Auxiliary Prompts */}
       <AuxiliaryPrompt

@@ -1,10 +1,11 @@
+import { SafeScreen } from "../../src/ui/SafeScreen";
 import { requestOCRConsent } from "../../src/services/ocr-consent";
 import { applyCourseHoles } from "../../src/services/ocr-review";
 import { useContestStore } from "../../src/stores/contest-store";
 import { useState, useRef, useCallback } from "react";
 import { View, Text, Pressable, Image, Dimensions, Platform, TextInput, ScrollView } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions, FlashMode } from "expo-camera";
 import {
   X,
@@ -149,7 +150,7 @@ export default function ScanScreen() {
   // Text entry does not use OCR or consume scan credits.
   if (phase === "text-entry" || OFFLINE_MODE || Platform.OS === "web") {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
         <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }} keyboardShouldPersistTaps="handled">
           <Pressable onPress={() => router.back()} accessibilityRole="button">
             <Text style={{ color: COLORS.primary }}>Go Back</Text>
@@ -187,7 +188,7 @@ export default function ScanScreen() {
             <Text style={{ fontFamily: FONTS.bold, color: COLORS.onPrimary }}>Parse Scorecard</Text>
           </Pressable>
         </ScrollView>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
@@ -195,7 +196,7 @@ export default function ScanScreen() {
 
   if (!permission.granted) {
     return (
-      <SafeAreaView
+      <SafeScreen
         style={{
           flex: 1,
           backgroundColor: COLORS.bg,
@@ -261,7 +262,7 @@ export default function ScanScreen() {
             Go Back
           </Text>
         </Pressable>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
@@ -529,7 +530,7 @@ export default function ScanScreen() {
           </View>
 
           {/* Bottom Controls */}
-          <SafeAreaView
+          <SafeScreen
             edges={["bottom"]}
             style={{
               position: "absolute",
@@ -602,7 +603,7 @@ export default function ScanScreen() {
                 <SwitchCamera size={20} color={COLORS.textDim} />
               </Pressable>
             </View>
-          </SafeAreaView>
+          </SafeScreen>
         </CameraView>
       )}
 
@@ -655,7 +656,7 @@ export default function ScanScreen() {
       {/* Photo Preview */}
       {phase === "preview" && photoUri && (
         <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-          <SafeAreaView edges={["top"]}>
+          <SafeScreen edges={["top"]}>
             <View
               style={{
                 paddingHorizontal: 20,
@@ -683,7 +684,7 @@ export default function ScanScreen() {
                 Make sure all scores are visible and in focus
               </Text>
             </View>
-          </SafeAreaView>
+          </SafeScreen>
 
           <View
             style={{
@@ -700,7 +701,7 @@ export default function ScanScreen() {
             />
           </View>
 
-          <SafeAreaView edges={["bottom"]}>
+          <SafeScreen edges={["bottom"]}>
             <View
               style={{
                 flexDirection: "row",
@@ -760,7 +761,7 @@ export default function ScanScreen() {
                 </Text>
               </Pressable>
             </View>
-          </SafeAreaView>
+          </SafeScreen>
         </View>
       )}
 
