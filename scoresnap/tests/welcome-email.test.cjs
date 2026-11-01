@@ -27,6 +27,7 @@ test('ledger email has exact copy, one game count per part, and no referral prom
     for (const part of [reward.html, reward.text]) assert.ok(part.includes('Three friends signed up with your code, so your free month of Pro is active.'));
     assert.equal(lib.referralRewardEnabled(undefined), false);
     assert.equal(settings.from, 'SnapScore <hello@scoresnap.app>');
-    assert.doesNotMatch(welcome.html + welcome.text, /SECRET-CODE|invite code|join with code|free month/i);
+    assert.doesNotMatch(welcome.html + welcome.text, /SECRET-CODE|invite code|join with code|free month|Players always join and score free/i);
+    assert.doesNotMatch(welcome.html, /<(?:code|pre)\b/i); // Held until AUG-275, even when a code is supplied.
   }
 });
