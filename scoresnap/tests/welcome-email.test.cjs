@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = globalThis.test || require('node:test');
 const lib = require('../scripts/render-welcome-email.cjs');
-const banned = /\b(?:bets?|betting|wager\w*|gambl\w*|side-bet|unlock\w*|winnings|payout\w*)\b|!|\p{Extended_Pictographic}/iu;
+const banned = /\b(?:bets?|betting|wager\w*|gambl\w*|side-bet|pays out|every score|always|easiest|unlock\w*|winnings|payout\w*)\b|!|\p{Extended_Pictographic}/iu;
 test('ledger email has exact copy, one game count per part, and no referral promise', () => {
   for (const APP_URL of [undefined, 'https://example.test/round?a=1&b=2']) {
     const settings = lib.emailSettings({ APP_URL });
@@ -27,7 +27,7 @@ test('ledger email has exact copy, one game count per part, and no referral prom
     assert.equal(reward.subject, 'You earned a free month of Pro.');
     for (const part of [reward.html, reward.text]) assert.ok(part.includes('Three friends signed up with your code, so your free month of Pro is active.'));
     assert.equal(lib.referralRewardEnabled(undefined), false);
-    assert.equal(settings.from, 'SnapScore <hello@scoresnap.app>');
+    assert.equal(settings.from, 'SnapScore <hello@snapscore.autumn8.me>');
     assert.doesNotMatch(welcome.html + welcome.text, /SECRET-CODE|invite code|join with code|free month|Players always join and score free/i);
     assert.doesNotMatch(welcome.html, /<(?:code|pre)\b/i); // Held until AUG-275, even when a code is supplied.
   }
