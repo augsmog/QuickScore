@@ -1,5 +1,6 @@
+import { FullScreenSheet } from "./SafeScreen";
 import { useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 import { COLORS, FONTS } from './theme';
 import { maskChatText } from '../services/chat-filter';
 import { blockParticipant, emptyPreferences, hideReportedMessage, unblockParticipant, visibleMessages, type ChatPreferences, type ModeratedMessage } from '../services/chat-moderation-model';
@@ -50,7 +51,7 @@ export function ChatModeration({ messages, context, onRemove }: { messages: Mode
       <Pressable key={id} accessibilityRole="button" style={target} disabled={busy} onPress={() => {
         setBusy(true); void persist(unblockParticipant(preferences, id)).catch(() => setError('Unable to save chat preferences.')).finally(() => setBusy(false));
       }}><Text style={text}>Unblock {maskChatText(name)}</Text></Pressable>) : <Text style={text}>No blocked people.</Text>)}
-    <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => { if (!busy) setSelected(null); }}>
+    <FullScreenSheet visible={!!selected} transparent animationType="slide" onRequestClose={() => { if (!busy) setSelected(null); }}>
       <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' }}>
         <View accessibilityViewIsModal style={{ backgroundColor: COLORS.bg, padding: 24, gap: 8 }}>
           <Text style={text}>{report ? 'Report this message? The SnapScore team reviews reports within 24 hours.' : 'Message actions'}</Text>
@@ -60,6 +61,6 @@ export function ChatModeration({ messages, context, onRemove }: { messages: Mode
           <Pressable accessibilityRole="button" style={target} disabled={busy} onPress={() => { setSelected(null); setReport(false); }}><Text style={text}>Cancel</Text></Pressable>
         </View>
       </View>
-    </Modal>
+    </FullScreenSheet>
   </View>;
 }

@@ -5,7 +5,7 @@ import { useOnlineStore } from "../../../src/stores/online-store";
 import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { ChevronLeft, ChevronRight, Camera, Edit3, Calendar, Flag } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
@@ -49,7 +49,7 @@ export default function ContestLayout() {
 
   if (!contest) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+      <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
           <Flag size={40} color={COLORS.textDim} style={{ marginBottom: 16 }} />
           <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
@@ -70,7 +70,7 @@ export default function ContestLayout() {
             <Text style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 15 }}>Go Back</Text>
           </AnimatedPressable>
         </View>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
@@ -78,7 +78,7 @@ export default function ContestLayout() {
   const ActiveScreen = TABS.find((t) => t.key === activeTab)!.Screen;
 
   return (
-    <SafeAreaView testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* Header */}
       <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
@@ -262,6 +262,6 @@ export default function ContestLayout() {
       {/* Active screen — rendered directly, no Slot/router */}
       <ActiveScreen />
       <RoundStatusSheet contest={contest} visible={statusOpen} onClose={closeStatus} />
-    </SafeAreaView>
+    </SafeScreen>
   );
 }

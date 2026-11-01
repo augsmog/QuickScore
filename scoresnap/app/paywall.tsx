@@ -1,6 +1,6 @@
+import { SafeScreen } from "../src/ui/SafeScreen";
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, Linking, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { getPackages, purchasePackage, restorePurchases, syncProStatus } from '../src/services/purchases';
@@ -41,7 +41,7 @@ export default function PaywallScreen() {
   }
   const v = buildPaywallView(packages, eligible, tier, selection);
   const tag = (label: string) => <Text style={[s.tag, label === C.current && s.current]}>{label}</Text>;
-  return <SafeAreaView style={s.safe}>
+  return <SafeScreen style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>
       <View style={s.top}>
         <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()}><PaywallIcon name="close" /></Pressable>
@@ -78,7 +78,7 @@ export default function PaywallScreen() {
         <Pressable accessibilityRole="link" onPress={() => Linking.openURL(PRIVACY_URL)}><Text style={s.link}>{v.privacy}</Text></Pressable>
       </View>
     </ScrollView>
-  </SafeAreaView>;
+  </SafeScreen>;
 }
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: P.paper },
