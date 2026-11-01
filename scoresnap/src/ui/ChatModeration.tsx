@@ -1,4 +1,4 @@
-import { FullScreenSheet } from "./SafeScreen";
+import { SheetSurface, FullScreenSheet } from "./SafeScreen";
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { COLORS, FONTS } from './theme';
@@ -53,13 +53,13 @@ export function ChatModeration({ messages, context, onRemove }: { messages: Mode
       }}><Text style={text}>Unblock {maskChatText(name)}</Text></Pressable>) : <Text style={text}>No blocked people.</Text>)}
     <FullScreenSheet visible={!!selected} transparent animationType="slide" onRequestClose={() => { if (!busy) setSelected(null); }}>
       <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' }}>
-        <View accessibilityViewIsModal style={{ backgroundColor: COLORS.bg, padding: 24, gap: 8 }}>
+        <SheetSurface accessibilityViewIsModal style={{ backgroundColor: COLORS.bg, padding: 24, gap: 8 }}>
           <Text style={text}>{report ? 'Report this message? The SnapScore team reviews reports within 24 hours.' : 'Message actions'}</Text>
           {!!error && <Text accessibilityRole="alert" style={text}>{error}</Text>}
           <Pressable accessibilityRole="button" style={target} disabled={busy} onPress={() => report ? void act('report') : setReport(true)}><Text style={text}>{report ? 'Send report' : 'Report'}</Text></Pressable>
           {!report && <Pressable accessibilityRole="button" style={target} disabled={busy} onPress={() => void act('block')}><Text style={text}>Block {maskChatText(selected?.display_name || '')}</Text></Pressable>}
           <Pressable accessibilityRole="button" style={target} disabled={busy} onPress={() => { setSelected(null); setReport(false); }}><Text style={text}>Cancel</Text></Pressable>
-        </View>
+        </SheetSurface>
       </View>
     </FullScreenSheet>
   </View>;

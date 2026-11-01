@@ -1,4 +1,4 @@
-import { FullScreenSheet, SafeScreen } from "../../src/ui/SafeScreen";
+import { SheetSurface, FullScreenSheet, SafeScreen } from "../../src/ui/SafeScreen";
 import { GAME_MODE_LIBRARY } from "../../src/engine/game-mode-library";
 import { useScanStore } from "../../src/stores/scan-store";
 import { canUseGame, defaultRoundGames } from "../../src/services/entitlements";
@@ -533,11 +533,11 @@ export default function HomeScreen() {
         <View style={{ flex: 1, justifyContent: "flex-end" }}>
           <Pressable
             testID="game-info-scrim"
-            style={{ flex: 1, backgroundColor: COLORS.sheetScrim }}
+            style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: COLORS.sheetScrim }}
             onPress={() => setSelectedGame(null)}
           />
           {selectedGame && (
-            <View
+            <SheetSurface
               testID="game-info-sheet"
               style={[GAME_SHEET_STYLE, {
                 paddingHorizontal: 24,
@@ -771,7 +771,7 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               )}
-            </View>
+            </SheetSurface>
           )}
         </View>
       </FullScreenSheet>
