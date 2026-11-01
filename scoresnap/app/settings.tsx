@@ -1,3 +1,4 @@
+import { SafeScreen } from "../src/ui/SafeScreen";
 import { useState, useCallback } from "react";
 import {
   View,
@@ -9,7 +10,6 @@ import {
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ChevronLeft,
   ChevronRight,
@@ -308,7 +308,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* Header */}
       <View
         style={{
@@ -758,6 +758,6 @@ export default function SettingsScreen() {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }

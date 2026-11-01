@@ -1,11 +1,11 @@
+import { SafeScreen } from "../../src/ui/SafeScreen";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { LocalJoinLimitationBanner } from "../../src/ui/LocalJoinLimitationBanner";
 import { COLORS, FONTS } from "../../src/ui/theme";
 
 /** Static sample only; does not create, join, or share a contest. */
 export default function LocalJoinBannerPreview() {
-  return <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+  return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
     <ScrollView contentContainerStyle={styles.page}>
       <Text style={styles.eyebrow}>SNAPSCORE / SUNDAY LEDGER</Text>
       <Text style={styles.heading}>Join with code</Text>
@@ -23,7 +23,7 @@ export default function LocalJoinBannerPreview() {
       </View>
       <Text style={styles.body}>Sample data · Preview only</Text>
     </ScrollView>
-  </SafeAreaView>;
+  </SafeScreen>;
 }
 
 const styles = StyleSheet.create({

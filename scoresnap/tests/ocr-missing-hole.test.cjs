@@ -4,7 +4,7 @@ const ts = require('typescript');
 function load(file, imports = {}) {
  const module = {exports:{}};
  const code = ts.transpileModule(fs.readFileSync(path.join(__dirname,'..',file),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText;
- new Function('require','module','exports',code)(id => { if (!(id in imports)) throw Error(id); return imports[id]; },module,module.exports);
+ new Function('require','module','exports',code)(id => { if(id.endsWith('/ui/SafeScreen')) return {SafeScreen:imports['react-native-safe-area-context'].SafeAreaView,FullScreenSheet:imports['react-native'].Modal}; if (!(id in imports)) throw Error(id); return imports[id]; },module,module.exports);
  return module.exports;
 }
 const parser = load('src/services/score-parser.ts');

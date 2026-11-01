@@ -1,9 +1,9 @@
+import { FullScreenSheet } from "./SafeScreen";
 import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
   Pressable,
-  Modal,
   ScrollView,
   Dimensions,
 } from "react-native";
@@ -750,7 +750,7 @@ export function GamePromptSheet({
   };
 
   return (
-    <Modal
+    <FullScreenSheet
       visible={visible}
       animationType="slide"
       transparent
@@ -783,7 +783,7 @@ export function GamePromptSheet({
           </ScrollView>
         </View>
       </View>
-    </Modal>
+    </FullScreenSheet>
   );
 }
 

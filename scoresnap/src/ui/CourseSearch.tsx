@@ -1,3 +1,4 @@
+import { FullScreenSheet } from "./SafeScreen";
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
@@ -7,7 +8,6 @@ import {
   ActivityIndicator,
   FlatList,
   ScrollView,
-  Modal,
   Platform,
   Keyboard,
   Linking,
@@ -255,7 +255,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
       </Pressable>
 
       {/* Search Modal */}
-      <Modal
+      <FullScreenSheet
         visible={showModal}
         animationType="slide"
         transparent
@@ -681,7 +681,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
             )}
           </View>
         </View>
-      </Modal>
+      </FullScreenSheet>
     </View>
   );
 }

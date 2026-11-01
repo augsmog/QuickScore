@@ -1,5 +1,6 @@
+import { FullScreenSheet } from "../ui/SafeScreen";
 import { createElement, useEffect, useRef, useState } from "react";
-import { Modal, Platform, Pressable, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { CAPTCHA_MODE, TURNSTILE_BASE_URL, TURNSTILE_SITE_KEY } from "../config/captcha";
 import { CaptchaRequest, completeCaptcha, receiveCaptchaMessage, registerCaptchaHost } from "../services/captcha";
 import { buildTurnstileHtml, TURNSTILE_SCRIPT_URL } from "../services/turnstile-html";
@@ -89,7 +90,7 @@ export function TurnstileHost() {
   }, []);
   if (CAPTCHA_MODE === "off" || !request) return null;
   const cancel = () => completeCaptcha(request.id);
-  return <Modal transparent visible animationType="fade" onRequestClose={cancel}>
+  return <FullScreenSheet transparent visible animationType="fade" onRequestClose={cancel}>
     <View style={{ flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#0008" }}>
       <View style={{ padding: 20, borderRadius: RADII.lg, backgroundColor: COLORS.surfaceLow, gap: 16 }}>
         <Text style={{ color: COLORS.text, fontFamily: FONTS.bold, fontSize: 18 }}>Verify you're human</Text>
@@ -99,5 +100,5 @@ export function TurnstileHost() {
         </Pressable>
       </View>
     </View>
-  </Modal>;
+  </FullScreenSheet>;
 }
