@@ -63,6 +63,41 @@ change, unmount, external retry, and unchanged local generation/guest tests.
 The SQL source regression checks exact predecessor preservation and rollback.
 A disposable PostgreSQL-compatible execution is separate evidence, not live proof.
 
+### Required PostgreSQL 17 rehearsal receipt
+
+Generic green schema/API/browser checks do not establish that this proposal ran.
+The existing `m4b-local.sh` native PG17 launcher and `verify-foundation-ci.sh`
+local Supabase database lane now call `owner-invite-rehearsal.sh`. No additional
+job, permission, service, active migration or manual dispatch is introduced.
+The caller must have just created/reset its disposable cluster and supply the
+explicit `SNAPSCORE_DISPOSABLE_TEST=1` opt-in. **Loopback alone is not disposal
+proof:** a forwarded live database must never be used, even with that flag.
+
+Before persistent writes the runner rejects unsupported destinations and libpq
+overrides, starts psql without rc/password/service files in a clean environment,
+verifies the actual PG17 endpoint, and requires the pristine active-chain function
+bodies/security/ACLs with no pre-existing game-settings columns. It applies the
+exact game-settings prerequisite, then the unchanged owner-invite forward SQL,
+exact predecessor rollback, reapply and rollback again. Each phase seeds and
+rolls back its own fixture transaction; migration BEGIN/COMMIT blocks never commit
+the fixtures. The final prerequisite rollback must restore both original routine
+definitions/owners/ACLs/configuration, the existing normalized logical catalog,
+and every migration-ledger row/column. Physical OIDs/dropped-column tombstones
+are deliberately not claimed identical. Failed runs remain nonzero and require
+the owning launcher to discard the disposable cluster; cleanup does not attempt
+to repair an unknown database or convert a failed rehearsal to success.
+
+Receipt lines prefixed `PASS: AUG331` establish owner/nonowner/anonymous access,
+unchanged nested snapshot fields, exact RPC privileges, invalid revisions,
+paused/completed reads, and returned-code → `request_join` → correct fixture
+contest (not merely generic pending). Named privacy and wrong-predecessor mutants
+must be rejected specifically. Require the forward, exact predecessor rollback,
+reapply, prerequisite rollback, unchanged ledger and final PG17 receipt lines
+from **both jobs on the reviewed head** before calling this prerequisite passed.
+Execution against the full Supabase database still does not, by itself, exercise
+real HTTP/JWT validation, PostgREST schema reload timing, Realtime, native sharing,
+or physical devices. Those remain separate acceptance gates.
+
 A server administrator can still rotate a code immediately after a successful
 snapshot response. There is no atomic read-and-share operation, and arbitrary
 out-of-band code edits do not necessarily increment `sync_revision`. Share-time
