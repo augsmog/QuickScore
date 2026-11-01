@@ -1,0 +1,568 @@
+{
+  "version": 1,
+  "platform": "web-offline",
+  "flags": {
+    "EXPO_PUBLIC_OFFLINE_MODE": true,
+    "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+  },
+  "journeys": [
+    {
+      "id": "J-home-create-cancel",
+      "persona": "New golfer",
+      "goal": "Open create, edit a name, cancel to Home without creating a contest",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "fresh-context-v1",
+      "features": [
+        {
+          "name": "create",
+          "role": "button",
+          "accessibleName": "New Contest",
+          "visibleText": "New Contest",
+          "class": "core",
+          "maxActivations": 2,
+          "maxScrolls": 0,
+          "testId": "home-new-contest",
+          "start": "home"
+        }
+      ],
+      "budget": {
+        "activations": 2,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": {
+        "activations": 2,
+        "timeSamples": [
+          317
+        ],
+        "measuredAt": "2026-11-01T02:08:59.466Z",
+        "sha": "bce5673993b90720657af6a400a385c27cdf574c",
+        "platform": "web-offline",
+        "flags": {
+          "EXPO_PUBLIC_OFFLINE_MODE": true,
+          "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+        },
+        "fixtureVersion": "two-player-empty-v1"
+      },
+      "status": "gated",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "destination",
+        "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "create",
+        "edit",
+        "cancel-home"
+      ]
+    },
+    {
+      "id": "J-home-join-code-error",
+      "persona": "New golfer",
+      "goal": "Enter an invalid join code, see an error, dismiss to Home",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "fresh-context-v1",
+      "features": [
+        {
+          "name": "join",
+          "role": "button",
+          "accessibleName": "Join with code",
+          "visibleText": "Join with code",
+          "class": "core",
+          "maxActivations": 2,
+          "maxScrolls": 0,
+          "testId": "home-join-code",
+          "start": "home"
+        }
+      ],
+      "budget": {
+        "activations": 3,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": {
+        "activations": 3,
+        "timeSamples": [
+          384
+        ],
+        "measuredAt": "2026-11-01T02:08:59.466Z",
+        "sha": "bce5673993b90720657af6a400a385c27cdf574c",
+        "platform": "web-offline",
+        "flags": {
+          "EXPO_PUBLIC_OFFLINE_MODE": true,
+          "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+        },
+        "fixtureVersion": "two-player-empty-v1"
+      },
+      "status": "gated",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "destination",
+        "invalid-code-error",
+        "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "join",
+        "invalid-code",
+        "error",
+        "dismiss-home"
+      ]
+    },
+    {
+      "id": "J-round-score-settle-reload",
+      "persona": "Round organizer",
+      "goal": "Score hole 1 for both players, reach Settlement and Leaderboard, reload with scores unchanged",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "round",
+      "fixture": "two-player-empty-v1",
+      "features": [
+        {
+          "name": "score-Augie",
+          "role": "button",
+          "accessibleName": "Set Augie score to par",
+          "visibleText": "PAR",
+          "class": "core",
+          "maxActivations": 2,
+          "maxScrolls": 0,
+          "testId": "score-par-Augie",
+          "start": "round",
+          "reachability": {
+            "status": "known_issue",
+            "linear": "AUG-306",
+            "signature": "no-accessible-name",
+            "date": "2026-10-31"
+          }
+        },
+        {
+          "name": "score-Sam",
+          "role": "button",
+          "accessibleName": "Set Sam score to par",
+          "visibleText": "PAR",
+          "class": "core",
+          "maxActivations": 2,
+          "maxScrolls": 0,
+          "testId": "score-par-Sam",
+          "start": "round",
+          "reachability": {
+            "status": "known_issue",
+            "linear": "AUG-306",
+            "signature": "no-accessible-name",
+            "date": "2026-10-31"
+          }
+        },
+        {
+          "name": "settle",
+          "role": "button",
+          "accessibleName": "Settlement",
+          "visibleText": "SETTLEMENT",
+          "class": "core",
+          "maxActivations": 2,
+          "maxScrolls": 0,
+          "testId": "journey-settlement",
+          "start": "round",
+          "reachability": {
+            "status": "known_issue",
+            "linear": "AUG-306",
+            "signature": "no-accessible-name",
+            "date": "2026-10-31"
+          }
+        },
+        {
+          "name": "leaderboard",
+          "role": "button",
+          "accessibleName": "Leaderboard",
+          "visibleText": "LEADERBOARD",
+          "class": "core",
+          "maxActivations": 2,
+          "maxScrolls": 0,
+          "testId": "journey-leaderboard",
+          "start": "round",
+          "reachability": {
+            "status": "known_issue",
+            "linear": "AUG-306",
+            "signature": "no-accessible-name",
+            "date": "2026-10-31"
+          }
+        }
+      ],
+      "budget": {
+        "activations": 5,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": {
+        "activations": 5,
+        "timeSamples": [
+          778
+        ],
+        "measuredAt": "2026-11-01T02:08:59.466Z",
+        "sha": "bce5673993b90720657af6a400a385c27cdf574c",
+        "platform": "web-offline",
+        "flags": {
+          "EXPO_PUBLIC_OFFLINE_MODE": true,
+          "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+        },
+        "fixtureVersion": "two-player-empty-v1"
+      },
+      "status": "gated",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "destination",
+        "leaderboard-totals",
+        "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "score-Augie",
+        "score-Sam",
+        "settle",
+        "leaderboard",
+        "reload-saved"
+      ]
+    },
+    {
+      "id": "J-invite-from-round",
+      "persona": "Round organizer",
+      "goal": "Find the above-fold local invite, copy it, and verify its join URL",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "round",
+      "fixture": "two-player-empty-v1",
+      "features": [
+        {
+          "name": "invite",
+          "role": "button",
+          "accessibleName": "Copy / share local invite",
+          "visibleText": "Copy / share local invite",
+          "class": "core",
+          "maxActivations": 2,
+          "maxScrolls": 0,
+          "testId": "journey-invite",
+          "start": "round",
+          "reachability": {
+            "status": "known_issue",
+            "linear": "AUG-306",
+            "signature": "no-accessible-name",
+            "date": "2026-10-31"
+          }
+        }
+      ],
+      "budget": {
+        "activations": 1,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": {
+        "activations": 1,
+        "timeSamples": [
+          125
+        ],
+        "measuredAt": "2026-11-01T02:08:59.466Z",
+        "sha": "bce5673993b90720657af6a400a385c27cdf574c",
+        "platform": "web-offline",
+        "flags": {
+          "EXPO_PUBLIC_OFFLINE_MODE": true,
+          "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+        },
+        "fixtureVersion": "two-player-empty-v1"
+      },
+      "status": "gated",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "code-visible",
+        "activation",
+        "destination",
+        "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "invite-copied"
+      ]
+    },
+    {
+      "id": "J-finalize-settle",
+      "persona": "Round organizer",
+      "goal": "Request finalize, see confirmation, cancel without locking scores",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "round",
+      "fixture": "two-player-empty-v1",
+      "features": [],
+      "budget": {
+        "activations": 2,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": {
+        "activations": 1,
+        "timeSamples": [
+          1589
+        ],
+        "measuredAt": "2026-11-01T02:08:59.466Z",
+        "sha": "bce5673993b90720657af6a400a385c27cdf574c",
+        "platform": "web-offline",
+        "flags": {
+          "EXPO_PUBLIC_OFFLINE_MODE": true,
+          "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+        },
+        "fixtureVersion": "two-player-empty-v1"
+      },
+      "status": "known_issue",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "finalize confirm dialog not rendered",
+        "outcome"
+      ],
+      "knownIssue": {
+        "linear": "AUG-289",
+        "signature": "finalize confirm dialog not rendered",
+        "date": "2026-10-31"
+      },
+      "requiredSteps": [
+        "entry",
+        "finalize-requested",
+        "failed"
+      ]
+    },
+    {
+      "id": "J-score-hand",
+      "persona": "New golfer",
+      "goal": "Score a full 18 by hand",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "fresh-context-v1",
+      "features": [],
+      "budget": {
+        "activations": 6,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": null,
+      "status": "deferred",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "destination",
+        "outcome"
+      ],
+      "deferredReason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only",
+      "linear": "AUG-291",
+      "requiredSteps": []
+    },
+    {
+      "id": "J-delete-account",
+      "persona": "New golfer",
+      "goal": "Reach and cancel Delete account",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "fresh-context-v1",
+      "features": [],
+      "budget": {
+        "activations": 6,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": null,
+      "status": "deferred",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "destination",
+        "outcome"
+      ],
+      "deferredReason": "AUG-292: Settings below fold and unnamed rows; account deletion adapter deferred",
+      "linear": "AUG-292",
+      "requiredSteps": []
+    },
+    {
+      "id": "J-free-paywall-recover",
+      "persona": "New golfer",
+      "goal": "Recover form intact after selecting a paid option",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "fresh-context-v1",
+      "features": [],
+      "budget": {
+        "activations": 6,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": null,
+      "status": "deferred",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "destination",
+        "outcome"
+      ],
+      "deferredReason": "AUG-293: double paywall; form/paywall adapter deferred",
+      "linear": "AUG-293",
+      "requiredSteps": []
+    },
+    {
+      "id": "J-create-8p-multiday",
+      "persona": "New golfer",
+      "goal": "Create an 8-player 2-round 2-group tournament",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "fresh-context-v1",
+      "features": [],
+      "budget": {
+        "activations": 6,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": null,
+      "status": "deferred",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "destination",
+        "outcome"
+      ],
+      "deferredReason": "Multiday creation outside the phase 1 slice",
+      "requiredSteps": []
+    },
+    {
+      "id": "J-join-code",
+      "persona": "New golfer",
+      "goal": "Successfully join a contest with a code",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "fresh-context-v1",
+      "features": [],
+      "budget": {
+        "activations": 6,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": null,
+      "status": "deferred",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "destination",
+        "outcome"
+      ],
+      "deferredReason": "Offline error path does not prove successful backend or cross-device join",
+      "requiredSteps": []
+    },
+    {
+      "id": "J-guest-join-web",
+      "persona": "New golfer",
+      "goal": "Join from a guest shared link",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "fresh-context-v1",
+      "features": [],
+      "budget": {
+        "activations": 6,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": null,
+      "status": "deferred",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "destination",
+        "outcome"
+      ],
+      "deferredReason": "Guest identity and backend joining deferred; existing sharing suites retained",
+      "requiredSteps": []
+    },
+    {
+      "id": "J-reopen-after-crash",
+      "persona": "New golfer",
+      "goal": "Recover a round after a process crash",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "fresh-context-v1",
+      "features": [],
+      "budget": {
+        "activations": 6,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": null,
+      "status": "deferred",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "destination",
+        "outcome"
+      ],
+      "deferredReason": "Reload persistence is gated; process kill/crash recovery is separate coverage",
+      "requiredSteps": []
+    },
+    {
+      "id": "J-game-rules",
+      "persona": "New golfer",
+      "goal": "Find the rules for a game from Home",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "fresh-context-v1",
+      "features": [],
+      "budget": {
+        "activations": 6,
+        "screens": 4,
+        "timeoutMs": 20000
+      },
+      "baseline": null,
+      "status": "deferred",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "activation",
+        "destination",
+        "outcome"
+      ],
+      "deferredReason": "Rules discovery adapter deferred to next phase",
+      "requiredSteps": []
+    }
+  ]
+}

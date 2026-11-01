@@ -16,7 +16,7 @@ export interface SyncCourseV1 {
 }
 export interface SyncSnapshotV1 {
   contest_id: UUID; name: string; protocol: number; revision: number;
-  completed: boolean; games: []; course: SyncCourseV1; capabilities: SyncCapabilitiesV1;
+  completed: boolean; games: import("../../scoresnap/src/engine/types").GameType[]; game_settings?: { gameConfig?: import("../../scoresnap/src/engine/types").GameConfig; betUnit?: number; hasTeams?: boolean }; course: SyncCourseV1; capabilities: SyncCapabilitiesV1;
   id_map: {kind: 'round'|'group'|'player'; local_id: string; server_id: UUID}[];
   rounds: {
     id: UUID; number: number; name: string; date: string|null;

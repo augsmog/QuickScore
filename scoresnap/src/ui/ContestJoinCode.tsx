@@ -4,6 +4,8 @@ import { enrollNewRound } from '../services/online-enrollment';
 import { supabase } from '../db/supabase';
 import { client, onlineEnabled } from '../services/cross-device';
 import { useOnlineStore } from '../stores/online-store';
+import { useAuthStore } from '../stores/auth-store';
+import { hostOrDiscover } from '../services/online-client';
 import { useEffect, useState } from "react";
 import { View, Text, Pressable, Share, Platform } from "react-native";
 import { useContestStore, type Contest } from "../stores/contest-store";
@@ -17,6 +19,20 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
     if (!contest.joinCode) useContestStore.getState().updateContest(contest.id, { joinCode: generateJoinCode(useContestStore.getState().contests.map(c => c.joinCode || "")) });
   }, [contest.id, contest.joinCode]);
   const enabled = useOnlineStore(s => s.events[contest.id]?.snapshot?.protocol === 1);
+  const actor = useAuthStore(s => s.remoteUserId);
+  const [checking, setChecking] = useState(onlineEnabled);
+  useEffect(() => {
+    if (!onlineEnabled || !actor) { setChecking(false); return; }
+    let mounted = true;
+    setChecking(true);
+    // Owner-hosts need not have a membership row. Memory-only snapshots disappear
+    // on reload, so membership discovery alone cannot restore their shared round.
+    // Re-prove authorization on the server; a local round is never proof of access.
+    void hostOrDiscover(client, contest.id).catch(() => {
+      if (mounted) setMessage('Could not check online sharing. Open Online sync to retry.');
+    }).finally(() => { if (mounted) setChecking(false); });
+    return () => { mounted = false; };
+  }, [contest.id, actor]);
   const [busy, setBusy] = useState(false);
   const enable = async () => {
     setBusy(true);
@@ -47,7 +63,7 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
   }
   
   return <View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
-    {onlineEnabled && !enabled && <Pressable disabled={busy} onPress={() => void enable()}><Text style={{color: COLORS.primary, paddingVertical: 12}}>{busy ? 'Enabling…' : 'Enable online sharing'}</Text></Pressable>}
+    {onlineEnabled && !enabled && <Pressable disabled={busy || checking} onPress={() => void enable()}><Text style={{color: COLORS.primary, paddingVertical: 12}}>{checking ? 'Checking online sharing…' : busy ? 'Enabling…' : 'Enable online sharing'}</Text></Pressable>}
     {(enabled || !onlineEnabled) && <><Text testID="organizer-join-code" style={{ color: COLORS.primary }}>Join code: {contest.joinCode}</Text>
 
     {!onlineEnabled && <LocalJoinLimitationBanner />}

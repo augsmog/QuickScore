@@ -9,13 +9,13 @@ fs.mkdirSync(out,{recursive:true});
 const home=p=>p.getByText('Build contests. Settle up.',{exact:false}).locator('visible=true');
 const cases={
   'join-empty':async p=>{
-    await p.getByText('Join with code',{exact:true}).locator('visible=true').click();
+    await p.getByTestId('home-join-code').locator('visible=true').click();
     await p.waitForURL('**/join/enter');
     if(process.env.MISSING_DISMISS==='1') await p.getByTestId('join-dismiss').evaluate(el=>el.remove());
     await UH6(p,{entry:p.getByPlaceholder('Join code'),dismiss:p.getByRole('button',{name:'Back to home',exact:true}),destination:()=>visible(home(p))});
   },
   'join-invalid':async p=>{
-    await p.getByText('Join with code',{exact:true}).locator('visible=true').click();
+    await p.getByTestId('home-join-code').locator('visible=true').click();
     await p.getByPlaceholder('Join code').fill('ZZZZZZ');
     await p.getByPlaceholder('Display name').fill('Guest');
     await p.getByText('Find contest',{exact:true}).click();

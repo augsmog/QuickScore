@@ -262,6 +262,29 @@ try {
       await converge([0, 1, 2, 3]);
       for (const i of [1, 2, 3]) assert.equal((await queueEntries(pages[i])).length, 0, 'No duplicated or pending player operations');
     });
+    await step('owner fresh context discovers scored contest and own-code restores without request', async () => {
+      const fresh = await browser.newContext();
+      try {
+        const page = await fresh.newPage(); configure(page);
+        let joins = 0;
+        page.on('request', r => { if (r.url().endsWith('/rpc/request_join')) joins++; });
+        assert.equal(await signIn(page, 'A'), true);
+        await page.goto(`${base}/contests`);
+        await poll('owner snapshot contains every accepted score', () => {
+          const s = snapshot(page);
+          return !!s && expected.every(cell => s.rounds[0]?.players
+            .find(p => p.displayName === names[cell.i])?.cells
+            .find(c => c.hole === cell.hole)?.strokes === cell.value);
+        });
+        await text(page, snapshot(page).name).waitFor();
+        await page.screenshot({ path: path.join(out, 'owner-fresh-contests.png'), fullPage: true });
+        await page.goto(`${base}/join/${code}`);
+        await page.getByLabel('Join code').fill(code);
+        await page.getByText('Find contest', { exact: true }).click();
+        await page.waitForURL(u => u.pathname === `/contest/${contestId}`);
+        assert.equal(joins, 0, 'Owner creates no pending self-request');
+      } finally { await fresh.close(); }
+    });
     await step('host RPC revocation denies queued write and removes roster across reloads', async () => {
       // Freeze D's stale authorized screen, revoke while it is disconnected, then enqueue AFTER revocation.
       await contexts[3].setOffline(true);
