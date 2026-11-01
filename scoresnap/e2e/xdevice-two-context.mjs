@@ -57,6 +57,12 @@ try {
     const code=label.match(/Join code: ([A-Z0-9]{6})/)[1];
     await text(a,'Online sharing enabled. Share this invite with signed-in players.').waitFor();
     assert.match(code, /^[A-Z0-9]{6}$/);
+    // Owner-hosts may have no membership row: a cold page must restore the
+    // authorized snapshot before showing the invite or queuing another score.
+    await a.reload();
+    await a.getByTestId('organizer-join-code').waitFor();
+    assert.equal(await text(a,'Enable online sharing').count(),0);
+    assert.equal(await a.getByTestId('organizer-join-code').innerText(),label);
     await text(a,'Copy / share invite').click();
     await shot(a,'02-share');
     await b.goto(`${base}/join/${code}`);
@@ -96,7 +102,11 @@ try {
     await b.waitForLoadState('networkidle');
     const beforeRevision = revisionFrames;
     const scoreStarted = Date.now();
+    const scoreReceipt = a.waitForResponse(r=>r.url().endsWith('/rpc/write_score') && r.request().method()==='POST');
     await a.getByTestId('score-par-Xdev Joiner').click();
+    const receipt = await scoreReceipt;
+    assert(receipt.ok(),'Score RPC succeeded after cold host restoration');
+    assert.equal((await receipt.json()).status,'accepted');
     await shot(a,'06-score');
     await Promise.all([
       b.getByText(/Hole 1 · current 4/).waitFor({timeout:20000}),
