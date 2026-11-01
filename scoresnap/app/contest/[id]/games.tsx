@@ -31,6 +31,12 @@ function formatNumber(value: number, signed = false): string {
   return `${value < 0 ? "−" : signed && value > 0 ? "+" : ""}${Math.abs(value)}`;
 }
 
+/** Competition rank for an already-sorted list: equal values share a rank, shown with T. */
+function rankLabel(values: number[], index: number): string {
+  const value = values[index];
+  return `${values.filter((v) => v === value).length > 1 ? "T" : ""}${values.indexOf(value) + 1}`;
+}
+
 function formatMoney(value: number): string {
   return `${value < 0 ? "−" : value > 0 ? "+" : ""}$${Math.abs(value)}`;
 }
@@ -352,7 +358,7 @@ export default function GamesScreen() {
             {/* ── Stableford / Mod Stableford ── */}
             {(gameId === "stableford" || gameId === "mod_stableford") && (
               <View>
-                {(contest.gameConfig?.rulesVersion === 1 && gameId === "stableford" ? contestStableford(contest) : (gameId === "mod_stableford" ? calcModStableford : calcStableford)(allPlayers, contest.course)).map((r, i) => (
+                {(contest.gameConfig?.rulesVersion === 1 && gameId === "stableford" ? contestStableford(contest) : (gameId === "mod_stableford" ? calcModStableford : calcStableford)(allPlayers, contest.course)).map((r, i, rows) => (
                   <View
                     key={r.playerId}
                     style={{
@@ -369,12 +375,12 @@ export default function GamesScreen() {
                         style={{
                           fontSize: 11,
                           fontFamily: FONTS.bold,
-                          width: 18,
+                          minWidth: 24,
                           textAlign: "center",
-                          color: i === 0 ? COLORS.gold : i === 1 ? COLORS.silver : COLORS.textDim,
+                          color: COLORS.textDim,
                         }}
                       >
-                        {i + 1}
+                        {rankLabel(rows.map((row) => row.points), i)}
                       </Text>
                       <Text style={{ color: COLORS.text, fontSize: 14, fontFamily: FONTS.medium }}>
                         {r.name}
@@ -397,7 +403,7 @@ export default function GamesScreen() {
             {/* ── Stroke Play ── */}
             {gameId === "stroke_play" && (
               <View>
-                {calcStrokePlay(allPlayers, contest.course).map((r, i) => (
+                {calcStrokePlay(allPlayers, contest.course).map((r, i, rows) => (
                   <View
                     key={r.playerId}
                     style={{
@@ -414,12 +420,12 @@ export default function GamesScreen() {
                         style={{
                           fontSize: 11,
                           fontFamily: FONTS.bold,
-                          width: 18,
+                          minWidth: 24,
                           textAlign: "center",
-                          color: i === 0 ? COLORS.gold : i === 1 ? COLORS.silver : COLORS.textDim,
+                          color: COLORS.textDim,
                         }}
                       >
-                        {i + 1}
+                        {rankLabel(rows.map((row) => row.total), i)}
                       </Text>
                       <Text style={{ color: COLORS.text, fontSize: 14, fontFamily: FONTS.medium }}>
                         {r.name}
@@ -609,7 +615,7 @@ export default function GamesScreen() {
             {/* ── Quota ── */}
             {gameId === "quota" && (
               <View>
-                {calcQuota(allPlayers, contest.course).map((r, i) => (
+                {calcQuota(allPlayers, contest.course).map((r, i, rows) => (
                   <View
                     key={r.playerId}
                     style={{
@@ -626,12 +632,12 @@ export default function GamesScreen() {
                         style={{
                           fontSize: 11,
                           fontFamily: FONTS.bold,
-                          width: 18,
+                          minWidth: 24,
                           textAlign: "center",
-                          color: i === 0 ? COLORS.gold : i === 1 ? COLORS.silver : COLORS.textDim,
+                          color: COLORS.textDim,
                         }}
                       >
-                        {i + 1}
+                        {rankLabel(rows.map((row) => row.overUnder), i)}
                       </Text>
                       <Text style={{ color: COLORS.text, fontSize: 14, fontFamily: FONTS.medium }}>
                         {r.name}
@@ -654,7 +660,7 @@ export default function GamesScreen() {
             {/* ── Chicago ── */}
             {gameId === "chicago" && (
               <View>
-                {calcChicago(allPlayers, contest.course).map((r, i) => (
+                {calcChicago(allPlayers, contest.course).map((r, i, rows) => (
                   <View
                     key={r.playerId}
                     style={{
@@ -671,12 +677,12 @@ export default function GamesScreen() {
                         style={{
                           fontSize: 11,
                           fontFamily: FONTS.bold,
-                          width: 18,
+                          minWidth: 24,
                           textAlign: "center",
-                          color: i === 0 ? COLORS.gold : i === 1 ? COLORS.silver : COLORS.textDim,
+                          color: COLORS.textDim,
                         }}
                       >
-                        {i + 1}
+                        {rankLabel(rows.map((row) => row.netScore), i)}
                       </Text>
                       <Text style={{ color: COLORS.text, fontSize: 14, fontFamily: FONTS.medium }}>
                         {r.name}
