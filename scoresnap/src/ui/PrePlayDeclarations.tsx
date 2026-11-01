@@ -1,5 +1,6 @@
+import { FullScreenSheet } from "./SafeScreen";
 import {useState} from 'react';
-import {Modal,ScrollView,Text,Pressable,View} from 'react-native';
+import {ScrollView,Text,Pressable,View} from 'react-native';
 import {AuxiliaryData,Course,GameConfig,Player} from '../engine/types';
 import {COLORS} from './theme';
 type Kind='wolf'|'bisque'|'jokerDeclarations';
@@ -9,7 +10,7 @@ export function PrePlayDeclarations({kind,players,course,hole,config,onSave,onCl
  const [wolf,setWolf]=useState<{partnerId:string|null;isLoneWolf:boolean;blind?:boolean;refused?:boolean}>();
  const button=(label:string,action:()=>void)=><Pressable key={label} onPress={action} style={{padding:14,margin:4,backgroundColor:COLORS.surfaceHigh}}><Text style={{color:COLORS.text}}>{label}</Text></Pressable>;
  const save=(value:unknown)=>{onSave(kind,kind==='jokerDeclarations'?0:hole,value);onClose();};
- return <Modal visible transparent onRequestClose={onClose}><View style={{flex:1,backgroundColor:'#000a',justifyContent:'center',padding:20}}><ScrollView style={{backgroundColor:COLORS.surfaceLow,padding:16,maxHeight:'85%'}}>
+ return <FullScreenSheet visible transparent onRequestClose={onClose}><View style={{flex:1,backgroundColor:'#000a',justifyContent:'center',padding:20}}><ScrollView style={{backgroundColor:COLORS.surfaceLow,padding:16,maxHeight:'85%'}}>
  <Text style={{color:COLORS.text,fontSize:20}}>{kind==='jokerDeclarations'?'Public Joker holes — before the round':kind==='bisque'?`Bisque declarations — before hole ${hole}`:`Wolf decision — hole ${hole}`}</Text>
  <Text style={{color:COLORS.textDim}}>Confirm these decisions were agreed before play. Recorded decisions lock when scores are entered.</Text>
  {kind==='wolf'?<>
@@ -24,5 +25,5 @@ export function PrePlayDeclarations({kind,players,course,hole,config,onSave,onCl
  </View>)}
  {kind!=='wolf' && players.every(p=>choices[p.id]?.length===(kind==='bisque'?1:2)) && button('Confirm agreed before play',()=>save(kind==='bisque'?{beforePlay:true,strokes:Object.fromEntries(players.map(p=>[p.id,choices[p.id][0]]))}:choices))}
  {button('Cancel — remains pending',onClose)}
- </ScrollView></View></Modal>;
+ </ScrollView></View></FullScreenSheet>;
 }
