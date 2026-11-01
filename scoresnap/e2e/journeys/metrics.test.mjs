@@ -1,7 +1,21 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createMetrics,count,screen,evaluate,aggregate} from './metrics.mjs';
+import {createMetrics,count,screen,evaluate,aggregate,intersectRect,rectArea,visibleRectArea,effectiveTextPaint,paintIsVisible} from './metrics.mjs';
 const journey=()=>({status:'gated',baseline:null,budget:{activations:20,screens:3,timeoutMs:1000},assertions:['entry','outcome'],requiredSteps:['entry','outcome']});
+test('text range geometry intersects every clipping rectangle and measures visible area',()=>{
+ const r={x:0,y:0,width:10,height:10};assert.deepEqual(intersectRect(r,{x:2,y:3,width:4,height:20}),{x:2,y:3,width:4,height:7});
+ assert.equal(rectArea(intersectRect(r,{x:5,y:0,width:10,height:10})),50);
+ assert.equal(visibleRectArea([r],[{x:0,y:0,width:10,height:10},{x:0,y:0,width:0,height:10}]),0);
+ assert.equal(visibleRectArea([r],[{x:0,y:0,width:6,height:10}]),60);
+});
+test('effective text fill supersedes color and invisible/equal paint fails',()=>{
+ assert.equal(effectiveTextPaint('rgba(0,0,0,0)','rgb(0,0,0)'),'rgba(0,0,0,0)');
+ assert.equal(effectiveTextPaint('currentcolor','rgb(0,0,0)'),'rgb(0,0,0)');
+ assert.equal(paintIsVisible('currentcolor','rgb(10,10,10)','rgb(255,255,255)'),true);
+ assert.equal(paintIsVisible('rgba(10,10,10,0.1)','rgb(10,10,10)','rgb(255,255,255)'),false);
+ assert.equal(paintIsVisible('rgb(255,255,255)','rgb(10,10,10)','rgb(255,255,255)'),false);
+ assert.equal(paintIsVisible('rgba(255,0,0,0.5)','rgb(10,10,10)','rgb(255,0,0)'),false,'alpha-composited paint matching its background is invisible');
+});
 const attempt=()=>({metrics:{...createMetrics(),activations:5,durationMs:100},assertions:['entry','outcome'],steps:[{name:'entry'},{name:'outcome'}]});
 test('counters retain independent units and distinct screens/transitions',()=>{
  const m=createMetrics(); for(const k of ['activations','textEdit','focus','scroll']) count(m,k);

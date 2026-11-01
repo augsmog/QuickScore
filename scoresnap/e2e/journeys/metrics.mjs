@@ -2,6 +2,35 @@
 export function createMetrics() {
   return {activations:0,textEdit:0,focus:0,scroll:0,screens:[],transitions:[],actions:[],reachability:[],durationMs:0};
 }
+// Pure rectangle helpers shared by the browser reachability gate and tests.
+export function intersectRect(a,b) {
+  const x=Math.max(a.x,b.x),y=Math.max(a.y,b.y),right=Math.min(a.x+a.width,b.x+b.width),bottom=Math.min(a.y+a.height,b.y+b.height);
+  return right>x&&bottom>y?{x,y,width:right-x,height:bottom-y}:null;
+}
+export function rectArea(r) {return r?Math.max(0,r.width)*Math.max(0,r.height):0;}
+export function visibleRectArea(rects,clips) {
+  let total=0;
+  for(const rect of rects) {
+    let visible=rect;
+    for(const clip of clips) {visible=intersectRect(visible,clip);if(!visible)break;}
+    total+=rectArea(visible);
+  }
+  return total;
+}
+export function parseCssColor(value) {
+  const m=String(value).match(/rgba?\(\s*([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:\s*[,/]\s*([\d.]+)%?)?\s*\)/i);
+  if(!m)return null;
+  const alpha=m[4]===undefined?1:Number(m[4])/(m[0].includes('%')?100:1);
+  return {rgb:[Number(m[1]),Number(m[2]),Number(m[3])],alpha};
+}
+export function effectiveTextPaint(fill,color) {
+  return fill&&fill.trim().toLowerCase()!=='currentcolor'?fill:color;
+}
+export function paintIsVisible(fill,color,background) {
+  const fg=parseCssColor(effectiveTextPaint(fill,color)),bg=parseCssColor(background);
+  if(!fg||!bg||fg.alpha<=0.1)return false;
+  return bg.rgb.some((v,i)=>Math.abs(v-(fg.rgb[i]*fg.alpha+v*(1-fg.alpha)))>0.5);
+}
 export function count(metrics, kind, detail={}) {
   if (!['activations','textEdit','focus','scroll'].includes(kind)) throw Error(`Unknown counter ${kind}`);
   metrics[kind]++;

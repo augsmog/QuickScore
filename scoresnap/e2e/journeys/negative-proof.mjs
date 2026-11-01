@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(process.env.OUT_DIR||'e2e/journey-screens/negative-proof');
 fs.mkdirSync(root,{recursive:true});
-const expected={hide:'control-hidden',rename:'accessible-name-mismatch',disable:'control-disabled','hide-label':'visible-text-missing','transparent-label':'visible-text-missing'};
+const expected={hide:'control-hidden',rename:'accessible-name-mismatch',disable:'control-disabled','hide-label':'visible-text-missing','transparent-label':'visible-text-missing','label-overflow-clipped':'visible-text-missing','label-clip-path':'visible-text-missing','text-fill-transparent':'visible-text-missing'};
 const results=[];
 for(const [mutation,signature] of Object.entries(expected)) {
   const out=path.join(root,mutation);

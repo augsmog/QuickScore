@@ -93,3 +93,42 @@ Workflow YAML parses successfully. Structural checks confirm the journey step ha
 Verifier defect 2 (branch protection) is explicitly outside this fix round's scope. Repository settings require Augie's explicit yes; no settings changes were made. This round addresses the test harness and budget defects without claiming required merge-check enforcement or an overall phase 1 verifier pass. PR #84 remains draft; no PR comments were posted.
 
 Existing coverage gaps remain explicit: AUG-289 finalize confirmation is a strict expected failure; five AUG-306 feature exceptions retain geometry, action and outcome gates. Eight journeys remain deferred (full-18 scoring, deletion, paywall recovery, multiday creation, successful code join, guest joining, process-crash recovery, and rules discovery). Timing baselines have one sample per executable journey and remain record-only; activation baselines are unchanged.
+
+## Fix round 2 — core label visibility
+
+Verifier round 2 identified text-node clipping and transparent `-webkit-text-fill-color` bypasses. The runner now clips each matched text Range rect through every ancestor from the text node to the root, requires at least half the original text area and a 4×4 px visible fragment, checks effective text fill against the composed background, and captures the intersected label rect for a luminance texture proof. Existing display, visibility and opacity-chain checks remain active. This pixel check runs only for core labels.
+
+The copied verifier scripts and all outputs are retained in `/workspace/aos-state/reports/test-program-20261031/fix-r2-evidence/`; verifier evidence was not overwritten. The verifier's three r2 visibility probes all exited 1 with `visible-text-missing`: `label-overflow-clipped`, `label-clip-path`, `text-fill-transparent`. The copied r1 probe scripts also returned their expected results, including the nine-sample timing pass, ten-sample timing failure, and red missing-step/visibility proofs.
+
+Required checks from `scoresnap/`:
+
+```text
+node --test e2e/journeys/metrics.test.mjs
+ℹ tests 36
+ℹ pass 36
+ℹ fail 0
+
+node --test e2e/usability-gate.test.mjs
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+
+BASE_URL=http://127.0.0.1:8192 OUT_DIR=/tmp/tp-r2-runner node e2e/journeys/runner.mjs
+PASSED J-home-create-cancel: activations=2, screens=2, taskMs=469
+PASSED J-home-join-code-error: activations=3, screens=2, taskMs=542
+PASSED J-round-score-settle-reload: activations=5, screens=3, taskMs=1033
+PASSED J-invite-from-round: activations=1, screens=1, taskMs=208
+EXPECTED_FAILURE J-finalize-settle: activations=1, screens=1, taskMs=1599
+Journey gate PASSED: 5/5; elapsed 9172 ms; wall_seconds=10
+
+BASE_URL=http://127.0.0.1:8192 OUT_DIR=/tmp/tp-r2-negative node e2e/journeys/negative-proof.mjs
+PASS hide, rename, disable, hide-label, transparent-label,
+     label-overflow-clipped, label-clip-path, text-fill-transparent
+All eight expected runner failures had exit 1 and their declared signatures.
+
+RUN_ROOT=/tmp/tp-nightly3 bash e2e/journeys/nightly.sh
+Nightly exit 0; summary: /tmp/tp-nightly3/2026-10-31/summary.md
+Main SHA: bce5673993b90720657af6a400a385c27cdf574c; harness SHA: fix-round-2 working tree.
+```
+
+The copied verifier r2 script at `fix-r2-evidence/visibility-probes.py` produced three `visible-text-missing` results (all runner exits 1). Copied verifier r1 probes were run from the same evidence directory; all 14 primary and follow-up probes matched the expected behavior. The first probe attempt caught and corrected a `page` binding error before final runs. `fix-r2-evidence/` is outside the repository at `/workspace/aos-state/reports/test-program-20261031/fix-r2-evidence/`.

@@ -22,6 +22,7 @@ function demand(ok,signature,message) {if(!ok) throw new Failure(signature,messa
 // Geometry does not scroll, focus, or activate. Check full viewport/ancestor
 // clipping and center plus inset-corner hit tests before every real activation.
 async function geometry(locator,{text}={}) {
+  const page=locator.page();
   demand(await locator.count()===1,'control-not-unique');
   demand(await locator.isVisible(),'control-hidden');
   demand(await locator.isEnabled()&&await locator.getAttribute('aria-disabled')!=='true','control-disabled');
@@ -59,7 +60,8 @@ async function geometry(locator,{text}={}) {
       return c;
     };
     const textContrasts=node=>{
-      const foreground=rgba(getComputedStyle(node).color);
+      const style=getComputedStyle(node),fill=style.webkitTextFillColor;
+      const foreground=rgba(fill&&fill!=='currentcolor'?fill:style.color);
       if(foreground[3]<=0.1)return false;
       const ancestors=[];for(let a=node;a;a=a.parentElement)ancestors.push(a);
       let background=[255,255,255];
@@ -67,22 +69,57 @@ async function geometry(locator,{text}={}) {
         const c=rgba(getComputedStyle(a).backgroundColor);
         background=background.map((v,i)=>c[i]*c[3]+v*(1-c[3]));
       }
-      return background.some((v,i)=>Math.abs(v-foreground[i])>0.5);
+      const painted=background.map((v,i)=>foreground[i]*foreground[3]+v*(1-foreground[3]));
+      return background.some((v,i)=>Math.abs(v-painted[i])>0.5);
     };
     // Require a contrasting text node with geometry inside the target as well
     // as visibility along the entire text-to-root chain.
-    let visibleText=!text;
+    let visibleText=!text,textRect=null;
     const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
     while(text && walker.nextNode()) {
-      const n=walker.currentNode;if(!n.textContent.toLowerCase().includes(text.toLowerCase())) continue;
-      const range=document.createRange();range.selectNodeContents(n);const b=range.getBoundingClientRect();
-      if(b.width>0&&b.height>0&&b.x>=r.x-1&&b.right<=r.right+1&&b.y>=r.y-1&&b.bottom<=r.bottom+1&&renderedChain(n.parentElement)&&textContrasts(n.parentElement)) visibleText=true;
+      const n=walker.currentNode,at=n.textContent.toLowerCase().indexOf(text.toLowerCase());if(at<0)continue;
+      const range=document.createRange();range.setStart(n,at);range.setEnd(n,at+text.length);
+      const own=[...range.getClientRects()].map(q=>({x:q.x,y:q.y,width:q.width,height:q.height})).filter(q=>q.width>0&&q.height>0);
+      const clips=[{x:0,y:0,width:innerWidth,height:innerHeight}];
+      for(let a=n.parentElement;a;a=a.parentElement) {
+        const s=getComputedStyle(a),b=a.getBoundingClientRect();let x=b.x,y=b.y,right=b.right,bottom=b.bottom,clipX=false,clipY=false;
+        if(/hidden|clip|auto|scroll/.test(s.overflowX))clipX=true;
+        if(/hidden|clip|auto|scroll/.test(s.overflowY))clipY=true;
+        if(s.contain.split(/\s+/).includes('paint'))clipX=clipY=true;
+        if(s.clip!=='auto') {const m=s.clip.match(/rect\(([^)]*)\)/);if(m){const v=m[1].split(/[ ,]+/).map(q=>q==='auto'?null:parseFloat(q));if(v[0]!=null){y=b.y+v[0];clipY=true;}if(v[1]!=null){right=Math.min(right,b.x+v[1]);clipX=true;}if(v[2]!=null){bottom=Math.min(bottom,b.y+v[2]);clipY=true;}if(v[3]!=null){x=b.x+v[3];clipX=true;}}}
+        if(s.clipPath&&s.clipPath!=='none') {
+          const inset=s.clipPath.match(/^inset\(([^)]*)\)$/);
+          if(inset){const raw=inset[1].split(/\s+/),expanded=raw.length===1?[raw[0],raw[0],raw[0],raw[0]]:raw.length===2?[raw[0],raw[1],raw[0],raw[1]]:raw.length===3?[raw[0],raw[1],raw[2],raw[1]]:raw;
+            const px=(v,size)=>parseFloat(v)*(v.endsWith('%')?size/100:1),[t,rr,bb,ll]=[px(expanded[0],b.height),px(expanded[1],b.width),px(expanded[2],b.height),px(expanded[3],b.width)];
+            x=b.x+ll;right=b.right-rr;y=b.y+t;bottom=b.bottom-bb;clipX=clipY=true;}
+        }
+        if(clipX||clipY)clips.push({x:clipX?x:-1e7,y:clipY?y:-1e7,width:clipX?Math.max(0,right-x):2e7,height:clipY?Math.max(0,bottom-y):2e7});
+      }
+      const clipped=own.map(q=>{let out=q;for(const c of clips){if(!out)break;const x=Math.max(out.x,c.x),y=Math.max(out.y,c.y),right=Math.min(out.x+out.width,c.x+c.width),bottom=Math.min(out.y+out.height,c.y+c.height);out=right>x&&bottom>y?{x,y,width:right-x,height:bottom-y}:null;}return out;}).filter(Boolean);
+      const area=own.reduce((sum,q)=>sum+q.width*q.height,0),visible=clipped.reduce((sum,q)=>sum+q.width*q.height,0);
+      if(area>0&&visible>=area*.5&&clipped.some(q=>q.width>=4&&q.height>=4)&&renderedChain(n.parentElement)&&textContrasts(n.parentElement)) {
+        visibleText=true;
+        const x=Math.min(...clipped.map(q=>q.x)),y=Math.min(...clipped.map(q=>q.y)),right=Math.max(...clipped.map(q=>q.x+q.width)),bottom=Math.max(...clipped.map(q=>q.y+q.height));
+        textRect={x,y,width:right-x,height:bottom-y};
+      }
     }
-    return {inside,hits,visibleText,rendered,rect:{x:r.x,y:r.y,width:r.width,height:r.height}};
+    return {inside,hits,visibleText,rendered,textRect,rect:{x:r.x,y:r.y,width:r.width,height:r.height}};
   },text);
   demand(state.rendered,'control-hidden');
   demand(state.inside,'outside-viewport-or-clipped',JSON.stringify(state.rect));
   demand(state.hits,'control-occluded');demand(state.visibleText,'visible-text-missing');
+  if(text) {
+    const pixels=await page.screenshot({clip:state.textRect});
+    const data=pixels.toString('base64');
+    const texture=await page.evaluate(async encoded=>{
+      const img=new Image();img.src=`data:image/png;base64,${encoded}`;await img.decode();
+      const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0);
+      const d=x.getImageData(0,0,c.width,c.height).data,hist=new Uint32Array(8);let sum=0,sum2=0,n=0,min=255,max=0;
+      for(let i=0;i<d.length;i+=4){const l=.2126*d[i]+.7152*d[i+1]+.0722*d[i+2];hist[Math.min(7,Math.floor(l/32))]++;sum+=l;sum2+=l*l;n++;min=Math.min(min,l);max=Math.max(max,l);}
+      const clusters=hist.filter(Boolean).length;return {stddev:Math.sqrt(Math.max(0,sum2/n-(sum/n)**2)),min,max,clusters};
+    },data);
+    demand(texture.clusters>=2&&texture.max-texture.min>=24&&texture.stddev>=6,'visible-text-missing');
+  }
   return state.rect;
 }
 async function reachability(page,locator,feature) {
@@ -185,13 +222,16 @@ async function runJourney(browser,j) {
       if(mutation==='hide')await target.evaluate(el=>el.style.visibility='hidden');
       else if(mutation==='rename')await target.evaluate(el=>el.setAttribute('aria-label','Mutated name'));
       else if(mutation==='disable')await target.evaluate(el=>el.setAttribute('aria-disabled','true'));
-      else if(['hide-label','transparent-label'].includes(mutation))await target.evaluate((el,mutation)=>{
+      else if(['hide-label','transparent-label','label-overflow-clipped','label-clip-path','text-fill-transparent'].includes(mutation))await target.evaluate((el,mutation)=>{
         const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let label;
         while(walker.nextNode())if(walker.currentNode.textContent.trim()==='New Contest'){label=walker.currentNode;break;}
         if(!label)throw Error('mutation label missing');
         const outer=document.createElement('span'),inner=document.createElement('span');
         if(mutation==='hide-label')outer.style.opacity='0';
-        else outer.style.color='transparent';
+        else if(mutation==='transparent-label')outer.style.color='transparent';
+        else if(mutation==='label-overflow-clipped'){outer.style.display='inline-block';outer.style.height='0px';outer.style.overflow='hidden';}
+        else if(mutation==='label-clip-path'){outer.style.display='inline-block';outer.style.clipPath='inset(50%)';}
+        else {outer.style.webkitTextFillColor='transparent';outer.style.color='rgb(20,20,20)';}
         label.replaceWith(outer);outer.append(inner);inner.append(label);
       },mutation);
       else throw Error(`unknown mutation ${mutation}`);
