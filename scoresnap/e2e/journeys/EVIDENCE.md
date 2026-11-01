@@ -114,12 +114,12 @@ node --test e2e/usability-gate.test.mjs
 ℹ fail 0
 
 BASE_URL=http://127.0.0.1:8192 OUT_DIR=/tmp/tp-r2-runner node e2e/journeys/runner.mjs
-PASSED J-home-create-cancel: activations=2, screens=2, taskMs=468
-PASSED J-home-join-code-error: activations=3, screens=2, taskMs=583
-PASSED J-round-score-settle-reload: activations=5, screens=3, taskMs=1052
-PASSED J-invite-from-round: activations=1, screens=1, taskMs=257
-EXPECTED_FAILURE J-finalize-settle: activations=1, screens=1, taskMs=1599
-Journey gate PASSED: 5/5; elapsed 10231 ms; wall_seconds=10
+PASSED J-home-create-cancel: activations=2, screens=2, taskMs=936
+PASSED J-home-join-code-error: activations=3, screens=2, taskMs=909
+PASSED J-round-score-settle-reload: activations=5, screens=3, taskMs=1787
+PASSED J-invite-from-round: activations=1, screens=1, taskMs=271
+EXPECTED_FAILURE J-finalize-settle: activations=1, screens=1, taskMs=1640
+Journey gate PASSED: 5/5; elapsed 14225 ms; wall_seconds=15
 
 BASE_URL=http://127.0.0.1:8192 OUT_DIR=/tmp/tp-r2-negative node e2e/journeys/negative-proof.mjs
 PASS hide, rename, disable, hide-label, transparent-label,
