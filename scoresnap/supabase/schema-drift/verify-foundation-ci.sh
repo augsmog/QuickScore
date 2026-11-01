@@ -127,3 +127,6 @@ psql_local -f "$here/../tests/m4b-upgrade-replay.sql"
 psql_local -f "$here/../tests/legacy-compatibility.sql"
 psql_local -v m4b_native=false -f "$here/../tests/m4b-api.sql"
 echo 'SQL API gate passed; native stub Broadcast assertions excluded; real socket delivery/revocation requires M4a integration.'
+
+# Opt-in is supplied by the workflow that just reset this disposable CLI stack.
+bash "$here/owner-invite-rehearsal.sh" "$url"

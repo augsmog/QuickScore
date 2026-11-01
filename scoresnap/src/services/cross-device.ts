@@ -22,12 +22,15 @@ export const client = onlineClient(async (name, args) => {
   return supabase.rpc(name, args);
 }, (id, membership, snapshot) => {
   useOnlineStore.getState().repair(id, membership, snapshot);
+  // A slower response may have been rejected by the revision gate. Do not persist
+  // its code (or score overlay) after the current in-memory snapshot won that race.
+  if (membership && snapshot && useOnlineStore.getState().events[id]?.snapshot !== snapshot) return;
   if (membership?.role === 'host' && snapshot) {
     const store = require('../stores/contest-store').useContestStore;
     if (!store.getState().contests.some((c: { id: string }) => c.id === id)) {
       store.setState((state: { contests: unknown[] }) => ({ contests: [...state.contests, require('./restore-owner-contest').restoreOwnerContest(snapshot)] }));
     } else {
-      store.setState((state: { contests: import('../stores/contest-store').Contest[] }) => ({ contests: state.contests.map(c => c.id === id && c.remoteRestored ? { ...require('./scorecard-overlay').overlayScorecard(c, snapshot), games: snapshot.games, gameConfig: snapshot.game_settings?.gameConfig, betUnit: snapshot.game_settings?.betUnit ?? c.betUnit, hasTeams: snapshot.game_settings?.hasTeams ?? c.hasTeams } : c) }));
+      store.setState((state: { contests: import('../stores/contest-store').Contest[] }) => ({ contests: state.contests.map(c => c.id === id && c.remoteRestored ? { ...require('./scorecard-overlay').overlayScorecard(c, snapshot), joinCode: require('./owner-invite').snapshotOwnerInviteCode(id, snapshot), games: snapshot.games, gameConfig: snapshot.game_settings?.gameConfig, betUnit: snapshot.game_settings?.betUnit ?? c.betUnit, hasTeams: snapshot.game_settings?.hasTeams ?? c.hasTeams } : c) }));
     }
   } else if (!membership) {
     const store = require('../stores/contest-store').useContestStore;
