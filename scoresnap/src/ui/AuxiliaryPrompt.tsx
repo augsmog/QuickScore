@@ -1,4 +1,4 @@
-import { FullScreenSheet } from "./SafeScreen";
+import { SheetSurface, FullScreenSheet } from "./SafeScreen";
 /**
  * AuxiliaryPrompt — Contextual per-hole prompts for Tier 2 games.
  *
@@ -386,14 +386,14 @@ export default function AuxiliaryPrompt({
       animationType="slide"
       statusBarTranslucent
     >
-      <View
+      <View testID="auxiliary-scrim"
         style={{
           flex: 1,
           backgroundColor: "rgba(0,0,0,0.6)",
           justifyContent: "flex-end",
         }}
       >
-        <View
+        <SheetSurface testID="auxiliary-sheet"
           style={{
             backgroundColor: COLORS.surfaceLow,
             borderTopLeftRadius: RADII.xl,
@@ -488,7 +488,7 @@ export default function AuxiliaryPrompt({
             />
           )}
           </ScrollView>
-        </View>
+        </SheetSurface>
       </View>
     </FullScreenSheet>
   );

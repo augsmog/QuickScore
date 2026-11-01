@@ -34,7 +34,7 @@ test('page padding adds current insets only on requested edges; modal forwards c
   const deps = {
     './theme': {COLORS:{bg:'#fff'}},
     react: {createElement:(type,props,...children)=>({type,props,children})},
-    'react-native':{Modal:'Modal',View:'View',StyleSheet:{flatten:s=>s}},
+    'react-native':{Modal:'Modal',View:'View',StyleSheet:{flatten:s=>Array.isArray(s)?Object.assign({},...s):s}},
     'react-native-safe-area-context':{SafeAreaProvider:'Provider',useSafeAreaInsets:()=>insets,useSafeAreaFrame:()=>frame},
   };
   const exports = {};
@@ -44,6 +44,12 @@ test('page padding adds current insets only on requested edges; modal forwards c
   const modal = exports.FullScreenSheet({visible:true,transparent:true,onRequestClose:close,children:'content'});
   expect(modal.props).toMatchObject({visible:true,transparent:true,onRequestClose:close});
   expect(modal.children[0].props.initialMetrics).toEqual({insets,frame});
+  expect(modal.children[0].children[0].props.edges).toEqual([]);
+  const surface = exports.SheetSurface({style:{paddingBottom:40,maxHeight:'75%'}});
+  expect(surface.props.style[1].maxHeight).toBe(639);
+  expect(exports.SafeScreen(surface.props).props.style[1].paddingBottom).toBe(74);
+  expect(exports.SheetSurface({style:{maxHeight:900}}).props.style[1].maxHeight).toBe(793);
+  expect(exports.SheetSurface({centered:true,style:{maxHeight:900}}).props.style[1].maxHeight).toBe(734);
   Object.assign(insets,{top:0,bottom:21,left:59});
   expect(exports.SafeScreen({style:{padding:0}}).props.style[1]).toEqual({paddingTop:0,paddingBottom:21,paddingLeft:59,paddingRight:0});
 });
