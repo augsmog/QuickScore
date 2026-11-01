@@ -114,6 +114,10 @@ function ToggleRow({
         )}
       </View>
       <Switch
+        accessibilityRole={Platform.OS === "web" ? undefined : "switch"}
+        accessibilityLabel={label}
+        accessibilityHint={sublabel}
+        accessibilityState={Platform.OS === "web" ? undefined : { checked: value }}
         value={value}
         onValueChange={onToggle}
         trackColor={{ false: COLORS.surfaceHigh, true: COLORS.primary + "55" }}
@@ -156,6 +160,9 @@ function PickerRow({
 
   return (
     <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityLabel={Platform.OS === "web" ? `${label}, ${displayValue}` : label}
+      accessibilityValue={{ text: displayValue }}
       onPress={handlePress}
       style={{
         backgroundColor: COLORS.surfaceLow,
@@ -196,6 +203,10 @@ function NumberRow({
 }) {
   return (
     <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityLabel={Platform.OS === "web" ? `${label}, ${value}` : label}
+      accessibilityHint={sublabel}
+      accessibilityValue={{ text: String(value) }}
       onPress={onPress}
       style={{
         backgroundColor: COLORS.surfaceLow,
@@ -234,7 +245,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const settings = useSettingsStore();
   const { user, signOut, isAnonymous } = useAuthStore();
-  const isPro = useScanStore((s) => s.isPro);
+  const tier = useScanStore((s) => s.tier);
   const [restoring, setRestoring] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -404,9 +415,93 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* Keep account deletion beside account details, not below preferences. */}
+        {deleteArmed ? (
+          <View
+            style={{
+              backgroundColor: COLORS.errorContainer + "22",
+              borderRadius: RADII.lg,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              minHeight: 44,
+              gap: 10,
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.error }}>
+              Delete your account?
+            </Text>
+            <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim }}>
+              This permanently deletes your sign-in and the private scores, scans, and profile stored for you. In a shared round your name becomes "Deleted player" so the rest of the group keeps the round. This cannot be undone.
+            </Text>
+            <AnimatedPressable
+              accessibilityRole="button"
+              accessibilityLabel="Keep my account"
+              disabled={deleting}
+              accessibilityState={{ disabled: deleting }}
+              onPress={() => { if (!deleting) setDeleteArmed(false); }}
+              style={{
+                borderRadius: RADII.lg,
+                paddingVertical: 12,
+                minHeight: 44,
+                alignItems: "center",
+                backgroundColor: COLORS.surfaceLow,
+              }}
+            >
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
+                Keep my account
+              </Text>
+            </AnimatedPressable>
+            <AnimatedPressable
+              accessibilityRole="button"
+              accessibilityLabel={deleting ? "Deleting..." : "Yes, delete my account"}
+              disabled={deleting}
+              accessibilityState={{ disabled: deleting, busy: deleting }}
+              onPress={confirmDeleteAccount}
+              style={{
+                borderRadius: RADII.lg,
+                paddingVertical: 12,
+                minHeight: 44,
+                alignItems: "center",
+                backgroundColor: COLORS.error,
+                opacity: deleting ? 0.6 : 1,
+              }}
+            >
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: "#fff" }}>
+                {deleting ? "Deleting..." : "Yes, delete my account"}
+              </Text>
+            </AnimatedPressable>
+          </View>
+        ) : (
+          <AnimatedPressable
+            accessibilityRole="button"
+          accessibilityLabel="Delete Account"
+          onPress={() => setDeleteArmed(true)}
+            style={{
+              backgroundColor: COLORS.errorContainer + "22",
+              borderRadius: RADII.lg,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              minHeight: 44,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <Trash2 size={18} color={COLORS.error} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.error }}>
+                Delete Account
+              </Text>
+              <Text style={{ fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textDim, marginTop: 2 }}>
+                Permanently erase all data
+              </Text>
+            </View>
+          </AnimatedPressable>
+        )}
+
         <SectionHeader title="Subscription" />
-        <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={isPro ? "Pro" : "Free"} onPress={() => router.push("/paywall")} />
-        <AnimatedPressable accessibilityRole="button" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
+        <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[tier]} onPress={() => router.push("/paywall")} />
+        <AnimatedPressable accessibilityRole="button" accessibilityLabel="Restore purchases" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
           style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
           <RotateCcw size={18} color={COLORS.textDim} />
           <Text style={{ flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>Restore purchases</Text>
@@ -619,7 +714,7 @@ export default function SettingsScreen() {
         />
 
         <SectionHeader title="Help" />
-        <AnimatedPressable accessibilityRole="button" onPress={openSupport}
+        <AnimatedPressable accessibilityRole="button" accessibilityLabel="Contact support" onPress={openSupport}
           style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
           <HelpCircle size={18} color={COLORS.textDim} />
           <Text style={{ flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>Contact support</Text>
@@ -630,6 +725,8 @@ export default function SettingsScreen() {
         <SectionHeader title="About" />
 
         <AnimatedPressable
+          accessibilityRole="button"
+          accessibilityLabel="Privacy Policy"
           onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/privacy")}
           style={{
             backgroundColor: COLORS.surfaceLow,
@@ -651,6 +748,8 @@ export default function SettingsScreen() {
         </AnimatedPressable>
 
         <AnimatedPressable
+          accessibilityRole="button"
+          accessibilityLabel="Terms of Service"
           onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/terms")}
           style={{
             backgroundColor: COLORS.surfaceLow,
@@ -696,6 +795,8 @@ export default function SettingsScreen() {
         {/* Reset & Sign Out */}
         <View style={{ marginTop: 24, gap: 8, marginBottom: 20 }}>
           <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Reset to Defaults"
             onPress={handleResetDefaults}
             style={{
               backgroundColor: COLORS.surfaceLow,
@@ -715,6 +816,8 @@ export default function SettingsScreen() {
           </AnimatedPressable>
 
           <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Sign Out"
             onPress={handleSignOut}
             style={{
               backgroundColor: COLORS.errorContainer + "44",
@@ -733,78 +836,6 @@ export default function SettingsScreen() {
             </Text>
           </AnimatedPressable>
 
-          {deleteArmed ? (
-            <View
-              style={{
-                backgroundColor: COLORS.errorContainer + "22",
-                borderRadius: RADII.lg,
-                paddingHorizontal: 16,
-                paddingVertical: 14,
-                minHeight: 44,
-                gap: 10,
-              }}
-            >
-              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.error }}>
-                Delete your account?
-              </Text>
-              <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim }}>
-                This permanently deletes your sign-in and the private scores, scans, and profile stored for you. In a shared round your name becomes "Deleted player" so the rest of the group keeps the round. This cannot be undone.
-              </Text>
-              <AnimatedPressable
-                onPress={() => { if (!deleting) setDeleteArmed(false); }}
-                style={{
-                  borderRadius: RADII.lg,
-                  paddingVertical: 12,
-                  minHeight: 44,
-                  alignItems: "center",
-                  backgroundColor: COLORS.surfaceLow,
-                }}
-              >
-                <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
-                  Keep my account
-                </Text>
-              </AnimatedPressable>
-              <AnimatedPressable
-                onPress={confirmDeleteAccount}
-                style={{
-                  borderRadius: RADII.lg,
-                  paddingVertical: 12,
-                  minHeight: 44,
-                  alignItems: "center",
-                  backgroundColor: COLORS.error,
-                  opacity: deleting ? 0.6 : 1,
-                }}
-              >
-                <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: "#fff" }}>
-                  {deleting ? "Deleting..." : "Yes, delete my account"}
-                </Text>
-              </AnimatedPressable>
-            </View>
-          ) : (
-            <AnimatedPressable
-              onPress={() => setDeleteArmed(true)}
-              style={{
-                backgroundColor: COLORS.errorContainer + "22",
-                borderRadius: RADII.lg,
-                paddingHorizontal: 16,
-                paddingVertical: 14,
-                minHeight: 44,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <Trash2 size={18} color={COLORS.error} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.error }}>
-                  Delete Account
-                </Text>
-                <Text style={{ fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textDim, marginTop: 2 }}>
-                  Permanently erase all data
-                </Text>
-              </View>
-            </AnimatedPressable>
-          )}
         </View>
       </ScrollView>
     </SafeScreen>

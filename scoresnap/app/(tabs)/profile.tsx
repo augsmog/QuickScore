@@ -167,12 +167,8 @@ export default function ProfileScreen() {
             <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.primary }}>{initials}</Text>
           </View>
           <View style={{ flex: 1, gap: 4 }}>
-            {displayName ? (
+            {displayName && (
               <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text }}>{displayName}</Text>
-            ) : (
-              <AnimatedPressable accessibilityRole="button" onPress={() => router.push("/settings")} style={{ minHeight: 44, justifyContent: "center" }}>
-                <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.primary }}>Add your name</Text>
-              </AnimatedPressable>
             )}
             <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>Member since {memberYear}</Text>
             <View testID="profile-plan-badge" accessibilityLabel={`Plan: ${isPro ? "Pro" : "Free"}`} style={{ alignSelf: "flex-start", borderRadius: RADII.full, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: isPro ? COLORS.primary : COLORS.outline, backgroundColor: COLORS.surface }}>
@@ -182,7 +178,7 @@ export default function ProfileScreen() {
           <AnimatedPressable
             onPress={() => router.push("/settings")}
             accessibilityRole="button"
-            accessibilityLabel="Account settings"
+            accessibilityLabel="Settings"
             testID="profile-settings-gear"
             style={{ width: 44, height: 44, borderRadius: RADII.full, borderWidth: 1, borderColor: COLORS.outline, backgroundColor: COLORS.surface, alignItems: "center", justifyContent: "center" }}
           >
