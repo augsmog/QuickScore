@@ -11,7 +11,7 @@ export async function enrollNewRound(contest: Contest, actor: string, api: {
   const cap = await api.rpc('sync_capabilities', {contest_id: contest.id});
   if (cap.protocol !== 1) await api.rpc('enroll_contest', {contest_id: contest.id, expected_revision: cap.revision});
   for (const round of rounds) {
-    const payload: any = roundPayload(round);
+    const payload: any = roundPayload(round, contest);
     if (payload.groups[0]?.players[0]) payload.groups[0].players[0].host = true;
     await api.rpc('sync_round_bundle', {contest_id: contest.id, payload});
   }

@@ -146,15 +146,21 @@ export default Sentry.wrap(function RootLayout() {
     };
     const subscription = AppState.addEventListener("change", change);
     let actor: string | null | undefined;
+    let signInRefresh: ReturnType<typeof setTimeout> | undefined;
     const auth = supabase.auth.onAuthStateChange((_event, session) => {
       const next = session?.user.id ?? null;
-      if (actor !== next) { client.invalidate(); useOnlineStore.getState().reset(); }
+      if (actor !== next) {
+        client.invalidate(); useOnlineStore.getState().reset();
+        if (signInRefresh) clearTimeout(signInRefresh);
+        // Leave Supabase's auth callback before asking it for the current session.
+        if (next) signInRefresh = setTimeout(() => { void refresh().catch(report); }, 0);
+      }
       actor = next;
     }).data.subscription;
     const online = () => { if (AppState.currentState === "active") void refresh().catch(report); };
     if (Platform.OS === "web") globalThis.addEventListener?.("online", online);
     change(AppState.currentState ?? "active");
-    return () => { subscription.remove(); auth.unsubscribe(); if (Platform.OS === "web") globalThis.removeEventListener?.("online", online); polling?.stop(); lifecycle.stop(); };
+    return () => { if (signInRefresh) clearTimeout(signInRefresh); subscription.remove(); auth.unsubscribe(); if (Platform.OS === "web") globalThis.removeEventListener?.("online", online); polling?.stop(); lifecycle.stop(); };
   }, [initialize]);
 
 

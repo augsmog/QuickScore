@@ -54,5 +54,13 @@
   {
     "version": "20261031180000",
     "name": "chat_report_block"
+  },
+  {
+    "version": "20261101003300",
+    "name": "signup_processing"
+  },
+  {
+    "version": "20261101003400",
+    "name": "signup_webhook_trigger"
   }
 ]

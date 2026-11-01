@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const dir=process.env.ATTEMPT_DIR;
+const reportFile=path.join(dir,'journeys','journeys-results.json');
+const report=fs.existsSync(reportFile)?JSON.parse(fs.readFileSync(reportFile)):null;
+const passed=report?.results.filter(r=>['passed','expected_failure'].includes(r.status)).length||0;
+const red=report?.results.filter(r=>!['passed','expected_failure'].includes(r.status)).map(r=>`${r.id}: ${(r.errors||[r.error]).join('; ')}`)||['runner did not produce a report'];
+if(process.env.NIGHTLY_EXIT!=='0')red.push(`nightly command exited ${process.env.NIGHTLY_EXIT}; see logs`);
+const features=report?.results.flatMap(r=>(r.metrics?.reachability||[]).map(f=>({...f,id:r.id})))||[];
+const deepest=features.sort((a,b)=>b.depth-a.depth)[0];
+const issues=report?.results.filter(r=>r.status==='expected_failure').map(r=>`${r.id}: ${r.attempts[0].signature}`)||[];
+const lines=[`# SnapScore nightly ${process.env.RUN_DATE}`,``,`${passed}/${report?.required.length||0} executable journeys accepted (${report?.results.filter(r=>r.status==='passed').length||0} passed; ${issues.length} strict expected failures).`,`Main SHA: ${report?.sha||process.env.GIT_SHA||'unavailable'}. Harness SHA: ${process.env.HARNESS_SHA}.`,`Platform: web-offline; offline=true; sharing=true; 390×844.`,`Runner elapsed: ${report?.elapsedMs??'unavailable'} ms.`,`Artifacts: ${dir}`,``,process.env.STALE_WARNING||'Freshness: first run or previous summary within 36 hours.',``,`Red list:`,...(red.length?red.map(x=>`- ${x}`):['- None']),``,`Known issues:`,...issues.map(x=>`- ${x}`),...features.filter(f=>f.status==='expected_failure').map(f=>`- ${f.id}/${f.feature}: ${f.linear} (${f.signature})`),``,`Deepest core action: ${deepest?`${deepest.id}/${deepest.feature}, ${deepest.depth} activation(s), ${deepest.scrolls} scroll(s)`:'unavailable'}.`,``,`Coverage gaps:`,...(report?.coverageGaps||[]).map(g=>`- ${g.id}${g.feature?'/'+g.feature:''}: ${g.reason}`),``,`Scheduler owner: SnapScore maintainers; invocation is manual until an external scheduler is separately authorized. No schedule installed.`,`Growth review: fixes and accepted findings must extend assertions in the same PR; zero weekly additions triggers a coverage review.`];
+const summary=lines.join('\n')+'\n';fs.writeFileSync(path.join(dir,'summary.md'),summary);fs.writeFileSync(path.join(process.env.RUN_DIR,'summary.md'),summary);

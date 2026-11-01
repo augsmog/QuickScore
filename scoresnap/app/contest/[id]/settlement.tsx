@@ -211,7 +211,7 @@ function SettlementScreenContent() {
           <Text style={{ ...TYPOGRAPHY.headline, color: COLORS.text }}>{settlementLeader(topWinner[0], contest.status === "completed")}</Text>
           <Text testID="settlement-hero-amount" style={{ fontFamily: FONTS.score, fontSize: 32, color: COLORS.primary }}>{formatNet(topWinner[1])}</Text>
         </> : topWinner && <Text testID="settlement-all-even" style={{ ...TYPOGRAPHY.headline, color: COLORS.text }}>Everyone is even</Text>}
-        <Text style={{ ...sectionLabel, marginTop: 16 }}>SESSION TOTAL</Text>
+        <Text style={{ ...sectionLabel, marginTop: 16 }}>TOTAL TO SETTLE</Text>
         <Text testID="settlement-session-total" style={{ fontFamily: FONTS.score, fontSize: 24, color: COLORS.primary }}>{formatMoney(sessionTotal)}</Text>
       </View>
 
@@ -238,7 +238,7 @@ function SettlementScreenContent() {
       </View>
 
       <View style={{ marginBottom: 24 }}>
-        <Text style={sectionLabel}>NET BY PLAYER</Text>
+        <Text style={sectionLabel}>Net for the Round</Text>
         {sortedNet.map(([name, net]) => (
           <View key={name} testID={`settlement-player-${name}`} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, paddingVertical: 14 }}>
             <Text style={{ flex: 1, color: COLORS.text, fontFamily: FONTS.medium }}>{name}</Text>

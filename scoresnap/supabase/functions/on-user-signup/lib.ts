@@ -21,74 +21,54 @@ export function referralPlan(count: number, enabled: boolean, now: string) {
     sendReward: enabled && count === 3,
   };
 }
-export function emailSettings(env: { EMAIL_FROM?: string; EMAIL_REPLY_TO?: string; EMAIL_UNSUBSCRIBE_URL?: string }) {
+export function emailSettings(env: { EMAIL_FROM?: string; EMAIL_REPLY_TO?: string; EMAIL_UNSUBSCRIBE_URL?: string; APP_URL?: string }) {
   return {
-    from: env.EMAIL_FROM || "SnapScore <hello@scoresnap.app>",
-    replyTo: env.EMAIL_REPLY_TO || "hello@scoresnap.app",
-    unsubscribeUrl: env.EMAIL_UNSUBSCRIBE_URL || "mailto:hello@scoresnap.app?subject=Unsubscribe%20from%20SnapScore%20emails",
+    appUrl: env.APP_URL || "https://snapscore.autumn8.me",
+    from: env.EMAIL_FROM || "SnapScore <hello@snapscore.autumn8.me>",
+    replyTo: env.EMAIL_REPLY_TO || "hello@snapscore.autumn8.me",
+    unsubscribeUrl: env.EMAIL_UNSUBSCRIBE_URL || "mailto:hello@snapscore.autumn8.me?subject=Unsubscribe%20from%20SnapScore%20emails",
   };
 }
 type Settings = ReturnType<typeof emailSettings>;
 export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!));
 }
-function unsubscribeFooter(url: string): string {
-  return `<p><a href="${escapeHtml(url)}" style="color: #9ca3af; font-size: 13px;">Unsubscribe</a></p>`;
+const serif = "'Marcellus', Georgia, serif";
+const sans = "'Source Sans 3', Helvetica, Arial, sans-serif";
+const intro = "Score your round, play side games, and see who owes what when it's done.";
+const disclaimer = "SnapScore doesn't hold or move money. Your group settles up directly.";
+const bodyLine = "Now your group can sort out who owes what before you reach the parking lot.";
+// Referral codes remain held until AUG-275, regardless of reward configuration.
+const referralLine = "Share SnapScore with your group.";
+const steps = [
+  "Add your players and pick your games — choose from 50+ game modes, including Skins, Nassau and Wolf.",
+  "Score your round, hole by hole or from a photo.",
+  "Settle up.",
+];
+function footer(url: string): string {
+  return `<tr><td style="border-top:1px solid #E3D9C6;padding:20px 0 0;text-align:center;color:#5E6257;font-size:14px;line-height:24px;">Autumn8me, Inc.<br><a href="${escapeHtml(url)}" style="color:#5E6257;">Unsubscribe</a> | Questions? Just reply.</td></tr>`;
+}
+function textFooter(url: string): string {
+  return `Autumn8me, Inc.\nUnsubscribe: ${url} | Questions? Just reply.`;
+}
+function frame(content: string, settings: Settings, preheader = ""): string {
+  return `<html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Marcellus&amp;family=Source+Sans+3:wght@400;600&amp;display=swap" rel="stylesheet"></head><body style="margin:0;background-color:#FAF4E8;color:#17251E;font-family:${sans};"><div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${preheader}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="#FAF4E8"><tr><td class="canvas" align="center" style="padding:32px 16px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;"><tr><td class="card" bgcolor="#FAF4E8" style="padding:28px clamp(20px,6vw,36px);"><table role="presentation" width="100%" cellspacing="0" cellpadding="0">${content}${footer(settings.unsubscribeUrl)}</table></td></tr></table></td></tr></table></body></html>`;
 }
 function commonPayload(email: string, settings: Settings) {
   return { from: settings.from, to: email, reply_to: settings.replyTo,
     headers: { "List-Unsubscribe": `<${settings.unsubscribeUrl}>` } };
 }
-export function buildWelcomeEmail(email: string, referralCode: string, settings: Settings) {
-  return { ...commonPayload(email, settings),
-    subject: "Welcome to SnapScore — Your first scan is waiting 🏌️",
-    html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; padding: 20px 0;">
-            <h1 style="color: #16a34a; font-size: 28px; margin: 0;">Welcome to SnapScore ⛳</h1>
-            <p style="color: #6b7280; font-size: 16px;">Scan. Score. Settle.</p>
-          </div>
-
-          <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin: 20px 0;">
-            <h2 style="color: #111827; font-size: 20px; margin-top: 0;">Your next round just got better</h2>
-            <p style="color: #374151; font-size: 15px; line-height: 1.6;">
-              You're now part of the crew that settles bets before they hit the parking lot.
-            </p>
-            <p style="color: #374151; font-size: 15px; line-height: 1.6;"><strong>Get started in 3 steps:</strong></p>
-            <ol style="color: #374151; font-size: 15px; line-height: 1.8;">
-              <li>🎯 <strong>Scan a scorecard</strong> — point your camera, we'll do the rest</li>
-              <li>🎲 <strong>Pick a game</strong> — Nassau, Skins, Wolf and more</li>
-              <li>💰 <strong>Settle up</strong> — no more "I'll get you next time"</li>
-            </ol>
-          </div>
-
-          <div style="background: #16a34a; border-radius: 12px; padding: 24px; margin: 20px 0; text-align: center;">
-            <h3 style="color: white; margin-top: 0;">Your referral code: ${escapeHtml(referralCode)}</h3>
-            <p style="color: #dcfce7; font-size: 14px;">
-              Share this with your foursome. When 3 friends sign up and complete a scan,
-              you unlock a <strong>free month of Premium</strong> — 50+ game modes, stats tracking, and league play.
-            </p>
-          </div>
-
-          <div style="text-align: center; padding: 20px 0; color: #9ca3af; font-size: 13px;">
-            <p>SnapScore by Autumn8me, Inc.</p>
-            ${unsubscribeFooter(settings.unsubscribeUrl)}
-            <p>The app that knows who owes who.</p>
-          </div>
-        </div>
-      `,
+export function buildWelcomeEmail(email: string, _referralCode: string, settings: Settings) {
+  const rows = steps.map((title, i) => `<tr><td style="padding:0;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td width="64" valign="top" style="padding-top:18px;"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td width="44" height="44" align="center" bgcolor="#E7EEE6" style="border-radius:50%;color:#175C3A;font-family:${serif};font-size:24px;">${i + 1}</td></tr>${i < 2 ? '<tr><td height="58" style="background:linear-gradient(to right,transparent 21px,#E3D9C6 21px,#E3D9C6 22px,transparent 22px);"></td></tr>' : ''}</table></td><td style="padding:18px 0 24px;${i < 2 ? 'border-bottom:1px solid #E3D9C6;' : ''}"><p class="step-title" style="margin:0 0 6px;font-family:${serif};font-size:clamp(20px, 4vw, 24px);line-height:1.25;">${title}</p></td></tr></table></td></tr>`).join("");
+  return { ...commonPayload(email, settings), subject: "Welcome to SnapScore — let's set up your first round",
+    html: frame(`<tr><td style="text-align:center;border-bottom:1px solid #E3D9C6;padding:0 0 24px;font-family:${serif};font-size:36px;">SnapScore</td></tr><tr><td style="text-align:center;padding:28px 0;border-bottom:1px solid #E3D9C6;"><h1 class="heading" style="margin:0 0 24px;color:#175C3A;font-family:${serif};font-weight:400;font-size:clamp(38px, 8vw, 52px);line-height:1.05;">Welcome to<br>SnapScore</h1><p style="margin:0;color:#5E6257;font-size:20px;line-height:1.4;">${intro}</p><p style="margin:20px 0 0;color:#5E6257;font-size:18px;line-height:1.4;">${bodyLine}</p></td></tr>${rows}<tr><td style="padding:16px 0;font-size:18px;">${referralLine}</td></tr><tr><td style="border-top:1px solid #E3D9C6;padding:16px 0 0;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" bgcolor="#175C3A" style="border-radius:16px;"><a href="${escapeHtml(settings.appUrl)}" style="display:block;padding:16px;color:#FFFFFF;font-family:${serif};font-size:22px;text-decoration:none;">Start a round</a></td></tr></table><p style="margin:12px 0 24px;text-align:center;color:#5E6257;font-size:14px;line-height:21px;">SnapScore doesn't hold or move money.<br>Your group settles up directly.</p></td></tr>`, settings, intro),
+    text: `SnapScore\n\nWelcome to SnapScore\n\n${intro}\n\n${bodyLine}\n\n${steps.map((title, i) => `${i + 1}. ${title}`).join("\n\n")}\n\n${referralLine}\n\nStart a round: ${settings.appUrl}\n\n${disclaimer}\n\n${textFooter(settings.unsubscribeUrl)}`,
   };
 }
 export function buildRewardEmail(email: string, settings: Settings) {
-  return { ...commonPayload(email, settings),
-    subject: "🎉 You earned free Premium! 3 friends joined SnapScore",
-    html: `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; text-align: center;">
-                <h1 style="color: #16a34a;">You did it! 🏆</h1>
-                <p>3 of your friends signed up with your code. Your free month of Premium is now active.</p>
-                <p style="font-size: 14px; color: #6b7280;">Keep sharing — every 3 additional referrals = another free month.</p>
-                <div style="text-align: center; padding: 20px 0; color: #9ca3af; font-size: 13px;">
-                  ${unsubscribeFooter(settings.unsubscribeUrl)}
-                </div>
-              </div>`,
+  const body = "Three friends signed up with your code, so your free month of Pro is active.";
+  return { ...commonPayload(email, settings), subject: "You earned a free month of Pro.",
+    html: frame(`<tr><td style="padding:0 0 24px;font-size:18px;line-height:1.5;">${body}</td></tr>`, settings),
+    text: `${body}\n\n${textFooter(settings.unsubscribeUrl)}`,
   };
 }

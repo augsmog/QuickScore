@@ -86,8 +86,9 @@ export function hashLabel(op: Pick<ScoreOp, 'opId' | 'hole' | 'action' | 'stroke
   return `${op.opId}:${op.hole}:${op.action}:${op.strokes ?? ''}:${op.expectedVersion}`;
 }
 
-export function roundPayload(round: PlannedRound): Record<string, unknown> {
+export function roundPayload(round: PlannedRound, settings?: { games: unknown[]; gameConfig?: unknown; betUnit: number; hasTeams: boolean }): Record<string, unknown> {
   return {
+    ...(settings ? { games: settings.games, game_settings: { gameConfig: settings.gameConfig, betUnit: settings.betUnit, hasTeams: settings.hasTeams } } : {}),
     local_id: round.id,
     number: round.number,
     name: round.name,
