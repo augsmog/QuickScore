@@ -1,6 +1,6 @@
 const fs=require('fs'),ts=require('typescript');
 const read=p=>fs.readFileSync(p,'utf8');
-function load(p,deps={}){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(read(p),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(id.endsWith('/ui/SafeScreen'))return {SafeScreen:'SafeAreaView',FullScreenSheet:'Modal'};if(id in deps)return deps[id];throw Error(id)},m,m.exports);return m.exports;}
+function load(p,deps={}){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(read(p),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(id.endsWith('/ui/SafeScreen'))return {SafeScreen:'SafeAreaView',SheetSurface:'View',FullScreenSheet:'Modal'};if(id in deps)return deps[id];throw Error(id)},m,m.exports);return m.exports;}
 const {PAYWALL_COPY:C}=load('src/ui/paywall-copy.ts');
 const check=jest.fn();
 const plans=load('src/services/paywall-plans.ts',{'../ui/paywall-copy':{PAYWALL_COPY:C},'react-native-purchases':{__esModule:true,default:{checkTrialOrIntroductoryPriceEligibility:check},INTRO_ELIGIBILITY_STATUS:{INTRO_ELIGIBILITY_STATUS_ELIGIBLE:2}}});
