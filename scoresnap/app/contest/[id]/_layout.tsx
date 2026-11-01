@@ -1,11 +1,11 @@
-import { OnlineSyncPanel } from "../../../src/ui/OnlineSyncPanel";
-import { LiveShare } from "../../../src/ui/LiveShare";
-import { ContestJoinCode } from "../../../src/ui/ContestJoinCode";
+import { RoundStatusSheet } from "../../../src/ui/RoundStatusSheet";
+import { onlineEnabled } from "../../../src/services/cross-device";
+import { useOnlineStore } from "../../../src/stores/online-store";
 import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Camera, Edit3, Calendar } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Camera, Edit3, Calendar, Flag } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
@@ -19,7 +19,7 @@ const TABS = [
   { key: "scorecard", label: "Scorecard", Screen: ScorecardScreen },
   { key: "leaderboard", label: "Leaderboard", Screen: LeaderboardScreen },
   { key: "games", label: "Games", Screen: GamesScreen },
-  { key: "settlement", label: "Settlement", Screen: SettlementScreen },
+  { key: "settlement", label: "Settle up", Screen: SettlementScreen },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -30,6 +30,8 @@ export default function ContestLayout() {
   const contest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
+  const remote = useOnlineStore((s) => s.events[id]);
+  const [statusOpen, setStatusOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("scorecard");
 
   const handleTabPress = useCallback(
@@ -45,7 +47,7 @@ export default function ContestLayout() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
-          <Text style={{ fontSize: 48, marginBottom: 16 }}>🔍</Text>
+          <Flag size={40} color={COLORS.textDim} style={{ marginBottom: 16 }} />
           <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
             Contest Not Found
           </Text>
@@ -73,17 +75,18 @@ export default function ContestLayout() {
 
   return (
     <SafeAreaView testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
-      <ContestJoinCode contest={contest} />
-      <LiveShare contest={contest} />
-      <OnlineSyncPanel contest={contest} />
+      <RoundStatusSheet contest={contest} visible={statusOpen} onClose={() => setStatusOpen(false)} />
       {/* Header */}
       <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Back"
             onPress={() => router.back()}
             style={{
               borderRadius: RADII.sm,
               padding: 8,
+              minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center",
               backgroundColor: COLORS.card,
               borderColor: COLORS.border,
               borderWidth: 1,
@@ -97,15 +100,19 @@ export default function ContestLayout() {
             </Text>
             <Text style={{ color: COLORS.textDim, fontFamily: FONTS.regular, fontSize: 13 }}>
               {contest.course.name} · {allPlayers.length} players
-              {contest.isTournament && contest.rounds && ` · Round ${contest.currentRound || 1}`}
+              {contest.isTournament && ` · Round ${contest.currentRound || 1}`}
+              {contest.status === "completed" && " · Final"}
             </Text>
           </View>
           {contest.status === "active" && contest.isTournament && (
             <AnimatedPressable
+              accessibilityRole="button"
+              accessibilityLabel="Rounds"
               onPress={() => router.push(`/contest/${id}/tournament-rounds` as any)}
               style={{
                 borderRadius: RADII.sm,
                 padding: 8,
+                minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center",
                 backgroundColor: COLORS.card,
                 borderColor: COLORS.border,
                 borderWidth: 1,
@@ -116,31 +123,57 @@ export default function ContestLayout() {
           )}
           {contest.status === "active" && (
             <AnimatedPressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit round"
               onPress={() => router.push(`/contest/${id}/edit` as any)}
               style={{
                 borderRadius: RADII.sm,
                 padding: 8,
+                minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center",
                 backgroundColor: COLORS.card,
                 borderColor: COLORS.border,
                 borderWidth: 1,
               }}
             >
               <Edit3 size={16} color={COLORS.textDim} />
+              <Text style={{ fontSize: 11, color: COLORS.textDim }}>Edit</Text>
             </AnimatedPressable>
           )}
           <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Scan scorecard"
             onPress={() => router.push(`/scan?contestId=${id}`)}
             style={{
               borderRadius: RADII.sm,
               padding: 8,
+              minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center",
               backgroundColor: COLORS.accentGlow,
               borderColor: COLORS.accent + "44",
               borderWidth: 1,
             }}
           >
             <Camera size={18} color={COLORS.accent} />
+            <Text style={{ fontSize: 11, color: COLORS.textDim }}>Scan</Text>
           </AnimatedPressable>
         </View>
+
+        {contest.status !== "completed" && (
+          <Pressable
+            testID="round-status-chip"
+            accessibilityRole="button"
+            accessibilityLabel="Round status"
+            onPress={() => setStatusOpen(true)}
+            style={{ minHeight: 44, borderRadius: RADII.full, backgroundColor: COLORS.surfaceLow,
+              flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 8,
+              paddingHorizontal: 12, marginBottom: 12 }}
+          >
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary }} />
+            <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
+              {onlineEnabled && remote ? "Current online snapshot" : "Saved on this phone"}
+            </Text>
+            <ChevronRight size={14} color={COLORS.textDim} />
+          </Pressable>
+        )}
 
         {/* Team Score Banner */}
         {contest.hasTeams && contest.teamAName && contest.teamBName && (
@@ -189,11 +222,16 @@ export default function ContestLayout() {
           {TABS.map((tab) => (
             <Pressable
               key={tab.key}
+              testID={`round-tab-${tab.key}`}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === tab.key }}
               onPress={() => handleTabPress(tab.key)}
               style={{
                 flex: 1,
                 borderRadius: RADII.sm,
-                paddingVertical: 8,
+                paddingVertical: 12,
+                minHeight: 44,
+                justifyContent: "center",
                 paddingHorizontal: 2,
                 alignItems: "center",
                 backgroundColor:
@@ -205,10 +243,8 @@ export default function ContestLayout() {
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
                 style={{
-                  fontSize: 10,
+                  fontSize: 13,
                   fontFamily: FONTS.bold,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.3,
                   color: activeTab === tab.key ? COLORS.primary : COLORS.textDim,
                 }}
               >

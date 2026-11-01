@@ -1,8 +1,9 @@
 import { teamCardPlayers, liveRoundCourse } from "../../../src/engine/contest-results";
+import { Flag } from "lucide-react-native";
 import { useState } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW, scoreColor } from "../../../src/ui/theme";
+import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { formatToPar } from "../../../src/utils/formatters";
@@ -34,6 +35,11 @@ export default function LeaderboardScreen() {
   }
 
   if(contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot"||g==="chapman"))allPlayers=teamCardPlayers(contest,scoreView === "daily");
+  // Recent form always uses actual current-round strokes, never aggregated holes.
+  const recentPlayers = contest.gameConfig?.rulesVersion === 1 &&
+    contest.games.some((game) => game === "alternate_shot" || game === "chapman")
+    ? teamCardPlayers(contest, true)
+    : getActiveGroups(contest).flatMap((group) => group.players);
   const hasScores = allPlayers.some((p) =>
     p.scores.some((s) => s > 0)
   );
@@ -41,7 +47,7 @@ export default function LeaderboardScreen() {
   if (!hasScores) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, backgroundColor: COLORS.bg }}>
-        <Text style={{ fontSize: 48, marginBottom: 16 }}>{"🏌\uFE0F"}</Text>
+        <Flag size={40} color={COLORS.textDim} style={{ marginBottom: 16 }} />
         <Text style={{ fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.textDim, textAlign: "center" }}>
           No scores yet
         </Text>
@@ -53,7 +59,7 @@ export default function LeaderboardScreen() {
   }
 
   const results = calcStrokePlay(allPlayers, scoreView === "daily" ? liveRoundCourse(contest) : contest.course);
-  const RANK_COLORS = [COLORS.gold, COLORS.silver, COLORS.bronze];
+
 
   // Compute team stats if teams exist
   const hasTeams = contest.hasTeams && contest.teamAName && contest.teamBName;
@@ -68,13 +74,12 @@ export default function LeaderboardScreen() {
       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Contest Header */}
-      <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 4 }}>
-        {contest.name}
-      </Text>
-      <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, marginBottom: 16 }}>
-        {(scoreView === "daily" ? liveRoundCourse(contest) : contest.course).name}
-      </Text>
+      {/* Round name and course live in the shared header; tournaments note the day's course here. */}
+      {contest.isTournament && (
+        <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, marginBottom: 12 }}>
+          {(scoreView === "daily" ? liveRoundCourse(contest) : contest.course).name}
+        </Text>
+      )}
 
       {/* Tournament: Cumulative / Daily toggle */}
       {contest.isTournament && contest.rounds && contest.rounds.length > 1 && (
@@ -83,7 +88,9 @@ export default function LeaderboardScreen() {
             onPress={() => setScoreView("cumulative")}
             style={{
               flex: 1,
-              paddingVertical: 8,
+              paddingVertical: 12,
+              minHeight: 44,
+              justifyContent: "center",
               borderRadius: RADII.md - 2,
               alignItems: "center",
               backgroundColor: scoreView === "cumulative" ? COLORS.surfaceHigh : "transparent",
@@ -97,7 +104,9 @@ export default function LeaderboardScreen() {
             onPress={() => setScoreView("daily")}
             style={{
               flex: 1,
-              paddingVertical: 8,
+              paddingVertical: 12,
+              minHeight: 44,
+              justifyContent: "center",
               borderRadius: RADII.md - 2,
               alignItems: "center",
               backgroundColor: scoreView === "daily" ? COLORS.surfaceHigh : "transparent",
@@ -111,13 +120,15 @@ export default function LeaderboardScreen() {
       )}
 
       {/* Individual / Groups toggle */}
-      {hasTeams && (
+      {(contest.groups.length > 1 || hasTeams) && (
         <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
           <AnimatedPressable
             onPress={() => setViewMode("individual")}
             style={{
               flex: 1,
-              paddingVertical: 8,
+              paddingVertical: 12,
+              minHeight: 44,
+              justifyContent: "center",
               borderRadius: RADII.md - 2,
               alignItems: "center",
               backgroundColor: viewMode === "individual" ? COLORS.surfaceHigh : "transparent",
@@ -131,7 +142,9 @@ export default function LeaderboardScreen() {
             onPress={() => setViewMode("groups")}
             style={{
               flex: 1,
-              paddingVertical: 8,
+              paddingVertical: 12,
+              minHeight: 44,
+              justifyContent: "center",
               borderRadius: RADII.md - 2,
               alignItems: "center",
               backgroundColor: viewMode === "groups" ? COLORS.surfaceHigh : "transparent",
@@ -153,13 +166,12 @@ export default function LeaderboardScreen() {
               ? player.scores.filter((s) => s > 0).length
               : 0;
 
-            // Determine trend: compare front 9 avg to back 9 avg
-            const front9 = player ? player.scores.slice(0, 9).filter((s) => s > 0) : [];
-            const back9 = player ? player.scores.slice(9, 18).filter((s) => s > 0) : [];
-            const front9Avg = front9.length > 0 ? front9.reduce((a, b) => a + b, 0) / front9.length : 0;
-            const back9Avg = back9.length > 0 ? back9.reduce((a, b) => a + b, 0) / back9.length : 0;
-            const hasBoth = front9.length > 0 && back9.length > 0;
-            const trend = hasBoth ? (back9Avg < front9Avg ? "up" : back9Avg > front9Avg ? "down" : null) : null;
+            const rank = results.findIndex((result) => result.total === r.total) + 1;
+            const tied = results.filter((result) => result.total === r.total).length > 1;
+            const lastHoles = (recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [])
+              .map((score, index) => ({ score, index }))
+              .filter(({ score }) => score > 0)
+              .slice(-3);
 
             return (
               <View
@@ -173,30 +185,11 @@ export default function LeaderboardScreen() {
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 12,
-                  ...(i === 0 ? GLOW.primary : {}),
                 }}
               >
-                {/* Rank */}
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: RADII.md,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: i < 3 ? RANK_COLORS[i] + "22" : COLORS.surfaceHighest,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
-                      fontSize: 14,
-                      color: i < 3 ? RANK_COLORS[i] : COLORS.textDim,
-                    }}
-                  >
-                    {i + 1}
-                  </Text>
-                </View>
+                <Text style={{ width: 28, fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
+                  {tied ? `T${rank}` : rank}
+                </Text>
 
                 {/* Avatar initial */}
                 <View
@@ -231,42 +224,38 @@ export default function LeaderboardScreen() {
                       {r.name}
                     </Text>
                   </View>
-                  <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
-                    thru {holesPlayed}
+                  <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>
+                    Total {r.total} · Thru {holesPlayed}
                   </Text>
                 </View>
 
-                {/* Score */}
-                <View style={{ alignItems: "flex-end", flexDirection: "row", gap: 8, alignSelf: "center" }}>
-                  {trend && (
-                    <Text
-                      style={{
-                        fontFamily: FONTS.bold,
-                        fontSize: 12,
-                        color: trend === "up" ? COLORS.primary : COLORS.warn,
-                      }}
-                    >
-                      {trend === "up" ? "\u25B2" : "\u25BC"}
-                    </Text>
-                  )}
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Text testID={`leaderboard-total-${r.name}`} style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 22, color: COLORS.text }}>
-                      {r.total}
-                    </Text>
-                    <Text
-                      style={{
-                        fontFamily: FONTS.semibold,
-                        fontSize: 12,
-                        color:
-                          r.toPar > 0
-                            ? COLORS.warn
-                            : r.toPar < 0
-                            ? COLORS.primary
-                            : COLORS.textDim,
-                      }}
-                    >
-                      {formatToPar(r.toPar)}
-                    </Text>
+                <View style={{ alignItems: "flex-end", gap: 6 }}>
+                  <Text testID={`leaderboard-total-${r.name}`}
+                    style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28,
+                      color: r.toPar < 0 ? COLORS.primary : r.toPar > 0 ? COLORS.error : COLORS.text }}>
+                    {formatToPar(r.toPar).replace("-", "−")}
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 4 }}>
+                    {lastHoles.map(({ score, index }) => {
+                      const par = contest.course.holes[index]?.par;
+                      if (par === undefined) return null;
+                      const difference = score - par;
+                      const filled = difference < 0 || difference >= 2;
+                      const color = difference >= 2 ? COLORS.error : COLORS.primary;
+                      return (
+                        <View key={index} accessibilityLabel={`Hole ${index + 1}: ${score} strokes`}
+                          style={{ width: 20, height: 20, borderRadius: difference <= 0 ? 10 : 0,
+                            borderWidth: 1, borderColor: color,
+                            backgroundColor: filled ? color : "transparent",
+                            alignItems: "center", justifyContent: "center" }}>
+                          <Text style={{ fontFamily: FONTS.score, fontSize: 11,
+                            color: filled ? COLORS.onPrimary : COLORS.text }}>{score}</Text>
+                        </View>
+                      );
+                    })}
+                    {Array.from({ length: 3 - lastHoles.length }, (_, index) => (
+                      <View key={`empty-${index}`} style={{ width: 20, height: 20 }} />
+                    ))}
                   </View>
                 </View>
               </View>
@@ -309,7 +298,7 @@ export default function LeaderboardScreen() {
                     {p.name}
                   </Text>
                   <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 14, color: COLORS.textDim }}>
-                    {pResult?.total || 0} ({pResult ? formatToPar(pResult.toPar) : "E"})
+                    {pResult?.total || 0} ({pResult ? formatToPar(pResult.toPar).replace("-", "−") : "E"})
                   </Text>
                 </View>
               );
@@ -343,7 +332,7 @@ export default function LeaderboardScreen() {
                     {p.name}
                   </Text>
                   <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 14, color: COLORS.textDim }}>
-                    {pResult?.total || 0} ({pResult ? formatToPar(pResult.toPar) : "E"})
+                    {pResult?.total || 0} ({pResult ? formatToPar(pResult.toPar).replace("-", "−") : "E"})
                   </Text>
                 </View>
               );
@@ -400,7 +389,7 @@ export default function LeaderboardScreen() {
                         {pResult?.total || 0}
                       </Text>
                       <Text style={{ fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textDim }}>
-                        thru {holesPlayed}
+                        Thru {holesPlayed}
                       </Text>
                     </View>
                   </View>
