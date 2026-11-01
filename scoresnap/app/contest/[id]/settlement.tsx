@@ -1,3 +1,5 @@
+import { buildScorecardPdf } from "../../../src/services/scorecard-pdf";
+import { shareScorecardPdf } from "../../../src/services/share-scorecard-pdf";
 import { useState } from "react";
 import { View, Text, ScrollView, Pressable, Share } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -122,6 +124,27 @@ function SettlementScreenContent() {
       console.error("Share error:", error);
     }
   };
+  const handleExport = async () => {
+    const rounds = contest.isTournament && contest.rounds?.length ? contest.rounds
+      : [{ course: contest.course, groups: contest.groups, date: contest.createdAt }];
+    const lines = [contest.name];
+    for (const round of rounds) {
+      const course = round.course ?? contest.course;
+      lines.push(course.name, round.date ?? contest.createdAt);
+      for (const group of round.groups) for (const player of group.players) {
+        lines.push(player.name);
+        // Split the table into nine-hole blocks to keep every column readable.
+        for (let start = 0; start < course.holes.length; start += 9) {
+          lines.push(course.holes.slice(start, start + 9).map(h => String(h.num).padStart(6)).join(""));
+          lines.push(course.holes.slice(start, start + 9).map((_, i) => String(player.scores[start + i] || "—").padStart(6)).join(""));
+        }
+        lines.push(String(player.scores.reduce((sum, score) => sum + score, 0)));
+      }
+    }
+    lines.push(...generateShareText().split("\n"));
+    try { await shareScorecardPdf(buildScorecardPdf(lines)); }
+    catch (error) { console.error("Share error:", error); }
+  };
   const toggleSettled = (index: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -211,7 +234,7 @@ function SettlementScreenContent() {
           <Share2 size={18} color={COLORS.onPrimary} />
           <Text style={{ fontFamily: FONTS.bold, fontSize: 16, color: COLORS.onPrimary }}>Share results</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={handleShare} style={outlinedButton}>
+        <Pressable accessibilityRole="button" onPress={handleExport} style={outlinedButton}>
           <FileText size={18} color={COLORS.primary} />
           <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.primary }}>Export scorecard (PDF)</Text>
         </Pressable>
