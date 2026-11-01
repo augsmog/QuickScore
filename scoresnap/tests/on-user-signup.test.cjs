@@ -74,7 +74,15 @@ test('reward default off and exact true on, while count and event always persist
     const premium = h.operations.filter(op => op.value.is_premium);
     expect(premium).toHaveLength(flag === 'true' ? 1 : 0);
     expect(h.emails).toHaveLength(flag === 'true' ? 2 : 1);
-    if (premium.length) expect(premium[0].value.premium_source).toBe('referral_reward');
+    for (const email of h.emails) {
+      expect(email.text).toBeTruthy();
+      expect(email.html + email.text).not.toMatch(/\b(?:bets?|betting|wager\w*|unlock\w*|winnings|payout\w*)\b|!|\p{Extended_Pictographic}/iu);
+    }
+    if (premium.length) {
+      expect(premium[0].value.premium_source).toBe('referral_reward');
+      expect(h.emails.find(email => email.subject === 'Your SnapScore referral reward').subject).toBe('Your SnapScore referral reward');
+      expect(h.emails.find(email => email.subject === 'Your SnapScore referral reward').text).toContain('Three friends joined SnapScore with your code. Your reward is now active.');
+    }
   }
   const h = harness({ SIGNUP_WEBHOOK_SECRET: 'test-secret', REFERRAL_PREMIUM_REWARD_ENABLED: 'true' }, 3);
   await h.handler(request());
@@ -94,9 +102,9 @@ test('both payloads have sender/reply defaults and overrides, escaped footer, an
       expect(payload.subject).toContain('SnapScore');
     }
     const welcome = lib.buildWelcomeEmail('user@example.test', '<code>&', settings);
-    expect(welcome.html).toContain('SnapScore by Autumn8me, Inc.');
-    expect(lib.buildRewardEmail('user@example.test', settings).html).not.toContain('SnapScore by Autumn8me, Inc.');
-    expect(welcome.html).toContain('&lt;code&gt;&amp;');
+    expect(welcome.html).toContain('Autumn8me, Inc.');
+    expect(welcome.text).toContain('Start a round: https://snapscore.autumn8.me');
+    expect(welcome.html).not.toContain('&lt;code&gt;&amp;');
     expect(welcome.html.split('50+ game modes')).toHaveLength(2);
   }
 });
@@ -164,4 +172,11 @@ test('migration privilege, atomicity and non-blocking webhook contract', () => {
   expect(trigger).toContain("current_setting('app.settings.supabase_url', true)");
   expect(trigger).toContain('vault.decrypted_secrets');
   expect(trigger).not.toMatch(/eyJ|https:\/\/[^' ]+supabase\.co/);
+});
+
+test('APP_URL override reaches the welcome HTML and text through the handler', async () => {
+  const h = harness({SIGNUP_WEBHOOK_SECRET:'test-secret', RESEND_API_KEY:'fake', APP_URL:'https://example.test/start'});
+  await h.handler(request());
+  expect(h.emails[0].html).toContain('href="https://example.test/start"');
+  expect(h.emails[0].text).toContain('Start a round: https://example.test/start');
 });
