@@ -24,9 +24,24 @@ export function SafeScreen({ edges = ["top", "right", "bottom", "left"], style, 
 export function FullScreenSheet({ children, ...props }: ModalProps) {
   const insets = useSafeAreaInsets();
   const frame = useSafeAreaFrame();
-  return <Modal {...props}>
+  return <Modal statusBarTranslucent={props.transparent} navigationBarTranslucent={props.transparent} {...props}>
     <SafeAreaProvider initialMetrics={{ insets, frame }}>
-      <SafeScreen testID="safe-modal-content" style={{ flex: 1, backgroundColor: props.transparent ? "transparent" : COLORS.bg }}>{children}</SafeScreen>
+      <SafeScreen edges={props.transparent ? [] : undefined} testID="safe-modal-content" style={{ flex: 1, backgroundColor: props.transparent ? "transparent" : COLORS.bg }}>{children}</SafeScreen>
     </SafeAreaProvider>
   </Modal>;
+}
+
+/** Opaque surface inside a full-window transparent overlay. Percentage sizing
+ * stays relative to the window; only content padding owns the home inset.
+ * Cap tall surfaces below the status bar without moving the backdrop.
+ */
+export function SheetSurface({ style, centered = false, ...props }: ViewProps & { centered?: boolean }) {
+  const insets = useSafeAreaInsets();
+  const frame = useSafeAreaFrame();
+  const s = StyleSheet.flatten(style) || {};
+  const maxHeight = typeof s.maxHeight === "string" && s.maxHeight.endsWith("%")
+    ? frame.height * parseFloat(s.maxHeight) / 100 : s.maxHeight;
+  return <SafeScreen {...props} edges={["bottom", "left", "right"]} style={[style, {
+    maxHeight: Math.min(typeof maxHeight === "number" ? maxHeight : frame.height, frame.height - (centered ? 2 * Math.max(insets.top, insets.bottom) : insets.top)),
+  }]} />;
 }
