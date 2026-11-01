@@ -69,6 +69,9 @@ jobs:
         run: BASE_URL=http://127.0.0.1:8092 node e2e/usability.mjs
       - name: Missing-dismiss regression proof
         run: BASE_URL=http://127.0.0.1:8092 node e2e/usability-regression.mjs
+      - name: Journey budgets and reachability
+        timeout-minutes: 3
+        run: node --test e2e/journeys/metrics.test.mjs && BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs
       - name: Browser matrix
         run: BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens/matrix npm run e2e:matrix -- --retries=1
       - name: Render scorecard screenshot
@@ -102,4 +105,6 @@ jobs:
         if: always()
         with:
           name: web-smoke-screens
-          path: scoresnap/e2e/screens
+          path: |
+            scoresnap/e2e/screens
+            scoresnap/e2e/journey-screens
