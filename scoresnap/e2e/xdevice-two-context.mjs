@@ -57,6 +57,12 @@ try {
     const code=label.match(/Join code: ([A-Z0-9]{6})/)[1];
     await text(a,'Online sharing enabled. Share this invite with signed-in players.').waitFor();
     assert.match(code, /^[A-Z0-9]{6}$/);
+    // Owner-hosts may have no membership row: a cold page must restore the
+    // authorized snapshot before showing the invite or queuing another score.
+    await a.reload();
+    await a.getByTestId('organizer-join-code').waitFor();
+    assert.equal(await text(a,'Enable online sharing').count(),0);
+    assert.equal(await a.getByTestId('organizer-join-code').innerText(),label);
     await text(a,'Copy / share invite').click();
     await shot(a,'02-share');
     await b.goto(`${base}/join/${code}`);
@@ -89,17 +95,47 @@ try {
     await Promise.race([subscription, new Promise((_,reject)=>setTimeout(()=>reject(Error('Private Realtime subscription did not settle')),20000))]);
     assert(await b.evaluate(()=>window.__xdevBlockedPolls)>0,'Foreground polling disabled');
     await a.goto(`${contestUrl}/scorecard`);
-    await text(a,'Online sync').click();
-    await text(a,'Retry sync').click();
-    await text(a,'Current online snapshot').waitFor();
+    await a.waitForLoadState('networkidle');
+    // Cold scoring-route restoration must work without opening Online sync or
+    // clicking Retry sync. The earlier manual retry is only for join approval.
+    const contestId = new URL(contestUrl).pathname.split('/').pop();
+    const restoredSnapshot = a.waitForResponse(r =>
+      r.url().endsWith('/rpc/fetch_snapshot') && r.request().method() === 'POST' &&
+      r.request().postDataJSON().contest_id === contestId);
+    await a.reload();
+    const snapshotResponse = await restoredSnapshot;
+    assert(snapshotResponse.ok(), 'Cold scoring-route snapshot restored');
+    const snapshot = await snapshotResponse.json();
+    assert.equal(snapshot.contest_id, contestId);
+    assert.equal(snapshot.rounds.length, 1, 'Expected a single-round contest');
+    const round = snapshot.rounds[0];
+    const player = round.players.find(p => p.displayName === 'Xdev Joiner');
+    assert(player, 'Restored snapshot contains the expected player');
+    const expectedHole = 1;
+    const expectedStrokes = round.course.holes.find(h => h.num === expectedHole)?.par;
+    assert(Number.isInteger(expectedStrokes), 'Restored course supplies hole 1 par');
     await a.getByTestId('organizer-join-code').waitFor();
+    assert.equal(await a.getByTestId('organizer-join-code').innerText(), label);
+    assert.equal(await text(a,'Enable online sharing').count(), 0);
     await b.waitForLoadState('networkidle');
     const beforeRevision = revisionFrames;
     const scoreStarted = Date.now();
+    const scoreReceipt = a.waitForResponse(r => {
+      if (!r.url().endsWith('/rpc/write_score') || r.request().method() !== 'POST') return false;
+      const args = r.request().postDataJSON();
+      return args.contest_id === contestId && args.round_id === round.id &&
+        args.player_id === player.id && args.hole === expectedHole &&
+        args.action === 'set' && args.strokes === expectedStrokes;
+    });
     await a.getByTestId('score-par-Xdev Joiner').click();
+    const receipt = await scoreReceipt;
+    assert(receipt.ok(),'Score RPC succeeded after cold host restoration');
+    const scoreResult = await receipt.json();
+    assert.equal(scoreResult.status,'accepted');
+    assert.equal(scoreResult.strokes, expectedStrokes);
     await shot(a,'06-score');
     await Promise.all([
-      b.getByText(/Hole 1 · current 4/).waitFor({timeout:20000}),
+      b.getByText(new RegExp(`Hole ${expectedHole} · current ${expectedStrokes} · par`)).waitFor({timeout:20000}),
       Promise.race([revisionDelivered, new Promise((_,reject)=>setTimeout(()=>reject(Error('Post-edit Realtime revision deadline')),20000))]),
     ]);
     assert(Date.now()-scoreStarted <= 20000,'Score arrived within 20 seconds');
