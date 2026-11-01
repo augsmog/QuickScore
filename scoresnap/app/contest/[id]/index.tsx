@@ -225,12 +225,12 @@ export default function LeaderboardScreen() {
                     </Text>
                   </View>
                   <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>
-                    Total {r.total} · Thru {holesPlayed}
+                    Total <Text testID={`leaderboard-total-${r.name}`}>{r.total}</Text> · thru {holesPlayed}
                   </Text>
                 </View>
 
                 <View style={{ alignItems: "flex-end", gap: 6 }}>
-                  <Text testID={`leaderboard-total-${r.name}`}
+                  <Text testID={`leaderboard-topar-${r.name}`}
                     style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28,
                       color: r.toPar < 0 ? COLORS.primary : r.toPar > 0 ? COLORS.error : COLORS.text }}>
                     {formatToPar(r.toPar).replace("-", "−")}
@@ -389,7 +389,7 @@ export default function LeaderboardScreen() {
                         {pResult?.total || 0}
                       </Text>
                       <Text style={{ fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textDim }}>
-                        Thru {holesPlayed}
+                        thru {holesPlayed}
                       </Text>
                     </View>
                   </View>

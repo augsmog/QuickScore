@@ -180,7 +180,7 @@ try {
         const expected = calculateSettlement(players,contest.course,contest.games,contest.betUnit,contest.auxiliaryData,contest.gameConfig,contest.groups);
         const cents = n => { assert.ok(Number.isFinite(n)); return Math.round(n*100); };
         assert.equal(Object.values(expected.netByPlayer).reduce((a,b)=>a+cents(b),0),0);
-        await visible(page.getByText(/^settlement$/i)).click();
+        await visible(page.getByText(/^(settlement|settle up)$/i)).click();
         if (flow.holes < contest.course.holes.length) {
           // Nine played on an eighteen-hole card is an unfinished round, never
           // a shortened contest with silently pro-rated final cash.

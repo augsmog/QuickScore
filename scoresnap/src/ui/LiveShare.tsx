@@ -6,7 +6,24 @@ import { HostChat } from './LiveChat';
 import { COLORS } from './theme';
 import { CROSS_DEVICE_SHARING_ENABLED } from '../config/features';
 
-export function LiveShare({ contest, onLinkChange }: { contest: Contest; onLinkChange?: (url?: string) => void }) {
+/**
+ * Keeps an enabled live scoreboard publishing every 10 s while the round screen is open,
+ * independent of whether the Round status sheet (which hosts the LiveShare controls) is open.
+ */
+export function useLiveSharePublisher(contest: Contest | undefined) {
+  const id = contest?.id;
+  const on = CROSS_DEVICE_SHARING_ENABLED && !!contest?.liveShareEnabled;
+  useEffect(() => {
+    if (!on || !id) return;
+    const timer = setInterval(() => {
+      const latest = useContestStore.getState().contests.find(c => c.id === id);
+      if (latest?.liveShareEnabled) void publishSnapshot(latest).catch(() => {});
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [id, on]);
+}
+
+export function LiveShare({ contest, onLinkChange, publish = true }: { contest: Contest; onLinkChange?: (url?: string) => void; publish?: boolean }) {
   // Hide cross-device sharing UI until feature is ready
   if (!CROSS_DEVICE_SHARING_ENABLED) {
     return null;
@@ -14,13 +31,13 @@ export function LiveShare({ contest, onLinkChange }: { contest: Contest; onLinkC
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (!contest.liveShareEnabled) return;
+    if (!publish || !contest.liveShareEnabled) return;
     const timer = setInterval(() => {
       const latest = useContestStore.getState().contests.find(c => c.id === contest.id);
       if (latest?.liveShareEnabled) void publishSnapshot(latest).then(() => setMessage('Live scoreboard synced.')).catch(() => setMessage('Sync interrupted. Retrying while this screen is open.'));
     }, 10000);
     return () => clearInterval(timer);
-  }, [contest.id, contest.liveShareEnabled]);
+  }, [contest.id, contest.liveShareEnabled, publish]);
   async function run(revoke = false) {
     setBusy(true);
     try {

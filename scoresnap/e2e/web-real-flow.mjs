@@ -28,6 +28,22 @@ if (process.argv.includes('--home-library-only')) {
   await page.route('**/*', route => new URL(route.request().url()).origin === new URL(BASE).origin ? route.continue() : route.abort());
 }
 const pageErrors = [];
+// Round status sheet (direction A): sharing, join code and sync live behind the header status chip.
+async function openRoundStatus(p) {
+  const chip = p.getByTestId("round-status-chip").filter({ visible: true }).first();
+  await chip.waitFor({ timeout: 10000 }).catch(() => {});
+  if (await chip.count() && !(await p.getByTestId("round-status-sheet").isVisible().catch(() => false))) {
+    await chip.click();
+    await p.getByTestId("round-status-sheet").waitFor();
+  }
+}
+async function closeRoundStatus(p) {
+  if (await p.getByTestId("round-status-sheet").isVisible().catch(() => false)) {
+    await p.getByTestId("round-status-done").click();
+    await p.getByTestId("round-status-sheet").waitFor({ state: "hidden" });
+  }
+}
+
 page.on("pageerror", (e) => pageErrors.push(e.message));
 
 const vis = (loc) => loc.locator("visible=true");
@@ -149,7 +165,7 @@ await page.waitForTimeout(500);
 await shot("08-contest-leaderboard.png");
 const lb = await bodyText();
 check(["81", "72", "90", "108"].every(total => lb.includes(total)), "Leaderboard shows all four real totals (81, 72, 90, 108)");
-for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "10-games.png"], [/^settlement$/i, "11-settlement.png"]]) {
+for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "10-games.png"], [/^(settlement|settle up)$/i, "11-settlement.png"]]) {
   await vis(page.getByText(tab)).first().click();
   await page.waitForTimeout(1500);
   if (file === "10-games.png") {
@@ -209,7 +225,7 @@ for (const variant of ["net", "gross", "group"]) {
   }
   if (variant === "gross") await shot("10b-games-gross.png");
   if (variant === "group") await shot("10c-games-group.png");
-  await vis(page.getByText(/^settlement$/i)).first().click();
+  await vis(page.getByText(/^(settlement|settle up)$/i)).first().click();
   await page.getByTestId("settlement-skins-mode").waitFor();
   check(await page.getByTestId("settlement-skins-mode").innerText() === label, `Settlement shows ${label}`);
   for (const [name,amount] of Object.entries(expected.settlement.netByPlayer)) {
@@ -263,6 +279,7 @@ await shot("14-gs1-empty-scan-data.png");
 // but join through a distinct persisted guest UUID, without changing organizer auth.
 // Skip if cross-device sharing is disabled (feature flag)
 await page.goto(contestUrl, { waitUntil: "networkidle" });
+await openRoundStatus(page);
 const joinCodeElement = page.getByTestId("organizer-join-code");
 const hasJoinCode = await joinCodeElement.count() > 0;
 // The build's flag state must match what CI expects, so a missing join UI can never silently skip the guest flow
@@ -314,6 +331,7 @@ if (hasJoinCode) {
   check(true, "Cross-device sharing disabled (feature flag); skipping join code tests");
   // Verify no share/join UI strings render when flag is off
   await page.goto(contestUrl, { waitUntil: "networkidle" });
+  await openRoundStatus(page);
   const bodyContent = await page.innerText("body");
   const forbiddenStrings = [
     "Share live scoreboard",
@@ -329,8 +347,9 @@ if (hasJoinCode) {
     "No share/join UI strings visible when flag off",
     foundStrings.length > 0 ? `Found: ${foundStrings.join(", ")}` : "clean"
   );
+  await closeRoundStatus(page);
   // Settlement recap must not advertise live sharing when the flag is off
-  await vis(page.getByText(/^settlement$/i)).first().click();
+  await vis(page.getByText(/^(settlement|settle up)$/i)).first().click();
   await page.getByTestId("recap-card").waitFor({ state: "attached" });
   const recapText = await page.getByTestId("recap-card").innerText();
   const recapForbidden = ["FOLLOW THE ROUND", "add a live link", "Share live scoreboard"].filter(s => recapText.toUpperCase().includes(s.toUpperCase()));

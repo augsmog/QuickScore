@@ -1,4 +1,5 @@
 import { RoundStatusSheet } from "../../../src/ui/RoundStatusSheet";
+import { useLiveSharePublisher } from "../../../src/ui/LiveShare";
 import { onlineEnabled } from "../../../src/services/cross-device";
 import { useOnlineStore } from "../../../src/stores/online-store";
 import { useState, useCallback } from "react";
@@ -32,7 +33,10 @@ export default function ContestLayout() {
   );
   const remote = useOnlineStore((s) => s.events[id]);
   const [statusOpen, setStatusOpen] = useState(false);
+  const closeStatus = useCallback(() => setStatusOpen(false), []);
   const [activeTab, setActiveTab] = useState<TabKey>("scorecard");
+  // Live scoreboard keeps publishing while the round is open, sheet open or not.
+  useLiveSharePublisher(contest);
 
   const handleTabPress = useCallback(
     (tabKey: TabKey) => {
@@ -75,7 +79,6 @@ export default function ContestLayout() {
 
   return (
     <SafeAreaView testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
-      <RoundStatusSheet contest={contest} visible={statusOpen} onClose={() => setStatusOpen(false)} />
       {/* Header */}
       <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
@@ -258,6 +261,7 @@ export default function ContestLayout() {
 
       {/* Active screen — rendered directly, no Slot/router */}
       <ActiveScreen />
+      <RoundStatusSheet contest={contest} visible={statusOpen} onClose={closeStatus} />
     </SafeAreaView>
   );
 }
