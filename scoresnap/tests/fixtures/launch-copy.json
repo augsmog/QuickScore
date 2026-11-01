@@ -49,7 +49,7 @@
     "Recapture the home screenshot from the app. Use real app captures, never mockups."
   ],
   "app/contest/[id]/settlement.tsx": [
-    "Net for the Round",
-    "TOTAL TO SETTLE"
+    "TOTAL TO SETTLE",
+    "Net for the Round"
   ]
 }

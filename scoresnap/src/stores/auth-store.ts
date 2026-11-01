@@ -270,6 +270,7 @@ export const useAuthStore = create<AuthState>()(
         // Clear user-scoped data so next account starts fresh
         // Import stores lazily to avoid circular dependency
         const { useContestStore } = require("./contest-store");
+        require("./settlement-store").settlementMarks.getState().reset();
         useContestStore.getState().resetAll();
       },
 
