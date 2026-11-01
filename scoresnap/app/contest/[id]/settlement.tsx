@@ -64,7 +64,7 @@ export default function SettlementScreen() {
       </Pressable>
       <Text style={{ color: COLORS.textDim, fontSize: 13, textAlign: "center" }}>{PAYWALL_COPY.yearlyRenew}</Text>
       {contest && <>
-        <Pressable testID="settle-free-share" accessibilityRole="button" onPress={() => Share.share({ message: [contest.name, ...players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`)].join("\n") })} style={outlinedButton}>
+        <Pressable testID="settle-free-share" accessibilityRole="button" onPress={() => Share.share({ message: [contest.name, ...(contest.rounds?.find(r => r.number === contest.currentRound)?.groups ?? contest.groups).flatMap(g => g.players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`))].join("\n") })} style={outlinedButton}>
           <Text style={{ color: COLORS.primary, fontFamily: FONTS.semibold }}>Share results (free)</Text>
         </Pressable>
         <LiveShare contest={contest} />
