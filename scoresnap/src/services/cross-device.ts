@@ -17,7 +17,29 @@ export const onlineEnabled = CROSS_DEVICE_SHARING_ENABLED && REAL_AUTH_CONFIGURE
 export const client = onlineClient(async (name, args) => {
   if (!onlineEnabled) throw Error('Cross-device sharing is off');
   return supabase.rpc(name, args);
-}, (id, membership, snapshot) => useOnlineStore.getState().repair(id, membership, snapshot));
+}, (id, membership, snapshot) => {
+  useOnlineStore.getState().repair(id, membership, snapshot);
+  if (membership?.role === 'host' && snapshot) {
+    const store = require('../stores/contest-store').useContestStore;
+    if (!store.getState().contests.some((c: { id: string }) => c.id === id)) {
+      store.setState((state: { contests: unknown[] }) => ({ contests: [...state.contests, require('./restore-owner-contest').restoreOwnerContest(snapshot)] }));
+    } else {
+      store.setState((state: { contests: import('../stores/contest-store').Contest[] }) => ({ contests: state.contests.map(c => c.id === id && c.remoteRestored ? { ...require('./scorecard-overlay').overlayScorecard(c, snapshot), games: snapshot.games, gameConfig: snapshot.game_settings?.gameConfig, betUnit: snapshot.game_settings?.betUnit ?? c.betUnit, hasTeams: snapshot.game_settings?.hasTeams ?? c.hasTeams } : c) }));
+    }
+  } else if (!membership) {
+    const store = require('../stores/contest-store').useContestStore;
+    store.setState((state: { contests: import('../stores/contest-store').Contest[] }) => ({ contests: state.contests.filter(c => c.id !== id || !c.remoteRestored) }));
+  }
+}, async code => {
+  const { data: auth, error: authError } = await supabase.auth.getSession();
+  if (authError) throw authError;
+  if (!auth.session || auth.session.user.is_anonymous) return [];
+  let query = supabase.from('contests').select('id').eq('owner_id', auth.session.user.id).eq('protocol', 1);
+  if (code) query = query.eq('invite_code', code);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+});
 let signingIn: Promise<string> | undefined;
 export async function remoteIdentity() {
   if (!onlineEnabled) throw Error('Cross-device sharing is off');

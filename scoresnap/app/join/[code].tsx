@@ -27,11 +27,11 @@ export default function JoinContest() {
   const lookup = async () => {
     try {
       setError("");
-      if (!name.trim()) throw new Error("Enter your display name.");
+
       if (onlineEnabled) {
         await remoteIdentity();
-        await client.requestJoin(code, name);
-        await client.discover();
+        const ownerId = await client.joinCode(code, name);
+        if (ownerId) { router.replace(`/contest/${ownerId}`); return; }
         setClaim("Request sent. Your host must approve your spot. Keep this device to retain unsent scores.");
         return;
       }
