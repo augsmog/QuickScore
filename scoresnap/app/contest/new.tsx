@@ -1015,7 +1015,7 @@ export default function NewContestScreen() {
           </View>
         )}
 
-        {/* ═══════ Step 3: Wager Settings ═══════ */}
+        {/* ═══════ Step 3: Round Settings ═══════ */}
         {step === 3 && (
           <View>
             <View style={{ backgroundColor: COLORS.primary + "1A", borderRadius: RADII.md, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", marginBottom: 8 }}>
@@ -1024,7 +1024,7 @@ export default function NewContestScreen() {
               </Text>
             </View>
             <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
-              Wager Settings
+              Round Settings
             </Text>
 
             {/* Active games chips */}
@@ -1051,7 +1051,7 @@ export default function NewContestScreen() {
 
             {/* Stake per hole */}
             <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
-              BET UNIT
+              UNIT AMOUNT
             </Text>
             <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: 24 }}>
               <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28, color: COLORS.textDim, marginRight: 2 }}>

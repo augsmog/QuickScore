@@ -343,7 +343,7 @@ export default function GameDetailsScreen() {
             marginBottom: 20,
           }}
         >
-          VERIFY SIDE BET RESULTS
+          VERIFY SIDE GAME RESULTS
         </Text>
 
         {/* ===== PROGRESS BAR ===== */}

@@ -266,7 +266,7 @@ export const useContestStore = create<ContestState>()(
       completeContest: (id) =>
         set((state) => ({
           contests: state.contests.map((c) =>
-            c.id === id ? (()=>{if(c.gameConfig?.rulesVersion===1 && calculateContestSettlement(c).pending) throw new Error("Confirm every score and required side-bet input before completing");return {...c,status:"completed" as const};})() : c
+            c.id === id ? (()=>{if(c.gameConfig?.rulesVersion===1 && calculateContestSettlement(c).pending) throw new Error("Confirm every score and required side-game input before completing");return {...c,status:"completed" as const};})() : c
           ),
         })),
 

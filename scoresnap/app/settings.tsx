@@ -408,11 +408,11 @@ export default function SettingsScreen() {
         {Platform.OS === "ios" ? (
           <NumberRow
             icon={<Gauge size={18} color={COLORS.textDim} />}
-            label="Default Bet Unit"
-            sublabel="Starting bet size for new contests"
+            label="Default Unit Amount"
+            sublabel="Starting unit amount for new contests"
             value={`$${settings.defaultBetUnit}`}
             onPress={() =>
-              handleEditNumber("Default Bet Unit ($)", settings.defaultBetUnit, (v) =>
+              handleEditNumber("Default Unit Amount ($)", settings.defaultBetUnit, (v) =>
                 settings.updateSetting("defaultBetUnit", v)
               )
             }
@@ -420,8 +420,8 @@ export default function SettingsScreen() {
         ) : (
           <NumberRow
             icon={<Gauge size={18} color={COLORS.textDim} />}
-            label="Default Bet Unit"
-            sublabel="Starting bet size for new contests"
+            label="Default Unit Amount"
+            sublabel="Starting unit amount for new contests"
             value={`$${settings.defaultBetUnit}`}
             onPress={() => {}}
           />
@@ -562,7 +562,7 @@ export default function SettingsScreen() {
         <ToggleRow
           icon={<Bell size={18} color={COLORS.textDim} />}
           label="Settlement Reminders"
-          sublabel="Reminders for unsettled bets"
+          sublabel="Reminders for unsettled rounds"
           value={settings.settlementReminders}
           onToggle={(v) => settings.updateSetting("settlementReminders", v)}
         />

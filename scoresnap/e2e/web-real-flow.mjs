@@ -235,9 +235,8 @@ for (const variant of ["net", "gross", "group"]) {
     await page.setViewportSize({width,height});
     await page.getByTestId("settlement-scroll").evaluate(el=>{el.scrollTop=0;});
     await page.waitForTimeout(2000);
-    const g = await page.getByTestId("settlement-chip-graphic").boundingBox();
-    const a = await page.getByTestId("settlement-hero-amount").boundingBox();
-    check(g && a && !(g.x<a.x+a.width && g.x+g.width>a.x && g.y<a.y+a.height && g.y+g.height>a.y), `${label}: chip and amount do not overlap at ${width}x${height}`);
+    check(await page.getByTestId("settlement-chip-graphic").count() === 0, `${label}: chip graphic removed at ${width}x${height}`);
+    check(await page.getByTestId("settlement-hero-amount").isVisible(), `${label}: signed amount visible at ${width}x${height}`);
     await shot(`${variant === "group" ? "11c-settlement-group" : mode === "net" ? "11-settlement" : "11b-settlement-gross"}${suffix}.png`);
   }
   await page.setViewportSize({width:390,height:844});

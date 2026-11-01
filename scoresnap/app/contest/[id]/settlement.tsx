@@ -15,7 +15,7 @@ import {
   Share,
   Alert,
 } from "react-native";
-import { ChipStack } from "../../../src/ui/animations/ChipStack";
+import { settlementLeader } from "../../../src/ui/copy";
 import { useLocalSearchParams } from "expo-router";
 import {
   Share2,
@@ -85,7 +85,7 @@ function SettlementScreenContent() {
   }
 
   const settlement = calculateContestSettlement(contest);
-  if (settlement.pending) return <View style={{padding:24}}><Text style={{color:COLORS.text}}>Settlement pending. Confirm every score and required side-bet event on every hole before settling. Skip leaves inputs pending.</Text></View>;
+  if (settlement.pending) return <View style={{padding:24}}><Text style={{color:COLORS.text}}>Settlement pending. Confirm every score and required side-game event on every hole before settling. Skip leaves inputs pending.</Text></View>;
 
 
   const sortedNet = Object.entries(settlement.netByPlayer).sort(
@@ -173,7 +173,7 @@ function SettlementScreenContent() {
       showsVerticalScrollIndicator={false}
     >
       {contest.games.some((g) => g === "skins" || g === "skins_carry") && <Text testID="settlement-skins-mode" style={{ color: COLORS.text, marginBottom: 12 }}>{skinsLabel(contest.gameConfig)}</Text>}
-      {contest.gameConfig?.rulesVersion !== 1 && <Text style={{color:COLORS.warn,marginBottom:12}}>This contest used rules that were not applied to payouts. Review rules before recalculating. Legacy outcomes are preserved; supported variations apply only to new contests.</Text>}
+      {contest.gameConfig?.rulesVersion !== 1 && <Text style={{color:COLORS.warn,marginBottom:12}}>This contest used rules that were not applied to settlement amounts. Review rules before recalculating. Legacy outcomes are preserved; supported variations apply only to new contests.</Text>}
       {/* ========== NET WINNERS HERO ========== */}
       <View style={{ marginBottom: 24 }}>
         {/* Section header row */}
@@ -280,13 +280,9 @@ function SettlementScreenContent() {
                 </View>
               </View>
             </View>
-            <View testID="settlement-chip-graphic">
-              <ChipStack
-                amount={topWinner[1]}
-                playerName={`${topWinner[0]} cleaned up`}
-                showAmount={false}
-              />
-            </View>
+            <Text style={{ textAlign: "center", color: COLORS.text, fontFamily: FONTS.semibold }}>
+              {settlementLeader(topWinner[0], contest.status === "completed")}
+            </Text>
             <Text testID="settlement-hero-amount"
                 style={{
                   textAlign: "center",
