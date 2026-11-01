@@ -43,11 +43,6 @@ for migration in "$here"/../migrations/*.sql; do
  version=${name%%_*}
  label=${name#*_}
  q -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES('$version','$label')" >> "$work/apply.log" 2>&1
- # Native PG17 lacks pg_net; the test stub above never sends HTTP.
- if [[ $migration == *20261101003400* ]]; then
-  sed '/^create extension if not exists pg_net;$/d' "$migration" | q >> "$work/apply.log" 2>&1
-  continue
- fi
  q -f "$migration" >> "$work/apply.log" 2>&1 || { cat "$work/apply.log"; exit 1; }
 done
 q -f "$here/../tests/m4b-upgrade-replay.sql" >> "$work/apply.log" 2>&1 || { cat "$work/apply.log"; exit 1; }

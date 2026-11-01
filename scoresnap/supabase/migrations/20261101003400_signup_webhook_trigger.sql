@@ -1,4 +1,11 @@
-create extension if not exists pg_net;
+-- pg_net is optional on plain PostgreSQL installations.
+do $extension$
+begin
+  if exists (select 1 from pg_catalog.pg_available_extensions where name = 'pg_net') then
+    create extension if not exists pg_net;
+  end if;
+end;
+$extension$;
 
 create function public.dispatch_signup_webhook() returns trigger
 language plpgsql security definer set search_path = '' as $$
@@ -7,6 +14,9 @@ declare
   service_jwt text;
   project_url text;
 begin
+  if not exists (select 1 from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace where n.nspname = 'net' and p.proname = 'http_post') then
+    return new;
+  end if;
   project_url := nullif(current_setting('app.settings.supabase_url', true), '');
   select decrypted_secret into webhook_secret from vault.decrypted_secrets where name = 'signup_webhook_secret' limit 1;
   select decrypted_secret into service_jwt from vault.decrypted_secrets where name = 'signup_webhook_service_jwt' limit 1;

@@ -58,3 +58,5 @@ updates profile and ledger together in one RPC. Retries use a stable Resend idem
 key; provider deduplication has a finite retention window, so delivery cannot be promised
 exactly once across arbitrarily delayed retries. pg_net is asynchronous and does not
 provide a durable retry worker: operators must monitor and replay failed deliveries.
+
+The signup webhook migration installs pg_net only when pg_available_extensions lists it. Without net.http_post, dispatch returns NEW without reading vault or sending HTTP. All ordinary dispatch errors remain caught. Rollback keeps pg_net when installed; it does not require the extension. Native PG17 CI exercises the extension-absent case with a no-delivery net.http_post stub; pinned Supabase CI exercises the installed extension case. Catalog expectations must be recorded from each supported harness before these gates can pass.
