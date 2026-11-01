@@ -175,6 +175,9 @@ export default function ProfileScreen() {
               </AnimatedPressable>
             )}
             <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>Member since {memberYear}</Text>
+            <View testID="profile-plan-badge" accessibilityLabel={`Plan: ${isPro ? "Pro" : "Free"}`} style={{ alignSelf: "flex-start", borderRadius: RADII.full, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: isPro ? COLORS.primary : COLORS.outline, backgroundColor: COLORS.surface }}>
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 12, color: isPro ? COLORS.primary : COLORS.textDim }}>{isPro ? "Pro" : "Free"}</Text>
+            </View>
           </View>
           <AnimatedPressable
             onPress={() => router.push("/settings")}
@@ -224,9 +227,10 @@ export default function ProfileScreen() {
           )) : (
             <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, paddingVertical: 20 }}>Finish a round to see your results here.</Text>
           )}
-          <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 18 }}>
-            <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>Net to date</Text>
-            <Text style={{ fontFamily: FONTS.semibold, fontVariant: ['tabular-nums'], fontSize: 18, color: amountColor(netToDate) }}>{netToDate === 0 ? "$0.00" : signedRoundAmount(netToDate)}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 18 }}>
+            <Text style={{ flex: 1, fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>Net to date</Text>
+            <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 18, color: amountColor(netToDate) }}>{netToDate === 0 ? "$0.00" : signedRoundAmount(netToDate)}</Text>
+            <View style={{ width: 18 }} />
           </View>
           <AnimatedPressable accessibilityRole="button" onPress={() => router.push("/(tabs)/contests")}
             style={{ minHeight: 52, borderRadius: RADII.md, backgroundColor: COLORS.surfaceHighest, alignItems: "center", justifyContent: "center" }}>
