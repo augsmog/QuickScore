@@ -1,6 +1,8 @@
+import { getPackages } from "../../../src/services/purchases";
+import { eligibleAnnualTrials } from "../../../src/services/paywall-plans";
 import { buildScorecardPdf } from "../../../src/services/scorecard-pdf";
 import { shareScorecardPdf } from "../../../src/services/share-scorecard-pdf";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, ScrollView, Pressable, Share } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Lock, DollarSign, CheckCircle, Share2, FileText } from "lucide-react-native";
@@ -42,6 +44,21 @@ export default function SettlementScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const contest = useContestStore(s => s.contests.find(c => c.id === id));
+  const [trialAvailable, setTrialAvailable] = useState(false);
+  useEffect(() => {
+    let live = true;
+    setTrialAvailable(false);
+    if (!canSeeSettlement(tier)) {
+      (async () => {
+        try {
+          const packages = await getPackages();
+          const eligible = await eligibleAnnualTrials(packages);
+          if (live) setTrialAvailable(!!packages.annual && eligible[packages.annual.product.identifier] === true);
+        } catch { /* Keep the existing plans path when purchases are unavailable. */ }
+      })();
+    }
+    return () => { live = false; };
+  }, [tier]);
   if (canSeeSettlement(tier)) return <SettlementScreenContent />;
 
   const players = contest
@@ -61,10 +78,12 @@ export default function SettlementScreen() {
           </View>
         ))}
       </View>
+      {trialAvailable && <>
       <Pressable testID="settle-free-trial" accessibilityRole="button" onPress={() => router.push('/paywall')} style={primaryButton}>
         <Text style={{ color: COLORS.onPrimary, fontFamily: FONTS.bold, fontSize: 16 }}>Try Pro free for 7 days</Text>
       </Pressable>
       <Text style={{ color: COLORS.textDim, fontSize: 13, textAlign: "center" }}>{PAYWALL_COPY.yearlyRenew}</Text>
+      </>}
       {contest && <>
         <Pressable testID="settle-free-share" accessibilityRole="button" onPress={() => Share.share({ message: [contest.name, ...(contest.rounds?.find(r => r.number === contest.currentRound)?.groups ?? contest.groups).flatMap(g => g.players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`))].join("\n") })} style={outlinedButton}>
           <Text style={{ color: COLORS.primary, fontFamily: FONTS.semibold }}>Share results (free)</Text>
