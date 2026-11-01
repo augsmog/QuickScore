@@ -16,8 +16,8 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { COLORS } from "../src/ui/theme";
 import { useOnboardingStore } from "../src/stores/onboarding-store";
-import { GolfBallScene } from "../src/ui/animations/GolfBallScene";
-import { ScanBeamScene } from "../src/ui/animations/ScanBeamScene";
+import { SettlementScene, ManualScoreScene } from "../src/ui/animations/ScoringScenes";
+import { CROSS_DEVICE_SHARING_ENABLED } from "../src/config/features";
 import { LeaderboardScene } from "../src/ui/animations/LeaderboardScene";
 import { AnimatedPageDots } from "../src/ui/animations/AnimatedPageDots";
 import { StaggeredText } from "../src/ui/animations/StaggeredText";
@@ -221,6 +221,21 @@ export default function OnboardingScreen() {
 
       {/* Bottom: Dots + CTA */}
       <View style={{ paddingHorizontal: 24, paddingBottom: 20, alignItems: "center" }}>
+        {CROSS_DEVICE_SHARING_ENABLED && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Join a group"
+            onPress={() => {
+              completeOnboarding();
+              router.replace("/join/enter");
+            }}
+            style={{ padding: 16, marginBottom: 8 }}
+          >
+            <Text style={{ color: COLORS.text, fontSize: 17, fontWeight: "700" }}>
+              Join a group
+            </Text>
+          </Pressable>
+        )}
         {/* Animated page dots */}
         <View style={{ marginBottom: 24 }}>
           <AnimatedPageDots
@@ -292,7 +307,7 @@ function SlideIllustration({
   scrollX: SharedValue<number>;
   pageWidth: number;
 }) {
-  const scenes = [GolfBallScene, ScanBeamScene, LeaderboardScene];
+  const scenes = [SettlementScene, ManualScoreScene, LeaderboardScene];
   const Scene = scenes[index];
   return <Scene scrollX={scrollX} pageIndex={index} pageWidth={pageWidth} />;
 }
