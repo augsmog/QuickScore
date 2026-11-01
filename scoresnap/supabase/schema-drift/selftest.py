@@ -197,8 +197,9 @@ Would push these migrations:
  • 20261028162155_tournament_rounds_live.sql
  • 20261028223000_account_purge.sql
  • 20261029180000_sync_api.sql
+ • 20261031180000_chat_report_block.sql
 Finished supabase db push.
 """
 rehearsal(actual_ci_dry_run, False)
 rehearsal(actual_ci_dry_run.replace(' • 20261027000000_live_baseline.sql\n',''), True)
-print('PASS: reviewed six-pending dry run; five pending after baseline adoption')
+print('PASS: reviewed seven-pending dry run; six pending after baseline adoption')
