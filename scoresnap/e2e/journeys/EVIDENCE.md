@@ -114,21 +114,21 @@ node --test e2e/usability-gate.test.mjs
 ℹ fail 0
 
 BASE_URL=http://127.0.0.1:8192 OUT_DIR=/tmp/tp-r2-runner node e2e/journeys/runner.mjs
-PASSED J-home-create-cancel: activations=2, screens=2, taskMs=469
-PASSED J-home-join-code-error: activations=3, screens=2, taskMs=542
-PASSED J-round-score-settle-reload: activations=5, screens=3, taskMs=1033
-PASSED J-invite-from-round: activations=1, screens=1, taskMs=208
+PASSED J-home-create-cancel: activations=2, screens=2, taskMs=468
+PASSED J-home-join-code-error: activations=3, screens=2, taskMs=583
+PASSED J-round-score-settle-reload: activations=5, screens=3, taskMs=1052
+PASSED J-invite-from-round: activations=1, screens=1, taskMs=257
 EXPECTED_FAILURE J-finalize-settle: activations=1, screens=1, taskMs=1599
-Journey gate PASSED: 5/5; elapsed 9172 ms; wall_seconds=10
+Journey gate PASSED: 5/5; elapsed 10231 ms; wall_seconds=10
 
 BASE_URL=http://127.0.0.1:8192 OUT_DIR=/tmp/tp-r2-negative node e2e/journeys/negative-proof.mjs
 PASS hide, rename, disable, hide-label, transparent-label,
      label-overflow-clipped, label-clip-path, text-fill-transparent
 All eight expected runner failures had exit 1 and their declared signatures.
 
-RUN_ROOT=/tmp/tp-nightly3 bash e2e/journeys/nightly.sh
-Nightly exit 0; summary: /tmp/tp-nightly3/2026-10-31/summary.md
-Main SHA: bce5673993b90720657af6a400a385c27cdf574c; harness SHA: fix-round-2 working tree.
+RUN_ROOT=/tmp/tp-nightly-r2-final bash e2e/journeys/nightly.sh
+Nightly exit 0; summary: /tmp/tp-nightly-r2-final/2026-10-31/summary.md
+Main SHA: bce5673993b90720657af6a400a385c27cdf574c; harness source included the final fix-round-2 working tree.
 ```
 
 The copied verifier r2 script at `fix-r2-evidence/visibility-probes.py` produced three `visible-text-missing` results (all runner exits 1). Copied verifier r1 probes were run from the same evidence directory; all 14 primary and follow-up probes matched the expected behavior. The first probe attempt caught and corrected a `page` binding error before final runs. `fix-r2-evidence/` is outside the repository at `/workspace/aos-state/reports/test-program-20261031/fix-r2-evidence/`.
