@@ -1,8 +1,8 @@
+import { SafeScreen } from "../src/ui/SafeScreen";
 import { OFFLINE_MODE } from "../src/config/offline";
 import { useRef, useEffect } from "react";
 import { View, Text, Pressable, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
   type SharedValue,
   useSharedValue,
@@ -134,7 +134,7 @@ export default function OnboardingScreen() {
   }));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
       {/* Skip button */}
       <Animated.View
         style={[
@@ -278,7 +278,7 @@ export default function OnboardingScreen() {
           </Animated.View>
         </Pressable>
       </View>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }
 

@@ -1,3 +1,4 @@
+import { SheetSurface, FullScreenSheet, SafeScreen } from "../../src/ui/SafeScreen";
 import { defaultRoundGames } from "../../src/services/entitlements";
 import { useScanStore } from "../../src/stores/scan-store";
 import { useState, useMemo, useEffect } from "react";
@@ -8,11 +9,9 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  Modal,
   Image,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Check,
   AlertTriangle,
@@ -259,7 +258,7 @@ export default function ScanReviewScreen() {
   // Show error screen if parsing failed
   if (parseError) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+      <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
         <View
           style={{
             flex: 1,
@@ -345,12 +344,12 @@ export default function ScanReviewScreen() {
             </Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* ========== HEADER ========== */}
       <View
         style={{
@@ -901,15 +900,15 @@ export default function ScanReviewScreen() {
       </ScrollView>
 
       {/* ========== PLAYER MATCH MODAL ========== */}
-      <Modal
+      <FullScreenSheet
         visible={showPlayerMatchModal !== null}
         animationType="slide"
         transparent
         onRequestClose={() => setShowPlayerMatchModal(null)}
       >
-        <View style={{ flex: 1, justifyContent: "flex-end" }}>
+        <View testID="player-match-scrim" style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" }}>
           <Pressable style={{ flex: 1 }} onPress={() => setShowPlayerMatchModal(null)} />
-          <View
+          <SheetSurface testID="player-match-sheet"
             style={{
               backgroundColor: COLORS.surfaceMid,
               borderTopLeftRadius: RADII.xl,
@@ -1001,12 +1000,12 @@ export default function ScanReviewScreen() {
             >
               <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim }}>Cancel</Text>
             </Pressable>
-          </View>
+          </SheetSurface>
         </View>
-      </Modal>
+      </FullScreenSheet>
 
       {/* Confetti celebration */}
       <ConfettiOverlay visible={showConfetti} onDone={handleConfettiDone} />
-    </SafeAreaView>
+    </SafeScreen>
   );
 }

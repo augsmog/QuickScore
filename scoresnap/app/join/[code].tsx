@@ -1,9 +1,9 @@
+import { SafeScreen } from "../../src/ui/SafeScreen";
 import { OnlineGuestScorecard } from "../../src/ui/OnlineGuestScorecard";
 import { onlineEnabled, client, remoteIdentity } from "../../src/services/cross-device";
 import { useState } from "react";
 import { ScrollView, Text, TextInput, Pressable, View } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useContestStore, type Contest } from "../../src/stores/contest-store";
 import { useGuestStore } from "../../src/stores/guest-store";
 import { localContestJoinService, claimGuestHistory } from "../../src/services/guest-join";
@@ -27,11 +27,11 @@ export default function JoinContest() {
   const lookup = async () => {
     try {
       setError("");
-      if (!name.trim()) throw new Error("Enter your display name.");
+
       if (onlineEnabled) {
         await remoteIdentity();
-        await client.requestJoin(code, name);
-        await client.discover();
+        const ownerId = await client.joinCode(code, name);
+        if (ownerId) { router.replace(`/contest/${ownerId}`); return; }
         setClaim("Request sent. Your host must approve your spot. Keep this device to retain unsent scores.");
         return;
       }
@@ -43,7 +43,7 @@ export default function JoinContest() {
   const join = (c: Contest, playerId: string) => {
     try { guest.join(c, playerId, name); setJoined(true); setError(""); } catch (e: any) { setError(e.message); }
   };
-  return <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><Pressable testID="join-dismiss" accessibilityRole="button" accessibilityLabel="Back to home" onPress={() => router.replace("/")} style={{ paddingVertical: 12 }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>Back to home</Text></Pressable>{!onlineEnabled && <LocalJoinLimitationBanner />}</View><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
+  return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><Pressable testID="join-dismiss" accessibilityRole="button" accessibilityLabel="Back to home" onPress={() => router.replace("/")} style={{ paddingVertical: 12 }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>Back to home</Text></Pressable>{!onlineEnabled && <LocalJoinLimitationBanner />}</View><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
     <Text style={{ fontFamily: FONTS.headline, color: COLORS.text, fontSize: 26 }}>Join with code</Text>
     <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>{onlineEnabled ? 'Sign in with email or Apple to join this round.' : 'Play as a guest. No account needed.'}</Text>
     {onlineEnabled && <Pressable onPress={() => router.push('/auth/sign-in')}><Text style={{color: COLORS.primary}}>Sign in with email or Apple</Text></Pressable>}
@@ -78,5 +78,5 @@ export default function JoinContest() {
         }} style={{ fontFamily: FONTS.score, fontVariant: ["tabular-nums"], color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 12, width: 80 }} />
       </View>)}
     </>}
-  </ScrollView></SafeAreaView>;
+  </ScrollView></SafeScreen>;
 }
