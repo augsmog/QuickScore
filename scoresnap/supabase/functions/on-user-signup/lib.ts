@@ -24,8 +24,8 @@ export function referralPlan(count: number, enabled: boolean, now: string) {
 export function emailSettings(env: { EMAIL_FROM?: string; EMAIL_REPLY_TO?: string; EMAIL_UNSUBSCRIBE_URL?: string }) {
   return {
     from: env.EMAIL_FROM || "SnapScore <hello@scoresnap.app>",
-    replyTo: env.EMAIL_REPLY_TO || "augie@autumn8.me",
-    unsubscribeUrl: env.EMAIL_UNSUBSCRIBE_URL || "mailto:augie@autumn8.me?subject=Unsubscribe%20from%20SnapScore%20emails",
+    replyTo: env.EMAIL_REPLY_TO || "hello@scoresnap.app",
+    unsubscribeUrl: env.EMAIL_UNSUBSCRIBE_URL || "mailto:hello@scoresnap.app?subject=Unsubscribe%20from%20SnapScore%20emails",
   };
 }
 type Settings = ReturnType<typeof emailSettings>;

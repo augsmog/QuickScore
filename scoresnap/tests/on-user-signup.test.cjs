@@ -70,9 +70,10 @@ test('reward default off and exact true on, while count and event always persist
 test('both payloads have sender/reply defaults and overrides, escaped footer, and brand', () => {
   for (const env of [{}, { EMAIL_FROM: 'Custom <sender@example.test>', EMAIL_REPLY_TO: 'reply@example.test', EMAIL_UNSUBSCRIBE_URL: 'https://example.test/?a="<&b=1' }]) {
     const settings = lib.emailSettings(env);
+    expect(settings.unsubscribeUrl).toBe(env.EMAIL_UNSUBSCRIBE_URL || 'mailto:hello@scoresnap.app?subject=Unsubscribe%20from%20SnapScore%20emails');
     for (const payload of [lib.buildWelcomeEmail('user@example.test', '<code>&', settings), lib.buildRewardEmail('user@example.test', settings)]) {
       expect(payload.from).toBe(env.EMAIL_FROM || 'SnapScore <hello@scoresnap.app>');
-      expect(payload.reply_to).toBe(env.EMAIL_REPLY_TO || 'augie@autumn8.me');
+      expect(payload.reply_to).toBe(env.EMAIL_REPLY_TO || 'hello@scoresnap.app');
       expect(payload.headers['List-Unsubscribe']).toBe(`<${settings.unsubscribeUrl}>`);
       expect(payload.html).toContain(`href="${lib.escapeHtml(settings.unsubscribeUrl)}"`);
       expect(payload.html).toContain('Unsubscribe</a>');
