@@ -14,10 +14,63 @@ import { onlineClient } from './online-client';
 import { useOnlineStore } from '../stores/online-store';
 
 export const onlineEnabled = CROSS_DEVICE_SHARING_ENABLED && REAL_AUTH_CONFIGURED;
+// Cache by session object identity token (never persisted or logged), including a
+// shared first probe so foreground refreshes cannot race missing-function calls.
+let ownerCapability: { session: string; available?: boolean; probe?: Promise<boolean> } | undefined;
 export const client = onlineClient(async (name, args) => {
   if (!onlineEnabled) throw Error('Cross-device sharing is off');
   return supabase.rpc(name, args);
-}, (id, membership, snapshot) => useOnlineStore.getState().repair(id, membership, snapshot));
+}, (id, membership, snapshot) => {
+  useOnlineStore.getState().repair(id, membership, snapshot);
+  if (membership?.role === 'host' && snapshot) {
+    const store = require('../stores/contest-store').useContestStore;
+    if (!store.getState().contests.some((c: { id: string }) => c.id === id)) {
+      store.setState((state: { contests: unknown[] }) => ({ contests: [...state.contests, require('./restore-owner-contest').restoreOwnerContest(snapshot)] }));
+    } else {
+      store.setState((state: { contests: import('../stores/contest-store').Contest[] }) => ({ contests: state.contests.map(c => c.id === id && c.remoteRestored ? { ...require('./scorecard-overlay').overlayScorecard(c, snapshot), games: snapshot.games, gameConfig: snapshot.game_settings?.gameConfig, betUnit: snapshot.game_settings?.betUnit ?? c.betUnit, hasTeams: snapshot.game_settings?.hasTeams ?? c.hasTeams } : c) }));
+    }
+  } else if (!membership) {
+    const store = require('../stores/contest-store').useContestStore;
+    store.setState((state: { contests: import('../stores/contest-store').Contest[] }) => ({ contests: state.contests.filter(c => c.id !== id || !c.remoteRestored) }));
+  }
+}, async code => {
+  const { data: auth, error: authError } = await supabase.auth.getSession();
+  if (authError) throw authError;
+  if (!auth.session || auth.session.user.is_anonymous) { ownerCapability = undefined; return []; }
+  const session = auth.session.access_token ?? auth.session.user.id;
+  if (ownerCapability?.session !== session) ownerCapability = { session };
+  const capability = ownerCapability;
+  const enumerate = async () => {
+    const result = await supabase.rpc('list_owned_contests', { code: code ?? null });
+    if (result.error) {
+      if (['PGRST202', '42883'].includes(result.error.code) || result.status === 404 || (result.error as { status?: number }).status === 404) {
+        capability.available = false;
+        return [];
+      }
+      throw result.error;
+    }
+    capability.available = true;
+    return result.data ?? [];
+  };
+  let rows: { id: string }[] | undefined;
+  if (capability.available === undefined) {
+    if (!capability.probe) {
+      const probe = enumerate().then(result => { rows = result; return capability.available!; });
+      capability.probe = probe;
+      try { await probe; } finally { if (capability.probe === probe) capability.probe = undefined; }
+    } else await capability.probe;
+  }
+  if (capability.available) return rows ?? await enumerate();
+  if (!code) return []; // Existing my_sync_status membership discovery stays available.
+  // RLS hides protocol-1 rows, so a local ID is only a hint. onlineClient must
+  // still prove host authorization before restoring it; never trust local ownership.
+  const store = require('../stores/contest-store').useContestStore;
+  const local = store.getState().contests.find((c: { joinCode?: string }) => c.joinCode?.toUpperCase() === code);
+  if (local) return [{ id: local.id, legacyHint: true }];
+  // Preserve the live request_join flow for codes with no local ID hint.
+  // Fresh-device owner detection requires the proposed owner RPC.
+  return [];
+});
 let signingIn: Promise<string> | undefined;
 export async function remoteIdentity() {
   if (!onlineEnabled) throw Error('Cross-device sharing is off');
