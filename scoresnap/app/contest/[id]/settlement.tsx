@@ -1,5 +1,8 @@
-import { getPackages } from "../../../src/services/purchases";
-import { eligibleAnnualTrials } from "../../../src/services/paywall-plans";
+import { useStore } from "zustand";
+import { settlementMarks } from "../../../src/stores/settlement-store";
+import { settlementRevision, settlementScope, settlementTransactionKeys } from "../../../src/stores/settlement-marks";
+import { getPackages, waitForPurchaseIdentity, isPurchaseIdentityCurrent } from "../../../src/services/purchases";
+import { eligibleAnnualTrials, buildPaywallView } from "../../../src/services/paywall-plans";
 import { buildScorecardPdf } from "../../../src/services/scorecard-pdf";
 import { shareScorecardPdf } from "../../../src/services/share-scorecard-pdf";
 import { useEffect, useState } from "react";
@@ -9,14 +12,14 @@ import { Lock, DollarSign, CheckCircle, Share2, FileText } from "lucide-react-na
 import * as Haptics from "expo-haptics";
 import { calculateContestSettlement } from "../../../src/engine/contest-results";
 import { skinsLabel } from "../../../src/engine/calculators/skins";
+import { useAuthStore } from "../../../src/stores/auth-store";
 import { useScanStore } from "../../../src/stores/scan-store";
-import { useContestStore } from "../../../src/stores/contest-store";
+import { type Contest, useContestStore } from "../../../src/stores/contest-store";
 import { canSeeSettlement } from "../../../src/services/entitlements";
 import { RecapCard } from "../../../src/ui/recap/RecapCard";
 import { buildRecapModel } from "../../../src/ui/recap/model";
 import { LiveShare } from "../../../src/ui/LiveShare";
 import { settlementLeader } from "../../../src/ui/copy";
-import { PAYWALL_COPY } from "../../../src/ui/paywall-copy";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 
 const formatMoney = (amount: number) => `$${Math.abs(amount).toFixed(2)}`;
@@ -44,21 +47,41 @@ export default function SettlementScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const contest = useContestStore(s => s.contests.find(c => c.id === id));
-  const [trialAvailable, setTrialAvailable] = useState(false);
+  const accountId = useAuthStore(s => s.user?.id ?? null);
+  const isAnonymous = useAuthStore(s => s.isAnonymous);
+  const authReady = useAuthStore(s => s.isInitialized && !s.isLoading);
+  const purchaseActor = isAnonymous ? null : accountId;
+  const [trialOffer, setTrialOffer] = useState<{
+    accountId: string | null; isAnonymous: boolean; revision: number; billed: string;
+  } | null>(null);
   useEffect(() => {
     let live = true;
-    setTrialAvailable(false);
-    if (!canSeeSettlement(tier)) {
+    setTrialOffer(null);
+    if (authReady && !canSeeSettlement(tier)) {
       (async () => {
         try {
+          const revision = await waitForPurchaseIdentity(purchaseActor);
+          if (!live || revision === null) return;
           const packages = await getPackages();
+          const annual = packages.annual;
+          // Unlike the paywall's browsing rows, a trial promise must not use a fallback price.
+          if (!live || annual?.identifier !== '$rc_annual' || annual.packageType !== 'ANNUAL' ||
+              annual.product.subscriptionPeriod !== 'P1Y' || !annual.product.identifier ||
+              !Number.isFinite(annual.product.price) || annual.product.price <= 0 ||
+              typeof annual.product.currencyCode !== 'string' || !annual.product.currencyCode.trim() ||
+              typeof annual.product.priceString !== 'string' || !annual.product.priceString.trim()) return;
           const eligible = await eligibleAnnualTrials(packages);
-          if (live) setTrialAvailable(!!packages.annual && eligible[packages.annual.product.identifier] === true);
+          if (live && isPurchaseIdentityCurrent(revision, purchaseActor) && eligible[annual.product.identifier] === true) {
+            const view = buildPaywallView(packages, eligible, tier, { tier: 'pro', period: 'year' });
+            setTrialOffer({ accountId, isAnonymous, revision, billed: view.billed });
+          }
         } catch { /* Keep the existing plans path when purchases are unavailable. */ }
       })();
     }
     return () => { live = false; };
-  }, [tier]);
+  }, [tier, accountId, isAnonymous, authReady, purchaseActor]);
+  const trialAvailable = authReady && trialOffer !== null && trialOffer.accountId === accountId &&
+    trialOffer.isAnonymous === isAnonymous && isPurchaseIdentityCurrent(trialOffer.revision, purchaseActor);
   if (canSeeSettlement(tier)) return <SettlementScreenContent />;
 
   const players = contest
@@ -82,7 +105,7 @@ export default function SettlementScreen() {
       <Pressable testID="settle-free-trial" accessibilityRole="button" onPress={() => router.push('/paywall')} style={primaryButton}>
         <Text style={{ color: COLORS.onPrimary, fontFamily: FONTS.bold, fontSize: 16 }}>Try Pro free for 7 days</Text>
       </Pressable>
-      <Text style={{ color: COLORS.textDim, fontSize: 13, textAlign: "center" }}>{PAYWALL_COPY.yearlyRenew}</Text>
+      <Text style={{ color: COLORS.textDim, fontSize: 13, textAlign: "center" }}>{trialOffer?.billed}</Text>
       </>}
       {contest && <>
         <Pressable testID="settle-free-share" accessibilityRole="button" onPress={() => Share.share({ message: [contest.name, ...(contest.rounds?.find(r => r.number === contest.currentRound)?.groups ?? contest.groups).flatMap(g => g.players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`))].join("\n") })} style={outlinedButton}>
@@ -101,12 +124,15 @@ function SettlementScreenContent() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const contest = useContestStore(s => s.contests.find(c => c.id === id));
   const [liveUrl, setLiveUrl] = useState<string>();
-  const [settledTransactions, setSettledTransactions] = useState<Map<number, string>>(new Map());
+  const accountId = useAuthStore(s => s.user?.id ?? s.remoteUserId ?? null);
+  const scope = settlementScope(accountId, id);
+  const ready = useStore(settlementMarks, s => s.ready);
+  const ledger = useStore(settlementMarks, s => s.ledgers[scope]);
 
   if (!contest) return null;
   const allPlayers = contest.groups.flatMap(g => g.players);
   const hasScores = allPlayers.some(p => p.scores.some(s => s > 0));
-  if (!hasScores) {
+  if (!hasScores && contest.gameConfig?.rulesVersion !== 1) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, backgroundColor: COLORS.bg, gap: 16 }}>
         <DollarSign size={40} color={COLORS.textDim} />
@@ -115,7 +141,14 @@ function SettlementScreenContent() {
     );
   }
   const settlement = calculateContestSettlement(contest);
-  if (settlement.pending) return <View style={{padding:24}}><Text style={{color:COLORS.text}}>Settlement pending. Confirm every score and required side-game event on every hole before settling. Skip leaves inputs pending.</Text></View>;
+  const revision = settlementRevision(contest);
+  const transactionKeys = settlementTransactionKeys(settlement.transactions);
+  if (settlement.pending) return (
+    <ScrollView testID="settlement-pending" style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: 24, gap: 24 }}>
+      <Text style={{color:COLORS.text}}>Settlement pending. Confirm every score and required side-game event on every hole before settling. Skip leaves inputs pending.</Text>
+      <SettlementByGame contest={contest} />
+    </ScrollView>
+  );
 
   const sortedNet = Object.entries(settlement.netByPlayer).sort(([, a], [, b]) => b - a);
   const sessionTotal = sortedNet.filter(([, net]) => net > 0).reduce((sum, [, net]) => sum + Math.round(net * 100), 0) / 100;
@@ -164,15 +197,9 @@ function SettlementScreenContent() {
     try { await shareScorecardPdf(buildScorecardPdf(lines)); }
     catch (error) { console.error("Share error:", error); }
   };
-  const toggleSettled = (index: number) => {
+  const toggleSettled = (key: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    setSettledTransactions(prev => {
-      const next = new Map(prev);
-      if (next.has(index)) next.delete(index);
-      else next.set(index, time);
-      return next;
-    });
+    settlementMarks.getState().toggle(scope, contest.id, revision, key);
   };
 
   return (
@@ -191,15 +218,17 @@ function SettlementScreenContent() {
       <View style={{ marginBottom: 24 }}>
         <Text style={sectionLabel}>WHO OWES WHAT</Text>
         {settlement.transactions.map((t, i) => {
-          const settledAt = settledTransactions.get(i);
+          const transactionKey = transactionKeys[i];
+          const timestamp = ledger?.revision === revision ? ledger.marks[transactionKey] : undefined;
+          const settledAt = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : undefined;
           return (
-            <View key={i} style={{ backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 10, opacity: settledAt ? 0.6 : 1 }}>
+            <View key={transactionKey} style={{ backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 10, opacity: settledAt ? 0.6 : 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 }}>
                 <Text style={{ flex: 1, color: COLORS.text, fontFamily: FONTS.semibold }}>{t.from} → {t.to}</Text>
                 <Text style={{ color: COLORS.text, fontFamily: FONTS.score, fontSize: 18 }}>{formatMoney(t.amount)}</Text>
               </View>
               <Text style={{ color: COLORS.textDim, fontSize: 12, marginBottom: 8 }}>{t.gameType.replace(/_/g, " ")}</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel={settledAt ? `Unsettle ${t.from} to ${t.to}` : `Mark settled ${t.from} to ${t.to}`} onPress={() => toggleSettled(i)} style={{ ...outlinedButton, minHeight: 44, alignSelf: "flex-start", borderWidth: settledAt ? 0 : 1 }}>
+              <Pressable accessibilityRole="button" accessibilityLabel={settledAt ? `Unsettle ${t.from} to ${t.to}` : `Mark settled ${t.from} to ${t.to}`} disabled={!ready || accountId === null} onPress={() => toggleSettled(transactionKey)} style={{ ...outlinedButton, minHeight: 44, alignSelf: "flex-start", borderWidth: settledAt ? 0 : 1 }}>
                 {settledAt && <CheckCircle size={16} color={COLORS.primary} />}
                 <Text style={{ color: settledAt ? COLORS.primary : COLORS.text, fontFamily: FONTS.semibold }}>{settledAt ? `Settled ${settledAt}` : "Mark settled"}</Text>
               </Pressable>
@@ -218,23 +247,7 @@ function SettlementScreenContent() {
         ))}
       </View>
 
-      <View style={{ marginBottom: 24 }}>
-        <Text style={sectionLabel}>BY GAME</Text>
-        {contest.games.map((gameType, gi) => {
-          const isSkins = gameType === "skins" || gameType === "skins_carry";
-          const gameName = isSkins ? skinsLabel(contest.gameConfig) : gameType.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-          return (
-            <View key={gi} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 8 }}>
-              <Text testID={isSkins ? "settlement-skins-mode" : undefined} style={{ flex: 1, color: COLORS.text, fontFamily: FONTS.semibold }}>{gameName}</Text>
-              <View style={{ flex: 1, alignItems: "flex-end", gap: 4 }}>
-                <Text style={{ color: COLORS.textDim, fontSize: 12 }}>18 Holes</Text>
-                <Text style={{ color: COLORS.text, fontFamily: FONTS.score }}>${contest.betUnit}/unit</Text>
-                {topWinner && topWinner[1] > 0 && <Text style={{ color: COLORS.primary, fontSize: 12, textAlign: "right" }}>Leader: {topWinner[0]}</Text>}
-              </View>
-            </View>
-          );
-        })}
-      </View>
+      <SettlementByGame contest={contest} />
 
       <View style={{ gap: 12, marginBottom: 24 }}>
         <Text style={{ ...TYPOGRAPHY.headline, color: COLORS.text }}>Recap card</Text>
@@ -260,5 +273,44 @@ function SettlementScreenContent() {
         <Text style={{ color: COLORS.textDim, fontSize: 12, textAlign: "center" }}>SnapScore doesn’t hold or move money. Your group settles up directly.</Text>
       </View>
     </ScrollView>
+  );
+}
+
+/** Match the engine's scope: versioned tournaments settle all constituent rounds,
+ * while legacy contests use the stored aggregate card. Group repeated IDs but pass
+ * all occurrences: legacy cent allocation batches same-game transactions together.
+ */
+function SettlementByGame({ contest }: { contest: Contest }) {
+  const rounds = contest.gameConfig?.rulesVersion === 1 && contest.isTournament && contest.rounds?.length
+    ? contest.rounds
+    : [{ course: contest.course, groups: contest.groups }];
+  const holeCount = rounds.reduce((total, round) => total + (round.course ?? contest.course).holes.length, 0);
+  // The engine adds round-only names only when they transact. Keep tied/pending
+  // participants visible too, without changing its name-keyed ledger contract.
+  const players = rounds.flatMap(round => round.groups.flatMap(group => group.players));
+  return (
+    <View style={{ marginBottom: 24 }}>
+      <Text style={sectionLabel}>BY GAME</Text>
+      {[...new Set(contest.games)].map((gameType, gi) => {
+        const result = calculateContestSettlement(contest, contest.games.filter(game => game === gameType));
+        const netByPlayer = { ...Object.fromEntries(players.map(player => [player.name, 0])), ...result.netByPlayer };
+        const isSkins = gameType === "skins" || gameType === "skins_carry";
+        const gameName = isSkins ? skinsLabel(contest.gameConfig) : gameType.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        return (
+          <View key={`${gameType}-${gi}`} testID={`settlement-game-${gi}`} style={{ gap: 12, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 8 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+              <Text testID={isSkins ? "settlement-skins-mode" : undefined} style={{ flex: 1, color: COLORS.text, fontFamily: FONTS.semibold }}>{gameName}</Text>
+              <Text style={{ color: COLORS.textDim, fontSize: 12 }}>{holeCount} Holes</Text>
+            </View>
+            {Object.entries(netByPlayer).sort(([, a], [, b]) => b - a).map(([name, net]) => (
+              <View key={name} testID={`settlement-game-${gi}-player-${name}`} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                <Text style={{ flex: 1, color: COLORS.text, fontFamily: FONTS.medium }}>{name}</Text>
+                <Text style={{ fontFamily: FONTS.score, color: result.pending ? COLORS.textDim : net > 0 ? COLORS.primary : net < 0 ? COLORS.error : COLORS.textDim }}>{result.pending ? "Pending" : net === 0 ? "Even" : formatNet(net)}</Text>
+              </View>
+            ))}
+          </View>
+        );
+      })}
+    </View>
   );
 }
