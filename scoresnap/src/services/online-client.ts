@@ -4,7 +4,7 @@ import { validJoinCode, normalizeJoinCode } from './guest-join';
 export interface OnlineRpc { (name: string, args: Record<string, unknown>): Promise<{ data: any; error: any }> }
 export interface Membership { role: 'host' | 'player' | 'scorer' | 'viewer'; status: string; player_id: string | null }
 export type OnlineSnapshot = SyncSnapshotV1;
-export function onlineClient(rpc: OnlineRpc, repair: (contest: string, membership: Membership | null, snapshot: OnlineSnapshot | null) => void, owned?: (code?: string) => Promise<{ id: string }[]>) {
+export function onlineClient(rpc: OnlineRpc, repair: (contest: string, membership: Membership | null, snapshot: OnlineSnapshot | null) => void, owned?: (code?: string) => Promise<{ id: string; legacyHint?: boolean }[]>) {
   let generation = 0;
   async function call(name: string, args: Record<string, unknown>) {
     const { data, error } = await rpc(name, args); if (error) throw error; return data;
@@ -27,7 +27,17 @@ export function onlineClient(rpc: OnlineRpc, repair: (contest: string, membershi
       const epoch = generation;
       const rows = owned ? await owned(normalizeJoinCode(code)) : [];
       if (epoch !== generation) throw Error('Identity changed during lookup');
-      if (rows[0]) { await this.rejoinHost(rows[0].id); return rows[0].id; }
+      if (rows[0]) {
+        const row = rows[0];
+        try { await this.rejoinHost(row.id); return row.id; }
+        catch (error: any) {
+          // Only a missing-RPC local hint may be a member contest. A transport
+          // failure or a stale identity never authorizes creating a join request.
+          if (!row.legacyHint || error?.code !== '42501' || epoch !== generation) throw error;
+          if (await this.rejoin(row.id)) return row.id;
+          if (epoch !== generation) throw Error('Identity changed during lookup');
+        }
+      }
       await this.requestJoin(code, name);
       await this.discover();
       return null;
