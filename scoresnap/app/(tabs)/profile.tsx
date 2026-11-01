@@ -5,7 +5,6 @@ import { useState, useMemo } from "react";
 import { View, Text, ScrollView, Button, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import {
-  User,
   Settings,
   Crown,
   BarChart3,
@@ -19,39 +18,37 @@ import {
 } from "lucide-react-native";
 import * as Sentry from "@sentry/react-native";
 import RevenueCatUI from "react-native-purchases-ui";
-import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
+import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../src/ui/theme";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 import { useContestStore, Contest } from "../../src/stores/contest-store";
 import { useScanStore } from "../../src/stores/scan-store";
 import { useAuthStore } from "../../src/stores/auth-store";
 import { restorePurchases, getCustomerInfo } from "../../src/services/purchases";
-import { calculateSettlement } from "../../src/engine/settlement";
 import { openSupport } from "../../src/config/support-links";
 
 /** Compute real stats from contest data */
-function computeRealStats(contests: Contest[]) {
+function computeRealStats(contests: Contest[], account?: { id: string; name?: string } | null) {
   const completed = contests.filter((c) => c.status === "completed");
 
   // Collect all player scores from completed contests
-  // We take the first player in each group as "your" scores (since we don't have user identity yet)
   const roundScores: { total: number; coursePar: number; courseName: string; date: string }[] = [];
 
+  // One scoring round per completed contest: the signed-in player (by id, then name), else the first player.
+  const yourPlayer = (contest: Contest) => {
+    const players = contest.groups.flatMap((group) => group.players);
+    return players.find((p) => p.id === account?.id)
+      ?? players.find((p) => account?.name && p.name === account.name)
+      ?? players[0];
+  };
   for (const contest of completed) {
     const coursePar = contest.course.holes.reduce((a, h) => a + h.par, 0);
-    for (const group of contest.groups) {
-      for (const player of group.players) {
-        const playedHoles = player.scores.filter((s) => s > 0);
-        if (playedHoles.length >= 9) {
-          // Only count rounds with at least 9 holes scored
-          const total = player.scores.reduce((a, s) => a + s, 0);
-          roundScores.push({
-            total,
-            coursePar,
-            courseName: contest.course.name,
-            date: contest.createdAt,
-          });
-        }
-      }
+    const player = yourPlayer(contest);
+    if (!player) continue;
+    const playedHoles = player.scores.filter((s) => s > 0);
+    if (playedHoles.length >= 9) {
+      // Only count rounds with at least 9 holes scored
+      const total = player.scores.reduce((a, s) => a + s, 0);
+      roundScores.push({ total, coursePar, courseName: contest.course.name, date: contest.createdAt });
     }
   }
 
@@ -76,28 +73,29 @@ function computeRealStats(contests: Contest[]) {
     .sort((a, b) => b.rounds - a.rounds)
     .slice(0, 5);
 
-  // Wagering history from settlement engine
-  const wageringHistory: { title: string; amount: number; isWin: boolean }[] = [];
-  for (const contest of completed.slice(-5)) {
-    // Settle last 5 completed contests
-    const allPlayers = contest.groups.flatMap((g) => g.players);
-    if (allPlayers.length < 2) continue;
-    try {
-      const settlement = calculateContestSettlement(contest);
-      // Show net for each player
-      for (const [name, net] of Object.entries(settlement.netByPlayer)) {
-        if (Math.abs(net) > 0) {
-          wageringHistory.push({
-            title: `${contest.games[0]?.replace("_", " ") || "Round"} — ${contest.course.name}`,
-            amount: net,
-            isWin: net > 0,
-          });
-        }
+  // One result per completed round, newest first. Legacy rounds use the first player.
+  const roundResults = completed
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .flatMap((contest) => {
+      const players = contest.groups.flatMap((group) => group.players);
+      const player = yourPlayer(contest);
+      if (!player) return [];
+      try {
+        const settlement = calculateContestSettlement(contest);
+        if (settlement.pending) return [];
+        return [{
+          id: contest.id,
+          courseName: contest.course.name,
+          date: new Date(contest.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          games: contest.games.map((game) => game.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())).join(", "),
+          playerCount: players.length,
+          amount: settlement.netByPlayer[player.name] ?? 0,
+        }];
+      } catch {
+        return [];
       }
-    } catch {
-      // Skip if settlement fails
-    }
-  }
+    });
 
   return {
     totalRounds,
@@ -106,7 +104,8 @@ function computeRealStats(contests: Contest[]) {
     bestRound,
     avgVsPar,
     courseHistory,
-    wageringHistory: wageringHistory.slice(0, 5),
+    roundResults: roundResults.slice(0, 5),
+    netToDateCents: roundResults.reduce((sum, item) => sum + Math.round(item.amount * 100), 0),
   };
 }
 
@@ -118,8 +117,12 @@ export default function ProfileScreen() {
   const freeRemaining = getRemainingFreeScans();
   const [showingCustomerCenter, setShowingCustomerCenter] = useState(false);
 
-  const stats = useMemo(() => computeRealStats(contests), [contests]);
-  const displayName = authUser?.name || (isPro ? "SnapScore Pro" : "Golfer");
+  const stats = useMemo(() => computeRealStats(contests, authUser), [contests, authUser]);
+  const name = authUser?.name?.trim();
+  const displayName = name && name !== "Golfer" ? name : null;
+  const initials = displayName?.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase() || "—";
+  const netToDate = stats.netToDateCents / 100;
+  const amountColor = (amount: number) => Math.round(amount * 100) === 0 ? COLORS.textDim : amount > 0 ? COLORS.primary : COLORS.error;
 
   const handleManageSubscription = async () => {
     try {
@@ -159,202 +162,76 @@ export default function ProfileScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ========== PROFILE HERO ========== */}
-        <View style={{ alignItems: "center", paddingTop: 24, paddingBottom: 28 }}>
-          <Text
-            style={{
-              fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
-              fontSize: 28,
-              color: COLORS.text,
-              marginBottom: 6,
-              letterSpacing: -0.5,
-            }}
-          >
-            {displayName}
-          </Text>
-
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 20 }}>
-            <MapPin size={12} color={COLORS.textDim} />
-            <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
-              Member since {memberYear}
-            </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 24, paddingBottom: 28 }}>
+          <View style={{ width: 64, height: 64, borderRadius: RADII.full, backgroundColor: COLORS.surfaceHighest, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.primary }}>{initials}</Text>
           </View>
-
-          {/* Scoring Average circle (or empty state) */}
-          <View
-            style={{
-              width: 110,
-              height: 110,
-              borderRadius: RADII.full,
-              backgroundColor: hasData ? COLORS.primary : COLORS.surfaceHigh,
-              alignItems: "center",
-              justifyContent: "center",
-              ...(hasData ? GLOW.primaryStrong : {}),
-            }}
-          >
-            {hasData ? (
-              <>
-                <Text
-                  style={{
-                    fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
-                    fontSize: 42,
-                    color: COLORS.onPrimary,
-                    letterSpacing: -2,
-                  }}
-                >
-                  {Math.round(stats.scoringAvg)}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: FONTS.displaySC, letterSpacing: 0.72,
-                    fontSize: 11,
-                    color: COLORS.onPrimary,
-                    marginTop: -4,
-                  }}
-                >
-                  AVG SCORE
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text
-                  style={{
-                    fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
-                    fontSize: 24,
-                    color: COLORS.textDim,
-                  }}
-                >
-                  —
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: FONTS.displaySC, letterSpacing: 0.72,
-                    fontSize: 11,
-                    color: COLORS.textDim,
-                    marginTop: -2,
-                  }}
-                >
-                  NO ROUNDS
-                </Text>
-              </>
+          <View style={{ flex: 1, gap: 4 }}>
+            {displayName && (
+              <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text }}>{displayName}</Text>
             )}
+            <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>Member since {memberYear}</Text>
+            <View testID="profile-plan-badge" accessibilityLabel={`Plan: ${isPro ? "Pro" : "Free"}`} style={{ alignSelf: "flex-start", borderRadius: RADII.full, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: isPro ? COLORS.primary : COLORS.outline, backgroundColor: COLORS.surface }}>
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 12, color: isPro ? COLORS.primary : COLORS.textDim }}>{isPro ? "Pro" : "Free"}</Text>
+            </View>
+          </View>
+          <AnimatedPressable
+            onPress={() => router.push("/settings")}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            testID="profile-settings-gear"
+            style={{ width: 44, height: 44, borderRadius: RADII.full, borderWidth: 1, borderColor: COLORS.outline, backgroundColor: COLORS.surface, alignItems: "center", justifyContent: "center" }}
+          >
+            <Settings size={22} color={COLORS.text} />
+          </AnimatedPressable>
+        </View>
+
+        <View style={{ marginBottom: 28 }}>
+          <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>SCORING</Text>
+          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 12, paddingVertical: 12 }}>
+            <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 48, color: COLORS.text }}>{hasData ? stats.scoringAvg.toFixed(1) : "—"}</Text>
+            <Text style={{ fontFamily: FONTS.regular, fontSize: 15, color: COLORS.textDim }}>Scoring average</Text>
+          </View>
+          <View style={{ flexDirection: "row", borderWidth: 1, borderColor: COLORS.outline, borderRadius: RADII.md, paddingVertical: 16 }}>
+            {[
+              { label: "Avg vs par", value: hasData ? `${stats.avgVsPar >= 0 ? "+" : "−"}${Math.abs(stats.avgVsPar).toFixed(1)}` : "—" },
+              { label: "Best round", value: hasData ? String(stats.bestRound) : "—" },
+              { label: "Rounds played", value: hasData ? String(stats.totalRounds) : "—" },
+            ].map((stat) => (
+              <View key={stat.label} style={{ flex: 1, alignItems: "center", gap: 4 }}>
+                <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 24, color: COLORS.text }}>{stat.value}</Text>
+                <Text style={{ fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textDim }}>{stat.label}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
-        {/* ========== STATS GRID ========== */}
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
-          {[
-            {
-              value: hasData ? stats.scoringAvg.toFixed(1) : "—",
-              label: "Scoring Avg",
-              accent: COLORS.primary,
-            },
-            {
-              value: hasData ? `${stats.avgVsPar >= 0 ? "+" : ""}${stats.avgVsPar.toFixed(1)}` : "—",
-              label: "Avg vs Par",
-              accent: COLORS.primary + "bb",
-            },
-            {
-              value: hasData ? `${stats.bestRound}` : "—",
-              label: "Best Round",
-              accent: COLORS.primary + "88",
-            },
-            {
-              value: `${stats.totalRounds}`,
-              label: "Rounds Played",
-              accent: COLORS.primary + "66",
-            },
-          ].map((stat) => (
-            <View
-              key={stat.label}
-              style={{
-                flex: 1,
-                minWidth: "45%",
-                backgroundColor: COLORS.surfaceLow,
-                borderRadius: RADII.lg,
-                borderLeftWidth: 3,
-                borderLeftColor: stat.accent,
-                padding: 16,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
-                  fontSize: 26,
-                  color: COLORS.text,
-                  marginBottom: 4,
-                }}
-              >
-                {stat.value}
-              </Text>
-              <Text
-                style={{
-                  fontFamily: FONTS.medium,
-                  fontSize: 12,
-                  color: COLORS.textDim,
-                }}
-              >
-                {stat.label}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {/* ========== ROUND RESULTS ========== */}
         <View style={{ marginBottom: 24 }}>
-          <Text
-            style={{
-              ...TYPOGRAPHY.label,
-              color: COLORS.textDim,
-              marginBottom: 12,
-            }}
-          >
-            ROUND RESULTS
-          </Text>
-          {stats.wageringHistory.length > 0 ? (
-            stats.wageringHistory.map((item, i) => (
-              <View
-                key={i}
-                style={{
-                  backgroundColor: COLORS.surfaceLow,
-                  borderRadius: RADII.lg,
-                  padding: 14,
-                  marginBottom: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
-                    {item.title}
-                  </Text>
-                </View>
-                <Text
-                  style={{
-                    fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
-                    fontSize: 18,
-                    color: item.isWin ? COLORS.primary : COLORS.error,
-                  }}
-                >
-                  {signedRoundAmount(item.amount)}
-                </Text>
+          <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 12 }}>ROUND RESULTS</Text>
+          {stats.roundResults.length > 0 ? stats.roundResults.map((item) => (
+            <AnimatedPressable key={item.id} accessibilityRole="button" onPress={() => router.push(`/contest/${item.id}`)}
+              style={{ minHeight: 64, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.outline, flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>{item.courseName}</Text>
+                <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>{item.date} · {item.games} · {item.playerCount} players</Text>
               </View>
-            ))
-          ) : (
-            <View
-              style={{
-                backgroundColor: COLORS.surfaceLow,
-                borderRadius: RADII.lg,
-                padding: 20,
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
-                Finish a round to see your results here.
+              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 18, color: amountColor(item.amount) }}>
+                {Math.round(item.amount * 100) === 0 ? "$0.00" : signedRoundAmount(item.amount)}
               </Text>
-            </View>
+              <ChevronRight size={18} color={COLORS.textDim} />
+            </AnimatedPressable>
+          )) : (
+            <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, paddingVertical: 20 }}>Finish a round to see your results here.</Text>
           )}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 18 }}>
+            <Text style={{ flex: 1, fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>Net to date</Text>
+            <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 18, color: amountColor(netToDate) }}>{netToDate === 0 ? "$0.00" : signedRoundAmount(netToDate)}</Text>
+            <View style={{ width: 18 }} />
+          </View>
+          <AnimatedPressable accessibilityRole="button" onPress={() => router.push("/(tabs)/contests")}
+            style={{ minHeight: 52, borderRadius: RADII.md, backgroundColor: COLORS.surfaceHighest, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.primary }}>See all rounds</Text>
+          </AnimatedPressable>
         </View>
 
         {/* ========== SCAN USAGE ========== */}
@@ -684,7 +561,7 @@ export default function ProfileScreen() {
 
         {/* ========== SETTINGS LINKS ========== */}
         {[
-          { icon: <Settings size={20} color={COLORS.textDim} />, label: "Settings", onPress: () => router.push("/settings") },
+          { icon: <Settings size={20} color={COLORS.textDim} />, label: "Account settings", onPress: () => router.push("/settings") },
           { icon: <BarChart3 size={20} color={COLORS.textDim} />, label: "Statistics", onPress: () => router.push("/statistics") },
           { icon: <HelpCircle size={20} color={COLORS.textDim} />, label: "Help & Support", onPress: openSupport },
         ].map((item) => (
