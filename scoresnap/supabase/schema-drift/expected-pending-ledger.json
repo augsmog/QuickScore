@@ -50,5 +50,9 @@
   {
     "version": "20261029180000",
     "name": "sync_api"
+  },
+  {
+    "version": "20261031180000",
+    "name": "chat_report_block"
   }
 ]

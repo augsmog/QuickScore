@@ -148,3 +148,16 @@ field records that the pending M4b-named policies are absent before this migrati
 The exporter now inventories those app-owned policies in the managed realtime
 schema; they must not be excluded from future drift comparisons. This is a
 catalog-format extension, not a new hosted read receipt.
+
+## Pending chat moderation expectation — 2026-10-31
+
+`expected-after.json` includes `20261031180000_chat_report_block.sql`.
+The additions were captured by the native PostgreSQL 17.11 disposable CI run
+https://github.com/augsmog/QuickScore/actions/runs/41251830874/job/124686783351
+at commit `ef41c47e453400ef561ab29a54255005c6be4ebe`. The exact unified catalog
+comparison was applied with every old line and hunk length verified against the
+previous snapshot. All prior catalog entries remain; the 13 changed inventories
+only add chat moderation objects, privileges, and foreign-key triggers.
+`expected-after-syncapi.json` preserves the historical pre-chat expectation;
+the record command now updates only the current full-chain expectation.
+No live capture or migration apply was performed.

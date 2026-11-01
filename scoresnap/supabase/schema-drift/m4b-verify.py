@@ -9,14 +9,13 @@ root=here.parent
 if sys.argv[1]=='catalog':
  raw=json.loads(pathlib.Path(sys.argv[2]).read_text())
  raw=inject(json.loads((root/'schema-snapshot/live.json').read_text()),raw)
- path=root/'schema-snapshot/expected-after.json'
+ path=root/'schema-snapshot'/('expected-after-syncapi.json' if sys.argv[3]=='compare-syncapi' else 'expected-after.json')
  if sys.argv[3]=='record':
   rendered=json.dumps(normalize(raw),indent=2,sort_keys=True)+'\n'
   path.write_text(rendered)
-  (root/'schema-snapshot/expected-after-syncapi.json').write_text(rendered)
  diff=differences(json.loads(path.read_text()),raw)
  assert not diff,'\n'.join(diff)
- print('PASS: full-chain catalog equals expected-after.json')
+ print('PASS: catalog equals '+path.name)
  sys.exit()
 url=sys.argv[2]; target=urlsplit(url)
 assert target.scheme=='postgresql' and not target.query and not target.fragment and target.password is None and target.hostname=='127.0.0.1' and target.username=='postgres' and target.path=='/postgres' and target.port
