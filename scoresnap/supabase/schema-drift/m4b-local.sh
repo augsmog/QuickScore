@@ -48,6 +48,8 @@ done
 q -f "$here/../tests/m4b-upgrade-replay.sql" >> "$work/apply.log" 2>&1 || { cat "$work/apply.log"; exit 1; }
 echo 'PASS: seeded M3 accepted receipt replays after M4b with exactly one event'
 echo 'PASS: full baseline/foundation/M2b/M3/sync_api chain'
+q -f "$here/../tests/signup-webhook-native.sql" > "$work/signup-webhook.log" 2>&1 || { cat "$work/signup-webhook.log"; exit 1; }
+echo 'PASS: signup optional transport, payload and exception isolation'
 q -At -f "$here/catalog-query.sql" > "$work/m4b.json"
 python3 "$here/drift.py" ledger "$work/m4b.json" --mode pending
 python3 "$here/m4b-verify.py" catalog "$work/m4b.json" "${1:-compare}"

@@ -30,7 +30,7 @@ begin
       'id', new.id, 'email', new.email, 'user_metadata', new.raw_user_meta_data, 'app_metadata', new.raw_app_meta_data))
   );
   return new;
-exception when others then
+exception when query_canceled or assert_failure or others then
   -- Never propagate webhook/vault/configuration failures into auth signup.
   return new;
 end;

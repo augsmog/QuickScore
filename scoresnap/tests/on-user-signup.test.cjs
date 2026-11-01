@@ -170,7 +170,7 @@ test('migration privilege, atomicity and non-blocking webhook contract', () => {
   expect(sql).toContain("updated_at < now() - interval '5 minutes'");
   expect(trigger).toContain('grant execute on function public.dispatch_signup_webhook() to service_role;');
   expect(trigger).toContain('create extension if not exists pg_net');
-  expect(trigger).toContain('exception when others then');
+  expect(trigger).toContain('exception when query_canceled or assert_failure or others then');
   expect(trigger).toContain("current_setting('app.settings.supabase_url', true)");
   expect(trigger).toContain('vault.decrypted_secrets');
   expect(trigger).not.toMatch(/eyJ|https:\/\/[^' ]+supabase\.co/);
