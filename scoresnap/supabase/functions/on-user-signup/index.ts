@@ -73,21 +73,26 @@ serve(async (req) => {
       checked(await supabase.from("automation_log").insert({ title: "New user signup", category: "signup", details: `Provider: ${provider}`, source: "on-user-signup" }));
       checked(await supabase.rpc("increment_daily_signups", { target_date: new Date().toISOString().split("T")[0] }));
     }
-    if (!Deno.env.get("RESEND_API_KEY")) {
-      checked(await supabase.from("signup_processing").update({ email_status: "failed", updated_at: new Date().toISOString() }).eq("user_id", userId).neq("email_status", "sent"));
+    const token = crypto.randomUUID();
+    const configured = !!Deno.env.get("RESEND_API_KEY");
+    const emailClaim = await supabase.rpc("claim_signup_email", { p_user_id: userId, p_token: token, p_provider_configured: configured });
+    checked(emailClaim);
+    const failReservation = async () => {
+      checked(await supabase.from("signup_processing").update({ email_status: "failed", updated_at: new Date().toISOString() })
+        .eq("user_id", userId).eq("email_reservation_token", token).eq("email_status", "pending"));
+    };
+    if (!configured) {
+      if (emailClaim.data) await failReservation();
       console.log("[EMAIL SKIPPED] provider not configured");
-    } else {
-      const emailClaim = await supabase.rpc("claim_signup_email", { p_user_id: userId });
-      checked(emailClaim);
-      if (emailClaim.data) {
-        const profile = await supabase.from("profiles").select("referral_code").eq("id", userId).single();
-        checked(profile);
-        const id = await sendEmail(buildWelcomeEmail(email, profile.data?.referral_code || "", settings), `signup-welcome/${userId}`);
-        if (id) {
-          checked(await supabase.rpc("confirm_signup_email", { p_user_id: userId, p_email_id: id }));
-        } else {
-          checked(await supabase.from("signup_processing").update({ email_status: "failed", updated_at: new Date().toISOString() }).eq("user_id", userId).neq("email_status", "sent"));
-        }
+    } else if (emailClaim.data) {
+      const profile = await supabase.from("profiles").select("referral_code").eq("id", userId).single();
+      checked(profile);
+      // Keep the provider key stable across tokens, including still-running expired owners.
+      const id = await sendEmail(buildWelcomeEmail(email, profile.data?.referral_code || "", settings), `signup-welcome/${userId}`);
+      if (id) {
+        checked(await supabase.rpc("confirm_signup_email", { p_user_id: userId, p_token: token, p_email_id: id }));
+      } else {
+        await failReservation();
       }
     }
     return Response.json(duplicate ? { duplicate: true } : { success: true });

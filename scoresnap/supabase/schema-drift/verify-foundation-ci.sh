@@ -7,6 +7,8 @@ psql_local() { psql "$url" -X -v ON_ERROR_STOP=1 "$@"; }
 extract() { psql_local -At -f "$here/catalog-query.sql" > /tmp/m2-catalog.json; }
 python3 "$here/check-active-sql.py"
 python3 "$here/reference-guard.py"
+# Remove signup objects only in this freshly reset disposable stack.
+psql_local -f "$here/signup-disposable-down.sql"
 # Remove the newest migration before checking historical catalog prefixes.
 psql_local -f "$here/../rollback/20261031180000_chat_report_block.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261031180000'"
@@ -62,6 +64,7 @@ python3 "$here/sql-fixtures.py" --url "$url" --admin-url postgresql://supabase_a
 (cd "$here/../.." && supabase migration up --local)
 psql_local -f "$here/../rollback/20261031180000_chat_report_block.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261031180000'"
+psql_local -f "$here/signup-disposable-down.sql"
 # M2b catalog gates stay on the pre-008 schema. Peel sync_api and purge before M3.
 psql_local -f "$here/../rollback/20261029180000_sync_api.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261029180000'"
@@ -110,8 +113,15 @@ psql_local -f "$here/../migrations/20261029180000_sync_api.sql"
 psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261029180000','sync_api') ON CONFLICT DO NOTHING"
 psql_local -f "$here/../migrations/20261031180000_chat_report_block.sql"
 psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261031180000','chat_report_block')"
+for signup in 20261101003300_signup_processing 20261101003400_signup_webhook_trigger; do
+ psql_local -f "$here/../migrations/$signup.sql"
+ psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('${signup%%_*}','${signup#*_}')"
+done
 extract
-python3 "$here/drift.py" compare "$here/../schema-snapshot/expected-after.json" /tmp/m2-catalog.json
+if [[ ${1:-compare} == record ]]; then
+ python3 "$here/record-catalog.py" /tmp/m2-catalog.json "$here/../schema-snapshot/expected-after-pgnet.json"
+fi
+python3 "$here/drift.py" compare "$here/../schema-snapshot/expected-after-pgnet.json" /tmp/m2-catalog.json
 python3 "$here/drift.py" ledger /tmp/m2-catalog.json --mode pending
 psql_local -f "$here/../tests/m4b-upgrade-replay.sql"
 psql_local -f "$here/../tests/legacy-compatibility.sql"

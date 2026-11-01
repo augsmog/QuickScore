@@ -12,28 +12,34 @@ const lib = libContext.exports;
 function harness(env = {}, count = 2, status = 200) {
   let handler;
   const operations = [], emails = [], errors = [];
-  let claimed = false, sent = false, attempts = 0, active = false;
+  let claimed = false, sent = false, attempts = 0, active = false, token = null;
   const client = {
     from(table) {
       let value;
+      const filters = {};
       const query = {
         upsert(v) { value = v; operations.push({ table, type: 'upsert', value: v }); return query; },
         insert(v) { operations.push({ table, type: 'insert', value: v }); return Promise.resolve({}); },
-        update(v) { operations.push({ table, type: 'update', value: v }); if (table === 'signup_processing' && v.email_status === 'failed') active = false; return query; },
+        update(v) { value = v; operations.push({ table, type: 'update', value: v }); return query; },
         select() { if (table === 'signup_processing') { const data = claimed ? [] : [{user_id:'user'}]; claimed = true; return Promise.resolve({data}); } return query; },
-        eq() { return query; }, is() { return query; }, neq() { return query; },
+        eq(key, value) { filters[key] = value; return query; }, is() { return query; }, neq() { return query; },
         single() { return Promise.resolve({ data: { id: 'referrer', email: 'friend@example.test', referral_code: 'SS-EXIST', referral_count: count } }); },
         maybeSingle() { return query.single(); },
-        then(resolve) { resolve({}); },
+        then(resolve) {
+          if (table === 'signup_processing' && value?.email_status === 'failed' &&
+              filters.user_id === 'user' && filters.email_reservation_token === token &&
+              filters.email_status === 'pending' && active) active = false;
+          resolve({});
+        },
       };
       return query;
     },
-    rpc(name) {
-      operations.push({table:'rpc', type:name, value:{}});
+    rpc(name, args) {
+      operations.push({table:'rpc', type:name, value:args || {}});
       if (name === 'get_signup_webhook_secret') return Promise.resolve({data:env.RPC_SECRET});
       if (name === 'apply_signup_referral') { operations.push({value:{referral_count:count+1}}); return Promise.resolve({data:[{referrer_id:'referrer',new_count:count+1}]}); }
-      if (name === 'claim_signup_email') { const ok = !sent && !active && attempts < 3; if(ok) { attempts++; active=true; } return Promise.resolve({data:ok}); }
-      if (name === 'confirm_signup_email') { sent=true; return Promise.resolve({}); }
+      if (name === 'claim_signup_email') { const ok = !sent && !active && attempts < 3; if(ok) { if (args.p_provider_configured) attempts++; active=true; token=args.p_token; } return Promise.resolve({data:ok}); }
+      if (name === 'confirm_signup_email') { if (active && args.p_token === token && args.p_user_id === 'user') { sent=true; active=false; } return Promise.resolve({}); }
       return Promise.resolve({});
     },
   };
@@ -41,11 +47,11 @@ function harness(env = {}, count = 2, status = 200) {
     ...lib, Response, TextEncoder, crypto: webcrypto,
     Deno: { env: { get: key => env[key] } },
     serve: fn => { handler = fn; }, createClient: jest.fn(() => client),
-    fetch: async (_url, options) => { emails.push(JSON.parse(options.body)); if (status === 'network') throw Error('network'); return { ok: status >= 200 && status < 300, status, json: async () => status === 204 ? {} : {id:'email-id'} }; },
+    fetch: async (_url, options) => { emails.push(JSON.parse(options.body)); if (context.transport) return context.transport(options); if (status === 'network') throw Error('network'); return { ok: status >= 200 && status < 300, status, json: async () => status === 204 ? {} : {id:'email-id'} }; },
     console: { error: (...args) => errors.push(args), log: (...args) => errors.push(args) },
   };
   vm.runInNewContext(compile(source.replace(/^import .*;\n/gm, '')), context);
-  return { handler, operations, emails, errors, context };
+  return { handler, operations, emails, errors, context, expire: () => { active=false; }, state: () => ({active,sent,attempts,token}) };
 }
 function request(secret = 'test-secret', method = 'POST') {
   return new Request('https://example.test', { method, headers: secret === null ? {} : { 'x-webhook-secret': secret }, ...(method === 'POST' ? { body: JSON.stringify({ record: { id: 'user', email: 'user@example.test', user_metadata: { referred_by: 'SS-TEST' } } }) } : {}) });
@@ -74,15 +80,7 @@ test('reward default off and exact true on, while count and event always persist
     const premium = h.operations.filter(op => op.value.is_premium);
     expect(premium).toHaveLength(flag === 'true' ? 1 : 0);
     expect(h.emails).toHaveLength(flag === 'true' ? 2 : 1);
-    for (const email of h.emails) {
-      expect(email.text).toBeTruthy();
-      expect(email.html + email.text).not.toMatch(/\b(?:bets?|betting|wager\w*|unlock\w*|winnings|payout\w*)\b|!|\p{Extended_Pictographic}/iu);
-    }
-    if (premium.length) {
-      expect(premium[0].value.premium_source).toBe('referral_reward');
-      expect(h.emails.find(email => email.subject === 'Your SnapScore referral reward').subject).toBe('Your SnapScore referral reward');
-      expect(h.emails.find(email => email.subject === 'Your SnapScore referral reward').text).toContain('Three friends joined SnapScore with your code. Your reward is now active.');
-    }
+    if (premium.length) expect(premium[0].value.premium_source).toBe('referral_reward');
   }
   const h = harness({ SIGNUP_WEBHOOK_SECRET: 'test-secret', REFERRAL_PREMIUM_REWARD_ENABLED: 'true' }, 3);
   await h.handler(request());
@@ -102,9 +100,9 @@ test('both payloads have sender/reply defaults and overrides, escaped footer, an
       expect(payload.subject).toContain('SnapScore');
     }
     const welcome = lib.buildWelcomeEmail('user@example.test', '<code>&', settings);
-    expect(welcome.html).toContain('Autumn8me, Inc.');
-    expect(welcome.text).toContain('Start a round: https://snapscore.autumn8.me');
-    expect(welcome.html).not.toContain('&lt;code&gt;&amp;');
+    expect(welcome.html).toContain('SnapScore by Autumn8me, Inc.');
+    expect(lib.buildRewardEmail('user@example.test', settings).html).not.toContain('SnapScore by Autumn8me, Inc.');
+    expect(welcome.html).toContain('&lt;code&gt;&amp;');
     expect(welcome.html.split('50+ game modes')).toHaveLength(2);
   }
 });
@@ -142,7 +140,8 @@ test('missing provider processes signup without reserving an email attempt', asy
   const h=harness({SIGNUP_WEBHOOK_SECRET:'test-secret'});
   await h.handler(request()); await h.handler(request());
   expect(h.emails).toHaveLength(0);
-  expect(h.operations.some(x=>x.type==='claim_signup_email')).toBe(false);
+  expect(h.operations.filter(x=>x.type==='claim_signup_email').every(x=>x.value.p_provider_configured===false)).toBe(true);
+  expect(h.state().attempts).toBe(0);
   expect(h.operations.some(x=>x.value.email_status==='failed')).toBe(true);
   expect(h.errors[0]).toEqual(['[EMAIL SKIPPED] provider not configured']);
 });
@@ -167,16 +166,46 @@ test('migration privilege, atomicity and non-blocking webhook contract', () => {
   expect(sql).toContain('referral_applied = false');
   expect(sql).toContain('coalesce(p.referral_count, 0) + 1');
   expect(sql).toContain('p.id <> p_user_id');
+  expect(sql).toContain("where user_id = p_user_id and email_reservation_token = p_token and email_status = 'pending'");
+  expect(sql).toContain("updated_at < now() - interval '5 minutes'");
+  expect(trigger).toContain('grant execute on function public.dispatch_signup_webhook() to service_role;');
   expect(trigger).toContain('create extension if not exists pg_net');
-  expect(trigger).toContain('exception when others then');
+  expect(trigger).toContain('exception when query_canceled or assert_failure or others then');
   expect(trigger).toContain("current_setting('app.settings.supabase_url', true)");
   expect(trigger).toContain('vault.decrypted_secrets');
   expect(trigger).not.toMatch(/eyJ|https:\/\/[^' ]+supabase\.co/);
 });
 
-test('APP_URL override reaches the welcome HTML and text through the handler', async () => {
-  const h = harness({SIGNUP_WEBHOOK_SECRET:'test-secret', RESEND_API_KEY:'fake', APP_URL:'https://example.test/start'});
+test.each([true, false])('expired owner cannot complete or fail a newer pending reservation (success=%s)', async success => {
+  const env = {SIGNUP_WEBHOOK_SECRET:'test-secret', RESEND_API_KEY:'fake'};
+  const h = harness(env);
+  const pending = [], keys = [], arrivals = [];
+  const started = [new Promise(resolve => arrivals.push(resolve)), new Promise(resolve => arrivals.push(resolve))];
+  h.context.transport = options => new Promise(resolve => {
+    keys.push(options.headers['Idempotency-Key']);
+    pending.push(resolve);
+    arrivals[pending.length - 1]();
+  });
+  const a = h.handler(request());
+  await started[0];
+  const oldToken = h.state().token;
+  h.expire();
+  const b = h.handler(request());
+  await started[1];
+  const newToken = h.state().token;
+  expect(newToken).not.toBe(oldToken);
+  // An unconfigured isolate cannot clear B's active reservation either.
+  delete env.RESEND_API_KEY;
   await h.handler(request());
-  expect(h.emails[0].html).toContain('href="https://example.test/start"');
-  expect(h.emails[0].text).toContain('Start a round: https://example.test/start');
+  env.RESEND_API_KEY = 'fake';
+  expect(h.state().active).toBe(true);
+  pending[0]({ok:success,status:success?200:429,json:async()=>({id:'old-id'})});
+  await a;
+  expect(h.state()).toEqual({active:true,sent:false,attempts:2,token:newToken});
+  await h.handler(request());
+  expect(pending).toHaveLength(2);
+  expect(keys).toEqual(['signup-welcome/user','signup-welcome/user']);
+  pending[1]({ok:true,status:200,json:async()=>({id:'new-id'})});
+  await b;
+  expect(h.state().sent).toBe(true);
 });

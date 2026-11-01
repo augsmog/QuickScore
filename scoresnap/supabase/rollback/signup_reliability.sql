@@ -2,4 +2,4 @@
 -- DROP TRIGGER IF EXISTS on_auth_user_signup_webhook ON auth.users;
 -- DROP FUNCTION IF EXISTS public.dispatch_signup_webhook();
 -- Restore the prior edge deployment only after removing the trigger.
--- Keep signup_processing, RPCs, pg_net and vault secrets for audit/recovery.
+-- Keep signup_processing, RPCs, pg_net (if installed) and vault secrets for audit/recovery.
