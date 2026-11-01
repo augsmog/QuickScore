@@ -67,6 +67,8 @@ jobs:
         run: EXPECT_CROSS_DEVICE_SHARING=true BASE_URL=http://127.0.0.1:8092 node e2e/join-gate.mjs
       - name: Usability (required cases, no skips)
         run: BASE_URL=http://127.0.0.1:8092 node e2e/usability.mjs
+      - name: Safe-area sheets (iPhone Dynamic Island, 59px top / 34px bottom)
+        run: BASE_URL=http://127.0.0.1:8089 node e2e/safe-area-sheets.mjs
       - name: Missing-dismiss regression proof
         run: BASE_URL=http://127.0.0.1:8092 node e2e/usability-regression.mjs
       - name: Browser matrix

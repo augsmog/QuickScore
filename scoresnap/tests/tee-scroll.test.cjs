@@ -6,7 +6,7 @@ function render() {
  const states=[false,'','','',true,'',[],false,course,tees[15],'',null,false];
  let i=0; const setters=states.map(()=>jest.fn());
  const deps={react:{useState:()=>{const n=i++;return [states[n],setters[n]]},useCallback:f=>f,useRef:()=>({current:null}),useEffect:()=>{}},'react/jsx-runtime':{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})},'react-native':new Proxy({Platform:{OS:'ios'}},{get:(o,k)=>o[k]||k}),'lucide-react-native':{},'./theme':{COLORS:{}},'../services/course-api':{teeBoxToCourse:()=>({holes:[]})}};
- const exports={}; vm.runInNewContext(ts.transpileModule(read('src/ui/CourseSearch.tsx'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,require:n=>{if(!(n in deps))throw Error(n);return deps[n]}});
+ const exports={}; vm.runInNewContext(ts.transpileModule(read('src/ui/CourseSearch.tsx'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,require:n=>{if(n==='./SafeScreen')return {FullScreenSheet:'Modal'};if(!(n in deps))throw Error(n);return deps[n]}});
  return {tree:exports.default({onSelect:jest.fn()}),setters,tees};
 }
 function walk(n,a=[]) {if(!n||typeof n!=='object')return [];if(Array.isArray(n))return n.flatMap(v=>walk(v,a));return [{n,a},...walk(n.props?.children,[...a,n])];}

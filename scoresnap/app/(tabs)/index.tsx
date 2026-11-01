@@ -1,3 +1,4 @@
+import { FullScreenSheet, SafeScreen } from "../../src/ui/SafeScreen";
 import { GAME_MODE_LIBRARY } from "../../src/engine/game-mode-library";
 import { useScanStore } from "../../src/stores/scan-store";
 import { canUseGame, defaultRoundGames } from "../../src/services/entitlements";
@@ -7,9 +8,8 @@ import { localDate } from "../../src/utils/local-date";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useAuthStore } from "../../src/stores/auth-store";
 import { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, Modal, FlatList, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, FlatList, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Camera, ChevronRight, X, Users, Plus, Hash } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../src/ui/theme";
@@ -99,7 +99,7 @@ export default function HomeScreen() {
   const allGameNames = ALL_GAMES.map((g) => ({ id: g.id, name: g.name, icon: g.icon }));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       <ScrollView
         testID="home-scroll"
         style={{ flex: 1 }}
@@ -554,8 +554,8 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={showGameLibrary} animationType="slide" onRequestClose={() => setShowGameLibrary(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      <FullScreenSheet visible={showGameLibrary} animationType="slide" onRequestClose={() => setShowGameLibrary(false)}>
+        <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
           <View style={{ paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <Text accessibilityRole="header" style={{ fontFamily: FONTS.semibold, fontSize: 24, color: COLORS.text }}>50+ game modes</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Close game mode library" onPress={() => setShowGameLibrary(false)} style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}>
@@ -577,11 +577,11 @@ export default function HomeScreen() {
               ) : <View key={mode.id} testID={`game-mode-row-${mode.id}`} style={style}>{content}</View>;
             })}
           </ScrollView>
-        </SafeAreaView>
-      </Modal>
+        </View>
+      </FullScreenSheet>
 
       {/* ── Game Info Modal ── */}
-      <Modal
+      <FullScreenSheet
         visible={selectedGame !== null}
         animationType="slide"
         transparent
@@ -693,6 +693,7 @@ export default function HomeScreen() {
                   </Text>
                 </View>
                 <Pressable
+                  testID="game-info-close"
                   onPress={() => setSelectedGame(null)}
                   style={{ padding: 4 }}
                 >
@@ -830,7 +831,7 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-      </Modal>
-    </SafeAreaView>
+      </FullScreenSheet>
+    </SafeScreen>
   );
 }
