@@ -138,10 +138,10 @@ function SettlementScreenContent() {
       {contest.gameConfig?.rulesVersion !== 1 && <Text style={{color:COLORS.warn,marginBottom:12}}>This contest used rules that were not applied to settlement amounts. Review rules before recalculating. Legacy outcomes are preserved; supported variations apply only to new contests.</Text>}
       <View style={{ backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 20, marginBottom: 24 }}>
         <Text style={sectionLabel}>{contest.status === "completed" ? "ROUND RESULTS · FINAL" : "ROUND RESULTS · LIVE"}</Text>
-        {topWinner && <>
+        {topWinner && topWinner[1] > 0 ? <>
           <Text style={{ ...TYPOGRAPHY.headline, color: COLORS.text }}>{settlementLeader(topWinner[0], contest.status === "completed")}</Text>
-          {topWinner[1] > 0 && <Text testID="settlement-hero-amount" style={{ fontFamily: FONTS.score, fontSize: 32, color: COLORS.primary }}>{formatNet(topWinner[1])}</Text>}
-        </>}
+          <Text testID="settlement-hero-amount" style={{ fontFamily: FONTS.score, fontSize: 32, color: COLORS.primary }}>{formatNet(topWinner[1])}</Text>
+        </> : topWinner && <Text testID="settlement-all-even" style={{ ...TYPOGRAPHY.headline, color: COLORS.text }}>Everyone is even</Text>}
         <Text style={{ ...sectionLabel, marginTop: 16 }}>SESSION TOTAL</Text>
         <Text testID="settlement-session-total" style={{ fontFamily: FONTS.score, fontSize: 24, color: COLORS.primary }}>{formatMoney(sessionTotal)}</Text>
       </View>
