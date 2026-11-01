@@ -191,7 +191,7 @@ function SettlementScreenContent() {
               color: COLORS.text,
             }}
           >
-            Net Winners
+            Net for the Round
           </Text>
           <View style={{ alignItems: "flex-end" }}>
             <Text
@@ -201,7 +201,7 @@ function SettlementScreenContent() {
                 marginBottom: 2,
               }}
             >
-              SESSION TOTAL
+              TOTAL TO SETTLE
             </Text>
             <Text testID="settlement-session-total"
               style={{

@@ -21,13 +21,13 @@ SnapScore is a scoring app for golf groups. Keep score for your round, run the s
 
 Score your round — Enter scores hole by hole as you play, or scan your scorecard and review the scores before they're saved.
 
-Choose from 50+ game modes — Choose from 50+ game modes, including Skins, Nassau, Wolf and Stableford. Set skins to Net or Gross for each round, with Net selected by default. Play skins across the whole field or within each group.
+Your games — Choose from 50+ game modes, including Skins, Nassau, Wolf and Stableford. Set skins to Net or Gross for each round, with Net selected by default. Play skins across the whole field or within each group.
 
-Run a tournament — Run a multi-day, multi-group tournament for a trip, a member-guest or an outing. Players score for free; the Tournament Director plan runs the event.
+Run a tournament — Run a multi-round, multi-group tournament for a trip, a member-guest or an outing. Players score for free; the Tournament Director plan runs the event.
 
 Settle up — SnapScore works out who owes what, game by game. It never touches the money; your group settles up among themselves.
 
-Got a paper card? — Scanning sends a photo of your card to a cloud service to read it. We ask first, and you review the scores before they're saved. No scorecard? Enter every score by hand instead.
+Got a paper card? — Scanning sends a photo of your card to a cloud service to read it. We ask first, and you review the scores before they're saved. No scorecard? Enter scores by hand instead.
 
 Privacy Policy: https://snapscore.autumn8.me/privacy
 Terms of Use: https://snapscore.autumn8.me/terms
@@ -38,7 +38,7 @@ Terms of Use: https://snapscore.autumn8.me/terms
 3. 50+ game modes / Skins, Nassau, Wolf, Stableford and more.
 4. Score hole by hole / Enter scores by hand, no camera needed.
 5. See who's leading / Gross, net and thru, at a glance.
-6. Your side games, tracked
+6. Your side games, tracked / Standings for each game, in one tab.
 7. See who owes what / SnapScore does the math. You settle up.
 8. Got a paper card? / Scan it, check it, done.
 
