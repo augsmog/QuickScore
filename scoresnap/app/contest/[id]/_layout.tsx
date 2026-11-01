@@ -157,11 +157,11 @@ export default function ContestLayout() {
           </AnimatedPressable>
         </View>
 
-        {contest.status !== "completed" && (
-          <Pressable
+        {/* Final rounds keep sharing, join code and sync reachable through the same sheet. */}
+        <Pressable
             testID="round-status-chip"
             accessibilityRole="button"
-            accessibilityLabel="Round status"
+            accessibilityLabel={contest.status === "completed" ? "Share and sync" : "Round status"}
             onPress={() => setStatusOpen(true)}
             style={{ minHeight: 44, borderRadius: RADII.full, backgroundColor: COLORS.surfaceLow,
               flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 8,
@@ -169,11 +169,12 @@ export default function ContestLayout() {
           >
             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary }} />
             <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
-              {onlineEnabled && remote ? "Current online snapshot" : "Saved on this phone"}
+              {contest.status === "completed"
+                ? "Share and sync"
+                : onlineEnabled && remote ? "Current online snapshot" : "Saved on this phone"}
             </Text>
             <ChevronRight size={14} color={COLORS.textDim} />
           </Pressable>
-        )}
 
         {/* Team Score Banner */}
         {contest.hasTeams && contest.teamAName && contest.teamBName && (
