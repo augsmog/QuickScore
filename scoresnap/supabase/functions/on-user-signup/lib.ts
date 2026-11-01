@@ -39,7 +39,7 @@ const intro = "Score your round, play side games, and see who owes what when it'
 const disclaimer = "SnapScore doesn't hold or move money. Your group settles up directly.";
 const bodyLine = "Now your group can sort out who owes what before you reach the parking lot.";
 // Referral codes remain held until AUG-275, regardless of reward configuration.
-const referralLine = "Share it with your group.";
+const referralLine = "Share SnapScore with your group.";
 const steps = [
   "Add your players and pick your games — choose from 50+ game modes, including Skins, Nassau and Wolf.",
   "Score your round, hole by hole or from a photo.",

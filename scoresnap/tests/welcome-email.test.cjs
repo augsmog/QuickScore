@@ -8,7 +8,8 @@ test('ledger email has exact copy, one game count per part, and no referral prom
     const welcome = lib.buildWelcomeEmail('sample@example.test', 'SECRET-CODE', settings);
     assert.equal(welcome.subject, "Welcome to SnapScore — let's set up your first round");
     for (const part of [welcome.html.replace(/<br>/g, ' '), welcome.text]) {
-      for (const copy of ['SnapScore', 'Welcome to SnapScore', "Score your round, play side games, and see who owes what when it's done.", "Now your group can sort out who owes what before you reach the parking lot.", 'Add your players and pick your games — choose from 50+ game modes, including Skins, Nassau and Wolf.', 'Score your round, hole by hole or from a photo.', 'Settle up.', 'Share it with your group.', 'Start a round', "SnapScore doesn't hold or move money. Your group settles up directly.", 'Autumn8me, Inc.', 'Questions? Just reply.', 'Unsubscribe']) assert.ok(part.includes(copy), copy);
+      for (const copy of ['SnapScore', 'Welcome to SnapScore', "Score your round, play side games, and see who owes what when it's done.", "Now your group can sort out who owes what before you reach the parking lot.", 'Add your players and pick your games — choose from 50+ game modes, including Skins, Nassau and Wolf.', 'Score your round, hole by hole or from a photo.', 'Settle up.', 'Share SnapScore with your group.', 'Start a round', "SnapScore doesn't hold or move money. Your group settles up directly.", 'Autumn8me, Inc.', 'Questions? Just reply.', 'Unsubscribe']) assert.ok(part.includes(copy), copy);
+      assert.ok(!part.includes('Share it with your group.'));
       assert.equal(part.split('50+ game modes').length - 1, 1);
       assert.doesNotMatch(part.replace('50+ game modes', ''), /\b\d+\+?\s+(?:game|mode)/i);
       assert.doesNotMatch(part, /Premium|free month|SECRET-CODE/i);
