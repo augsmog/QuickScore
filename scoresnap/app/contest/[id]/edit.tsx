@@ -150,7 +150,7 @@ export default function EditContestScreen() {
       betUnit,
     }); } catch(error){Alert.alert("Review contest changes",String(error));return;}
 
-    router.back();
+    router.canGoBack() ? router.back() : router.replace("/");
   };
 
   // Saved premium games remain readable; only adding a game requires Pro.
@@ -177,7 +177,7 @@ export default function EditContestScreen() {
           }}
         >
           <AnimatedPressable
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
             style={{
               padding: 6,
               borderRadius: RADII.sm,

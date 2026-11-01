@@ -226,7 +226,7 @@ export default function TournamentRoundsScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCurrentRound(id!, selectedRound);
     updateContest(id!, { currentRound: selectedRound });
-    router.back();
+    router.canGoBack() ? router.back() : router.replace("/");
   };
 
   return (
@@ -246,7 +246,7 @@ export default function TournamentRoundsScreen() {
         }}
       >
         <AnimatedPressable
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
           style={{
             padding: 6,
             borderRadius: RADII.sm,

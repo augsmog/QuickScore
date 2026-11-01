@@ -4,23 +4,19 @@ import { onlineEnabled } from "../../../src/services/cross-device";
 import { useOnlineStore } from "../../../src/stores/online-store";
 import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Slot, usePathname, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { ChevronLeft, ChevronRight, Camera, Edit3, Calendar, Flag } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
-import LeaderboardScreen from "./index";
-import ScorecardScreen from "./scorecard";
-import GamesScreen from "./games";
-import SettlementScreen from "./settlement";
 
 const TABS = [
-  { key: "scorecard", label: "Scorecard", Screen: ScorecardScreen },
-  { key: "leaderboard", label: "Leaderboard", Screen: LeaderboardScreen },
-  { key: "games", label: "Games", Screen: GamesScreen },
-  { key: "settlement", label: "Settle up", Screen: SettlementScreen },
+  { key: "scorecard", label: "Scorecard" },
+  { key: "leaderboard", label: "Leaderboard" },
+  { key: "games", label: "Games" },
+  { key: "settlement", label: "Settle up" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -34,7 +30,11 @@ export default function ContestLayout() {
   const remote = useOnlineStore((s) => s.events[id]);
   const [statusOpen, setStatusOpen] = useState(false);
   const closeStatus = useCallback(() => setStatusOpen(false), []);
-  const [activeTab, setActiveTab] = useState<TabKey>("scorecard");
+  const pathname = usePathname();
+  const child = pathname.split("/").filter(Boolean).slice(2).join("/");
+  const activeTab: TabKey = child === "" || child === "index" ? "leaderboard"
+    : child === "games" || child === "settlement" ? child : "scorecard";
+  const isTabRoute = ["", "index", "scorecard", "games", "settlement"].includes(child);
   // Live scoreboard keeps publishing while the round is open, sheet open or not.
   useLiveSharePublisher(contest);
 
@@ -42,9 +42,9 @@ export default function ContestLayout() {
     (tabKey: TabKey) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (tabKey === activeTab) return;
-      setActiveTab(tabKey);
+      router.replace(`/contest/${id}${tabKey === "leaderboard" ? "" : `/${tabKey}`}` as any);
     },
-    [activeTab]
+    [activeTab, id, router]
   );
 
   if (!contest) {
@@ -74,8 +74,9 @@ export default function ContestLayout() {
     );
   }
 
+  if (!isTabRoute) return <Slot />;
+
   const allPlayers = contest.groups.flatMap((g) => g.players);
-  const ActiveScreen = TABS.find((t) => t.key === activeTab)!.Screen;
 
   return (
     <SafeScreen testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
@@ -85,7 +86,7 @@ export default function ContestLayout() {
           <AnimatedPressable
             accessibilityRole="button"
             accessibilityLabel="Back"
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
             style={{
               borderRadius: RADII.sm,
               padding: 8,
@@ -259,8 +260,8 @@ export default function ContestLayout() {
         </View>
       </View>
 
-      {/* Active screen — rendered directly, no Slot/router */}
-      <ActiveScreen />
+      {/* Keep a nested navigator mounted on tab routes as well as other children. */}
+      <Slot />
       <RoundStatusSheet contest={contest} visible={statusOpen} onClose={closeStatus} />
     </SafeScreen>
   );
