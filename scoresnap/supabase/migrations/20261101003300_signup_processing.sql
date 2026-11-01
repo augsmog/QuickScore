@@ -5,6 +5,7 @@ create table public.signup_processing (
   referral_applied bool not null default false,
   email_status text not null default 'pending' check (email_status in ('pending','sent','failed')),
   email_id text,
+  email_reservation_token uuid,
   email_attempts int not null default 0,
   updated_at timestamptz
 );
@@ -33,30 +34,32 @@ language sql security definer set search_path = '' as $$
 $$;
 
 -- Reserve one attempt atomically. Pending reservations expire after five minutes.
+-- A still-running expired owner cannot mutate a replacement reservation.
 -- Stable Resend idempotency keys additionally protect uncertain network outcomes.
-create function public.claim_signup_email(p_user_id uuid) returns boolean
+create function public.claim_signup_email(p_user_id uuid, p_token uuid, p_provider_configured boolean) returns boolean
 language plpgsql security definer set search_path = '' as $$
 begin
   update public.signup_processing
-    set email_status = 'pending', email_attempts = email_attempts + 1, updated_at = now()
-    where user_id = p_user_id and email_status <> 'sent' and email_attempts < 3
+    set email_status = 'pending', email_reservation_token = p_token,
+      email_attempts = email_attempts + case when p_provider_configured then 1 else 0 end, updated_at = now()
+    where user_id = p_user_id and p_token is not null and email_status <> 'sent' and email_attempts < 3
       and exists (select 1 from public.profiles where id = p_user_id and referral_code is not null)
       and (updated_at is null or email_status = 'failed' or updated_at < now() - interval '5 minutes');
   return found;
 end;
 $$;
 
-create function public.confirm_signup_email(p_user_id uuid, p_email_id text) returns void
+create function public.confirm_signup_email(p_user_id uuid, p_token uuid, p_email_id text) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
   if p_email_id is null or btrim(p_email_id) = '' then raise exception 'Email confirmation required'; end if;
   update public.signup_processing set email_status = 'sent', email_id = p_email_id, updated_at = now()
-    where user_id = p_user_id;
-  if not found then raise exception 'Signup claim required'; end if;
+    where user_id = p_user_id and email_reservation_token = p_token and email_status = 'pending';
+  if not found then return; end if;
   update public.profiles set onboarding_email_sent = true, onboarding_email_sent_at = now()
     where id = p_user_id;
   if not found then raise exception 'Profile required'; end if;
 end;
 $$;
-revoke all on function public.apply_signup_referral(uuid,text), public.get_signup_webhook_secret(), public.claim_signup_email(uuid), public.confirm_signup_email(uuid,text) from public, anon, authenticated;
-grant execute on function public.apply_signup_referral(uuid,text), public.get_signup_webhook_secret(), public.claim_signup_email(uuid), public.confirm_signup_email(uuid,text) to service_role;
+revoke all on function public.apply_signup_referral(uuid,text), public.get_signup_webhook_secret(), public.claim_signup_email(uuid,uuid,boolean), public.confirm_signup_email(uuid,uuid,text) from public, anon, authenticated;
+grant execute on function public.apply_signup_referral(uuid,text), public.get_signup_webhook_secret(), public.claim_signup_email(uuid,uuid,boolean), public.confirm_signup_email(uuid,uuid,text) to service_role;

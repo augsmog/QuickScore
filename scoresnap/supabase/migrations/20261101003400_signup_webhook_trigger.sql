@@ -26,6 +26,7 @@ exception when others then
 end;
 $$;
 revoke all on function public.dispatch_signup_webhook() from public, anon, authenticated;
+grant execute on function public.dispatch_signup_webhook() to service_role;
 create trigger on_auth_user_signup_webhook after insert on auth.users
 for each row execute function public.dispatch_signup_webhook();
 -- Existing on_auth_user_created / public.handle_new_user stays in place.
