@@ -23,6 +23,11 @@ CREATE OR REPLACE FUNCTION auth.role() RETURNS text LANGUAGE sql AS $$ SELECT au
 GRANT USAGE ON SCHEMA auth TO anon,authenticated;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth TO anon,authenticated;
 -- SQL transaction/ACL emulation only: no socket delivery or JWT Auth service claim.
+-- Test-only vault emulation; no secrets or external provider.
+CREATE SCHEMA net;
+CREATE FUNCTION net.http_post(url text, headers jsonb, body jsonb) RETURNS bigint LANGUAGE sql AS $$ SELECT 1::bigint $$;
+CREATE SCHEMA vault;
+CREATE TABLE vault.decrypted_secrets(name text, decrypted_secret text);
 CREATE SCHEMA realtime;
 CREATE TABLE realtime.messages(payload jsonb,event text,topic text,private boolean,extension text DEFAULT 'broadcast');
 ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
@@ -43,6 +48,8 @@ done
 q -f "$here/../tests/m4b-upgrade-replay.sql" >> "$work/apply.log" 2>&1 || { cat "$work/apply.log"; exit 1; }
 echo 'PASS: seeded M3 accepted receipt replays after M4b with exactly one event'
 echo 'PASS: full baseline/foundation/M2b/M3/sync_api chain'
+q -f "$here/../tests/signup-webhook-native.sql" > "$work/signup-webhook.log" 2>&1 || { cat "$work/signup-webhook.log"; exit 1; }
+echo 'PASS: signup optional transport, payload and exception isolation'
 q -At -f "$here/catalog-query.sql" > "$work/m4b.json"
 python3 "$here/drift.py" ledger "$work/m4b.json" --mode pending
 python3 "$here/m4b-verify.py" catalog "$work/m4b.json" "${1:-compare}"
@@ -53,6 +60,7 @@ done
 python3 "$here/guest-guard-mutations.py" --url "$url" > "$work/mutations.log" 2>&1 || { cat "$work/mutations.log"; exit 1; }
 tail -1 "$work/mutations.log"
 python3 "$here/m4b-verify.py" races "$url"
+q -f "$here/signup-disposable-down.sql" > "$work/signup-down.log" 2>&1 || { cat "$work/signup-down.log"; exit 1; }
 q -f "$here/../rollback/20261031180000_chat_report_block.down.sql" > "$work/chat-down.log" 2>&1 || { cat "$work/chat-down.log"; exit 1; }
 q -At -f "$here/catalog-query.sql" > "$work/pre-chat.json"
 python3 "$here/m4b-verify.py" catalog "$work/pre-chat.json" compare-syncapi

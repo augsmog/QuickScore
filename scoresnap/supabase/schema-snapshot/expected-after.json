@@ -972,6 +972,25 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "claimed_at",
+      "collation": null,
+      "compression": "",
+      "default": "now()",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "signup_processing",
+      "type": "timestamp with time zone",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "click_through_rate",
       "collation": null,
       "compression": "",
@@ -2925,6 +2944,82 @@
       "statistics_target": null,
       "storage": "x",
       "table": "profiles",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "email_attempts",
+      "collation": null,
+      "compression": "",
+      "default": "0",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "signup_processing",
+      "type": "integer",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "email_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "signup_processing",
+      "type": "text",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "email_reservation_token",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "signup_processing",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "email_status",
+      "collation": null,
+      "compression": "",
+      "default": "'pending'::text",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "x",
+      "table": "signup_processing",
       "type": "text",
       "type_schema": "pg_catalog"
     },
@@ -6501,6 +6596,25 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "referral_applied",
+      "collation": null,
+      "compression": "",
+      "default": "false",
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "signup_processing",
+      "type": "boolean",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "referral_code",
       "collation": null,
       "compression": "",
@@ -8686,6 +8800,25 @@
       "type_schema": "pg_catalog"
     },
     {
+      "col": "updated_at",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "signup_processing",
+      "type": "timestamp with time zone",
+      "type_schema": "pg_catalog"
+    },
+    {
       "col": "user_email",
       "collation": null,
       "compression": "",
@@ -8886,6 +9019,25 @@
       "identity": "",
       "inheritance_count": 0,
       "local": true,
+      "notnull": false,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "signup_processing_pkey",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "user_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
       "notnull": true,
       "options": null,
       "statistics_target": null,
@@ -8910,6 +9062,25 @@
       "statistics_target": null,
       "storage": "p",
       "table": "round_scorer_scopes",
+      "type": "uuid",
+      "type_schema": "pg_catalog"
+    },
+    {
+      "col": "user_id",
+      "collation": null,
+      "compression": "",
+      "default": null,
+      "dimensions": 0,
+      "fdw_options": null,
+      "generated": "",
+      "identity": "",
+      "inheritance_count": 0,
+      "local": true,
+      "notnull": true,
+      "options": null,
+      "statistics_target": null,
+      "storage": "p",
+      "table": "signup_processing",
       "type": "uuid",
       "type_schema": "pg_catalog"
     },
@@ -9301,6 +9472,15 @@
       "nullable": "YES",
       "pos": 8,
       "table": "profiles",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "col": "claimed_at",
+      "default": "now()",
+      "nullable": "YES",
+      "pos": 2,
+      "table": "signup_processing",
       "type": "timestamp with time zone",
       "udt": "timestamptz"
     },
@@ -9922,6 +10102,42 @@
       "nullable": "YES",
       "pos": 2,
       "table": "profiles",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "email_attempts",
+      "default": "0",
+      "nullable": "NO",
+      "pos": 7,
+      "table": "signup_processing",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "col": "email_id",
+      "default": null,
+      "nullable": "YES",
+      "pos": 5,
+      "table": "signup_processing",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "col": "email_reservation_token",
+      "default": null,
+      "nullable": "YES",
+      "pos": 6,
+      "table": "signup_processing",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "col": "email_status",
+      "default": "'pending'::text",
+      "nullable": "NO",
+      "pos": 4,
+      "table": "signup_processing",
       "type": "text",
       "udt": "text"
     },
@@ -11132,6 +11348,15 @@
       "udt": "text"
     },
     {
+      "col": "referral_applied",
+      "default": "false",
+      "nullable": "NO",
+      "pos": 3,
+      "table": "signup_processing",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
       "col": "referral_code",
       "default": null,
       "nullable": "YES",
@@ -11987,6 +12212,15 @@
       "udt": "timestamptz"
     },
     {
+      "col": "updated_at",
+      "default": null,
+      "nullable": "YES",
+      "pos": 8,
+      "table": "signup_processing",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
       "col": "user_email",
       "default": null,
       "nullable": "YES",
@@ -11994,6 +12228,15 @@
       "table": "feedback",
       "type": "text",
       "udt": "text"
+    },
+    {
+      "col": "user_id",
+      "default": null,
+      "nullable": "NO",
+      "pos": 1,
+      "table": "signup_processing",
+      "type": "uuid",
+      "udt": "uuid"
     },
     {
       "col": "user_id",
@@ -12288,6 +12531,19 @@
       "noinherit": false,
       "parent": null,
       "table": "score_events",
+      "validated": true
+    },
+    {
+      "def": "CHECK ((email_status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text])))",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "signup_processing_email_status_check",
+      "noinherit": false,
+      "parent": null,
+      "table": "signup_processing",
       "validated": true
     },
     {
@@ -12941,6 +13197,19 @@
       "validated": true
     },
     {
+      "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "signup_processing_user_id_fkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "signup_processing",
+      "validated": true
+    },
+    {
       "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)",
       "deferrable": false,
       "deferred": false,
@@ -13432,6 +13701,19 @@
       "noinherit": true,
       "parent": null,
       "table": "share_links",
+      "validated": true
+    },
+    {
+      "def": "PRIMARY KEY (user_id)",
+      "deferrable": false,
+      "deferred": false,
+      "domain": null,
+      "inheritance_count": 0,
+      "local": true,
+      "name": "signup_processing_pkey",
+      "noinherit": true,
+      "parent": null,
+      "table": "signup_processing",
       "validated": true
     },
     {
@@ -14669,6 +14951,56 @@
       "argument_defaults": null,
       "argument_defaults_count": 0,
       "config": [
+        "search_path=\"\""
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.dispatch_signup_webhook() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS $function$\ndeclare\n  webhook_secret text;\n  service_jwt text;\n  project_url text;\nbegin\n  if not exists (select 1 from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace where n.nspname = 'net' and p.proname = 'http_post') then\n    return new;\n  end if;\n  project_url := nullif(current_setting('app.settings.supabase_url', true), '');\n  select decrypted_secret into webhook_secret from vault.decrypted_secrets where name = 'signup_webhook_secret' limit 1;\n  select decrypted_secret into service_jwt from vault.decrypted_secrets where name = 'signup_webhook_service_jwt' limit 1;\n  if project_url is null or coalesce(btrim(webhook_secret), '') = '' or coalesce(btrim(service_jwt), '') = '' then\n    return new;\n  end if;\n  perform net.http_post(\n    url := rtrim(project_url, '/') || '/functions/v1/on-user-signup',\n    headers := jsonb_build_object('Content-Type', 'application/json', 'x-webhook-secret', webhook_secret, 'Authorization', 'Bearer ' || service_jwt),\n    body := jsonb_build_object('type', 'INSERT', 'table', 'users', 'schema', 'auth', 'record', jsonb_build_object(\n      'id', new.id, 'email', new.email, 'user_metadata', new.raw_user_meta_data, 'app_metadata', new.raw_app_meta_data))\n  );\n  return new;\nexception when query_canceled or assert_failure or others then\n  -- Never propagate webhook/vault/configuration failures into auth signup.\n  return new;\nend;\n$function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "dispatch_signup_webhook",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "trigger",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.get_signup_webhook_secret() RETURNS text LANGUAGE sql SECURITY DEFINER SET search_path TO '' AS $function$\n  select decrypted_secret from vault.decrypted_secrets\n  where name = 'signup_webhook_secret' limit 1;\n$function$",
+      "kind": "f",
+      "language": "sql",
+      "leakproof": false,
+      "name": "get_signup_webhook_secret",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "text",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
         "search_path=pg_catalog"
       ],
       "cost": 100,
@@ -15155,6 +15487,81 @@
       "owner": "postgres",
       "parallel": "u",
       "return_type": "void",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_user_id uuid, p_code text",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.apply_signup_referral(p_user_id uuid, p_code text) RETURNS TABLE(referrer_id uuid, new_count integer) LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS $function$\nbegin\n  update public.signup_processing set referral_applied = true\n    where user_id = p_user_id and referral_applied = false;\n  if not found then return; end if;\n  return query update public.profiles as p\n    set referral_count = coalesce(p.referral_count, 0) + 1\n    where p.referral_code = p_code and p.id <> p_user_id\n    returning p.id, p.referral_count;\nend;\n$function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "apply_signup_referral",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "record",
+      "returns_set": true,
+      "rows": 1000,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_user_id uuid, p_token uuid, p_email_id text",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.confirm_signup_email(p_user_id uuid, p_token uuid, p_email_id text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS $function$\nbegin\n  if p_email_id is null or btrim(p_email_id) = '' then raise exception 'Email confirmation required'; end if;\n  update public.signup_processing set email_status = 'sent', email_id = p_email_id, updated_at = now()\n    where user_id = p_user_id and email_reservation_token = p_token and email_status = 'pending';\n  if not found then return; end if;\n  update public.profiles set onboarding_email_sent = true, onboarding_email_sent_at = now()\n    where id = p_user_id;\n  if not found then raise exception 'Profile required'; end if;\nend;\n$function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "confirm_signup_email",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "void",
+      "returns_set": false,
+      "rows": 0,
+      "secdef": true,
+      "strict": false,
+      "support": "-",
+      "transforms": null,
+      "volatility": "v"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "args": "p_user_id uuid, p_token uuid, p_provider_configured boolean",
+      "argument_defaults": null,
+      "argument_defaults_count": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "cost": 100,
+      "def": "CREATE OR REPLACE FUNCTION public.claim_signup_email(p_user_id uuid, p_token uuid, p_provider_configured boolean) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS $function$\nbegin\n  update public.signup_processing\n    set email_status = 'pending', email_reservation_token = p_token,\n      email_attempts = email_attempts + case when p_provider_configured then 1 else 0 end, updated_at = now()\n    where user_id = p_user_id and p_token is not null and email_status <> 'sent' and email_attempts < 3\n      and exists (select 1 from public.profiles where id = p_user_id and referral_code is not null)\n      and (updated_at is null or email_status = 'failed' or updated_at < now() - interval '5 minutes');\n  return found;\nend;\n$function$",
+      "kind": "f",
+      "language": "plpgsql",
+      "leakproof": false,
+      "name": "claim_signup_email",
+      "owner": "postgres",
+      "parallel": "u",
+      "return_type": "boolean",
       "returns_set": false,
       "rows": 0,
       "secdef": true,
@@ -15973,6 +16380,11 @@
     {
       "grantee": "postgres",
       "priv": "DELETE",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "DELETE",
       "table": "sync_id_map"
     },
     {
@@ -16163,6 +16575,11 @@
     {
       "grantee": "postgres",
       "priv": "INSERT",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "INSERT",
       "table": "sync_id_map"
     },
     {
@@ -16353,6 +16770,11 @@
     {
       "grantee": "postgres",
       "priv": "REFERENCES",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "REFERENCES",
       "table": "sync_id_map"
     },
     {
@@ -16543,6 +16965,11 @@
     {
       "grantee": "postgres",
       "priv": "SELECT",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "SELECT",
       "table": "sync_id_map"
     },
     {
@@ -16733,6 +17160,11 @@
     {
       "grantee": "postgres",
       "priv": "TRIGGER",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRIGGER",
       "table": "sync_id_map"
     },
     {
@@ -16923,6 +17355,11 @@
     {
       "grantee": "postgres",
       "priv": "TRUNCATE",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "TRUNCATE",
       "table": "sync_id_map"
     },
     {
@@ -17113,6 +17550,11 @@
     {
       "grantee": "postgres",
       "priv": "UPDATE",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "UPDATE",
       "table": "sync_id_map"
     },
     {
@@ -17303,6 +17745,11 @@
     {
       "grantee": "service_role",
       "priv": "DELETE",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "DELETE",
       "table": "sync_id_map"
     },
     {
@@ -17493,6 +17940,11 @@
     {
       "grantee": "service_role",
       "priv": "INSERT",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "INSERT",
       "table": "sync_id_map"
     },
     {
@@ -17683,6 +18135,11 @@
     {
       "grantee": "service_role",
       "priv": "REFERENCES",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "REFERENCES",
       "table": "sync_id_map"
     },
     {
@@ -17873,6 +18330,11 @@
     {
       "grantee": "service_role",
       "priv": "SELECT",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "SELECT",
       "table": "sync_id_map"
     },
     {
@@ -18063,6 +18525,11 @@
     {
       "grantee": "service_role",
       "priv": "TRIGGER",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRIGGER",
       "table": "sync_id_map"
     },
     {
@@ -18253,6 +18720,11 @@
     {
       "grantee": "service_role",
       "priv": "TRUNCATE",
+      "table": "signup_processing"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "TRUNCATE",
       "table": "sync_id_map"
     },
     {
@@ -18439,6 +18911,11 @@
       "grantee": "service_role",
       "priv": "UPDATE",
       "table": "share_links"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "UPDATE",
+      "table": "signup_processing"
     },
     {
       "grantee": "service_role",
@@ -19384,6 +19861,17 @@
       "exclusion": false,
       "immediate": true,
       "live": true,
+      "name": "signup_processing_pkey",
+      "nulls_not_distinct": false,
+      "ready": true,
+      "replica_identity": false,
+      "valid": true
+    },
+    {
+      "clustered": false,
+      "exclusion": false,
+      "immediate": true,
+      "live": true,
       "name": "sync_id_map_pkey",
       "nulls_not_distinct": false,
       "ready": true,
@@ -19819,6 +20307,11 @@
       "table": "share_links"
     },
     {
+      "def": "CREATE UNIQUE INDEX signup_processing_pkey ON public.signup_processing USING btree (user_id)",
+      "name": "signup_processing_pkey",
+      "table": "signup_processing"
+    },
+    {
       "def": "CREATE UNIQUE INDEX sync_id_map_pkey ON public.sync_id_map USING btree (contest_id, kind, local_id)",
       "name": "sync_id_map_pkey",
       "table": "sync_id_map"
@@ -20045,6 +20538,12 @@
       "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "kind": "r",
       "name": "share_links",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "kind": "r",
+      "name": "signup_processing",
       "owner": "postgres"
     },
     {
@@ -22031,6 +22530,22 @@
       "acl": null,
       "check_count": 0,
       "kind": "i",
+      "name": "signup_processing_pkey",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "n",
+      "tablespace": null
+    },
+    {
+      "access_method": "btree",
+      "acl": null,
+      "check_count": 0,
+      "kind": "i",
       "name": "sync_id_map_pkey",
       "of_type": null,
       "owner": "postgres",
@@ -22447,6 +22962,22 @@
       "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
       "check_count": 1,
       "kind": "r",
+      "name": "signup_processing",
+      "of_type": null,
+      "owner": "postgres",
+      "partition": false,
+      "partition_bound": null,
+      "partition_key": null,
+      "persistence": "p",
+      "populated": true,
+      "replica_identity": "d",
+      "tablespace": null
+    },
+    {
+      "access_method": "heap",
+      "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "check_count": 1,
+      "kind": "r",
       "name": "sync_join_budgets",
       "of_type": null,
       "owner": "postgres",
@@ -22812,6 +23343,11 @@
       "table": "share_links"
     },
     {
+      "force": false,
+      "rls": true,
+      "table": "signup_processing"
+    },
+    {
       "force": true,
       "rls": true,
       "table": "contest_groups"
@@ -23171,6 +23707,11 @@
     {
       "grantee": "postgres",
       "priv": "EXECUTE",
+      "routine": "apply_signup_referral"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
       "routine": "calculate_retention"
     },
     {
@@ -23191,12 +23732,27 @@
     {
       "grantee": "postgres",
       "priv": "EXECUTE",
+      "routine": "claim_signup_email"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "confirm_signup_email"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
       "routine": "create_share_link"
     },
     {
       "grantee": "postgres",
       "priv": "EXECUTE",
       "routine": "decide_join_request"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "dispatch_signup_webhook"
     },
     {
       "grantee": "postgres",
@@ -23232,6 +23788,11 @@
       "grantee": "postgres",
       "priv": "EXECUTE",
       "routine": "get_shared_round"
+    },
+    {
+      "grantee": "postgres",
+      "priv": "EXECUTE",
+      "routine": "get_signup_webhook_secret"
     },
     {
       "grantee": "postgres",
@@ -23466,6 +24027,11 @@
     {
       "grantee": "service_role",
       "priv": "EXECUTE",
+      "routine": "apply_signup_referral"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
       "routine": "calculate_retention"
     },
     {
@@ -23486,12 +24052,27 @@
     {
       "grantee": "service_role",
       "priv": "EXECUTE",
+      "routine": "claim_signup_email"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "confirm_signup_email"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
       "routine": "create_share_link"
     },
     {
       "grantee": "service_role",
       "priv": "EXECUTE",
       "routine": "decide_join_request"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "dispatch_signup_webhook"
     },
     {
       "grantee": "service_role",
@@ -23527,6 +24108,11 @@
       "grantee": "service_role",
       "priv": "EXECUTE",
       "routine": "get_shared_round"
+    },
+    {
+      "grantee": "service_role",
+      "priv": "EXECUTE",
+      "routine": "get_signup_webhook_secret"
     },
     {
       "grantee": "service_role",
@@ -24339,6 +24925,14 @@
       "table": "share_links"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.signup_processing FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "signup_processing_user_id_fkey:\"RI_FKey_check_ins\":5",
+      "schema": "public",
+      "table": "signup_processing"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER INSERT ON public.sync_id_map FROM contests NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_ins\"()",
       "enabled": "O",
       "internal": true,
@@ -24851,6 +25445,14 @@
       "table": "share_links"
     },
     {
+      "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.signup_processing FROM auth.users NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
+      "enabled": "O",
+      "internal": true,
+      "name": "signup_processing_user_id_fkey:\"RI_FKey_check_upd\":17",
+      "schema": "public",
+      "table": "signup_processing"
+    },
+    {
       "def": "CREATE CONSTRAINT TRIGGER internal_constraint_trigger AFTER UPDATE ON public.sync_id_map FROM contests NOT DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION \"RI_FKey_check_upd\"()",
       "enabled": "O",
       "internal": true,
@@ -24911,6 +25513,14 @@
       "enabled": "O",
       "internal": false,
       "name": "on_auth_user_created",
+      "schema": "auth",
+      "table": "users"
+    },
+    {
+      "def": "CREATE TRIGGER on_auth_user_signup_webhook AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION dispatch_signup_webhook()",
+      "enabled": "O",
+      "internal": false,
+      "name": "on_auth_user_signup_webhook",
       "schema": "auth",
       "table": "users"
     }
@@ -25913,6 +26523,34 @@
       "kind": "c",
       "length": -1,
       "name": "share_links",
+      "notnull": false,
+      "output": "record_out",
+      "owner": "postgres",
+      "preferred": false,
+      "receive": "record_recv",
+      "send": "record_send",
+      "storage": "x",
+      "subscript": "-",
+      "typmodin": "-",
+      "typmodout": "-"
+    },
+    {
+      "acl": null,
+      "alignment": "d",
+      "analyze": "-",
+      "base": "-",
+      "byval": false,
+      "category": "C",
+      "collation": "-",
+      "default": null,
+      "defined": true,
+      "delimiter": ",",
+      "dimensions": 0,
+      "element": "-",
+      "input": "record_in",
+      "kind": "c",
+      "length": -1,
+      "name": "signup_processing",
       "notnull": false,
       "output": "record_out",
       "owner": "postgres",

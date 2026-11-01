@@ -130,7 +130,7 @@ jobs:
             exit 1
           fi
           supabase db reset
-          test "$(docker exec supabase_db_snapscore psql -U postgres -d postgres -Atc 'select count(*) from supabase_migrations.schema_migrations')" = 14
+          test "$(docker exec supabase_db_snapscore psql -U postgres -d postgres -Atc 'select count(*) from supabase_migrations.schema_migrations')" = "$(find supabase/migrations -maxdepth 1 -name '*.sql' -type f | wc -l | tr -d ' ')"
       - name: Exercise owner discovery proposal on disposable stack only (requires live approval)
         working-directory: scoresnap
         run: |
