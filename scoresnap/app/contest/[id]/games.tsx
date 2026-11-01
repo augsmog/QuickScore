@@ -1,12 +1,12 @@
 import { executionGameConfig } from "../../../src/engine/types";
 import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actual-inputs";
 import { scopedAuxiliary, calculateContestSettlement, teamCardPlayers, contestStableford, contestMatchPlay, contestPrimaryRounds } from "../../../src/engine/contest-results";
-import { Link } from "expo-router";
-import { View, Text, ScrollView } from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import { COLORS, FONTS, RADII, TYPOGRAPHY, scoreColor } from "../../../src/ui/theme";
+import { Flag, Plus } from "lucide-react-native";
+import { View, Text, ScrollView, Pressable } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { COLORS, FONTS, RADII, TYPOGRAPHY } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
-import { ALL_GAMES, GameType } from "../../../src/engine/types";
+import { ALL_GAMES } from "../../../src/engine/types";
 import { calcScopedSkins, skinsLabel } from "../../../src/engine/calculators/skins";
 import { calcNassau, calcNassauRules } from "../../../src/engine/calculators/nassau";
 import { calcStableford } from "../../../src/engine/calculators/stableford";
@@ -26,6 +26,15 @@ import { calcSixes } from "../../../src/engine/calculators/sixes";
 import { calcCloseout } from "../../../src/engine/calculators/closeout";
 import { calcDots } from "../../../src/engine/calculators/dots";
 
+/** Presentation only: retain the original values and show a typographic minus. */
+function formatNumber(value: number, signed = false): string {
+  return `${value < 0 ? "−" : signed && value > 0 ? "+" : ""}${Math.abs(value)}`;
+}
+
+function formatMoney(value: number): string {
+  return `${value < 0 ? "−" : value > 0 ? "+" : ""}$${Math.abs(value)}`;
+}
+
 /** Reusable player-ranking list for games that return { totals: Record<string, number> } */
 function RankList({
   totals,
@@ -41,7 +50,7 @@ function RankList({
   const sorted = Object.entries(totals).sort(([, a], [, b]) => b - a);
   return (
     <View>
-      {sorted.map(([name, value], i) => (
+      {sorted.map(([name, value]) => (
         <View
           key={name}
           style={{
@@ -58,17 +67,13 @@ function RankList({
               style={{
                 fontSize: 11,
                 fontFamily: FONTS.bold,
-                width: 18,
+                minWidth: 24,
                 textAlign: "center",
-                color:
-                  i === 0
-                    ? COLORS.gold
-                    : i === 1
-                    ? COLORS.silver
-                    : COLORS.textDim,
+                color: COLORS.textDim,
               }}
             >
-              {i + 1}
+              {sorted.filter(([, score]) => score === value).length > 1 ? "T" : ""}
+              {sorted.findIndex(([, score]) => score === value) + 1}
             </Text>
             <Text
               style={{
@@ -92,9 +97,8 @@ function RankList({
                   : COLORS.textDim,
             }}
           >
-            {value > 0 ? "+" : ""}
-            {value} {unit || label}
-            {betUnit > 0 && value !== 0 ? ` · $${Math.abs(value * betUnit)}` : ""}
+            {formatNumber(value, true)} {unit || label}
+            {betUnit > 0 && value !== 0 ? ` · ${formatMoney(value * betUnit)}` : ""}
           </Text>
         </View>
       ))}
@@ -104,6 +108,7 @@ function RankList({
 
 export default function GamesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const savedContest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
@@ -125,7 +130,7 @@ export default function GamesScreen() {
           paddingHorizontal: 32,
         }}
       >
-        <Text style={{ fontSize: 48, marginBottom: 16 }}>🎮</Text>
+        <Flag size={40} color={COLORS.textDim} style={{ marginBottom: 16 }} />
         <Text
           style={{
             color: COLORS.textDim,
@@ -143,14 +148,20 @@ export default function GamesScreen() {
   return (
     <ScrollView
       style={{ flex: 1, paddingHorizontal: 20, paddingTop: 12 }}
+      contentContainerStyle={{ paddingBottom: 32 }}
       showsVerticalScrollIndicator={false}
     >
-      <Link href={`/contest/${id}/edit`} style={{color: COLORS.primary, padding: 16}}>Add games</Link>
       {contestPrimaryRounds(contest).flatMap(({key:roundKey,roundName,contest}) => {
         const allPlayers = contest.groups.flatMap((g) => g.players);
         return contest.games.map((gameId) => {
         const game = ALL_GAMES.find((g) => g.id === gameId);
         if (!game) return null;
+        const holesPlayed = new Set(
+          allPlayers.flatMap(player => player.scores.flatMap((score, hole) => score > 0 ? [hole] : []))
+        ).size;
+        const status = contest.status === "completed"
+          ? "Final"
+          : holesPlayed > 0 ? `In progress · thru ${holesPlayed}` : "Not started";
 
         return (
           <View
@@ -178,8 +189,8 @@ export default function GamesScreen() {
                 <Text
                   style={{
                     color: COLORS.text,
-                    fontFamily: FONTS.bold,
-                    fontSize: 16,
+                    fontFamily: FONTS.headline,
+                    fontSize: 18,
                   }}
                 >
                   {gameId === "skins" || gameId === "skins_carry" ? skinsLabel(contest.gameConfig) + (gameId === "skins_carry" ? " (Carryover)" : "") : game.name}
@@ -194,7 +205,18 @@ export default function GamesScreen() {
                   ${contest.betUnit} per unit
                 </Text>
               </View>
+              <View
+                testID={`games-status-${gameId}`}
+                style={{ flexShrink: 0, minHeight: 24, borderRadius: RADII.full, backgroundColor: COLORS.surfaceLow, paddingHorizontal: 10, paddingVertical: 4, justifyContent: "center" }}
+              >
+                <Text style={{ fontSize: 12, fontFamily: FONTS.medium, color: COLORS.textDim }}>{status}</Text>
+              </View>
             </View>
+            {!!game.rules.trim() && (
+              <Text style={{ fontSize: 14, fontFamily: FONTS.regular, color: COLORS.textDim, marginBottom: 12 }}>
+                {game.rules.replace(/-(?=\d)/g, "−")}
+              </Text>
+            )}
 
             {/* ── Skins ── */}
             {(gameId === "skins" || gameId === "skins_carry") &&
@@ -231,7 +253,7 @@ export default function GamesScreen() {
                               color: count > 0 ? COLORS.primary : COLORS.textDim,
                             }}
                           >
-                            {count} skin{count !== 1 ? "s" : ""} · ${count * contest.betUnit}
+                            {formatNumber(count)} skin{count !== 1 ? "s" : ""} · {formatMoney(count * contest.betUnit)}
                           </Text>
                         </View>
                       ))}
@@ -258,7 +280,7 @@ export default function GamesScreen() {
                                 color: s.winner !== "Push" ? COLORS.primary : COLORS.textDim,
                               }}
                             >
-                              #{s.hole}: {s.winner} ({s.value})
+                              #{s.hole}: {s.winner} ({formatNumber(s.value)})
                             </Text>
                           </View>
                         ))}
@@ -279,7 +301,7 @@ export default function GamesScreen() {
                         {group.name}: {result.p1} vs {result.p2}
                       </Text>
                     )}
-                    {"bets" in result && (result as ReturnType<typeof calcNassauRules>).bets.map(b => <Text key={b.id} style={{color:COLORS.textDim}}>{b.id}: holes {b.start}–{b.end}, {b.stake} units · {b.complete ? b.status === 0 ? "Push" : b.status > 0 ? result.p1 : result.p2 : "Pending"}</Text>)}
+                    {"bets" in result && (result as ReturnType<typeof calcNassauRules>).bets.map(b => <Text key={b.id} style={{color:COLORS.textDim}}>{b.id}: holes {b.start}–{b.end}, {formatNumber(b.stake)} units · {b.complete ? b.status === 0 ? "Push" : b.status > 0 ? result.p1 : result.p2 : "Pending"}</Text>)}
                     <View style={{ flexDirection: "row", gap: 8 }}>
                       {(
                         [
@@ -365,7 +387,7 @@ export default function GamesScreen() {
                         color: i === 0 ? COLORS.primary : COLORS.textDim,
                       }}
                     >
-                      {r.points} pts
+                      {formatNumber(r.points)} pts
                     </Text>
                   </View>
                 ))}
@@ -410,8 +432,7 @@ export default function GamesScreen() {
                         color: i === 0 ? COLORS.primary : COLORS.textDim,
                       }}
                     >
-                      {r.total} ({r.toPar > 0 ? "+" : ""}
-                      {r.toPar})
+                      {formatNumber(r.total)} · {r.toPar === 0 ? "E" : formatNumber(r.toPar, true)}
                     </Text>
                   </View>
                 ))}
@@ -469,8 +490,7 @@ export default function GamesScreen() {
                           color: bestTotal - coursePar < 0 ? COLORS.primary : COLORS.warn,
                         }}
                       >
-                        {bestTotal} ({bestTotal - coursePar > 0 ? "+" : ""}
-                        {bestTotal - coursePar})
+                        {formatNumber(bestTotal)} ({formatNumber(bestTotal - coursePar, true)})
                       </Text>
                     </View>
                   );
@@ -515,7 +535,6 @@ export default function GamesScreen() {
                     )}
                     {result.snakeHolder ? (
                       <View style={{ alignItems: "center", paddingVertical: 8 }}>
-                        <Text style={{ fontSize: 32, marginBottom: 4 }}>🐍</Text>
                         <Text
                           style={{
                             fontSize: 16,
@@ -573,13 +592,13 @@ export default function GamesScreen() {
                       <View style={{ flex: 1, borderRadius: RADII.md, padding: 12, alignItems: "center", backgroundColor: COLORS.bg }}>
                         <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.textDim, marginBottom: 4 }}>Team 1</Text>
                         <Text style={{ fontSize: 22, fontFamily: FONTS.score, fontVariant: ['tabular-nums'], color: result.team1Won > result.team2Won ? COLORS.primary : COLORS.textDim }}>
-                          {result.team1Won}
+                          {formatNumber(result.team1Won)}
                         </Text>
                       </View>
                       <View style={{ flex: 1, borderRadius: RADII.md, padding: 12, alignItems: "center", backgroundColor: COLORS.bg }}>
                         <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.textDim, marginBottom: 4 }}>Team 2</Text>
                         <Text style={{ fontSize: 22, fontFamily: FONTS.score, fontVariant: ['tabular-nums'], color: result.team2Won > result.team1Won ? COLORS.primary : COLORS.textDim }}>
-                          {result.team2Won}
+                          {formatNumber(result.team2Won)}
                         </Text>
                       </View>
                     </View>
@@ -625,7 +644,7 @@ export default function GamesScreen() {
                         color: r.overUnder > 0 ? COLORS.primary : r.overUnder < 0 ? COLORS.error : COLORS.textDim,
                       }}
                     >
-                      {r.overUnder > 0 ? "+" : ""}{r.overUnder} ({r.points}/{r.quota} quota)
+                      {formatNumber(r.overUnder, true)} ({formatNumber(r.points)}/{formatNumber(r.quota)} quota)
                     </Text>
                   </View>
                 ))}
@@ -670,7 +689,7 @@ export default function GamesScreen() {
                         color: r.netScore > 0 ? COLORS.primary : r.netScore < 0 ? COLORS.error : COLORS.textDim,
                       }}
                     >
-                      {r.netScore > 0 ? "+" : ""}{r.netScore} ({r.grossPoints}/{r.quota} quota)
+                      {formatNumber(r.netScore, true)} ({formatNumber(r.grossPoints)}/{formatNumber(r.quota)} quota)
                     </Text>
                   </View>
                 ))}
@@ -809,7 +828,19 @@ export default function GamesScreen() {
         const settled = calculateContestSettlement(contest,[gameId],1);
         return <View key={`combined/${gameId}`} style={{padding:16}}><Text style={{color:COLORS.textDim}}>{ALL_GAMES.find(g=>g.id===gameId)?.name}: {settled.pending ? "All-round settlement pending" : "All-round settlement units"}</Text><RankList totals={settled.netByPlayer} betUnit={contest.betUnit}/></View>;
       })}
-      <View style={{ height: 16 }} />
+      <Pressable
+        testID="games-add-game"
+        accessibilityRole="button"
+        accessibilityLabel="Add a game"
+        onPress={() => router.push(`/contest/${id}/edit`)}
+        style={{ minHeight: 52, alignSelf: "stretch", borderRadius: RADII.md, backgroundColor: COLORS.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12 }}
+      >
+        <Plus size={20} color={COLORS.onPrimary} />
+        <Text style={{ fontFamily: FONTS.bold, fontSize: 15, color: COLORS.onPrimary }}>Add a game</Text>
+      </Pressable>
+      <Text style={{ fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textDim, textAlign: "center", marginTop: 12 }}>
+        Choose from 50+ game modes.
+      </Text>
     </ScrollView>
   );
 }
