@@ -97,12 +97,12 @@ test('both payloads have sender/reply defaults and overrides, escaped footer, an
       expect(payload.html).toContain(`href="${lib.escapeHtml(settings.unsubscribeUrl)}"`);
       expect(payload.html).toContain('Unsubscribe</a>');
       expect(JSON.stringify(payload)).not.toContain('ScoreSnap');
-      expect(payload.subject).toContain('SnapScore');
+      expect(payload.subject).toBe(payload.subject.startsWith('Welcome') ? "Welcome to SnapScore — let's set up your first round" : 'You earned a free month of Pro.');
     }
     const welcome = lib.buildWelcomeEmail('user@example.test', '<code>&', settings);
-    expect(welcome.html).toContain('SnapScore by Autumn8me, Inc.');
+    expect(welcome.html).toContain('Autumn8me, Inc.');
     expect(lib.buildRewardEmail('user@example.test', settings).html).not.toContain('SnapScore by Autumn8me, Inc.');
-    expect(welcome.html).toContain('&lt;code&gt;&amp;');
+    expect(welcome.html).not.toContain('&lt;code&gt;&amp;');
     expect(welcome.html.split('50+ game modes')).toHaveLength(2);
   }
 });

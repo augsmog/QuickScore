@@ -37,10 +37,13 @@ const serif = "'Marcellus', Georgia, serif";
 const sans = "'Source Sans 3', Helvetica, Arial, sans-serif";
 const intro = "Score your round, play side games, and see who owes what when it's done.";
 const disclaimer = "SnapScore doesn't hold or move money. Your group settles up directly.";
+const bodyLine = "Now your group can sort out who owes what before you reach the parking lot.";
+// Referral codes remain held until AUG-275, regardless of reward configuration.
+const referralLine = "Share it with your group.";
 const steps = [
-  ["Scan your scorecard.", "Take a photo and we'll turn it into a scorecard."],
-  ["Pick your games.", "From 50+ game modes."],
-  ["Settle up with your group.", "See who owes what when the round ends."],
+  "Add your players and pick your games — choose from 50+ game modes, including Skins, Nassau and Wolf.",
+  "Score your round, hole by hole or from a photo.",
+  "Settle up.",
 ];
 function footer(url: string): string {
   return `<tr><td style="border-top:1px solid #E3D9C6;padding:20px 0 0;text-align:center;color:#5E6257;font-size:14px;line-height:24px;">Autumn8me, Inc.<br><a href="${escapeHtml(url)}" style="color:#5E6257;">Unsubscribe</a> | Questions? Just reply.</td></tr>`;
@@ -56,15 +59,15 @@ function commonPayload(email: string, settings: Settings) {
     headers: { "List-Unsubscribe": `<${settings.unsubscribeUrl}>` } };
 }
 export function buildWelcomeEmail(email: string, _referralCode: string, settings: Settings) {
-  const rows = steps.map(([title, subline], i) => `<tr><td style="padding:0;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td width="64" valign="top" style="padding-top:18px;"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td width="44" height="44" align="center" bgcolor="#E7EEE6" style="border-radius:50%;color:#175C3A;font-family:${serif};font-size:24px;">${i + 1}</td></tr>${i < 2 ? '<tr><td height="58" style="background:linear-gradient(to right,transparent 21px,#E3D9C6 21px,#E3D9C6 22px,transparent 22px);"></td></tr>' : ''}</table></td><td style="padding:18px 0 24px;${i < 2 ? 'border-bottom:1px solid #E3D9C6;' : ''}"><p class="step-title" style="margin:0 0 6px;font-family:${serif};font-size:clamp(20px, 4vw, 24px);line-height:1.25;">${title}</p><p style="margin:0;color:#5E6257;font-size:18px;line-height:1.4;">${subline}</p></td></tr></table></td></tr>`).join("");
-  return { ...commonPayload(email, settings), subject: "Welcome to SnapScore",
-    html: frame(`<tr><td style="text-align:center;border-bottom:1px solid #E3D9C6;padding:0 0 24px;font-family:${serif};font-size:36px;">SnapScore</td></tr><tr><td style="text-align:center;padding:28px 0;border-bottom:1px solid #E3D9C6;"><h1 class="heading" style="margin:0 0 24px;color:#175C3A;font-family:${serif};font-weight:400;font-size:clamp(38px, 8vw, 52px);line-height:1.05;">Welcome to<br>SnapScore</h1><p style="margin:0;color:#5E6257;font-size:20px;line-height:1.4;">${intro}</p></td></tr>${rows}<tr><td style="border-top:1px solid #E3D9C6;padding:16px 0 0;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" bgcolor="#175C3A" style="border-radius:16px;"><a href="${escapeHtml(settings.appUrl)}" style="display:block;padding:16px;color:#FFFFFF;font-family:${serif};font-size:22px;text-decoration:none;">Start a round</a></td></tr></table><p style="margin:12px 0 24px;text-align:center;color:#5E6257;font-size:14px;line-height:21px;">SnapScore doesn't hold or move money.<br>Your group settles up directly.</p></td></tr>`, settings, intro),
-    text: `SnapScore\n\nWelcome to SnapScore\n\n${intro}\n\n${steps.map(([title, subline], i) => `${i + 1}. ${title}\n${subline}`).join("\n\n")}\n\nStart a round: ${settings.appUrl}\n\n${disclaimer}\n\n${textFooter(settings.unsubscribeUrl)}`,
+  const rows = steps.map((title, i) => `<tr><td style="padding:0;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td width="64" valign="top" style="padding-top:18px;"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td width="44" height="44" align="center" bgcolor="#E7EEE6" style="border-radius:50%;color:#175C3A;font-family:${serif};font-size:24px;">${i + 1}</td></tr>${i < 2 ? '<tr><td height="58" style="background:linear-gradient(to right,transparent 21px,#E3D9C6 21px,#E3D9C6 22px,transparent 22px);"></td></tr>' : ''}</table></td><td style="padding:18px 0 24px;${i < 2 ? 'border-bottom:1px solid #E3D9C6;' : ''}"><p class="step-title" style="margin:0 0 6px;font-family:${serif};font-size:clamp(20px, 4vw, 24px);line-height:1.25;">${title}</p></td></tr></table></td></tr>`).join("");
+  return { ...commonPayload(email, settings), subject: "Welcome to SnapScore — let's set up your first round",
+    html: frame(`<tr><td style="text-align:center;border-bottom:1px solid #E3D9C6;padding:0 0 24px;font-family:${serif};font-size:36px;">SnapScore</td></tr><tr><td style="text-align:center;padding:28px 0;border-bottom:1px solid #E3D9C6;"><h1 class="heading" style="margin:0 0 24px;color:#175C3A;font-family:${serif};font-weight:400;font-size:clamp(38px, 8vw, 52px);line-height:1.05;">Welcome to<br>SnapScore</h1><p style="margin:0;color:#5E6257;font-size:20px;line-height:1.4;">${intro}</p><p style="margin:20px 0 0;color:#5E6257;font-size:18px;line-height:1.4;">${bodyLine}</p></td></tr>${rows}<tr><td style="padding:16px 0;font-size:18px;">${referralLine}</td></tr><tr><td style="border-top:1px solid #E3D9C6;padding:16px 0 0;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" bgcolor="#175C3A" style="border-radius:16px;"><a href="${escapeHtml(settings.appUrl)}" style="display:block;padding:16px;color:#FFFFFF;font-family:${serif};font-size:22px;text-decoration:none;">Start a round</a></td></tr></table><p style="margin:12px 0 24px;text-align:center;color:#5E6257;font-size:14px;line-height:21px;">SnapScore doesn't hold or move money.<br>Your group settles up directly.</p></td></tr>`, settings, intro),
+    text: `SnapScore\n\nWelcome to SnapScore\n\n${intro}\n\n${bodyLine}\n\n${steps.map((title, i) => `${i + 1}. ${title}`).join("\n\n")}\n\n${referralLine}\n\nStart a round: ${settings.appUrl}\n\n${disclaimer}\n\n${textFooter(settings.unsubscribeUrl)}`,
   };
 }
 export function buildRewardEmail(email: string, settings: Settings) {
-  const body = "Three friends joined SnapScore with your code. Your reward is now active.";
-  return { ...commonPayload(email, settings), subject: "Your SnapScore referral reward",
+  const body = "Three friends signed up with your code, so your free month of Pro is active.";
+  return { ...commonPayload(email, settings), subject: "You earned a free month of Pro.",
     html: frame(`<tr><td style="padding:0 0 24px;font-size:18px;line-height:1.5;">${body}</td></tr>`, settings),
     text: `${body}\n\n${textFooter(settings.unsubscribeUrl)}`,
   };
