@@ -10,7 +10,7 @@ import { useState, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, Modal, FlatList, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Camera, ChevronRight, X, Lock, Users, Plus } from "lucide-react-native";
+import { Camera, ChevronRight, X, Users, Plus, Hash } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../src/ui/theme";
 import {
@@ -106,7 +106,6 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
-        {CROSS_DEVICE_SHARING_ENABLED && (<Pressable onPress={() => router.push("/join/enter")} style={{ padding: 16 }}><Text style={{ color: COLORS.primary, textAlign: "center" }}>Join with code</Text></Pressable>)}
         {/* ── Wordmark ── */}
         <View style={{ alignItems: "center", marginTop: 18, marginBottom: 28 }}>
           <Text
@@ -148,28 +147,37 @@ export default function HomeScreen() {
           </Text>
 
           {/* CTA Buttons Row */}
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            {/* Scan Scorecard — gradient primary */}
+          <View style={{ gap: 12 }}>
+            {/* New Contest — gradient primary */}
             <AnimatedPressable
-              onPress={() => router.push("/scan")}
-              style={{ flex: 1, borderRadius: RADII.xl, overflow: "hidden" }}
+              testID="home-new-contest"
+              accessibilityRole="button"
+              accessibilityLabel="New Contest"
+              onPress={() => router.push("/contest/new")}
+              style={{ minHeight: 52, borderRadius: RADII.full, overflow: "hidden" }}
             >
               <LinearGradient
                 colors={[COLORS.primary, COLORS.primaryContainer]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{
-                  borderRadius: RADII.xl,
+                  minHeight: 52,
+                  borderRadius: RADII.full,
                   paddingVertical: 15,
+                  paddingHorizontal: 12,
                   alignItems: "center",
                   flexDirection: "row",
                   justifyContent: "center",
                   gap: 8,
                 }}
               >
-                <Camera size={18} color={COLORS.onPrimary} />
+                <Plus size={18} color={COLORS.onPrimary} />
                 <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
                   style={{
+                    flexShrink: 1,
                     fontFamily: FONTS.semibold,
                     fontSize: 13,
                     color: COLORS.onPrimary,
@@ -177,44 +185,93 @@ export default function HomeScreen() {
                     letterSpacing: 0.6,
                   }}
                 >
-                  Scan Scorecard
+                  New Contest
                 </Text>
               </LinearGradient>
             </AnimatedPressable>
 
-            {/* New Contest — ghost button */}
-            <AnimatedPressable
-              onPress={() => router.push("/contest/new")}
-              style={{
-                flex: 1,
-                borderRadius: RADII.xl,
-                borderWidth: 1,
-                borderColor: COLORS.accentGlow,
-                paddingVertical: 15,
-                alignItems: "center",
-                flexDirection: "row",
-                justifyContent: "center",
-                gap: 8,
-                backgroundColor: "transparent",
-              }}
-            >
-              <Plus size={18} color={COLORS.primary} />
-              <Text
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <AnimatedPressable
+                testID="home-scan"
+                accessibilityRole="button"
+                accessibilityLabel="Scan Scorecard"
+                onPress={() => router.push("/scan")}
                 style={{
-                  fontFamily: FONTS.semibold,
-                  fontSize: 13,
-                  color: COLORS.primary,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.6,
+                  flex: 1,
+                  minHeight: 52,
+                  borderRadius: RADII.full,
+                  borderWidth: 1,
+                  borderColor: COLORS.accentGlow,
+                  paddingVertical: 15,
+                  paddingHorizontal: 12,
+                  alignItems: "center",
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  gap: 8,
+                  backgroundColor: "transparent",
                 }}
               >
-                New Contest
-              </Text>
-            </AnimatedPressable>
+                <Camera size={18} color={COLORS.primary} />
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
+                  style={{
+                    flexShrink: 1,
+                    fontFamily: FONTS.semibold,
+                    fontSize: 13,
+                    color: COLORS.primary,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.6,
+                  }}
+                >
+                  Scan Scorecard
+                </Text>
+              </AnimatedPressable>
+              {CROSS_DEVICE_SHARING_ENABLED && (
+                <AnimatedPressable
+                  testID="home-join-code"
+                  accessibilityRole="button"
+                  accessibilityLabel="Join with code"
+                  onPress={() => router.push("/join/enter")}
+                  style={{
+                    flex: 1,
+                    minHeight: 52,
+                    borderRadius: RADII.full,
+                    borderWidth: 1,
+                    borderColor: COLORS.accentGlow,
+                    paddingVertical: 15,
+                    paddingHorizontal: 12,
+                    alignItems: "center",
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    gap: 8,
+                    backgroundColor: "transparent",
+                  }}
+                >
+                  <Hash size={18} color={COLORS.primary} />
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.85}
+                    style={{
+                      flexShrink: 1,
+                      fontFamily: FONTS.semibold,
+                      fontSize: 13,
+                      color: COLORS.primary,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.6,
+                    }}
+                  >
+                    Join with code
+                  </Text>
+                </AnimatedPressable>
+              )}
+            </View>
           </View>
         </View>
 
-        {/* ── Your Active Bets ── */}
+        {/* ── Your Active Games ── */}
         {activeContests.length > 0 && (
           <View style={{ marginBottom: 28, paddingHorizontal: 20 }}>
             <Text
