@@ -87,7 +87,6 @@ export function buildRewardEmail(email: string, settings: Settings) {
                 <p>3 of your friends signed up with your code. Your free month of Premium is now active.</p>
                 <p style="font-size: 14px; color: #6b7280;">Keep sharing — every 3 additional referrals = another free month.</p>
                 <div style="text-align: center; padding: 20px 0; color: #9ca3af; font-size: 13px;">
-                  <p>SnapScore by Autumn8me, Inc.</p>
                   ${unsubscribeFooter(settings.unsubscribeUrl)}
                 </div>
               </div>`,
