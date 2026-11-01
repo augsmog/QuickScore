@@ -96,7 +96,7 @@ Existing coverage gaps remain explicit: AUG-289 finalize confirmation is a stric
 
 ## Fix round 2 — core label visibility
 
-Verifier round 2 identified text-node clipping and transparent `-webkit-text-fill-color` bypasses. The runner now clips each matched text Range rect through every ancestor from the text node to the root, requires at least half the original text area and a 4×4 px visible fragment, checks effective text fill against the composed background, and captures the intersected label rect for a luminance texture proof. Existing display, visibility and opacity-chain checks remain active. This pixel check runs only for core labels.
+Verifier round 2 identified text-node clipping and transparent `-webkit-text-fill-color` bypasses. The runner now clips each matched text Range rect through every ancestor from the text node to the root, requires at least half the original text area and a 4×4 px visible fragment, checks effective text fill against the composed background, and captures the intersected label rect for a luminance texture proof. PNG decoding and pixel analysis run in the test process without a browser round trip. Existing display, visibility and opacity-chain checks remain active. This pixel check runs only for core labels.
 
 The copied verifier scripts and all outputs are retained in `/workspace/aos-state/reports/test-program-20261031/fix-r2-evidence/`; verifier evidence was not overwritten. The verifier's three r2 visibility probes all exited 1 with `visible-text-missing`: `label-overflow-clipped`, `label-clip-path`, `text-fill-transparent`. The copied r1 probe scripts also returned their expected results, including the nine-sample timing pass, ten-sample timing failure, and red missing-step/visibility proofs.
 
@@ -114,20 +114,20 @@ node --test e2e/usability-gate.test.mjs
 ℹ fail 0
 
 BASE_URL=http://127.0.0.1:8192 OUT_DIR=/tmp/tp-r2-runner node e2e/journeys/runner.mjs
-PASSED J-home-create-cancel: activations=2, screens=2, taskMs=936
-PASSED J-home-join-code-error: activations=3, screens=2, taskMs=909
-PASSED J-round-score-settle-reload: activations=5, screens=3, taskMs=1787
-PASSED J-invite-from-round: activations=1, screens=1, taskMs=271
-EXPECTED_FAILURE J-finalize-settle: activations=1, screens=1, taskMs=1640
-Journey gate PASSED: 5/5; elapsed 14225 ms; wall_seconds=15
+PASSED J-home-create-cancel: activations=2, screens=2, taskMs=433
+PASSED J-home-join-code-error: activations=3, screens=2, taskMs=513
+PASSED J-round-score-settle-reload: activations=5, screens=3, taskMs=1051
+PASSED J-invite-from-round: activations=1, screens=1, taskMs=179
+EXPECTED_FAILURE J-finalize-settle: activations=1, screens=1, taskMs=1596
+Journey gate PASSED: 5/5; elapsed 8816 ms
 
 BASE_URL=http://127.0.0.1:8192 OUT_DIR=/tmp/tp-r2-negative node e2e/journeys/negative-proof.mjs
 PASS hide, rename, disable, hide-label, transparent-label,
      label-overflow-clipped, label-clip-path, text-fill-transparent
 All eight expected runner failures had exit 1 and their declared signatures.
 
-RUN_ROOT=/tmp/tp-nightly-r2-final bash e2e/journeys/nightly.sh
-Nightly exit 0; summary: /tmp/tp-nightly-r2-final/2026-10-31/summary.md
+RUN_ROOT=/tmp/tp-nightly-r2-nodepng bash e2e/journeys/nightly.sh
+Nightly exit 0; summary: /tmp/tp-nightly-r2-nodepng/2026-10-31/summary.md
 Main SHA: bce5673993b90720657af6a400a385c27cdf574c; harness source included the final fix-round-2 working tree.
 ```
 

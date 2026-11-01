@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
+import {inflateSync} from 'node:zlib';
 import {chromium} from 'playwright';
 import {createMetrics,count,screen,evaluate,aggregate} from './metrics.mjs';
 import {cases,setup,ready,disclosures,fixtureVersion} from './adapter.mjs';
@@ -18,6 +19,33 @@ const required=manifest.journeys.filter(j=>j.status!=='deferred'&&(!filter||filt
 const report={sha:process.env.GIT_SHA||execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),platform:manifest.platform,flags:manifest.flags,fixtureVersion,viewport:{width:390,height:844},startedAt:new Date().toISOString(),required,executed:[],results:[],coverageGaps:manifest.journeys.filter(j=>j.status==='deferred').map(j=>({id:j.id,reason:j.deferredReason})),mutation:mutation||null};
 class Failure extends Error {constructor(signature,message=signature){super(message);this.signature=signature;}}
 function demand(ok,signature,message) {if(!ok) throw new Failure(signature,message);}
+
+// Decode Chromium's non-interlaced 8-bit RGB/RGBA screenshot PNGs locally.
+// This keeps the pixel proof off the browser round trip and adds no dependency.
+function pngTextureStats(png) {
+  let width=0,height=0,depth=0,type=0,interlace=0;const chunks=[];
+  for(let i=8;i+12<=png.length;) {
+    const size=png.readUInt32BE(i),name=png.toString('ascii',i+4,i+8),data=png.subarray(i+8,i+8+size);i+=size+12;
+    if(name==='IHDR'){width=data.readUInt32BE(0);height=data.readUInt32BE(4);depth=data[8];type=data[9];interlace=data[12];}
+    else if(name==='IDAT')chunks.push(data);
+    else if(name==='IEND')break;
+  }
+  const channels=type===2?3:type===6?4:0;
+  if(!width||!height||depth!==8||!channels||interlace!==0)return {clusters:0,stddev:0,min:255,max:0};
+  const stride=width*channels,raw=inflateSync(Buffer.concat(chunks)),decoded=Buffer.alloc(stride*height);let src=0;
+  const paeth=(a,b,c)=>{const p=a+b-c,pa=Math.abs(p-a),pb=Math.abs(p-b),pc=Math.abs(p-c);return pa<=pb&&pa<=pc?a:pb<=pc?b:c;};
+  for(let y=0;y<height;y++) {
+    const filter=raw[src++],row=y*stride;
+    for(let x=0;x<stride;x++) {
+      const value=raw[src++],left=x>=channels?decoded[row+x-channels]:0,up=y?decoded[row-stride+x]:0,upperLeft=y&&x>=channels?decoded[row-stride+x-channels]:0;
+      const predictor=filter===1?left:filter===2?up:filter===3?Math.floor((left+up)/2):filter===4?paeth(left,up,upperLeft):0;
+      decoded[row+x]=(value+predictor)&255;
+    }
+  }
+  const hist=new Uint32Array(8);let sum=0,sum2=0,n=0,min=255,max=0;
+  for(let i=0;i<decoded.length;i+=channels){const l=.2126*decoded[i]+.7152*decoded[i+1]+.0722*decoded[i+2];hist[Math.min(7,Math.floor(l/32))]++;sum+=l;sum2+=l*l;n++;min=Math.min(min,l);max=Math.max(max,l);}
+  return {stddev:Math.sqrt(Math.max(0,sum2/n-(sum/n)**2)),min,max,clusters:hist.filter(Boolean).length,width,height};
+}
 
 // Geometry does not scroll, focus, or activate. Check full viewport/ancestor
 // clipping and center plus inset-corner hit tests before every real activation.
@@ -110,14 +138,7 @@ async function geometry(locator,{text}={}) {
   demand(state.hits,'control-occluded');demand(state.visibleText,'visible-text-missing');
   if(text) {
     const pixels=await page.screenshot({clip:state.textRect});
-    const data=pixels.toString('base64');
-    const texture=await page.evaluate(async encoded=>{
-      const img=new Image();img.src=`data:image/png;base64,${encoded}`;await img.decode();
-      const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0);
-      const d=x.getImageData(0,0,c.width,c.height).data,hist=new Uint32Array(8);let sum=0,sum2=0,n=0,min=255,max=0;
-      for(let i=0;i<d.length;i+=4){const l=.2126*d[i]+.7152*d[i+1]+.0722*d[i+2];hist[Math.min(7,Math.floor(l/32))]++;sum+=l;sum2+=l*l;n++;min=Math.min(min,l);max=Math.max(max,l);}
-      const clusters=hist.filter(Boolean).length;return {stddev:Math.sqrt(Math.max(0,sum2/n-(sum/n)**2)),min,max,clusters};
-    },data);
+    const texture=pngTextureStats(pixels);
     demand(texture.clusters>=2&&texture.max-texture.min>=24&&texture.stddev>=6,'visible-text-missing');
   }
   return state.rect;
