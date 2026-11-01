@@ -17,6 +17,10 @@ try {
  await page.setViewportSize({width:320,height:568});
  await page.goto('http://127.0.0.1:8091/onboarding',{waitUntil:'networkidle'});
  await page.waitForTimeout(800);
+ const joinButton = page.getByRole('button', {name:'Join a group', exact:true}).locator('visible=true');
+ assert(await joinButton.isVisible(), '320pt onboarding join button is visible');
+ const box = await joinButton.boundingBox();
+ assert(box && box.y >= 0 && box.y + box.height <= 568, '320pt onboarding join button fits viewport');
  await page.screenshot({path:out+'/onboarding-settlement-320.png'});
  await page.getByText(/^next$/i).locator('visible=true').first().click({force:true});
  await page.waitForTimeout(800);

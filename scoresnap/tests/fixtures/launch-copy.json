@@ -9,7 +9,8 @@
   ],
   "app/(tabs)/index.tsx": [
     "Build contests. Settle up.",
-    "Add your group, pick your games, and see who owes what. Scan a card if you've got one."
+    "Add your group, pick your games, and see who owes what. Scan a card if you've got one.",
+    "Join with code"
   ],
   "src/ui/paywall-copy.ts": [
     "Run the game. We do the math.",

@@ -17,7 +17,7 @@ try {
     return ['127.0.0.1', 'localhost'].includes(url.hostname) || ['data:', 'blob:'].includes(url.protocol)
       ? route.continue() : route.abort();
   });
-  if (sharing) await page.addInitScript(() => {
+  await page.addInitScript(() => {
     localStorage.setItem('snapscore-onboarding', JSON.stringify({ version: 0, state: { hasCompletedOnboarding: true, hasSeenDemo: true } }));
     const user = { id: 'anon-join-smoke', name: 'Golfer', provider: 'anonymous' };
     localStorage.setItem('snapscore-auth', JSON.stringify({ version: 0, state: { user, session: { user }, isAnonymous: true } }));
