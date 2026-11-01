@@ -58,6 +58,9 @@ enable_confirmations = false
 [functions.course-data]
 verify_jwt = true
 
+[functions.on-user-signup]
+verify_jwt = true
+
 [functions.delete-account]
 verify_jwt = true
 
