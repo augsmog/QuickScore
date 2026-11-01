@@ -7,6 +7,9 @@ psql_local() { psql "$url" -X -v ON_ERROR_STOP=1 "$@"; }
 extract() { psql_local -At -f "$here/catalog-query.sql" > /tmp/m2-catalog.json; }
 python3 "$here/check-active-sql.py"
 python3 "$here/reference-guard.py"
+# Remove the newest migration before checking historical catalog prefixes.
+psql_local -f "$here/../rollback/20261031180000_chat_report_block.down.sql"
+psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261031180000'"
 # Reset starts with the full chain. Peel sync_api, purge and rewritten 008 before the M2 gates.
 psql_local -f "$here/../rollback/20261029180000_sync_api.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261029180000'"
@@ -57,6 +60,8 @@ python3 "$here/selftest.py"
 python3 "$here/sql-fixtures.py" --url "$url" --admin-url postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres
 # CLI reapplies the pending foundation, guest guard, rewritten 008, purge and sync_api.
 (cd "$here/../.." && supabase migration up --local)
+psql_local -f "$here/../rollback/20261031180000_chat_report_block.down.sql"
+psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261031180000'"
 # M2b catalog gates stay on the pre-008 schema. Peel sync_api and purge before M3.
 psql_local -f "$here/../rollback/20261029180000_sync_api.down.sql"
 psql_local -c "DELETE FROM supabase_migrations.schema_migrations WHERE version='20261029180000'"
@@ -103,6 +108,8 @@ psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) V
 psql_local -f "$here/../tests/m4b-upgrade.sql"
 psql_local -f "$here/../migrations/20261029180000_sync_api.sql"
 psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261029180000','sync_api') ON CONFLICT DO NOTHING"
+psql_local -f "$here/../migrations/20261031180000_chat_report_block.sql"
+psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261031180000','chat_report_block')"
 extract
 python3 "$here/drift.py" compare "$here/../schema-snapshot/expected-after.json" /tmp/m2-catalog.json
 python3 "$here/drift.py" ledger /tmp/m2-catalog.json --mode pending

@@ -53,6 +53,9 @@ done
 python3 "$here/guest-guard-mutations.py" --url "$url" > "$work/mutations.log" 2>&1 || { cat "$work/mutations.log"; exit 1; }
 tail -1 "$work/mutations.log"
 python3 "$here/m4b-verify.py" races "$url"
+q -f "$here/../rollback/20261031180000_chat_report_block.down.sql" > "$work/chat-down.log" 2>&1 || { cat "$work/chat-down.log"; exit 1; }
+q -At -f "$here/catalog-query.sql" > "$work/pre-chat.json"
+python3 "$here/m4b-verify.py" catalog "$work/pre-chat.json" compare-syncapi
 q -f "$here/../rollback/20261029180000_sync_api.down.sql" > "$work/down.log" 2>&1 || { cat "$work/down.log"; exit 1; }
 q -At -f "$here/catalog-query.sql" > "$work/down.json"
 python3 "$here/drift.py" compare "$work/m3.json" "$work/down.json"

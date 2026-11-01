@@ -317,11 +317,13 @@ try {
         if (hole < 4) await text(pages[0], 'NEXT').click();
       }
       const status = await freshResponse(3, 'my_sync_status', sequence, async () => {
+        // Reload first: a focus response from the old document can be discarded
+        // by navigation before freshResponse reads it. Then exercise foreground
+        // discovery on the new document, preserving both lifecycle actions.
+        await pages[3].reload();
         await pages[3].evaluate(() => {
           document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('focus'));
         });
-        // Web AppState may already be active; reload forces discovery after the lifecycle signals.
-        await pages[3].reload();
       });
       assert(!status.memberships.some(m => m.contest_id === contestId && m.status === 'approved'));
       await poll('D remains locked out after foreground discovery', async () => await guest(3).count() === 0 || 'context 3: revoked guest roster/scorecard still present');
