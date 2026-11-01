@@ -1,3 +1,4 @@
+import { checkHomeGameLibrary } from './shared/home-game-library.mjs';
 import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 // Real-app web verification for SnapScore (no mockups).
 // Drives the REAL exported web build (EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web)
@@ -22,6 +23,10 @@ const check = (ok, name, detail = "") => {
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 await seedPaidTier(page, "td");
+// This focused smoke uses only the local offline export.
+if (process.argv.includes('--home-library-only')) {
+  await page.route('**/*', route => new URL(route.request().url()).origin === new URL(BASE).origin ? route.continue() : route.abort());
+}
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(e.message));
 
@@ -40,6 +45,13 @@ await vis(page.getByText(/^new contest$/i)).first().waitFor();
 check(/Build contests\. Settle up\./i.test(await bodyText()), "Home screen renders from real web build");
 check(!/Sample Round/.test(await bodyText()), "Home has no implicit demo round");
 await shot("01-home.png");
+
+await checkHomeGameLibrary(page, path.join(OUT, 'seeall-open.png'));
+check(true, 'Home See All opens the playable game-mode library');
+if (process.argv.includes('--home-library-only')) {
+  await browser.close();
+  process.exit(0);
+}
 
 // 2. Create a foursome (Stroke Play + Skins + Nassau)
 await vis(page.getByText(/^new contest$/i)).first().click();

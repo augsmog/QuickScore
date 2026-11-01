@@ -1,3 +1,4 @@
+import { GAME_MODE_LIBRARY } from "../../src/engine/game-mode-library";
 import { useScanStore } from "../../src/stores/scan-store";
 import { canUseGame, defaultRoundGames } from "../../src/services/entitlements";
 import { GAME_SHEET_STYLE } from "../../src/ui/gameSheetStyle";
@@ -37,6 +38,7 @@ export default function HomeScreen() {
   const deleteContest = useContestStore((s) => s.deleteContest);
   const activeContests = contests.filter((c) => c.status === "active");
   const completedContests = contests.filter((c) => c.status === "completed");
+  const [showGameLibrary, setShowGameLibrary] = useState(false);
   const [selectedGame, setSelectedGame] = useState<GameTypeInfo | null>(null);
   const hasSeenDemo = useOnboardingStore((s) => s.hasSeenDemo);
   const markDemoSeen = useOnboardingStore((s) => s.markDemoSeen);
@@ -361,7 +363,13 @@ export default function HomeScreen() {
             >
               GAME MODES
             </Text>
-            <Pressable onPress={() => setSelectedGame(ALL_GAMES[0])}>
+            <Pressable
+              onPress={() => setShowGameLibrary(true)}
+              accessibilityRole="button"
+              accessibilityLabel="See all game modes"
+              testID="home-see-all-modes"
+              style={{ minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "center" }}
+            >
               <Text
                 style={{
                   fontFamily: FONTS.semibold,
@@ -488,6 +496,32 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal visible={showGameLibrary} animationType="slide" onRequestClose={() => setShowGameLibrary(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+          <View style={{ paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text accessibilityRole="header" style={{ fontFamily: FONTS.semibold, fontSize: 24, color: COLORS.text }}>50+ game modes</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close game mode library" onPress={() => setShowGameLibrary(false)} style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}>
+              <X size={24} color={COLORS.text} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
+            {GAME_MODE_LIBRARY.map(mode => {
+              const content = <>
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.text }}>{mode.name}</Text>
+                <Text style={{ fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textDim, marginTop: 6 }}>{mode.desc}</Text>
+              </>;
+              const style = { padding: 16, borderRadius: 12, backgroundColor: COLORS.secondaryContainer, minHeight: 44 };
+              return mode.game ? (
+                <Pressable key={mode.id} testID={`game-mode-row-${mode.id}`} accessibilityRole="button" accessibilityLabel={mode.name} style={style} onPress={() => {
+                  setShowGameLibrary(false);
+                  setSelectedGame(mode.game!);
+                }}>{content}</Pressable>
+              ) : <View key={mode.id} testID={`game-mode-row-${mode.id}`} style={style}>{content}</View>;
+            })}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       {/* ── Game Info Modal ── */}
       <Modal
