@@ -201,8 +201,8 @@ try {
           const row = page.getByTestId(`settlement-player-${name}`);
           await row.scrollIntoViewIfNeeded();
           const text = await row.innerText();
-          const money = text.match(/([+-]?)\$(\d+\.\d{2})/);
-          const displayed = /Even/.test(text) ? 0 : (money?.[1]==='-'?-1:1)*cents(Number(money?.[2]));
+          const money = text.match(/([+\-\u2212]?)\$(\d+\.\d{2})/);
+          const displayed = /Even/.test(text) ? 0 : (money?.[1]==='-'||money?.[1]==='\u2212'?-1:1)*cents(Number(money?.[2]));
           assert.equal(displayed,cents(net),`${name} displayed settlement`);
           displayedBalance+=displayed; if(displayed>0) winners+=displayed;
           const ledger = expected.transactions.reduce((sum,t)=>sum+(t.to===name?cents(t.amount):0)-(t.from===name?cents(t.amount):0),0);
