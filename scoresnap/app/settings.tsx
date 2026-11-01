@@ -26,6 +26,8 @@ import {
   Gauge,
   Zap,
   Info,
+  CreditCard,
+  HelpCircle,
 } from "lucide-react-native";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../src/ui/theme";
 import { AnimatedPressable } from "../src/ui/AnimatedPressable";
@@ -39,6 +41,10 @@ import {
   DefaultTee,
 } from "../src/stores/settings-store";
 import { useAuthStore } from "../src/stores/auth-store";
+import { restorePurchases } from "../src/services/purchases";
+import { useScanStore } from "../src/stores/scan-store";
+import { openSupport } from "../src/config/support-links";
+import { PAYWALL_COPY as C } from "../src/ui/paywall-copy";
 import { SUPPORT_BASE_URL } from "../src/config/support";
 
 // ─── Reusable row components ──────────────────────────────────
@@ -82,6 +88,7 @@ function ToggleRow({
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
         paddingVertical: 14,
+        minHeight: 44,
         marginBottom: 6,
         flexDirection: "row",
         alignItems: "center",
@@ -155,6 +162,7 @@ function PickerRow({
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
         paddingVertical: 14,
+        minHeight: 44,
         marginBottom: 6,
         flexDirection: "row",
         alignItems: "center",
@@ -194,6 +202,7 @@ function NumberRow({
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
         paddingVertical: 14,
+        minHeight: 44,
         marginBottom: 6,
         flexDirection: "row",
         alignItems: "center",
@@ -225,8 +234,22 @@ export default function SettingsScreen() {
   const router = useRouter();
   const settings = useSettingsStore();
   const { user, signOut, isAnonymous } = useAuthStore();
+  const isPro = useScanStore((s) => s.isPro);
+  const [restoring, setRestoring] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const handleRestore = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    try {
+      const restored = await restorePurchases();
+      Alert.alert(C.restore, restored ? C.restored : C.nothing);
+    } catch (error: unknown) {
+      Alert.alert(C.subscription, error instanceof Error ? error.message || C.retry : C.retry);
+    } finally {
+      setRestoring(false);
+    }
+  };
   const confirmDeleteAccount = async () => {
     if (deleting) return;
     setDeleting(true);
@@ -319,10 +342,10 @@ export default function SettingsScreen() {
           gap: 12,
         }}
       >
-        <AnimatedPressable onPress={() => router.back()}>
+        <AnimatedPressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}>
           <ChevronLeft size={26} color={COLORS.text} />
         </AnimatedPressable>
-        <Text style={{ ...TYPOGRAPHY.headline, color: COLORS.text, flex: 1 }}>Settings</Text>
+        <Text style={{ ...TYPOGRAPHY.headline, color: COLORS.text, flex: 1 }}>Account settings</Text>
       </View>
 
       <ScrollView
@@ -380,6 +403,15 @@ export default function SettingsScreen() {
             </View>
           )}
         </View>
+
+        <SectionHeader title="Subscription" />
+        <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={isPro ? "Pro" : "Free"} onPress={() => router.push("/paywall")} />
+        <AnimatedPressable accessibilityRole="button" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
+          style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <RotateCcw size={18} color={COLORS.textDim} />
+          <Text style={{ flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>Restore purchases</Text>
+          <ChevronRight size={14} color={COLORS.textDim} />
+        </AnimatedPressable>
 
         {/* ── Scoring ── */}
         <SectionHeader title="Scoring" />
@@ -568,7 +600,7 @@ export default function SettingsScreen() {
         />
 
         {/* ── Privacy ── */}
-        <SectionHeader title="Privacy" />
+        <SectionHeader title="Privacy and data" />
 
         <ToggleRow
           icon={<Shield size={18} color={COLORS.textDim} />}
@@ -586,6 +618,14 @@ export default function SettingsScreen() {
           onToggle={(v) => settings.updateSetting("showInLeaderboards", v)}
         />
 
+        <SectionHeader title="Help" />
+        <AnimatedPressable accessibilityRole="button" onPress={openSupport}
+          style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <HelpCircle size={18} color={COLORS.textDim} />
+          <Text style={{ flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>Contact support</Text>
+          <ChevronRight size={14} color={COLORS.textDim} />
+        </AnimatedPressable>
+
         {/* ── About & Actions ── */}
         <SectionHeader title="About" />
 
@@ -596,6 +636,7 @@ export default function SettingsScreen() {
             borderRadius: RADII.lg,
             paddingHorizontal: 16,
             paddingVertical: 14,
+            minHeight: 44,
             marginBottom: 6,
             flexDirection: "row",
             alignItems: "center",
@@ -616,6 +657,7 @@ export default function SettingsScreen() {
             borderRadius: RADII.lg,
             paddingHorizontal: 16,
             paddingVertical: 14,
+            minHeight: 44,
             marginBottom: 6,
             flexDirection: "row",
             alignItems: "center",
@@ -635,6 +677,7 @@ export default function SettingsScreen() {
             borderRadius: RADII.lg,
             paddingHorizontal: 16,
             paddingVertical: 14,
+            minHeight: 44,
             marginBottom: 6,
             flexDirection: "row",
             alignItems: "center",
@@ -659,6 +702,7 @@ export default function SettingsScreen() {
               borderRadius: RADII.lg,
               paddingHorizontal: 16,
               paddingVertical: 14,
+              minHeight: 44,
               flexDirection: "row",
               alignItems: "center",
               gap: 12,
@@ -677,6 +721,7 @@ export default function SettingsScreen() {
               borderRadius: RADII.lg,
               paddingHorizontal: 16,
               paddingVertical: 14,
+              minHeight: 44,
               flexDirection: "row",
               alignItems: "center",
               gap: 12,
@@ -695,6 +740,7 @@ export default function SettingsScreen() {
                 borderRadius: RADII.lg,
                 paddingHorizontal: 16,
                 paddingVertical: 14,
+                minHeight: 44,
                 gap: 10,
               }}
             >
@@ -709,6 +755,7 @@ export default function SettingsScreen() {
                 style={{
                   borderRadius: RADII.lg,
                   paddingVertical: 12,
+                  minHeight: 44,
                   alignItems: "center",
                   backgroundColor: COLORS.surfaceLow,
                 }}
@@ -722,6 +769,7 @@ export default function SettingsScreen() {
                 style={{
                   borderRadius: RADII.lg,
                   paddingVertical: 12,
+                  minHeight: 44,
                   alignItems: "center",
                   backgroundColor: COLORS.error,
                   opacity: deleting ? 0.6 : 1,
@@ -740,6 +788,7 @@ export default function SettingsScreen() {
                 borderRadius: RADII.lg,
                 paddingHorizontal: 16,
                 paddingVertical: 14,
+                minHeight: 44,
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 12,
