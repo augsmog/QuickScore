@@ -10,7 +10,7 @@ import { useState, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, Modal, FlatList, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Camera, ChevronRight, X, Lock, Users, Plus, Hash } from "lucide-react-native";
+import { Camera, ChevronRight, X, Users, Plus, Hash } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../src/ui/theme";
 import {
