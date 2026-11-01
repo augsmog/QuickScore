@@ -1,3 +1,4 @@
+import { SheetSurface, FullScreenSheet } from "./SafeScreen";
 /**
  * AuxiliaryPrompt — Contextual per-hole prompts for Tier 2 games.
  *
@@ -13,7 +14,7 @@
  */
 
 import { useState } from "react";
-import { View, Text, Pressable, Modal, ScrollView } from "react-native";
+import { View, Text, Pressable, ScrollView } from "react-native";
 import * as Haptics from "expo-haptics";
 import { X, Check, ChevronRight } from "lucide-react-native";
 import { COLORS, FONTS, RADII, TYPOGRAPHY } from "./theme";
@@ -379,20 +380,20 @@ export default function AuxiliaryPrompt({
     : players[(holeNumber - 1) % players.length]?.id || "";
 
   return (
-    <Modal
+    <FullScreenSheet
       visible={visible}
       transparent
       animationType="slide"
       statusBarTranslucent
     >
-      <View
+      <View testID="auxiliary-scrim"
         style={{
           flex: 1,
           backgroundColor: "rgba(0,0,0,0.6)",
           justifyContent: "flex-end",
         }}
       >
-        <View
+        <SheetSurface testID="auxiliary-sheet"
           style={{
             backgroundColor: COLORS.surfaceLow,
             borderTopLeftRadius: RADII.xl,
@@ -487,9 +488,9 @@ export default function AuxiliaryPrompt({
             />
           )}
           </ScrollView>
-        </View>
+        </SheetSurface>
       </View>
-    </Modal>
+    </FullScreenSheet>
   );
 }
 

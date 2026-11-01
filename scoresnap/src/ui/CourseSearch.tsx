@@ -1,3 +1,4 @@
+import { SheetSurface, FullScreenSheet } from "./SafeScreen";
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
@@ -7,7 +8,6 @@ import {
   ActivityIndicator,
   FlatList,
   ScrollView,
-  Modal,
   Platform,
   Keyboard,
   Linking,
@@ -255,17 +255,17 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
       </Pressable>
 
       {/* Search Modal */}
-      <Modal
+      <FullScreenSheet
         visible={showModal}
         animationType="slide"
         transparent
         onRequestClose={() => setShowModal(false)}
       >
-        <View style={{ flex: 1, justifyContent: "flex-end" }}>
-          <Pressable style={{ flex: 0.15 }} onPress={() => setShowModal(false)} />
-          <View
+        <View testID="course-search-scrim" style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" }}>
+          <Pressable style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setShowModal(false)} />
+          <SheetSurface testID="course-search-sheet"
             style={{
-              flex: 0.85,
+              height: "85%",
               backgroundColor: COLORS.bg,
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
@@ -679,9 +679,9 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                 </Pressable>
               </ScrollView>
             )}
-          </View>
+          </SheetSurface>
         </View>
-      </Modal>
+      </FullScreenSheet>
     </View>
   );
 }

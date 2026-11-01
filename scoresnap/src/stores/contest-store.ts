@@ -47,6 +47,7 @@ export interface TeamInfo {
 }
 
 export interface Contest {
+  remoteRestored?: boolean;
   id: string;
   name: string;
   course: Course;

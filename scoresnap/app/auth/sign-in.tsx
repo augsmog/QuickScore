@@ -1,3 +1,4 @@
+import { SafeScreen } from "../../src/ui/SafeScreen";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
 import { SUPPORT_BASE_URL } from "../../src/config/support";
 import { useState } from "react";
@@ -14,7 +15,6 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import * as AuthSession from "expo-auth-session";
@@ -184,7 +184,7 @@ export default function SignInScreen() {
 
   // ─── Render ───
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -617,6 +617,6 @@ export default function SignInScreen() {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }
