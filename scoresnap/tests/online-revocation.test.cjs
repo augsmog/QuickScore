@@ -26,6 +26,7 @@ test('revoked reconnect removes the card once, retains denial across restart, an
   const rpc = async name => {
     calls.push(name);
     if (!connected) throw Error('offline');
+    if (name === 'list_owned_contests') return { data: [] };
     if (name === 'my_sync_status') return { data: { api_version: 1, memberships: revoked ? [] : [member], requests: [] } };
     if (name === 'sync_capabilities') return revoked ? { error: { code: '42501' } } : { data: capability };
     if (name === 'fetch_snapshot') return { data: snapshot };
@@ -35,7 +36,7 @@ test('revoked reconnect removes the card once, retains denial across restart, an
     '../stores/persisted-keys': { persistGate: {} }, './tournament-completion': { tournamentCompletion: () => ({}) },
     './sync-v1': sync, './online-client': online, 'react-native': { Platform: { OS: 'web' } },
     'expo-crypto': { randomUUID: () => String(++uuid) },
-    '../db/supabase': { supabase: { from: () => ({ select: () => ({ eq: () => ({ eq: async () => ({data: []}) }) }) }), rpc, auth: { getSession: async () => ({ data: { session: { user: { id: 'actor' } } } }) } } },
+    '../db/supabase': { supabase: { rpc, auth: { getSession: async () => ({ data: { session: { user: { id: 'actor' } } } }) } } },
     '../db/outbox-storage': { outboxStorage: { getItem: async k => storage.get(k) ?? null, setItem: async (k, v) => { storage.set(k, v); } } },
     '../config/features': { CROSS_DEVICE_SHARING_ENABLED: true }, '../config/auth': { REAL_AUTH_CONFIGURED: true },
     '../stores/contest-store': { useContestStore: { setState: () => {} } }, './captcha': {}, './score-outbox': load('src/services/score-outbox.ts', {}), '../stores/online-store': { useOnlineStore: store },

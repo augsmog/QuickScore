@@ -131,6 +131,16 @@ jobs:
           fi
           supabase db reset
           test "$(docker exec supabase_db_snapscore psql -U postgres -d postgres -Atc 'select count(*) from supabase_migrations.schema_migrations')" = 14
+      - name: Exercise owner discovery proposal on disposable stack only (requires live approval)
+        working-directory: scoresnap
+        run: |
+          # This proposal is NOT in the migration chain and is NOT deployed.
+          # Prove apply, rollback and reapply before the browser acceptance.
+          docker exec -i supabase_db_snapscore psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/proposed/20261101020000_owner_discovery.sql
+          docker exec -i supabase_db_snapscore psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/ci/test-owner-discovery.sql
+          docker exec -i supabase_db_snapscore psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/rollbacks/20261101020000_owner_discovery.sql
+          docker exec -i supabase_db_snapscore psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/proposed/20261101020000_owner_discovery.sql
+          docker exec -i supabase_db_snapscore psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/ci/test-owner-discovery.sql
       - name: Create ordinary users and export browser app
         working-directory: scoresnap
         run: |

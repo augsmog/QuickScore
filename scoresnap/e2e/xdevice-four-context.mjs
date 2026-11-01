@@ -270,8 +270,16 @@ try {
         page.on('request', r => { if (r.url().endsWith('/rpc/request_join')) joins++; });
         assert.equal(await signIn(page, 'A'), true);
         await page.goto(`${base}/contests`);
-        await poll('owner snapshot', () => !!snapshot(page)?.rounds[0]?.players.some(p => p.cells.some(c => c.strokes !== null)));
+        await poll('owner snapshot contains every accepted score', () => {
+          const s = snapshot(page);
+          return !!s && expected.every(cell => s.rounds[0]?.players
+            .find(p => p.displayName === names[cell.i])?.cells
+            .find(c => c.hole === cell.hole)?.strokes === cell.value);
+        });
+        await text(page, snapshot(page).name).waitFor();
+        await page.screenshot({ path: path.join(out, 'owner-fresh-contests.png'), fullPage: true });
         await page.goto(`${base}/join/${code}`);
+        await page.getByLabel('Join code').fill(code);
         await page.getByText('Find contest', { exact: true }).click();
         await page.waitForURL(u => u.pathname === `/contest/${contestId}`);
         assert.equal(joins, 0, 'Owner creates no pending self-request');

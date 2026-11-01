@@ -34,9 +34,9 @@ export const client = onlineClient(async (name, args) => {
   const { data: auth, error: authError } = await supabase.auth.getSession();
   if (authError) throw authError;
   if (!auth.session || auth.session.user.is_anonymous) return [];
-  let query = supabase.from('contests').select('id').eq('owner_id', auth.session.user.id).eq('protocol', 1);
-  if (code) query = query.eq('invite_code', code);
-  const { data, error } = await query;
+  // m2_legacy_contests deliberately hides protocol-1 table rows, even from owners.
+  // This owner-only definer RPC returns IDs; rejoinHost still proves each snapshot.
+  const { data, error } = await supabase.rpc('list_owned_contests', { code: code ?? null });
   if (error) throw error;
   return data ?? [];
 });
