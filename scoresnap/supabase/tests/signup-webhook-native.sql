@@ -1,6 +1,7 @@
 -- Disposable native PG17 only. Transport/config changes roll back.
 BEGIN;
 CREATE TEMP TABLE signup_dispatch_probe (LIKE auth.users INCLUDING DEFAULTS);
+ALTER TABLE signup_dispatch_probe ALTER COLUMN id SET DEFAULT gen_random_uuid();
 CREATE TRIGGER signup_dispatch_probe AFTER INSERT ON signup_dispatch_probe
 FOR EACH ROW EXECUTE FUNCTION public.dispatch_signup_webhook();
 CREATE TEMP TABLE signup_dispatch_calls (url text, headers jsonb, body jsonb);

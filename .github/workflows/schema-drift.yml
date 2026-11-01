@@ -88,8 +88,13 @@ jobs:
       - name: Emulate hosted platform-provided defaults and extensions (never live)
         run: psql postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/schema-drift/platform-emulation.sql
       - name: M1 baseline parity, ledger and mutation gates; M2 foundation, rollback, role and compatibility gates
-        run: bash supabase/schema-drift/verify-foundation-ci.sh
+        run: bash supabase/schema-drift/verify-foundation-ci.sh record
 
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: signup-pinned-catalog
+          path: scoresnap/supabase/schema-snapshot/expected-after-pgnet.json
       - name: Rehearse live ledger adoption without executing baseline twice
         run: bash supabase/schema-drift/rehearse-ledger-adoption.sh
       - name: Stop local stack
@@ -111,4 +116,9 @@ jobs:
       - name: Full M4b SQL chain, role matrix, mutations and synchronized races
         run: |
           /usr/lib/postgresql/17/bin/postgres --version | grep -E 'PostgreSQL\) 17\.'
-          bash scoresnap/supabase/schema-drift/m4b-local.sh
+          bash scoresnap/supabase/schema-drift/m4b-local.sh record
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: signup-native-catalog
+          path: scoresnap/supabase/schema-snapshot/expected-after.json

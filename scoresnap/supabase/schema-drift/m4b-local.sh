@@ -60,6 +60,7 @@ done
 python3 "$here/guest-guard-mutations.py" --url "$url" > "$work/mutations.log" 2>&1 || { cat "$work/mutations.log"; exit 1; }
 tail -1 "$work/mutations.log"
 python3 "$here/m4b-verify.py" races "$url"
+q -f "$here/signup-disposable-down.sql" > "$work/signup-down.log" 2>&1 || { cat "$work/signup-down.log"; exit 1; }
 q -f "$here/../rollback/20261031180000_chat_report_block.down.sql" > "$work/chat-down.log" 2>&1 || { cat "$work/chat-down.log"; exit 1; }
 q -At -f "$here/catalog-query.sql" > "$work/pre-chat.json"
 python3 "$here/m4b-verify.py" catalog "$work/pre-chat.json" compare-syncapi
