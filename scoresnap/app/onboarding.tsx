@@ -33,13 +33,6 @@ interface SlideData {
 
 const slides: SlideData[] = [
   {
-    id: "scan",
-    title: "Snap Your Scorecard",
-    subtitle:
-      "Point your camera at any handwritten or printed golf scorecard. AI reads every score in seconds.",
-    accent: COLORS.accent,
-  },
-  {
     id: "settle",
     title: "See Who Owes What",
     subtitle:
@@ -47,10 +40,17 @@ const slides: SlideData[] = [
     accent: COLORS.gold,
   },
   {
-    id: "compete",
-    title: "Track Every Round",
+    id: "score",
+    title: "Score However You Like",
     subtitle:
-      "Leaderboards, settlement history, and shareable scorecards. Know who owes who — always.",
+      "Enter scores hole by hole, or scan a printed card and check what it reads.",
+    accent: COLORS.accent,
+  },
+  {
+    id: "track",
+    title: "Keep Your Rounds",
+    subtitle:
+      "Leaderboards, round results and shareable scorecards in one place.",
     accent: COLORS.blue,
   },
 ];

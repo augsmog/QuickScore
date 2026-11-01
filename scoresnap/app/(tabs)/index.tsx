@@ -143,7 +143,7 @@ export default function HomeScreen() {
               marginBottom: 20,
             }}
           >
-            Scan a scorecard, confirm scores and side-game details, and settle up.
+            Add your group, pick your games, and see who owes what. Scan a card if you've got one.
           </Text>
 
           {/* CTA Buttons Row */}

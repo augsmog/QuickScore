@@ -9,7 +9,7 @@ const packages={annual:pkg('pro-y','$24.99'),monthly:pkg('pro-m','$3.99'),td_ann
 const eligible={'pro-y':true,'td-y':true};
 const view=(period='year',tier='pro',owner='free',p=packages,e=eligible)=>plans.buildPaywallView(p,e,owner,{tier,period});
 const strings=v=>[v.restore,v.eyebrow,v.headline,...v.values.flatMap(r=>[r.title,r.body]),v.scans,...v.rows.flatMap(r=>[r.name,r.tag,r.body,r.alternate,r.price,r.trial].filter(Boolean)),v.cta,v.billed,v.oneTrial,v.legal,v.terms,v.dot,v.privacy].filter(Boolean);
-test('AC-PW1 byte-exact Figma strings in both periods',()=>{
+test('AC-PW1 byte-exact staged launch strings in both periods',()=>{
  const fixture=require('./fixtures/paywall-figma-strings.json');
  for(const [period,id] of [['year','1:164'],['month','1:247']])
  expect(strings(view(period)).sort()).toEqual(Object.values(fixture[id]).map(n=>n.characters).sort());
@@ -80,20 +80,21 @@ test('AC-PW5 legal strings and actual Linking handlers',()=>{
  const h=screen(),tree=h.render();button(tree,C.terms).props.onPress();button(tree,C.privacy).props.onPress();
  expect(h.openURL.mock.calls).toEqual([[TERMS_URL],[PRIVACY_URL]]);
 });
-test('AC-PW6 both tiers and periods remain count-free without approved placements',()=>{
+test('AC-PW6 both tiers and periods use the staged game count',()=>{
  const countClaim=/\d+\s*\+?\s*(game|games|mode|modes|ways to play|ways)/i;
  for(const period of ['year','month'])for(const tier of ['pro','td']){
   const v=view(period,tier);
   expect(v.values.map(v=>v.icon)).toEqual(['contest','library','live']);
-  expect(v.values.find(v=>v.icon==='library').body).toBeFalsy();
+  expect(v.values.find(v=>v.icon==='library').body).toBe(C.libraryBody);
   expect(v.values.every(v=>!/scan/i.test(v.body))).toBe(true);
   for(const value of strings(v)){
-   expect(value).not.toMatch(countClaim);
+   expect(value.replaceAll('50+ game modes','')).not.toMatch(countClaim);
    expect(value).not.toMatch(/ways to play/i);
   }
   const h=screen();h.render();h.states[0]={tier,period};
   const rendered=text(h.render());
-  expect(rendered).not.toMatch(countClaim);
+  expect(rendered).toContain(C.libraryBody);
+  expect(rendered.replaceAll('50+ game modes','')).not.toMatch(countClaim);
   expect(rendered).not.toMatch(/ways to play/i);
  }
 });
