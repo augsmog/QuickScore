@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const assert = require('node:assert/strict');
 const ts = require('typescript');
 const read = p => fs.readFileSync(p, 'utf8');
-const files = ['app/onboarding.tsx', 'app/(tabs)/index.tsx', 'app/paywall.tsx', 'src/ui/paywall-copy.ts', 'docs/APP_STORE_LISTING.md'];
+const files = ['app/onboarding.tsx', 'app/(tabs)/index.tsx', 'app/paywall.tsx', 'src/ui/paywall-copy.ts', 'src/ui/animations/SettlementScene.tsx', 'src/ui/animations/ManualScoreScene.tsx', 'docs/APP_STORE_LISTING.md'];
 function copy(file) {
  const raw = read(file);
  if (file.endsWith('.md')) return raw;
@@ -18,7 +18,7 @@ function copy(file) {
 }
 for (const file of files) {
  const text = copy(file);
- assert.doesNotMatch(text, /\b(?:bets?|betting|wager\w*|gambl\w*|payout\w*|unlock\w*|side-bet)\b/i, file);
+ assert.doesNotMatch(text, /\b(?:bets?|betting|wager\w*|gambl\w*|payout\w*|unlock\w*|side-bet|winnings|pays out|every score|always|easiest)\b/i, file);
  assert.doesNotMatch(text, /\p{Extended_Pictographic}|!/u, file);
  assert.doesNotMatch(text.replaceAll('50+ game modes', ''), /\b\d+\s*\+?\s*(?:game|mode|ways to play)s?\b/i, file);
 }

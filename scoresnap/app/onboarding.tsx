@@ -1,6 +1,6 @@
 import { OFFLINE_MODE } from "../src/config/offline";
 import { useRef, useEffect } from "react";
-import { View, Text, Pressable, Dimensions } from "react-native";
+import { View, Text, Pressable, Dimensions, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
@@ -16,7 +16,8 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { COLORS } from "../src/ui/theme";
 import { useOnboardingStore } from "../src/stores/onboarding-store";
-import { SettlementScene, ManualScoreScene } from "../src/ui/animations/ScoringScenes";
+import { SettlementScene } from "../src/ui/animations/SettlementScene";
+import { ManualScoreScene } from "../src/ui/animations/ManualScoreScene";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../src/config/features";
 import { LeaderboardScene } from "../src/ui/animations/LeaderboardScene";
 import { AnimatedPageDots } from "../src/ui/animations/AnimatedPageDots";
@@ -36,7 +37,7 @@ const slides: SlideData[] = [
     id: "settle",
     title: "See Who Owes What",
     subtitle:
-      "Skins, Nassau, Stableford, and more game modes calculated automatically. No more bar napkin math.",
+      "Skins, Nassau, Stableford and more, calculated for your group. This example has 12 players.",
     accent: COLORS.gold,
   },
   {
@@ -59,6 +60,7 @@ const ACCENT_COLORS = slides.map((s) => s.accent);
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const compact = useWindowDimensions().height < 700;
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
   const scrollRef = useRef<Animated.ScrollView>(null);
   const scrollX = useSharedValue(0);
@@ -171,7 +173,7 @@ export default function OnboardingScreen() {
               flex: 1,
               justifyContent: "center",
               alignItems: "center",
-              paddingHorizontal: 40,
+              paddingHorizontal: compact ? 24 : 40,
             }}
           >
             {/* Animated illustration */}
@@ -191,7 +193,7 @@ export default function OnboardingScreen() {
               <Text
                 style={{
                   color: COLORS.text,
-                  fontSize: 28,
+                  fontSize: compact ? 24 : 28,
                   fontWeight: "800",
                   textAlign: "center",
                   marginBottom: 12,
@@ -210,8 +212,8 @@ export default function OnboardingScreen() {
               pageWidth={SCREEN_WIDTH}
               style={{
                 color: COLORS.textDim,
-                fontSize: 16,
-                lineHeight: 24,
+                fontSize: compact ? 14 : 16,
+                lineHeight: compact ? 20 : 24,
                 textAlign: "center",
               }}
             />
@@ -220,7 +222,7 @@ export default function OnboardingScreen() {
       </Animated.ScrollView>
 
       {/* Bottom: Dots + CTA */}
-      <View style={{ paddingHorizontal: 24, paddingBottom: 20, alignItems: "center" }}>
+      <View style={{ paddingHorizontal: 24, paddingBottom: compact ? 8 : 20, alignItems: "center" }}>
         {CROSS_DEVICE_SHARING_ENABLED && (
           <Pressable
             accessibilityRole="button"
@@ -229,7 +231,7 @@ export default function OnboardingScreen() {
               completeOnboarding();
               router.replace("/join/enter");
             }}
-            style={{ padding: 16, marginBottom: 8 }}
+            style={{ padding: compact ? 8 : 16, marginBottom: compact ? 4 : 8 }}
           >
             <Text style={{ color: COLORS.text, fontSize: 17, fontWeight: "700" }}>
               Join a group
@@ -237,7 +239,7 @@ export default function OnboardingScreen() {
           </Pressable>
         )}
         {/* Animated page dots */}
-        <View style={{ marginBottom: 24 }}>
+        <View style={{ marginBottom: compact ? 12 : 24 }}>
           <AnimatedPageDots
             scrollX={scrollX}
             pageWidth={SCREEN_WIDTH}

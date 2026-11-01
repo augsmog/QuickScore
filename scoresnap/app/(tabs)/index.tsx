@@ -232,7 +232,7 @@ export default function HomeScreen() {
                 <AnimatedPressable
                   testID="home-join-code"
                   accessibilityRole="button"
-                  accessibilityLabel="Join a group"
+                  accessibilityLabel="Join with code"
                   onPress={() => router.push("/join/enter")}
                   style={{
                     flex: 1,
@@ -263,7 +263,7 @@ export default function HomeScreen() {
                       letterSpacing: 0.6,
                     }}
                   >
-                    Join a group
+                    Join with code
                   </Text>
                 </AnimatedPressable>
               )}

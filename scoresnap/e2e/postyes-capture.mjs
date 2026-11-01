@@ -1,0 +1,31 @@
+import { chromium } from 'playwright';
+import assert from 'node:assert/strict';
+const out='/workspace/aos-state/reports/postyes-20261101/shots';
+const browser=await chromium.launch();
+try {
+ const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
+ const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/*',r=>{const u=new URL(r.request().url());if(u.href==='https://cdn.jsdelivr.net/npm/jsqr@1.2.0/dist/jsQR.min.js')return r.fulfill({contentType:'application/javascript',body:'self.jsQR = () => null;'});return ['localhost','127.0.0.1'].includes(u.hostname)?r.continue():r.abort();});
+ await page.goto('http://127.0.0.1:8091/onboarding',{waitUntil:'networkidle'});
+ await page.getByText('See Who Owes What',{exact:true}).waitFor();
+ await page.waitForTimeout(1200);
+ await page.screenshot({path:out+'/onboarding-settlement-390.png'});
+ assert.equal(await page.getByText('+ Join a group',{exact:true}).count(),1);
+ await page.getByText(/^next$/i).locator('visible=true').first().click({force:true});
+ await page.waitForTimeout(1000);
+ await page.screenshot({path:out+'/onboarding-manual-390.png'});
+ await page.setViewportSize({width:320,height:568});
+ await page.goto('http://127.0.0.1:8091/onboarding',{waitUntil:'networkidle'});
+ await page.waitForTimeout(800);
+ await page.screenshot({path:out+'/onboarding-settlement-320.png'});
+ await page.getByText(/^next$/i).locator('visible=true').first().click({force:true});
+ await page.waitForTimeout(800);
+ await page.screenshot({path:out+'/onboarding-manual-320.png'});
+ await page.setViewportSize({width:390,height:844});
+ await page.evaluate(()=>{localStorage.setItem('snapscore-onboarding',JSON.stringify({version:0,state:{hasCompletedOnboarding:true,hasSeenDemo:true}})); const user={id:'anon-capture',name:'Golfer',provider:'anonymous'};localStorage.setItem('snapscore-auth',JSON.stringify({version:0,state:{session:{user},user,isAnonymous:true}}));});
+ await page.goto('http://127.0.0.1:8091/',{waitUntil:'networkidle'});
+ const join=page.getByTestId('home-join-code');await join.waitFor();assert.equal(await join.textContent(),'Join with code');
+ await page.screenshot({path:out+'/home-join-390.png'});
+ assert.deepEqual(errors,[]);
+ console.log('PASS: onboarding 390/320, group chip and Home join control');
+}finally{await browser.close();}
