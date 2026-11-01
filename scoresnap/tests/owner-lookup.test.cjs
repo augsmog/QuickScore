@@ -46,7 +46,7 @@ test.each([{ code: 'PGRST202' }, { code: '42883' }, { status: 404 }])('missing o
   const rpc = jest.fn(async () => ({ error }));
   const read = lookup({ user: { id: 'owner' } }, rpc);
   expect(await read()).toEqual([]);
-  await expect(read('ABC234')).rejects.toThrow('This contest cannot be restored on a new device yet.');
+  expect(await read('ABC234')).toEqual([]);
   expect(await read()).toEqual([]);
   expect(rpc).toHaveBeenCalledTimes(1);
 });
@@ -92,11 +92,15 @@ test.each([true, false])('live local code restores authorized host/member withou
   expect(repair).toHaveBeenCalledWith('c', expect.objectContaining({ role: host ? 'host' : 'player' }), expect.any(Object));
   expect(rpc.mock.calls.some(([name]) => name === 'request_join')).toBe(false);
 });
-test('live fresh unknown code gives fallback and never creates a self-request', async () => {
-  const rpc = liveRpc(true);
-  const api = lookup({ user: { id: 'owner' } }, rpc, [], true);
-  await expect(api.joinCode('ABC234', 'Owner')).rejects.toThrow('This contest cannot be restored on a new device yet.');
-  expect(rpc.mock.calls.some(([name]) => name === 'request_join')).toBe(false);
+test.each(['nonowner', 'owner'])('live fresh %s code preserves main request flow exactly once', async actor => {
+  const base = liveRpc(true);
+  const rpc = jest.fn(async (...args) => args[0] === 'request_join' ? { data: { status: 'pending' } } : base(...args));
+  const api = lookup({ user: { id: actor } }, rpc, [], true);
+  expect(await api.joinCode('abc234', ' Reviewer ')).toBeNull();
+  expect(rpc.mock.calls.filter(([name]) => name === 'request_join')).toEqual([
+    ['request_join', { code: 'ABC234', display_name: 'Reviewer' }],
+  ]);
+  expect(rpc.mock.calls.filter(([name]) => name === 'list_owned_contests')).toHaveLength(1);
 });
 test('a new session retries capability and can restore with newly available RPC', async () => {
   const session = { access_token: 'test-session-one', user: { id: 'owner' } };

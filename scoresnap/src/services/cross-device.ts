@@ -67,7 +67,9 @@ export const client = onlineClient(async (name, args) => {
   const store = require('../stores/contest-store').useContestStore;
   const local = store.getState().contests.find((c: { joinCode?: string }) => c.joinCode?.toUpperCase() === code);
   if (local) return [{ id: local.id, legacyHint: true }];
-  throw Error('This contest cannot be restored on a new device yet.');
+  // Preserve the live request_join flow for codes with no local ID hint.
+  // Fresh-device owner detection requires the proposed owner RPC.
+  return [];
 });
 let signingIn: Promise<string> | undefined;
 export async function remoteIdentity() {
