@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-import {inflateSync} from 'node:zlib';
+import {proveGlyphPaint} from './glyph-evidence.mjs';
 import {chromium} from 'playwright';
 import {createMetrics,count,screen,evaluate,aggregate} from './metrics.mjs';
 import {cases,setup,ready,disclosures,fixtureVersion} from './adapter.mjs';
@@ -17,40 +17,16 @@ fs.mkdirSync(out,{recursive:true});
 const runStart=performance.now();
 const required=manifest.journeys.filter(j=>j.status!=='deferred'&&(!filter||filter.includes(j.id))).map(j=>j.id);
 const report={sha:process.env.GIT_SHA||execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),platform:manifest.platform,flags:manifest.flags,fixtureVersion,viewport:{width:390,height:844},startedAt:new Date().toISOString(),required,executed:[],results:[],coverageGaps:manifest.journeys.filter(j=>j.status==='deferred').map(j=>({id:j.id,reason:j.deferredReason})),mutation:mutation||null};
+report.glyphEvidence=[];
+const glyphDir=fs.mkdtempSync(path.join(out,'glyphs-'));
 class Failure extends Error {constructor(signature,message=signature){super(message);this.signature=signature;}}
 function demand(ok,signature,message) {if(!ok) throw new Failure(signature,message);}
-
-// Decode Chromium's non-interlaced 8-bit RGB/RGBA screenshot PNGs locally.
-// This keeps the pixel proof off the browser round trip and adds no dependency.
-function pngTextureStats(png) {
-  let width=0,height=0,depth=0,type=0,interlace=0;const chunks=[];
-  for(let i=8;i+12<=png.length;) {
-    const size=png.readUInt32BE(i),name=png.toString('ascii',i+4,i+8),data=png.subarray(i+8,i+8+size);i+=size+12;
-    if(name==='IHDR'){width=data.readUInt32BE(0);height=data.readUInt32BE(4);depth=data[8];type=data[9];interlace=data[12];}
-    else if(name==='IDAT')chunks.push(data);
-    else if(name==='IEND')break;
-  }
-  const channels=type===2?3:type===6?4:0;
-  if(!width||!height||depth!==8||!channels||interlace!==0)return {clusters:0,stddev:0,min:255,max:0};
-  const stride=width*channels,raw=inflateSync(Buffer.concat(chunks)),decoded=Buffer.alloc(stride*height);let src=0;
-  const paeth=(a,b,c)=>{const p=a+b-c,pa=Math.abs(p-a),pb=Math.abs(p-b),pc=Math.abs(p-c);return pa<=pb&&pa<=pc?a:pb<=pc?b:c;};
-  for(let y=0;y<height;y++) {
-    const filter=raw[src++],row=y*stride;
-    for(let x=0;x<stride;x++) {
-      const value=raw[src++],left=x>=channels?decoded[row+x-channels]:0,up=y?decoded[row-stride+x]:0,upperLeft=y&&x>=channels?decoded[row-stride+x-channels]:0;
-      const predictor=filter===1?left:filter===2?up:filter===3?Math.floor((left+up)/2):filter===4?paeth(left,up,upperLeft):0;
-      decoded[row+x]=(value+predictor)&255;
-    }
-  }
-  const hist=new Uint32Array(8);let sum=0,sum2=0,n=0,min=255,max=0;
-  for(let i=0;i<decoded.length;i+=channels){const l=.2126*decoded[i]+.7152*decoded[i+1]+.0722*decoded[i+2];hist[Math.min(7,Math.floor(l/32))]++;sum+=l;sum2+=l*l;n++;min=Math.min(min,l);max=Math.max(max,l);}
-  return {stddev:Math.sqrt(Math.max(0,sum2/n-(sum/n)**2)),min,max,clusters:hist.filter(Boolean).length,width,height};
-}
 
 // Geometry does not scroll, focus, or activate. Check full viewport/ancestor
 // clipping and center plus inset-corner hit tests before every real activation.
 async function geometry(locator,{text}={}) {
   const page=locator.page();
+  if(text)await page.evaluate(()=>document.fonts.ready.then(()=>undefined));
   demand(await locator.count()===1,'control-not-unique');
   demand(await locator.isVisible(),'control-hidden');
   demand(await locator.isEnabled()&&await locator.getAttribute('aria-disabled')!=='true','control-disabled');
@@ -102,7 +78,7 @@ async function geometry(locator,{text}={}) {
     };
     // Require a contrasting text node with geometry inside the target as well
     // as visibility along the entire text-to-root chain.
-    let visibleText=!text,textRect=null;
+    let visibleText=!text,textRect=null,textNode=null;
     const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
     while(text && walker.nextNode()) {
       const n=walker.currentNode,at=n.textContent.toLowerCase().indexOf(text.toLowerCase());if(at<0)continue;
@@ -129,17 +105,25 @@ async function geometry(locator,{text}={}) {
         visibleText=true;
         const x=Math.min(...clipped.map(q=>q.x)),y=Math.min(...clipped.map(q=>q.y)),right=Math.max(...clipped.map(q=>q.x+q.width)),bottom=Math.max(...clipped.map(q=>q.y+q.height));
         textRect={x,y,width:right-x,height:bottom-y};
+        const path=[];for(let a=n;a!==el;a=a.parentNode)path.unshift([...a.parentNode.childNodes].indexOf(a));
+        textNode={path,start:at,end:at+text.length};
+        break;
       }
     }
-    return {inside,hits,visibleText,rendered,textRect,rect:{x:r.x,y:r.y,width:r.width,height:r.height}};
+    return {inside,hits,visibleText,rendered,textRect,textNode,rect:{x:r.x,y:r.y,width:r.width,height:r.height}};
   },text);
   demand(state.rendered,'control-hidden');
   demand(state.inside,'outside-viewport-or-clipped',JSON.stringify(state.rect));
   demand(state.hits,'control-occluded');demand(state.visibleText,'visible-text-missing');
   if(text) {
-    const pixels=await page.screenshot({clip:state.textRect});
-    const texture=pngTextureStats(pixels);
-    demand(texture.clusters>=2&&texture.max-texture.min>=24&&texture.stddev>=6,'visible-text-missing');
+    const evidence={id:report.glyphEvidence.length+1,text,testId:await locator.getAttribute('data-testid'),clip:state.textRect,node:state.textNode,captures:{},proof:null};
+    report.glyphEvidence.push(evidence);
+    const proof=await proveGlyphPaint(locator,{...state.textNode,clip:state.textRect,onCapture:(stage,png)=>{
+      const file=path.join(glyphDir,`${String(evidence.id).padStart(3,'0')}-${stage}.png`);
+      fs.writeFileSync(file,png);evidence.captures[stage]=path.relative(out,file);
+    }});
+    evidence.proof=proof;
+    demand(proof.passed,'visible-text-missing',`visible-text-missing: ${proof.reason}`);
   }
   return state.rect;
 }
@@ -254,6 +238,29 @@ async function runJourney(browser,j) {
         else if(mutation==='label-clip-path'){outer.style.display='inline-block';outer.style.clipPath='inset(50%)';}
         else {outer.style.webkitTextFillColor='transparent';outer.style.color='rgb(20,20,20)';}
         label.replaceWith(outer);outer.append(inner);inner.append(label);
+      },mutation);
+      else if(['opaque-overlay','striped-overlay','pseudo-after-stripes','currentcolor-overlay','partial-striped-overlay','sliver-striped-overlay','textured-transparent-label'].includes(mutation))await target.evaluate((el,mutation)=>{
+        const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let label;
+        while(walker.nextNode())if(walker.currentNode.textContent.trim()==='New Contest'){label=walker.currentNode;break;}
+        if(!label)throw Error('mutation label missing');
+        const parent=label.parentElement;
+        parent.style.position='relative';parent.style.display='inline-block';
+        const stripes='repeating-linear-gradient(90deg, rgb(0,0,0) 0 2px, rgb(255,255,255) 2px 4px)';
+        if(mutation==='textured-transparent-label') {
+          parent.style.backgroundImage=stripes;parent.style.webkitTextFillColor='transparent';
+        } else if(mutation==='pseudo-after-stripes') {
+          parent.setAttribute('data-journey-cover','');
+          const css=document.createElement('style');
+          css.textContent=`[data-journey-cover]::after{content:"";position:absolute;inset:0;background:${stripes};pointer-events:none;z-index:5}`;
+          document.head.append(css);
+        } else {
+          const cover=document.createElement('span');cover.setAttribute('aria-hidden','true');
+          Object.assign(cover.style,{position:'absolute',inset:'0',pointerEvents:'none',zIndex:'5'});
+          cover.style.background=mutation==='opaque-overlay'?'rgb(23,92,58)':mutation==='currentcolor-overlay'?'repeating-linear-gradient(90deg, currentColor 0 2px, rgb(0,0,0) 2px 4px)':stripes;
+          if(mutation==='partial-striped-overlay')cover.style.left='20%';
+          if(mutation==='sliver-striped-overlay')cover.style.clipPath='polygon(0 0,100% 0,100% 9px,0 9px,0 11px,100% 11px,100% 100%,0 100%)';
+          parent.append(cover);
+        }
       },mutation);
       else throw Error(`unknown mutation ${mutation}`);
     }

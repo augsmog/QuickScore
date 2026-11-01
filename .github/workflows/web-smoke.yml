@@ -71,7 +71,10 @@ jobs:
         run: BASE_URL=http://127.0.0.1:8092 node e2e/usability-regression.mjs
       - name: Journey budgets and reachability
         timeout-minutes: 2
-        run: node --test e2e/journeys/metrics.test.mjs && BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs
+        run: |
+          node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs
+          BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs
+          BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens/negative-proof node e2e/journeys/negative-proof.mjs
       - name: Upload journey screenshots
         uses: actions/upload-artifact@v4
         if: always()
