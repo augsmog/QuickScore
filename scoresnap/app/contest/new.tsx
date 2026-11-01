@@ -1,3 +1,4 @@
+import { SafeScreen } from "../../src/ui/SafeScreen";
 import * as Crypto from 'expo-crypto';
 import { useScanStore } from "../../src/stores/scan-store";
 import { canUseGame, canHostTournament } from "../../src/services/entitlements";
@@ -15,7 +16,6 @@ import {
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ChevronLeft,
   Plus,
@@ -391,7 +391,7 @@ export default function NewContestScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, flexDirection: "row", alignItems: "center", gap: 12 }}>
         <AnimatedPressable
@@ -1344,6 +1344,6 @@ export default function NewContestScreen() {
           </Text>
         </AnimatedPressable>
       </View>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }

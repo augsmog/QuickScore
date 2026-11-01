@@ -1,9 +1,9 @@
+import { SafeScreen } from "../../src/ui/SafeScreen";
 import { signedRoundAmount } from "../../src/ui/copy";
 import { calculateContestSettlement } from "../../src/engine/contest-results";
 import { useState, useMemo } from "react";
 import { View, Text, ScrollView, Button, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Settings,
   Crown,
@@ -156,7 +156,7 @@ export default function ProfileScreen() {
   const hasData = stats.totalRounds > 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
@@ -603,6 +603,6 @@ export default function ProfileScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }

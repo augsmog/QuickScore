@@ -1,10 +1,10 @@
+import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { OnlineSyncPanel } from "../../../src/ui/OnlineSyncPanel";
 import { LiveShare } from "../../../src/ui/LiveShare";
 import { ContestJoinCode } from "../../../src/ui/ContestJoinCode";
 import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft, Camera, Edit3, Calendar } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
@@ -43,7 +43,7 @@ export default function ContestLayout() {
 
   if (!contest) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+      <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
           <Text style={{ fontSize: 48, marginBottom: 16 }}>🔍</Text>
           <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
@@ -64,7 +64,7 @@ export default function ContestLayout() {
             <Text style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 15 }}>Go Back</Text>
           </AnimatedPressable>
         </View>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
@@ -72,7 +72,7 @@ export default function ContestLayout() {
   const ActiveScreen = TABS.find((t) => t.key === activeTab)!.Screen;
 
   return (
-    <SafeAreaView testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       <ContestJoinCode contest={contest} />
       <LiveShare contest={contest} />
       <OnlineSyncPanel contest={contest} />
@@ -221,6 +221,6 @@ export default function ContestLayout() {
 
       {/* Active screen — rendered directly, no Slot/router */}
       <ActiveScreen />
-    </SafeAreaView>
+    </SafeScreen>
   );
 }
