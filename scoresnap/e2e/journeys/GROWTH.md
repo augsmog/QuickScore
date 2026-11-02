@@ -28,3 +28,5 @@ Append only. Owner is the accountable adapter team; issue closure requires remov
 | 2026-10-31 | All executable journeys | Every required step must produce a screenshot in the current attempt | Verifier round 1 follow-up | requiredSteps inventory; missing step capture is red even with passing outcomes or a strict xfail | SnapScore maintainers | AUG-288 |
 
 | 2026-11-01 | J-home-create-cancel and core-label checks | Glyph paint under patterned covers | AUG-330 / PR #86 independent round 3 | `proveGlyphPaint`, rendered fixture tests, and striped sibling / `::after` / currentColor / partial-cover / two-pixel-sliver negative proofs; execution status in EVIDENCE.md | SnapScore maintainers | AUG-330 |
+
+| 2026-11-02 | J-free-paywall-recover | Reopen plans on each deliberate paid-control tap after return; prevent only stacked in-flight navigation; preserve draft and TD gates | Augie AUG-293 comment 779acf43-74ab-4589-b17c-846c4277f91e supersedes once-per-form proposal | `tests/new-contest-paywall.test.cjs` repeated-tap, rapid-tap, both-order, draft and downgrade checks; rendered adapter remains deferred | SnapScore maintainers | AUG-293 |

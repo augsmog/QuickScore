@@ -47,16 +47,16 @@ test('OCR withdrawal while reading and exhausted allowance both block the edge c
 });
 function screenHarness(path,tier,contest=fixture()) {
  const e=entitlement(),theme=load('src/ui/theme.ts'),types=load('src/engine/types.ts',{'../services/entitlements':e});
- const push=jest.fn(),save=jest.fn(),states=[];let cursor=0;
- const react={useState:init=>{const i=cursor++;if(!(i in states))states[i]=typeof init==='function'?init():init;return [states[i],v=>{states[i]=typeof v==='function'?v(states[i]):v;}];},useMemo:f=>f(),useEffect:()=>{},useCallback:f=>f,useRef:()=>({})};
- const jsx=(type,props)=>({type,props});const deps={react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':new Proxy({Platform:{OS:'ios'}},{get:(o,k)=>o[k]||k}),'expo-router':{useRouter:()=>({push,back:()=>{},replace:()=>{}}),useLocalSearchParams:()=>({id:'c'})},'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'lucide-react-native':{},'expo-haptics':{impactAsync:()=>{},notificationAsync:()=>{},ImpactFeedbackStyle:{Light:1},NotificationFeedbackType:{Success:1}}};
+ const push=jest.fn(),save=jest.fn(),states=[],refs=[];let cursor=0,refCursor=0;
+ const react={useState:init=>{const i=cursor++;if(!(i in states))states[i]=typeof init==='function'?init():init;return [states[i],v=>{states[i]=typeof v==='function'?v(states[i]):v;}];},useMemo:f=>f(),useEffect:()=>{},useCallback:f=>f,useRef:init=>{const i=refCursor++;return refs[i]??={current:init};}};
+ const jsx=(type,props)=>({type,props});const deps={react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':new Proxy({Platform:{OS:'ios'}},{get:(o,k)=>o[k]||k}),'expo-router':{useFocusEffect:()=>{},useRouter:()=>({push,back:()=>{},replace:()=>{}}),useLocalSearchParams:()=>({id:'c'})},'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'lucide-react-native':{},'expo-haptics':{impactAsync:()=>{},notificationAsync:()=>{},ImpactFeedbackStyle:{Light:1},NotificationFeedbackType:{Success:1}}};
  for(const depth of ['../..','../../..'])Object.assign(deps,{
   [depth+'/src/config/features']:{COURSE_SEARCH_ENABLED:false},[depth+'/src/config/auth']:{REAL_AUTH_CONFIGURED:false},[depth+'/src/stores/auth-store']:{useAuthStore:Object.assign(f=>f({user:null}),{getState:()=>({})})},[depth+'/src/ui/CourseSearch']:{__esModule:true,default:()=>null},
   'expo-crypto':{randomUUID:()=> '00000000-0000-4000-8000-000000000001'},[depth+'/src/stores/scan-store']:{useScanStore:f=>f({tier})},[depth+'/src/services/entitlements']:e,[depth+'/src/ui/theme']:theme,[depth+'/src/engine/types']:types,[depth+'/src/ui/AnimatedPressable']:{AnimatedPressable:'Pressable'},
   [depth+'/src/stores/contest-store']:{useContestStore:f=>f({contests:[contest],updateContest:save,addContest:save,addRound:save}),defaultCourse:()=>({name:'Course',holes:Array.from({length:18},(_,i)=>({num:i+1,par:4,hcp:i+1}))}),generateId:()=>String(Math.random())},
  });
  const Screen=load(path,deps).default;
- return {render:()=>{cursor=0;return Screen();},push,save,states};
+ return {render:()=>{cursor=refCursor=0;return Screen();},push,save,states};
 }
 function nodes(n){if(!n||typeof n!=='object')return [];return Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];}
 function textOf(n){if(n==null)return '';if(typeof n!=='object')return String(n);if(Array.isArray(n))return n.map(textOf).join('');return textOf(n.props?.children);}
@@ -72,13 +72,23 @@ test('actual edit picker gates adding premium games and groups; existing premium
  const pro=screenHarness('app/contest/[id]/edit.tsx','pro',c);button(pro.render(),'Nassau').props.onPress();expect(pro.push).not.toHaveBeenCalled();
  const td=screenHarness('app/contest/[id]/edit.tsx','td',c);button(td.render(),'Add Group').props.onPress();expect(td.push).not.toHaveBeenCalled();expect(textOf(td.render())).toContain('Add Group');
 });
-test('actual new-contest picker and submit prevent premium game and tournament bypasses',()=>{
+test('actual new-contest picker and submit prevent premium game and tournament bypasses without stacking navigation while in flight',()=>{
  const h=screenHarness('app/contest/new.tsx','free');let tree=h.render();
  nodes(tree).find(n=>n.props?.testID==='tournament-toggle').props.onValueChange(true);expect(h.push).toHaveBeenLastCalledWith('/paywall?tier=td');
- h.states[0]=2;h.states[8]=h.states[8].map((p,i)=>({...p,name:'Player '+i}));tree=h.render();
- button(tree,'🔒 Skins').props.onPress();expect(h.push).toHaveBeenLastCalledWith('/paywall');expect(h.states[11]).toEqual(['stroke_play']);
- h.states[0]=3;h.states[7]=2;tree=h.render();const submit=nodes(tree).find(n=>n.type==='Pressable'&&textOf(n).includes('START'));expect(submit).toBeDefined();submit.props.onPress();expect(h.save).not.toHaveBeenCalled();expect(h.push).toHaveBeenLastCalledWith('/paywall?tier=td');
- h.states[7]=1;tree=h.render();button(tree,'START').props.onPress();expect(h.save).toHaveBeenCalledTimes(1);
+ // Fill the players through actual input callbacks rather than hook slot offsets.
+ for(const placeholder of ['Your name','Player 2 name']) {
+  tree=h.render();nodes(tree).find(n=>n.props?.placeholder===placeholder).props.onChangeText(placeholder);
+ }
+ button(h.render(),'NEXT').props.onPress();tree=h.render();
+ const skins=button(tree,'🔒 Skins');expect(skins.props.disabled).not.toBe(true);skins.props.onPress();expect(h.push).toHaveBeenCalledTimes(1);
+ expect(h.states.find(s=>Array.isArray(s)&&s[0]==='stroke_play')).toEqual(['stroke_play']);
+ // Inject a stale paid hosting shape to exercise submit's independent gate.
+ // With the two prompt UI states, numGroups is slot 9; this is not draft persistence.
+ h.states[9]=2;button(h.render(),'NEXT').props.onPress();button(h.render(),'START').props.onPress();
+ expect(h.save).not.toHaveBeenCalled();expect(h.push).toHaveBeenCalledTimes(1);
+ expect(nodes(h.render()).some(n=>n.props?.testID==='add-group')).toBe(true);
+ h.states[9]=1;button(h.render(),'NEXT').props.onPress();button(h.render(),'NEXT').props.onPress();button(h.render(),'START').props.onPress();
+ expect(h.save).toHaveBeenCalledTimes(1);expect(h.save.mock.calls[0][0].groups).toHaveLength(1);
 });
 test('consent prompt persists decline and allows settings withdrawal without repeat network access',async()=>{
  let choice=null;const update=jest.fn((key,v)=>choice=v),alert=jest.fn();

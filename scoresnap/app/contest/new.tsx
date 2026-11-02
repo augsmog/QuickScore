@@ -4,7 +4,7 @@ import { useScanStore } from "../../src/stores/scan-store";
 import { canUseGame, canHostTournament } from "../../src/services/entitlements";
 import { COURSE_SEARCH_ENABLED } from "../../src/config/features";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import {
   View,
   Alert,
@@ -15,7 +15,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import {
   ChevronLeft,
   Plus,
@@ -76,6 +76,24 @@ export default function NewContestScreen() {
   const user = useAuthStore((s) => s.user);
 
   const [step, setStep] = useState(1);
+  // Guard only navigation in flight; deliberate taps after returning reopen plans.
+  const paywallInFlight = useRef(false);
+  const [hasPrompted, setHasPrompted] = useState(false);
+  const [planRoute, setPlanRoute] = useState<"/paywall" | "/paywall?tier=td">("/paywall");
+  useFocusEffect(useCallback(() => { paywallInFlight.current = false; }, []));
+  const openPlan = (route: "/paywall" | "/paywall?tier=td") => {
+    if (paywallInFlight.current) return;
+    paywallInFlight.current = true;
+    setHasPrompted(true);
+    setPlanRoute(route);
+    router.push(route);
+  };
+  const tdBadge = (
+    <View style={{ backgroundColor: COLORS.gold + "22", borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2, flexDirection: "row", alignItems: "center", gap: 3 }}>
+      <Lock size={9} color={COLORS.gold} />
+      <Text accessibilityLabel="Tournament Director" style={{ fontFamily: FONTS.bold, fontSize: 9, color: COLORS.gold }}>TD</Text>
+    </View>
+  );
 
   // Auto-generate contest name
   const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
@@ -136,7 +154,7 @@ export default function NewContestScreen() {
       GAME_VARIATIONS.filter((v) =>
         v.appliesTo.some((gameId) => selectedGames.includes(gameId) && canUseGame(gameId, tier))
       ),
-    [selectedGames]
+    [selectedGames, tier]
   );
 
   const valuesMatch = (a: unknown, b: unknown): boolean => {
@@ -197,8 +215,8 @@ export default function NewContestScreen() {
   };
 
   const toggleGame = (gameId: GameType) => {
-    if (!selectedGames.includes(gameId) && !canUseGame(gameId, tier)) { router.push("/paywall"); return; }
-    if (!isGameImplemented(gameId)) return; // Coming Soon — can't select
+    if (!isGameImplemented(gameId)) return; // Coming Soon — cannot select or prompt.
+    if (!selectedGames.includes(gameId) && !canUseGame(gameId, tier)) { openPlan("/paywall"); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedGames((prev) =>
       prev.includes(gameId)
@@ -249,12 +267,11 @@ export default function NewContestScreen() {
   const estimatedPot = betAmount * validPlayerCount * 18;
 
   const createContest = () => {
-    if (!canHostTournament({numGroups, numRounds: isTournament ? numRounds : 1}, tier)) { router.push("/paywall?tier=td"); return; }
-    if (selectedGames.some(g => !canUseGame(g, tier))) { router.push("/paywall"); return; }
+    if (!canHostTournament({numGroups, numRounds: isTournament ? numRounds : 1}, tier)) { setStep(1); openPlan("/paywall?tier=td"); return; }
+    if (selectedGames.some(g => !canUseGame(g, tier))) { setStep(2); openPlan("/paywall"); return; }
     if (REAL_AUTH_CONFIGURED && (useAuthStore.getState().isAnonymous || !useAuthStore.getState().session)) {
       router.push("/auth/sign-in"); return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     const course = selectedCourse || defaultCourse(courseName || "My Course");
     const autoName = courseName
@@ -285,6 +302,9 @@ export default function NewContestScreen() {
       })
     );
 
+    // Check the saved shape too: a stale group index must not bypass the gate.
+    if (!canHostTournament({groups}, tier)) { setStep(1); openPlan("/paywall?tier=td"); return; }
+
     const cleanConfig: GameConfig = {rulesVersion:1,inputRulesVersion:1};
     if (selectedGames.some(g => g === "skins" || g === "skins_carry")) { cleanConfig.skinsMode = gameConfig.skinsMode; cleanConfig.skinsScope = gameConfig.skinsScope; }
     for (const v of GAME_VARIATIONS) if (v.appliesTo.some(g => selectedGames.includes(g)) && gameConfig[v.configKey] !== undefined) cleanConfig[v.configKey] = gameConfig[v.configKey];
@@ -306,6 +326,7 @@ export default function NewContestScreen() {
       createdAt: new Date().toISOString(),
     };
 
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     addContest(contest);
     router.replace(`/contest/${contest.id}`);
   };
@@ -483,9 +504,10 @@ export default function NewContestScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
               <Switch
                 testID="tournament-toggle"
+                accessibilityLabel="Multi-Day Tournament"
                 value={isTournament}
                 onValueChange={(val) => {
-                  if (val && !canHostTournament({numRounds}, tier)) { router.push("/paywall?tier=td"); return; }
+                  if (val && !canHostTournament({numRounds}, tier)) { openPlan("/paywall?tier=td"); return; }
                   setIsTournament(val);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
@@ -495,6 +517,7 @@ export default function NewContestScreen() {
               <Text style={{ color: COLORS.text, fontSize: 15, marginLeft: 12 }}>
                 Multi-Day Tournament
               </Text>
+              {tier !== "td" && tdBadge}
             </View>
 
             {isTournament && (
@@ -871,12 +894,19 @@ export default function NewContestScreen() {
               <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>
                 NUMBER OF GROUPS
               </Text>
+              {tier !== "td" && tdBadge}
               <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <AnimatedPressable
                   onPress={() => {
                     if (numGroups > 1) {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setNumGroups(numGroups - 1);
+                      const remaining = numGroups - 1;
+                      setNumGroups(remaining);
+                      setPlayers(prev => prev.map(player => ({
+                        ...player,
+                        groupIndex: Number.isInteger(player.groupIndex) && player.groupIndex >= 0
+                          ? Math.min(player.groupIndex, remaining - 1) : 0,
+                      })));
                     }
                   }}
                   style={{
@@ -897,7 +927,7 @@ export default function NewContestScreen() {
                   testID="add-group" accessibilityLabel="Add group"
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    if (!canHostTournament({numGroups: numGroups + 1}, tier)) { router.push("/paywall?tier=td"); return; }
+                    if (!canHostTournament({numGroups: numGroups + 1}, tier)) { openPlan("/paywall?tier=td"); return; }
                     setNumGroups(numGroups + 1);
                   }}
                   style={{
@@ -1302,6 +1332,17 @@ export default function NewContestScreen() {
           gap: 12,
         }}
       >
+        {hasPrompted && tier !== "td" && (
+          <AnimatedPressable
+            testID="form-upgrade"
+            accessibilityRole="button"
+            accessibilityLabel="Upgrade"
+            onPress={() => openPlan(tier === "pro" ? "/paywall?tier=td" : planRoute)}
+            style={{ alignItems: "center", justifyContent: "center", paddingHorizontal: 8 }}
+          >
+            <Text style={{ color: COLORS.gold, fontFamily: FONTS.bold, fontSize: 11 }}>Upgrade</Text>
+          </AnimatedPressable>
+        )}
         {step > 1 && (
           <AnimatedPressable
             onPress={() => setStep(step - 1)}
