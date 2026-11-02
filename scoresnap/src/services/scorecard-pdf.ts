@@ -1,4 +1,5 @@
-import { PDFDocument, rgb } from 'pdf-lib';
+// Keep Metro web on the package's official CJS entry: tslib 1.x's ESM wrapper has no usable default.
+import { PDFDocument, rgb } from 'pdf-lib/cjs';
 import fontkit from '@pdf-lib/fontkit';
 
 export type ScorecardPdfLine = string | { cells: readonly string[] } | { block: readonly ScorecardPdfLine[] };
