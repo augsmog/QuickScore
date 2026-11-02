@@ -1,3 +1,4 @@
+import {containOffline} from './offline-containment.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
@@ -17,6 +18,7 @@ fs.mkdirSync(out,{recursive:true});
 const runStart=performance.now();
 const required=manifest.journeys.filter(j=>j.status!=='deferred'&&(!filter||filter.includes(j.id))).map(j=>j.id);
 const report={sha:process.env.GIT_SHA||execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),platform:manifest.platform,flags:manifest.flags,fixtureVersion,viewport:{width:390,height:844},startedAt:new Date().toISOString(),required,executed:[],results:[],coverageGaps:manifest.journeys.filter(j=>j.status==='deferred').map(j=>({id:j.id,reason:j.deferredReason})),mutation:mutation||null};
+report.harnessTree=process.env.HARNESS_TREE||null;
 report.glyphEvidence=[];
 const glyphDir=fs.mkdtempSync(path.join(out,'glyphs-'));
 class Failure extends Error {constructor(signature,message=signature){super(message);this.signature=signature;}}
@@ -143,10 +145,7 @@ async function reachability(page,locator,feature) {
 }
 async function runJourney(browser,j) {
   const context=await browser.newContext({viewport:report.viewport,serviceWorkers:'block',permissions:['clipboard-read','clipboard-write']});
-  await context.route('**/*',route=>{
-    const url=new URL(route.request().url());
-    return ['127.0.0.1','localhost','[::1]'].includes(url.hostname)&&url.origin===new URL(base).origin?route.continue():route.abort();
-  });
+  await containOffline(context,base);
   const page=await context.newPage();page.setDefaultTimeout(4000);
   const m=createMetrics(),a={number:1,metrics:m,assertions:[],pageErrors:[],featureChecks:[],steps:[],error:null};
   page.on('pageerror',e=>a.pageErrors.push(e.message));
@@ -267,14 +266,14 @@ async function runJourney(browser,j) {
     screen(m,j.start==='home'?'home':'round-scorecard');
     await step('entry');started=performance.now();measuring=true;const captureStart=excludedMs;
     // Absolute timeout includes capture; task duration below excludes capture.
-    const operation=cases[j.id]({page,act,check,step,enter,reload:async()=>{count(m,'activations',{action:'reload'});await page.reload();}});
+    const operation=cases[j.id]({page,act,check,step,enter,navigate:async route=>{assert(route.startsWith('/')&&!route.startsWith('//'),'local path required');count(m,'activations',{action:'fixture-route-navigation'});await page.goto(new URL(route,base).href);},reload:async()=>{count(m,'activations',{action:'reload'});await page.reload();}});
     try {await Promise.race([operation,new Promise((_,reject)=>{timer=setTimeout(()=>{a.timedOut=true;reject(new Failure('absolute-timeout'));},j.budget.timeoutMs);})]);}
     finally {clearTimeout(timer);m.durationMs=Math.round(performance.now()-started-(excludedMs-captureStart));}
   } catch(e) {
     a.error=String(e);a.signature=e.signature||'unclassified';
     try{await step('failed');}catch(captureError){a.captureError=String(captureError);}
   } finally {measuring=false;clearTimeout(timer);await context.close();}
-  const result={id:j.id,...evaluate(j,a,{baseline:baselines[j.id]??j.baseline}),metrics:m,attempts:[a]};
+  const result={id:j.id,fixtureVersion:j.fixture,...evaluate(j,a,{baseline:baselines[j.id]??j.baseline}),metrics:m,attempts:[a]};
   return result;
 }
 let browser;

@@ -375,31 +375,42 @@
     },
     {
       "id": "J-delete-account",
-      "persona": "New golfer",
-      "goal": "Reach and cancel Delete account",
+      "persona": "Synthetic offline account",
+      "goal": "delete-account",
       "platform": [
         "web-offline"
       ],
       "start": "home",
-      "fixture": "fresh-context-v1",
-      "features": [],
+      "fixture": "focused-acceptance-v1",
+      "features": [
+        {
+          "name": "delete-account",
+          "role": "button",
+          "accessibleName": "Delete Account",
+          "visibleText": "Delete Account",
+          "class": "secondary",
+          "maxActivations": 3,
+          "maxScrolls": 1,
+          "start": "home",
+          "testId": null
+        }
+      ],
       "budget": {
-        "activations": 6,
-        "screens": 4,
+        "activations": 3,
+        "screens": 3,
         "timeoutMs": 20000
       },
-      "baseline": null,
-      "status": "deferred",
-      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-292",
       "assertions": [
-        "entry",
-        "activation",
-        "destination",
-        "outcome"
+        "settings-reachable",
+        "confirmation-three-taps"
       ],
-      "deferredReason": "AUG-292: Settings below fold and unnamed rows; account deletion adapter deferred",
-      "linear": "AUG-292",
-      "requiredSteps": []
+      "requiredSteps": [
+        "entry",
+        "settings-two-taps",
+        "confirmation-stop"
+      ]
     },
     {
       "id": "J-free-paywall-recover",
@@ -563,6 +574,181 @@
       ],
       "deferredReason": "Rules discovery adapter deferred to next phase",
       "requiredSteps": []
+    },
+    {
+      "id": "J-settlement-mark-lifecycle",
+      "persona": "Synthetic offline account",
+      "goal": "Settlement markers reload undo isolation and per-game amounts",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "render-acceptance-v1",
+      "features": [],
+      "budget": {
+        "activations": 18,
+        "screens": 3,
+        "timeoutMs": 45000
+      },
+      "status": "gated",
+      "origin": "Mac rendered gap follow-up 2026-11-02 / AUG-319 AUG-317",
+      "assertions": [
+        "entry",
+        "unmarked",
+        "marked",
+        "reload-persists",
+        "other-contest-unmarked",
+        "other-contest-independent",
+        "undo",
+        "undo-persists",
+        "by-game-values",
+        "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "unmarked",
+        "marked",
+        "reloaded-mark",
+        "other-unmarked",
+        "other-marked",
+        "undone",
+        "undo-reloaded",
+        "by-game-0",
+        "by-game-1",
+        "other-still-marked"
+      ]
+    },
+    {
+      "id": "J-settings-control-inventory",
+      "persona": "Synthetic offline account",
+      "goal": "settings-control-inventory",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "focused-acceptance-v1",
+      "features": [],
+      "budget": {
+        "activations": 2,
+        "screens": 3,
+        "timeoutMs": 45000
+      },
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-292",
+      "assertions": [
+        "complete-role-name-inventory"
+      ],
+      "requiredSteps": [
+        "entry",
+        "inventory-complete"
+      ]
+    },
+    {
+      "id": "J-by-game-nine",
+      "persona": "Synthetic offline account",
+      "goal": "by-game-nine",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "focused-acceptance-v1",
+      "features": [],
+      "budget": {
+        "activations": 2,
+        "screens": 3,
+        "timeoutMs": 20000
+      },
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-317",
+      "assertions": [
+        "nine-hole-signed-rows",
+        "aggregate-separate"
+      ],
+      "requiredSteps": [
+        "entry",
+        "nine-hole-rows",
+        "aggregate"
+      ]
+    },
+    {
+      "id": "J-by-game-pending",
+      "persona": "Synthetic offline account",
+      "goal": "by-game-pending",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "focused-acceptance-v1",
+      "features": [],
+      "budget": {
+        "activations": 2,
+        "screens": 3,
+        "timeoutMs": 20000
+      },
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-317",
+      "assertions": [
+        "pending-no-fabricated-money"
+      ],
+      "requiredSteps": [
+        "entry",
+        "pending-rows"
+      ]
+    },
+    {
+      "id": "J-settlement-tab-runtime-recalc",
+      "persona": "Synthetic offline account",
+      "goal": "settlement-tab-runtime-recalc",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "focused-acceptance-v1",
+      "features": [],
+      "budget": {
+        "activations": 11,
+        "screens": 3,
+        "timeoutMs": 45000
+      },
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-319",
+      "assertions": [
+        "same-contest-tab-retains",
+        "runtime-restart-retains",
+        "recalculation-invalidates"
+      ],
+      "requiredSteps": [
+        "entry",
+        "marked",
+        "tab-return",
+        "runtime-restarted",
+        "recalculated-unmarked"
+      ]
+    },
+    {
+      "id": "J-trial-preview-unloaded",
+      "persona": "Synthetic offline account",
+      "goal": "trial-preview-unloaded",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "focused-acceptance-v1",
+      "features": [],
+      "budget": {
+        "activations": 2,
+        "screens": 3,
+        "timeoutMs": 20000
+      },
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-316",
+      "assertions": [
+        "unloaded-no-trial-promise"
+      ],
+      "requiredSteps": [
+        "entry",
+        "trial-preview-unloaded"
+      ]
     }
   ]
 }

@@ -61,18 +61,36 @@ export function glyphPaintStats(a,b,region) {
   return {significant,inkHeight,requiredInkHeight,passed:significant>=2&&inkHeight>=requiredInkHeight};
 }
 
+
+// A value character is judged against its own unobscured glyph, not a letter's
+// height. Every strong reference-ink pixel must contribute visible paint.
+// Reference AA fringe is excluded; no character/punctuation is exempted.
+export function glyphReferenceStats(normal,hidden,reference,referenceHidden,region) {
+ for(const p of [hidden,reference,referenceHidden])if(p.width!==normal.width||p.height!==normal.height)throw Error('reference dimensions changed');
+ const delta=(a,b,x,y)=>{const i=(y*a.width+x)*a.channels,j=(y*b.width+x)*b.channels;return Math.max(...[0,1,2].map(c=>Math.abs(a.data[i+c]-b.data[j+c])));};
+ let expectedInk=0,matchedInk=0;
+ for(let y=Math.max(0,Math.floor(region.y));y<Math.min(normal.height,Math.ceil(region.y+region.height));y++)for(let x=Math.max(0,Math.floor(region.x));x<Math.min(normal.width,Math.ceil(region.x+region.width));x++) {
+  if(delta(reference,referenceHidden,x,y)>=96){expectedInk++;if(delta(normal,hidden,x,y)>=24)matchedInk++;}
+ }
+ return {expectedInk,matchedInk,passed:expectedInk>0&&matchedInk===expectedInk};
+}
+
 // This proves that the matched text itself contributes pixels, not merely that
 // its rectangle has texture. A text-only display:contents wrapper preserves
 // the original node, ancestor color/currentColor, backgrounds and pseudo boxes.
 // Compare the normal/wrapped/restored pixels and all Range rects exactly: style
 // selectors, movement, late fonts and animated paint must fail closed, not count
 // as glyphs. No OCR/readability claim is made from this differential alone.
-export async function proveGlyphPaint(locator,{path,start,end,clip,onCapture}) {
+export async function proveGlyphPaint(locator,{path,start,end,clip,onCapture,referenceGlyphs=false,targetHandle}) {
   const page=locator.page();
-  const node=await locator.evaluateHandle((el,path)=>path.reduce((n,i)=>n.childNodes[i],el),path);
+  // A live getByText locator can select our injected span. Pin the original
+  // element for all geometry checks; never re-resolve it during the probe.
+  const target=targetHandle||await locator.elementHandle();
+  if(!target)throw Error('matched element missing');
+  const node=await target.evaluateHandle((el,path)=>path.reduce((n,i)=>n.childNodes[i],el),path);
   let probe;
-  const layout=()=>locator.evaluate((el,{node:n,start,end})=>{
-    if(!n?.isConnected||n.nodeType!==Node.TEXT_NODE)throw Error('matched text node changed');
+  const layout=()=>target.evaluate((el,{node:n,start,end})=>{
+    if(!el.isConnected||!el.contains(n)||!n?.isConnected||n.nodeType!==Node.TEXT_NODE)throw Error('matched text node changed');
     const rects=(from,to)=>{const r=document.createRange();r.setStart(n,from);r.setEnd(n,to);return [...r.getClientRects()].map(({x,y,width,height})=>({x,y,width,height}));};
     const characters=[];
     for(const {segment,index} of new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(n.textContent.slice(start,end))) {
@@ -116,7 +134,41 @@ export async function proveGlyphPaint(locator,{path,start,end,clip,onCapture}) {
     if(delta.significant<Math.max(4,Math.ceil(delta.total*.01)))return fail('no significant glyph paint');
     // One exposed letter must not stand in for an otherwise covered label.
     // Per-character rectangles are only a spatial paint proof, not recognition.
-    const characters=originalLayout.characters.map(rects=>rects.map(r=>glyphPaintStats(normal,hidden,{x:r.x-clip.x,y:r.y-clip.y,width:r.width,height:r.height})));
+
+    let reference,referenceHidden;
+    if(referenceGlyphs) {
+      // An isolated shadow overlay removes ancestor clipping/occlusion without
+      // changing the original text. Copy computed typography, preserve shaping
+      // context, and fail closed unless every Range rectangle aligns exactly.
+      const overlay=await node.evaluateHandle((n,{start,end,originalLayout})=>{
+        const host=document.createElement('div');host.setAttribute('aria-hidden','true');host.inert=true;
+        for(const [k,v] of Object.entries({all:'initial',position:'fixed',inset:'0',background:'#fff',zIndex:'2147483647',pointerEvents:'none',opacity:'1',visibility:'visible',display:'block'}))host.style.setProperty(k.replace(/[A-Z]/g,c=>'-'+c.toLowerCase()),v,'important');
+        const shadow=host.attachShadow({mode:'closed'}),span=document.createElement('span');
+        const style=getComputedStyle(n.parentElement);span.style.setProperty('all','initial','important');
+        for(const k of ['font-family','font-size','font-weight','font-style','font-stretch','font-variant','font-kerning','font-feature-settings','font-variation-settings','font-size-adjust','letter-spacing','word-spacing','text-transform','text-rendering','direction','writing-mode','text-orientation'])span.style.setProperty(k,style.getPropertyValue(k),'important');
+        for(const [k,v] of Object.entries({position:'fixed',left:'0px',top:'0px',display:'block',width:'max-content','white-space':'pre',color:'#000','-webkit-text-fill-color':'#000','text-shadow':'none','text-decoration':'none','-webkit-text-stroke-width':'0px'}))span.style.setProperty(k,v,'important');
+        span.textContent=n.textContent;shadow.append(span);document.body.append(host);
+        const rects=(a,b)=>{const range=document.createRange();range.setStart(span.firstChild,a);range.setEnd(span.firstChild,b);return [...range.getClientRects()].map(({x,y,width,height})=>({x,y,width,height}));};
+        try {
+          const initial=rects(start,end);if(initial.length!==1||originalLayout.rects.length!==1)throw Error('Reference requires one unwrapped value line');
+          span.style.setProperty('left',`${originalLayout.rects[0].x-initial[0].x}px`,'important');span.style.setProperty('top',`${originalLayout.rects[0].y-initial[0].y}px`,'important');
+          const aligned=(a,b)=>a.length===b.length&&a.every((q,i)=>['x','y','width','height'].every(k=>Math.abs(q[k]-b[i][k])<1/64));
+          if(!aligned(rects(start,end),originalLayout.rects))throw Error('Reference text geometry differs');
+          let i=0;for(const {segment,index} of new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(n.textContent.slice(start,end)))if(!/\s/u.test(segment)){
+            if(!aligned(rects(start+index,start+index+segment.length),originalLayout.characters[i++]))throw Error('Reference character geometry differs');
+          }
+          return {host,span};
+        } catch(error){host.remove();throw error;}
+      },{start,end,originalLayout});
+      try {
+        reference=await capture('reference-visible');
+        await overlay.evaluate(({span})=>span.style.setProperty('-webkit-text-fill-color','transparent','important'));
+        referenceHidden=await capture('reference-suppressed');
+      } finally {await overlay.evaluate(({host})=>host.remove());await overlay.dispose();}
+      const referenceRestored=await capture('reference-restored');
+      if(!await sameLayout()||pixelDelta(normal,referenceRestored).changed)return fail('reference changed original paint/layout');
+    }
+    const characters=originalLayout.characters.map(rects=>rects.map(r=>{const region={x:r.x-clip.x,y:r.y-clip.y,width:r.width,height:r.height};return referenceGlyphs?glyphReferenceStats(normal,hidden,reference,referenceHidden,region):glyphPaintStats(normal,hidden,region);}));
     if(!characters.length||characters.some(rects=>!rects.length||rects.some(r=>!r.passed)))return {...fail('a label character has insufficient glyph coverage'),characters};
     return {passed:true,reason:'glyph paint changed',delta,characters};
   } finally {
@@ -125,5 +177,6 @@ export async function proveGlyphPaint(locator,{path,start,end,clip,onCapture}) {
       finally {await probe.dispose();}
     }
     await node.dispose();
+    if(!targetHandle)await target.dispose();
   }
 }
