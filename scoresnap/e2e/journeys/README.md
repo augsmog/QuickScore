@@ -37,3 +37,27 @@ CI reuses the existing web-smoke job and port 8092. The helper unit/rendered fix
 - needs Augie: require web-smoke on main
 
 As checked 2026-10-31, GitHub reported no main branch protection and no repository rulesets. Defect 2 is outside this fix round's scope: repository settings require Augie's explicit yes. No settings changes are made here.
+
+## Scoped Settings, trial preview and settlement regressions
+
+The default manifest also executes `J-delete-account`, `J-settings-control-inventory`,
+`J-trial-preview-unloaded`, `J-by-game-nine`, `J-by-game-pending`,
+`J-settlement-mark-lifecycle` and `J-settlement-tab-runtime-recalc`.
+`acceptance-cases.mjs` registers these through the existing adapter; no JOURNEYS filter
+is set in CI. The current web-smoke workflow runs them in its existing `browser-flows`
+lane, whose result feeds the established `web-smoke` check. No new job is added.
+The journey step retains two minutes, and its immediately following screenshot upload
+retains `if: always()`, one minute and seven-day retention. Helper captures are stored
+under the same uploaded `e2e/journey-screens` directory. Existing `npm test` also runs
+`tests/trial-preview-mounted.test.cjs`; it is component coverage with a synthetic SDK,
+not a new native purchase gate.
+
+Painted values pin the original target and validate contiguous text-node fragments.
+Their same-font reference-glyph check handles meaningful decimal/minus/currency glyphs
+without requiring every glyph to have a letter's height. Short punctuation is proved,
+not skipped. Core-label strict failures and all fifteen negative proofs remain intact.
+Focused fixture initialization is origin-scoped; an opaque document receives no storage
+access. Restart navigates away to destroy the app JavaScript realm and back within the
+same browser context, preserving actual origin storage without copying or seeding marks.
+This is explicitly not process-crash, native relaunch, cross-device or StoreKit proof.
+See `ACCEPTANCE.md` for exact historical evidence and current-head limitations.

@@ -1,3 +1,4 @@
+import {acceptanceSetup,acceptanceReady,acceptanceCases} from './acceptance-cases.mjs';
 // SnapScore web-offline adapter. Fixtures stop before the measured goal.
 import assert from 'node:assert/strict';
 import {seedPaidTier} from '../shared/paid-tier-fixture.mjs';
@@ -15,6 +16,7 @@ export async function setup(context,page,journey,base) {
     });
     new MutationObserver(tag).observe(document,{subtree:true,childList:true});
   });
+  if(await acceptanceSetup(context,page,journey,base))return;
   if(journey.fixture==='two-player-empty-v1') {
     await seedPaidTier(context,'td');
     await context.addInitScript(({id})=>{
@@ -32,6 +34,7 @@ export async function setup(context,page,journey,base) {
   if(journey.start==='round') assert.deepEqual(await scores(page),[Array(18).fill(0),Array(18).fill(0)],'fixture must not pre-complete scores');
 }
 export async function ready(page,id) {
+  if(await acceptanceReady(page,id))return;
   const targets={home:page.getByText('Build contests. Settle up.',{exact:false}).locator('visible=true'),create:page.getByPlaceholder('Your name'),'join-code':page.getByPlaceholder('Join code'),'round-scorecard':page.getByTestId('score-par-Augie'),'round-leaderboard':page.getByTestId('leaderboard-player-Augie'),'round-settlement':page.getByTestId('settlement-scroll')};
   await targets[id].waitFor({state:'visible'});
   await page.evaluate(async()=>{await document.fonts.ready; await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});
@@ -43,6 +46,7 @@ export async function contests(page) {
   return page.evaluate(()=>JSON.parse(localStorage.getItem('snapscore-contests')||'null')?.state?.contests||[]);
 }
 export const cases={
+  ...acceptanceCases,
   'J-home-create-cancel':async({page,act,check,step,enter})=>{
     await check('entry',async()=>assert.equal((await contests(page)).length,0));
     await act.activate(page.getByTestId('home-new-contest'),{feature:'create'});

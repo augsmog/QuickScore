@@ -9,8 +9,9 @@ before(async()=>{browser=await chromium.launch(process.env.CHROMIUM_PATH?{execut
 after(async()=>{await browser?.close();});
 const stripes='repeating-linear-gradient(90deg, #000 0 2px, #fff 2px 4px)';
 async function fixture(t,{css='',text='New Contest',dpr=1}={}) {
-  const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:dpr});
+  const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:dpr,serviceWorkers:'block'});
   t.after(()=>context.close());
+  await context.routeWebSocket('**/*',socket=>socket.close());
   await context.route('**/*',route=>route.abort());
   const page=await context.newPage();
   await page.setContent(`<style>body{margin:20px}button{border:0;width:350px;height:64px;background:#175c3a;color:#fff;font:700 18px Arial}#label{position:relative;display:inline-block}${css}</style><button id="control" aria-label="${text}"><span id="label">${text}</span></button>`);
