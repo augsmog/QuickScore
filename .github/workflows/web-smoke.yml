@@ -17,7 +17,7 @@ concurrency:
 permissions:
   contents: read
 jobs:
-  web-smoke:
+  build-standard:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     defaults:
@@ -31,9 +31,47 @@ jobs:
           cache: npm
           cache-dependency-path: scoresnap/package-lock.json
       - run: npm ci
-      - run: node --test e2e/usability-gate.test.mjs
+      - run: node --test e2e/usability-gate.test.mjs scripts/ci/web-pipeline.test.mjs
       - run: npm test -- --runInBand
-      - run: EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web
+      - name: Build and identify standard offline app
+        env:
+          EXPO_PUBLIC_OFFLINE_MODE: 'true'
+          EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: 'false'
+          EXPO_PUBLIC_DEMO_MODE: 'false'
+        run: |
+          npx expo export --platform web --output-dir dist-web
+          node scripts/ci/web-artifact.mjs create dist-web ci-standard-manifest.json
+      - name: Share verified standard build within this attempt
+        uses: actions/upload-artifact@v4
+        with:
+          name: standard-web-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            scoresnap/dist-web
+            scoresnap/ci-standard-manifest.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+  browser-flows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: scoresnap
+    needs: build-standard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: standard-web-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap
+      - name: Verify standard artifact before executing browsers
+        run: node scripts/ci/web-artifact.mjs verify dist-web ci-standard-manifest.json
       - run: npx playwright install --with-deps chromium
       - name: Browser smoke
         run: |
@@ -85,8 +123,6 @@ jobs:
           name: journey-screens
           path: scoresnap/e2e/journey-screens
           retention-days: 7
-      - name: Browser matrix
-        run: BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens/matrix npm run e2e:matrix -- --retries=1
       - name: Render scorecard screenshot
         run: |
           EXPO_PUBLIC_DEMO_MODE=true EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web-scorecard --clear
@@ -119,3 +155,58 @@ jobs:
         with:
           name: web-smoke-screens
           path: scoresnap/e2e/screens
+  browser-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: scoresnap
+    needs: build-standard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: standard-web-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap
+      - name: Verify standard artifact before executing browsers
+        run: node scripts/ci/web-artifact.mjs verify dist-web ci-standard-manifest.json
+      - run: npx playwright install --with-deps chromium
+      - name: Browser matrix
+        run: |
+          node e2e/serve.mjs > /tmp/web-matrix-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8089/ > /dev/null; then break; fi
+            sleep 1
+          done
+          kill -0 "$SERVER_PID"
+          curl --fail --silent http://127.0.0.1:8089/ > /dev/null
+          BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens/matrix npm run e2e:matrix -- --retries=1
+      - name: Upload matrix screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-smoke-matrix-screens
+          path: scoresnap/e2e/screens/matrix
+  # Keep the established required check name. Never accept skipped/cancelled dependencies.
+  web-smoke:
+    needs: [build-standard, browser-flows, browser-matrix]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Require every Web smoke lane
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scoresnap/scripts/ci/web-gate.mjs
