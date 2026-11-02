@@ -34,6 +34,7 @@ test.each(['loaded', 'read', 'write', 'rpc'])('wipe clears tournament disk/memor
     '../stores/persisted-keys': keys, './tournament-sync-plan': plan,
   });
   const wipe = load('src/stores/wipe-local-account.ts', {
+    './settlement-store': { settlementMarks: { getState: () => ({ reset() {} }), flush: async () => {} } },
     '../services/purchases': { logOutPurchases: async () => {} },
     '@react-native-async-storage/async-storage': { getAllKeys: async () => [...disk.keys()], multiRemove: async list => list.forEach(k => disk.delete(k)) },
     '../config/auth': { REAL_AUTH_CONFIGURED: false }, '../db/supabase': {},

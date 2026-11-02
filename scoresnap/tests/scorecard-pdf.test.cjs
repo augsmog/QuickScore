@@ -1,0 +1,12 @@
+const fs=require('fs'),ts=require('typescript');
+function load(path,deps={}){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText)(id=>deps[id],m,m.exports);return m.exports;}
+const {buildScorecardPdf}=load('src/services/scorecard-pdf.ts');
+test.each([[['Pebble Beach','Augie','Matt']],[Array.from({length:120},(_,i)=>`Player ${i} (é) \\`)]])('PDF header, byte offsets, stream lengths and EOF are valid',lines=>{
+ const pdf=buildScorecardPdf(lines);expect(pdf.startsWith('%PDF-1.4\n')).toBe(true);expect(pdf.endsWith('%%EOF\n')).toBe(true);
+ const xref=Number(pdf.match(/startxref\n(\d+)/)[1]);expect(pdf.slice(xref,xref+4)).toBe('xref');
+ const entries=pdf.slice(xref).split('\n').filter(l=>/^\d{10} 00000 n/.test(l));entries.forEach((line,i)=>expect(pdf.slice(Number(line.slice(0,10)))).toMatch(new RegExp(`^${i+1} 0 obj\\n`)));
+ for(const match of pdf.matchAll(/\/Length (\d+) >>\nstream\n([\s\S]*?)endstream/g))expect(Buffer.byteLength(match[2])).toBe(Number(match[1]));
+ if(lines[0]==='Pebble Beach')for(const line of lines)expect(pdf).toContain(line);else expect(pdf).toContain('/Count 3');
+});
+test('native shares an actual cached PDF URL',async()=>{const write=jest.fn(),share=jest.fn();const {shareScorecardPdf}=load('src/services/share-scorecard-pdf.ts',{'react-native':{Platform:{OS:'ios'},Share:{share}},'expo-file-system/legacy':{cacheDirectory:'file:///cache/',writeAsStringAsync:write,EncodingType:{UTF8:'utf8'}}});const pdf=buildScorecardPdf(['Course','Player']);await shareScorecardPdf(pdf);expect(write).toHaveBeenCalledWith(expect.stringMatching(/\.pdf$/),pdf,{encoding:'utf8'});expect(share).toHaveBeenCalledWith({url:write.mock.calls[0][0]});});
+test('web downloads a PDF Blob',async()=>{jest.useFakeTimers();const click=jest.fn(),remove=jest.fn();global.document={createElement:()=>({click,remove}),body:{appendChild:jest.fn()}};global.URL={createObjectURL:jest.fn(()=>'blob:pdf'),revokeObjectURL:jest.fn()};const {shareScorecardPdf}=load('src/services/share-scorecard-pdf.ts',{'react-native':{Platform:{OS:'web'}}});await shareScorecardPdf(buildScorecardPdf(['Course']));expect(URL.createObjectURL.mock.calls[0][0].type).toBe('application/pdf');expect(click).toHaveBeenCalled();jest.runAllTimers();expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:pdf');jest.useRealTimers();delete global.document;});

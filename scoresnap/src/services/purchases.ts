@@ -210,7 +210,19 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
  */
 let identityQueue: Promise<void> = Promise.resolve();
 let identified: string | null = null;
+// Read-only guard for offer previews; never reuse eligibility across account changes.
+let identityRevision = 0;
+let settledIdentityRevision = -1;
+export async function waitForPurchaseIdentity(expectedActor: string | null): Promise<number | null> {
+  const revision = identityRevision;
+  await identityQueue;
+  return isPurchaseIdentityCurrent(revision, expectedActor) ? revision : null;
+}
+export function isPurchaseIdentityCurrent(revision: number, expectedActor: string | null): boolean {
+  return isConfigured && identified === expectedActor && revision === identityRevision && revision === settledIdentityRevision;
+}
 function changeIdentity(userId: string | null): Promise<void> {
+  const revision = ++identityRevision;
   const pending = identityQueue.then(async () => {
     await initPurchases();
     if (!isConfigured) return;
@@ -228,7 +240,7 @@ function changeIdentity(userId: string | null): Promise<void> {
       identified = null;
     }
   });
-  identityQueue = pending.catch(e => { console.warn("Could not update purchase account:", e); });
+  identityQueue = pending.then(() => { settledIdentityRevision = revision; }).catch(e => { console.warn("Could not update purchase account:", e); });
   return identityQueue;
 }
 export function identifyUser(userId: string): Promise<void> { return changeIdentity(userId); }

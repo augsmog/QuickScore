@@ -1,3 +1,5 @@
+// Start local settlement invalidation before any score-edit route can mount.
+import "../src/stores/settlement-store";
 import { useContestStore } from "../src/stores/contest-store";
 import { AppState, Platform } from "react-native";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../src/config/features";
