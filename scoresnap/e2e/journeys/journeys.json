@@ -414,31 +414,56 @@
     },
     {
       "id": "J-free-paywall-recover",
-      "persona": "New golfer",
-      "goal": "Recover form intact after selecting a paid option",
+      "persona": "Free golfer with an unsubmitted draft",
+      "goal": "Paid hosting controls reopen TD plans on deliberate repeats and preserve draft on each single Close",
       "platform": [
         "web-offline"
       ],
       "start": "home",
-      "fixture": "fresh-context-v1",
+      "fixture": "paywall-recovery-v1",
       "features": [],
       "budget": {
-        "activations": 6,
-        "screens": 4,
+        "activations": 10,
+        "screens": 3,
         "timeoutMs": 20000
       },
       "baseline": null,
-      "status": "deferred",
-      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "status": "gated",
+      "origin": "AUG-293 owner comments 779acf43-74ab-4589-b17c-846c4277f91e and 3113d1d7-94cf-49df-9cf5-25695c481b51",
       "assertions": [
         "entry",
-        "activation",
-        "destination",
+        "draft-entered",
+        "badge-1",
+        "plans-1",
+        "recovered-1",
+        "badge-2",
+        "plans-2",
+        "recovered-2",
+        "badge-3",
+        "plans-3",
+        "recovered-3",
+        "badge-4",
+        "plans-4",
+        "recovered-4",
         "outcome"
       ],
-      "deferredReason": "AUG-293: repeat deliberate taps reopen plans with draft retained; rendered form/paywall adapter deferred",
-      "linear": "AUG-293",
-      "requiredSteps": []
+      "requiredSteps": [
+        "entry",
+        "draft",
+        "badge-1",
+        "paywall-1",
+        "recovered-1",
+        "badge-2",
+        "paywall-2",
+        "recovered-2",
+        "badge-3",
+        "paywall-3",
+        "recovered-3",
+        "badge-4",
+        "paywall-4",
+        "recovered-4",
+        "outcome"
+      ]
     },
     {
       "id": "J-create-8p-multiday",
@@ -748,6 +773,59 @@
       "requiredSteps": [
         "entry",
         "trial-preview-unloaded"
+      ]
+    },
+    {
+      "id": "J-free-paywall-group-first",
+      "persona": "Free golfer with an unsubmitted draft",
+      "goal": "Paid hosting controls reopen TD plans on deliberate repeats and preserve draft on each single Close",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "paywall-recovery-v1",
+      "features": [],
+      "budget": {
+        "activations": 10,
+        "screens": 3,
+        "timeoutMs": 20000
+      },
+      "baseline": null,
+      "status": "gated",
+      "origin": "AUG-293 owner comments 779acf43-74ab-4589-b17c-846c4277f91e and 3113d1d7-94cf-49df-9cf5-25695c481b51",
+      "assertions": [
+        "entry",
+        "draft-entered",
+        "badge-1",
+        "plans-1",
+        "recovered-1",
+        "badge-2",
+        "plans-2",
+        "recovered-2",
+        "badge-3",
+        "plans-3",
+        "recovered-3",
+        "badge-4",
+        "plans-4",
+        "recovered-4",
+        "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "draft",
+        "badge-1",
+        "paywall-1",
+        "recovered-1",
+        "badge-2",
+        "paywall-2",
+        "recovered-2",
+        "badge-3",
+        "paywall-3",
+        "recovered-3",
+        "badge-4",
+        "paywall-4",
+        "recovered-4",
+        "outcome"
       ]
     }
   ]
