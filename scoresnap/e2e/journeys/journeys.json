@@ -425,7 +425,7 @@
         "destination",
         "outcome"
       ],
-      "deferredReason": "AUG-293: double paywall; form/paywall adapter deferred",
+      "deferredReason": "AUG-293: repeat deliberate taps reopen plans with draft retained; rendered form/paywall adapter deferred",
       "linear": "AUG-293",
       "requiredSteps": []
     },
