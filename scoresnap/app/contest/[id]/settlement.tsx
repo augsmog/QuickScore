@@ -3,9 +3,10 @@ import { settlementMarks } from "../../../src/stores/settlement-store";
 import { settlementRevision, settlementScope, settlementTransactionKeys } from "../../../src/stores/settlement-marks";
 import { getPackages, waitForPurchaseIdentity, isPurchaseIdentityCurrent } from "../../../src/services/purchases";
 import { eligibleAnnualTrials, buildPaywallView } from "../../../src/services/paywall-plans";
-import { buildScorecardPdf } from "../../../src/services/scorecard-pdf";
+import { buildScorecardPdf, UnsupportedScorecardCharactersError, type ScorecardPdfLine } from "../../../src/services/scorecard-pdf";
+import { loadScorecardPdfFont } from "../../../src/services/scorecard-pdf-font";
 import { shareScorecardPdf } from "../../../src/services/share-scorecard-pdf";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, Pressable, Share } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Lock, DollarSign, CheckCircle, Share2, FileText } from "lucide-react-native";
@@ -121,11 +122,30 @@ export default function SettlementScreen() {
 }
 
 function SettlementScreenContent() {
+  const pdfExportPending = useRef(false);
   const { id } = useLocalSearchParams<{ id: string }>();
   const contest = useContestStore(s => s.contests.find(c => c.id === id));
   const [liveUrl, setLiveUrl] = useState<string>();
   const accountId = useAuthStore(s => s.user?.id ?? s.remoteUserId ?? null);
   const scope = settlementScope(accountId, id);
+  const [pdfError, setPdfError] = useState<{ scope: string; contest: Contest } | null>(null);
+  useEffect(() => { setPdfError(null); }, [scope, contest]);
+  const exportContext = useRef({ scope, contest, mounted: true, generation: 0 });
+  const previousContext = exportContext.current;
+  exportContext.current = { scope, contest, mounted: previousContext.mounted,
+    generation: previousContext.generation + (previousContext.scope !== scope || previousContext.contest !== contest ? 1 : 0) };
+  useEffect(() => {
+    const invalidate = () => { exportContext.current.generation++; if (exportContext.current.mounted) setPdfError(null); };
+    // Observe A→B→A even when React batches both store changes into one render.
+    const stopAuth = useAuthStore.subscribe((state, previous) => {
+      if ((state.user?.id ?? state.remoteUserId ?? null) !== (previous.user?.id ?? previous.remoteUserId ?? null)) invalidate();
+    });
+    const stopContest = useContestStore.subscribe((state, previous) => {
+      if (state.contests.find(c => c.id === id) !== previous.contests.find(c => c.id === id)) invalidate();
+    });
+    return () => { stopAuth(); stopContest(); };
+  }, [id]);
+  useEffect(() => { exportContext.current.mounted = true; return () => { exportContext.current.mounted = false; }; }, []);
   const ready = useStore(settlementMarks, s => s.ready);
   const ledger = useStore(settlementMarks, s => s.ledgers[scope]);
 
@@ -177,25 +197,51 @@ function SettlementScreenContent() {
     }
   };
   const handleExport = async () => {
+    if (pdfExportPending.current) return;
+    pdfExportPending.current = true;
+    const requestedContext = exportContext.current;
+    const requestedGeneration = requestedContext.generation;
+    const isCurrent = () => {
+      const currentContext = exportContext.current;
+      const auth = useAuthStore.getState();
+      const currentAccountId = auth.user?.id ?? auth.remoteUserId ?? null;
+      const currentContest = useContestStore.getState().contests.find(c => c.id === id);
+      return currentContext.mounted && currentContext.generation === requestedGeneration && currentContext.scope === requestedContext.scope &&
+        settlementScope(currentAccountId, id) === requestedContext.scope &&
+        currentContext.contest === requestedContext.contest && currentContest === requestedContext.contest;
+    };
+    try {
+    if (!isCurrent()) return;
+    setPdfError(null);
     const rounds = contest.isTournament && contest.rounds?.length ? contest.rounds
       : [{ course: contest.course, groups: contest.groups, date: contest.createdAt }];
-    const lines = [contest.name];
+    const lines: ScorecardPdfLine[] = [contest.name];
     for (const round of rounds) {
       const course = round.course ?? contest.course;
       lines.push(course.name, round.date ?? contest.createdAt);
       for (const group of round.groups) for (const player of group.players) {
-        lines.push(player.name);
+        const playerLines: ScorecardPdfLine[] = [player.name];
         // Split the table into nine-hole blocks to keep every column readable.
         for (let start = 0; start < course.holes.length; start += 9) {
-          lines.push(course.holes.slice(start, start + 9).map(h => String(h.num).padStart(6)).join(""));
-          lines.push(course.holes.slice(start, start + 9).map((_, i) => String(player.scores[start + i] || "—").padStart(6)).join(""));
+          playerLines.push({ cells: course.holes.slice(start, start + 9).map(h => String(h.num)) });
+          playerLines.push({ cells: course.holes.slice(start, start + 9).map((_, i) => String(player.scores[start + i] || "—")) });
         }
-        lines.push(String(player.scores.reduce((sum, score) => sum + score, 0)));
+        playerLines.push(String(player.scores.reduce((sum, score) => sum + score, 0)));
+        lines.push({ block: playerLines });
       }
     }
     lines.push(...generateShareText().split("\n"));
-    try { await shareScorecardPdf(buildScorecardPdf(lines)); }
-    catch (error) { console.error("Share error:", error); }
+    const pdf = await buildScorecardPdf(lines, await loadScorecardPdfFont());
+    if (!isCurrent()) return;
+    await shareScorecardPdf(pdf, isCurrent);
+    } catch (error) {
+      if (error instanceof UnsupportedScorecardCharactersError) {
+        if (isCurrent()) setPdfError({ scope: requestedContext.scope, contest });
+      } else {
+        // Never log scorecard contents, names, native URIs or raw exception payloads.
+        console.error("PDF export failed");
+      }
+    } finally { pdfExportPending.current = false; }
   };
   const toggleSettled = (key: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -266,6 +312,16 @@ function SettlementScreenContent() {
           <Share2 size={18} color={COLORS.onPrimary} />
           <Text style={{ fontFamily: FONTS.bold, fontSize: 16, color: COLORS.onPrimary }}>Share results</Text>
         </Pressable>
+        {pdfError?.scope === scope && pdfError.contest === contest && (
+          <View testID="pdf-export-character-error" accessibilityRole="alert" accessibilityLiveRegion="polite"
+            style={{ backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, gap: 12 }}>
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.text }}>Export scorecard (PDF)</Text>
+            <Text style={{ color: COLORS.text, fontSize: 14 }}>Some characters in this scorecard aren’t supported in PDF export yet.</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="OK" onPress={() => setPdfError(null)} style={outlinedButton}>
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.primary }}>OK</Text>
+            </Pressable>
+          </View>
+        )}
         <Pressable accessibilityRole="button" onPress={handleExport} style={outlinedButton}>
           <FileText size={18} color={COLORS.primary} />
           <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.primary }}>Export scorecard (PDF)</Text>
