@@ -1,3 +1,4 @@
+import {paywallSetup,paywallReady,paywallCases} from './paywall-recovery.mjs';
 import {acceptanceSetup,acceptanceReady,acceptanceCases} from './acceptance-cases.mjs';
 // SnapScore web-offline adapter. Fixtures stop before the measured goal.
 import assert from 'node:assert/strict';
@@ -16,6 +17,7 @@ export async function setup(context,page,journey,base) {
     });
     new MutationObserver(tag).observe(document,{subtree:true,childList:true});
   });
+  if(await paywallSetup(context,page,journey,base))return;
   if(await acceptanceSetup(context,page,journey,base))return;
   if(journey.fixture==='two-player-empty-v1') {
     await seedPaidTier(context,'td');
@@ -34,6 +36,7 @@ export async function setup(context,page,journey,base) {
   if(journey.start==='round') assert.deepEqual(await scores(page),[Array(18).fill(0),Array(18).fill(0)],'fixture must not pre-complete scores');
 }
 export async function ready(page,id) {
+  if(await paywallReady(page,id))return;
   if(await acceptanceReady(page,id))return;
   const targets={home:page.getByText('Build contests. Settle up.',{exact:false}).locator('visible=true'),create:page.getByPlaceholder('Your name'),'join-code':page.getByPlaceholder('Join code'),'round-scorecard':page.getByTestId('score-par-Augie'),'round-leaderboard':page.getByTestId('leaderboard-player-Augie'),'round-settlement':page.getByTestId('settlement-scroll')};
   await targets[id].waitFor({state:'visible'});
@@ -46,6 +49,7 @@ export async function contests(page) {
   return page.evaluate(()=>JSON.parse(localStorage.getItem('snapscore-contests')||'null')?.state?.contests||[]);
 }
 export const cases={
+  ...paywallCases,
   ...acceptanceCases,
   'J-home-create-cancel':async({page,act,check,step,enter})=>{
     await check('entry',async()=>assert.equal((await contests(page)).length,0));

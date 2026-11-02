@@ -55,7 +55,7 @@ export default function PaywallScreen() {
         <PaywallIcon name={value.icon} /><View style={{ flex: 1, gap: 2 }}><Text style={s.valueTitle}>{value.title}</Text>{!!value.body && <Text style={s.body}>{value.body}</Text>}</View>
       </View>)}</View>
       <Text style={s.body}>{v.scans}</Text>
-      <View style={{ gap: 8 }}>{v.rows.map(row => <Pressable key={row.tier} accessibilityRole="radio" accessibilityState={{ checked: row.selected }}
+      <View style={{ gap: 8 }}>{v.rows.map(row => <Pressable key={row.tier} accessibilityRole="radio" accessibilityState={{ checked: row.selected }} aria-checked={row.selected}
         onPress={() => setSelection({ ...selection, tier: row.tier })} style={[s.plan, row.selected && s.selected]}>
         <PaywallRadio selected={row.selected} />
         <View style={{ flex: 1, gap: 2 }}>

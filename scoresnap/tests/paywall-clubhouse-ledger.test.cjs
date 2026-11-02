@@ -106,3 +106,34 @@ test('actual selection, alternate period switching, TD route, Close and missing 
  expect(nodes(tree).filter(n=>n.type==='Text').map(text)).not.toContain(C.trial);
  expect(nodes(tree).find(n=>n.props?.accessibilityState?.disabled===true)).toBeDefined();
 });
+
+// AUG-293: exercise the actual screen props through the installed web renderer.
+test('AC-PW10 selected plan exposes checked semantics; missing/wrong/multiple checked states fail',()=>{
+ const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
+ const Pressable=require('react-native-web/dist/cjs/exports/Pressable');
+ const Text=require('react-native-web/dist/cjs/exports/Text');
+ const radios=tree=>nodes(tree).filter(n=>n.type==='Pressable'&&n.props.accessibilityRole==='radio');
+ function verify(rows,expected){
+  expect(rows).toHaveLength(3);
+  const checked=[];
+  rows.forEach((row,index)=>{
+   const name=text(row),props={...row.props,children:React.createElement(Text,null,name)};
+   const html=renderToStaticMarkup(React.createElement(Pressable,props));
+   expect(html).toContain('role="radio"');
+   expect(typeof props['aria-checked']).toBe('boolean');
+   expect(props['aria-checked']).toBe(props.accessibilityState.checked);
+   expect(props['aria-checked']).toBe(nodes(row).find(n=>n.type==='Radio').props.selected);
+   expect(html).toContain(`aria-checked="${props['aria-checked']}"`);
+   if(props['aria-checked'])checked.push(index);
+  });
+  expect(checked).toEqual([expected]);
+ }
+ for(const target of ['pro','td']){
+  const h=screen({target});let rows=radios(h.render());verify(rows,target==='td'?2:1);
+  for(const selected of [0,1,2]){rows[selected].props.onPress();rows=radios(h.render());verify(rows,selected);}
+ }
+ const rows=radios(screen({target:'td'}).render());
+ for(const mutate of [r=>r.forEach(n=>delete n.props['aria-checked']),r=>r[2].props['aria-checked']=false,r=>r[1].props['aria-checked']=true,r=>{r[2].props['aria-checked']=false;r[2].props.accessibilityState={checked:false};r[1].props['aria-checked']=true;r[1].props.accessibilityState={checked:true};}]){
+  const copy=rows.map(n=>({...n,props:{...n.props,accessibilityState:{...n.props.accessibilityState}}}));mutate(copy);expect(()=>verify(copy,2)).toThrow();
+ }
+});

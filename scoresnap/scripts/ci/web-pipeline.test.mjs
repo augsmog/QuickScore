@@ -150,3 +150,26 @@ test('all original browser coverage and flag-distinct builds remain', () => {
     for (const upload of steps(job).filter(step => step.uses === 'actions/upload-artifact@v4')) assert.equal(upload.if, 'always()');
   }
 });
+
+// AUG-293: exercise the workflow's actual explicit discovery, not filename assumptions.
+function assertRecoveryWiring(value) {
+  const steps=value.jobs['browser-flows'].steps;
+  const step=steps.find(s=>s.name==='Journey budgets and reachability');
+  assert.equal(step['timeout-minutes'],2);
+  assert.equal(step.if,undefined);assert.equal(step['continue-on-error'],undefined);
+  assert.equal(step.env?.JOURNEYS,undefined);
+  const lines=step.run.trim().split('\n').map(s=>s.trim());
+  assert.ok(lines.includes('node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs'));
+  assert.ok(lines.includes('OUT_DIR=e2e/journey-screens/td-badge-controls node --test e2e/journeys/paywall-badge.browser.test.mjs'));
+  assert.ok(lines.includes('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs'));
+  assert.ok(lines.includes('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens/negative-proof node e2e/journeys/negative-proof.mjs'));
+  const upload=steps[steps.indexOf(step)+1];
+  assert.equal(upload.name,'Upload journey screenshots');assert.equal(upload.if,'always()');
+  assert.equal(upload.with.path,'scoresnap/e2e/journey-screens');
+}
+test('AUG-293 controls, unfiltered journeys and failure captures run in the existing CI step',()=>{
+ assertRecoveryWiring(workflow);
+ for(const mutate of [s=>s.run=s.run.replace(' e2e/journeys/paywall-recovery.test.mjs',''),s=>s.run=s.run.split('\n').filter(l=>!l.includes('paywall-badge.browser')).join('\n'),s=>s.run=s.run.replace('OUT_DIR=e2e/journey-screens node','JOURNEYS=J-other OUT_DIR=e2e/journey-screens node'),s=>s.if='false',s=>s['continue-on-error']=true,s=>s['timeout-minutes']=3]){
+  const copy=structuredClone(workflow);mutate(copy.jobs['browser-flows'].steps.find(s=>s.name==='Journey budgets and reachability'));assert.throws(()=>assertRecoveryWiring(copy));
+ }
+});
