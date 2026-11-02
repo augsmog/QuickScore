@@ -1,35 +1,65 @@
-/** ASCII PDF syntax keeps string lengths identical to byte offsets, including escaped WinAnsi text. */
-function literal(text: string): string {
-  return [...text].map(char => {
-    const code = char.codePointAt(0)!;
-    if (char === '(' || char === ')' || char === '\\') return '\\' + char;
-    if (code >= 32 && code <= 126) return char;
-    if (code >= 160 && code <= 255) return '\\' + code.toString(8).padStart(3, '0');
-    return code === 0x2212 ? '-' : '?';
-  }).join('');
+// Keep Metro web on the package's official CJS entry: tslib 1.x's ESM wrapper has no usable default.
+import { PDFDocument, rgb } from 'pdf-lib/cjs';
+import fontkit from '@pdf-lib/fontkit';
+
+export type ScorecardPdfLine = string | { cells: readonly string[] } | { block: readonly ScorecardPdfLine[] };
+export class UnsupportedScorecardCharactersError extends Error {
+  constructor() { super('Unsupported scorecard font glyph'); this.name = 'UnsupportedScorecardCharactersError'; }
 }
-/** Text-only, paginated Helvetica PDF. Callers supply existing display copy and computed results. */
-export function buildScorecardPdf(lines: readonly string[]): string {
-  const wrapped = lines.flatMap(line => {
-    const chars = [...line];
-    return Array.from({ length: Math.max(1, Math.ceil(chars.length / 90)) }, (_, i) => chars.slice(i * 90, (i + 1) * 90).join(''));
-  });
-  const pages = Array.from({ length: Math.max(1, Math.ceil(wrapped.length / 48)) }, (_, i) => wrapped.slice(i * 48, (i + 1) * 48));
-  const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    `<< /Type /Pages /Count ${pages.length} /Kids [${pages.map((_, i) => `${4 + i * 2} 0 R`).join(' ')}] >>`,
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
-  ];
-  pages.forEach((page, i) => {
-    const stream = `BT /F1 10 Tf 14 TL 40 750 Td\n${page.map(line => `(${literal(line)}) Tj T*`).join('\n')}\nET\n`;
-    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${5 + i * 2} 0 R >>`);
-    objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}endstream`);
-  });
-  let pdf = '%PDF-1.4\n';
-  const offsets = [0];
-  objects.forEach((object, i) => { offsets.push(pdf.length); pdf += `${i + 1} 0 obj\n${object}\nendobj\n`; });
-  const xref = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  pdf += offsets.slice(1).map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
-  return pdf + `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+
+/** Pure local builder. No font/network lookup, score calculation, or text substitution. */
+export async function buildScorecardPdf(lines: readonly ScorecardPdfLine[], fontBytes: Uint8Array): Promise<Uint8Array> {
+  const document = await PDFDocument.create();
+  document.registerFontkit(fontkit);
+  // This bundled font renders missing glyphs with fontkit subsetting; retain the full licensed font.
+  const font = await document.embedFont(fontBytes, { subset: false });
+  const supported = new Set(font.getCharacterSet());
+  const normalize = (text: string) => text.normalize('NFC');
+  // Check every character before creating pages. Never emit '?' or invisible .notdef glyphs.
+  const texts = (line: ScorecardPdfLine): readonly string[] => typeof line === 'string' ? [line]
+    : 'block' in line ? line.block.flatMap(texts) : line.cells;
+  for (const line of lines) for (const text of texts(line)) {
+    for (const char of normalize(text).replace(/\n/g, '')) {
+      if (!supported.has(char.codePointAt(0)!)) throw new UnsupportedScorecardCharactersError();
+    }
+  }
+  const size = 10, leading = 14, left = 40, right = 572, top = 750, bottom = 40;
+  let page = document.addPage([612, 792]), y = top;
+  const nextRow = () => { if (y < bottom) { page = document.addPage([612, 792]); y = top; } };
+  const draw = (text: string, x: number) => page.drawText(text, { x, y, size, font, color: rgb(0, 0, 0) });
+  const wrap = (text: string, width: number): string[] => {
+    const rows: string[] = [];
+    for (const paragraph of normalize(text).split('\n')) {
+      let row = '';
+      for (const char of paragraph) {
+        if (font.widthOfTextAtSize(char, size) > width) throw new Error('PDF column too narrow');
+        if (row && font.widthOfTextAtSize(row + char, size) > width) { rows.push(row); row = ''; }
+        row += char;
+      }
+      rows.push(row);
+    }
+    return rows;
+  };
+  type Row = { text: string; x: number }[];
+  const rowsFor = (line: ScorecardPdfLine): Row[] => {
+    if (typeof line === 'string') return wrap(line, right - left).map(text => [{ text, x: left }]);
+    if ('block' in line) return line.block.flatMap(rowsFor);
+    if (!line.cells.length || line.cells.length > 9) throw new Error('Invalid scorecard columns');
+    // Always nine fixed columns so a final short block aligns with a full block.
+    const width = (right - left) / 9;
+    const cells = line.cells.map(text => wrap(text, width - 8));
+    return Array.from({ length: Math.max(...cells.map(cell => cell.length)) }, (_, row) =>
+      cells.map((cell, i) => ({ text: cell[row] ?? '', x: left + i * width })));
+  };
+  for (const line of lines) {
+    const rows = rowsFor(line);
+    // Keep one player's name, hole headers, scores and total together when the block fits a page.
+    if (typeof line !== 'string' && 'block' in line &&
+        rows.length <= Math.floor((top - bottom) / leading) + 1 &&
+        rows.length > Math.floor((y - bottom) / leading) + 1) {
+      page = document.addPage([612, 792]); y = top;
+    }
+    for (const row of rows) { nextRow(); row.forEach(cell => draw(cell.text, cell.x)); y -= leading; }
+  }
+  return document.save();
 }
