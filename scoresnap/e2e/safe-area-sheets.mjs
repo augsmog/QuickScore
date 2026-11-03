@@ -1,14 +1,18 @@
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {getSafeAreaProfile} from './safe-area-profiles.mjs';
 const base = process.env.BASE_URL || 'http://127.0.0.1:8089';
 const out = process.env.OUT_DIR || 'e2e/screens/safe-area';
 const before = process.env.BEFORE_NATIVE_SIM === '1';
+const profileName = process.env.DEVICE_PROFILE || 'iphone-15-pro';
+const profile = getSafeAreaProfile(profileName);
+const {width,height,top,bottom} = profile;
 fs.mkdirSync(out, {recursive:true});
 const browser = await chromium.launch();
 const results = [];
 try {
-  const context = await browser.newContext({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:1});
+  const context = await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true,deviceScaleFactor:1});
   await context.route('**/*', r => {
     // Expo Camera starts its QR worker even for text entry. Keep this layout
     // test offline; decoding is outside this test's scope.
@@ -17,29 +21,29 @@ try {
   });
   // Override only safe-area-context's hidden CSS env measurement element. This
   // exercises real providers and consumers; it never pads application content.
-  await context.addInitScript(() => {
+  await context.addInitScript(({top,bottom}) => {
     const original = window.getComputedStyle;
     window.getComputedStyle = function(element, ...args) {
       const style = original.call(this,element,...args);
       if (element.style.position === 'fixed' && element.style.visibility === 'hidden' && element.style.transitionProperty === 'padding') {
         return new Proxy(style,{get(target,key) {
-          if (key === 'paddingTop') return '59px';
-          if (key === 'paddingBottom') return '34px';
+          if (key === 'paddingTop') return `${top}px`;
+          if (key === 'paddingBottom') return `${bottom}px`;
           const value = Reflect.get(target,key,target);
           return typeof value === 'function' ? value.bind(target) : value;
         }});
       }
       return style;
     };
-  });
+  }, {top,bottom});
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const check = async (name, locator) => {
     await locator.waitFor({state:'visible'});
     const box = await locator.boundingBox();
-    assert(box && box.y >= 59, `${name} top ${box?.y} must clear 59px`);
-    assert(box.y + box.height <= 852-34, `${name} must clear bottom home indicator`);
+    assert(box && box.y >= top, `${name} top ${box?.y} must clear ${top}px`);
+    assert(box.y + box.height <= height-bottom, `${name} must clear bottom home indicator`);
     results.push({name,box});
   };
   await page.goto(base,{waitUntil:'networkidle'});
@@ -53,7 +57,7 @@ try {
     // for this reference screenshot; the normal regression never mutates layout.
     await title.evaluate(el=>{el.parentElement.parentElement.style.paddingTop='0px';el.parentElement.parentElement.style.paddingBottom='0px';});
     await page.screenshot({path:`${out}/before-sim.png`});
-    assert((await title.boundingBox()).y < 59);
+    assert((await title.boundingBox()).y < top);
     console.log('Captured origin/main native missing-provider simulation');
   } else {
     const boundary = page.getByTestId('safe-modal-content');
@@ -61,7 +65,7 @@ try {
     await check('library title',title);
     await check('library close',page.getByRole('button',{name:'Close game mode library'}));
     const padding = await boundary.evaluate(el=>({top:getComputedStyle(el).paddingTop,bottom:getComputedStyle(el).paddingBottom}));
-    assert.deepEqual(padding,{top:'59px',bottom:'34px'});
+    assert.deepEqual(padding,{top:`${top}px`,bottom:`${bottom}px`});
     await page.screenshot({path:`${out}/after-sim.png`});
     await page.getByRole('button',{name:'Close game mode library'}).click();
     await boundary.waitFor({state:'hidden'});
@@ -78,7 +82,7 @@ try {
     assert.equal(surface.y + surface.height, viewport.height, 'sheet flush with window bottom');
     await check('game info action', page.getByTestId('game-info-sheet').getByText('Try Pro with Modified Stableford (SnapScore)',{exact:true}));
     const bottomPadding = await page.getByTestId('game-info-sheet').evaluate(el => parseFloat(getComputedStyle(el).paddingBottom));
-    assert(bottomPadding >= 34, 'home inset reserved inside opaque surface');
+    assert(bottomPadding >= bottom, 'home inset reserved inside opaque surface');
     results.push({name:'game info geometry',scrim,surface,bottomPadding});
     await page.screenshot({path:`${out}/after-sim-sheet.png`});
     await page.goto(base+'/scan',{waitUntil:'networkidle'});
@@ -102,16 +106,16 @@ try {
       const scrim = await page.getByTestId(`${name}-scrim`).boundingBox();
       const sheet = page.getByTestId(`${name}-sheet`);
       const surface = await sheet.boundingBox();
-      assert.deepEqual(scrim, {x:0,y:0,width:393,height:852}, `${name}: full-window scrim`);
-      assert(surface.y >= 59, `${name}: surface clears status bar`);
-      if (bottomSheet) assert.equal(surface.y + surface.height,852,`${name}: flush bottom`);
+      assert.deepEqual(scrim, {x:0,y:0,width,height}, `${name}: full-window scrim`);
+      assert(surface.y >= top, `${name}: surface clears status bar`);
+      if (bottomSheet) assert.equal(surface.y + surface.height,height,`${name}: flush bottom`);
       const padding = await sheet.evaluate(el=>parseFloat(getComputedStyle(el).paddingBottom));
-      assert(padding >= 34,`${name}: inset inside surface`);
+      assert(padding >= bottom,`${name}: inset inside surface`);
       const controls = await sheet.locator('[tabindex="0"]').all();
       for (const control of controls) {
         const box = await control.boundingBox();
-        if (box && box.y >= surface.y && box.y < 852) {
-          assert(box.y >= 59 && box.y + box.height <= 818, `${name}: control clears safe edges: ${JSON.stringify(box)}`);
+        if (box && box.y >= surface.y && box.y < height) {
+          assert(box.y >= top && box.y + box.height <= height-bottom, `${name}: control clears safe edges: ${JSON.stringify(box)}`);
         }
       }
       results.push({name,scrim,surface,padding,controls:controls.length});
@@ -144,7 +148,7 @@ try {
     await geometry('player-match');
     await check('player match cancel',page.getByText('Cancel',{exact:true}));
     assert.deepEqual(errors,[],'no browser errors');
-    console.log('PASS safe-area sheets',JSON.stringify(results));
+    console.log(`PASS safe-area sheets (${profileName} ${width}x${height} top=${top} bottom=${bottom})`,JSON.stringify(results));
   }
 } finally {
   fs.writeFileSync(`${out}/results.json`,JSON.stringify(results,null,2));
