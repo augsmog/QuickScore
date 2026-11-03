@@ -66,6 +66,16 @@ test("production and TestFlight profiles are byte-for-byte what they were", () =
   });
 });
 
+test("preview and development profiles are byte-for-byte what they were", () => {
+  expect(eas.build.preview).toEqual({ distribution: "internal", ios: { simulator: true } });
+  expect(eas.build.development).toEqual({
+    developmentClient: true, distribution: "internal", env: { APP_VARIANT: "development" },
+  });
+  expect(Object.keys(eas.build).sort()).toEqual(
+    ["development", "preview", "production", "simulator", "simulator-offline", "testflight"],
+  );
+});
+
 test("react-native.config.js is a no-op unless the flag is exactly 1", () => {
   for (const v of [undefined, "", "0", "true"]) {
     expect(loadRnConfig(v)).toEqual({ dependencies: {} });
