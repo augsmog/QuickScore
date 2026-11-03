@@ -82,6 +82,7 @@ export default function ScorecardScreen() {
   const hcp = holeData?.hcp || 0;
   const isCompleted = contest.status === "completed";
   const compactViewport = Dimensions.get("window").height < 700;
+  const tightSpacing = Dimensions.get("window").height < 950;
 
   // Build current-hole scores map for AuxiliaryPrompt (Tier 2 games)
   const currentPlayerScores = useMemo(() => {
@@ -370,8 +371,8 @@ export default function ScorecardScreen() {
         <View
           style={{
             paddingHorizontal: 20,
-            paddingTop: compactViewport ? 8 : 12,
-            paddingBottom: compactViewport ? 4 : 8,
+            paddingTop: tightSpacing ? 8 : 12,
+            paddingBottom: tightSpacing ? 4 : 8,
             flexDirection: "row",
             alignItems: "flex-end",
             justifyContent: "space-between",
@@ -547,8 +548,8 @@ export default function ScorecardScreen() {
 
         {/* ── Player Score Steppers ── */}
         <ScrollView
-          style={{ flex: 1, minHeight: 0, marginTop: compactViewport ? 4 : 8 }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: compactViewport ? 4 : 12, gap: compactViewport ? 4 : 8 }}
+          style={{ flex: 1, minHeight: 0, marginTop: tightSpacing ? 4 : 8 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: tightSpacing ? 4 : 12, gap: tightSpacing ? 4 : 8 }}
           showsVerticalScrollIndicator={false}
         >
           {displayPlayers.map((player, idx) => {
@@ -569,7 +570,7 @@ export default function ScorecardScreen() {
                 style={{
                   backgroundColor: COLORS.surfaceHigh,
                   borderRadius: RADII.lg,
-                  padding: compactViewport ? 4 : 14,
+                  padding: compactViewport ? 4 : tightSpacing ? 10 : 14,
                   borderLeftWidth: 3,
                   borderLeftColor: hasScore ? color : COLORS.surfaceHighest,
                   opacity: isCompleted ? 0.7 : 1,
@@ -581,7 +582,7 @@ export default function ScorecardScreen() {
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: compactViewport ? 2 : 10,
+                    marginBottom: tightSpacing ? 2 : 10,
                   }}
                 >
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
@@ -757,8 +758,8 @@ export default function ScorecardScreen() {
           <View
             style={{
               flexDirection: "row",
-              gap: compactViewport ? 8 : 12,
-              marginBottom: compactViewport ? 2 : 4,
+              gap: tightSpacing ? 8 : 12,
+              marginBottom: tightSpacing ? 2 : 4,
             }}
           >
             <Pressable
@@ -850,14 +851,14 @@ export default function ScorecardScreen() {
 
           {/* Finalize Round */}
           {!isCompleted && (
-            <View style={{ marginTop: compactViewport ? 0 : 4 }}>
+            <View style={{ marginTop: tightSpacing ? 0 : 4 }}>
               {/* Progress bar */}
               <View
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  marginBottom: compactViewport ? 3 : 6,
+                  marginBottom: tightSpacing ? 3 : 6,
                 }}
               >
                 <Text
@@ -886,7 +887,7 @@ export default function ScorecardScreen() {
                   height: 4,
                   borderRadius: 2,
                   backgroundColor: COLORS.surfaceHighest,
-                  marginBottom: compactViewport ? 6 : 10,
+                  marginBottom: tightSpacing ? 6 : 10,
                   overflow: "hidden",
                 }}
               >
@@ -912,7 +913,7 @@ export default function ScorecardScreen() {
                       : COLORS.surfaceMid,
                   borderRadius: RADII.lg,
                   minHeight: 44,
-                  paddingVertical: compactViewport ? 6 : 14,
+                  paddingVertical: tightSpacing ? 6 : 14,
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",

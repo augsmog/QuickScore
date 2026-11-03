@@ -1,0 +1,53 @@
+# AUG-429: two setup steps, inline variations, unit and pot only, and scorecard cards above bottom controls.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+- tapOn:
+    id: "home-new-contest"
+- extendedWaitUntil:
+    visible: "Your name"
+    timeout: 15000
+- tapOn:
+    text: "Your name|Golfer.*"
+    index: 0
+- eraseText: 30
+- inputText: "Ava"
+- tapOn: "PLAYERS"
+- tapOn: "Player 2 name"
+- inputText: "Ben"
+- tapOn: "PLAYERS"
+- tapOn: "Continue"
+- assertVisible: "Step 1/2"
+- takeScreenshot: aug-429-01-game-modes
+- tapOn: "Match Play"
+- scrollUntilVisible:
+    element: "Bisque Handicap"
+    direction: DOWN
+- assertVisible: "Bisque Handicap"
+- takeScreenshot: aug-429-02-inline-variants
+- tapOn: "Continue"
+- assertVisible: "Step 2/2"
+- takeScreenshot: aug-429-03-two-steps
+- assertVisible: "UNIT AMOUNT"
+- takeScreenshot: aug-429-04-unit
+- assertVisible: "ESTIMATED TOTAL POT"
+- takeScreenshot: aug-429-05-pot
+- assertNotVisible: "GAME VARIATIONS|ENTRY FEE|Upgrade"
+- takeScreenshot: aug-429-06-settings-only
+- tapOn: "Start"
+- extendedWaitUntil:
+    visible: "Settlement"
+    timeout: 20000
+- assertVisible:
+    id: "score-plus-Ava"
+- takeScreenshot: aug-429-07-first-player
+- assertVisible:
+    id: "score-plus-Ben"
+- takeScreenshot: aug-429-08-second-player
+- assertVisible: "ROUND PROGRESS"
+- takeScreenshot: aug-429-09-progress
+- assertVisible: "Finalize Round"
+- takeScreenshot: aug-429-10-bottom-bar
