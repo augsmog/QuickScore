@@ -29,14 +29,19 @@ a valid service-role JWT from vault (never a publishable/secret API key).
 Go-live (operator steps; not executed by this change):
 
 1. Apply `20261101003300_signup_processing.sql`, then
-   `20261101003400_signup_webhook_trigger.sql`. The trigger skips calls until configured.
+   `20261101003400_signup_webhook_trigger.sql`, then
+   `20261103010000_signup_webhook_vault_url.sql`. The trigger skips calls until configured.
 2. In an authorized SQL session, create the vault entries using parameterized SQL:
    `select vault.create_secret($1, 'signup_webhook_secret')` and
    `select vault.create_secret($1, 'signup_webhook_service_jwt')`.
    Generate the shared webhook secret securely without printing it; supply the existing
    project service-role JWT for the second entry. Disable query/parameter logging and
-   never echo secret values. Set `app.settings.supabase_url` on the database to the
-   project's `https://<project-ref>.supabase.co` URL, and reconnect for it to take effect.
+   never echo secret values. Store the project URL in Vault:
+   `select vault.create_secret('https://<project-ref>.supabase.co', 'signup_webhook_project_url')`.
+   Hosted Supabase rejects `ALTER DATABASE ... SET app.settings.*` (42501), so Vault is
+   primary; `app.settings.supabase_url` is only a fallback for self-hosted stacks. If neither
+   is set (or the value is not an http(s) URL) the trigger returns without dispatching and
+   signup still succeeds.
    Match the shared secret in the edge environment if using the primary env override.
 3. Deploy `on-user-signup` with JWT verification enabled and the documented env vars.
    Set `RESEND_API_KEY` only when sending is approved. Missing provider configuration

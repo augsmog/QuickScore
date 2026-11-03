@@ -113,7 +113,7 @@ psql_local -f "$here/../migrations/20261029180000_sync_api.sql"
 psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261029180000','sync_api') ON CONFLICT DO NOTHING"
 psql_local -f "$here/../migrations/20261031180000_chat_report_block.sql"
 psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20261031180000','chat_report_block')"
-for signup in 20261101003300_signup_processing 20261101003400_signup_webhook_trigger; do
+for signup in 20261101003300_signup_processing 20261101003400_signup_webhook_trigger 20261103010000_signup_webhook_vault_url; do
  psql_local -f "$here/../migrations/$signup.sql"
  psql_local -c "INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('${signup%%_*}','${signup#*_}')"
 done

@@ -27,10 +27,24 @@ DO $$ BEGIN
     RAISE EXCEPTION 'configured transport payload mismatch';
   END IF;
 END $$;
+-- AUG-286: Vault project URL wins over the app setting and works without it.
+INSERT INTO vault.decrypted_secrets VALUES ('signup_webhook_project_url', ' http://vault.invalid/ ');
+INSERT INTO signup_dispatch_probe DEFAULT VALUES;
 SELECT set_config('app.settings.supabase_url', '', true);
 INSERT INTO signup_dispatch_probe DEFAULT VALUES;
 DO $$ BEGIN
-  IF (SELECT count(*) FROM pg_temp.signup_dispatch_calls) <> 1 THEN
+  IF (SELECT count(*) FROM pg_temp.signup_dispatch_calls
+      WHERE url = 'http://vault.invalid/functions/v1/on-user-signup') <> 2 THEN
+    RAISE EXCEPTION 'vault project url not preferred or not used without app setting';
+  END IF;
+END $$;
+-- Non-URL vault value with no app setting stays inert.
+UPDATE vault.decrypted_secrets SET decrypted_secret = 'not-a-url' WHERE name = 'signup_webhook_project_url';
+INSERT INTO signup_dispatch_probe DEFAULT VALUES;
+DELETE FROM vault.decrypted_secrets WHERE name = 'signup_webhook_project_url';
+INSERT INTO signup_dispatch_probe DEFAULT VALUES;
+DO $$ BEGIN
+  IF (SELECT count(*) FROM pg_temp.signup_dispatch_calls) <> 3 THEN
     RAISE EXCEPTION 'missing configuration dispatched';
   END IF;
 END $$;
@@ -50,7 +64,7 @@ INSERT INTO signup_dispatch_probe DEFAULT VALUES;
 DROP FUNCTION net.http_post(text,jsonb,jsonb);
 INSERT INTO signup_dispatch_probe DEFAULT VALUES;
 DO $$ BEGIN
-  IF (SELECT count(*) FROM pg_temp.signup_dispatch_probe) <> 7 THEN
+  IF (SELECT count(*) FROM pg_temp.signup_dispatch_probe) <> 10 THEN
     RAISE EXCEPTION 'dispatch prevented insert';
   END IF;
 END $$;

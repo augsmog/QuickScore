@@ -200,8 +200,9 @@ Would push these migrations:
  • 20261031180000_chat_report_block.sql
  • 20261101003300_signup_processing.sql
  • 20261101003400_signup_webhook_trigger.sql
+ • 20261103010000_signup_webhook_vault_url.sql
 Finished supabase db push.
 """
 rehearsal(actual_ci_dry_run, False)
 rehearsal(actual_ci_dry_run.replace(' • 20261027000000_live_baseline.sql\n',''), True)
-print('PASS: reviewed nine-pending dry run; eight pending after baseline adoption')
+print('PASS: reviewed ten-pending dry run; nine pending after baseline adoption')
