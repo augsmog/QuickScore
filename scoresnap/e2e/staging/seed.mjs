@@ -89,9 +89,10 @@ export async function seed({ url, anon, service, mask = () => {} }) {
   const have = await call(url, `/rest/v1/contests?id=eq.${CONTEST_ID}&select=id,invite_code,owner_id`, anon, { bearer: ownerJwt });
   assert.equal(have.status, 200);
   if (have.json.length === 0) {
-    const ins = await call(url, '/rest/v1/contests', anon, { method: 'POST', bearer: ownerJwt, prefer: 'return=representation',
+    // Same request shape as the app's create path (no return=representation; read back separately).
+    const ins = await call(url, '/rest/v1/contests', anon, { method: 'POST', bearer: ownerJwt,
       body: { id: CONTEST_ID, owner_id: out.accounts.owner.user_id, name: 'Staging Seed Round', course: COURSE, protocol: 0, sync_enabled: false } });
-    assert.equal(ins.status, 201, 'Owner creates staging contest through RLS');
+    assert.equal(ins.status, 201, `Owner creates staging contest through RLS (${ins.json?.code ?? ''} ${ins.json?.message ?? ''})`);
   }
   const roster = ACCOUNTS.filter(a => a.member).map((a, i) => ({ id: playerId(i + 1), contest_id: CONTEST_ID, user_id: out.accounts[a.role].user_id, name: a.name, handicap: [8, 12, 18, 24][i] }));
   const up = await call(url, '/rest/v1/contest_players?on_conflict=id', service, { method: 'POST', body: roster, prefer: 'resolution=merge-duplicates,return=representation' });
