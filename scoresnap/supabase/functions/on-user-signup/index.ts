@@ -1,10 +1,12 @@
 // Auth INSERT webhook. Database claims serialize side effects and email retries.
-import { checkWebhookSecret, referralRewardEnabled, referralPlan, emailSettings, buildWelcomeEmail, buildRewardEmail } from "./lib.ts";
+import { checkWebhookSecret, welcomeEmailAllowed, referralRewardEnabled, referralPlan, emailSettings, buildWelcomeEmail, buildRewardEmail } from "./lib.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const settings = emailSettings({ APP_URL: Deno.env.get("APP_URL"), EMAIL_FROM: Deno.env.get("EMAIL_FROM"), EMAIL_REPLY_TO: Deno.env.get("EMAIL_REPLY_TO"), EMAIL_UNSUBSCRIBE_URL: Deno.env.get("EMAIL_UNSUBSCRIBE_URL") });
 let cachedSecret: string | undefined;
+// Read per request so WELCOME_EMAIL_MODE / WELCOME_EMAIL_ALLOWLIST changes apply without a redeploy.
+const sendAllowed = (address: string) => welcomeEmailAllowed(Deno.env.get("WELCOME_EMAIL_MODE"), Deno.env.get("WELCOME_EMAIL_ALLOWLIST"), address);
 const db = () => createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 async function webhookSecret() {
   const env = Deno.env.get("SIGNUP_WEBHOOK_SECRET");
@@ -65,7 +67,7 @@ serve(async (req) => {
           if (plan.sendReward && Deno.env.get("RESEND_API_KEY")) {
             const target = await supabase.from("profiles").select("email").eq("id", referrer.referrer_id).single();
             checked(target);
-            if (target.data?.email) await sendEmail(buildRewardEmail(target.data.email, settings), `signup-reward/${userId}`);
+            if (target.data?.email && sendAllowed(target.data.email)) await sendEmail(buildRewardEmail(target.data.email, settings), `signup-reward/${userId}`);
           }
         }
       }
@@ -74,7 +76,8 @@ serve(async (req) => {
       checked(await supabase.rpc("increment_daily_signups", { target_date: new Date().toISOString().split("T")[0] }));
     }
     const token = crypto.randomUUID();
-    const configured = !!Deno.env.get("RESEND_API_KEY");
+    const providerKey = !!Deno.env.get("RESEND_API_KEY");
+    const configured = providerKey && sendAllowed(email);
     const emailClaim = await supabase.rpc("claim_signup_email", { p_user_id: userId, p_token: token, p_provider_configured: configured });
     checked(emailClaim);
     const failReservation = async () => {
@@ -83,7 +86,7 @@ serve(async (req) => {
     };
     if (!configured) {
       if (emailClaim.data) await failReservation();
-      console.log("[EMAIL SKIPPED] provider not configured");
+      console.log(providerKey ? "[EMAIL SKIPPED] welcome email gated by WELCOME_EMAIL_MODE" : "[EMAIL SKIPPED] provider not configured");
     } else if (emailClaim.data) {
       const profile = await supabase.from("profiles").select("referral_code").eq("id", userId).single();
       checked(profile);

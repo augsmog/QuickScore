@@ -11,6 +11,16 @@ export async function checkWebhookSecret(expected: string | undefined, supplied:
   return difference === 0 && supplied !== null ? null : 401;
 }
 
+// Send gate for every outbound signup email. Unset/unknown modes fail closed (no sends).
+// "allowlist" sends only to addresses in WELCOME_EMAIL_ALLOWLIST (comma-separated, case-insensitive).
+export function welcomeEmailAllowed(mode: string | undefined, allowlist: string | undefined, email: string): boolean {
+  const value = (mode ?? "").trim().toLowerCase();
+  if (value === "all") return true;
+  if (value !== "allowlist" || typeof email !== "string") return false;
+  const target = email.trim().toLowerCase();
+  return !!target && (allowlist ?? "").split(",").map(entry => entry.trim().toLowerCase()).filter(Boolean).includes(target);
+}
+
 export function referralRewardEnabled(value?: string): boolean { return value === "true"; }
 export function referralPlan(count: number, enabled: boolean, now: string) {
   return {
