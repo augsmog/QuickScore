@@ -441,6 +441,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                   }
                   renderItem={({ item }) => (
                     <Pressable
+                      testID="course-search-result"
                       onPress={() => handleSelectCourse(item)}
                       style={{
                         flexDirection: "row",

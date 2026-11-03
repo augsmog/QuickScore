@@ -87,7 +87,7 @@ test("paid-tier fixture is the same persisted cache shape as the web fixture", (
 });
 
 test("selectors used by flows exist in the app source", () => {
-  const src = walk(path.join(__dirname, "..", "app")).filter((f) => f.endsWith(".tsx")).map((f) => fs.readFileSync(f, "utf8")).join("\n");
+  const src = [...walk(path.join(__dirname, "..", "app")), ...walk(path.join(__dirname, "..", "src", "ui"))].filter((f) => f.endsWith(".tsx")).map((f) => fs.readFileSync(f, "utf8")).join("\n");
   const ids = new Set();
   for (const file of walk(dir).filter((f) => f.endsWith(".yaml"))) {
     for (const m of fs.readFileSync(file, "utf8").matchAll(/id:\s*"([^"]+)"/g)) ids.add(m[1]);
@@ -107,4 +107,17 @@ test("workflow is manual-only, secret-free, and passes inputs through env", () =
   expect(parsed.permissions).toEqual({ contents: "read" });
   for (const step of parsed.jobs.maestro.steps) if (step.run) expect(step.run).not.toMatch(/\$\{\{/);
   expect(read(".maestro/scripts/run-ios-sim.sh")).toMatch(/lipo -archs/);
+});
+
+
+test("UX tee flow uses the offline fixture and captures the last row and pinned confirm", () => {
+  const env = eas.build[config.builds.offline.easProfile].env;
+  expect(env.EXPO_PUBLIC_FEATURE_COURSE_SEARCH).toBe("true");
+  expect(env.EXPO_PUBLIC_E2E_COURSE_FIXTURE).toBe("true");
+  const [, steps] = docs(".maestro/flows/offline/aug-429-ux-pass.yaml");
+  expect(steps).toContainEqual({ inputText: "E2E Tee Course" });
+  expect(steps).toContainEqual({ scrollUntilVisible: { element: "Tee 16", direction: "DOWN" } });
+  const last = steps.findIndex(s => s.tapOn === "Tee 16");
+  expect(steps[last + 1]).toEqual({ assertVisible: { id: "confirm-tees" } });
+  expect(steps[last + 2].takeScreenshot).toBe("aug-429-14-pinned-confirm-last-row");
 });

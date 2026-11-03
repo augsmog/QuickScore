@@ -19,6 +19,33 @@ appId: com.scoresnap.app
 - tapOn: "Player 2 name"
 - inputText: "Ben"
 - tapOn: "PLAYERS"
+- tapOn: "Search courses..."
+- tapOn: "Search by course name..."
+- inputText: "E2E Tee Course"
+- extendedWaitUntil:
+    visible:
+      id: "course-search-result"
+    timeout: 10000
+- tapOn:
+    id: "course-search-result"
+- assertVisible: "Select Tee Box"
+- takeScreenshot: aug-429-11-tee-sheet
+- tapOn: "Tee 01"
+- assertVisible: "Confirm tees"
+- takeScreenshot: aug-429-12-tee-confirm-before-scroll
+- scrollUntilVisible:
+    element: "Tee 16"
+    direction: DOWN
+- assertVisible: "Tee 16"
+- takeScreenshot: aug-429-13-last-tee-row
+- tapOn: "Tee 16"
+- assertVisible:
+    id: "confirm-tees"
+- takeScreenshot: aug-429-14-pinned-confirm-last-row
+- tapOn:
+    id: "confirm-tees"
+- assertVisible: "E2E Tee Course (Tee 16)"
+- takeScreenshot: aug-429-15-confirmed-course
 - tapOn: "Continue"
 - assertVisible: "Step 1/2"
 - takeScreenshot: aug-429-01-game-modes

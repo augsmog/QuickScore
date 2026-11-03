@@ -96,7 +96,9 @@
       "build": "offline",
       "tickets": [
         "AUG-429"
-      ]
+      ],
+      "captureHierarchy": true,
+      "notes": "Requires simulator-offline built from candidate source with EXPO_PUBLIC_E2E_COURSE_FIXTURE=true; synthetic 16-tee course, no backend calls."
     }
   ],
   "blocked": [
@@ -108,12 +110,5 @@
       "reason": "needs a signed-in demo/owner account; adding its credential as a CI secret needs Augie's yes"
     }
   ],
-  "knownBlocks": [
-    {
-      "tickets": [
-        "AUG-429"
-      ],
-      "reason": "Offline simulator profile does not enable EXPO_PUBLIC_FEATURE_COURSE_SEARCH; tee confirm pin requires a course-search-enabled build and fixture. Verify at 390x844 and 430x932 with screenshot evidence."
-    }
-  ]
+  "knownBlocks": []
 }
