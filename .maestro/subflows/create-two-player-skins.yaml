@@ -6,19 +6,28 @@ appId: com.scoresnap.app
 - extendedWaitUntil:
     visible: "Your name"
     timeout: 15000
-- tapOn: "Your name"
+# Player 1 may be prefilled with the local profile name (offline build shows "Golfer"); replace it.
+- tapOn:
+    text: "Your name|Golfer.*"
+    index: 0
+- eraseText: 30
 - inputText: "Ava"
+# iOS hideKeyboard is unreliable here; the form uses keyboardShouldPersistTaps="handled", so tapping a label dismisses it.
+- tapOn: "PLAYERS"
 - tapOn: "Player 2 name"
 - inputText: "Ben"
-- hideKeyboard
+- tapOn: "PLAYERS"
+- assertVisible: "Ava"
+- assertVisible: "Ben"
 - tapOn:
     text: "NEXT.*"
     index: 0
+# Format cards expose one combined accessibility label ("Skins, PRO, Win the hole outright..."), so match the prefix.
 - extendedWaitUntil:
-    visible: "Skins"
+    visible: "Skins, .*"
     timeout: 15000
 - tapOn:
-    text: "Skins"
+    text: "Skins, .*"
     index: 0
 - scrollUntilVisible:
     element: "NEXT.*"

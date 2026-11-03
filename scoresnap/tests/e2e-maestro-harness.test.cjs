@@ -46,6 +46,7 @@ test("every flow is listed once, exists, targets the app and names its ticket", 
     expect(shots.length).toBeGreaterThan(0);
     for (const s of shots) expect(s).toMatch(new RegExp(`^${ticket.toLowerCase()}-\\d\\d-[a-z0-9-]+$`));
     if (f.fixture) expect(fs.existsSync(path.join(repo, config.fixtures[f.fixture].file))).toBe(true);
+    if ("skipInAll" in f) expect(typeof f.skipInAll === "string" && f.skipInAll.length > 20).toBe(true);
   }
 });
 
@@ -54,7 +55,10 @@ test("runFlow references resolve and subflows target the app", () => {
     const [header, steps] = yaml.loadAll(fs.readFileSync(file, "utf8"));
     expect(header.appId).toBe(config.appId);
     for (const s of steps || []) {
-      if (s && s.runFlow) expect(fs.existsSync(path.resolve(path.dirname(file), typeof s.runFlow === "string" ? s.runFlow : s.runFlow.file))).toBe(true);
+      if (!s || !s.runFlow) continue;
+      const target = typeof s.runFlow === "string" ? s.runFlow : s.runFlow.file;
+      if (target === undefined) expect(Array.isArray(s.runFlow.commands)).toBe(true); // inline conditional block
+      else expect(fs.existsSync(path.resolve(path.dirname(file), target))).toBe(true);
     }
   }
 });

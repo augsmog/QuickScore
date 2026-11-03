@@ -1,14 +1,18 @@
-# Shared: pass the onboarding slides with the real buttons (Skip, then Get Started if shown).
+# Shared: reach Home. Pass the onboarding slides with the real buttons if the build shows them
+# (the offline build lands on Home directly), then wait for Home's New Contest button.
 appId: com.scoresnap.app
 ---
+# A system 'Open in "SnapScore"?' alert left by an earlier flow's openLink survives reinstall; clear it first.
+- runFlow:
+    when:
+      visible: ".*Open in .*SnapScore.*"
+    commands:
+      - tapOn: "Cancel"
 - extendedWaitUntil:
-    visible: "Skip|Next|Get Started"
+    visible: "Skip|Next.*|.*See Who Owes What.*|New Contest"
     timeout: 45000
 - tapOn:
     text: "Skip"
-    optional: true
-- tapOn:
-    text: "Get Started"
     optional: true
 - extendedWaitUntil:
     visible:

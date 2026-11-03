@@ -30,8 +30,9 @@ appId: com.scoresnap.app
       id: "home-new-contest"
     timeout: 45000
 - takeScreenshot: aug-319-03-relaunched-home
+# Home's active-game card exposes one combined label ("My Course, Stroke Play, Skins, 2 players, ...").
 - tapOn:
-    text: ".*Ava.*|.*Round.*"
+    text: ".*Skins, 2 players.*"
     index: 0
 - extendedWaitUntil:
     visible: "Settlement"

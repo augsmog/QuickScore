@@ -22,7 +22,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: e2e-ios-sim-${{ github.ref }}
+  group: e2e-ios-sim-${{ github.ref }}-${{ inputs.build }}
   cancel-in-progress: false
 jobs:
   maestro:

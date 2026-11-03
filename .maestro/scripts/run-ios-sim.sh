@@ -48,6 +48,7 @@ c=json.load(open(sys.argv[1])); want=sys.argv[3]
 ids=None if want=="all" else set(x.strip() for x in want.split(",") if x.strip())
 for f in c["flows"]:
     if f["build"]!=sys.argv[2] or (ids is not None and f["id"] not in ids): continue
+    if ids is None and f.get("skipInAll"): continue  # opt-in only; reason lives in the config
     fx=c["fixtures"][f["fixture"]]["file"] if f.get("fixture") else "-"
     print("\t".join([f["id"],f["file"],fx,"1" if f.get("captureHierarchy") else "0"]))
 PY
@@ -72,7 +73,8 @@ while IFS=$'\t' read -r ID FLOW FIXTURE HIER; do
   RC=$?; set -e
   [ "$HIER" = "1" ] && maestro --device "$UDID" hierarchy > "$D/hierarchy.json" 2>/dev/null || true
   [ $RC -eq 0 ] || { FAILED=1; maestro --device "$UDID" hierarchy > "$D/hierarchy-at-failure.json" 2>/dev/null || true; }
-  find "$D" -name '*.png' -not -path "$D/*.png" -exec cp -n {} "$D/" \; 2>/dev/null || true
+  # Maestro writes takeScreenshot files under its timestamped run dir; lift them to the flow dir for the manifest.
+  find "$D" -mindepth 2 -path '*/takeScreenshot/*.png' -exec cp -n {} "$D/" \; 2>/dev/null || true
   printf '%s\t%s\t%s\t%s\n' "$ID" "$FLOW" "$RC" "$(( $(date +%s) - START ))" >> "$WORK/results.tsv"
   echo "flow $ID rc=$RC"
 done < "$WORK/flows.tsv"
