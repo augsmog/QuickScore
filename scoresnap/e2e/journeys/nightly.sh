@@ -29,6 +29,7 @@ ATTEMPT_DIR="$RUN_DIR/$(date -u +%H%M%S)-$$"
 mkdir -p "$ATTEMPT_DIR/harness/e2e/journeys" "$ATTEMPT_DIR/harness/e2e/shared"
 cp "$HARNESS_DIR/"*.mjs "$HARNESS_DIR/journeys.json" "$ATTEMPT_DIR/harness/e2e/journeys/"
 cp "$HARNESS_DIR/../shared/paid-tier-fixture.mjs" "$ATTEMPT_DIR/harness/e2e/shared/"
+cp "$HARNESS_DIR/../safe-area-profiles.mjs" "$ATTEMPT_DIR/harness/e2e/safe-area-profiles.mjs"
 ln -s "$NODE_MODULES_SRC" "$ATTEMPT_DIR/harness/node_modules"
 SERVER_PID=''
 finish() {

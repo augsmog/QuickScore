@@ -166,7 +166,7 @@ function assertRecoveryWiring(value) {
   assert.equal(step.if,undefined);assert.equal(step['continue-on-error'],undefined);
   assert.equal(step.env?.JOURNEYS,undefined);
   const lines=step.run.trim().split('\n').map(s=>s.trim());
-  assert.ok(lines.includes('node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs'));
+  assert.ok(lines.includes('node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs e2e/journeys/reach-report.test.mjs'));
   assert.ok(lines.includes('OUT_DIR=e2e/journey-screens/td-badge-controls node --test e2e/journeys/paywall-badge.browser.test.mjs'));
   assert.ok(lines.includes('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs'));
   assert.ok(lines.includes('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens/negative-proof node e2e/journeys/negative-proof.mjs'));
@@ -174,7 +174,7 @@ function assertRecoveryWiring(value) {
   assert.equal(upload.name,'Upload journey screenshots');assert.equal(upload.if,'always()');
   assert.equal(upload.with.path,'scoresnap/e2e/journey-screens');
 }
-test('AUG-293 controls, unfiltered journeys and failure captures run in the existing CI step',()=>{
+test('AUG-293 and per-profile reach reports run in the existing CI step',()=>{
  assertRecoveryWiring(workflow);
  for(const mutate of [s=>s.run=s.run.replace(' e2e/journeys/paywall-recovery.test.mjs',''),s=>s.run=s.run.split('\n').filter(l=>!l.includes('paywall-badge.browser')).join('\n'),s=>s.run=s.run.replace('OUT_DIR=e2e/journey-screens node','JOURNEYS=J-other OUT_DIR=e2e/journey-screens node'),s=>s.if='false',s=>s['continue-on-error']=true,s=>s['timeout-minutes']=3]){
   const copy=structuredClone(workflow);mutate(copy.jobs['browser-flows'].steps.find(s=>s.name==='Journey budgets and reachability'));assert.throws(()=>assertRecoveryWiring(copy));
