@@ -54,6 +54,7 @@ test('Four-Ball round robin uses the selected pair score and splits each stake e
     import assert from 'node:assert/strict';
     const { calculateSettlement } = await import('./src/engine/settlement.ts').then(m => m.default ?? m);
     const { configForGame, validateVariationSetup } = await import('./src/engine/types.ts').then(m => m.default ?? m);
+    const { validateHostContest } = await import('./src/engine/contest-validation.ts').then(m => m.default ?? m);
     const fs = await import('node:fs');
     const course = { name: 'Round robin', holes: Array.from({length: 18}, (_, i) => ({num:i+1, par:4, hcp:i+1})) };
     const scores = { A1:3, A2:8, B1:5, B2:5, C1:6, C2:6 };
@@ -78,14 +79,17 @@ test('Four-Ball round robin uses the selected pair score and splits each stake e
     // their stored settlement rules already accepted.
     assert.equal(validateVariationSetup([{players:players.slice(0,4)}],['fourball'],{rulesVersion:1},1.01),undefined);
     assert.match(validateVariationSetup(groups,['fourball'],{rulesVersion:1,fourBallScoring:'better'},1),/exactly two complete pairs/);
+    assert.match(validateVariationSetup(groups,['fourball'],{rulesVersion:1,fourBallFormat:'round_robin'},1.02),/Choose a Four-Ball pair score/);
+    assert.throws(() => validateHostContest({groups,games:['fourball'],betUnit:1.02,
+      gameConfig:{rulesVersion:1,inputRulesVersion:1,fourBallFormat:'round_robin'}},'td'),/Choose a Four-Ball pair score/);
     const fourTeams = [...players,{id:'D1',name:'D1',team:'D',handicap:0,scores:Array(18).fill(7)},
       {id:'D2',name:'D2',team:'D',handicap:0,scores:Array(18).fill(7)}];
     assert.match(validateVariationSetup([{players:fourTeams}],['fourball'],
-      {rulesVersion:1,fourBallFormat:'round_robin'},1),/exactly three complete pairs/);
+      {rulesVersion:1,fourBallScoring:'better',fourBallFormat:'round_robin'},1),/exactly three complete pairs/);
     assert.match(validateVariationSetup(groups,['fourball'],
       {rulesVersion:1,fourBallScoring:'gross'},1),/supported Four-Ball pair score/);
     assert.match(validateVariationSetup([{players:players.slice(0,5)}],['fourball'],
-      {rulesVersion:1,fourBallFormat:'round_robin'},1),/exactly three complete pairs/);
+      {rulesVersion:1,fourBallScoring:'better',fourBallFormat:'round_robin'},1),/exactly three complete pairs/);
     const better = calculateSettlement(players,course,['fourball'],1,undefined,
       {rulesVersion:1,fourBallFormat:'round_robin',fourBallScoring:'better'},groups);
     // A wins vs B and C by best ball; B wins vs C. Each pair's net is equal.
@@ -109,5 +113,14 @@ test('Four-Ball round robin uses the selected pair score and splits each stake e
       {rulesVersion:1},tiedGroup);
     assert.equal(tied.transactions.length,0);
     assert.ok(Object.values(tied.netByPlayer).every(n => n === 0));
+
+    // An even-cent unit preserves an exact half-stake for each partner after
+    // each match is netted. No fractional cent may appear in the result.
+    const evenCents = calculateSettlement(players,course,['fourball'],1.02,undefined,
+      {rulesVersion:1,fourBallFormat:'round_robin',fourBallScoring:'better'},groups);
+    assert.deepEqual(evenCents.netByPlayer,{A1:2.04,A2:2.04,B1:0,B2:0,C1:-2.04,C2:-2.04});
+    assert.ok(evenCents.transactions.every(t => Number.isInteger(Math.round(t.amount * 100))));
+    assert.equal(Object.values(evenCents.netByPlayer).reduce((sum,n) => sum+n,0),0);
+    assert.equal(validateVariationSetup(groups,['fourball'],{rulesVersion:1,fourBallScoring:'better',fourBallFormat:'round_robin'},1.02),undefined);
   `]);
 });

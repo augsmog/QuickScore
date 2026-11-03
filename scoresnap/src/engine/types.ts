@@ -604,6 +604,7 @@ export function validateVariationSetup(groups: {players: Player[]}[], games: Gam
   if (games.includes("fourball") && (config.fourBallScoring !== undefined || config.fourBallFormat !== undefined)) {
     if (config.fourBallScoring !== undefined && !["better", "total"].includes(config.fourBallScoring)) return "Choose a supported Four-Ball pair score.";
     if (config.fourBallFormat !== undefined && config.fourBallFormat !== "round_robin") return "Unsupported match format.";
+    if (config.fourBallFormat === "round_robin" && config.fourBallScoring === undefined) return "Choose a Four-Ball pair score before selecting round robin.";
     if (Math.round(betUnit * 100) % 2 !== 0) return "Four-Ball unit amount must use an even number of cents to split equally between partners.";
     const expectedTeams = config.fourBallFormat === "round_robin" ? 3 : 2;
     for (const group of groups) {

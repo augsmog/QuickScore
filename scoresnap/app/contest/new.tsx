@@ -158,6 +158,16 @@ export default function NewContestScreen() {
     [selectedGames, tier]
   );
 
+  const roundRobinAvailable = hasTeams && numGroups > 0 &&
+    Array.from({length: numGroups}, (_, groupIndex) => players.filter(p => p.groupIndex === groupIndex))
+      .every(groupPlayers => {
+        if (groupPlayers.length !== 6) return false;
+        const groupTeams = [...new Set(groupPlayers.map(p => p.team))];
+        return groupTeams.length === 3 && groupTeams.every(team =>
+          Boolean(team) && groupPlayers.filter(p => p.team === team).length === 2
+        );
+      });
+
   const valuesMatch = (a: unknown, b: unknown): boolean => {
     if (a === b) return true;
     if (Array.isArray(a) && Array.isArray(b))
@@ -1088,7 +1098,7 @@ export default function NewContestScreen() {
                     </AnimatedPressable>
                   ))}
                 </View>
-                {hasTeams && teams.length === 3 && (
+                {(roundRobinAvailable || gameConfig.fourBallFormat === "round_robin") && (
                   <AnimatedPressable testID="fourball-format-round-robin"
                     accessibilityRole="checkbox" accessibilityLabel="Six-player round robin: each pair plays both other pairs"
                     accessibilityState={{ checked: gameConfig.fourBallFormat === "round_robin" }}
