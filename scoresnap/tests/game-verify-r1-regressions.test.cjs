@@ -47,6 +47,6 @@ test('All variants retain independent numerical units and cash acceptance fixtur
 
 test('Playable count derives from distinct delivered registries',()=>check(`
  const t=await import('./src/engine/types.ts').then(m=>m.default??m);
- assert.equal(t.PLAYABLE_BASE_GAME_IDS.length,30);assert.equal(t.PLAYABLE_OPTION_IDS.length,26);assert.equal(t.PLAYABLE_FORMAT_IDS.length,1);
- const ids=[...t.PLAYABLE_BASE_GAME_IDS,...t.PLAYABLE_OPTION_IDS,...t.PLAYABLE_FORMAT_IDS];assert.equal(new Set(ids).size,ids.length);assert.equal(t.PLAYABLE_GAME_COUNT,ids.length);assert.equal(t.PLAYABLE_GAME_COUNT,57);
+ assert.equal(t.PLAYABLE_BASE_GAME_IDS.length,30);assert.equal(t.PLAYABLE_OPTION_IDS.length,25);assert.equal(t.PLAYABLE_FORMAT_IDS.length,1);
+ const ids=[...t.PLAYABLE_BASE_GAME_IDS,...t.PLAYABLE_OPTION_IDS,...t.PLAYABLE_FORMAT_IDS];assert.equal(new Set(ids).size,ids.length);assert.equal(t.PLAYABLE_GAME_COUNT,ids.length);assert.equal(t.PLAYABLE_GAME_COUNT,56);
 `));

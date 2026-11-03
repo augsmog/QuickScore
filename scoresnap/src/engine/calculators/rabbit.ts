@@ -66,7 +66,7 @@ export function calcRabbit(players: Player[], _course: Course, config?: GameConf
       .forEach((p) => (totals[p.name] -= 1));
   }
 
-  if (config?.rulesVersion === 1 && config.doubleRabbit && players.every(p => p.scores.slice(0,18).filter(s => s > 0).length === 18)) {
+  if (config?.rulesVersion === 1 && config.doubleRabbit && !config.rabbitHolderPays && players.every(p => p.scores.slice(0,18).filter(s => s > 0).length === 18)) {
     let overall = "";
     for (let i = 0; i < 18; i++) {
       const min = Math.min(...players.map(p => p.scores[i]));
@@ -74,6 +74,15 @@ export function calcRabbit(players: Player[], _course: Course, config?: GameConf
       if (low.length === 1) overall = low[0].name;
     }
     if (overall) players.forEach(p => { totals[p.name] += p.name === overall ? players.length - 1 : -1; });
+  }
+  if (config?.rabbitHolderPays && players.every(p => p.scores.slice(0,18).filter(s => s > 0).length === 18)) {
+    let overall = "";
+    for (let i = 0; i < 18; i++) {
+      const min = Math.min(...players.map(p => p.scores[i]));
+      const low = players.filter(p => p.scores[i] === min);
+      if (low.length === 1) overall = low[0].name;
+    }
+    if (overall) players.forEach(p => { totals[p.name] += p.name === overall ? -(players.length - 1) : 1; });
   }
   return { front9Holder, back9Holder, events, totals };
 }
