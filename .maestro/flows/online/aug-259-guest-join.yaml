@@ -10,26 +10,17 @@ env:
 - extendedWaitUntil:
     visible: "Skip|Next|Get Started|.*See Who Owes What.*"
     timeout: 60000
-- openLink: "snapscore://join/${JOIN_CODE}"
-- tapOn:
-    text: "Open"  # iOS asks 'Open in "SnapScore"?' for a custom-scheme link
-    optional: true
-- extendedWaitUntil:
-    visible: "Join with code"
-    timeout: 45000
-    optional: true
-# Cold start can swallow the first link while the onboarding gate mounts; reopen once.
-- runFlow:
-    when:
-      notVisible: "Join with code"
+# Cold start can swallow the link while the auth/onboarding gate mounts; retry the open (same link, no extra writes).
+- retry:
+    maxRetries: 3
     commands:
       - openLink: "snapscore://join/${JOIN_CODE}"
       - tapOn:
-          text: "Open"
+          text: "Open"  # iOS asks 'Open in "SnapScore"?' for a custom-scheme link
           optional: true
-- extendedWaitUntil:
-    visible: "Join with code"
-    timeout: 45000
+      - extendedWaitUntil:
+          visible: "Join with code"
+          timeout: 20000
 - takeScreenshot: aug-259-01-join-screen-signed-out
 - tapOn: "Join code"
 - eraseText: 10
