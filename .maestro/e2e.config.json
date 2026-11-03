@@ -108,7 +108,8 @@
         "AUG-429"
       ],
       "captureHierarchy": true,
-      "notes": "Read-only course search (Pebble Beach); no contest saved. Requires candidate simulator build with course search enabled. Last-row selector follows API ordering."
+      "notes": "Read-only course search (Pebble Beach); no contest saved. Requires candidate simulator build with course search enabled. Last-row selector follows API ordering.",
+      "skipInAll": "The online simulator build opens on the sign-in gate after onboarding (proof run 41727220634), and this flow must not create accounts or use credentials. Run by id against a signed-in test build; offline aug-429-ux-pass covers the pinned Confirm tees on a 16-tee fixture."
     }
   ],
   "blocked": [
