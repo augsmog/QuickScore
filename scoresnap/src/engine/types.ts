@@ -599,7 +599,9 @@ export function validateVariationSetup(groups: {players: Player[]}[], games: Gam
   for(const v of GAME_VARIATIONS) {const value=config[v.configKey];if(value===undefined || value===false && v.configValue===true)continue;if(v.configKey==="nassauWeights" && JSON.stringify(value)==="[1,1,1]")continue;if(v.configKey==="skinsTier" && ["flat","tiered","progressive"].includes(String(value)))continue;if(JSON.stringify(value)!==JSON.stringify(v.configValue) && !GAME_VARIATIONS.some(other=>other.configKey===v.configKey && JSON.stringify(other.configValue)===JSON.stringify(value)))return `Invalid value for ${v.label}`;}
   if(config.skinsMode!==undefined && !["net","gross"].includes(config.skinsMode) || config.skinsScope!==undefined && !["field","group"].includes(config.skinsScope))return "Invalid Skins mode or scope";
   if (games.some(g => !isGameImplemented(g))) return "This game is unavailable until scoring and settlement are complete.";
-  if (games.includes("fourball")) {
+  // New Four-Ball stake/layout rules apply only after setup explicitly stores
+  // the pair-score choice. Older rulesVersion: 1 contests predate this choice.
+  if (games.includes("fourball") && (config.fourBallScoring !== undefined || config.fourBallFormat !== undefined)) {
     if (config.fourBallScoring !== undefined && !["better", "total"].includes(config.fourBallScoring)) return "Choose a supported Four-Ball pair score.";
     if (config.fourBallFormat !== undefined && config.fourBallFormat !== "round_robin") return "Choose a supported Four-Ball format.";
     if (Math.round(betUnit * 100) % 2 !== 0) return "Four-Ball unit amount must use an even number of cents to split equally between partners.";
