@@ -642,7 +642,11 @@ export function calculateSettlement(
         // explicit format is required; never infer a three-team scoring rule.
         const teams = groupByTeam(players);
         const teamIds = Array.from(teams.keys());
-        const currentRules = gameConfig?.rulesVersion === 1;
+        // Adopt the new Four-Ball settlement only when the explicit pair-score
+        // choice is stored. rulesVersion is shared by unrelated game rules and
+        // was already present on old contests, so it cannot migrate their math.
+        const currentRules = gameConfig?.rulesVersion === 1 &&
+          (gameConfig?.fourBallScoring === "better" || gameConfig?.fourBallScoring === "total");
         const matchPairs: [string, string][] = currentRules && gameConfig?.fourBallFormat === "round_robin" && teamIds.length === 3
           ? [[teamIds[0], teamIds[1]], [teamIds[0], teamIds[2]], [teamIds[1], teamIds[2]]]
           : teamIds.length >= 2 ? [[teamIds[0], teamIds[1]]] : [];
