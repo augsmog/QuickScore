@@ -5,7 +5,7 @@ import StoreKit
 import StoreKitTest
 import XCTest
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 final class StoreKitProofTests: XCTestCase {
     static let ids = ["snapscore.pro.annual", "snapscore.pro.monthly", "snapscore.td.annual", "snapscore.td.monthly"]
     static let prices: [String: String] = ["snapscore.pro.annual": "24.99", "snapscore.pro.monthly": "3.99",

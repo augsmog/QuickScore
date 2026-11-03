@@ -15,7 +15,7 @@ dir = File.join(File.dirname(proj_path), name)
 FileUtils.mkdir_p(dir)
 %w[StoreKitProofTests.swift SnapScore.storekit].each { |f| FileUtils.cp(File.join(here, f), dir) }
 
-t = proj.new_target(:unit_test_bundle, name, :ios, '16.0', nil, :swift)
+t = proj.new_target(:unit_test_bundle, name, :ios, '17.0', nil, :swift)
 group = proj.main_group.new_group(name, name)
 t.add_file_references([group.new_file('StoreKitProofTests.swift')])
 t.resources_build_phase.add_file_reference(group.new_file('SnapScore.storekit'))
@@ -28,7 +28,7 @@ t.build_configurations.each do |c|
   s['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.scoresnap.app.storekit-proof-tests'
   s['GENERATE_INFOPLIST_FILE'] = 'YES'
   s['SWIFT_VERSION'] = '5.0'
-  s['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+  s['IPHONEOS_DEPLOYMENT_TARGET'] = '17.0' # SKTestSession.buyProduct(identifier:options:) is iOS 17+
   s['CODE_SIGNING_ALLOWED'] = 'NO'
 end
 proj.save

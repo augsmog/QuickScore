@@ -43,20 +43,8 @@ jobs:
           cache: npm
           cache-dependency-path: scoresnap/package-lock.json
       - run: npm ci
-      - name: Catalog matches purchases.ts
-        run: |
-          node -e '
-            const fs=require("fs");
-            const cfg=JSON.parse(fs.readFileSync("e2e/storekit/SnapScore.storekit","utf8"));
-            const subs=cfg.subscriptionGroups.flatMap(g=>g.subscriptions);
-            const src=fs.readFileSync("src/services/purchases.ts","utf8");
-            let bad=0;
-            for (const s of subs) {
-              const re=new RegExp(s.productID.replace(/\./g,"\\.")+" \\(\\$"+s.displayPrice.replace(".","\\."));
-              if(!re.test(src)){console.error("mismatch:",s.productID,s.displayPrice);bad=1}
-            }
-            if(subs.length!==4){console.error("expected 4 subscriptions");bad=1}
-            process.exit(bad)'
+      - name: Catalog matches purchases.ts and paywall-plans.ts
+        run: node e2e/storekit/check_catalog.js
       - name: Clean prebuild (iOS)
         run: npx expo prebuild --platform ios --clean --no-install
       - name: Inject StoreKit test target
