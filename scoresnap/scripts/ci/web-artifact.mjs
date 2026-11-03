@@ -39,9 +39,28 @@ export function createManifest(root, identity) {
   return { schema: 1, identity, files: inventory(root) };
 }
 
+// Runner-local facts that legitimately differ between the build and browser jobs of ONE run: hosted jobs can land on
+// different runner image versions while GitHub rolls out a new image (run 41674766596: 20261025.353.1 vs 20261101.360.1),
+// and setup-node may resolve a different patch of the same major from each image's tool cache. They stay recorded in the
+// manifest for audit; every artifact-provenance field (run, attempt, commit, tree, workflow, lock, expo, playwright,
+// flags, imageOS) and the node major must still match exactly.
+const nodeMajor = version => /^v?(\d+)\./.exec(String(version ?? ''))?.[1] ?? null;
+const RUNNER_LOCAL = ['imageVersion', 'node'];
+export function sameProvenance(built, current) {
+  if (!built || typeof built !== 'object' || !current || typeof current !== 'object') return false;
+  const keys = identity => JSON.stringify(Object.keys(identity).sort());
+  if (keys(built) !== keys(current)) return false;                       // no extra or missing identity fields
+  for (const identity of [built, current]) {
+    if (typeof identity.imageVersion !== 'string' || !identity.imageVersion) return false;
+    if (nodeMajor(identity.node) === null) return false;
+  }
+  if (nodeMajor(built.node) !== nodeMajor(current.node)) return false;
+  return Object.keys(built).every(key => RUNNER_LOCAL.includes(key) || JSON.stringify(built[key]) === JSON.stringify(current[key]));
+}
+
 export function verifyManifest(root, identity, manifest) {
   if (manifest?.schema !== 1) throw new Error('Unsupported artifact manifest');
-  if (JSON.stringify(manifest.identity) !== JSON.stringify(identity)) throw new Error('Artifact provenance mismatch');
+  if (!sameProvenance(manifest.identity, identity)) throw new Error('Artifact provenance mismatch');
   if (JSON.stringify(manifest.files) !== JSON.stringify(inventory(root))) throw new Error('Artifact content mismatch');
 }
 
