@@ -45,7 +45,8 @@ function harness(env = {}, count = 2, status = 200) {
   };
   const context = {
     ...lib, Response, TextEncoder, crypto: webcrypto,
-    Deno: { env: { get: key => env[key] } },
+    // Existing scenarios predate the send gate and exercise sending; default them to mode 'all'.
+    Deno: { env: { get: key => key === 'WELCOME_EMAIL_MODE' && !('WELCOME_EMAIL_MODE' in env) ? 'all' : env[key] } },
     serve: fn => { handler = fn; }, createClient: jest.fn(() => client),
     fetch: async (_url, options) => { emails.push(JSON.parse(options.body)); if (context.transport) return context.transport(options); if (status === 'network') throw Error('network'); return { ok: status >= 200 && status < 300, status, json: async () => status === 204 ? {} : {id:'email-id'} }; },
     console: { error: (...args) => errors.push(args), log: (...args) => errors.push(args) },
@@ -208,4 +209,40 @@ test.each([true, false])('expired owner cannot complete or fail a newer pending 
   pending[1]({ok:true,status:200,json:async()=>({id:'new-id'})});
   await b;
   expect(h.state().sent).toBe(true);
+});
+
+test('welcome gate: unset/unknown mode fails closed, allowlist is exact and case-insensitive, all sends', () => {
+  const ok = lib.welcomeEmailAllowed;
+  for (const mode of [undefined, '', 'off', 'OFF', 'yes', 'true', 'allow']) expect(ok(mode, 'user@example.test', 'user@example.test')).toBe(false);
+  expect(ok('all', undefined, 'anyone@example.test')).toBe(true);
+  expect(ok(' ALL ', '', 'anyone@example.test')).toBe(true);
+  expect(ok('allowlist', undefined, 'user@example.test')).toBe(false);
+  expect(ok('allowlist', '', 'user@example.test')).toBe(false);
+  expect(ok('allowlist', ' Other@Example.test , USER@example.test ', 'user@EXAMPLE.test')).toBe(true);
+  expect(ok('allowlist', 'user@example.test', 'user@example.test.evil')).toBe(false);
+  expect(ok('allowlist', 'user@example.test', 'xuser@example.test')).toBe(false);
+  expect(ok('allowlist', ',,', '')).toBe(false);
+});
+test.each([
+  [undefined, undefined, 0], ['off', 'user@example.test', 0], ['allowlist', 'someone@example.test', 0],
+  ['allowlist', 'someone@example.test,USER@example.test', 1], ['all', undefined, 1],
+])('handler with key set: mode=%s allowlist=%s sends %i welcome emails and never burns attempts when gated', async (mode, allowlist, expected) => {
+  const env = { SIGNUP_WEBHOOK_SECRET: 'test-secret', RESEND_API_KEY: 'fake-test-key', WELCOME_EMAIL_MODE: mode };
+  if (allowlist !== undefined) env.WELCOME_EMAIL_ALLOWLIST = allowlist;
+  const h = harness(env);
+  expect((await h.handler(request())).status).toBe(200);
+  expect(h.emails).toHaveLength(expected);
+  expect(h.emails.every(e => e.to === 'user@example.test')).toBe(true);
+  if (!expected) {
+    expect(h.state().attempts).toBe(0);
+    expect(h.operations.filter(x => x.type === 'claim_signup_email').every(x => x.value.p_provider_configured === false)).toBe(true);
+    expect(h.errors).toContainEqual(['[EMAIL SKIPPED] welcome email gated by WELCOME_EMAIL_MODE']);
+    expect(h.operations.some(x => x.value.event_name === 'user_signup')).toBe(true);
+  }
+});
+test('reward email obeys the same gate (referrer not allowlisted gets no email, premium still applied)', async () => {
+  const h = harness({ SIGNUP_WEBHOOK_SECRET: 'test-secret', RESEND_API_KEY: 'fake-test-key', REFERRAL_PREMIUM_REWARD_ENABLED: 'true', WELCOME_EMAIL_MODE: 'allowlist', WELCOME_EMAIL_ALLOWLIST: 'user@example.test' });
+  await h.handler(request());
+  expect(h.operations.filter(op => op.value.is_premium)).toHaveLength(1);
+  expect(h.emails.map(e => e.to)).toEqual(['user@example.test']);
 });
