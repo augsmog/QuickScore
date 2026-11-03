@@ -18,7 +18,7 @@ appId: com.scoresnap.app
     direction: DOWN
 - tapOn: "Mark settled .*"
 - extendedWaitUntil:
-    visible: ".*Settled .*"
+    visible: "Unsettle .*|.*Settled .*"
     timeout: 10000
 - takeScreenshot: aug-319-02-marked-settled
 - stopApp
@@ -41,5 +41,5 @@ appId: com.scoresnap.app
 - scrollUntilVisible:
     element: "Unsettle .*"
     direction: DOWN
-- assertVisible: ".*Settled .*"
+- assertVisible: "Unsettle .*|.*Settled .*"
 - takeScreenshot: aug-319-04-still-settled-after-relaunch

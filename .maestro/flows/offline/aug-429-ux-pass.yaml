@@ -19,7 +19,13 @@ appId: com.scoresnap.app
 - tapOn: "Player 2 name"
 - inputText: "Ben"
 - tapOn: "PLAYERS"
+- scrollUntilVisible:
+    element: "Search courses..."
+    direction: UP
 - tapOn: "Search courses..."
+- extendedWaitUntil:
+    visible: "Search by course name..."
+    timeout: 10000
 - tapOn: "Search by course name..."
 - inputText: "E2E Tee Course"
 - extendedWaitUntil:
