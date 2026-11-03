@@ -13,6 +13,7 @@ module.exports = function loader(mocks = {}) {
     }).outputText;
     new Function('require', 'module', 'exports', code)(name => {
       if (name in mocks) return mocks[name];
+      if (name === '@/services/platform-alert') return { showAlert: (...args) => mocks['react-native']?.Alert?.alert?.(...args) };
       if (name.startsWith('.')) {
         const target = path.resolve(path.dirname(file), name);
         const source = [target, `${target}.ts`, `${target}.tsx`].find(p => fs.existsSync(p) && fs.statSync(p).isFile());
