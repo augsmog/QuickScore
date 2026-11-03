@@ -951,7 +951,7 @@ export default function ScanReviewScreen() {
 
             <Pressable accessibilityLabel="Clear player match" onPress={() => {
               if (showPlayerMatchModal !== null) matchToPlayer(showPlayerMatchModal, null);
-            }}><Text>Clear match</Text></Pressable>
+            }} style={{ minHeight: 44, justifyContent: "center" }}><Text>Clear match</Text></Pressable>
             {existingPlayers.map((player) => (
               <Pressable
                 key={player.id}
@@ -996,7 +996,7 @@ export default function ScanReviewScreen() {
 
             <Pressable
               onPress={() => setShowPlayerMatchModal(null)}
-              style={{ alignItems: "center", paddingVertical: 12, marginTop: 8 }}
+              style={{ minHeight: 44, alignItems: "center", justifyContent: "center", marginTop: 8 }}
             >
               <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim }}>Cancel</Text>
             </Pressable>

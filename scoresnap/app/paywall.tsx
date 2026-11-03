@@ -45,8 +45,8 @@ export default function PaywallScreen() {
   return <SafeScreen style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>
       <View style={s.top}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()}><PaywallIcon name="close" /></Pressable>
-        <Pressable accessibilityRole="button" disabled={busy} onPress={() => act(async () => {
+        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
+        <Pressable accessibilityRole="button" disabled={busy} style={s.topLink} onPress={() => act(async () => {
           const restored = await restorePurchases();
           showAlert(C.restore, restored ? C.restored : C.nothing);
         })}><Text style={[s.link, { fontSize: 14 }]}>{v.restore}</Text></Pressable>
@@ -62,7 +62,7 @@ export default function PaywallScreen() {
         <View style={{ flex: 1, gap: 2 }}>
           <View style={s.titleRow}><Text style={s.planTitle}>{row.name}</Text>{!!row.tag && tag(row.tag)}</View>
           {!!row.body && <Text style={s.body}>{row.body}</Text>}
-          {!!row.alternate && <Pressable accessibilityRole="button" onPress={event => { event.stopPropagation(); setSelection({ tier: row.tier, period: selection.period === 'year' ? 'month' : 'year' }); }}><Text style={s.body}>{row.alternate}</Text></Pressable>}
+          {!!row.alternate && <Pressable accessibilityRole="button" style={s.alternateLink} onPress={event => { event.stopPropagation(); setSelection({ tier: row.tier, period: selection.period === 'year' ? 'month' : 'year' }); }}><Text style={s.body}>{row.alternate}</Text></Pressable>}
         </View>
         {!!row.price && <View style={{ alignItems: 'flex-end', gap: 4 }}><Text style={s.price}>{row.price}</Text>{!!row.trial && tag(row.trial)}</View>}
       </Pressable>)}</View>
@@ -74,9 +74,9 @@ export default function PaywallScreen() {
       </View>
       <Text style={[s.small, { lineHeight: 15 }]}>{v.legal}</Text>
       <View style={s.footer}>
-        <Pressable accessibilityRole="link" onPress={() => Linking.openURL(TERMS_URL)}><Text style={s.link}>{v.terms}</Text></Pressable>
+        <Pressable accessibilityRole="link" style={s.footerLink} onPress={() => Linking.openURL(TERMS_URL)}><Text style={s.link}>{v.terms}</Text></Pressable>
         <Text style={{ color: P.dot, fontSize: 12 }}>{v.dot}</Text>
-        <Pressable accessibilityRole="link" onPress={() => Linking.openURL(PRIVACY_URL)}><Text style={s.link}>{v.privacy}</Text></Pressable>
+        <Pressable accessibilityRole="link" style={s.footerLink} onPress={() => Linking.openURL(PRIVACY_URL)}><Text style={s.link}>{v.privacy}</Text></Pressable>
       </View>
     </ScrollView>
   </SafeScreen>;
@@ -84,7 +84,11 @@ export default function PaywallScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: P.paper },
   content: { paddingHorizontal: P.padding, paddingBottom: 10, gap: P.gap },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 32 },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44 },
+  closeButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  topLink: { minHeight: 44, justifyContent: 'center' },
+  footerLink: { minHeight: 44, justifyContent: 'center' },
+  alternateLink: { minHeight: 44, justifyContent: 'center' },
   link: { fontFamily: P.medium, fontSize: 12, color: P.green, textDecorationLine: 'underline' },
   eyebrow: { fontFamily: P.semibold, fontSize: 12, letterSpacing: 1.2, color: P.muted },
   headline: { fontFamily: P.bold, fontSize: 28, lineHeight: 32, letterSpacing: -0.6, color: P.ink },

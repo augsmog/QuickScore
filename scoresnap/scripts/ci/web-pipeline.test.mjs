@@ -138,6 +138,13 @@ test('consumers verify same-attempt artifact before any browser runs', () => {
 test('all original browser coverage and flag-distinct builds remain', () => {
   const flows = commands('browser-flows');
   for (const script of ['web-real-flow.mjs', 'live-share.mjs', 'join-gate.mjs', 'usability.mjs', 'safe-area-sheets.mjs', 'usability-regression.mjs', 'journeys/metrics.test.mjs', 'journeys/glyph-evidence.test.mjs', 'journeys/glyph-evidence.browser.test.mjs', 'journeys/runner.mjs', 'journeys/negative-proof.mjs', 'scripts/render-scorecard.mjs']) assert.ok(flows.includes(script), script);
+  const safeArea = steps('browser-flows').find(step => step.name?.startsWith('Safe-area sheets'));
+  assert.deepEqual(safeArea.run.trim().split('\n').map(line => line.trim()), [
+    'node --test e2e/safe-area-profiles.test.mjs',
+    'for profile in iphone-se iphone-15-pro iphone-pro-max; do',
+    'DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8089 OUT_DIR="e2e/screens/safe-area/$profile" node e2e/safe-area-sheets.mjs',
+    'done',
+  ]);
   assert.equal((flows.match(/node e2e\/web-real-flow\.mjs/g) || []).length, 2);
   assert.equal((flows.match(/node e2e\/join-gate\.mjs/g) || []).length, 2);
   assert.match(flows, /EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web-sharing --clear/);
