@@ -62,7 +62,7 @@ final class StoreKitProofTests: XCTestCase {
             return XCTFail("purchase did not return a verified transaction: \(result)")
         }
         XCTAssertEqual(txn.productID, "snapscore.pro.annual")
-        XCTAssertEqual(txn.offer?.type, .introductory, "first annual purchase used the 1-week intro offer")
+        XCTAssertEqual(txn.offerType, .introductory, "first annual purchase used the 1-week intro offer")
         await txn.finish()
         // Eligibility is recomputed by the StoreKit test daemon; poll briefly instead of racing it.
         var after = true
