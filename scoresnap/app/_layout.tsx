@@ -1,6 +1,8 @@
 // Start local settlement invalidation before any score-edit route can mount.
 import "../src/stores/settlement-store";
 import { useContestStore } from "../src/stores/contest-store";
+import { AccountHandoffPanel } from '../src/ui/AccountHandoffPanel';
+import { finishAccountHandoff } from '../src/services/account-handoff';
 import { AppState, Platform } from "react-native";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../src/config/features";
 import { REAL_AUTH_CONFIGURED } from "../src/config/auth";
@@ -106,6 +108,8 @@ function useProtectedRoute() {
     const inOnboarding = segments[0] === "onboarding";
     const inAuth = segments[0] === "auth";
 
+    if (CROSS_DEVICE_SHARING_ENABLED && inAuth && (!session || isAnonymous)) return;
+
     const ready = hasCompletedOnboarding || (CROSS_DEVICE_SHARING_ENABLED && isAnonymous && !!remoteUserId);
     if (!ready && !inOnboarding) {
       router.replace("/onboarding");
@@ -133,11 +137,12 @@ export default Sentry.wrap(function RootLayout() {
     if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
     const report = () => useOnlineStore.setState({ error: "Online sync paused. Your queued scores remain on this device." });
     let polling: ReturnType<typeof foregroundSync> | undefined;
-    const refresh = rootRefresh(async () => {
+    const refreshOnline = rootRefresh(async () => {
       const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
       return data.session?.user.id ?? null;
     }, () => Object.entries(useOnlineStore.getState().events).filter(([, e]) => e.membership.role === 'host').map(([id]) => id), client, replayOnlineScores);
+    const refresh = async () => { await finishAccountHandoff(); return refreshOnline(); };
     const lifecycle = authLifecycle(supabase.auth, initialize, report);
     const change = (state: string) => {
       polling?.stop(); polling = undefined;
@@ -208,12 +213,14 @@ export default Sentry.wrap(function RootLayout() {
 
 function RootLayoutNav() {
   useProtectedRoute();
+  const segments = useSegments();
 
   return (
     <ErrorBoundary>
       <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
         <StatusBar style="dark" />
         {CAPTCHA_MODE !== "off" && <TurnstileHost />}
+        {CROSS_DEVICE_SHARING_ENABLED && segments[0] !== "r" && <AccountHandoffPanel />}
         <Stack
           screenOptions={{
             headerShown: false,

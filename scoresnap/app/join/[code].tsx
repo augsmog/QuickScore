@@ -1,7 +1,7 @@
 import { SafeScreen } from "../../src/ui/SafeScreen";
 import { OnlineGuestScorecard } from "../../src/ui/OnlineGuestScorecard";
 import { onlineEnabled, client, remoteIdentity } from "../../src/services/cross-device";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollView, Text, TextInput, Pressable, View } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useContestStore, type Contest } from "../../src/stores/contest-store";
@@ -13,6 +13,7 @@ export default function JoinContest() {
   const router = useRouter();
   const { code: initial } = useLocalSearchParams<{ code: string }>();
   const [code, setCode] = useState(initial === "enter" ? "" : initial || "");
+  useEffect(() => { setCode(initial === "enter" ? "" : initial || ""); }, [initial]);
   const [name, setName] = useState("");
   const [contestId, setContestId] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
