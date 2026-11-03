@@ -48,6 +48,7 @@ c=json.load(open(sys.argv[1])); want=sys.argv[3]
 ids=None if want=="all" else set(x.strip() for x in want.split(",") if x.strip())
 for f in c["flows"]:
     if f["build"]!=sys.argv[2] or (ids is not None and f["id"] not in ids): continue
+    if ids is None and f.get("skipInAll"): continue  # opt-in only; reason lives in the config
     fx=c["fixtures"][f["fixture"]]["file"] if f.get("fixture") else "-"
     print("\t".join([f["id"],f["file"],fx,"1" if f.get("captureHierarchy") else "0"]))
 PY

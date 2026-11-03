@@ -42,7 +42,8 @@
       "tickets": [
         "AUG-259"
       ],
-      "liveWrite": "anonymous guest join request on round DGTWEW (the ticket's acceptance)"
+      "liveWrite": "anonymous guest join request on round DGTWEW (the ticket's acceptance)",
+      "skipInAll": "The online simulator build uses the production EAS env, where EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING is off, so the join screen is 'Same browser only' and server code DGTWEW never resolves (proof run 41688614786). Run by id against a cross-device-enabled build; evidence ticket AUG-404 is needs-device-lab."
     },
     {
       "id": "aug-270-home-subhead",

@@ -46,6 +46,7 @@ test("every flow is listed once, exists, targets the app and names its ticket", 
     expect(shots.length).toBeGreaterThan(0);
     for (const s of shots) expect(s).toMatch(new RegExp(`^${ticket.toLowerCase()}-\\d\\d-[a-z0-9-]+$`));
     if (f.fixture) expect(fs.existsSync(path.join(repo, config.fixtures[f.fixture].file))).toBe(true);
+    if ("skipInAll" in f) expect(typeof f.skipInAll === "string" && f.skipInAll.length > 20).toBe(true);
   }
 });
 
