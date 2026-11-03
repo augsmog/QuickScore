@@ -22,6 +22,9 @@
       "environment": "production",
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_SIMULATOR_NO_MLKIT": "1"
       }
     },
     "testflight": {
