@@ -434,7 +434,8 @@ export default function AuxiliaryPrompt({
               }}
               style={{
                 paddingHorizontal: 12,
-                paddingVertical: 6,
+                minHeight: 44,
+                justifyContent: "center",
                 borderRadius: RADII.md,
                 backgroundColor: COLORS.surfaceHigh,
               }}

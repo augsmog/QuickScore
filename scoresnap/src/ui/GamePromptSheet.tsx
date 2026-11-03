@@ -172,7 +172,7 @@ function SkipLink({ onPress }: { onPress: () => void }) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onPress();
       }}
-      style={{ alignItems: "center", paddingVertical: 12, marginTop: 4 }}
+      style={{ minHeight: 44, alignItems: "center", justifyContent: "center", marginTop: 4 }}
     >
       <Text
         style={{

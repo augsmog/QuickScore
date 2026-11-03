@@ -46,11 +46,19 @@ try {
     assert(box.y + box.height <= height-bottom, `${name} must clear bottom home indicator`);
     results.push({name,box});
   };
+  const checkTargets = async screen => {
+    const targets = await page.locator('button,[role="button"],[role="link"],[role="radio"],[role="checkbox"],[role="switch"],[tabindex="0"],a,input,select,textarea').evaluateAll(elements => elements
+      .filter(el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); const backingCheckbox = el.matches('input[type="checkbox"]') && el.closest('[role="checkbox"],[role="switch"]'); const parentSemantic = el.parentElement?.closest('[role="button"],[role="link"],button,a,[role="checkbox"],[role="switch"]'); const duplicateFocusable = el.matches('[tabindex="0"]') && parentSemantic; const left=Math.max(0,r.left), top=Math.max(0,r.top), right=Math.min(innerWidth,r.right), bottom=Math.min(innerHeight,r.bottom); const hit = right>left && bottom>top ? document.elementFromPoint((left+right)/2,(top+bottom)/2) : null; const covered = hit && hit !== el && !el.contains(hit); return !backingCheckbox && !duplicateFocusable && !covered && right>left && bottom>top && r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity) > 0; })
+      .map(el => { const r = el.getBoundingClientRect(); return {name: el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.innerText?.trim().replace(/\s+/g,' ').slice(0,60) || el.getAttribute('type') || el.tagName.toLowerCase(), width: r.width, height: r.height}; }));
+    for (const target of targets) assert(target.width >= 44 && target.height >= 44, `${screen}: ${target.name} target ${target.width}x${target.height} must be at least 44x44 CSS px`);
+    results.push({name:`${screen} interactive targets`,count:targets.length,targets});
+  };
   await page.goto(base,{waitUntil:'networkidle'});
   await page.getByText('See All',{exact:true}).click();
   const title = page.getByText('50+ game modes',{exact:true});
   await title.waitFor();
   await page.waitForTimeout(500); // RN Modal slide transition must finish before measuring.
+  await checkTargets('game mode library');
   if (before) {
     // origin/main's web SafeAreaView inherits React context correctly, unlike
     // iOS's native ancestor lookup. Emulate that missing native provider only
@@ -72,6 +80,7 @@ try {
     await page.getByTestId('home-scroll').getByText('Modified Stableford (SnapScore)',{exact:true}).click();
     await page.waitForTimeout(500);
     await check('game info close',page.getByTestId('game-info-close'));
+    await checkTargets('game info');
     const viewport = page.viewportSize();
     const scrim = await page.getByTestId('game-info-scrim').boundingBox();
     const surface = await page.getByTestId('game-info-sheet').boundingBox();
@@ -86,20 +95,26 @@ try {
     results.push({name:'game info geometry',scrim,surface,bottomPadding});
     await page.screenshot({path:`${out}/after-sim-sheet.png`});
     await page.goto(base+'/scan',{waitUntil:'networkidle'});
+    await checkTargets('scan text entry');
     await check('scan title',page.getByText('Enter scorecard as text',{exact:true}));
     await check('scan dismiss',page.getByRole('button',{name:'Go Back',exact:true}));
     await page.goto(base+'/scan/review?scanData=%7Bbad',{waitUntil:'networkidle'});
+    await checkTargets('scan review error');
     await check('review error title',page.getByText('Invalid Scorecard Data',{exact:true}));
     await check('review error dismiss',page.getByTestId('review-back'));
     await page.goto(base,{waitUntil:'networkidle'});
     await page.getByText('New Contest',{exact:true}).locator('visible=true').click();
+    await checkTargets('new contest');
     await check('new contest title',page.getByText('New Contest',{exact:true}).locator('visible=true'));
     await check('new contest dismiss',page.getByTestId('new-contest-back'));
     await page.goto(base+'/paywall',{waitUntil:'networkidle'});
+    await checkTargets('paywall');
     await check('paywall dismiss',page.getByRole('button',{name:'Close',exact:true}));
     await page.goto(base+'/join/ZZZZZZ',{waitUntil:'networkidle'});
+    await checkTargets('join');
     await check('join dismiss',page.getByTestId('join-dismiss'));
     await page.goto(base+'/r/not-a-real-token',{waitUntil:'networkidle'});
+    await checkTargets('spectator');
     await check('spectator title',page.getByText('Live scoreboard',{exact:true}));
     const geometry = async (name, bottomSheet = true) => {
       await page.waitForTimeout(500);
@@ -119,6 +134,7 @@ try {
         }
       }
       results.push({name,scrim,surface,padding,controls:controls.length});
+      await checkTargets(name);
     };
     // Course search is feature-gated; exercise it whenever enabled in this export.
     await page.goto(base+'/contest/new',{waitUntil:'networkidle'});

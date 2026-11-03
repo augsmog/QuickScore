@@ -696,7 +696,7 @@ export default function HomeScreen() {
                 <Pressable
                   testID="game-info-close"
                   onPress={() => setSelectedGame(null)}
-                  style={{ padding: 4 }}
+                  style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
                 >
                   <X size={20} color={COLORS.textDim} />
                 </Pressable>

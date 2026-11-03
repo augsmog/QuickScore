@@ -152,7 +152,7 @@ export default function ScanScreen() {
     return (
       <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
         <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }} keyboardShouldPersistTaps="handled">
-          <Pressable onPress={() => router.back()} accessibilityRole="button">
+          <Pressable onPress={() => router.back()} accessibilityRole="button" style={{ minHeight: 44, alignSelf: "flex-start", justifyContent: "center" }}>
             <Text style={{ color: COLORS.primary }}>Go Back</Text>
           </Pressable>
           <Text style={{ ...TYPOGRAPHY.title, color: COLORS.text }}>Enter scorecard as text</Text>
