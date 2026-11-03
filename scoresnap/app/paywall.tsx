@@ -84,7 +84,7 @@ export default function PaywallScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: P.paper },
   content: { paddingHorizontal: P.padding, paddingBottom: 10, gap: P.gap },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44 },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44, marginTop: 2 },
   closeButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   topLink: { minHeight: 44, justifyContent: 'center' },
   footerLink: { minHeight: 44, justifyContent: 'center' },
