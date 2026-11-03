@@ -17,6 +17,13 @@
         "simulator": true
       }
     },
+    "simulator": {
+      "distribution": "internal",
+      "environment": "production",
+      "ios": {
+        "simulator": true
+      }
+    },
     "testflight": {
       "distribution": "store",
       "ios": {
