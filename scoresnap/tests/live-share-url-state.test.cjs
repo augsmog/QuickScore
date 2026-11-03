@@ -69,10 +69,10 @@ test('store-only account A-B-A invalidates pending create and stops old publishe
 const fs = await import('node:fs');
 const ts = await import('typescript');
 let auth = { user: { id: 'a' } }, contest = { id: 'round', liveShareEnabled: true };
-let finishCreate, publishCalls = 0, updates = 0, tick;
+let finishCreate, publishCalls = 0, updates = 0, tick, busy = false;
 const authListeners = new Set(), effects = [], refs = [];
 const deps = {
-  react: { useState: value => [value, () => {}], useRef: value => { const ref = refs.shift() ?? { current: value }; return ref; }, useEffect: effect => effects.push(effect) },
+  react: { useState: value => [value, next => { busy = typeof next === 'function' ? next(busy) : next; }], useRef: value => { const ref = refs.shift() ?? { current: value }; return ref; }, useEffect: effect => effects.push(effect) },
   'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
   'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable', Platform: { OS: 'web' }, Share: { share: async () => {} } },
   '../services/live-share': { createLiveLink: () => new Promise(resolve => { finishCreate = resolve; }), revokeLiveLinks: async () => {}, publishSnapshot: async () => { publishCalls++; } },
@@ -93,7 +93,9 @@ new Function('require', 'module', 'exports', js)(id => deps[id], module, module.
 const tree = module.exports.LiveShare({ contest });
 effects.forEach(effect => effect());
 const creating = tree.props.children[0].props.onPress();
+assert.equal(busy, true);
 for (const id of ['b', 'a']) { const previous = auth; auth = { user: { id } }; authListeners.forEach(listener => listener(auth, previous)); }
+assert.equal(busy, false);
 finishCreate('stale-token');
 await creating;
 assert.equal(state.getLiveShareUrl(state.liveShareScope('a', 'round')), undefined);

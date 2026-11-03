@@ -40,6 +40,10 @@ export function LiveShare({ contest }: { contest: Contest }) {
       previousActorId = currentActorId;
       activeOperation.current.invalidate();
       scopeOperation.current.invalidate();
+      // The invalidated operation's finally block intentionally avoids updating
+      // state for a stale actor. Clear its UI lock here because A→B→A can leave
+      // the rendered scope unchanged, so the scope effect will not run again.
+      setBusy(false);
     });
   }, [contest.id]);
   useEffect(() => {
