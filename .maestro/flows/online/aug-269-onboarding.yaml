@@ -1,0 +1,21 @@
+# AUG-269: a fresh install shows the three onboarding slides See Who Owes What, Score However You Like, Keep Your Rounds.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- extendedWaitUntil:
+    visible: ".*See Who Owes What.*"
+    timeout: 60000
+- takeScreenshot: aug-269-01-slide-see-who-owes-what
+- tapOn: "Next"
+- extendedWaitUntil:
+    visible: ".*Score However You Like.*"
+    timeout: 10000
+- takeScreenshot: aug-269-02-slide-score-however-you-like
+- tapOn: "Next"
+- extendedWaitUntil:
+    visible: ".*Keep Your Rounds.*"
+    timeout: 10000
+- assertVisible: "Get Started"
+- takeScreenshot: aug-269-03-slide-keep-your-rounds
