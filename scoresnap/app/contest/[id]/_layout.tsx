@@ -205,6 +205,10 @@ export default function ContestLayout() {
           {TABS.map((tab) => (
             <Pressable
               key={tab.key}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.label}
+              accessibilityState={{ selected: activeTab === tab.key }}
+              aria-selected={activeTab === tab.key}
               onPress={() => handleTabPress(tab.key)}
               style={{
                 flex: 1,
