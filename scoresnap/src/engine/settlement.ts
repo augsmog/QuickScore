@@ -638,43 +638,37 @@ export function calculateSettlement(
           }
           break;
         }
-        // finalStatus > 0 means team1 won. Fourball requires exactly 2 teams of 2.
+        // Six-player round robin is three ordinary two-team matches. The
+        // explicit format is required; never infer a three-team scoring rule.
         const teams = groupByTeam(players);
         const teamIds = Array.from(teams.keys());
-        if (teamIds.length >= 2) {
-          const team1 = teams.get(teamIds[0])!;
-          const team2 = teams.get(teamIds[1])!;
-          if (team1.length === 2 && team2.length === 2) {
-            const result = calcFourBall(
+        const currentRules = gameConfig?.rulesVersion === 1;
+        const matchPairs: [string, string][] = currentRules && gameConfig?.fourBallFormat === "round_robin" && teamIds.length === 3
+          ? [[teamIds[0], teamIds[1]], [teamIds[0], teamIds[2]], [teamIds[1], teamIds[2]]]
+          : teamIds.length >= 2 ? [[teamIds[0], teamIds[1]]] : [];
+        for (const [team1Id, team2Id] of matchPairs) {
+          const team1 = teams.get(team1Id)!;
+          const team2 = teams.get(team2Id)!;
+          if (team1.length !== 2 || team2.length !== 2) continue;
+          let status: number;
+          if (currentRules && gameConfig?.fourBallScoring === "total") {
+            const total = (team: Player[]) => team.reduce((sum, player) => sum + player.scores.reduce((a, b) => a + b, 0), 0);
+            status = Math.sign(total(team2) - total(team1));
+          } else {
+            status = calcFourBall(
               [team1[0], team1[1]] as [Player, Player],
               [team2[0], team2[1]] as [Player, Player],
               course
-            );
-            if (result.finalStatus > 0) {
-              // Team 1 won
-              for (const loser of team2) {
-                for (const winner of team1) {
-                  transactions.push({
-                    from: loser.name,
-                    to: winner.name,
-                    amount: betUnit,
-                    gameType,
-                  });
-                }
-              }
-            } else if (result.finalStatus < 0) {
-              // Team 2 won
-              for (const loser of team1) {
-                for (const winner of team2) {
-                  transactions.push({
-                    from: loser.name,
-                    to: winner.name,
-                    amount: betUnit,
-                    gameType,
-                  });
-                }
-              }
-            }
+            ).finalStatus;
+          }
+          if (status === 0) continue;
+          const winners = status > 0 ? team1 : team2;
+          const losers = status > 0 ? team2 : team1;
+          // Version-one rules split each opponent's stake equally. Legacy
+          // contests keep the original per-opponent transfer amount.
+          const partnerShare = currentRules ? betUnit / 2 : betUnit;
+          for (const loser of losers) for (const winner of winners) {
+            transactions.push({from: loser.name, to: winner.name, amount: partnerShare, gameType});
           }
         }
         break;
