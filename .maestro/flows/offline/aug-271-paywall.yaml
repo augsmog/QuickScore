@@ -6,13 +6,17 @@ appId: com.scoresnap.app
     clearState: false
     permissions: { all: allow }
 - runFlow: ../../subflows/finish-onboarding.yaml
-- openLink: "snapscore://paywall"
-- tapOn:
-    text: "Open"  # iOS asks 'Open in "SnapScore"?' for a custom-scheme link
-    optional: true
-- extendedWaitUntil:
-    visible: ".*Run the game\\. We do the math\\..*"
-    timeout: 20000
+# The first link after onboarding can be swallowed while the router settles (run 41691421066); retry the open (same link, no writes).
+- retry:
+    maxRetries: 3
+    commands:
+      - openLink: "snapscore://paywall"
+      - tapOn:
+          text: "Open"  # iOS asks 'Open in "SnapScore"?' for a custom-scheme link
+          optional: true
+      - extendedWaitUntil:
+          visible: ".*Run the game\\. We do the math\\..*"
+          timeout: 20000
 - takeScreenshot: aug-271-01-paywall-top
 - assertVisible: ".*Set up your group.s games.*"
 - scrollUntilVisible:
