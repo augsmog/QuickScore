@@ -7,17 +7,21 @@ import {proveGlyphPaint} from './glyph-evidence.mjs';
 import {chromium} from 'playwright';
 import {createMetrics,count,screen,evaluate,aggregate} from './metrics.mjs';
 import {cases,setup,ready,disclosures,fixtureVersion} from './adapter.mjs';
+import {getSafeAreaProfile} from '../safe-area-profiles.mjs';
+import {renderReachReport} from './reach-report.mjs';
 
 const manifest=JSON.parse(fs.readFileSync(new URL('./journeys.json',import.meta.url)));
 const base=process.env.BASE_URL||'http://127.0.0.1:8092';
 const out=path.resolve(process.env.OUT_DIR||'e2e/journey-screens');
+const profileName=process.env.DEVICE_PROFILE||'iphone-15-pro';
+const profile=getSafeAreaProfile(profileName);
 const filter=process.env.JOURNEYS?.split(',').filter(Boolean);
 const mutation=process.argv.find(a=>a.startsWith('--mutate='))?.split('=')[1]||process.env.MUTATE;
 const baselines=process.env.BASELINE_FILE?JSON.parse(fs.readFileSync(process.env.BASELINE_FILE)):{};
 fs.mkdirSync(out,{recursive:true});
 const runStart=performance.now();
 const required=manifest.journeys.filter(j=>j.status!=='deferred'&&(!filter||filter.includes(j.id))).map(j=>j.id);
-const report={sha:process.env.GIT_SHA||execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),platform:manifest.platform,flags:manifest.flags,fixtureVersion,viewport:{width:390,height:844},startedAt:new Date().toISOString(),required,executed:[],results:[],coverageGaps:manifest.journeys.filter(j=>j.status==='deferred').map(j=>({id:j.id,reason:j.deferredReason})),mutation:mutation||null};
+const report={sha:process.env.GIT_SHA||execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),platform:manifest.platform,flags:manifest.flags,fixtureVersion,deviceProfile:profileName,safeArea:profile,viewport:{width:profile.width,height:profile.height},startedAt:new Date().toISOString(),required,executed:[],results:[],coverageGaps:manifest.journeys.filter(j=>j.status==='deferred').map(j=>({id:j.id,reason:j.deferredReason})),mutation:mutation||null};
 report.harnessTree=process.env.HARNESS_TREE||null;
 report.glyphEvidence=[];
 const glyphDir=fs.mkdtempSync(path.join(out,'glyphs-'));
@@ -295,6 +299,7 @@ finally {
   for(const j of manifest.journeys) for(const f of j.features) if(f.reachability?.status==='known_issue')report.coverageGaps.push({id:j.id,feature:f.name,linear:f.reachability.linear,reason:'Semantic reachability expected failure; geometry, activation and outcomes remain gated'});
   report.gate=aggregate(required,report.results);report.elapsedMs=Math.round(performance.now()-runStart);
   fs.writeFileSync(path.join(out,'journeys-results.json'),JSON.stringify(report,null,2)+'\n');
+  fs.writeFileSync(path.join(out,'reach.md'),renderReachReport(report,manifest));
 }
 console.log(`Journey gate ${report.gate.status.toUpperCase()}: ${report.results.filter(r=>r.status==='passed'||r.status==='expected_failure').length}/${required.length}; elapsed ${report.elapsedMs} ms; coverage gaps ${report.coverageGaps.length}`);
 if(report.gate.status!=='passed') {console.error(report.gate.errors.join('\n'));process.exitCode=1;}
