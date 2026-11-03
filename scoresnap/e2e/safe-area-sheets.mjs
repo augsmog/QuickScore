@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {getSafeAreaProfile} from './safe-area-profiles.mjs';
+import {findInteractiveTargetOverlaps} from './interactive-target-geometry.mjs';
 const base = process.env.BASE_URL || 'http://127.0.0.1:8089';
 const out = process.env.OUT_DIR || 'e2e/screens/safe-area';
 const before = process.env.BEFORE_NATIVE_SIM === '1';
@@ -47,11 +48,14 @@ try {
     results.push({name,box});
   };
   const checkTargets = async screen => {
-    const targets = await page.locator('button,[role="button"],[role="link"],[role="radio"],[role="checkbox"],[role="switch"],[tabindex="0"],a,input,select,textarea').evaluateAll(elements => elements
-      .filter(el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); const backingCheckbox = el.matches('input[type="checkbox"]') && el.closest('[role="checkbox"],[role="switch"]'); const parentSemantic = el.parentElement?.closest('[role="button"],[role="link"],button,a,[role="checkbox"],[role="switch"]'); const duplicateFocusable = el.matches('[tabindex="0"]') && parentSemantic; const left=Math.max(0,r.left), top=Math.max(0,r.top), right=Math.min(innerWidth,r.right), bottom=Math.min(innerHeight,r.bottom); const hit = right>left && bottom>top ? document.elementFromPoint((left+right)/2,(top+bottom)/2) : null; const covered = hit && hit !== el && !el.contains(hit); return !backingCheckbox && !duplicateFocusable && !covered && right>left && bottom>top && r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity) > 0; })
-      .map(el => { const r = el.getBoundingClientRect(); return {name: el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.innerText?.trim().replace(/\s+/g,' ').slice(0,60) || el.getAttribute('type') || el.tagName.toLowerCase(), width: r.width, height: r.height}; }));
+    const targetSelector = 'button,[role="button"],[role="link"],[role="radio"],[role="checkbox"],[role="switch"],[tabindex="0"],a,input,select,textarea';
+    const targets = await page.locator(targetSelector).evaluateAll(elements => elements
+      .filter(el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); const backingCheckbox = el.matches('input[type="checkbox"]') && el.closest('[role="checkbox"],[role="switch"]'); const parentSemantic = el.parentElement?.closest('[role="button"],[role="link"],button,a,[role="checkbox"],[role="switch"]'); const duplicateFocusable = el.matches('[tabindex="0"]') && parentSemantic; const backdrop = el.matches('[data-testid$="-scrim"]'); const left=Math.max(0,r.left), top=Math.max(0,r.top), right=Math.min(innerWidth,r.right), bottom=Math.min(innerHeight,r.bottom); const hit = right>left && bottom>top ? document.elementFromPoint((left+right)/2,(top+bottom)/2) : null; const covered = hit && hit !== el && !el.contains(hit); return !backingCheckbox && !duplicateFocusable && !backdrop && !covered && right>left && bottom>top && r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity) > 0; })
+      .map(el => { const r = el.getBoundingClientRect(); const parent = el.parentElement?.closest('button,[role="button"],[role="link"],[role="radio"],[role="checkbox"],[role="switch"],a,input,select,textarea'); return {id:elements.indexOf(el),parentId:parent ? elements.indexOf(parent) : null,tag:el.tagName.toLowerCase(),role:el.getAttribute('role'),tabindex:el.getAttribute('tabindex'),testid:el.getAttribute('data-testid'),name: el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.innerText?.trim().replace(/\s+/g,' ').slice(0,60) || el.getAttribute('type') || el.tagName.toLowerCase(), left:r.left,top:r.top,right:r.right,bottom:r.bottom,width: r.width, height: r.height}; }));
     for (const target of targets) assert(target.width >= 44 && target.height >= 44, `${screen}: ${target.name} target ${target.width}x${target.height} must be at least 44x44 CSS px`);
-    results.push({name:`${screen} interactive targets`,count:targets.length,targets});
+    const overlaps = findInteractiveTargetOverlaps(targets);
+    assert.deepEqual(overlaps, [], `${screen}: interactive targets overlap by more than 2 CSS px: ${JSON.stringify(overlaps)}; targets: ${JSON.stringify(targets)}`);
+    results.push({name:`${screen} interactive targets`,count:targets.length,targets,overlaps});
   };
   await page.goto(base,{waitUntil:'networkidle'});
   await page.getByText('See All',{exact:true}).click();
