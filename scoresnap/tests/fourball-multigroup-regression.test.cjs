@@ -14,7 +14,7 @@ test('Four-Ball settles every independent two-pair group without cross-group pla
       group('back', ['E','F','G','H'], [5,5,3,4]),
     ];
     const contest = {
-      course, games:['fourball'], betUnit:1, gameConfig:{rulesVersion:1,inputRulesVersion:1},
+      course, games:['fourball'], betUnit:1, gameConfig:{rulesVersion:1,inputRulesVersion:1,fourBallScoring:'better'},
       groups, auxiliaryByScope:{},
     };
     const expected = {A:1,B:1,C:-1,D:-1,E:-1,F:-1,G:1,H:1};
@@ -28,6 +28,13 @@ test('Four-Ball settles every independent two-pair group without cross-group pla
                 (['E','F','G','H'].includes(t.from) && ['E','F','G','H'].includes(t.to)));
     }
     assert.equal(Object.values(result.netByPlayer).reduce((sum,n) => sum+n,0), 0);
+
+    // Global rulesVersion: 1 predates Four-Ball's explicit pair-score choice.
+    // Saved contests without that choice retain their original per-opponent math.
+    const legacyGroup = groups[0];
+    const legacy = calculateSettlement(legacyGroup.players,course,['fourball'],1,undefined,
+      {rulesVersion:1},[legacyGroup]);
+    assert.deepEqual(legacy.netByPlayer,{A:2,B:2,C:-2,D:-2});
 
     // Deliberately interleave the flat player array: the cent-consolidation
     // stage must retain the original group boundaries too.
@@ -66,8 +73,11 @@ test('Four-Ball round robin uses the selected pair score and splits each stake e
     assert.match(createScreen,/cleanConfig\.fourBallScoring = gameConfig\.fourBallScoring/);
     assert.match(createScreen,/cleanConfig\.fourBallFormat = gameConfig\.fourBallFormat/);
 
-    assert.match(validateVariationSetup(groups,['fourball'],{rulesVersion:1,fourBallFormat:'round_robin'},1.01),/even number of cents/);
-    assert.match(validateVariationSetup(groups,['fourball'],{rulesVersion:1},1),/exactly two complete pairs/);
+    assert.match(validateVariationSetup(groups,['fourball'],{rulesVersion:1,fourBallScoring:'better',fourBallFormat:'round_robin'},1.01),/even number of cents/);
+    // Existing version-one contests without the explicit choice retain stakes
+    // their stored settlement rules already accepted.
+    assert.equal(validateVariationSetup([{players:players.slice(0,4)}],['fourball'],{rulesVersion:1},1.01),undefined);
+    assert.match(validateVariationSetup(groups,['fourball'],{rulesVersion:1,fourBallScoring:'better'},1),/exactly two complete pairs/);
     const fourTeams = [...players,{id:'D1',name:'D1',team:'D',handicap:0,scores:Array(18).fill(7)},
       {id:'D2',name:'D2',team:'D',handicap:0,scores:Array(18).fill(7)}];
     assert.match(validateVariationSetup([{players:fourTeams}],['fourball'],
