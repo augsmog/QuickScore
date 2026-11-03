@@ -1,3 +1,4 @@
+import { settlementMarks } from "./settlement-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
 import { supabase } from "../db/supabase";
@@ -22,6 +23,8 @@ export async function wipeLocalAccount(): Promise<void> {
   resetChatSessionCache();
   await require("../services/purchases").logOutPurchases();
   await runSuppressed(async () => {
+    settlementMarks.getState().reset();
+    await settlementMarks.flush();
     await resetTournamentOutbox();
     const scopedKeys = (await AsyncStorage.getAllKeys()).filter(key => key.startsWith('snapscore.tournament.id-map.v1.'));
     await AsyncStorage.multiRemove([...PERSISTED_ACCOUNT_KEYS, ...scopedKeys]);

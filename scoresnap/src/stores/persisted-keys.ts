@@ -1,3 +1,4 @@
+export const SETTLEMENT_STORAGE_KEY = "snapscore-settlement-marks";
 export const AUTH_STORAGE_KEY = "snapscore-auth";
 export const CONTEST_STORAGE_KEY = "snapscore-contests";
 export const SETTINGS_STORAGE_KEY = "snapscore-settings";
@@ -12,6 +13,7 @@ export const TOURNAMENT_OUTBOX_KEY = "snapscore.tournament.outbox";
 
 /** Every AsyncStorage key this app persists for an account. */
 export const PERSISTED_ACCOUNT_KEYS = [
+  SETTLEMENT_STORAGE_KEY,
   AUTH_STORAGE_KEY,
   CONTEST_STORAGE_KEY,
   SETTINGS_STORAGE_KEY,

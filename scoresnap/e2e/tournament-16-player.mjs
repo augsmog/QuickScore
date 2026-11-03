@@ -67,28 +67,15 @@ for (let i = 4; i < 16; i++) {
   // Select the group (implementation may vary based on UI)
 }
 
-// Navigate to games selection screen
-const nextBtn = orgPage.getByText(/^next/i).last();
-await nextBtn.click();
-await orgPage.waitForTimeout(2000);
-
-// Verify we're on step 2 (games screen)
-const bodyAfterNext = await orgPage.innerText("body");
-if (!bodyAfterNext.includes("STEP 02") && !bodyAfterNext.includes("Select Game")) {
-  console.log("⚠️ Not on games screen after clicking Next");
-  console.log("Body contains:", bodyAfterNext.substring(0, 300));
-  // Try clicking Next again
-  await orgPage.getByText(/^next/i).last().click();
-  await orgPage.waitForTimeout(1000);
-}
-
-// Stroke Play should be pre-selected by default
-// Click Next to proceed to final step (wager settings)
-await orgPage.getByText(/^next/i).last().click();
-await orgPage.waitForTimeout(1000);
-
-// Final step: click Start Contest
-await orgPage.getByText(/start contest/i).click();
+// Players & Course precedes the two numbered setup steps.
+await orgPage.getByText(/^continue$/i).last().click();
+await orgPage.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
+check((await orgPage.innerText('body')).includes('Step 1/2'), 'Game Modes is step 1/2');
+// Stroke Play is pre-selected; continue to Round Settings.
+await orgPage.getByText(/^continue$/i).last().click();
+await orgPage.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
+check((await orgPage.innerText('body')).includes('Step 2/2'), 'Round Settings is step 2/2');
+await orgPage.getByTestId('contest-start').click();
 
 await orgPage.waitForURL(/\/contest\/[^/]+$/);
 const contestUrl = orgPage.url();

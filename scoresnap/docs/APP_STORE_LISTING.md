@@ -1,146 +1,47 @@
-> DRAFT ONLY: makes no game-count claims per Augie Oct 30 2026; copy pending brand voice; not approved for publication. Release-device walkthrough and owner publication approval remain required.
-
 # SnapScore Golf — App Store Listing Draft
 
-## App Name (30 char max)
-```
+Status: approved by Augie on AUG-323, Oct 31 at 8:45 PM PT, including the group-size addendum; staged for coordinator release
+
+## App Name
 SnapScore Golf
-```
 
-## Subtitle (30 char max)
-```
-Scan Scores. Settle Bets.
-```
+## Subtitle (30/30 characters)
+Score, games and who owes what
 
-Alternative options:
-- `Score, Bet & Settle — Fast`
-- `Golf Bets Made Easy`
+## Keywords (99/100 characters)
+scorecard,skins,nassau,wolf,stableford,settlement,scoring,tournament,handicap,trip,matchplay,outing
 
+## Promotional Text (158/170 characters)
+Golf groups of 2 to 40 players. Skins, Stroke Play and Stableford support the full range. Nassau is for 2 or 4; Wolf needs 4; Match Play and Hammer are for 2.
 
-## Keywords (100 char max, comma-separated, no spaces after commas)
-```
-golf,scorecard,betting,skins,nassau,wolf,settlement,scoring,handicap,OCR,scan,wagering,side bets
-```
-(94 characters)
+## Description
+A round. Your games. Who owes what. Sorted.
 
-Notes on keyword strategy:
-- "golf scorecard" and "golf betting" are the two highest-volume search terms in this category
-- Don't repeat words already in the app name ("SnapScore" and "Golf" are free)
-- "skins", "nassau", "wolf" target golfers searching for specific game formats
-- "OCR" and "scan" target the unique differentiator
-- "settlement" and "wagering" catch the betting intent
-- Avoided: "GPS" (we don't have it yet), "rangefinder" (misleading), "free" (low-quality traffic)
+SnapScore is a scoring app for golf groups of 2 to 40 players. Keep score for your round, run the side games you already play, and see who owes what when you're done.
 
+Score your round — Enter scores hole by hole as you play, or scan your scorecard and review the scores before they're saved.
 
-## Promotional Text (170 char max — can be updated without a new build)
-```
-Confirm scores and side-bet details after scanning. Pro unlocks settlement; multi-round or multi-group hosting requires Tournament Director.
-```
+Your games — Choose from 50+ game modes, including Skins, Nassau, Wolf and Stableford. Set skins to Net or Gross for each round, with Net selected by default. Play skins across the whole field or within each group. Skins, Stroke Play and Stableford support 2 to 40 players. Nassau is for 2 or 4; Wolf needs 4; Match Play and Hammer are for 2.
 
+Run a tournament — Run a multi-round, multi-group tournament for a trip, a member-guest or an outing. Players join and score for free; the Tournament Director plan runs the event.
 
-## Description (4000 char max)
+Settle up — SnapScore works out who owes what, game by game. It never touches the money; your group settles up among themselves.
 
-```
-SnapScore Golf is the fastest way to track golf bets and settle up after your round. Snap a photo of your scorecard, verify the scores, and get instant settlement calculations for your group’s games — no manual entry required.
+Got a paper card? — Scanning sends a photo of your card to a cloud service to read it. We ask first, and you review the scores before they're saved. No scorecard? Enter scores by hand instead.
 
-SCORECARD SCANNING — A FIRST IN GOLF APPS
-Point your camera at any printed scorecard. Our OCR engine reads every score automatically, then lets you verify before locking anything in. No other golf betting app does this.
+Free includes core games and 3 scans a month. SnapScore Pro adds 50+ game modes, settle-up, stats and unlimited scans.
 
-GAMES AND VARIANTS (TODO brand-voice)
-Whether your group plays Skins, Nassau, Wolf, Hammer, Stableford, Best Ball, or something more creative, we've got it covered. Run multiple games simultaneously and get separate settlement breakdowns for each one.
+Privacy Policy: https://snapscore.autumn8.me/privacy
+Terms of Use: https://snapscore.autumn8.me/terms
 
-Individual games: Stroke Play, Match Play, Stableford, Modified Stableford, Skins, Skins with Carryover, Nassau, Nassau with Presses, Quota, Chicago, Aces & Deuces, Dots, Rabbit, Defender, Greenies, Banker, Snake, Bingo Bango Bongo
+## Screenshot order and captions
+1. Set up your round / Add players, pick your games, go.
+2. Add your group / Set up a round for 2 to 40 players.
+3. 50+ game modes / Skins, Nassau, Wolf, Stableford and more.
+4. Score hole by hole / Enter scores by hand, no camera needed.
+5. See who's leading / Gross, net and thru, at a glance.
+6. Your side games, tracked / Standings for each game, in one tab.
+7. See who owes what / SnapScore does the math. You settle up.
+8. Got a paper card? / Scan it, check it, done.
 
-Head-to-head games: Hammer, Closeout, Wolf
-
-Team games: Best Ball, Scramble, Shamble, Four-Ball, Alternate Shot, Chapman, Vegas, Nines, Sixes
-
-INSTANT SETTLEMENT
-When the round is done, SnapScore calculates exactly who owes what. No more napkin math at the 19th hole. Every transaction is broken down by game so you can see where the money moved.
-
-SMART SCORING
-- Full 18-hole digital scorecard with per-hole par and handicap display
-- Color-coded scores (eagle, birdie, par, bogey, and worse)
-- Real-time round progress tracking
-- Support for up to 40 players per contest
-- Multiple groups within a single contest
-
-BUILT FOR YOUR SATURDAY FOURSOME
-Set your bet unit, pick your games, and start scoring. SnapScore handles the complexity so you can focus on the round. Wolf partner picks, Hammer drops, Snake tracking, and Greenie calls are all built in — no guessing, no approximations.
-
-30,000+ COURSES
-Search by name or location to load real course data with par and handicap for every hole.
-
-DETAILED STATISTICS
-Track your scoring trends, par-specific averages, score distributions, hardest and easiest holes, and streaks across all your rounds.
-
-FREE TO START
-Score your first three rounds with full OCR scanning free. Upgrade to Pro for unlimited scanning and access to all features.
-
----
-
-SnapScore Golf is built by golfers who got tired of bad math ruining good bets. If you've ever argued about a Nassau press settlement or lost track of the Snake, this app is for you.
-```
-
-
-## What's New (for v1.0 launch)
-```
-Welcome to SnapScore Golf! This is our launch release featuring:
-- OCR scorecard scanning powered by on-device ML + Claude Vision
-- Smart auxiliary input for Wolf, Hammer, Snake, and Greenies
-- 30,000+ course database
-- Full statistics dashboard
-- Pro subscription for unlimited scans
-```
-
-
-## App Store Screenshot Captions (6 screens recommended)
-
-### Screen 1 — Hero / OCR Scanning
-**Caption:** "Snap. Scan. Settle."
-**Subcaption:** "Turn a photo of your scorecard into settled bets"
-Show: Camera viewfinder over a scorecard with scores being highlighted
-
-### Screen 2 — Game Selection
-**Caption:** "Game Selection (TODO brand-voice)"
-**Subcaption:** "Games and variants (TODO brand-voice)"
-Show: Game picker grid with icons
-
-### Screen 3 — Scorecard Entry
-**Caption:** "Score Like a Pro"
-**Subcaption:** "Color-coded scores with instant totals"
-Show: Scorecard screen with numpad and player cards
-
-### Screen 4 — Settlement
-**Caption:** "Settle Up Instantly"
-**Subcaption:** "Bets calculated. No napkin math."
-Show: Settlement screen with transaction list and net totals
-
-### Screen 5 — Statistics
-**Caption:** "Know Your Game"
-**Subcaption:** "Trends, averages, and hole-by-hole breakdowns"
-Show: Statistics screen with scoring average circle and charts
-
-### Screen 6 — Auxiliary Input (Wolf/Hammer)
-**Caption:** "Every Bet Detail Captured"
-**Subcaption:** "Wolf picks, Hammer drops, Snake tracking — built in"
-Show: AuxiliaryPrompt modal over scorecard
-
-
-## App Store Category
-**Primary:** Sports
-**Secondary:** Entertainment
-
-
-## Age Rating
-4+ (no objectionable content; in-app purchases for subscription)
-
-
-## Screenshot Sizes Required
-- 6.9" (iPhone 16 Pro Max): 1320 × 2868 or 1290 × 2796
-- 6.7" (iPhone 15 Plus): 1290 × 2796
-- 6.5" (iPhone 14 Plus): 1284 × 2778
-- 5.5" (iPhone 8 Plus): 1242 × 2208
-- iPad Pro 12.9" (6th gen): 2048 × 2732
-
-Minimum: 3 screenshots per device size. Recommended: 6.
+Recapture the home screenshot from the app. Use real app captures, never mockups.

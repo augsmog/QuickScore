@@ -157,7 +157,7 @@ These games use standard hole scores and only need settlement logic wired up. No
 
 ### 1. Nassau with Presses (`nassau_press`)
 
-**Category:** Money Games | **Players:** 2 | **Premium:** Yes
+**Category:** Classic | **Players:** 2 | **Premium:** Yes
 
 **What it is:** Standard Nassau (front 9, back 9, overall) with automatic press bets that trigger when a player falls 2-down in any active bet.
 
@@ -206,7 +206,7 @@ After 18 holes:
 
 ### 3. Vegas (`vegas`)
 
-**Category:** Team Money | **Players:** 4 (2v2) | **Premium:** Yes
+**Category:** Team | **Players:** 4 (2v2) | **Premium:** Yes
 
 **What it is:** Team scores on each hole combined into a 2-digit number (lower score first). Difference between team numbers = points won/lost.
 

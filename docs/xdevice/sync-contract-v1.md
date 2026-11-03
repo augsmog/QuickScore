@@ -84,3 +84,13 @@ All RPC responses are private session data: client must exclude them from shared
 caches/telemetry and clear current remote views after denial or identity change.
 HTTP no-store headers/PostgREST and actual socket/Auth behavior require integrated
 stack verification; SQL alone does not assert those headers or delivery.
+
+## Optional restored-owner invite extension (AUG-331; deployment gated)
+
+The optional `fetch_snapshot.invite_code` field is defined by the offline proposal
+`scoresnap/supabase/proposed/20261101190000_owner_invite_snapshot.sql`. It is present
+only for the current non-anonymous contest owner, not for approved nonowner
+members (including membership role `host`). Existing fields/signature stay intact.
+Old servers omit it; clients must not synthesize an invite for a restored round.
+A persisted code is not owner proof. See `README-owner-invite.md` beside the SQL
+for predecessor, rollback, exact-value validation, sharing checks and live gates.

@@ -133,6 +133,7 @@ export interface GameConfig {
   birdieBlocksBirdie?: boolean; // both teams birdie = no flip
 
   // BBB
+  bbbAmountPerOpponent?: true;
   bbbBirdieDouble?: boolean; // double points for birdie on any BBB point
   bbbChipInTriple?: boolean; // chip-in earns all three points
 
@@ -141,7 +142,8 @@ export interface GameConfig {
   sixesPresses?: boolean; // press rules apply within each 6-hole segment
 
   // Rabbit
-  doubleRabbit?: boolean; // third bet for full-18 holder
+  rabbitHolderPays?: true;
+  doubleRabbit?: boolean; // Legacy saved variation; new contests use the fixed Pay rule.
 
   // Match Play
   bisqueHandicap?: boolean; // handicap strokes used at player's discretion
@@ -249,20 +251,20 @@ export const GAME_TYPES: { individual: GameTypeInfo[]; team: GameTypeInfo[] } = 
     { id: "match_play", name: "Match Play", desc: "Win individual holes head-to-head", icon: "⚔️", category: "Classic", isPremium: false, minPlayers: 2, maxPlayers: 2, rules: "Two players compete hole by hole. Win a hole by having the lower score. The player who wins the most holes wins the match. Reported as '2 & 1' (2 up with 1 to play)." },
     { id: "stableford", name: "Stableford", desc: "Points per hole based on score vs par", icon: "⭐", category: "Classic", isPremium: false, minPlayers: 2, maxPlayers: 40, rules: "Points awarded per hole: Eagle or better = 4, Birdie = 3, Par = 2, Bogey = 1, Double+ = 0. Highest total points wins. Great for handicap play." },
     { id: "mod_stableford", name: "Modified Stableford (SnapScore)", desc: "Rewards birdies/eagles, penalizes bogeys+", icon: "💫", category: "Classic", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Aggressive scoring: Eagle+ = +8, Birdie = +5, Par = +2, Bogey = -1, Double = -3, Triple+ = -5. Rewards attacking play and penalizes blowup holes." },
-    { id: "skins", name: "Skins", desc: "Win the hole outright to take the skin", icon: "💰", category: "Money Games", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Each hole is worth 1 skin (unit). The player with the lowest score on a hole wins that skin outright. If two or more players tie for low score, the hole is a push." },
-    { id: "skins_carry", name: "Skins (Carryover)", desc: "Tied skins carry to next hole", icon: "💰", category: "Money Games", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Same as Skins, but when a hole is tied, the skin carries over to the next hole. This creates big-value skins that build up over multiple tied holes." },
-    { id: "nassau", name: "Nassau", desc: "Three matches: front 9, back 9, overall", icon: "🎰", category: "Money Games", isPremium: true, minPlayers: 2, maxPlayers: 4, rules: "Three separate matches: Front 9, Back 9, and Overall 18. Each match is worth 1 unit. With 2 players, head-to-head. With 4 players, play as 2v2 teams using best ball per hole." },
-    { id: "nassau_press", name: "Nassau w/ Presses", desc: "Nassau with auto-press when 2 down", icon: "🎰", category: "Money Games", isPremium: true, minPlayers: 2, maxPlayers: 4, rules: "Standard Nassau with automatic presses. When a side falls 2-down in any match, an additional match (press) starts on the next hole. Works 1v1 or 2v2 teams." },
+    { id: "skins", name: "Skins", desc: "Win the hole outright to take the skin", icon: "💰", category: "Classic", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Each hole is worth 1 skin (unit). The player with the lowest score on a hole wins that skin outright. If two or more players tie for low score, the hole is a push." },
+    { id: "skins_carry", name: "Skins (Carryover)", desc: "Tied skins carry to next hole", icon: "💰", category: "Classic", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Same as Skins, but when a hole is tied, the skin carries over to the next hole. This creates big-value skins that build up over multiple tied holes." },
+    { id: "nassau", name: "Nassau", desc: "Three matches: front 9, back 9, overall", icon: "🎰", category: "Classic", isPremium: true, minPlayers: 2, maxPlayers: 4, rules: "Three separate matches: Front 9, Back 9, and Overall 18. Each match is worth 1 unit. With 2 players, head-to-head. With 4 players, play as 2v2 teams using best ball per hole." },
+    { id: "nassau_press", name: "Nassau w/ Presses", desc: "Nassau with auto-press when 2 down", icon: "🎰", category: "Classic", isPremium: true, minPlayers: 2, maxPlayers: 4, rules: "Standard Nassau with automatic presses. When a side falls 2-down in any match, an additional match (press) starts on the next hole. Works 1v1 or 2v2 teams." },
     { id: "wolf", name: "Wolf", desc: "Choose partner or go lone wolf each hole", icon: "🐺", category: "Strategy", isPremium: true, minPlayers: 4, maxPlayers: 4, rules: "The Wolf rotates each hole. After seeing tee shots, the Wolf picks a partner or goes Lone Wolf. Wolf+partner vs the other 2. Ordinary solo pays 2 units per opponent; partnered Wolf pays 1 per opposing-player pair. Confirm actual partner choices." },
     { id: "banker", name: "Banker", desc: "The banker rotates each hole, playing each other player and collecting or paying one unit against each", icon: "🏦", category: "Strategy", isPremium: true, minPlayers: 3, maxPlayers: 40, rules: "The Banker rotates each hole. If the Banker has the lowest score, they collect 1 unit from each player. If anyone beats the Banker, the Banker pays that player 1 unit." },
     { id: "hammer", name: "Hammer", desc: "Double the unit mid-hole for pressure", icon: "🔨", category: "Pressure", isPremium: true, minPlayers: 2, maxPlayers: 2, rules: "Each hole starts at 1 unit. Either player can 'hammer' (double the unit amount) during the hole. Opponent must accept the doubled unit amount or concede the hole. Creates intense pressure moments." },
     { id: "snake", name: "Snake", desc: "Last to 3-putt holds the snake", icon: "🐍", category: "Putting", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "The last player to 3-putt 'holds the snake.' At the end of the round, the snake holder pays each other player 1 unit. Keeps everyone focused on putting." },
-    { id: "bingo_bango_bongo", name: "Bingo Bango Bongo", desc: "Points for first on, closest, first in", icon: "🎯", category: "Points", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Three points per hole: Bingo (first on the green), Bango (closest to pin once all on green), Bongo (first to hole out). Each point = 1 unit." },
+    { id: "bingo_bango_bongo", name: "Bingo Bango Bongo", desc: "Points for first on, closest, first in", icon: "🎯", category: "Points", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Three points per hole: Bingo (first on the green), Bango (closest to pin once all on green), Bongo (first to hole out). Each category winner collects the full set amount from each other player." },
     { id: "dots", name: "Dots / Trash", desc: "Score points for birdies, pars and bogeys", icon: "🎲", category: "Points", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Earn dots (points) for achievements: Birdie or better = +2, Par = +1, Bogey = 0, Double+ = -1." },
-    { id: "rabbit", name: "Rabbit", desc: "Catch the rabbit with low score, keep it", icon: "🐰", category: "Chase", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "The lowest scorer on a hole 'catches the rabbit.' Hold it until someone else posts a lower score. Whoever holds the rabbit at hole 9 and 18 wins the pot from all other players." },
+    { id: "rabbit", name: "Rabbit", desc: "Catch the rabbit with low score, keep it. At 18, the holder pays each other player one full-round amount.", icon: "🐰", category: "Chase", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "The lowest scorer on a hole 'catches the rabbit.' Hold it until someone else posts a lower score. Whoever holds the rabbit at hole 9 and 18 wins the pot from all other players." },
     { id: "defender", name: "Defender", desc: "Rotating defender vs field best ball", icon: "🛡️", category: "Strategy", isPremium: true, minPlayers: 3, maxPlayers: 40, rules: "One player defends each hole (rotates). If the Defender beats the field's best score, they collect from everyone. If the field wins, the best scorer collects from the Defender." },
     { id: "nines", name: "Nines", desc: "9 points split among foursome each hole", icon: "9️⃣", category: "Points", isPremium: true, minPlayers: 4, maxPlayers: 4, rules: "9 points are distributed each hole: Best = 5, 2nd = 3, 3rd = 1, Worst = 0. Ties split points equally. After 18 holes, total points determine winners (max 162 total)." },
-    { id: "vegas", name: "Vegas", desc: "Team scores combined as 2-digit number", icon: "🎲", category: "Team Money", isPremium: true, minPlayers: 4, maxPlayers: 4, rules: "Two teams of 2. Each team combines their scores into a 2-digit number (lower score first). E.g., scores of 4 and 5 = 45. The difference between team numbers is the points won/lost." },
+    { id: "vegas", name: "Vegas", desc: "Team scores combined as 2-digit number", icon: "🎲", category: "Team", isPremium: true, minPlayers: 4, maxPlayers: 4, rules: "Two teams of 2. Each team combines their scores into a 2-digit number (lower score first). E.g., scores of 4 and 5 = 45. The difference between team numbers is the points won/lost." },
     { id: "sixes", name: "Sixes", desc: "Partners rotate every 6 holes", icon: "🔄", category: "Rotating", isPremium: true, minPlayers: 4, maxPlayers: 4, rules: "With 4 players, partners rotate every 6 holes: A+B vs C+D (1-6), A+C vs B+D (7-12), A+D vs B+C (13-18). Best ball within each team. Everyone plays with and against everyone." },
     { id: "closeout", name: "Closeout", desc: "New match starts when one closes out", icon: "🔒", category: "Match", isPremium: true, minPlayers: 2, maxPlayers: 2, rules: "Head-to-head match play. When one player clinches (leads by more holes than remain), that match is won and a new match begins on the next hole. Each match is settled separately." },
     { id: "quota", name: "Quota", desc: "Beat your point quota based on handicap", icon: "📊", category: "Handicap", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "Your quota = 36 minus your handicap. Earn Stableford points each hole. If you exceed your quota, you win. The player who exceeds their quota by the most wins. Levels the playing field." },
@@ -552,16 +554,6 @@ export const LEGACY_GAME_VARIATIONS: GameVariation[] = [
   },
 
   // ── Rabbit variations ──
-  {
-    id: "rabbit_double",
-    label: "Double Rabbit",
-    desc: "Add a third, full-round Rabbit amount paid by the holder at 18, in addition to front and back nine round amounts. This can pay the back-nine holder twice.",
-    configKey: "doubleRabbit",
-    configValue: true,
-    appliesTo: ["rabbit"],
-    tag: "spicy",
-  },
-
   // ── Match Play variations ──
   {
     id: "match_bisque",
@@ -587,7 +579,7 @@ export const LEGACY_GAME_VARIATIONS: GameVariation[] = [
 
 /** Only delivered capabilities feed the setup panel and advertised count. */
 export const INPUT_VARIATION_IDS = ["nassau_junk","wolf_blind","wolf_pig","wolf_carryover","snake_progressive","stableford_joker","bbb_birdie_double","match_bisque"];
-const WIRED_VARIATION_IDS = ["skins_tiered", "skins_progressive", "skins_birdie_mult", "skins_validation", "skins_team", "nassau_weighted", "nassau_press_press", "nassau_aloha", "nassau_no_press_last", "stableford_modified", "vegas_birdie_flip", "vegas_eagle_doubles", "vegas_birdie_block", "sixes_escalating", "sixes_presses", "rabbit_double", "net_handicap", "wolf_carryover", "snake_progressive", "bbb_birdie_double", "wolf_blind", "wolf_pig", "stableford_joker", "match_bisque", "nassau_junk"] as const;
+const WIRED_VARIATION_IDS = ["skins_tiered", "skins_progressive", "skins_birdie_mult", "skins_validation", "skins_team", "nassau_weighted", "nassau_press_press", "nassau_aloha", "nassau_no_press_last", "stableford_modified", "vegas_birdie_flip", "vegas_eagle_doubles", "vegas_birdie_block", "sixes_escalating", "sixes_presses", "net_handicap", "wolf_carryover", "snake_progressive", "bbb_birdie_double", "wolf_blind", "wolf_pig", "stableford_joker", "match_bisque", "nassau_junk"] as const;
 export const GAME_VARIATIONS = LEGACY_GAME_VARIATIONS.filter(v => (WIRED_VARIATION_IDS as readonly string[]).includes(v.id));
 export const HIDDEN_VARIATIONS = LEGACY_GAME_VARIATIONS.filter(v => !GAME_VARIATIONS.includes(v));
 export const PLAYABLE_BASE_GAME_IDS = IMPLEMENTED_GAME_IDS;
@@ -642,6 +634,8 @@ export function validateVariationSetup(groups: {players: Player[]}[], games: Gam
 /** Execute only the selected game's supported rules; unknown saved keys remain stored for audit. */
 export function configForGame(config: GameConfig, game: GameType): GameConfig {
   const result: GameConfig = {rulesVersion:config.rulesVersion,inputRulesVersion:config.inputRulesVersion};
+  if (game === "bingo_bango_bongo") result.bbbAmountPerOpponent = config.bbbAmountPerOpponent;
+  if (game === "rabbit") { result.rabbitHolderPays = config.rabbitHolderPays; result.doubleRabbit = config.doubleRabbit; }
   if (game === "skins" || game === "skins_carry") { result.skinsMode = config.skinsMode; result.skinsScope = config.skinsScope; }
   for (const v of GAME_VARIATIONS) if ((!INPUT_VARIATION_IDS.includes(v.id) || config.inputRulesVersion===1) && v.appliesTo.includes(game) && config[v.configKey] !== undefined) result[v.configKey] = config[v.configKey];
   return result;

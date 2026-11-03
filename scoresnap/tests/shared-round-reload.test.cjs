@@ -13,12 +13,12 @@ function mount({ online = true, actor = 'review-actor', failure } = {}) {
     async discover() {},
   };
   const deps = {
-    '../services/online-enrollment': {}, '../db/supabase': {},
+    '../services/owner-invite': require('./helpers/load-ts.cjs')()('src/services/owner-invite.ts'), '../services/online-enrollment': {}, '../db/supabase': {},
     '../services/cross-device': { onlineEnabled: online, client },
     '../services/online-client': { hostOrDiscover: (api, id) => api.rejoinHost(id) },
     '../stores/auth-store': { useAuthStore: f => f({ remoteUserId: actor }) },
-    '../stores/online-store': { useOnlineStore: f => f({ events }) },
-    react: { useState: x => [x, () => {}], useEffect: f => effects.push(f) },
+    '../stores/online-store': { useOnlineStore: Object.assign(f => f({ events }), { getState: () => ({ events }) }) },
+    react: { useRef: x => ({ current: x }), useState: x => [x, () => {}], useEffect: f => effects.push(f) },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable', Platform: { OS: 'web' } },
     '../stores/contest-store': {}, '../services/guest-join': {}, './theme': { COLORS: {} },
