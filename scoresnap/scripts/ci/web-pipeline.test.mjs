@@ -15,7 +15,7 @@ const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const workflow = yaml.load(fs.readFileSync(path.join(repository, '.github/workflows/web-smoke.yml'), 'utf8'));
 const steps = job => workflow.jobs[job].steps;
 const commands = job => steps(job).filter(step => step.run).map(step => step.run).join('\n');
-const identity = { run: '12', attempt: '1', commit: 'abc', tree: 'def', workflow: 'w', lock: 'l', node: 'v22', imageOS: 'ubuntu24', imageVersion: '1', expo: '54', playwright: '1.64.1', flags: STANDARD_FLAGS };
+const identity = { run: '12', attempt: '1', commit: 'abc', tree: 'def', workflow: 'w', lock: 'l', node: 'v22.23.4', imageOS: 'ubuntu24', imageVersion: '20261025.353.1', expo: '54', playwright: '1.64.1', flags: STANDARD_FLAGS };
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'web-artifact-test-'));
@@ -33,9 +33,30 @@ test('same-run exact standard artifact passes, including hidden files', t => {
   assert.ok(manifest.files.some(file => file.path === '.well-known/proof'));
   verifyManifest(root, identity, manifest);
 });
-for (const key of Object.keys(identity)) test(`reject changed ${key} provenance`, t => {
+for (const key of Object.keys(identity).filter(key => key !== 'imageVersion')) test(`reject changed ${key} provenance`, t => {
   const root = fixture(t); const manifest = createManifest(root, identity);
   assert.throws(() => verifyManifest(root, { ...identity, [key]: 'wrong' }, manifest), /provenance/);
+});
+test('runner image revision may differ within the same run; build image remains in the manifest', t => {
+  const root = fixture(t); const manifest = createManifest(root, identity);
+  verifyManifest(root, { ...identity, imageVersion: '20261101.360.1' }, manifest);
+  assert.equal(manifest.identity.imageVersion, '20261025.353.1');
+});
+test('Node patch drift within one major passes; a different or unparsable major rejects', t => {
+  const root = fixture(t); const manifest = createManifest(root, identity);
+  verifyManifest(root, { ...identity, node: 'v22.24.0' }, manifest);
+  for (const node of ['v24.1.0', 'v2.23.4', 'v22.garbage', 'v22.', ['v22.23.4'], '', undefined]) {
+    assert.throws(() => verifyManifest(root, { ...identity, node }, manifest), /provenance/);
+  }
+});
+test('manifest still requires a recorded build image and the exact identity key set', t => {
+  const root = fixture(t);
+  const { imageVersion, ...noImage } = identity;
+  assert.throws(() => verifyManifest(root, identity, createManifest(root, noImage)), /provenance/);
+  assert.throws(() => verifyManifest(root, identity, createManifest(root, { ...identity, extra: 'x' })), /provenance/);
+  assert.throws(() => verifyManifest(root, identity, createManifest(root, { ...identity, nodeMajor: '22' })), /provenance/);
+  const { lock, ...noLock } = identity;
+  assert.throws(() => verifyManifest(root, identity, createManifest(root, noLock)), /provenance/);
 });
 for (const kind of ['changed', 'missing', 'extra', 'hidden', 'symlink', 'router-only', 'second-entry']) test(`reject ${kind} artifact`, t => {
   const root = fixture(t); const manifest = createManifest(root, identity);
