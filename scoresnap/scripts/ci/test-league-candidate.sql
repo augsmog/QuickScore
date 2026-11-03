@@ -23,12 +23,6 @@ INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status)
  ('00000000-0000-0000-0000-000000000092','00000000-0000-0000-0000-000000000081','host',NULL,'approved'),
  ('00000000-0000-0000-0000-000000000092','00000000-0000-0000-0000-000000000082','player','00000000-0000-0000-0000-000000000202','approved'),
  ('00000000-0000-0000-0000-000000000093','00000000-0000-0000-0000-000000000081','host',NULL,'approved');
-INSERT INTO public.contest_rounds(contest_id,round_number,name) VALUES
- ('00000000-0000-0000-0000-000000000091',1,'Round 1'),
- ('00000000-0000-0000-0000-000000000092',1,'Round 1'),
- ('00000000-0000-0000-0000-000000000093',1,'Round 1'),
- ('00000000-0000-0000-0000-000000000094',1,'Round 1');
-
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000081","role":"authenticated","is_anonymous":false}',true);
 DO $$ DECLARE lid uuid; BEGIN
   lid := public.create_league('Weeknight League');
