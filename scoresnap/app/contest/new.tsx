@@ -1220,7 +1220,7 @@ export default function NewContestScreen() {
                     <Text style={{ color: COLORS.text }}>Six players: round robin (each pair plays both other pairs)</Text>
                   </AnimatedPressable>
                 )}
-                <Text style={{ color: COLORS.textDim, marginTop: 6, fontSize: 12 }}>Each pair’s winnings and losses are split equally between partners.</Text>
+                <Text style={{ color: COLORS.textDim, marginTop: 6, fontSize: 12 }}>Partners share each team result equally.</Text>
               </View>
             )}
 

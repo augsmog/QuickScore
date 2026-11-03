@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const path = require('node:path');
 const loadTS = require('./helpers/load-ts.cjs');
 const {act} = require('react-test-renderer');
 const nodes = n => !n || typeof n !== 'object' ? [] : Array.isArray(n) ? n.flatMap(nodes) : [n, ...nodes(n.props?.children)];
@@ -122,6 +123,16 @@ test('variation validation blocks both Continue and Start without losing setting
   validate.mockReturnValue('Invalid setup'); h.press('Start');
   expect(validate).toHaveBeenCalledTimes(3); expect(h.addContest).not.toHaveBeenCalled();
   expect(h.byId('contest-step-round-settings')).toBeDefined();
+});
+
+test('Four-Ball copy describes equal partner balances without restricted wording', () => {
+  const setup = fs.readFileSync(path.resolve(__dirname, '../app/contest/new.tsx'), 'utf8');
+  const catalog = fs.readFileSync(path.resolve(__dirname, '../src/engine/types.ts'), 'utf8');
+  expect(setup).toContain('Partners share each team result equally.');
+  expect(catalog).toContain('Partner balances are divided evenly.');
+  expect(catalog).toContain('Unsupported match format.');
+  expect(`${setup}\n${catalog}`).not.toMatch(/\bwinnings\b/i);
+  expect(`${setup}\n${catalog}`).not.toContain('Choose a supported Four-Ball format.');
 });
 
 test('Six-player Four-Ball setup saves the explicit round robin and pair-score choice', () => {
