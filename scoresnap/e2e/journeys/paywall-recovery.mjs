@@ -23,7 +23,7 @@ async function run(q,order){
  await check('draft-entered',()=>retained(page));await step('draft');
  await press(q,page.getByText('Continue',{exact:true}));await enter('setup-modes');
  await check('two-step-modes',modes);await step('modes');
- for(const game of order)await press(q,page.getByText(game,{exact:true}));
+ for(const game of order)await press(q,page.getByTestId('contest-step-gamemodes').getByText(game,{exact:true}).first());
  await press(q,page.getByTestId('skins-mode-gross'));
  await check('free-modes-inline',async()=>{await noPlans();assert.equal(await page.getByTestId('skins-mode-gross').getAttribute('aria-checked'),'true');});await step('inline');
  await press(q,page.getByText('Continue',{exact:true}));await enter('setup-settings');
