@@ -97,6 +97,8 @@ export interface GameTypeInfo {
 export interface GameConfig {
   inputRulesVersion?: 1; // Explicit adoption of round-two event/declaration variants.
   rulesVersion?: 1; // Absent means legacy: stored variation toggles remain ignored.
+  // Stroke Play: missing preserves historical fixed-total settlement.
+  strokePlayBasis?: "total" | "per_stroke";
   // Skins
   carryover?: boolean;
   skinsScope?: "field" | "group"; // per-contest; missing means whole field
@@ -603,6 +605,7 @@ export function validateVariationSetup(groups: {players: Player[]}[], games: Gam
   for(const v of GAME_VARIATIONS) {const value=config[v.configKey];if(value===undefined || value===false && v.configValue===true)continue;if(v.configKey==="nassauWeights" && JSON.stringify(value)==="[1,1,1]")continue;if(v.configKey==="skinsTier" && ["flat","tiered","progressive"].includes(String(value)))continue;if(JSON.stringify(value)!==JSON.stringify(v.configValue) && !GAME_VARIATIONS.some(other=>other.configKey===v.configKey && JSON.stringify(other.configValue)===JSON.stringify(value)))return `Invalid value for ${v.label}`;}
   if(config.skinsMode!==undefined && !["net","gross"].includes(config.skinsMode) || config.skinsScope!==undefined && !["field","group"].includes(config.skinsScope))return "Invalid Skins mode or scope";
   if (games.some(g => !isGameImplemented(g))) return "This game is unavailable until scoring and settlement are complete.";
+  if (games.includes("stroke_play") && config.strokePlayBasis !== undefined && !["total", "per_stroke"].includes(config.strokePlayBasis)) return "Choose a supported Stroke Play amount basis.";
   const players = groups.flatMap(g => g.players);
   if (new Set(games).size !== games.length) return "Select each game only once.";
   if (games.some(g=>g==="alternate_shot" || g==="chapman")) {
@@ -642,6 +645,7 @@ export function validateVariationSetup(groups: {players: Player[]}[], games: Gam
 /** Execute only the selected game's supported rules; unknown saved keys remain stored for audit. */
 export function configForGame(config: GameConfig, game: GameType): GameConfig {
   const result: GameConfig = {rulesVersion:config.rulesVersion,inputRulesVersion:config.inputRulesVersion};
+  if (game === "stroke_play") result.strokePlayBasis = config.strokePlayBasis;
   if (game === "skins" || game === "skins_carry") { result.skinsMode = config.skinsMode; result.skinsScope = config.skinsScope; }
   for (const v of GAME_VARIATIONS) if ((!INPUT_VARIATION_IDS.includes(v.id) || config.inputRulesVersion===1) && v.appliesTo.includes(game) && config[v.configKey] !== undefined) result[v.configKey] = config[v.configKey];
   return result;

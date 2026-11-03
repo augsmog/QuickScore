@@ -112,10 +112,13 @@ export function calculateSettlement(
           const winner = results[0];
           if (gameConfig?.rulesVersion === 1 && tiedRank(winner, results[1])) break;
           for (let i = 1; i < results.length; i++) {
+            const amount = gameConfig?.rulesVersion === 1 && gameConfig.strokePlayBasis === "per_stroke"
+              ? (results[i].total - winner.total) * betUnit
+              : betUnit;
             transactions.push({
               from: results[i].name,
               to: winner.name,
-              amount: betUnit,
+              amount,
               gameType,
             });
           }

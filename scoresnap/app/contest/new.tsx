@@ -306,6 +306,7 @@ export default function NewContestScreen() {
     if (!canHostTournament({groups}, tier)) { setStep(1); openPlan("/paywall?tier=td"); return; }
 
     const cleanConfig: GameConfig = {rulesVersion:1,inputRulesVersion:1};
+    if (selectedGames.includes("stroke_play")) cleanConfig.strokePlayBasis = gameConfig.strokePlayBasis ?? "total";
     if (selectedGames.some(g => g === "skins" || g === "skins_carry")) { cleanConfig.skinsMode = gameConfig.skinsMode; cleanConfig.skinsScope = gameConfig.skinsScope; }
     for (const v of GAME_VARIATIONS) if (v.appliesTo.some(g => selectedGames.includes(g)) && gameConfig[v.configKey] !== undefined) cleanConfig[v.configKey] = gameConfig[v.configKey];
     const error = validateVariationSetup(groups, selectedGames, cleanConfig, Number(betUnit));
@@ -1056,6 +1057,23 @@ export default function NewContestScreen() {
             <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
               Round Settings
             </Text>
+
+            {selectedGames.includes("stroke_play") && (
+              <View style={{ marginBottom: 20 }}>
+                <Text style={{ color: COLORS.text, marginBottom: 8 }}>Stroke Play amount</Text>
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  {(["total", "per_stroke"] as const).map((basis) => (
+                    <AnimatedPressable key={basis} testID={`stroke-play-basis-${basis}`}
+                      accessibilityRole="radio" accessibilityLabel={basis === "total" ? "Fixed total amount" : "Amount per stroke difference"}
+                      accessibilityState={{ checked: (gameConfig.strokePlayBasis ?? "total") === basis }}
+                      onPress={() => setGameConfig((prev) => ({ ...prev, strokePlayBasis: basis }))}
+                      style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.strokePlayBasis ?? "total") === basis ? COLORS.primary : COLORS.surfaceMid }}>
+                      <Text style={{ color: COLORS.text }}>{basis === "total" ? "Total amount" : "Per stroke"}</Text>
+                    </AnimatedPressable>
+                  ))}
+                </View>
+              </View>
+            )}
 
             {/* Active games chips */}
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
