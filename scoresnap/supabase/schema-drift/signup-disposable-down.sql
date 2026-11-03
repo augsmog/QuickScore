@@ -7,5 +7,5 @@ DROP FUNCTION public.get_signup_webhook_secret();
 DROP FUNCTION public.claim_signup_email(uuid,uuid,boolean);
 DROP FUNCTION public.confirm_signup_email(uuid,uuid,text);
 DROP TABLE public.signup_processing;
-DELETE FROM supabase_migrations.schema_migrations WHERE version IN ('20261101003300','20261101003400');
+DELETE FROM supabase_migrations.schema_migrations WHERE version IN ('20261101003300','20261101003400','20261103010000');
 DROP EXTENSION IF EXISTS pg_net;

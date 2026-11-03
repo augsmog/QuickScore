@@ -175,6 +175,12 @@ test('migration privilege, atomicity and non-blocking webhook contract', () => {
   expect(trigger).toContain("current_setting('app.settings.supabase_url', true)");
   expect(trigger).toContain('vault.decrypted_secrets');
   expect(trigger).not.toMatch(/eyJ|https:\/\/[^' ]+supabase\.co/);
+  const vaultUrl=fs.readFileSync(path.join(root,'20261103010000_signup_webhook_vault_url.sql'),'utf8');
+  expect(vaultUrl).toContain("where name = 'signup_webhook_project_url'");
+  expect(vaultUrl).toContain("current_setting('app.settings.supabase_url', true)");
+  expect(vaultUrl).toContain('exception when query_canceled or assert_failure or others then');
+  expect(vaultUrl).toContain('grant execute on function public.dispatch_signup_webhook() to service_role;');
+  expect(vaultUrl).not.toMatch(/eyJ|https:\/\/[^' ]+supabase\.co/);
 });
 
 test.each([true, false])('expired owner cannot complete or fail a newer pending reservation (success=%s)', async success => {
