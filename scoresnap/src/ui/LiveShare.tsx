@@ -32,9 +32,24 @@ export function LiveShare({ contest }: { contest: Contest }) {
     };
   }, [scope]);
   useEffect(() => {
+    let previousActorId = actorId;
+    return useAuthStore.subscribe((state) => {
+      const currentActorId = state.user?.id ?? state.remoteUserId ?? null;
+      if (currentActorId === previousActorId) return;
+      clearLiveShareUrl(liveShareScope(previousActorId, contest.id));
+      previousActorId = currentActorId;
+      activeOperation.current.invalidate();
+      scopeOperation.current.invalidate();
+    });
+  }, [contest.id]);
+  useEffect(() => {
     if (!contest.liveShareEnabled) return;
     const operationId = scopeOperation.current.begin();
     const timer = setInterval(() => {
+      if (!scopeOperation.current.isCurrent(operationId)) return;
+      const auth = useAuthStore.getState();
+      const currentActorId = auth.user?.id ?? auth.remoteUserId ?? null;
+      if (currentActorId !== actorId) return;
       const latest = useContestStore.getState().contests.find(c => c.id === contest.id);
       if (latest?.liveShareEnabled) void publishSnapshot(latest)
         .then(() => {
@@ -48,7 +63,7 @@ export function LiveShare({ contest }: { contest: Contest }) {
       clearInterval(timer);
       scopeOperation.current.invalidate();
     };
-  }, [contest.id, contest.liveShareEnabled]);
+  }, [actorId, contest.id, contest.liveShareEnabled]);
   async function run(revoke = false) {
     const operationId = activeOperation.current.begin();
     setBusy(true);

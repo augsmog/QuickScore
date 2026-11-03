@@ -64,3 +64,42 @@ test('contest layout owns the only share control and settlement reads shared sta
   assert.match(liveShare, /setBusy\(false\)/);
   assert.match(liveShare, /await Share\.share\(\{ message: url \}\);\s+if \(!activeOperation\.current\.isCurrent\(operationId\)\) return;/);
 });
+
+test('store-only account A-B-A invalidates pending create and stops old publisher interval', () => run(`
+const fs = await import('node:fs');
+const ts = await import('typescript');
+let auth = { user: { id: 'a' } }, contest = { id: 'round', liveShareEnabled: true };
+let finishCreate, publishCalls = 0, updates = 0, tick;
+const authListeners = new Set(), effects = [], refs = [];
+const deps = {
+  react: { useState: value => [value, () => {}], useRef: value => { const ref = refs.shift() ?? { current: value }; return ref; }, useEffect: effect => effects.push(effect) },
+  'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
+  'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable', Platform: { OS: 'web' }, Share: { share: async () => {} } },
+  '../services/live-share': { createLiveLink: () => new Promise(resolve => { finishCreate = resolve; }), revokeLiveLinks: async () => {}, publishSnapshot: async () => { publishCalls++; } },
+  '../stores/contest-store': { useContestStore: Object.assign(select => select({ contests: [contest] }), { getState: () => ({ contests: [contest], updateContest: (_id, patch) => { updates++; Object.assign(contest, patch); } }) }) },
+  './LiveChat': {}, './theme': { COLORS: {} }, '../config/features': { CROSS_DEVICE_SHARING_ENABLED: true },
+  '../stores/auth-store': { useAuthStore: Object.assign(select => select(auth), { getState: () => auth, subscribe: listener => { authListeners.add(listener); return () => authListeners.delete(listener); } }) },
+  '../services/live-share-url-state': { clearLiveShareUrl: scope => state.clearLiveShareUrl(scope), liveShareScope: state.liveShareScope, setLiveShareUrl: state.setLiveShareUrl },
+  '../services/live-share-operation': operation,
+};
+globalThis.window = { location: { origin: 'https://example.test' } };
+Object.defineProperty(globalThis, 'navigator', { value: { clipboard: { writeText: async () => {} } }, configurable: true });
+globalThis.setInterval = callback => { tick = callback; return 1; };
+globalThis.clearInterval = () => {};
+const source = fs.readFileSync('src/ui/LiveShare.tsx', 'utf8');
+const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+const module = { exports: {} };
+new Function('require', 'module', 'exports', js)(id => deps[id], module, module.exports);
+const tree = module.exports.LiveShare({ contest });
+effects.forEach(effect => effect());
+const creating = tree.props.children[0].props.onPress();
+for (const id of ['b', 'a']) { const previous = auth; auth = { user: { id } }; authListeners.forEach(listener => listener(auth, previous)); }
+finishCreate('stale-token');
+await creating;
+assert.equal(state.getLiveShareUrl(state.liveShareScope('a', 'round')), undefined);
+assert.equal(updates, 0);
+tick();
+await Promise.resolve();
+assert.equal(publishCalls, 0);
+effects.map(effect => effect()).forEach(cleanup => cleanup?.());
+`));
