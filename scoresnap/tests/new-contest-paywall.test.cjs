@@ -123,3 +123,31 @@ test('variation validation blocks both Continue and Start without losing setting
   expect(validate).toHaveBeenCalledTimes(3); expect(h.addContest).not.toHaveBeenCalled();
   expect(h.byId('contest-step-round-settings')).toBeDefined();
 });
+
+test('Six-player Four-Ball setup saves the explicit round robin and pair-score choice', () => {
+  const h = harness('td'); h.seed(6);
+  h.byId('team-mode').onValueChange(true);
+  h.press('Add Team (2/20)');
+  for (const [index, player] of h.players().entries()) {
+    const team = ['A', 'B', 'C'][Math.floor(index / 2)];
+    h.byId(`player-team-${player.name}-${team}`).onPress();
+  }
+  expect(h.players().map(player => player.team)).toEqual(['A', 'A', 'B', 'B', 'C', 'C']);
+
+  h.press('NEXT →');
+  gameCard(h, 'Four-Ball').onPress();
+  h.press('NEXT →');
+  expect(h.byId('fourball-scoring-better')['accessibilityState']).toEqual({checked: true});
+  expect(h.byId('fourball-scoring-total')['accessibilityState']).toEqual({checked: false});
+  h.byId('fourball-scoring-total').onPress();
+  h.byId('fourball-format-round-robin').onPress();
+  expect(h.byId('fourball-scoring-total')['accessibilityState']).toEqual({checked: true});
+  expect(h.byId('fourball-format-round-robin')['accessibilityState']).toEqual({checked: true});
+
+  h.press('START CONTEST ✓');
+  expect(h.addContest).toHaveBeenCalledTimes(1);
+  const saved = h.addContest.mock.calls[0][0];
+  expect(saved.games).toContain('fourball');
+  expect(saved.gameConfig).toMatchObject({rulesVersion: 1, fourBallScoring: 'total', fourBallFormat: 'round_robin'});
+  expect(saved.groups[0].players.map(player => player.team)).toEqual(['A', 'A', 'B', 'B', 'C', 'C']);
+});
