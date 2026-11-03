@@ -627,6 +627,17 @@ export function calculateSettlement(
 
       case "fourball": {
         // FourBallResult: { team1Names, team2Names, holeResults[], finalStatus }
+        // Each contest group is an independent match. Never flatten groups into one
+        // event: that silently drops every match after the first two teams.
+        if (groups && groups.length > 0) {
+          for (const group of groups) {
+            transactions.push(...calculateSettlement(
+              group.players, course, [gameType], betUnit, auxiliaryData,
+              gameConfig ? configForGame(gameConfig, gameType) : undefined
+            ).transactions);
+          }
+          break;
+        }
         // finalStatus > 0 means team1 won. Fourball requires exactly 2 teams of 2.
         const teams = groupByTeam(players);
         const teamIds = Array.from(teams.keys());
@@ -1092,7 +1103,7 @@ export function calculateSettlement(
   for (const gameType of new Set(transactions.map(t => t.gameType))) {
     const partitions = (gameType === "skins" || gameType === "skins_carry")
       ? skinsGroups(groups ?? [{ name: "Whole field", players }], gameConfig)
-      : gameConfig?.rulesVersion === 1 && groups && ["nassau","nassau_press","match_play","vegas","sixes","rabbit"].includes(gameType) ? groups : [{ name: "Whole field", players }];
+      : groups && (gameType === "fourball" || gameConfig?.rulesVersion === 1 && ["nassau","nassau_press","match_play","vegas","sixes","rabbit"].includes(gameType)) ? groups : [{ name: "Whole field", players }];
     for (const partition of partitions) {
       const members = new Set(partition.players.map(p => p.name));
       const raw: Record<string, number> = {};
