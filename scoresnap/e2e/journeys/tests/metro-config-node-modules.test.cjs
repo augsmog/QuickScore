@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const Module = require("node:module");
 const os = require("node:os");
 const path = require("node:path");
 const { after, test } = require("node:test");
@@ -17,8 +18,23 @@ test("nightly Metro canonicalizes the shared node_modules symlink", () => {
   process.env.SNAPSCORE_NIGHTLY_NODE_MODULES = aliasNodeModules;
   const configPath = path.resolve(__dirname, "../../../metro.config.js");
   delete require.cache[require.resolve(configPath)];
-  const config = require(configPath);
-  delete process.env.SNAPSCORE_NIGHTLY_NODE_MODULES;
+  const originalLoad = Module._load;
+  let config;
+  try {
+    // These wrappers mutate package-local caches. Stub them so this config
+    // unit test stays hermetic and remains runnable by a read-only reviewer.
+    Module._load = function (request, parent, isMain) {
+      if (request === "nativewind/metro") return { withNativeWind: value => value };
+      if (request === "@sentry/react-native/metro") {
+        return { getSentryExpoConfig: () => ({ watchFolders: [], resolver: {} }) };
+      }
+      return originalLoad.call(this, request, parent, isMain);
+    };
+    config = require(configPath);
+  } finally {
+    Module._load = originalLoad;
+    delete process.env.SNAPSCORE_NIGHTLY_NODE_MODULES;
+  }
 
   const canonicalNodeModules = fs.realpathSync(aliasNodeModules);
   assert.ok(config.watchFolders.includes(canonicalNodeModules));
