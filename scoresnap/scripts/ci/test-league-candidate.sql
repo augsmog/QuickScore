@@ -85,10 +85,10 @@ DO $$ DECLARE lid uuid := current_setting('test.league_id')::uuid; events jsonb;
   events := public.list_league_events(lid);
   IF jsonb_array_length(events) <> 4 THEN RAISE EXCEPTION 'league event list missing'; END IF;
   SELECT x INTO item FROM jsonb_array_elements(events) x WHERE x->>'id'='00000000-0000-0000-0000-000000000091';
-  IF item->>'authorized' <> 'true' OR item#>>'{rounds,0,players,1,name}' <> 'Avery'
-    OR item#>>'{rounds,0,players,1,holes,0,strokes}' <> '4' THEN RAISE EXCEPTION 'first event snapshot wrong: %',item; END IF;
+  IF item->>'authorized' <> 'true' OR item#>>'{rounds,0,players,0,name}' <> 'Avery'
+    OR item#>>'{rounds,0,players,0,holes,0,strokes}' <> '4' THEN RAISE EXCEPTION 'first event snapshot wrong: %',item; END IF;
   SELECT x INTO item FROM jsonb_array_elements(events) x WHERE x->>'id'='00000000-0000-0000-0000-000000000092';
-  IF item#>>'{rounds,0,players,1,holes,0,strokes}' <> '5' THEN RAISE EXCEPTION 'second event score crossed/missing: %',item; END IF;
+  IF item#>>'{rounds,0,players,0,holes,0,strokes}' <> '5' THEN RAISE EXCEPTION 'second event score crossed/missing: %',item; END IF;
   SELECT x INTO item FROM jsonb_array_elements(events) x WHERE x->>'id'='00000000-0000-0000-0000-000000000093';
   IF item->>'authorized' <> 'false' OR item->'rounds' <> '[]'::jsonb THEN RAISE EXCEPTION 'unapproved event data leaked: %',item; END IF;
   IF (public.request_league_event_join(lid,'00000000-0000-0000-0000-000000000093')->>'status') <> 'pending' THEN RAISE EXCEPTION 'league join request not pending'; END IF;
