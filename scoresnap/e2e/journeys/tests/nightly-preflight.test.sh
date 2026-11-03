@@ -37,4 +37,5 @@ if bash "$CHECK" "$tmp/tree/node_modules" "$tmp/package-lock.json" >"$tmp/out" 2
   exit 1
 fi
 grep -q 'shared node_modules lockfile drift' "$tmp/out"
+node --test "$SCRIPT_DIR/tests/metro-config-node-modules.test.cjs"
 echo 'nightly node_modules and lockfile preflight: PASS'
