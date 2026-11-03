@@ -280,7 +280,7 @@ export const GAME_TYPES: { individual: GameTypeInfo[]; team: GameTypeInfo[] } = 
     { id: "shamble", name: "Shamble", desc: "Best drive, then play own ball", icon: "🔀", category: "Team", isPremium: true, minPlayers: 2, maxPlayers: 40, rules: "All team members tee off. The team selects the best drive. From that spot, each player plays their own ball into the hole. Best individual score from the team counts." },
     { id: "alternate_shot", name: "Alternate Shot", desc: "Partners alternate shots on each hole", icon: "🔁", category: "Team", isPremium: true, minPlayers: 4, maxPlayers: 40, rules: "Partners take turns hitting shots. Player A tees off on odd holes, Player B on even holes. One ball per team, alternating every shot. Very strategic. Lowest gross team total wins. Each losing player pays one unit total, shared equally by the winning pair. Tied lowest teams push." },
     { id: "chapman", name: "Chapman", desc: "Drive, swap, pick best, then alternate", icon: "🌲", category: "Team", isPremium: true, minPlayers: 4, maxPlayers: 40, rules: "Both partners drive. Then they swap balls and hit the second shot. After second shots, the team picks the better ball and alternates shots from there until holed. Lowest gross team total wins. Each losing player pays one unit total, shared equally by the winning pair. Tied lowest teams push." },
-    { id: "fourball", name: "Four-Ball", desc: "Play better-ball or total pair scores", icon: "4️⃣", category: "Team", isPremium: true, minPlayers: 4, maxPlayers: 40, rules: "Each pair plays its own balls. Choose whether the lower score on each hole counts (better-ball match play) or whether all partner strokes are added for a total-score match. Each partner receives an equal share of winnings and losses. Six-player round robin is an explicit choice: each of three pairs plays the other two pairs." },
+    { id: "fourball", name: "Four-Ball", desc: "Play better-ball or total pair scores", icon: "4️⃣", category: "Team", isPremium: true, minPlayers: 4, maxPlayers: 40, rules: "Each pair plays its own balls. Choose whether the lower score on each hole counts (better-ball match play) or whether all partner strokes are added for a total-score match. Partner balances are divided evenly. Six-player round robin is an explicit choice: each of three pairs plays the other two pairs." },
   ],
 };
 
@@ -611,7 +611,7 @@ export function validateVariationSetup(groups: {players: Player[]}[], games: Gam
   // the pair-score choice. Older rulesVersion: 1 contests predate this choice.
   if (games.includes("fourball") && (config.fourBallScoring !== undefined || config.fourBallFormat !== undefined)) {
     if (config.fourBallScoring !== undefined && !["better", "total"].includes(config.fourBallScoring)) return "Choose a supported Four-Ball pair score.";
-    if (config.fourBallFormat !== undefined && config.fourBallFormat !== "round_robin") return "Choose a supported Four-Ball format.";
+    if (config.fourBallFormat !== undefined && config.fourBallFormat !== "round_robin") return "Unsupported match format.";
     if (Math.round(betUnit * 100) % 2 !== 0) return "Four-Ball unit amount must use an even number of cents to split equally between partners.";
     const expectedTeams = config.fourBallFormat === "round_robin" ? 3 : 2;
     for (const group of groups) {

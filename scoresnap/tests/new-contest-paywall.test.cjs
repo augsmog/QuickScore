@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const path = require('node:path');
 const loadTS = require('./helpers/load-ts.cjs');
 const jsx = (type, props) => ({type, props});
 const nodes = n => !n || typeof n !== 'object' ? [] : Array.isArray(n) ? n.flatMap(nodes) : [n, ...nodes(n.props?.children)];
@@ -126,6 +127,16 @@ test('Coming Soon controls do not open plans or hold the navigation guard', () =
   const h = harness('free', {comingSoon: true}); h.seed(4); h.press('NEXT →');
   gameCard(h, 'Skins').onPress(); expect(h.push).not.toHaveBeenCalled();
   h.press('← BACK'); h.byId('add-group').onPress(); expect(h.push).toHaveBeenCalledTimes(1);
+});
+
+test('Four-Ball copy describes equal partner balances without restricted wording', () => {
+  const setup = fs.readFileSync(path.resolve(__dirname, '../app/contest/new.tsx'), 'utf8');
+  const catalog = fs.readFileSync(path.resolve(__dirname, '../src/engine/types.ts'), 'utf8');
+  expect(setup).toContain('Partners share each team result equally.');
+  expect(catalog).toContain('Partner balances are divided evenly.');
+  expect(catalog).toContain('Unsupported match format.');
+  expect(`${setup}\n${catalog}`).not.toMatch(/\bwinnings\b/i);
+  expect(`${setup}\n${catalog}`).not.toContain('Choose a supported Four-Ball format.');
 });
 
 test('Six-player Four-Ball setup saves the explicit round robin and pair-score choice', () => {
