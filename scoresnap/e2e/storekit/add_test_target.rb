@@ -22,6 +22,7 @@ t.resources_build_phase.add_file_reference(group.new_file('SnapScore.storekit'))
 t.add_dependency(app)
 t.build_configurations.each do |c|
   s = c.build_settings
+  s['PRODUCT_NAME'] = '$(TARGET_NAME)' # xcodeproj leaves it empty -> PlugIns/.xctest collision
   s['TEST_HOST'] = "$(BUILT_PRODUCTS_DIR)/#{app_name}.app/#{app_name}"
   s['BUNDLE_LOADER'] = '$(TEST_HOST)'
   s['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.scoresnap.app.storekit-proof-tests'
