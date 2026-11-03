@@ -56,8 +56,21 @@ final class StoreKitProofTests: XCTestCase {
         let group = try XCTUnwrap(annual.subscription?.subscriptionGroupID)
         let before = await Product.SubscriptionInfo.isEligibleForIntroOffer(for: group)
         XCTAssertTrue(before, "fresh history is trial-eligible")
-        _ = try await session.buyProduct(identifier: "snapscore.pro.annual")
-        let after = await Product.SubscriptionInfo.isEligibleForIntroOffer(for: group)
+        // Buy through the app-side StoreKit 2 path (dialogs disabled), the same call the app's purchase flow makes.
+        let result = try await annual.purchase()
+        guard case .success(let verification) = result, case .verified(let txn) = verification else {
+            return XCTFail("purchase did not return a verified transaction: \(result)")
+        }
+        XCTAssertEqual(txn.productID, "snapscore.pro.annual")
+        XCTAssertEqual(txn.offer?.type, .introductory, "first annual purchase used the 1-week intro offer")
+        await txn.finish()
+        // Eligibility is recomputed by the StoreKit test daemon; poll briefly instead of racing it.
+        var after = true
+        for _ in 0..<20 {
+            after = await Product.SubscriptionInfo.isEligibleForIntroOffer(for: group)
+            if !after { break }
+            try await Task.sleep(nanoseconds: 250_000_000)
+        }
         XCTAssertFalse(after, "after a subscription in the group, no second trial")
         session.clearTransactions()
         let cleared = await Product.SubscriptionInfo.isEligibleForIntroOffer(for: group)
