@@ -1,12 +1,33 @@
 # AUG-315: unexecuted iOS simulator draft, not device acceptance.
-# Start on full Settle up for a known, scored, non-sensitive fixture. Record the
+# Start on full Settle up for a known, scored, non-sensitive fixture with all
+# required side-game events confirmed so settlement is not pending. Record the
 # build ID, source SHA, iOS version, simulator model, fixture and expected values.
 # The build must contain the PDF export fix and an entitlement to the full view.
-# iOS share-sheet accessibility has not been inspected; a missing system
-# selector requires hierarchy/visual inspection, not an automatic product FAIL.
-# No message is sent. After this flow manually save and open the PDF locally;
-# compare the course, all holes, totals and results with the fixture. Separate
-# physical recipient-open, offline first-launch and Unicode gates remain open.
+# This only checks the share sheet's Save to Files control. It does NOT prove
+# a PDF attachment, correct content, recipient delivery or physical behavior.
+# The iOS system selector is unverified: if absent or inaccessible, inspect the
+# hierarchy and screen, mark automation inconclusive, and use manual fallback.
+# No message is sent.
+#
+# Manual fallback / remaining acceptance:
+# 1. Record exact build, source, device, OS, fixture, expected values; open the
+#    fixture's full non-pending Settle up view. Capture the export control.
+# 2. Tap Export scorecard (PDF); capture native share sheet and attachment
+#    metadata. Save locally, open the PDF and compare course, all hole scores,
+#    totals and results against fixture. Capture relevant pages.
+# 3. Repeat physical iOS AND physical Android attachment/share-sheet and
+#    recipient-open checks separately using an authorized recipient or local
+#    receiving app; log each platform's result or NOT RUN. A dismissed sheet is
+#    not delivery. No outbound send is authorized by this test draft.
+# 4. Fresh install with networking disabled before first app launch or font
+#    load; provision a reproducible fixture without earlier online launch, then
+#    export, save/reopen and compare PDF offline. If such a fixture cannot be
+#    provisioned, mark the offline gate BLOCKED rather than weakening it.
+# 5. For supported accented Latin/Greek/Cyrillic names, compare preserved,
+#    readable PDF content. For unsupported CJK/emoji, check the approved visible
+#    error and no sharing or substituted glyphs; capture evidence. This does not
+#    close broader character support. File creation is a separate observation;
+#    absence of a share sheet alone cannot prove no file was created.
 appId: com.scoresnap.app
 ---
 - assertVisible:
