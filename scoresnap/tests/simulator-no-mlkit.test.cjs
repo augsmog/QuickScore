@@ -52,6 +52,11 @@ test("simulator-offline is a local-only E2E fixture build, never production env"
   expect(off.env.EXPO_PUBLIC_OFFLINE_MODE).toBe("true");
   expect(off.env.EXPO_PUBLIC_DEMO_MODE).toBe("false");
   expect(off.env.EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING).toBe("false");
+  // No EAS environment means no Sentry auth token; skip the debug-file upload instead of failing the build.
+  expect(off.env.SENTRY_DISABLE_AUTO_UPLOAD).toBe("true");
+  for (const name of Object.keys(eas.build).filter((n) => n !== "simulator-offline")) {
+    expect((eas.build[name].env || {}).SENTRY_DISABLE_AUTO_UPLOAD).toBeUndefined();
+  }
 });
 
 test("production and TestFlight profiles are byte-for-byte what they were", () => {
