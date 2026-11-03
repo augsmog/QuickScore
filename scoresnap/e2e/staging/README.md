@@ -12,7 +12,7 @@ project, no customer data and no spend.
 | player4 | snapscore-staging-player4@example.test | yes |
 | outsider | snapscore-staging-outsider@example.test | no (RLS must hide it) |
 
-- The seeded contest has id `5e5e0000-0000-4000-8000-000000000001`, is called "Staging Seed Round", and is set on the synthetic 18-hole, par-72 course "Staging Synthetic Links". It has 4 players, and the invite code is allocated by the database.
+- The seeded contest has id `5e5e0000-0000-4000-8000-000000000001`, is called "Staging Seed Round", and is set on the synthetic 18-hole, par-72 course "Staging Synthetic Links". It has 4 players and a fixed join code, `STAGE2`.
 - Every run generates fresh random passwords. They are written only to `$RUNNER_TEMP/staging.env` (mode 600) and masked in CI. The uploaded manifest holds no credentials.
 - `seed.mjs` refuses any URL other than `http://127.0.0.1:54321` or `http://localhost:54321`.
 - To run it in CI, use the `E2E disposable staging` workflow (workflow_dispatch). It also runs on PRs that touch migrations. It seeds twice and fails if the second run changes any identity or row.

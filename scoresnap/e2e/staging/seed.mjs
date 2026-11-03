@@ -16,6 +16,8 @@ export const ACCOUNTS = [
 ];
 export const emailFor = role => `snapscore-staging-${role}@example.test`;
 export const CONTEST_ID = '5e5e0000-0000-4000-8000-000000000001';
+// Fixed join code in the server's alphabet (allocate_join_code is not callable by clients; the app supplies its own code).
+export const INVITE_CODE = 'STAGE2';
 export const playerId = i => `5e5e0000-0000-4000-8000-0000000001${String(i).padStart(2, '0')}`;
 export const COURSE = {
   name: 'Staging Synthetic Links',
@@ -91,7 +93,7 @@ export async function seed({ url, anon, service, mask = () => {} }) {
   if (have.json.length === 0) {
     // Same request shape as the app's create path (no return=representation; read back separately).
     const ins = await call(url, '/rest/v1/contests', anon, { method: 'POST', bearer: ownerJwt,
-      body: { id: CONTEST_ID, owner_id: out.accounts.owner.user_id, name: 'Staging Seed Round', course: COURSE, protocol: 0, sync_enabled: false } });
+      body: { id: CONTEST_ID, owner_id: out.accounts.owner.user_id, name: 'Staging Seed Round', course: COURSE, invite_code: INVITE_CODE, protocol: 0, sync_enabled: false } });
     assert.equal(ins.status, 201, `Owner creates staging contest through RLS (${ins.json?.code ?? ''} ${ins.json?.message ?? ''})`);
   }
   const roster = ACCOUNTS.filter(a => a.member).map((a, i) => ({ id: playerId(i + 1), contest_id: CONTEST_ID, user_id: out.accounts[a.role].user_id, name: a.name, handicap: [8, 12, 18, 24][i] }));
@@ -99,6 +101,7 @@ export async function seed({ url, anon, service, mask = () => {} }) {
   assert.ok([200, 201].includes(up.status), `Seed roster status ${up.status}`);
   const contest = (await call(url, `/rest/v1/contests?id=eq.${CONTEST_ID}&select=id,invite_code,owner_id`, service)).json[0];
   assert.equal(contest.owner_id, out.accounts.owner.user_id, 'Seed contest still owned by the staging owner');
+  assert.equal(contest.invite_code, INVITE_CODE, 'Seed contest keeps its fixed join code');
   // Verify every account signs in, members see the round, the outsider does not.
   for (const a of ACCOUNTS) {
     const jwt = await signIn(url, anon, out.accounts[a.role].email, out.accounts[a.role].password);
