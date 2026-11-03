@@ -315,10 +315,10 @@
       "baseline": {
         "activations": 2,
         "timeSamples": [
-          1589
+          267
         ],
-        "measuredAt": "2026-11-01T02:08:59.466Z",
-        "sha": "bce5673993b90720657af6a400a385c27cdf574c",
+        "measuredAt": "2026-11-03T04:59:12.089Z",
+        "sha": "c9e60c8fed50d6032892e7af7d5ac421b00fd7da",
         "platform": "web-offline",
         "flags": {
           "EXPO_PUBLIC_OFFLINE_MODE": true,
