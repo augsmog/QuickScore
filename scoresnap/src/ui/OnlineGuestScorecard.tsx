@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { TournamentCompletion } from './TournamentCompletion';
 import { confirmedTournamentTotals } from '../services/tournament-totals';
 import { projectScore, pendingConfirmation } from '../services/score-projection';
@@ -62,7 +63,7 @@ function ApprovedScorecard({ id, onError }: { id: string; onError: (message: str
         const confirm = () => { void resolveOnlineConflict(entry.id, choice).then(() => client.discover()).then(() => inspectQueue()).catch(() => onError('Could not save conflict choice')); };
         const warning = 'Later queued edits for this hole will be cancelled. Review and enter them again.';
         if (Platform.OS === 'web') { if (globalThis.confirm(`Resolve score conflict? ${warning}`)) confirm(); }
-        else Alert.alert('Resolve score conflict?', warning, [{ text: 'Cancel' }, { text: 'Confirm', onPress: confirm }]);
+        else showAlert('Resolve score conflict?', warning, [{ text: 'Cancel' }, { text: 'Confirm', onPress: confirm }]);
       }}><Text style={{ color: COLORS.primary }}>{choice === 'keep-current' ? 'Keep current' : 'Use my score'}</Text></Pressable>)}
     </View>)}
     <TournamentCompletion id={id} report={onError} />

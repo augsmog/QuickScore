@@ -7,6 +7,7 @@ function load(path, dependencies = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   new Function('require', 'module', 'exports', source)(id => {
+    if (id === '@/services/platform-alert') return { showAlert: (...args) => dependencies['react-native']?.Alert?.alert?.(...args) };
     if (id in dependencies) return dependencies[id];
     throw new Error(`Unmocked dependency: ${id}`);
   }, module, module.exports);

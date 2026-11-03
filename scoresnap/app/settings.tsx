@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../src/ui/SafeScreen";
 import { useState, useCallback } from "react";
 import {
@@ -144,7 +145,7 @@ function PickerRow({
   onSelect: (v: string) => void;
 }) {
   const handlePress = () => {
-    Alert.alert(
+    showAlert(
       label,
       undefined,
       [
@@ -254,9 +255,9 @@ export default function SettingsScreen() {
     setRestoring(true);
     try {
       const restored = await restorePurchases();
-      Alert.alert(C.restore, restored ? C.restored : C.nothing);
+      showAlert(C.restore, restored ? C.restored : C.nothing);
     } catch (error: unknown) {
-      Alert.alert(C.subscription, error instanceof Error ? error.message || C.retry : C.retry);
+      showAlert(C.subscription, error instanceof Error ? error.message || C.retry : C.retry);
     } finally {
       setRestoring(false);
     }
@@ -273,12 +274,12 @@ export default function SettingsScreen() {
       router.replace("/onboarding");
     } catch {
       setDeleting(false);
-      Alert.alert("Error", "Failed to delete account. Please try again.");
+      showAlert("Error", "Failed to delete account. Please try again.");
     }
   };
 
   const handleSignOut = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+    showAlert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Sign Out",
@@ -292,7 +293,7 @@ export default function SettingsScreen() {
   };
 
   const handleResetDefaults = () => {
-    Alert.alert(
+    showAlert(
       "Reset to Defaults",
       "This will reset all settings to their default values.",
       [

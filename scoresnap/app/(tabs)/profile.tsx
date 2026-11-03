@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../../src/ui/SafeScreen";
 import { signedRoundAmount } from "../../src/ui/copy";
 import { calculateContestSettlement } from "../../src/engine/contest-results";
@@ -135,13 +136,13 @@ export default function ProfileScreen() {
         const managementURL = info.managementURL;
 
         if (managementURL) {
-          Alert.alert(
+          showAlert(
             "Manage Subscription",
             `Active: ${activeEntitlements.join(", ") || "None"}\n\nTo manage your subscription, visit your device settings.`,
             [{ text: "OK" }]
           );
         } else {
-          Alert.alert(
+          showAlert(
             "No Active Subscription",
             "You don't have an active subscription to manage."
           );

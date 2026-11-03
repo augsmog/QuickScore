@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { Alert } from 'react-native';
 import { useSettingsStore } from '../stores/settings-store';
 export const OCR_CONSENT_TEXT = "Scorecard photos are sent to Anthropic (Claude), an AI service, to read your scores.";
@@ -12,7 +13,7 @@ export async function requestOCRConsent(): Promise<boolean> {
       resolve(allowed);
       pending = undefined;
     };
-    Alert.alert('Cloud scorecard scanning', OCR_CONSENT_TEXT, [
+    showAlert('Cloud scorecard scanning', OCR_CONSENT_TEXT, [
       {text: "Don't allow", style:'cancel', onPress:()=>choose(false)},
       {text:'Allow', onPress:()=>choose(true)},
     ], {cancelable:false});

@@ -7,6 +7,7 @@ function load(path, dependencies) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   new Function('require', 'module', 'exports', '__DEV__', code)(id => {
+    if (id === '@/services/platform-alert') return { showAlert: jest.fn() };
     if (id in dependencies) return dependencies[id];
     throw new Error('Unexpected dependency: ' + id);
   }, module, module.exports, false);

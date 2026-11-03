@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { onlineEnabled } from '../../../src/services/cross-device';
 import { useOnlineStore } from '../../../src/stores/online-store';
@@ -253,7 +254,7 @@ export default function ScorecardScreen() {
         updateAuxiliaryData(contest.id, "greenies", currentHole, results.greenies, group.id);
       }
       setShowAuxPrompt(false);advanceToNextHole();
-      } catch(error){Alert.alert("Confirm inputs",String(error));}
+      } catch(error){showAlert("Confirm inputs",String(error));}
     },
     [contest.id, group.id, currentHole, updateAuxiliaryData, advanceToNextHole]
   );
@@ -268,7 +269,7 @@ export default function ScorecardScreen() {
       const result=calculateContestSettlement(contest);
       if(result.pending){
         if((contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games,currentHoleInfo,currentPlayerScores))) setShowAuxPrompt(true);
-        Alert.alert("Confirmation required","Enter every score and confirm side-game inputs on every hole before finalizing. Skip leaves that hole pending.");
+        showAlert("Confirmation required","Enter every score and confirm side-game inputs on every hole before finalizing. Skip leaves that hole pending.");
         return;
       }
     }
@@ -281,7 +282,7 @@ export default function ScorecardScreen() {
     const percentComplete = Math.round((totalScores / totalExpected) * 100);
 
     if (percentComplete < 50) {
-      Alert.alert(
+      showAlert(
         "Incomplete Scorecard",
         `Only ${percentComplete}% of scores have been entered. Are you sure you want to finalize?`,
         [
@@ -294,7 +295,7 @@ export default function ScorecardScreen() {
         ]
       );
     } else if (percentComplete < 100) {
-      Alert.alert(
+      showAlert(
         "Finalize Round?",
         `${percentComplete}% of scores entered. Missing scores will be counted as 0. This locks the scorecard.`,
         [
@@ -303,7 +304,7 @@ export default function ScorecardScreen() {
         ]
       );
     } else {
-      Alert.alert(
+      showAlert(
         "Finalize Round?",
         "This will lock scores and calculate final settlements. You can still view results after.",
         [
@@ -316,7 +317,7 @@ export default function ScorecardScreen() {
 
   const doFinalize = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    try {completeContest(contest.id);} catch(error){Alert.alert("Confirmation required",String(error));}
+    try {completeContest(contest.id);} catch(error){showAlert("Confirmation required",String(error));}
   };
 
   // Calculate completion
@@ -459,7 +460,7 @@ export default function ScorecardScreen() {
           {contest.gameConfig.bisqueHandicap && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("bisque")}><Text style={{color:COLORS.primary,padding:12}}>Declare 0–2 Bisque strokes before this hole {auxiliary.bisque?.[currentHole]?"✓":"— required"}</Text></Pressable>}
           {contest.gameConfig.jokerEnabled && <Pressable disabled={group.players.some(p=>p.scores.some(n=>n>0))} onPress={()=>setDeclaration("jokerDeclarations")}><Text style={{color:COLORS.primary,padding:12}}>Record two public Joker holes per player before round {auxiliary.jokerDeclarations?.[0]?"✓":"— required"}</Text></Pressable>}
         </View>}
-        {declaration && <PrePlayDeclarations kind={declaration} players={group.players} course={course} hole={currentHole} config={contest.gameConfig??{}} onClose={()=>setDeclaration(null)} onSave={(key,h,value)=>{try{updateAuxiliaryData(contest.id,key,h,value,group.id);}catch(error){Alert.alert("Invalid declaration",String(error));}}}/>}
+        {declaration && <PrePlayDeclarations kind={declaration} players={group.players} course={course} hole={currentHole} config={contest.gameConfig??{}} onClose={()=>setDeclaration(null)} onSave={(key,h,value)=>{try{updateAuxiliaryData(contest.id,key,h,value,group.id);}catch(error){showAlert("Invalid declaration",String(error));}}}/>}
         {contest.gameConfig?.progressiveSnake && <Text style={{color:COLORS.textDim,paddingHorizontal:20}}>Progressive Snake exposure: after N changes of holder, each opponent receives {contest.betUnit} × 2^N from the final holder. Maximum with this group: {group.players.length*course.holes.length-1} changes. Unsafe numeric amounts cannot settle.</Text>}
         {/* Live Game Status Banners */}
         {liveGameStatus.length > 0 && (

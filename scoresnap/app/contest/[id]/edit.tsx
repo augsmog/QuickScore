@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { useScanStore } from "../../../src/stores/scan-store";
 import { canUseGame, canHostTournament } from "../../../src/services/entitlements";
@@ -148,7 +149,7 @@ export default function EditContestScreen() {
       groups: updatedGroups,
       games: enabledGames,
       betUnit,
-    }); } catch(error){Alert.alert("Review contest changes",String(error));return;}
+    }); } catch(error){showAlert("Review contest changes",String(error));return;}
 
     router.back();
   };

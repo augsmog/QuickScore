@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../src/ui/SafeScreen";
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, Linking, StyleSheet } from 'react-native';
@@ -36,7 +37,7 @@ export default function PaywallScreen() {
     if (busy) return;
     setBusy(true);
     try { await work(); }
-    catch (e: unknown) { Alert.alert(C.subscription, e instanceof Error ? e.message || C.retry : C.retry); }
+    catch (e: unknown) { showAlert(C.subscription, e instanceof Error ? e.message || C.retry : C.retry); }
     finally { setBusy(false); }
   }
   const v = buildPaywallView(packages, eligible, tier, selection);
@@ -47,7 +48,7 @@ export default function PaywallScreen() {
         <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()}><PaywallIcon name="close" /></Pressable>
         <Pressable accessibilityRole="button" disabled={busy} onPress={() => act(async () => {
           const restored = await restorePurchases();
-          Alert.alert(C.restore, restored ? C.restored : C.nothing);
+          showAlert(C.restore, restored ? C.restored : C.nothing);
         })}><Text style={[s.link, { fontSize: 14 }]}>{v.restore}</Text></Pressable>
       </View>
       <View style={{ gap: 4 }}><Text style={s.eyebrow}>{v.eyebrow}</Text><Text style={s.headline}>{v.headline}</Text></View>

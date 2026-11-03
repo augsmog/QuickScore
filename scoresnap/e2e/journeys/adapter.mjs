@@ -96,10 +96,17 @@ export const cases={
     await check('entry',()=>ready(page,'round-scorecard'));
     await act.activate(page.getByTestId('journey-finalize'));
     await check('activation',async()=>assert.equal((await contests(page))[0].status,'active')); await step('finalize-requested');
-    await check('finalize confirm dialog not rendered',async()=>{
-      await page.getByText('Incomplete Scorecard',{exact:true}).waitFor({state:'visible',timeout:1500});
+    const dialog=page.getByRole('dialog');
+    await check('confirmation shown',async()=>{
+      await dialog.waitFor({state:'visible'});
+      assert.equal(await dialog.getByRole('heading',{name:'Incomplete Scorecard'}).isVisible(),true);
+      assert.equal(await dialog.getByRole('button',{name:'Keep Scoring'}).isVisible(),true);
+      assert.equal(await dialog.getByRole('button',{name:'Finalize Anyway'}).isVisible(),true);
     });
-    await act.activate(page.getByText('Keep Scoring',{exact:true}));
-    await check('outcome',async()=>assert.equal((await contests(page))[0].status,'active')); await enter('round-scorecard');
+    await step('confirmation-visible');
+    await act.activate(dialog.getByRole('button',{name:'Keep Scoring'}));
+    await check('outcome',async()=>assert.equal((await contests(page))[0].status,'active'));
+    await check('confirmation dismissed',()=>dialog.waitFor({state:'hidden'}));
+    await step('cancelled'); await enter('round-scorecard');
   },
 };
