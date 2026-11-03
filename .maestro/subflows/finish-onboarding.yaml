@@ -1,0 +1,16 @@
+# Shared: pass the onboarding slides with the real buttons (Skip, then Get Started if shown).
+appId: com.scoresnap.app
+---
+- extendedWaitUntil:
+    visible: "Skip|Next|Get Started"
+    timeout: 45000
+- tapOn:
+    text: "Skip"
+    optional: true
+- tapOn:
+    text: "Get Started"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "home-new-contest"
+    timeout: 30000

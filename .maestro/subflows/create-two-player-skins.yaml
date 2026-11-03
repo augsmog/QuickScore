@@ -1,0 +1,37 @@
+# Shared: create a two-player Skins contest "E2E Round" (Ava, Ben) through the real New Contest form.
+appId: com.scoresnap.app
+---
+- tapOn:
+    id: "home-new-contest"
+- extendedWaitUntil:
+    visible: "Your name"
+    timeout: 15000
+- tapOn: "Your name"
+- inputText: "Ava"
+- tapOn: "Player 2 name"
+- inputText: "Ben"
+- hideKeyboard
+- tapOn:
+    text: "NEXT.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "Skins"
+    timeout: 15000
+- tapOn:
+    text: "Skins"
+    index: 0
+- scrollUntilVisible:
+    element: "NEXT.*"
+    direction: DOWN
+    optional: true
+- tapOn:
+    text: "NEXT.*"
+    index: 0
+- scrollUntilVisible:
+    element: "START CONTEST.*"
+    direction: DOWN
+    optional: true
+- tapOn: "START CONTEST.*"
+- extendedWaitUntil:
+    visible: "Settlement"
+    timeout: 20000
