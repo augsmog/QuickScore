@@ -114,7 +114,7 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
     {!!code && (enabled || !onlineEnabled) && <><Text testID="organizer-join-code" style={{ color: COLORS.primary }}>Join code: {code}</Text>
 
     {!onlineEnabled && <LocalJoinLimitationBanner />}
-    <Pressable onPress={share} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: COLORS.text, paddingVertical: compact ? 4 : 8 }}>{onlineEnabled ? "Copy / share invite" : "Copy / share local invite"}</Text></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel="Invite players" onPress={share} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: COLORS.text, paddingVertical: compact ? 4 : 8 }}>{onlineEnabled ? "Copy / share invite" : "Copy / share local invite"}</Text></Pressable>
     </>}
     {restoredUnavailable && !message && <Text style={{ color: COLORS.textDim }}>{OWNER_INVITE_UNAVAILABLE}</Text>}
     {!!visibleMessage && <Text style={{ color: COLORS.textDim }}>{visibleMessage}</Text>}

@@ -669,6 +669,9 @@ export default function ScorecardScreen() {
                   {/* Score display — tap sets to par, long press clears */}
                   <Pressable
                     testID={`score-par-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set ${player.name} score to par`}
+                    accessibilityState={{ disabled: isCompleted }}
                     onPress={() => {
                       if (!hasScore) setToPar(player.id);
                     }}
