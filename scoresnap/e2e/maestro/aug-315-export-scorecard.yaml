@@ -1,0 +1,25 @@
+# AUG-315: unexecuted iOS simulator draft, not device acceptance.
+# Start on full Settle up for a known, scored, non-sensitive fixture. Record the
+# build ID, source SHA, iOS version, simulator model, fixture and expected values.
+# The build must contain the PDF export fix and an entitlement to the full view.
+# iOS share-sheet accessibility has not been inspected; a missing system
+# selector requires hierarchy/visual inspection, not an automatic product FAIL.
+# No message is sent. After this flow manually save and open the PDF locally;
+# compare the course, all holes, totals and results with the fixture. Separate
+# physical recipient-open, offline first-launch and Unicode gates remain open.
+appId: com.scoresnap.app
+---
+- assertVisible:
+    id: settlement-scroll
+- scrollUntilVisible:
+    element:
+      text: 'Export scorecard \(PDF\)'
+    direction: DOWN
+    timeout: 15000
+- takeScreenshot: aug315-01-export-control
+- tapOn:
+    text: 'Export scorecard \(PDF\)'
+- extendedWaitUntil:
+    visible: 'Save to Files'
+    timeout: 20000
+- takeScreenshot: aug315-02-ios-share-sheet
