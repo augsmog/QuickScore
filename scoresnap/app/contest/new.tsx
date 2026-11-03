@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../../src/ui/SafeScreen";
 import * as Crypto from 'expo-crypto';
 import { useScanStore } from "../../src/stores/scan-store";
@@ -309,7 +310,7 @@ export default function NewContestScreen() {
     if (selectedGames.some(g => g === "skins" || g === "skins_carry")) { cleanConfig.skinsMode = gameConfig.skinsMode; cleanConfig.skinsScope = gameConfig.skinsScope; }
     for (const v of GAME_VARIATIONS) if (v.appliesTo.some(g => selectedGames.includes(g)) && gameConfig[v.configKey] !== undefined) cleanConfig[v.configKey] = gameConfig[v.configKey];
     const error = validateVariationSetup(groups, selectedGames, cleanConfig, Number(betUnit));
-    if (error) { Alert.alert("Review contest rules", error); return; }
+    if (error) { showAlert("Review contest rules", error); return; }
     const contest: Contest = {
       id: Crypto.randomUUID(),
       name: contestName || autoName,

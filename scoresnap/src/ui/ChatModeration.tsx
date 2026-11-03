@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { SheetSurface, FullScreenSheet } from "./SafeScreen";
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
@@ -34,7 +35,7 @@ export function ChatModeration({ messages, context, onRemove }: { messages: Mode
         await reportChatMessage(context, selected.id);
       } else await persist(blockParticipant(preferences, selected));
       setSelected(null); setReport(false);
-      if (kind === 'report') Alert.alert('Report sent', 'The SnapScore team reviews reports within 24 hours.');
+      if (kind === 'report') showAlert('Report sent', 'The SnapScore team reviews reports within 24 hours.');
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }

@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { SheetSurface, FullScreenSheet, SafeScreen } from "../../src/ui/SafeScreen";
 import { GAME_MODE_LIBRARY } from "../../src/engine/game-mode-library";
 import { useScanStore } from "../../src/stores/scan-store";
@@ -44,7 +45,7 @@ export default function HomeScreen() {
   const markDemoSeen = useOnboardingStore((s) => s.markDemoSeen);
 
   const handleDeleteContest = (contest: Contest) => {
-    Alert.alert(
+    showAlert(
       "Delete Contest",
       `Are you sure you want to delete "${contest.name || contest.course.name}"? This cannot be undone.`,
       [

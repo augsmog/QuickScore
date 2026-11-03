@@ -313,7 +313,7 @@
         "timeoutMs": 20000
       },
       "baseline": {
-        "activations": 1,
+        "activations": 2,
         "timeSamples": [
           1589
         ],
@@ -326,23 +326,20 @@
         },
         "fixtureVersion": "two-player-empty-v1"
       },
-      "status": "known_issue",
+      "status": "gated",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
         "activation",
-        "finalize confirm dialog not rendered",
-        "outcome"
+        "confirmation shown",
+        "outcome",
+        "confirmation dismissed"
       ],
-      "knownIssue": {
-        "linear": "AUG-289",
-        "signature": "finalize confirm dialog not rendered",
-        "date": "2026-10-31"
-      },
       "requiredSteps": [
         "entry",
         "finalize-requested",
-        "failed"
+        "confirmation-visible",
+        "cancelled"
       ]
     },
     {
