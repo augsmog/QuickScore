@@ -118,7 +118,7 @@ jobs:
         run: |
           node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs e2e/journeys/reach-report.test.mjs
           OUT_DIR=e2e/journey-screens/td-badge-controls node --test e2e/journeys/paywall-badge.browser.test.mjs
-          node --test e2e/journeys/acceptance-fixtures.test.mjs e2e/journeys/offline-containment.test.mjs e2e/journeys/punctuation-reference.test.mjs e2e/journeys/probe-target.test.mjs e2e/journeys/settlement-row-contract.test.mjs e2e/journeys/text-fragments.test.mjs e2e/journeys/focused-fixtures.test.mjs e2e/journeys/fixture-origin.test.mjs e2e/journeys/ci-registration.test.mjs
+          node --test e2e/journeys/acceptance-fixtures.test.mjs e2e/journeys/offline-containment.test.mjs e2e/journeys/punctuation-reference.test.mjs e2e/journeys/probe-target.test.mjs e2e/journeys/settlement-row-contract.test.mjs e2e/journeys/text-fragments.test.mjs e2e/journeys/focused-fixtures.test.mjs e2e/journeys/fixture-origin.test.mjs e2e/journeys/game-rules.test.mjs e2e/journeys/ci-registration.test.mjs
           OUT_DIR=e2e/journey-screens/fixture-controls node --test e2e/journeys/punctuation-reference.browser.test.mjs e2e/journeys/review-negative.browser.test.mjs e2e/journeys/value-dom-regressions.browser.test.mjs e2e/journeys/settled-timestamp.browser.test.mjs
           pids=()
           for profile in iphone-se iphone-15-pro iphone-pro-max; do

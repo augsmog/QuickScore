@@ -16,7 +16,7 @@ Append only. Owner is the accountable adapter team; issue closure requires remov
 | 2026-10-31 | J-join-code | Successfully join a contest with a code | PM seed / phase 1 cut | GAP: Offline error path does not prove successful backend or cross-device join | SnapScore maintainers | AUG-288 |
 | 2026-10-31 | J-guest-join-web | Join from a guest shared link | PM seed / phase 1 cut | GAP: Guest identity and backend joining deferred; existing sharing suites retained | SnapScore maintainers | AUG-288 |
 | 2026-10-31 | J-reopen-after-crash | Recover a round after a process crash | PM seed / phase 1 cut | GAP: Reload persistence is gated; process kill/crash recovery is separate coverage | SnapScore maintainers | AUG-288 |
-| 2026-10-31 | J-game-rules | Find the rules for a game from Home | PM seed / phase 1 cut | GAP: Rules discovery adapter deferred to next phase | SnapScore maintainers | AUG-288 |
+| 2026-11-03 | J-game-rules | Find the rules for a game from Home | AUG-313 | Open game library, choose Skins by exact role/name, confirm rule sheet and return Home; bounded to 3 activations | SnapScore maintainers | AUG-313 |
 | 2026-10-31 | J-finalize-settle | Web finalize confirmation must render before locking scores | Pressure-test audit | Strict xfail: finalize confirm dialog not rendered | SnapScore maintainers | AUG-289 |
 | 2026-10-31 | J-invite-from-round | Invite must be above fold and named | Reachability audit | Copy outcome gated; no-accessible-name strict feature xfail | SnapScore maintainers | AUG-290 / AUG-306 |
 | 2026-10-31 | J-score-hand | Complete 18 holes without excessive navigation | Usability audit | GAP: full-18 adapter deferred; hole-1 persistence is executable | SnapScore maintainers | AUG-291 |

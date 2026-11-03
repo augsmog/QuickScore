@@ -579,23 +579,51 @@
       ],
       "start": "home",
       "fixture": "fresh-context-v1",
-      "features": [],
+      "features": [
+        {
+          "name": "game-library",
+          "role": "button",
+          "accessibleName": "See all game modes",
+          "visibleText": "See All",
+          "class": "core",
+          "maxActivations": 1,
+          "maxScrolls": 0,
+          "testId": "home-see-all-modes",
+          "start": "home"
+        },
+        {
+          "name": "skins-rules",
+          "role": "button",
+          "accessibleName": "Skins",
+          "visibleText": "Skins",
+          "class": "supporting",
+          "maxActivations": 2,
+          "maxScrolls": 1,
+          "testId": "game-mode-row-skins",
+          "start": "home"
+        }
+      ],
       "budget": {
-        "activations": 6,
-        "screens": 4,
+        "activations": 3,
+        "screens": 5,
         "timeoutMs": 20000
       },
       "baseline": null,
-      "status": "deferred",
+      "status": "gated",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
-        "activation",
-        "destination",
+        "library",
+        "rule",
         "outcome"
       ],
-      "deferredReason": "Rules discovery adapter deferred to next phase",
-      "requiredSteps": []
+      "requiredSteps": [
+        "entry",
+        "game-library",
+        "game-modes-scroll",
+        "skins-rules",
+        "home-restored"
+      ]
     },
     {
       "id": "J-settlement-mark-lifecycle",
