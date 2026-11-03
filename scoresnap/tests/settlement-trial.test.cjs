@@ -33,7 +33,7 @@ function screen(packages = { annual: annual() }, status = 1) {
   };
   const extras = {
     'services/purchases': { getPackages, waitForPurchaseIdentity, isPurchaseIdentityCurrent: r => current && r === revision },
-    'services/paywall-plans': plans, 'services/scorecard-pdf-font':{},'services/scorecard-pdf': {}, 'services/share-scorecard-pdf': {}, 'engine/contest-results': {}, 'engine/calculators/skins': {},
+    'services/paywall-plans': plans, 'services/scorecard-pdf-font':{},'services/scorecard-pdf': {}, 'services/share-scorecard-pdf': {}, 'services/live-share-url-state': { liveShareScope: (actor, id) => JSON.stringify([actor, id]), useLiveShareUrl: () => undefined }, 'engine/contest-results': {}, 'engine/calculators/skins': {},
     'stores/auth-store': { useAuthStore: f => f(auth) }, 'stores/scan-store': { useScanStore: f => f(scan) },
     'stores/contest-store': { useContestStore: f => f({ contests: [] }) }, 'services/entitlements': { canSeeSettlement: tier => tier !== 'free' },
     'ui/recap/RecapCard': {}, 'ui/recap/model': {}, 'ui/LiveShare': {}, 'ui/copy': {}, 'ui/theme': { COLORS: {}, FONTS: {}, TYPOGRAPHY: {}, RADII: {} },

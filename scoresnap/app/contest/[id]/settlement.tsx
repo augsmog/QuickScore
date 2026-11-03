@@ -19,7 +19,7 @@ import { type Contest, useContestStore } from "../../../src/stores/contest-store
 import { canSeeSettlement } from "../../../src/services/entitlements";
 import { RecapCard } from "../../../src/ui/recap/RecapCard";
 import { buildRecapModel } from "../../../src/ui/recap/model";
-import { LiveShare } from "../../../src/ui/LiveShare";
+import { liveShareScope, useLiveShareUrl } from "../../../src/services/live-share-url-state";
 import { settlementLeader } from "../../../src/ui/copy";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 
@@ -112,7 +112,6 @@ export default function SettlementScreen() {
         <Pressable testID="settle-free-share" accessibilityRole="button" onPress={() => Share.share({ message: [contest.name, ...(contest.rounds?.find(r => r.number === contest.currentRound)?.groups ?? contest.groups).flatMap(g => g.players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`))].join("\n") })} style={outlinedButton}>
           <Text style={{ color: COLORS.primary, fontFamily: FONTS.semibold }}>Share results (free)</Text>
         </Pressable>
-        <LiveShare contest={contest} />
       </>}
       <Pressable accessibilityRole="link" onPress={() => router.push('/paywall')} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}>
         <Text style={{ color: COLORS.primary }}>See all plans</Text>
@@ -125,8 +124,8 @@ function SettlementScreenContent() {
   const pdfExportPending = useRef(false);
   const { id } = useLocalSearchParams<{ id: string }>();
   const contest = useContestStore(s => s.contests.find(c => c.id === id));
-  const [liveUrl, setLiveUrl] = useState<string>();
   const accountId = useAuthStore(s => s.user?.id ?? s.remoteUserId ?? null);
+  const liveUrl = useLiveShareUrl(liveShareScope(accountId, id));
   const scope = settlementScope(accountId, id);
   const [pdfError, setPdfError] = useState<{ scope: string; contest: Contest } | null>(null);
   useEffect(() => { setPdfError(null); }, [scope, contest]);
@@ -304,7 +303,6 @@ function SettlementScreenContent() {
           liveUrl: contest.liveShareEnabled ? liveUrl : undefined,
         })} />
         <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Screenshot this card to share your round.</Text>
-        <LiveShare contest={contest} onLinkChange={setLiveUrl} />
       </View>
 
       <View style={{ gap: 12 }}>
