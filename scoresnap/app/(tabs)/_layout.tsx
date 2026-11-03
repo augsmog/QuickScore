@@ -3,6 +3,7 @@ import { View, StyleSheet } from "react-native";
 import { Home, Trophy, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, FONTS } from "../../src/ui/theme";
+import { tabBarHeight } from "../../src/ui/tab-bar-metrics";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -22,7 +23,7 @@ export default function TabLayout() {
           borderTopRightRadius: 20,
           paddingBottom: Math.max(insets.bottom, 8),
           paddingTop: 10,
-          height: 68 + Math.max(insets.bottom - 8, 0),
+          height: tabBarHeight(insets.bottom),
           shadowColor: COLORS.primary,
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.04,
