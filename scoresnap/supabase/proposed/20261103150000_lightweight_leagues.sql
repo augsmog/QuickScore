@@ -96,7 +96,7 @@ BEGIN
     RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='EVENT_ALREADY_IN_ANOTHER_LEAGUE';
   END IF;
   INSERT INTO public.league_events(league_id,contest_id,linked_by)
-    VALUES(l.id,c.id,uid) ON CONFLICT(league_id,contest_id) DO NOTHING;
+    VALUES(l.id,c.id,uid) ON CONFLICT ON CONSTRAINT league_events_pkey DO NOTHING;
   UPDATE public.contests SET league_id=l.id WHERE id=c.id AND league_id IS NULL;
 
   -- Each approved event identity gets one reusable league player UUID. Event
@@ -111,7 +111,7 @@ BEGIN
     ORDER BY (px.id=m.player_id) DESC LIMIT 1
   ) p ON true
   WHERE m.contest_id=c.id AND m.status='approved'
-  ON CONFLICT(league_id,user_id) DO UPDATE SET
+  ON CONFLICT ON CONSTRAINT league_memberships_pkey DO UPDATE SET
     display_name=CASE WHEN existing.display_name='Host' THEN EXCLUDED.display_name ELSE existing.display_name END,
     updated_at=now();
 
@@ -125,7 +125,7 @@ BEGIN
   ) p ON true
   JOIN public.league_memberships lm ON lm.league_id=l.id AND lm.user_id=m.user_id AND lm.status='active'
   WHERE m.contest_id=c.id AND m.status='approved'
-  ON CONFLICT(league_id,contest_id,league_player_id) DO UPDATE SET contest_player_id=EXCLUDED.contest_player_id;
+  ON CONFLICT ON CONSTRAINT league_event_players_pkey DO UPDATE SET contest_player_id=EXCLUDED.contest_player_id;
   GET DIAGNOSTICS linked=ROW_COUNT;
   RETURN jsonb_build_object('status','linked','mapped_players',linked);
 END $$;
@@ -143,7 +143,7 @@ BEGIN
   END IF;
   INSERT INTO public.league_event_players(league_id,contest_id,league_player_id,contest_player_id)
     VALUES($1,$2,$3,$4)
-    ON CONFLICT(league_id,contest_id,league_player_id) DO UPDATE SET contest_player_id=EXCLUDED.contest_player_id;
+    ON CONFLICT ON CONSTRAINT league_event_players_pkey DO UPDATE SET contest_player_id=EXCLUDED.contest_player_id;
   RETURN jsonb_build_object('status','mapped');
 END $$;
 
@@ -215,7 +215,7 @@ BEGIN
   IF player IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='EVENT_PLAYER_NOT_MAPPED'; END IF;
   INSERT INTO public.contest_join_requests(contest_id,requester,requested_name,desired_player_id)
     VALUES(c.id,uid,lm.display_name,player)
-    ON CONFLICT(contest_id,requester) WHERE status='pending' DO NOTHING;
+    ON CONFLICT DO NOTHING;
   RETURN jsonb_build_object('status','pending');
 END $$;
 
