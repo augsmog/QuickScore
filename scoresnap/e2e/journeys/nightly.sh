@@ -13,7 +13,7 @@ export HARNESS_SHA
 HARNESS_SHA=$(git -C "$HARNESS_DIR" rev-parse HEAD)
 RUN_ROOT=${RUN_ROOT:-/workspace/aos-state/test-program/runs}
 REPO_DIR=${REPO_DIR:-/workspace/aos-state/test-program/repo}
-NODE_MODULES_SRC=${NODE_MODULES_SRC:-/workspace/ss-rc-build-1030/scoresnap/node_modules}
+NODE_MODULES_SRC=${NODE_MODULES_SRC:-/workspace/aos-state/test-program/nm/current/node_modules}
 export RUN_DATE RUN_DIR ATTEMPT_DIR STALE_WARNING
 RUN_DATE=$(TZ=America/Los_Angeles date +%F)
 RUN_DIR="$RUN_ROOT/$RUN_DATE"
@@ -59,9 +59,10 @@ export GIT_SHA
 GIT_SHA=$(git -C "$REPO_DIR" rev-parse HEAD)
 echo "$GIT_SHA" > "$ATTEMPT_DIR/main-sha.txt"
 cd "$REPO_DIR/scoresnap"
-if [[ ! -e node_modules ]]; then ln -s "$NODE_MODULES_SRC" node_modules; fi
+"$HARNESS_DIR/check-node-modules-lock.sh" "$NODE_MODULES_SRC" package-lock.json
+"$HARNESS_DIR/ensure-node-modules-link.sh" "$NODE_MODULES_SRC" node_modules
 # Invoke installed CLI directly so an absent dependency can never cause a download.
-CI=1 EXPO_OFFLINE=1 EXPO_NO_TELEMETRY=1 EXPO_PUBLIC_OFFLINE_MODE=true EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true \
+SNAPSCORE_NIGHTLY_NODE_MODULES="$NODE_MODULES_SRC" CI=1 EXPO_OFFLINE=1 EXPO_NO_TELEMETRY=1 EXPO_PUBLIC_OFFLINE_MODE=true EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true \
   node node_modules/expo/bin/cli export --platform web --output-dir dist-web-journeys --clear > "$ATTEMPT_DIR/export.log" 2>&1
 # Prefer 8193; a local bind chooses a free fallback if occupied.
 PORT=$(node --input-type=module - "${PORT:-8193}" <<'JS'
