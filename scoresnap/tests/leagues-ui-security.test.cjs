@@ -18,19 +18,27 @@ function fixture(initialAuth, serviceOverrides = {}) {
   }
   useAuthStore.getState = () => auth;
   useAuthStore.setState = update => { auth = { ...auth, ...update }; subscribers.forEach(cb => cb()); };
+  useAuthStore.subscribe = listener => {
+    let previous = auth;
+    const notify = () => { const next = auth; listener(next, previous); previous = next; };
+    subscribers.add(notify);
+    return () => subscribers.delete(notify);
+  };
 
   const service = {
     list: jest.fn(async () => []), events: jest.fn(async () => []), roster: jest.fn(async () => []),
     create: jest.fn(), linkEvent: jest.fn(), setMemberActive: jest.fn(), requestEventJoin: jest.fn(),
     mapOptions: jest.fn(), mapPlayer: jest.fn(), ...serviceOverrides,
   };
-  const hostTypes = { View: 'View', Text: 'Text', TextInput: 'TextInput', ActivityIndicator: 'ActivityIndicator', Pressable: 'Pressable' };
+  const hostTypes = { View: 'View', ScrollView: 'ScrollView', Text: 'Text', TextInput: 'TextInput', ActivityIndicator: 'ActivityIndicator', Pressable: 'Pressable' };
   const deps = {
     react: React, 'react/jsx-runtime': require('react/jsx-runtime'),
     'react-native': hostTypes,
     'expo-router': { useRouter: () => ({ push: jest.fn() }) },
     '../../src/ui/SafeScreen': { SafeScreen: ({ children, ...props }) => React.createElement('View', props, children) },
     '../../src/ui/theme': { COLORS: { bg: 'bg', text: 'text', textDim: 'muted', primary: 'primary', onPrimary: 'on', surface: 'surface', danger: 'danger' }, FONTS: { headline: 'h', bold: 'b', regular: 'r' }, RADII: { md: 4, lg: 8 }, TYPOGRAPHY: { headline: {}, body: {}, label: {} } },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 16 }) },
+    '../../src/ui/tab-bar-metrics': { tabBarHeight: bottom => 68 + Math.max(bottom - 8, 0) },
     '../../src/config/features': { CROSS_DEVICE_SHARING_ENABLED: true },
     '../../src/stores/auth-store': { useAuthStore },
     '../../src/stores/online-store': { useOnlineStore: selector => selector({ events: {} }) },
@@ -81,5 +89,89 @@ test('changing identity clears prior league data immediately and a denied fetch 
     await act(async () => { f.auth.setState({ remoteUserId: 'account-b' }); });
     expect(flatten(tree.toJSON())).toContain('LEAGUE_HOST_REQUIRED');
     expect(flatten(tree.toJSON())).not.toContain('Weeknight');
+  } finally { if (tree) await act(async () => tree.unmount()); }
+});
+
+test('batched A to B to A identity cycle rejects the first account A load', async () => {
+  const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
+  const firstA = deferred();
+  let accountACalls = 0;
+  const f = fixture({ remoteUserId: 'account-a', isAnonymous: false }, {
+    list: jest.fn(() => {
+      if (f.auth.getState().remoteUserId === 'account-a' && ++accountACalls === 1) return firstA.promise;
+      const actor = f.auth.getState().remoteUserId;
+      return Promise.resolve([{ ...league, id: `league-${actor}`, name: `${actor} league`, role: 'player' }]);
+    }),
+    events: jest.fn(async leagueId => [{ ...privateEvent, id: `event-${leagueId}`, name: `${leagueId} event`, authorized: true }]),
+  });
+  let tree;
+  try {
+    await act(async () => { tree = create(React.createElement(f.Screen)); });
+    await act(async () => { f.auth.setState({ remoteUserId: 'account-b' }); f.auth.setState({ remoteUserId: 'account-a' }); });
+    expect(flatten(tree.toJSON())).toContain('account-a league');
+    expect(f.service.list.mock.calls.length).toBeGreaterThan(1);
+
+    await act(async () => { firstA.resolve([{ ...league, id: 'stale-league-a', name: 'Stale account A league', role: 'player' }]); });
+    expect(flatten(tree.toJSON())).not.toContain('Stale account A league');
+    expect(flatten(tree.toJSON())).toContain('account-a league');
+  } finally { if (tree) await act(async () => tree.unmount()); }
+});
+
+test('a completed join request cannot mark a different account as pending', async () => {
+  let resolve;
+  const request = new Promise(r => { resolve = r; });
+  const f = fixture({ remoteUserId: 'account-a', isAnonymous: true }, {
+    list: jest.fn(async () => [league]), events: jest.fn(async () => [privateEvent]),
+    requestEventJoin: jest.fn(() => request),
+  });
+  let tree;
+  try {
+    await act(async () => { tree = create(React.createElement(f.Screen)); });
+    await act(async () => { tree.root.findAllByType('Text').find(node => node.props.children === 'REQUEST EVENT ACCESS').parent.props.onPress(); });
+    await act(async () => { f.auth.setState({ remoteUserId: 'account-b' }); });
+    expect(flatten(tree.toJSON())).not.toContain('REQUEST PENDING');
+    await act(async () => { resolve({ status: 'pending' }); });
+    expect(flatten(tree.toJSON())).not.toContain('REQUEST PENDING');
+  } finally { if (tree) await act(async () => tree.unmount()); }
+});
+
+test('late mapping options from a previous account are discarded', async () => {
+  const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
+  const accountA = deferred(), accountB = deferred();
+  const f = fixture({ remoteUserId: 'account-a', isAnonymous: false }, {
+    list: jest.fn(async () => [{ ...league, id: f.auth.getState().remoteUserId === 'account-a' ? 'league-a' : 'league-b', name: f.auth.getState().remoteUserId === 'account-a' ? 'A league' : 'B league', role: 'host' }]),
+    events: jest.fn(async leagueId => [{ ...privateEvent, id: leagueId === 'league-a' ? 'event-a' : 'event-b', name: leagueId === 'league-a' ? 'A event' : 'B event', authorized: true }]),
+    roster: jest.fn(async () => []),
+    mapOptions: jest.fn(leagueId => leagueId === 'league-a' ? accountA.promise : accountB.promise),
+  });
+  let tree;
+  const press = label => tree.root.findAllByType('Text').find(node => node.props.children === label).parent.props.onPress;
+  try {
+    await act(async () => { tree = create(React.createElement(f.Screen)); });
+    expect(tree.root.findAllByType('ScrollView')).toHaveLength(1);
+    expect(tree.root.findByType('ScrollView').props.contentContainerStyle.paddingBottom).toBe(92);
+    await act(async () => { press('MAP ROSTER TO EVENT')(); });
+
+    await act(async () => { f.auth.setState({ remoteUserId: 'account-b' }); });
+    expect(flatten(tree.toJSON())).toContain('B event');
+    await act(async () => { press('MAP ROSTER TO EVENT')(); });
+    await act(async () => { accountA.resolve({ roster: [{ id: 'private-a', name: 'Account A private roster' }], players: [{ id: 'player-a', name: 'Account A private player' }], mappings: [] }); });
+
+    expect(flatten(tree.toJSON())).not.toContain('Account A private roster');
+    expect(flatten(tree.toJSON())).not.toContain('Account A private player');
+    expect(flatten(tree.toJSON())).toContain('B event');
+  } finally { if (tree) await act(async () => tree.unmount()); }
+});
+
+test('authorized league event lists per-hole scores', async () => {
+  const f = fixture({ remoteUserId: 'account-a', isAnonymous: false }, {
+    list: jest.fn(async () => [{ ...league, role: 'host' }]),
+    events: jest.fn(async () => [{ ...privateEvent, authorized: true, rounds: [{ number: '1', players: [{ name: 'Avery', holes: [{ hole: 1, strokes: 4 }, { hole: 2, strokes: 5 }] }] }] }]),
+    roster: jest.fn(async () => []),
+  });
+  let tree;
+  try {
+    await act(async () => { tree = create(React.createElement(f.Screen)); });
+    expect(flatten(tree.toJSON())).toContain('1:4 2:5');
   } finally { if (tree) await act(async () => tree.unmount()); }
 });

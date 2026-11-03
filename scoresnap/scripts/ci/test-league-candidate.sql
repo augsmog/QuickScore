@@ -51,8 +51,8 @@ DO $$ DECLARE lid uuid; BEGIN
     '00000000-0000-0000-0000-000000000302');
   PERFORM public.write_score('00000000-0000-0000-0000-000000000091',NULL,'00000000-0000-0000-0000-000000000102',1,'set',4,0,'00000000-0000-0000-0000-000000000401','league-event-one');
   PERFORM public.write_score('00000000-0000-0000-0000-000000000092',NULL,'00000000-0000-0000-0000-000000000202',1,'set',5,0,'00000000-0000-0000-0000-000000000402','league-event-two');
-  IF jsonb_array_length(public.list_my_leagues()) <> 1 THEN RAISE EXCEPTION 'league list missing'; END IF;
-  IF jsonb_array_length(public.list_league_roster(lid)) <> 4 THEN RAISE EXCEPTION 'roster import failed'; END IF;
+  IF jsonb_array_length(public.list_my_leagues()) IS DISTINCT FROM 1 THEN RAISE EXCEPTION 'league list missing'; END IF;
+  IF jsonb_array_length(public.list_league_roster(lid)) IS DISTINCT FROM 4 THEN RAISE EXCEPTION 'roster import failed'; END IF;
   IF has_table_privilege('authenticated','public.league_memberships','SELECT') THEN RAISE EXCEPTION 'direct roster table access'; END IF;
   IF has_function_privilege('anon','public.list_my_leagues()','EXECUTE') THEN RAISE EXCEPTION 'anon list RPC grant'; END IF;
 END $$;
@@ -60,8 +60,8 @@ END $$;
 -- API grants and RLS must work as PostgREST's authenticated role, not just as postgres.
 SET LOCAL ROLE authenticated;
 DO $$ DECLARE lid uuid := current_setting('test.league_id')::uuid; BEGIN
-  IF jsonb_array_length(public.list_my_leagues()) <> 1 THEN RAISE EXCEPTION 'authenticated league list RPC denied'; END IF;
-  IF jsonb_array_length(public.list_league_events(lid)) <> 4 THEN RAISE EXCEPTION 'authenticated event list RPC denied'; END IF;
+  IF jsonb_array_length(public.list_my_leagues()) IS DISTINCT FROM 1 THEN RAISE EXCEPTION 'authenticated league list RPC denied'; END IF;
+  IF jsonb_array_length(public.list_league_events(lid)) IS DISTINCT FROM 4 THEN RAISE EXCEPTION 'authenticated event list RPC denied'; END IF;
 END $$;
 RESET ROLE;
 
@@ -83,15 +83,15 @@ SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-00000000
 SET LOCAL ROLE authenticated;
 DO $$ DECLARE lid uuid := current_setting('test.league_id')::uuid; events jsonb; item jsonb; BEGIN
   events := public.list_league_events(lid);
-  IF jsonb_array_length(events) <> 4 THEN RAISE EXCEPTION 'league event list missing'; END IF;
+  IF jsonb_array_length(events) IS DISTINCT FROM 4 THEN RAISE EXCEPTION 'league event list missing'; END IF;
   SELECT x INTO item FROM jsonb_array_elements(events) x WHERE x->>'id'='00000000-0000-0000-0000-000000000091';
-  IF item->>'authorized' <> 'true' OR item#>>'{rounds,0,players,0,name}' <> 'Avery'
-    OR item#>>'{rounds,0,players,0,holes,0,strokes}' <> '4' THEN RAISE EXCEPTION 'first event snapshot wrong: %',item; END IF;
+  IF item->>'authorized' IS DISTINCT FROM 'true' OR item#>>'{rounds,0,players,0,name}' IS DISTINCT FROM 'Avery'
+    OR item#>>'{rounds,0,players,0,holes,0,strokes}' IS DISTINCT FROM '4' THEN RAISE EXCEPTION 'first event snapshot wrong: %',item; END IF;
   SELECT x INTO item FROM jsonb_array_elements(events) x WHERE x->>'id'='00000000-0000-0000-0000-000000000092';
-  IF item#>>'{rounds,0,players,0,holes,0,strokes}' <> '5' THEN RAISE EXCEPTION 'second event score crossed/missing: %',item; END IF;
+  IF item#>>'{rounds,0,players,0,holes,0,strokes}' IS DISTINCT FROM '5' THEN RAISE EXCEPTION 'second event score crossed/missing: %',item; END IF;
   SELECT x INTO item FROM jsonb_array_elements(events) x WHERE x->>'id'='00000000-0000-0000-0000-000000000093';
-  IF item->>'authorized' <> 'false' OR item->'rounds' <> '[]'::jsonb THEN RAISE EXCEPTION 'unapproved event data leaked: %',item; END IF;
-  IF (public.request_league_event_join(lid,'00000000-0000-0000-0000-000000000093')->>'status') <> 'pending' THEN RAISE EXCEPTION 'league join request not pending'; END IF;
+  IF item->>'authorized' IS DISTINCT FROM 'false' OR item->'rounds' IS DISTINCT FROM '[]'::jsonb THEN RAISE EXCEPTION 'unapproved event data leaked: %',item; END IF;
+  IF (public.request_league_event_join(lid,'00000000-0000-0000-0000-000000000093')->>'status') IS DISTINCT FROM 'pending' THEN RAISE EXCEPTION 'league join request not pending'; END IF;
   BEGIN PERFORM public.fetch_snapshot('00000000-0000-0000-0000-000000000093',0); RAISE EXCEPTION 'unapproved event snapshot was readable';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
@@ -125,7 +125,7 @@ RESET ROLE;
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000083","role":"authenticated","is_anonymous":true}',true);
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
-  IF (public.request_league_event_join(current_setting('test.league_id')::uuid,'00000000-0000-0000-0000-000000000093')->>'status') <> 'pending' THEN
+  IF (public.request_league_event_join(current_setting('test.league_id')::uuid,'00000000-0000-0000-0000-000000000093')->>'status') IS DISTINCT FROM 'pending' THEN
     RAISE EXCEPTION 'guest event access request was not pending';
   END IF;
 END $$;
@@ -145,7 +145,8 @@ SET LOCAL ROLE authenticated;
 DO $$ DECLARE events jsonb; item jsonb; BEGIN
   events := public.list_league_events(current_setting('test.league_id')::uuid);
   SELECT x INTO item FROM jsonb_array_elements(events) x WHERE x->>'id'='00000000-0000-0000-0000-000000000093';
-  IF item->>'authorized'<>'true' OR item->'rounds'='[]'::jsonb THEN RAISE EXCEPTION 'approved guest could not read mapped event'; END IF;
+  IF item->>'authorized' IS DISTINCT FROM 'true' OR jsonb_typeof(item->'rounds') IS DISTINCT FROM 'array'
+    OR jsonb_array_length(item->'rounds') IS DISTINCT FROM 1 THEN RAISE EXCEPTION 'approved guest could not read mapped event'; END IF;
 END $$;
 RESET ROLE;
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000081","role":"authenticated","is_anonymous":false}',true);
@@ -161,20 +162,40 @@ END $$;
 RESET ROLE;
 
 INSERT INTO public.leagues(id,owner_id,name) VALUES ('00000000-0000-0000-0000-000000000086','00000000-0000-0000-0000-000000000085','Guest-only shared league');
-INSERT INTO public.league_memberships(league_id,user_id,display_name) VALUES ('00000000-0000-0000-0000-000000000086','00000000-0000-0000-0000-000000000083','Guest');
+INSERT INTO public.league_memberships(league_id,user_id,display_name,role) VALUES
+ ('00000000-0000-0000-0000-000000000086','00000000-0000-0000-0000-000000000085','Owner','host'),
+ ('00000000-0000-0000-0000-000000000086','00000000-0000-0000-0000-000000000083','Guest','player');
+INSERT INTO public.contests(id,owner_id,name,course,status,invite_code,protocol,sync_enabled) VALUES
+ ('00000000-0000-0000-0000-000000000096','00000000-0000-0000-0000-000000000081','Independent event','{"holes":[{"num":1,"par":4}]}','active','FALLBACK1',1,true);
+INSERT INTO public.contest_players(id,contest_id,user_id,name,scores) VALUES
+ ('00000000-0000-0000-0000-000000000961','00000000-0000-0000-0000-000000000096','00000000-0000-0000-0000-000000000083','Guest',ARRAY[0]);
+INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status) VALUES
+ ('00000000-0000-0000-0000-000000000096','00000000-0000-0000-0000-000000000081','host',NULL,'approved'),
+ ('00000000-0000-0000-0000-000000000096','00000000-0000-0000-0000-000000000083','player','00000000-0000-0000-0000-000000000961','approved');
+INSERT INTO public.league_events(league_id,contest_id,linked_by) VALUES
+ ('00000000-0000-0000-0000-000000000086','00000000-0000-0000-0000-000000000096','00000000-0000-0000-0000-000000000085');
+INSERT INTO public.league_event_players(league_id,contest_id,league_player_id,contest_player_id)
+ SELECT '00000000-0000-0000-0000-000000000086','00000000-0000-0000-0000-000000000096',m.league_player_id,'00000000-0000-0000-0000-000000000961'
+ FROM public.league_memberships m WHERE m.league_id='00000000-0000-0000-0000-000000000086' AND m.user_id='00000000-0000-0000-0000-000000000083';
+UPDATE public.contests SET league_id='00000000-0000-0000-0000-000000000086' WHERE id='00000000-0000-0000-0000-000000000096';
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000083","role":"authenticated","is_anonymous":true}',true);
+SELECT public.write_score('00000000-0000-0000-0000-000000000096',NULL,'00000000-0000-0000-0000-000000000961',1,'set',4,0,'00000000-0000-0000-0000-000000000961','fallback-preserve');
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000081","role":"authenticated","is_anonymous":false}',true);
+SELECT public.purge_account('00000000-0000-0000-0000-000000000085');
+DELETE FROM auth.users WHERE id='00000000-0000-0000-0000-000000000085';
 DO $$ BEGIN
-  BEGIN DELETE FROM auth.users WHERE id='00000000-0000-0000-0000-000000000085';
-    RAISE EXCEPTION 'owner deletion orphaned a guest-shared league';
-  EXCEPTION WHEN SQLSTATE '55000' THEN NULL; END;
-  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id='00000000-0000-0000-0000-000000000085') THEN RAISE EXCEPTION 'guest-only ownership transfer did not block deletion'; END IF;
+  IF EXISTS (SELECT 1 FROM public.leagues WHERE id='00000000-0000-0000-0000-000000000086') THEN RAISE EXCEPTION 'guest-only league remained without an owner'; END IF;
+  IF EXISTS (SELECT 1 FROM public.league_events WHERE contest_id='00000000-0000-0000-0000-000000000096') OR EXISTS (SELECT 1 FROM public.league_event_players WHERE contest_id='00000000-0000-0000-0000-000000000096') THEN RAISE EXCEPTION 'orphan league links or mappings remained'; END IF;
+  IF (SELECT league_id FROM public.contests WHERE id='00000000-0000-0000-0000-000000000096') IS NOT NULL THEN RAISE EXCEPTION 'contest retained a deleted league id'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.contest_memberships WHERE contest_id='00000000-0000-0000-0000-000000000096' AND user_id='00000000-0000-0000-0000-000000000083' AND status='approved') THEN RAISE EXCEPTION 'independent event membership was deleted'; END IF;
+  IF (SELECT strokes FROM public.score_events WHERE contest_id='00000000-0000-0000-0000-000000000096' AND player_id='00000000-0000-0000-0000-000000000961' AND hole=1 AND cell_version IS NOT NULL ORDER BY cell_version DESC LIMIT 1) IS DISTINCT FROM 4 THEN RAISE EXCEPTION 'independent event score was deleted'; END IF;
 END $$;
 INSERT INTO public.leagues(id,owner_id,name) VALUES ('00000000-0000-0000-0000-000000000087','00000000-0000-0000-0000-000000000086','Owner-only league');
 INSERT INTO public.league_memberships(league_id,user_id,display_name,role) VALUES ('00000000-0000-0000-0000-000000000087','00000000-0000-0000-0000-000000000086','Owner','host');
+SELECT public.purge_account('00000000-0000-0000-0000-000000000086');
+DELETE FROM auth.users WHERE id='00000000-0000-0000-0000-000000000086';
 DO $$ BEGIN
-  BEGIN DELETE FROM auth.users WHERE id='00000000-0000-0000-0000-000000000086';
-    RAISE EXCEPTION 'owner-only league deletion was not blocked';
-  EXCEPTION WHEN SQLSTATE '55000' THEN NULL; END;
-  IF NOT EXISTS (SELECT 1 FROM public.leagues WHERE id='00000000-0000-0000-0000-000000000087' AND owner_id='00000000-0000-0000-0000-000000000086') THEN RAISE EXCEPTION 'owner-only league was orphaned'; END IF;
+  IF EXISTS (SELECT 1 FROM public.leagues WHERE id='00000000-0000-0000-0000-000000000087') THEN RAISE EXCEPTION 'owner-only league remained without an owner'; END IF;
 END $$;
 SELECT public.purge_account('00000000-0000-0000-0000-000000000082');
 DELETE FROM auth.users WHERE id='00000000-0000-0000-0000-000000000082';
@@ -186,11 +207,11 @@ END $$;
 SELECT public.purge_account('00000000-0000-0000-0000-000000000081');
 DELETE FROM auth.users WHERE id='00000000-0000-0000-0000-000000000081';
 DO $$ DECLARE lid uuid := current_setting('test.league_id')::uuid; BEGIN
-  IF (SELECT owner_id FROM public.leagues WHERE id=lid) <> '00000000-0000-0000-0000-000000000084' THEN RAISE EXCEPTION 'shared league was not transferred to remaining member'; END IF;
-  IF (SELECT role FROM public.league_memberships WHERE league_id=lid AND user_id='00000000-0000-0000-0000-000000000084') <> 'host' THEN RAISE EXCEPTION 'successor role not promoted'; END IF;
+  IF (SELECT owner_id FROM public.leagues WHERE id=lid) IS DISTINCT FROM '00000000-0000-0000-0000-000000000084' THEN RAISE EXCEPTION 'shared league was not transferred to remaining member'; END IF;
+  IF (SELECT role FROM public.league_memberships WHERE league_id=lid AND user_id='00000000-0000-0000-0000-000000000084') IS DISTINCT FROM 'host' THEN RAISE EXCEPTION 'successor role not promoted'; END IF;
   IF (SELECT count(*) FROM public.league_events WHERE league_id=lid) <> 4 THEN RAISE EXCEPTION 'shared event history was not preserved'; END IF;
   IF (SELECT linked_by FROM public.league_events WHERE league_id=lid AND contest_id='00000000-0000-0000-0000-000000000095') IS NOT NULL THEN RAISE EXCEPTION 'deleted linker remained in the event audit FK'; END IF;
-  IF (SELECT owner_id FROM public.contests WHERE id='00000000-0000-0000-0000-000000000095') <> '00000000-0000-0000-0000-000000000084' THEN RAISE EXCEPTION 'surviving event ownership was lost'; END IF;
+  IF (SELECT owner_id FROM public.contests WHERE id='00000000-0000-0000-0000-000000000095') IS DISTINCT FROM '00000000-0000-0000-0000-000000000084' THEN RAISE EXCEPTION 'surviving event ownership was lost'; END IF;
 END $$;
 ROLLBACK;
 SELECT 'PASS: league roster, two-event score isolation, event-scoped access, join approval and host/anon gates';

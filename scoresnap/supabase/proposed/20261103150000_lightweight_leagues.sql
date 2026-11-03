@@ -59,8 +59,10 @@ ALTER TABLE public.league_event_players FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON public.leagues,public.league_memberships,public.league_events,public.league_event_players FROM PUBLIC,anon,authenticated,service_role;
 
 -- purge_account runs before Auth Admin removes auth.users. This trigger then
--- transfers shared league ownership to an active account. If no eligible
--- successor exists, block deletion rather than orphaning or deleting a league.
+-- transfers shared league ownership to an active account. When no registered
+-- active successor exists, remove the league and its mappings; event data and
+-- each event's independent membership remain intact. This keeps account purge
+-- and Auth deletion from leaving a partially deleted account behind.
 CREATE FUNCTION public.preserve_shared_leagues_before_user_delete() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE league_row record; successor uuid;
@@ -72,7 +74,7 @@ BEGIN
       WHERE m.league_id=league_row.id AND m.user_id<>OLD.id AND m.status='active'
       ORDER BY m.created_at,m.user_id LIMIT 1 FOR UPDATE;
     IF successor IS NULL THEN
-      RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='LEAGUE_OWNER_TRANSFER_REQUIRED';
+      DELETE FROM public.leagues WHERE id=league_row.id;
     ELSE
       UPDATE public.leagues SET owner_id=successor,updated_at=now() WHERE id=league_row.id;
       UPDATE public.league_memberships SET role='host',updated_at=now()
@@ -227,11 +229,11 @@ END $$;
 -- approval RPC grants event access. A missing mapping is never guessed by name.
 CREATE FUNCTION public.request_league_event_join(p_league_id uuid,p_contest_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
-DECLARE uid uuid := auth.uid(); c public.contests; lm public.league_memberships; player uuid;
+DECLARE uid uuid := auth.uid(); c public.contests; v_membership public.league_memberships; player uuid;
 BEGIN
   IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='AUTH_REQUIRED'; END IF;
-  SELECT * INTO lm FROM public.league_memberships lm WHERE lm.league_id=$1 AND lm.user_id=uid AND lm.status='active';
-  IF lm.user_id IS NULL OR NOT EXISTS(SELECT 1 FROM public.league_events e WHERE e.league_id=$1 AND e.contest_id=$2) THEN
+  SELECT * INTO v_membership FROM public.league_memberships lm WHERE lm.league_id=$1 AND lm.user_id=uid AND lm.status='active';
+  IF v_membership.user_id IS NULL OR NOT EXISTS(SELECT 1 FROM public.league_events e WHERE e.league_id=$1 AND e.contest_id=$2) THEN
     RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='LEAGUE_MEMBER_REQUIRED';
   END IF;
   SELECT * INTO c FROM public.contests WHERE id=$2 FOR UPDATE;
@@ -239,10 +241,10 @@ BEGIN
     RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='EVENT_NOT_JOINABLE';
   END IF;
   SELECT lep.contest_player_id INTO player FROM public.league_event_players lep
-   WHERE lep.league_id=$1 AND lep.contest_id=$2 AND lep.league_player_id=lm.league_player_id;
+   WHERE lep.league_id=$1 AND lep.contest_id=$2 AND lep.league_player_id=v_membership.league_player_id;
   IF player IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='EVENT_PLAYER_NOT_MAPPED'; END IF;
   INSERT INTO public.contest_join_requests(contest_id,requester,requested_name,desired_player_id)
-    VALUES(c.id,uid,lm.display_name,player)
+    VALUES(c.id,uid,v_membership.display_name,player)
     ON CONFLICT DO NOTHING;
   RETURN jsonb_build_object('status','pending');
 END $$;
