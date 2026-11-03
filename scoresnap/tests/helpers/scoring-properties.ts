@@ -20,6 +20,7 @@ const functionNames: Record<string, string> = {
 const calc = calculators[functionNames[game] ?? `calc${game[0].toUpperCase()}${game.slice(1)}`];
 assert.equal(typeof calc, 'function');
 let checks = 0;
+const playerCountCoverage: Record<number,number> = {};
 const equal = (a: unknown, b: unknown) => { checks++; assert.deepEqual(a, b); };
 const ok = (condition: boolean) => { checks++; assert.ok(condition); };
 function finite(value: any) {
@@ -38,7 +39,14 @@ for (let slot = 0; slot < 60; slot++) {
     pars: fc.array(fc.integer({ min: 3, max: 5 }), { minLength: 18, maxLength: 18 }),
     cents: fc.integer({ min: 1, max: 1000 }),
   }), ({ scores, pars, cents }) => {
-    const count = info.minPlayers + slot % (Math.min(8, info.maxPlayers) - info.minPlayers + 1);
+    const max = info.maxPlayers;
+    const interior = Math.floor((info.minPlayers + max) / 2);
+    const count = slot === 0 ? info.minPlayers
+      : slot === 1 ? Math.min(info.minPlayers + 1, max)
+      : slot === 2 ? interior
+      : slot === 3 ? max
+      : info.minPlayers + (slot - 4) % (Math.min(8, max) - info.minPlayers + 1);
+    playerCountCoverage[count] = (playerCountCoverage[count] || 0) + 1;
     const holes = slot % 2 ? 18 : 9;
     const profile = Math.floor(slot / 2) % 6;
     const handicap = Math.floor(slot / 12) % 4;
@@ -149,4 +157,4 @@ for (let slot = 0; slot < 60; slot++) {
     throw error;
   }
 }
-console.log(JSON.stringify({ game, configurations:60, checks }));
+console.log(JSON.stringify({ game, configurations:60, checks, minPlayers:info.minPlayers, maxPlayers:info.maxPlayers, playerCountCoverage }));
