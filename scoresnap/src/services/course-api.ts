@@ -1,4 +1,6 @@
 import { COURSE_SEARCH_ENABLED } from "../config/features";
+import { OFFLINE_MODE } from "../config/offline";
+import { offlineCourseFixture } from "./course-offline-fixture";
 import { supabase } from "../db/supabase";
 import { mapCourse, mapSearch } from "../../supabase/functions/course-data/logic";
 export type CourseDetail = ReturnType<typeof mapCourse>;
@@ -21,11 +23,18 @@ async function request(params: string) {
 }
 export async function searchCourses(query: string): Promise<CourseSearchResult[]> {
   if (!COURSE_SEARCH_ENABLED || query.trim().length < 2) return [];
+  if (OFFLINE_MODE && process.env.EXPO_PUBLIC_E2E_COURSE_FIXTURE === "true") {
+    return offlineCourseFixture.name.toLowerCase().includes(query.trim().toLowerCase())
+      ? [offlineCourseFixture] : [];
+  }
   const data = await request(`q=${encodeURIComponent(query)}`);
   return (data?.courses ?? []).map(mapSearch);
 }
 export async function getCourseDetail(slug: string): Promise<CourseDetail | null> {
   if (!COURSE_SEARCH_ENABLED) return null;
+  if (OFFLINE_MODE && process.env.EXPO_PUBLIC_E2E_COURSE_FIXTURE === "true") {
+    return slug === offlineCourseFixture.id ? offlineCourseFixture : null;
+  }
   const data = await request(`slug=${encodeURIComponent(slug)}`);
   return data?.course ? mapCourse(data.course) : null;
 }

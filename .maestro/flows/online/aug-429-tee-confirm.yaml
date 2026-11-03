@@ -1,0 +1,49 @@
+# AUG-429: online read-only course search keeps Confirm tees pinned while the last tee row is reached and selected.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+- tapOn:
+    id: "home-new-contest"
+- scrollUntilVisible:
+    element: "Search courses..."
+    direction: DOWN
+- tapOn: "Search courses..."
+- tapOn: "Search by course name..."
+- inputText: "Pebble Beach"
+- extendedWaitUntil:
+    visible:
+      id: "course-search-result"
+    timeout: 30000
+- tapOn:
+    id: "course-search-result"
+    index: 0
+- assertVisible: "Select Tee Box"
+- takeScreenshot: aug-429-21-online-tee-sheet
+- tapOn:
+    id: "course-tee-row"
+    index: 0
+# Assert the selected-tee footer before scrolling.
+- assertVisible:
+    id: "confirm-tees"
+- takeScreenshot: aug-429-22-online-confirm-before-scroll
+- scrollUntilVisible:
+    element:
+      id: "course-tee-last"
+    direction: DOWN
+- assertVisible:
+    id: "course-tee-last"
+- takeScreenshot: aug-429-23-online-last-tee-row
+- tapOn:
+    id: "course-tee-last"
+- assertVisible:
+    id: "confirm-tees"
+- takeScreenshot: aug-429-24-online-pinned-confirm-last-row
+- tapOn:
+    id: "confirm-tees"
+- assertNotVisible:
+    id: "course-search-sheet"
+- takeScreenshot: aug-429-25-online-confirmed-course
+# Stop at the unsaved form: no Start, account creation, or backend writes.

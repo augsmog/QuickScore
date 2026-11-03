@@ -18,11 +18,11 @@ test('16 tees and confirm are reachable through a bounded iOS bottom-sheet scrol
  expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');expect(scroll.props.contentContainerStyle.paddingBottom).toBeGreaterThanOrEqual(32);
  expect(last.a.some(n=>n.type==='Modal')).toBe(true);
  [...last.a].reverse().find(n=>n.type==='Pressable').props.onPress();expect(setters[9]).toHaveBeenCalledWith(tees[15]);
- expect(all.some(({n,a})=>n.type==='Pressable'&&n.props.onPress?.name==='handleConfirmTee'&&a.includes(scroll))).toBe(true);
+ expect(all.some(({n,a})=>n.type==='Pressable'&&n.props.onPress?.name==='handleConfirmTee'&&!a.includes(scroll))).toBe(true);
 });
-test('all three wizard steps use bounded nested scrolling with navigation outside the viewport',()=>{
+test('entry and both setup steps use bounded nested scrolling with navigation outside the viewport',()=>{
  const s=read('app/contest/new.tsx'),start=s.indexOf('<ScrollView'),end=s.indexOf('</ScrollView>',start),opening=s.slice(start,s.indexOf('>',start)+1);
  expect(opening).toContain('flex: 1');expect(opening).toContain('nestedScrollEnabled');
- for(const step of [1,2,3])expect(s.slice(start,end)).toContain(`step === ${step}`);
+ for(const step of [0,1,2])expect(s.slice(start,end)).toContain(`step === ${step}`);
  expect(s.indexOf('setStep(step + 1)',end)).toBeGreaterThan(end);
 });

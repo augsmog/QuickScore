@@ -15,7 +15,7 @@ const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const workflow = yaml.load(fs.readFileSync(path.join(repository, '.github/workflows/web-smoke.yml'), 'utf8'));
 const steps = job => workflow.jobs[job].steps;
 const commands = job => steps(job).filter(step => step.run).map(step => step.run).join('\n');
-const identity = { run: '12', attempt: '1', commit: 'abc', tree: 'def', workflow: 'w', lock: 'l', node: 'v22', imageOS: 'ubuntu24', imageVersion: '1', expo: '54', playwright: '1.64.1', flags: STANDARD_FLAGS };
+const identity = { run: '12', attempt: '1', commit: 'abc', tree: 'def', workflow: 'w', lock: 'l', node: 'v22.23.4', imageOS: 'ubuntu24', imageVersion: '20261025.353.1', expo: '54', playwright: '1.64.1', flags: STANDARD_FLAGS };
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'web-artifact-test-'));
@@ -33,9 +33,30 @@ test('same-run exact standard artifact passes, including hidden files', t => {
   assert.ok(manifest.files.some(file => file.path === '.well-known/proof'));
   verifyManifest(root, identity, manifest);
 });
-for (const key of Object.keys(identity)) test(`reject changed ${key} provenance`, t => {
+for (const key of Object.keys(identity).filter(key => key !== 'imageVersion')) test(`reject changed ${key} provenance`, t => {
   const root = fixture(t); const manifest = createManifest(root, identity);
   assert.throws(() => verifyManifest(root, { ...identity, [key]: 'wrong' }, manifest), /provenance/);
+});
+test('runner image revision may differ within the same run; build image remains in the manifest', t => {
+  const root = fixture(t); const manifest = createManifest(root, identity);
+  verifyManifest(root, { ...identity, imageVersion: '20261101.360.1' }, manifest);
+  assert.equal(manifest.identity.imageVersion, '20261025.353.1');
+});
+test('Node patch drift within one major passes; a different or unparsable major rejects', t => {
+  const root = fixture(t); const manifest = createManifest(root, identity);
+  verifyManifest(root, { ...identity, node: 'v22.24.0' }, manifest);
+  for (const node of ['v24.1.0', 'v2.23.4', 'v22.garbage', 'v22.', ['v22.23.4'], '', undefined]) {
+    assert.throws(() => verifyManifest(root, { ...identity, node }, manifest), /provenance/);
+  }
+});
+test('manifest still requires a recorded build image and the exact identity key set', t => {
+  const root = fixture(t);
+  const { imageVersion, ...noImage } = identity;
+  assert.throws(() => verifyManifest(root, identity, createManifest(root, noImage)), /provenance/);
+  assert.throws(() => verifyManifest(root, identity, createManifest(root, { ...identity, extra: 'x' })), /provenance/);
+  assert.throws(() => verifyManifest(root, identity, createManifest(root, { ...identity, nodeMajor: '22' })), /provenance/);
+  const { lock, ...noLock } = identity;
+  assert.throws(() => verifyManifest(root, identity, createManifest(root, noLock)), /provenance/);
 });
 for (const kind of ['changed', 'missing', 'extra', 'hidden', 'symlink', 'router-only', 'second-entry']) test(`reject ${kind} artifact`, t => {
   const root = fixture(t); const manifest = createManifest(root, identity);
@@ -168,7 +189,10 @@ function assertRecoveryWiring(value) {
   const lines=step.run.trim().split('\n').map(s=>s.trim());
   assert.ok(lines.includes('node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs e2e/journeys/reach-report.test.mjs'));
   assert.ok(lines.includes('OUT_DIR=e2e/journey-screens/td-badge-controls node --test e2e/journeys/paywall-badge.browser.test.mjs'));
-  assert.ok(lines.includes('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs'));
+  assert.ok(lines.includes('for profile in iphone-se iphone-15-pro iphone-pro-max; do'));
+  assert.ok(lines.includes('DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8092 OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs > "e2e/journey-screens/$profile-run.log" 2>&1 &'));
+  assert.ok(lines.includes('for pid in "${pids[@]}"; do wait "$pid" || status=1; done'));
+  assert.ok(lines.includes('if [ "$status" -ne 0 ]; then exit "$status"; fi'));
   assert.ok(lines.includes('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens/negative-proof node e2e/journeys/negative-proof.mjs'));
   const upload=steps[steps.indexOf(step)+1];
   assert.equal(upload.name,'Upload journey screenshots');assert.equal(upload.if,'always()');
@@ -176,7 +200,7 @@ function assertRecoveryWiring(value) {
 }
 test('AUG-293 and per-profile reach reports run in the existing CI step',()=>{
  assertRecoveryWiring(workflow);
- for(const mutate of [s=>s.run=s.run.replace(' e2e/journeys/paywall-recovery.test.mjs',''),s=>s.run=s.run.split('\n').filter(l=>!l.includes('paywall-badge.browser')).join('\n'),s=>s.run=s.run.replace('OUT_DIR=e2e/journey-screens node','JOURNEYS=J-other OUT_DIR=e2e/journey-screens node'),s=>s.if='false',s=>s['continue-on-error']=true,s=>s['timeout-minutes']=3]){
+ for(const mutate of [s=>s.run=s.run.replace(' e2e/journeys/paywall-recovery.test.mjs',''),s=>s.run=s.run.split('\n').filter(l=>!l.includes('paywall-badge.browser')).join('\n'),s=>s.run=s.run.replace('for profile in iphone-se iphone-15-pro iphone-pro-max; do','for profile in iphone-se iphone-15-pro; do'),s=>s.run=s.run.replace('OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs','JOURNEYS=J-other OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs'),s=>s.if='false',s=>s['continue-on-error']=true,s=>s['timeout-minutes']=3]){
   const copy=structuredClone(workflow);mutate(copy.jobs['browser-flows'].steps.find(s=>s.name==='Journey budgets and reachability'));assert.throws(()=>assertRecoveryWiring(copy));
  }
 });

@@ -81,6 +81,8 @@ export default function ScorecardScreen() {
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
   const isCompleted = contest.status === "completed";
+  const compactViewport = Dimensions.get("window").height < 700;
+  const tightSpacing = Dimensions.get("window").height < 950;
 
   // Build current-hole scores map for AuxiliaryPrompt (Tier 2 games)
   const currentPlayerScores = useMemo(() => {
@@ -338,7 +340,7 @@ export default function ScorecardScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <SafeScreen edges={["top"]} style={{ flex: 1 }}>
+      <SafeScreen edges={[]} style={{ flex: 1 }}>
         {/* Completed Banner */}
         {isCompleted && (
           <View
@@ -369,8 +371,8 @@ export default function ScorecardScreen() {
         <View
           style={{
             paddingHorizontal: 20,
-            paddingTop: 12,
-            paddingBottom: 8,
+            paddingTop: tightSpacing ? 8 : 12,
+            paddingBottom: tightSpacing ? 4 : 8,
             flexDirection: "row",
             alignItems: "flex-end",
             justifyContent: "space-between",
@@ -387,7 +389,7 @@ export default function ScorecardScreen() {
             </Text>
             <Text
               style={{
-                fontSize: 40,
+                fontSize: compactViewport ? 30 : 40,
                 fontFamily: FONTS.headline,
                 color: COLORS.text,
                 marginTop: 2,
@@ -457,7 +459,7 @@ export default function ScorecardScreen() {
         </View>
 
         {contest.gameConfig?.rulesVersion===1 && <View style={{paddingHorizontal:20}}>
-          {contest.games.includes("wolf") && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("wolf")}><Text style={{color:COLORS.primary,padding:12}}>Record Wolf decision before play {auxiliary.wolf?.[currentHole]?"✓":"— required"}</Text></Pressable>}
+          {contest.games.includes("wolf") && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("wolf")} style={{minHeight:44,justifyContent:"center"}}><Text style={{color:COLORS.primary,padding:12}}>Record Wolf decision before play {auxiliary.wolf?.[currentHole]?"✓":"— required"}</Text></Pressable>}
           {contest.gameConfig.bisqueHandicap && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("bisque")}><Text style={{color:COLORS.primary,padding:12}}>Declare 0–2 Bisque strokes before this hole {auxiliary.bisque?.[currentHole]?"✓":"— required"}</Text></Pressable>}
           {contest.gameConfig.jokerEnabled && <Pressable disabled={group.players.some(p=>p.scores.some(n=>n>0))} onPress={()=>setDeclaration("jokerDeclarations")}><Text style={{color:COLORS.primary,padding:12}}>Record two public Joker holes per player before round {auxiliary.jokerDeclarations?.[0]?"✓":"— required"}</Text></Pressable>}
         </View>}
@@ -546,8 +548,8 @@ export default function ScorecardScreen() {
 
         {/* ── Player Score Steppers ── */}
         <ScrollView
-          style={{ flex: 1, marginTop: 8 }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12, gap: 8 }}
+          style={{ flex: 1, minHeight: 0, marginTop: tightSpacing ? 4 : 8 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: tightSpacing ? 4 : 12, gap: tightSpacing ? 4 : 8 }}
           showsVerticalScrollIndicator={false}
         >
           {displayPlayers.map((player, idx) => {
@@ -568,7 +570,7 @@ export default function ScorecardScreen() {
                 style={{
                   backgroundColor: COLORS.surfaceHigh,
                   borderRadius: RADII.lg,
-                  padding: 14,
+                  padding: compactViewport ? 4 : tightSpacing ? 10 : 14,
                   borderLeftWidth: 3,
                   borderLeftColor: hasScore ? color : COLORS.surfaceHighest,
                   opacity: isCompleted ? 0.7 : 1,
@@ -580,7 +582,7 @@ export default function ScorecardScreen() {
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: 10,
+                    marginBottom: tightSpacing ? 2 : 10,
                   }}
                 >
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
@@ -597,7 +599,7 @@ export default function ScorecardScreen() {
                         }}
                       />
                     )}
-                    <View>
+                    <View style={{ flexDirection: compactViewport && holesPlayed > 0 ? "row" : "column", alignItems: "baseline", gap: compactViewport ? 8 : 0 }}>
                       <Text
                         style={{
                           fontSize: 15,
@@ -651,8 +653,8 @@ export default function ScorecardScreen() {
                     onPress={() => adjustScore(player.id, -1)}
                     disabled={isCompleted || displayScore <= 1}
                     style={({ pressed }) => ({
-                      width: SCORE_STEPPER_TARGET,
-                      height: SCORE_STEPPER_TARGET,
+                      width: compactViewport ? 44 : SCORE_STEPPER_TARGET,
+                      height: compactViewport ? 44 : SCORE_STEPPER_TARGET,
                       borderRadius: RADII.lg,
                       backgroundColor: COLORS.surfaceMid,
                       alignItems: "center",
@@ -668,6 +670,9 @@ export default function ScorecardScreen() {
                   {/* Score display — tap sets to par, long press clears */}
                   <Pressable
                     testID={`score-par-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set ${player.name} score to par`}
+                    accessibilityState={{ disabled: isCompleted }}
                     onPress={() => {
                       if (!hasScore) setToPar(player.id);
                     }}
@@ -719,8 +724,8 @@ export default function ScorecardScreen() {
                     onPress={() => adjustScore(player.id, 1)}
                     disabled={isCompleted || displayScore >= 15}
                     style={({ pressed }) => ({
-                      width: SCORE_STEPPER_TARGET,
-                      height: SCORE_STEPPER_TARGET,
+                      width: compactViewport ? 44 : SCORE_STEPPER_TARGET,
+                      height: compactViewport ? 44 : SCORE_STEPPER_TARGET,
                       borderRadius: RADII.lg,
                       backgroundColor: COLORS.surfaceMid,
                       alignItems: "center",
@@ -753,8 +758,8 @@ export default function ScorecardScreen() {
           <View
             style={{
               flexDirection: "row",
-              gap: 12,
-              marginBottom: 4,
+              gap: tightSpacing ? 8 : 12,
+              marginBottom: tightSpacing ? 2 : 4,
             }}
           >
             <Pressable
@@ -771,7 +776,7 @@ export default function ScorecardScreen() {
                 gap: 4,
                 backgroundColor: COLORS.surfaceMid,
                 borderRadius: RADII.md,
-                minHeight: HOLE_NAV_TARGET,
+                minHeight: compactViewport ? 44 : HOLE_NAV_TARGET,
                 opacity: currentHole <= 1 ? 0.3 : 1,
               }}
             >
@@ -801,7 +806,7 @@ export default function ScorecardScreen() {
                   ? COLORS.primary + "22"
                   : COLORS.surfaceMid,
                 borderRadius: RADII.md,
-                minHeight: HOLE_NAV_TARGET,
+                minHeight: compactViewport ? 44 : HOLE_NAV_TARGET,
                 borderWidth: allScoredOnHole ? 1 : 0,
                 borderColor: COLORS.primary + "44",
                 opacity: currentHole >= 18 ? 0.3 : 1,
@@ -820,18 +825,40 @@ export default function ScorecardScreen() {
                 color={allScoredOnHole ? COLORS.primary : COLORS.textDim}
               />
             </Pressable>
+            {!isCompleted && compactViewport && (
+              <Pressable
+                onPress={handleFinalizeRound}
+                style={{
+                  flex: 1.5,
+                  backgroundColor: percentComplete === 100 ? COLORS.primary : COLORS.surfaceMid,
+                  borderRadius: RADII.lg,
+                  minHeight: 44,
+                  paddingHorizontal: 4,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  ...(percentComplete === 100 ? GLOW.primary : {}),
+                }}
+              >
+                <CheckCircle size={18} color={percentComplete === 100 ? COLORS.onPrimary : COLORS.warn} />
+                <Text style={{ color: percentComplete === 100 ? COLORS.onPrimary : COLORS.warn, fontFamily: FONTS.bold, fontSize: 12 }}>
+                  Finalize Round
+                </Text>
+              </Pressable>
+            )}
           </View>
 
           {/* Finalize Round */}
           {!isCompleted && (
-            <View style={{ marginTop: 4 }}>
+            <View style={{ marginTop: tightSpacing ? 0 : 4 }}>
               {/* Progress bar */}
               <View
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  marginBottom: 6,
+                  marginBottom: tightSpacing ? 3 : 6,
                 }}
               >
                 <Text
@@ -860,7 +887,7 @@ export default function ScorecardScreen() {
                   height: 4,
                   borderRadius: 2,
                   backgroundColor: COLORS.surfaceHighest,
-                  marginBottom: 10,
+                  marginBottom: tightSpacing ? 6 : 10,
                   overflow: "hidden",
                 }}
               >
@@ -877,7 +904,7 @@ export default function ScorecardScreen() {
                 />
               </View>
 
-              <Pressable
+              {!compactViewport && <Pressable
                 onPress={handleFinalizeRound}
                 style={{
                   backgroundColor:
@@ -885,7 +912,8 @@ export default function ScorecardScreen() {
                       ? COLORS.primary
                       : COLORS.surfaceMid,
                   borderRadius: RADII.lg,
-                  paddingVertical: 14,
+                  minHeight: 44,
+                  paddingVertical: tightSpacing ? 6 : 14,
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
@@ -913,7 +941,7 @@ export default function ScorecardScreen() {
                 >
                   Finalize Round
                 </Text>
-              </Pressable>
+              </Pressable>}
             </View>
           )}
         </View>

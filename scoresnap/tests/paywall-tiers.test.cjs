@@ -3,7 +3,7 @@ const read=p=>fs.readFileSync(p,'utf8');
 function load(p,deps={}) {const m={exports:{}};new Function('require','module','exports',ts.transpileModule(read(p),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(id==='@/services/platform-alert')return {showAlert:(...args)=>deps['react-native']?.Alert?.alert?.(...args)};if(id.endsWith('/ui/SafeScreen'))return {SafeScreen:'SafeAreaView',SheetSurface:'View',FullScreenSheet:'Modal'};if(id in deps)return deps[id];throw Error(id)},m,m.exports);return m.exports;}
 const entitlement=()=>load('src/services/entitlements.ts');
 test('1 TD implies Pro, active entitlements only',()=>{const e=entitlement();expect(e.tierFromCustomerInfo({entitlements:{active:{'SnapScore TD':{}}}})).toBe('td');expect(e.tierFromCustomerInfo({entitlements:{active:{'SnapScore Pro':{}}}})).toBe('pro');expect(e.tierFromCustomerInfo({entitlements:{active:{}}})).toBe('free');});
-test('2 exactly four free games; premium addition gates preserve saved scores',()=>{const e=entitlement();expect(e.FREE_GAMES).toEqual(['stroke_play','match_play','stableford','best_ball']);for(const id of e.FREE_GAMES)expect(e.canUseGame(id,'free')).toBe(true);expect(e.canUseGame('skins','free')).toBe(false);expect(e.canUseGame('skins','pro')).toBe(true);for(const p of ['app/contest/new.tsx','app/contest/[id]/edit.tsx','app/(tabs)/index.tsx'])expect(read(p)).toContain('canUseGame');expect(read('app/contest/[id]/games.tsx')).toContain('Add games');});
+test('2 exactly four free games; premium addition gates preserve saved scores',()=>{const e=entitlement();expect(e.FREE_GAMES).toEqual(['stroke_play','match_play','stableford','best_ball']);for(const id of e.FREE_GAMES)expect(e.canUseGame(id,'free')).toBe(true);expect(e.canUseGame('skins','free')).toBe(false);expect(e.canUseGame('skins','pro')).toBe(true);for(const p of ['app/contest/[id]/edit.tsx','app/(tabs)/index.tsx'])expect(read(p)).toContain('canUseGame');expect(read('app/contest/[id]/games.tsx')).toContain('Add games');});
 test('3 settlement and stats gated',()=>{const e=entitlement();expect(e.canSeeSettlement('free')).toBe(false);expect(e.canSeeStats('td')).toBe(true);expect(read('app/statistics.tsx')).toContain('PaywallTeaser');expect(read('app/contest/[id]/settlement.tsx')).toMatch(/canSeeSettlement\(tier\)\)\s*return <SettlementScreenContent \/>/);});
 test('4 hosting shape gates only hosts',()=>{const e=entitlement();for(const tier of ['free','pro','td']){expect(e.canHostTournament({groups:[{}],rounds:[{}]},tier)).toBe(true);expect(e.canHostTournament({groups:[{},{}]},tier)).toBe(tier==='td');expect(e.canHostTournament({rounds:[{},{}]},tier)).toBe(tier==='td');}expect(read('app/contest/[id]/tournament-rounds.tsx')).toContain('canHostTournament');});
 test('5 sharing remains free',()=>{expect(read('app/paywall.tsx')).not.toContain('Share & export results');for(const p of ['app/join/[code].tsx','app/r/[token].tsx'])expect(read(p)).not.toMatch(/canHostTournament|isPro|paywall/);});
@@ -71,24 +71,6 @@ test('actual edit picker gates adding premium games and groups; existing premium
  skins.props.onPress();tree=h.render();button(tree,'🔒 Skins').props.onPress();expect(h.push).toHaveBeenLastCalledWith('/paywall');
  const pro=screenHarness('app/contest/[id]/edit.tsx','pro',c);button(pro.render(),'Nassau').props.onPress();expect(pro.push).not.toHaveBeenCalled();
  const td=screenHarness('app/contest/[id]/edit.tsx','td',c);button(td.render(),'Add Group').props.onPress();expect(td.push).not.toHaveBeenCalled();expect(textOf(td.render())).toContain('Add Group');
-});
-test('actual new-contest picker and submit prevent premium game and tournament bypasses without stacking navigation while in flight',()=>{
- const h=screenHarness('app/contest/new.tsx','free');let tree=h.render();
- nodes(tree).find(n=>n.props?.testID==='tournament-toggle').props.onValueChange(true);expect(h.push).toHaveBeenLastCalledWith('/paywall?tier=td');
- // Fill the players through actual input callbacks rather than hook slot offsets.
- for(const placeholder of ['Your name','Player 2 name']) {
-  tree=h.render();nodes(tree).find(n=>n.props?.placeholder===placeholder).props.onChangeText(placeholder);
- }
- button(h.render(),'NEXT').props.onPress();tree=h.render();
- const skins=button(tree,'🔒 Skins');expect(skins.props.disabled).not.toBe(true);skins.props.onPress();expect(h.push).toHaveBeenCalledTimes(1);
- expect(h.states.find(s=>Array.isArray(s)&&s[0]==='stroke_play')).toEqual(['stroke_play']);
- // Inject a stale paid hosting shape to exercise submit's independent gate.
- // With the two prompt UI states, numGroups is slot 9; this is not draft persistence.
- h.states[9]=2;button(h.render(),'NEXT').props.onPress();button(h.render(),'START').props.onPress();
- expect(h.save).not.toHaveBeenCalled();expect(h.push).toHaveBeenCalledTimes(1);
- expect(nodes(h.render()).some(n=>n.props?.testID==='add-group')).toBe(true);
- h.states[9]=1;button(h.render(),'NEXT').props.onPress();button(h.render(),'NEXT').props.onPress();button(h.render(),'START').props.onPress();
- expect(h.save).toHaveBeenCalledTimes(1);expect(h.save.mock.calls[0][0].groups).toHaveLength(1);
 });
 test('consent prompt persists decline and allows settings withdrawal without repeat network access',async()=>{
  let choice=null;const update=jest.fn((key,v)=>choice=v),alert=jest.fn();

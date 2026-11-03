@@ -58,10 +58,12 @@ try {
           await page.getByTestId('team-mode').click();
           for (const [i,name] of names.entries()) await page.getByTestId(`player-team-${name}-${i<flow.count/2?'A':'B'}`).click();
         }
-        await visible(page.getByText(/^next/i)).click();
+        await visible(page.getByText(/^continue$/i)).click();
+        await page.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
         for (const game of flow.games) await visible(page.getByText(game,{exact:true})).click();
-        await visible(page.getByText(/^next/i)).click();
-        await visible(page.getByText(/start contest/i)).click();
+        await visible(page.getByText(/^continue$/i)).click();
+        await page.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
+        await visible(page.getByText(/^start$/i)).click();
         await page.waitForURL(/\/contest\/[^/]+$/);
         const contestUrl = page.url(), id = new URL(contestUrl).pathname.split('/')[2];
         const readContest = () => page.evaluate(id => JSON.parse(localStorage.getItem('snapscore-contests')).state.contests.find(c=>c.id===id),id);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {seedAcceptance,completedRounds} from './acceptance-common.mjs';
+import {seedAcceptance,completedRounds,revealScrollDelta} from './acceptance-common.mjs';
 import {cases} from './adapter.mjs';
 import {evaluate} from './metrics.mjs';
 const manifest=JSON.parse(fs.readFileSync(new URL('./journeys.json',import.meta.url)));
@@ -24,6 +24,11 @@ test('fixture has distinguishable per-game oracle, independent of app settlement
   const stroke=c.betUnit;const nassau=[a.scores.slice(0,9),a.scores.slice(9),a.scores].length*c.betUnit;
   assert.equal(stroke,5);assert.equal(nassau,15);assert.equal(stroke+nassau,20);assert.notEqual(stroke,nassau);
  }
+});
+test('viewport reveal scroll stops with a small clearance instead of overshooting short screens',()=>{
+ assert.equal(revealScrollDelta({top:102,bottom:142},100,200),null);
+ assert.equal(revealScrollDelta({top:205,bottom:245},100,200),49);
+ assert.equal(revealScrollDelta({top:55,bottom:95},100,200),-49);
 });
 test('new cases are executable and missing assertion/capture/runtime failures remain red',()=>{
  assert(added.length>0);

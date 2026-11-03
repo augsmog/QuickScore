@@ -13,7 +13,8 @@ const detail = require('./fixtures/golfcore-detail.json');
 const search = require('./fixtures/golfcore-search.json');
 const feature = flag => load('src/config/features.ts',{}, { process: { env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: flag } } });
 test.each([undefined,'false','','TRUE',' true ','1','true'])('flag alone enables only literal true: %s',flag => expect(feature(flag).COURSE_SEARCH_ENABLED).toBe(flag === 'true'));
-function api(enabled, invoke) { return load('src/services/course-api.ts', { '../config/features': { COURSE_SEARCH_ENABLED: enabled }, '../db/supabase': { supabase: { functions: { invoke } } }, '../../supabase/functions/course-data/logic': logic }); }
+const fixture = load("src/services/course-offline-fixture.ts");
+function api(enabled, invoke, offline = false, fixtureFlag = "false") { return load('src/services/course-api.ts', { '../config/offline': { OFFLINE_MODE: offline }, './course-offline-fixture': fixture, '../config/features': { COURSE_SEARCH_ENABLED: enabled }, '../db/supabase': { supabase: { functions: { invoke } } }, '../../supabase/functions/course-data/logic': logic }, { process: { env: { EXPO_PUBLIC_E2E_COURSE_FIXTURE: fixtureFlag } } }); }
 test('disabled API stays offline',async () => { const invoke = jest.fn(); const a=api(false,invoke); expect(await a.searchCourses('torrey')).toEqual([]); expect(await a.getCourseDetail(detail.slug)).toBeNull(); expect(invoke).not.toHaveBeenCalled(); });
 test('enabled API uses Supabase GET and maps responses',async () => { const invoke=jest.fn().mockResolvedValueOnce({data:search}).mockResolvedValueOnce({data:{course:detail}}); const a=api(true,invoke); expect((await a.searchCourses('torrey pines'))[0].id).toBe(detail.slug); expect((await a.getCourseDetail(detail.slug)).teeBoxes).toHaveLength(3); expect(invoke.mock.calls[0]).toEqual(['course-data?q=torrey%20pines',{method:'GET'}]); });
 test('quota state works for cached payload and 503',async () => { const invoke=jest.fn().mockResolvedValueOnce({data:{...search,quota_exhausted:true}}).mockResolvedValueOnce({error:{context:{json:async()=>({error:'quota_exhausted'})}}}); const a=api(true,invoke); await a.searchCourses('torrey'); expect(a.courseSearchResting).toBe(true); expect(await a.searchCourses('torrey')).toEqual([]); expect(a.courseSearchResting).toBe(true); });
@@ -107,4 +108,23 @@ test('per-minute 429 with monthly Remaining > 0 never trips the month, whatever 
   expect(logic.isQuotaResponse(429,{error:'monthly quota exceeded; retry next minute'},h('321'))).toBe(false);
   expect(logic.isQuotaResponse(429,{error:'monthly quota exceeded'},h(null))).toBe(true);
   expect(logic.isQuotaResponse(429,{quota_exceeded:true},h(null))).toBe(true);
+});
+
+
+test('native tee fixture searches, selects the last complete card and never calls backend', async () => {
+  const invoke = jest.fn();
+  const a = api(true, invoke, true, "true");
+  const results = await a.searchCourses("E2E Tee Course");
+  const course = await a.getCourseDetail(results[0].id);
+  expect(course.teeBoxes).toHaveLength(16);
+  expect(course.teeBoxes[15].name).toBe("Tee 16");
+  expect(a.teeBoxToCourse(course.name, course.teeBoxes[15]).holes).toHaveLength(18);
+  expect(await a.searchCourses("unmatched")).toEqual([]);
+  expect(await a.getCourseDetail("unmatched")).toBeNull();
+  expect(invoke).not.toHaveBeenCalled();
+});
+test.each([[false, "true"], [true, "false"]])('fixture requires offline AND explicit flag (%s, %s)', async (offline, flag) => {
+  const invoke = jest.fn().mockResolvedValue({data: {courses: []}});
+  await api(true, invoke, offline, flag).searchCourses("E2E Tee Course");
+  expect(invoke).toHaveBeenCalledTimes(1);
 });

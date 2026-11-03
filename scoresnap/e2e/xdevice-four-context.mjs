@@ -183,9 +183,11 @@ try {
       await a.getByPlaceholder('Your name').fill(names[0]);
       await a.getByPlaceholder('Player 2 name').fill(names[1]);
       for (let i = 2; i < 4; i++) { await text(a, '+ ADD PLAYER').click(); await a.getByPlaceholder(`Player ${i + 1} name`).fill(names[i]); }
-      await a.getByText(/^Next/i).filter({ visible: true }).last().click();
-      await a.getByText(/^Next/i).filter({ visible: true }).last().click();
-      await text(a, /^START CONTEST/i).click();
+      await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
+      await a.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
+      await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
+      await a.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
+      await text(a, /^START$/i).click();
       await a.waitForURL(/\/contest\/[^/]+$/);
       contestUrl = a.url(); contestId = new URL(contestUrl).pathname.split('/').pop();
       await text(a, 'Enable online sharing').click();

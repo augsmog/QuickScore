@@ -1,0 +1,29 @@
+# AUG-325: in-app score entry uses roomy hole-focused cards with 56pt steppers; 2 players score a hole in 3 taps.
+# The runner dumps the view hierarchy after this flow (captureHierarchy) so a verifier can read stepper frames in points.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: false
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+- runFlow: ../../subflows/create-two-player-skins.yaml
+- tapOn: "Scorecard"
+- extendedWaitUntil:
+    visible:
+      id: "score-plus-Ava"
+    timeout: 15000
+- assertVisible: ".*HOLE 01.*"
+- takeScreenshot: aug-325-01-hole-1-empty
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-02-hole-1-two-taps
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 02.*"
+- takeScreenshot: aug-325-03-hole-2-after-3-taps
+- tapOn:
+    id: "score-prev-hole"
+- assertVisible: ".*HOLE 01.*"
+- takeScreenshot: aug-325-04-back-to-hole-1

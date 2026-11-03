@@ -11,7 +11,7 @@ export async function focusedSetup(context,page,j,base){
  await seedAcceptance(context,{kind:profile?'profile':'settlement',tier:free?'free':'pro',origin});
  // Independent once-only precondition; never seed or modify settlement marks.
  if(!profile)await context.addInitScript(({c,origin})=>{if(location.origin!==origin)return;if(localStorage.getItem('focused-round-seeded'))return;localStorage.setItem('snapscore-contests',JSON.stringify({version:0,state:{contests:[c],activeContestId:null}}));localStorage.setItem('focused-round-seeded','1');},{c:focusedRound(j.id),origin});
- await page.goto(base+'/');await visible(page.getByTestId('home-new-contest'));return true;
+ await page.goto(base+'/',{waitUntil:'domcontentloaded'});await visible(page.getByTestId('home-new-contest'));return true;
 }
 async function settings({page,act,enter}){await act.activate(page.getByRole('tab',{name:'Profile',exact:true}));await enter('profile');await act.activate(page.getByRole('button',{name:'Settings',exact:true}));await enter('settings');}
 async function openRound({page,navigate,enter}){await navigate('/contest/acceptance-round-a');await enter('acceptance-round');}

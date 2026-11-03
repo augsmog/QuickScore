@@ -1,0 +1,45 @@
+# AUG-319: a Settled mark on a settlement line survives a real native app-process relaunch.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: false
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+- runFlow: ../../subflows/create-two-player-skins.yaml
+- runFlow: ../../subflows/score-18-holes.yaml
+- tapOn: "Settlement"
+- extendedWaitUntil:
+    visible:
+      id: "settlement-scroll"
+    timeout: 15000
+- takeScreenshot: aug-319-01-settlement-before
+- scrollUntilVisible:
+    element: "Mark settled .*"
+    direction: DOWN
+- tapOn: "Mark settled .*"
+- extendedWaitUntil:
+    visible: "Unsettle .*|.*Settled .*"
+    timeout: 10000
+- takeScreenshot: aug-319-02-marked-settled
+- stopApp
+- launchApp:
+    clearState: false
+    stopApp: true
+- extendedWaitUntil:
+    visible:
+      id: "home-new-contest"
+    timeout: 45000
+- takeScreenshot: aug-319-03-relaunched-home
+# Home's active-game card exposes one combined label ("My Course, Stroke Play, Skins, 2 players, ...").
+- tapOn:
+    text: ".*Skins, 2 players.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "Settlement"
+    timeout: 15000
+- tapOn: "Settlement"
+- scrollUntilVisible:
+    element: "Unsettle .*"
+    direction: DOWN
+- assertVisible: "Unsettle .*|.*Settled .*"
+- takeScreenshot: aug-319-04-still-settled-after-relaunch

@@ -1,0 +1,25 @@
+# Shared: score all 18 holes with the in-app steppers. Hole 1: Ava birdie (minus), Ben par; holes 2-18 both par.
+# 3 taps per hole for 2 players (par, par, next) is the AUG-325 tap budget.
+appId: com.scoresnap.app
+---
+- tapOn: "Scorecard"
+- extendedWaitUntil:
+    visible:
+      id: "score-minus-Ava"
+    timeout: 15000
+- tapOn:
+    id: "score-minus-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- tapOn:
+    id: "score-next-hole"
+- repeat:
+    times: 17
+    commands:
+      - tapOn:
+          id: "score-par-Ava"
+      - tapOn:
+          id: "score-par-Ben"
+      - tapOn:
+          id: "score-next-hole"
+          optional: true

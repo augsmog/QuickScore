@@ -147,6 +147,8 @@ function extractGrid(blocks: TextBlock[], ambiguous: Map<string, string[]>): str
  * Quick check if ML Kit is available on this device.
  */
 export async function isMLKitAvailable(): Promise<boolean> {
+  // Simulator builds compile ML Kit out (EXPO_PUBLIC_SIMULATOR_NO_MLKIT=1); calling it would throw.
+  if (process.env.EXPO_PUBLIC_SIMULATOR_NO_MLKIT === "1") return false;
   try {
     // ML Kit is always available on native via the module
     return typeof TextRecognition.recognize === "function";

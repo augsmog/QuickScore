@@ -107,13 +107,14 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
     return null;
   }
   
-  return <View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
+  const compact = Platform.OS === 'web' && typeof window !== 'undefined' && window.innerHeight < 700;
+  return <View style={{ paddingHorizontal: 20, paddingBottom: compact ? 4 : 10 }}>
     {onlineEnabled && !enabled && !contest.remoteRestored && <Pressable disabled={busy || checking} onPress={() => void enable()}><Text style={{color: COLORS.primary, paddingVertical: 12}}>{checking ? 'Checking online sharing…' : busy ? 'Enabling…' : 'Enable online sharing'}</Text></Pressable>}
     {contest.remoteRestored && checking && <Text style={{ color: COLORS.textDim }}>Checking online sharing…</Text>}
     {!!code && (enabled || !onlineEnabled) && <><Text testID="organizer-join-code" style={{ color: COLORS.primary }}>Join code: {code}</Text>
 
     {!onlineEnabled && <LocalJoinLimitationBanner />}
-    <Pressable onPress={share}><Text style={{ color: COLORS.text, paddingVertical: 8 }}>{onlineEnabled ? "Copy / share invite" : "Copy / share local invite"}</Text></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel="Invite players" onPress={share} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: COLORS.text, paddingVertical: compact ? 4 : 8 }}>{onlineEnabled ? "Copy / share invite" : "Copy / share local invite"}</Text></Pressable>
     </>}
     {restoredUnavailable && !message && <Text style={{ color: COLORS.textDim }}>{OWNER_INVITE_UNAVAILABLE}</Text>}
     {!!visibleMessage && <Text style={{ color: COLORS.textDim }}>{visibleMessage}</Text>}

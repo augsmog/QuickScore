@@ -24,6 +24,7 @@ import { useScanStore } from "../../src/stores/scan-store";
 import { scanScorecard } from "../../src/services/ocr-service";
 
 import { OFFLINE_MODE } from "../../src/config/offline";
+import { NATIVE_OCR_DISABLED, NATIVE_OCR_DISABLED_MESSAGE } from "../../src/config/native-ocr";
 import { parseScoreGrid, textToGrid } from "../../src/services/score-parser";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -148,7 +149,7 @@ export default function ScanScreen() {
   }, []);
 
   // Text entry does not use OCR or consume scan credits.
-  if (phase === "text-entry" || OFFLINE_MODE || Platform.OS === "web") {
+  if (phase === "text-entry" || OFFLINE_MODE || NATIVE_OCR_DISABLED || Platform.OS === "web") {
     return (
       <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
         <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }} keyboardShouldPersistTaps="handled">
@@ -156,6 +157,11 @@ export default function ScanScreen() {
             <Text style={{ color: COLORS.primary }}>Go Back</Text>
           </Pressable>
           <Text style={{ ...TYPOGRAPHY.title, color: COLORS.text }}>Enter scorecard as text</Text>
+          {NATIVE_OCR_DISABLED && (
+            <Text testID="scan-unavailable-simulator" accessibilityRole="alert" style={{ color: COLORS.textDim }}>
+              {NATIVE_OCR_DISABLED_MESSAGE}
+            </Text>
+          )}
           <Text style={{ color: COLORS.textDim }}>
             Paste one row per line, with a player name followed by scores. Separate cells with commas, tabs, or two or more spaces. Hole and Par rows are optional.
           </Text>

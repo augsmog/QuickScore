@@ -1,0 +1,21 @@
+# AUG-315 (simulator part): Settlement "Export scorecard (PDF)" builds a PDF and opens the iOS share sheet with a file attachment.
+# Physical-device share, recipient open and Android remain open; the sheet is dismissed, never sent.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: false
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+- runFlow: ../../subflows/create-two-player-skins.yaml
+- runFlow: ../../subflows/score-18-holes.yaml
+- tapOn: "Settlement"
+- scrollUntilVisible:
+    element: "Export scorecard \\(PDF\\)"
+    direction: DOWN
+- takeScreenshot: aug-315-01-export-button
+- tapOn: "Export scorecard \\(PDF\\)"
+- extendedWaitUntil:
+    visible: ".*(Save to Files|Copy|PDF Document|\\.pdf).*"
+    timeout: 30000
+- takeScreenshot: aug-315-02-share-sheet-pdf
+- assertNotVisible: ".*(Could not|failed|Unsupported).*"

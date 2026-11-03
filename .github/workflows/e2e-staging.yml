@@ -1,0 +1,86 @@
+name: E2E disposable staging
+# AUG-395: a reproducible staging target for E2E journeys that need to write.
+# A never-linked local Supabase stack on a GitHub-hosted runner, with the full migration chain,
+# five synthetic test accounts and one seeded contest. No hosted project, no customer data, $0.
+on:
+  # Main pushes (same paths) and a daily run keep the registry's latest-main result fresh. Free: public repo, ubuntu-latest.
+  push:
+    branches: [main]
+    paths:
+      - 'scoresnap/e2e/staging/**'
+      - 'scoresnap/supabase/migrations/**'
+      - 'scoresnap/supabase/config.toml'
+      - '.github/workflows/e2e-staging.yml'
+  schedule:
+    - cron: '23 12 * * *'   # daily: registry freshness limit is 36h
+  pull_request:
+    paths:
+      - 'scoresnap/e2e/staging/**'
+      - 'scoresnap/supabase/migrations/**'
+      - 'scoresnap/supabase/config.toml'
+      - '.github/workflows/e2e-staging.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: read
+concurrency:
+  group: e2e-staging-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+jobs:
+  staging-seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: scoresnap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Seed unit tests
+        run: node --test e2e/staging/seed.test.mjs
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - uses: docker/login-action@v3
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start disposable stack (never linked) and apply the full migration chain
+        run: |
+          test "$(grep -c '^enable_anonymous_sign_ins = false$' supabase/config.toml)" = 1
+          # CLI start prints disposable API credentials; keep them in a private runner-temp log only.
+          if ! bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit > "$RUNNER_TEMP/staging-start.log" 2>&1; then
+            echo "Disposable stack startup failed"
+            docker ps --format '{{.Names}} {{.Status}}'
+            exit 1
+          fi
+          supabase db reset
+          test "$(docker exec supabase_db_snapscore psql -U postgres -d postgres -Atc 'select count(*) from supabase_migrations.schema_migrations')" = "$(find supabase/migrations -maxdepth 1 -name '*.sql' -type f | wc -l | tr -d ' ')"
+          supabase status -o json > "$RUNNER_TEMP/staging-status.json"
+      - name: Seed test accounts and contest, then re-run to prove the seed is reproducible
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/staging-evidence"
+          STAGING_MANIFEST="$GITHUB_WORKSPACE/staging-evidence/first.json" node e2e/staging/seed.mjs
+          STAGING_MANIFEST="$GITHUB_WORKSPACE/staging-evidence/second.json" node e2e/staging/seed.mjs
+          node -e '
+            const fs = require("fs"), d = process.env.GITHUB_WORKSPACE + "/staging-evidence/";
+            const [a, b] = ["first", "second"].map(n => JSON.parse(fs.readFileSync(d + n + ".json", "utf8")));
+            const strip = m => JSON.stringify({ ...m, accounts: Object.fromEntries(Object.entries(m.accounts).map(([r, v]) => [r, { email: v.email, user_id: v.user_id }])) });
+            if (strip(a) !== strip(b)) throw Error("Second seed run changed identities or rows");
+            if (Object.values(a.accounts).some(v => v.reused) || Object.values(b.accounts).some(v => !v.reused)) throw Error("Expected create then reuse");
+            if (JSON.stringify(a).match(/password|eyJ/i)) throw Error("Manifest must not carry credentials");
+            console.log("Reproducible: identical accounts, contest id and invite code across two runs");'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-seed-manifest
+          path: staging-evidence
+      - name: Stop disposable stack
+        if: always()
+        run: supabase stop --no-backup

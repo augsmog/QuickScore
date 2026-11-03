@@ -43,7 +43,7 @@ export default function ContestLayout() {
 
   if (!contest) {
     return (
-      <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+      <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top", "bottom"]}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
           <Text style={{ fontSize: 48, marginBottom: 16 }}>🔍</Text>
           <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
@@ -72,7 +72,7 @@ export default function ContestLayout() {
   const ActiveScreen = TABS.find((t) => t.key === activeTab)!.Screen;
 
   return (
-    <SafeScreen testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top", "bottom"]}>
       <ContestJoinCode contest={contest} />
       <LiveShare contest={contest} />
       <OnlineSyncPanel contest={contest} />
@@ -84,6 +84,10 @@ export default function ContestLayout() {
             style={{
               borderRadius: RADII.sm,
               padding: 8,
+              minWidth: 44,
+              minHeight: 44,
+              alignItems: "center",
+              justifyContent: "center",
               backgroundColor: COLORS.card,
               borderColor: COLORS.border,
               borderWidth: 1,
@@ -106,6 +110,10 @@ export default function ContestLayout() {
               style={{
                 borderRadius: RADII.sm,
                 padding: 8,
+                minWidth: 44,
+                minHeight: 44,
+                alignItems: "center",
+                justifyContent: "center",
                 backgroundColor: COLORS.card,
                 borderColor: COLORS.border,
                 borderWidth: 1,
@@ -120,6 +128,10 @@ export default function ContestLayout() {
               style={{
                 borderRadius: RADII.sm,
                 padding: 8,
+                minWidth: 44,
+                minHeight: 44,
+                alignItems: "center",
+                justifyContent: "center",
                 backgroundColor: COLORS.card,
                 borderColor: COLORS.border,
                 borderWidth: 1,
@@ -133,6 +145,10 @@ export default function ContestLayout() {
             style={{
               borderRadius: RADII.sm,
               padding: 8,
+              minWidth: 44,
+              minHeight: 44,
+              alignItems: "center",
+              justifyContent: "center",
               backgroundColor: COLORS.accentGlow,
               borderColor: COLORS.accent + "44",
               borderWidth: 1,
@@ -189,13 +205,19 @@ export default function ContestLayout() {
           {TABS.map((tab) => (
             <Pressable
               key={tab.key}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.label}
+              accessibilityState={{ selected: activeTab === tab.key }}
+              aria-selected={activeTab === tab.key}
               onPress={() => handleTabPress(tab.key)}
               style={{
                 flex: 1,
                 borderRadius: RADII.sm,
+                minHeight: 44,
+                alignItems: "center",
+                justifyContent: "center",
                 paddingVertical: 8,
                 paddingHorizontal: 2,
-                alignItems: "center",
                 backgroundColor:
                   activeTab === tab.key ? COLORS.surfaceHighest : "transparent",
               }}

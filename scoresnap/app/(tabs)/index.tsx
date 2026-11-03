@@ -563,7 +563,7 @@ export default function HomeScreen() {
               <X size={24} color={COLORS.text} />
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
+          <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20, gap: 12 }}>
             {GAME_MODE_LIBRARY.map(mode => {
               const content = <>
                 <Text style={{ fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.text }}>{mode.name}</Text>

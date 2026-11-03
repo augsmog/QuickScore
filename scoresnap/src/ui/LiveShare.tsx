@@ -101,8 +101,9 @@ export function LiveShare({ contest }: { contest: Contest }) {
       if (activeOperation.current.isCurrent(operationId)) setBusy(false);
     }
   }
+  const compact = Platform.OS === 'web' && typeof window !== 'undefined' && window.innerHeight < 700;
   return <View style={{ paddingHorizontal: 20 }}>
-    <Pressable disabled={busy} onPress={() => run()}><Text style={{ color: COLORS.primary, padding: 8 }}>Share live scoreboard</Text></Pressable>
+    <Pressable disabled={busy} onPress={() => run()} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: COLORS.primary, padding: compact ? 4 : 8 }}>Share live scoreboard</Text></Pressable>
     {contest.liveShareEnabled && <Pressable disabled={busy} onPress={() => run(true)}><Text style={{ color: COLORS.text, padding: 8 }}>Revoke live links</Text></Pressable>}
     {contest.liveShareEnabled && <HostChat key={contest.id} localId={contest.id} />}
     {!!message && <Text accessibilityLiveRegion="polite" style={{ color: COLORS.textDim }}>{message}</Text>}

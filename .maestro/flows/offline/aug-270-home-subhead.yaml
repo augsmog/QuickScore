@@ -1,0 +1,9 @@
+# AUG-270: Home shows the subhead "Add your group, pick your games, and see who owes what. Scan a card if you've got one."
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: false
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+- assertVisible: "Add your group, pick your games, and see who owes what\\. Scan a card if you.ve got one\\."
+- takeScreenshot: aug-270-01-home-subhead
