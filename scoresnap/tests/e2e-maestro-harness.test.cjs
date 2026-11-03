@@ -93,7 +93,7 @@ test("selectors used by flows exist in the app source", () => {
     for (const m of fs.readFileSync(file, "utf8").matchAll(/id:\s*"([^"]+)"/g)) ids.add(m[1]);
   }
   for (const id of ids) {
-    const literal = src.includes(`testID="${id}"`);
+    const literal = src.includes(`testID="${id}"`) || (["course-tee-last", "course-tee-row"].includes(id) && src.includes('testID={ti === selectedCourse.teeBoxes.length - 1 ? "course-tee-last"'));
     const templ = /^score-(minus|par|plus)-/.test(id) && src.includes(`testID={\`score-${id.split("-")[1]}-\${player.name}\`}`);
     expect([id, literal || templ]).toEqual([id, true]);
   }
@@ -120,4 +120,21 @@ test("UX tee flow uses the offline fixture and captures the last row and pinned 
   const last = steps.findIndex(s => s.tapOn === "Tee 16");
   expect(steps[last + 1]).toEqual({ assertVisible: { id: "confirm-tees" } });
   expect(steps[last + 2].takeScreenshot).toBe("aug-429-14-pinned-confirm-last-row");
+});
+
+
+test("online tee flow reaches the API's last row before confirming without saving", () => {
+  expect(eas.build.simulator.env.EXPO_PUBLIC_FEATURE_COURSE_SEARCH).toBe("true");
+  const flow = config.flows.find(f => f.id === "aug-429-tee-confirm");
+  expect(flow.build).toBe("online");
+  expect(flow.liveWrite).toBeUndefined();
+  const [, steps] = docs(flow.file);
+  expect(steps).toContainEqual({ inputText: "Pebble Beach" });
+  expect(steps).toContainEqual({ tapOn: { id: "course-tee-row", index: 0 } });
+  expect(steps).toContainEqual({ scrollUntilVisible: { element: { id: "course-tee-last" }, direction: "DOWN" } });
+  const last = steps.findIndex(s => s.tapOn?.id === "course-tee-last");
+  expect(steps[last + 1]).toEqual({ assertVisible: { id: "confirm-tees" } });
+  expect(steps[last + 2]).toEqual({ takeScreenshot: "aug-429-24-online-pinned-confirm-last-row" });
+  expect(steps[last + 3]).toEqual({ tapOn: { id: "confirm-tees" } });
+  expect(read(flow.file)).not.toMatch(/tapOn: "Start"|create-two-player/);
 });

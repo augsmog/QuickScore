@@ -24,7 +24,8 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_SIMULATOR_NO_MLKIT": "1"
+        "EXPO_PUBLIC_SIMULATOR_NO_MLKIT": "1",
+        "EXPO_PUBLIC_FEATURE_COURSE_SEARCH": "true"
       }
     },
     "simulator-offline": {

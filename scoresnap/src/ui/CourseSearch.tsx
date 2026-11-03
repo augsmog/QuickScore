@@ -574,6 +574,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                     return (
                       <Pressable
                         key={ti}
+                        testID={ti === selectedCourse.teeBoxes.length - 1 ? "course-tee-last" : "course-tee-row"}
                         onPress={() => setSelectedTee(tee)}
                         style={{
                           flexDirection: "row",

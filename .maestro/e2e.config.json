@@ -99,6 +99,16 @@
       ],
       "captureHierarchy": true,
       "notes": "Requires simulator-offline built from candidate source with EXPO_PUBLIC_E2E_COURSE_FIXTURE=true; synthetic 16-tee course, no backend calls."
+    },
+    {
+      "id": "aug-429-tee-confirm",
+      "file": ".maestro/flows/online/aug-429-tee-confirm.yaml",
+      "build": "online",
+      "tickets": [
+        "AUG-429"
+      ],
+      "captureHierarchy": true,
+      "notes": "Read-only course search (Pebble Beach); no contest saved. Requires candidate simulator build with course search enabled. Last-row selector follows API ordering."
     }
   ],
   "blocked": [

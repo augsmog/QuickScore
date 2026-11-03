@@ -11,9 +11,29 @@ async function fillDraft(q){const {page,act}=q;for(const [placeholder,value]of [
 export function assertDraftSnapshot(s){assert.equal(s.pathname,'/contest/new');assert.deepEqual(s.fields,draft);assert.equal(s.teamMode,true);assert.equal(s.multiDay,false);assert.equal(s.roundChoices,0);assert.equal(s.groupOneCount,1);assert.equal(s.tier,'free');assert.deepEqual(s.contests,[]);assert.equal(s.closeCount,0);}
 async function retained(page){const fields={};for(const [key,placeholder]of [['first','Your name'],['second','Player 2 name'],['course','My Course']])fields[key]=await page.getByPlaceholder(placeholder,{exact:true}).inputValue();const data=await page.evaluate(()=>({tier:JSON.parse(localStorage.getItem('snapscore-scans')).state.tier,contests:JSON.parse(localStorage.getItem('snapscore-contests')||'null')?.state.contests||[]}));assertDraftSnapshot({pathname:new URL(page.url()).pathname,fields,teamMode:await page.getByTestId('team-mode').getByRole('switch').isChecked(),multiDay:await page.getByTestId('tournament-toggle').getByRole('switch').isChecked(),roundChoices:await page.getByTestId('rounds-2').count(),groupOneCount:await page.getByTestId('add-group').locator('..').getByText('1',{exact:true}).count(),closeCount:await page.getByRole('button',{name:'Close',exact:true}).count(),...data});}
 export function assertRecoveryTrace(expected,trace){assert.deepEqual(trace,expected.map(kind=>({kind,plan:'td',returned:true})));}
-async function plans(q){await q.page.waitForURL(u=>u.pathname==='/paywall'&&u.searchParams.get('tier')==='td');await q.enter('recovery-paywall');const selected=q.page.getByRole('radio',{checked:true});assert.equal(await selected.count(),1);assert.match(await selected.innerText(),/Tournament Director/);}
-async function back(q){await press(q,q.page.getByRole('button',{name:'Close',exact:true}));await q.page.waitForURL(u=>u.pathname==='/contest/new');await q.enter('create');await retained(q.page);assert.equal(await q.page.getByRole('button',{name:'Close',exact:true}).count(),0);}
-async function run(q,order){const {page,act,check,step,enter}=q;const trace=[];await check('entry',async()=>assert.equal((await page.evaluate(()=>JSON.parse(localStorage.getItem('snapscore-scans')))).state.tier,'free'));await act.activate(page.getByTestId('home-new-contest'));await enter('create');await fillDraft(q);await check('draft-entered',()=>retained(page));await step('draft');
- for(const [index,kind]of order.entries()){const n=index+1;await check(`badge-${n}`,()=>proveHostingBadge(q,kind));await step(`badge-${n}`);const control=kind==='day'?page.getByTestId('tournament-toggle').getByRole('switch'):page.getByTestId('add-group');await press(q,control);await plans(q);await check(`plans-${n}`,async()=>assert.equal(new URL(page.url()).searchParams.get('tier'),'td'));await step(`paywall-${n}`);await back(q);await check(`recovered-${n}`,()=>retained(page));trace.push({kind,plan:'td',returned:true});await step(`recovered-${n}`);}
- await check('outcome',async()=>{assertRecoveryTrace(order,trace);await retained(page);});await step('outcome');}
-export const paywallCases={'J-free-paywall-recover':q=>run(q,['day','group','day','group']),'J-free-paywall-group-first':q=>run(q,['group','day','group','day'])};
+// Legacy journey IDs stay stable; AUG-429 replaces the removed New Contest plan gate
+// with free mode selection and draft preservation across both setup steps.
+async function run(q,order){
+ const {page,act,check,step,enter}=q;
+ const noPlans=async()=>{assert.equal(new URL(page.url()).pathname,'/contest/new');assert.equal(await page.getByRole('button',{name:'Close',exact:true}).count(),0);assert.equal((await page.evaluate(()=>JSON.parse(localStorage.getItem('snapscore-scans')))).state.tier,'free');};
+ const modes=async()=>{await page.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});await page.getByText('Step 1/2',{exact:true}).waitFor();await noPlans();};
+ const settings=async()=>{const root=page.getByTestId('contest-step-round-settings');await root.waitFor({state:'visible'});await page.getByText('Step 2/2',{exact:true}).waitFor();await root.getByText('UNIT AMOUNT',{exact:true}).waitFor();await root.getByText('ESTIMATED TOTAL POT',{exact:true}).waitFor();assert.equal(await root.getByRole('textbox').count(),1);assert.equal(await root.getByRole('switch').count(),0);await noPlans();};
+ await check('entry',async()=>assert.equal((await page.evaluate(()=>JSON.parse(localStorage.getItem('snapscore-scans')))).state.tier,'free'));
+ await act.activate(page.getByTestId('home-new-contest'));await enter('create');await fillDraft(q);
+ await check('draft-entered',()=>retained(page));await step('draft');
+ await press(q,page.getByText('Continue',{exact:true}));await enter('setup-modes');
+ await check('two-step-modes',modes);await step('modes');
+ for(const game of order)await press(q,page.getByText(game,{exact:true}));
+ await press(q,page.getByTestId('skins-mode-gross'));
+ await check('free-modes-inline',async()=>{await noPlans();assert.equal(await page.getByTestId('skins-mode-gross').getAttribute('aria-checked'),'true');});await step('inline');
+ await press(q,page.getByText('Continue',{exact:true}));await enter('setup-settings');
+ await check('settings-only',settings);await step('settings');
+ await press(q,page.getByText('Back',{exact:true}));await enter('setup-modes');
+ await check('selection-preserved',async()=>{await modes();assert.equal(await page.getByTestId('skins-mode-gross').getAttribute('aria-checked'),'true');});await step('modes-return');
+ await press(q,page.getByText('Back',{exact:true}));await enter('create');
+ await check('draft-preserved',()=>retained(page));await step('draft-return');
+ await press(q,page.getByText('Continue',{exact:true}));await enter('setup-modes');await modes();
+ await press(q,page.getByText('Continue',{exact:true}));await enter('setup-settings');
+ await check('outcome',async()=>{await settings();assert.equal((await page.evaluate(()=>JSON.parse(localStorage.getItem('snapscore-contests')||'null')?.state.contests||[])).length,0);});await step('outcome');
+}
+export const paywallCases={'J-free-paywall-recover':q=>run(q,['Skins','Nassau']),'J-free-paywall-group-first':q=>run(q,['Nassau','Skins'])};
