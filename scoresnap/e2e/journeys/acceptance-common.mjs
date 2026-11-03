@@ -23,6 +23,12 @@ export async function seedAcceptance(context,fixture) {
   },{fixture,account,rounds:completedRounds()});
 }
 export async function visible(locator) {locator=locator.filter({visible:true});await locator.waitFor({state:'visible'});assert(await locator.isVisible());}
+export function revealScrollDelta(rect,top,bottom) {
+ if(rect.top>=top+2&&rect.bottom<=bottom-2)return null;
+ // A 4px clearance is enough for the geometry gate. Larger margins can jump
+ // a near-edge control past the viewport on short, touch-sized profiles.
+ return Math.max(-600,Math.min(600,rect.top<top?rect.top-top-4:rect.bottom-bottom+4));
+}
 export async function text(locator,expected) {await paintedText(locator,expected);}
 export async function enabled(locator) {await visible(locator);await locator.page().waitForFunction(el=>!el.disabled&&el.getAttribute('aria-disabled')!=='true',await locator.elementHandle());}
 export async function reveal(page,act,locator) {
@@ -39,10 +45,10 @@ export async function reveal(page,act,locator) {
       if(!s)throw Error('No scrollable ancestor for offscreen control');
       document.querySelectorAll('[data-acceptance-scroll]').forEach(n=>n.removeAttribute('data-acceptance-scroll'));
       s.setAttribute('data-acceptance-scroll','active');
-      return {visible:false,delta:Math.max(-600,Math.min(600,r.top<top?r.top-top-30:r.bottom-bottom+30))};
+      return {visible:false,rect:{top:r.top,bottom:r.bottom},top,bottom};
     });
     if(state.visible)return;
-    await act.scroll(page.locator('[data-acceptance-scroll="active"]'),state.delta);
+    await act.scroll(page.locator('[data-acceptance-scroll="active"]'),revealScrollDelta(state.rect,state.top,state.bottom));
   }
   throw Error('Control not reachable within ten explicit viewport-bounded scrolls');
 }

@@ -29,9 +29,11 @@ export async function setup(context,page,journey,base) {
       localStorage.setItem('journey-fixture-seeded','1');
     },{id:roundId});
   }
-  await page.goto(base+'/');
+  // Expo's app shell can still be finishing load-only resources on the short
+  // SE profile; app readiness is asserted explicitly below after DOM parsing.
+  await page.goto(base+'/',{waitUntil:'domcontentloaded'});
   await ready(page,'home');
-  if(journey.start==='round') await page.goto(base+`/contest/${roundId}`);
+  if(journey.start==='round') await page.goto(base+`/contest/${roundId}`,{waitUntil:'domcontentloaded'});
   await ready(page,journey.start==='round'?'round-scorecard':'home');
   if(journey.start==='round') assert.deepEqual(await scores(page),[Array(18).fill(0),Array(18).fill(0)],'fixture must not pre-complete scores');
 }

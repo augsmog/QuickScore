@@ -168,7 +168,10 @@ function assertRecoveryWiring(value) {
   const lines=step.run.trim().split('\n').map(s=>s.trim());
   assert.ok(lines.includes('node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs e2e/journeys/reach-report.test.mjs'));
   assert.ok(lines.includes('OUT_DIR=e2e/journey-screens/td-badge-controls node --test e2e/journeys/paywall-badge.browser.test.mjs'));
-  assert.ok(lines.includes('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs'));
+  assert.ok(lines.includes('for profile in iphone-se iphone-15-pro iphone-pro-max; do'));
+  assert.ok(lines.includes('DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8092 OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs > "e2e/journey-screens/$profile-run.log" 2>&1 &'));
+  assert.ok(lines.includes('for pid in "${pids[@]}"; do wait "$pid" || status=1; done'));
+  assert.ok(lines.includes('if [ "$status" -ne 0 ]; then exit "$status"; fi'));
   assert.ok(lines.includes('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens/negative-proof node e2e/journeys/negative-proof.mjs'));
   const upload=steps[steps.indexOf(step)+1];
   assert.equal(upload.name,'Upload journey screenshots');assert.equal(upload.if,'always()');
@@ -176,7 +179,7 @@ function assertRecoveryWiring(value) {
 }
 test('AUG-293 and per-profile reach reports run in the existing CI step',()=>{
  assertRecoveryWiring(workflow);
- for(const mutate of [s=>s.run=s.run.replace(' e2e/journeys/paywall-recovery.test.mjs',''),s=>s.run=s.run.split('\n').filter(l=>!l.includes('paywall-badge.browser')).join('\n'),s=>s.run=s.run.replace('OUT_DIR=e2e/journey-screens node','JOURNEYS=J-other OUT_DIR=e2e/journey-screens node'),s=>s.if='false',s=>s['continue-on-error']=true,s=>s['timeout-minutes']=3]){
+ for(const mutate of [s=>s.run=s.run.replace(' e2e/journeys/paywall-recovery.test.mjs',''),s=>s.run=s.run.split('\n').filter(l=>!l.includes('paywall-badge.browser')).join('\n'),s=>s.run=s.run.replace('for profile in iphone-se iphone-15-pro iphone-pro-max; do','for profile in iphone-se iphone-15-pro; do'),s=>s.run=s.run.replace('OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs','JOURNEYS=J-other OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs'),s=>s.if='false',s=>s['continue-on-error']=true,s=>s['timeout-minutes']=3]){
   const copy=structuredClone(workflow);mutate(copy.jobs['browser-flows'].steps.find(s=>s.name==='Journey budgets and reachability'));assert.throws(()=>assertRecoveryWiring(copy));
  }
 });
