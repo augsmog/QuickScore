@@ -89,6 +89,27 @@
       ],
       "fixture": "paid-tier",
       "partial": "simulator share sheet only; physical iOS+Android recipient checks stay open"
+    },
+    {
+      "id": "aug-429-ux-pass",
+      "file": ".maestro/flows/offline/aug-429-ux-pass.yaml",
+      "build": "offline",
+      "tickets": [
+        "AUG-429"
+      ],
+      "captureHierarchy": true,
+      "notes": "Requires simulator-offline built from candidate source with EXPO_PUBLIC_E2E_COURSE_FIXTURE=true; synthetic 16-tee course, no backend calls."
+    },
+    {
+      "id": "aug-429-tee-confirm",
+      "file": ".maestro/flows/online/aug-429-tee-confirm.yaml",
+      "build": "online",
+      "tickets": [
+        "AUG-429"
+      ],
+      "captureHierarchy": true,
+      "notes": "Read-only course search (Pebble Beach); no contest saved. Requires candidate simulator build with course search enabled. Last-row selector follows API ordering.",
+      "skipInAll": "The online simulator build opens on the sign-in gate after onboarding (proof run 41727220634), and this flow must not create accounts or use credentials. Run by id against a signed-in test build; offline aug-429-ux-pass covers the pinned Confirm tees on a 16-tee fixture."
     }
   ],
   "blocked": [
@@ -99,5 +120,6 @@
       ],
       "reason": "needs a signed-in demo/owner account; adding its credential as a CI secret needs Augie's yes"
     }
-  ]
+  ],
+  "knownBlocks": []
 }

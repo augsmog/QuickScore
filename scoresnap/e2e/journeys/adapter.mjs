@@ -39,6 +39,7 @@ export async function setup(context,page,journey,base) {
 }
 export async function ready(page,id) {
   if(await paywallReady(page,id))return;
+  if(id==='setup-modes'||id==='setup-settings'){await page.getByTestId(id==='setup-modes'?'contest-step-gamemodes':'contest-step-round-settings').waitFor({state:'visible'});return;}
   if(await acceptanceReady(page,id))return;
   const targets={home:page.getByText('Build contests. Settle up.',{exact:false}).locator('visible=true'),create:page.getByPlaceholder('Your name'),'join-code':page.getByPlaceholder('Join code'),'round-scorecard':page.getByTestId('score-par-Augie'),'round-leaderboard':page.getByTestId('leaderboard-player-Augie'),'round-settlement':page.getByTestId('settlement-scroll')};
   await targets[id].waitFor({state:'visible'});

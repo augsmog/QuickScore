@@ -20,27 +20,29 @@ appId: com.scoresnap.app
 - assertVisible: "Ava"
 - assertVisible: "Ben"
 - tapOn:
-    text: "NEXT.*"
+    text: "Continue"
     index: 0
-# Format cards expose one combined accessibility label ("Skins, PRO, Win the hole outright..."), so match the prefix.
+# Mode chips expose their existing game name.
 - extendedWaitUntil:
-    visible: "Skins, .*"
+    visible: "Skins"
     timeout: 15000
+# Home stays mounted under the New Contest stack, so scope the tap to the Game Modes step.
 - tapOn:
-    text: "Skins, .*"
-    index: 0
+    text: "Skins"
+    childOf:
+      id: "contest-step-gamemodes"
 - scrollUntilVisible:
-    element: "NEXT.*"
+    element: "Continue"
     direction: DOWN
     optional: true
 - tapOn:
-    text: "NEXT.*"
+    text: "Continue"
     index: 0
 - scrollUntilVisible:
-    element: "START CONTEST.*"
+    element: "Start"
     direction: DOWN
     optional: true
-- tapOn: "START CONTEST.*"
+- tapOn: "Start"
 - extendedWaitUntil:
     visible: "Settlement"
     timeout: 20000
