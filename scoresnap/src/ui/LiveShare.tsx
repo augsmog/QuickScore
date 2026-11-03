@@ -55,7 +55,7 @@ export function LiveShare({ contest }: { contest: Contest }) {
       const currentActorId = auth.user?.id ?? auth.remoteUserId ?? null;
       if (currentActorId !== actorId) return;
       const latest = useContestStore.getState().contests.find(c => c.id === contest.id);
-      if (latest?.liveShareEnabled) void publishSnapshot(latest)
+      if (latest?.liveShareEnabled) void publishSnapshot(latest, actorId)
         .then(() => {
           if (scopeOperation.current.isCurrent(operationId)) setMessage('Live scoreboard synced.');
         })
@@ -73,7 +73,7 @@ export function LiveShare({ contest }: { contest: Contest }) {
     setBusy(true);
     try {
       if (revoke) {
-        await revokeLiveLinks(contest.id);
+        await revokeLiveLinks(contest.id, actorId);
         if (!activeOperation.current.isCurrent(operationId)) return;
         clearLiveShareUrl(scope);
         useContestStore.getState().updateContest(contest.id, { liveShareEnabled: false });
@@ -81,7 +81,7 @@ export function LiveShare({ contest }: { contest: Contest }) {
       } else {
         const origin = Platform.OS === 'web' ? window.location.origin : process.env.EXPO_PUBLIC_WEB_URL;
         if (!origin || !/^https?:\/\//.test(origin)) throw new Error('Configure the public web URL to share.');
-        const token = await createLiveLink(contest);
+        const token = await createLiveLink(contest, actorId);
         if (!activeOperation.current.isCurrent(operationId)) return;
         const auth = useAuthStore.getState();
         const currentActorId = auth.user?.id ?? auth.remoteUserId ?? null;
