@@ -2,6 +2,12 @@
 # (the offline build lands on Home directly), then wait for Home's New Contest button.
 appId: com.scoresnap.app
 ---
+# A system 'Open in "SnapScore"?' alert left by an earlier flow's openLink survives reinstall; clear it first.
+- runFlow:
+    when:
+      visible: ".*Open in .*SnapScore.*"
+    commands:
+      - tapOn: "Cancel"
 - extendedWaitUntil:
     visible: "Skip|Next.*|.*See Who Owes What.*|New Contest"
     timeout: 45000

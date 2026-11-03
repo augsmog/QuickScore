@@ -10,7 +10,8 @@ appId: com.scoresnap.app
 - inputText: "Ava"
 - tapOn: "Player 2 name"
 - inputText: "Ben"
-- hideKeyboard
+# iOS hideKeyboard is unreliable here; the form uses keyboardShouldPersistTaps="handled", so tapping a label dismisses it.
+- tapOn: "PLAYERS"
 - tapOn:
     text: "NEXT.*"
     index: 0

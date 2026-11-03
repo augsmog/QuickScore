@@ -7,6 +7,9 @@ appId: com.scoresnap.app
     permissions: { all: allow }
 - runFlow: ../../subflows/finish-onboarding.yaml
 - openLink: "snapscore://paywall"
+- tapOn:
+    text: "Open"  # iOS asks 'Open in "SnapScore"?' for a custom-scheme link
+    optional: true
 - extendedWaitUntil:
     visible: ".*Run the game\\. We do the math\\..*"
     timeout: 20000

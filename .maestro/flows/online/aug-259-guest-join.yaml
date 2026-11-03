@@ -36,7 +36,7 @@ env:
 - inputText: "${JOIN_CODE}"
 - tapOn: "Display name"
 - inputText: "Tater E2E"
-- hideKeyboard
+# iOS hideKeyboard fails on this RN screen; Find contest stays visible above the keyboard.
 - takeScreenshot: aug-259-02-code-and-name-entered
 - tapOn: "Find contest"
 - extendedWaitUntil:
