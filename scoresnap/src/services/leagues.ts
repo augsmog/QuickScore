@@ -31,23 +31,23 @@ export const leagueService = {
   create: (name: string) => {
     const normalized = name.trim();
     if (!normalized || normalized.length > 80) throw new Error('Enter a league name up to 80 characters.');
-    return rpc<string>('create_league', { league_name: normalized });
+    return rpc<string>('create_league', { p_league_name: normalized });
   },
   linkEvent: (leagueId: string, contestId: string) =>
-    rpc<{ status: 'linked'; mapped_players: number }>('link_league_event', { league_id: leagueId, contest_id: contestId }),
-  events: (leagueId: string) => rpc<LeagueEvent[]>('list_league_events', { league_id: leagueId }),
-  roster: (leagueId: string) => rpc<Array<{ league_player_id: string; display_name: string; role: string; status: string }>>('list_league_roster', { league_id: leagueId }),
+    rpc<{ status: 'linked'; mapped_players: number }>('link_league_event', { p_league_id: leagueId, p_contest_id: contestId }),
+  events: (leagueId: string) => rpc<LeagueEvent[]>('list_league_events', { p_league_id: leagueId }),
+  roster: (leagueId: string) => rpc<Array<{ league_player_id: string; display_name: string; role: string; status: string }>>('list_league_roster', { p_league_id: leagueId }),
   setMemberActive: (leagueId: string, playerId: string, active: boolean) =>
-    rpc<{ status: string }>('set_league_member_status', { league_id: leagueId, league_player_id: playerId, active }),
+    rpc<{ status: string }>('set_league_member_status', { p_league_id: leagueId, p_league_player_id: playerId, p_active: active }),
   requestEventJoin: (leagueId: string, contestId: string) =>
-    rpc<{ status: 'pending' }>('request_league_event_join', { league_id: leagueId, contest_id: contestId }),
+    rpc<{ status: 'pending' }>('request_league_event_join', { p_league_id: leagueId, p_contest_id: contestId }),
   mapOptions: (leagueId: string, contestId: string) => rpc<{
     roster: Array<{ id: string; name: string }>;
     players: Array<{ id: string; name: string }>;
     mappings: Array<{ league_player_id: string; contest_player_id: string }>;
-  }>('list_league_event_map_options', { league_id: leagueId, contest_id: contestId }),
+  }>('list_league_event_map_options', { p_league_id: leagueId, p_contest_id: contestId }),
   mapPlayer: (leagueId: string, contestId: string, leaguePlayerId: string, contestPlayerId: string) =>
     rpc<{ status: 'mapped' }>('map_league_event_player', {
-      league_id: leagueId, contest_id: contestId, league_player_id: leaguePlayerId, contest_player_id: contestPlayerId,
+      p_league_id: leagueId, p_contest_id: contestId, p_league_player_id: leaguePlayerId, p_contest_player_id: contestPlayerId,
     }),
 };

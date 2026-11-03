@@ -36,25 +36,47 @@ export default function LeaguesScreen() {
   const [mapPlayer, setMapPlayer] = useState<string | null>(null);
   const selectedLeague = leagues.find(league => league.id === selected);
 
-  const refresh = useCallback(async (leagueId = selected) => {
-    if (!remoteUserId || isAnonymous || !leagueId) return;
-    const [nextEvents, nextRoster] = await Promise.all([
-      leagueService.events(leagueId), leagueService.roster(leagueId).catch(() => []),
-    ]);
-    setEvents(nextEvents);
-    setRoster(nextRoster);
+  const refresh = useCallback(async (leagueId = selected, role?: League['role']) => {
+    if (!remoteUserId || !leagueId) return;
+    const actor = remoteUserId;
+    try {
+      const nextEvents = await leagueService.events(leagueId);
+      const nextRoster = !isAnonymous && role === 'host' ? await leagueService.roster(leagueId) : [];
+      if (useAuthStore.getState().remoteUserId !== actor) return;
+      setEvents(nextEvents);
+      setRoster(nextRoster);
+    } catch (e) {
+      if (useAuthStore.getState().remoteUserId === actor) {
+        setEvents([]); setRoster([]); setMapOptions(null); setMappingEvent(null);
+      }
+      throw e;
+    }
   }, [remoteUserId, isAnonymous, selected]);
 
   const load = useCallback(async () => {
     if (!CROSS_DEVICE_SHARING_ENABLED || !remoteUserId) return;
+    const actor = remoteUserId;
     setBusy(true); setError(null);
     try {
-      const rows = await leagueService.list(); setLeagues(rows);
+      const rows = await leagueService.list();
+      if (useAuthStore.getState().remoteUserId !== actor) return;
+      setLeagues(rows);
       const next = selected && rows.some(row => row.id === selected) ? selected : rows[0]?.id ?? null;
-      setSelected(next); if (next) await refresh(next); else { setEvents([]); setRoster([]); }
-    } catch (e: any) { setError(e?.message || 'Could not load leagues.'); }
+      setSelected(next); if (next) await refresh(next, rows.find(row => row.id === next)?.role); else { setEvents([]); setRoster([]); }
+    } catch (e: any) {
+      if (useAuthStore.getState().remoteUserId === actor) {
+        setLeagues([]); setSelected(null); setEvents([]); setRoster([]); setMapOptions(null); setMappingEvent(null);
+        setError(e?.message || 'Could not load leagues.');
+      }
+    }
     finally { setBusy(false); }
   }, [remoteUserId, isAnonymous, selected, refresh]);
+
+  useEffect(() => {
+    setLeagues([]); setSelected(null); setEvents([]); setRoster([]);
+    setPendingJoins({}); setMappingEvent(null); setMapOptions(null); setMapMember(null); setMapPlayer(null);
+    setError(null);
+  }, [remoteUserId]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -86,7 +108,7 @@ export default function LeaguesScreen() {
       {error ? <Text accessibilityRole="alert" style={{ ...TYPOGRAPHY.body, color: COLORS.danger }}>{error}</Text> : null}
       {busy ? <ActivityIndicator color={COLORS.primary} /> : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {leagues.map(league => <Pressable key={league.id} onPress={() => { setSelected(league.id); void refresh(league.id).catch(e => setError(e?.message || 'Could not load this league.')); }} style={{ paddingHorizontal: 12, paddingVertical: 9, borderRadius: RADII.md, backgroundColor: league.id === selected ? COLORS.primary : COLORS.surface }}>
+        {leagues.map(league => <Pressable key={league.id} onPress={() => { setSelected(league.id); setEvents([]); setRoster([]); void refresh(league.id, league.role).catch(e => setError(e?.message || 'Could not load this league.')); }} style={{ paddingHorizontal: 12, paddingVertical: 9, borderRadius: RADII.md, backgroundColor: league.id === selected ? COLORS.primary : COLORS.surface }}>
           <Text style={{ fontFamily: FONTS.bold, color: league.id === selected ? COLORS.onPrimary : COLORS.text }}>{league.name}</Text>
         </Pressable>)}
       </View>

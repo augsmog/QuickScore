@@ -12,7 +12,7 @@ CREATE TABLE public.leagues (
 
 CREATE TABLE public.league_memberships (
   league_id uuid NOT NULL REFERENCES public.leagues(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES auth.users(id),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   league_player_id uuid NOT NULL DEFAULT gen_random_uuid(),
   display_name text NOT NULL CHECK (length(btrim(display_name)) BETWEEN 1 AND 80),
   role text NOT NULL DEFAULT 'player' CHECK (role IN ('host','player')),
@@ -26,7 +26,7 @@ CREATE TABLE public.league_memberships (
 CREATE TABLE public.league_events (
   league_id uuid NOT NULL REFERENCES public.leagues(id) ON DELETE CASCADE,
   contest_id uuid NOT NULL REFERENCES public.contests(id) ON DELETE CASCADE,
-  linked_by uuid NOT NULL REFERENCES auth.users(id),
+  linked_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   linked_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (league_id,contest_id),
   UNIQUE (contest_id)
@@ -58,17 +58,45 @@ ALTER TABLE public.league_event_players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.league_event_players FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON public.leagues,public.league_memberships,public.league_events,public.league_event_players FROM PUBLIC,anon,authenticated,service_role;
 
-CREATE FUNCTION public.create_league(league_name text) RETURNS uuid
+-- purge_account runs before Auth Admin removes auth.users. This trigger then
+-- transfers shared league ownership to an active account. If no eligible
+-- successor exists, block deletion rather than orphaning or deleting a league.
+CREATE FUNCTION public.preserve_shared_leagues_before_user_delete() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE league_row record; successor uuid;
+BEGIN
+  FOR league_row IN SELECT l.id FROM public.leagues l WHERE l.owner_id=OLD.id ORDER BY l.id FOR UPDATE LOOP
+    successor := NULL;
+    SELECT m.user_id INTO successor FROM public.league_memberships m
+      JOIN auth.users u ON u.id=m.user_id AND u.is_anonymous IS FALSE
+      WHERE m.league_id=league_row.id AND m.user_id<>OLD.id AND m.status='active'
+      ORDER BY m.created_at,m.user_id LIMIT 1 FOR UPDATE;
+    IF successor IS NULL THEN
+      RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='LEAGUE_OWNER_TRANSFER_REQUIRED';
+    ELSE
+      UPDATE public.leagues SET owner_id=successor,updated_at=now() WHERE id=league_row.id;
+      UPDATE public.league_memberships SET role='host',updated_at=now()
+        WHERE league_id=league_row.id AND user_id=successor;
+    END IF;
+  END LOOP;
+  RETURN OLD;
+END $$;
+REVOKE ALL ON FUNCTION public.preserve_shared_leagues_before_user_delete() FROM PUBLIC,anon,authenticated,service_role;
+CREATE TRIGGER preserve_shared_leagues_before_user_delete
+  BEFORE DELETE ON auth.users FOR EACH ROW
+  EXECUTE FUNCTION public.preserve_shared_leagues_before_user_delete();
+
+CREATE FUNCTION public.create_league(p_league_name text) RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE uid uuid := auth.uid(); lid uuid; display text;
 BEGIN
   IF uid IS NULL OR coalesce((auth.jwt()->>'is_anonymous')::boolean,false) THEN
     RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='ACCOUNT_REQUIRED';
   END IF;
-  IF league_name IS NULL OR length(btrim(league_name)) NOT BETWEEN 1 AND 80 THEN
+  IF p_league_name IS NULL OR length(btrim(p_league_name)) NOT BETWEEN 1 AND 80 THEN
     RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_LEAGUE_NAME';
   END IF;
-  INSERT INTO public.leagues(owner_id,name) VALUES(uid,btrim(league_name)) RETURNING id INTO lid;
+  INSERT INTO public.leagues(owner_id,name) VALUES(uid,btrim(p_league_name)) RETURNING id INTO lid;
   SELECT p.name INTO display FROM public.contest_players p JOIN public.contest_memberships m
     ON m.contest_id=p.contest_id AND m.player_id=p.id
     WHERE m.user_id=uid AND m.status='approved' ORDER BY p.joined_at LIMIT 1;
@@ -79,7 +107,7 @@ END $$;
 
 -- Linking is host-only and imports only already-approved event participants.
 -- It never grants event access; every event retains its independent membership.
-CREATE FUNCTION public.link_league_event(league_id uuid,contest_id uuid) RETURNS jsonb
+CREATE FUNCTION public.link_league_event(p_league_id uuid,p_contest_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE l public.leagues; c public.contests; uid uuid := auth.uid(); linked integer;
 BEGIN
@@ -97,7 +125,7 @@ BEGIN
   END IF;
   INSERT INTO public.league_events(league_id,contest_id,linked_by)
     VALUES(l.id,c.id,uid) ON CONFLICT ON CONSTRAINT league_events_pkey DO NOTHING;
-  UPDATE public.contests SET league_id=l.id WHERE id=c.id AND league_id IS NULL;
+  UPDATE public.contests AS event_row SET league_id=l.id WHERE event_row.id=c.id AND event_row.league_id IS NULL;
 
   -- Each approved event identity gets one reusable league player UUID. Event
   -- access remains controlled by contest_memberships, independently of roster.
@@ -130,7 +158,7 @@ BEGIN
   RETURN jsonb_build_object('status','linked','mapped_players',linked);
 END $$;
 
-CREATE FUNCTION public.map_league_event_player(league_id uuid,contest_id uuid,league_player_id uuid,contest_player_id uuid) RETURNS jsonb
+CREATE FUNCTION public.map_league_event_player(p_league_id uuid,p_contest_id uuid,p_league_player_id uuid,p_contest_player_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE uid uuid := auth.uid();
 BEGIN
@@ -147,7 +175,7 @@ BEGIN
   RETURN jsonb_build_object('status','mapped');
 END $$;
 
-CREATE FUNCTION public.set_league_member_status(league_id uuid,league_player_id uuid,active boolean) RETURNS jsonb
+CREATE FUNCTION public.set_league_member_status(p_league_id uuid,p_league_player_id uuid,p_active boolean) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE uid uuid := auth.uid();
 BEGIN
@@ -165,7 +193,7 @@ BEGIN
   RETURN jsonb_build_object('status',CASE WHEN $3 THEN 'active' ELSE 'removed' END);
 END $$;
 
-CREATE FUNCTION public.list_league_roster(league_id uuid) RETURNS jsonb
+CREATE FUNCTION public.list_league_roster(p_league_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE uid uuid := auth.uid(); roster jsonb;
 BEGIN
@@ -178,7 +206,7 @@ BEGIN
   RETURN roster;
 END $$;
 
-CREATE FUNCTION public.list_league_event_map_options(league_id uuid,contest_id uuid) RETURNS jsonb
+CREATE FUNCTION public.list_league_event_map_options(p_league_id uuid,p_contest_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE uid uuid := auth.uid(); roster jsonb; players jsonb; mappings jsonb;
 BEGIN
@@ -197,7 +225,7 @@ END $$;
 
 -- A league membership can request a seat, but only the event host's existing
 -- approval RPC grants event access. A missing mapping is never guessed by name.
-CREATE FUNCTION public.request_league_event_join(league_id uuid,contest_id uuid) RETURNS jsonb
+CREATE FUNCTION public.request_league_event_join(p_league_id uuid,p_contest_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE uid uuid := auth.uid(); c public.contests; lm public.league_memberships; player uuid;
 BEGIN
@@ -228,7 +256,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
   WHERE m.user_id=auth.uid() AND m.status='active';
 $$;
 
-CREATE FUNCTION public.list_league_events(league_id uuid) RETURNS jsonb
+CREATE FUNCTION public.list_league_events(p_league_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE uid uuid := auth.uid(); output jsonb; e record; authorized boolean; snap jsonb; rounds jsonb;
 BEGIN
