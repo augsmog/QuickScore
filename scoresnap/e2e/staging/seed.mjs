@@ -30,10 +30,12 @@ export function assertLocal(url) {
   assert.match(String(url), LOCAL, 'Staging seed only runs against a never-linked local stack');
 }
 
-async function call(url, path, key, { method = 'GET', body, bearer = key, prefer } = {}) {
+export async function call(url, path, key, { method = 'GET', body, bearer = key, prefer } = {}) {
   const headers = { apikey: key, Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' };
   if (prefer) headers.Prefer = prefer;
-  const r = await fetch(`${url}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  assertLocal(url);
+  // Never follow redirects: a 3xx from the local port must not forward keys or passwords to another origin.
+  const r = await fetch(`${url}${path}`, { method, headers, redirect: 'error', body: body === undefined ? undefined : JSON.stringify(body) });
   const text = await r.text();
   let json = null; try { json = text ? JSON.parse(text) : null; } catch { json = null; }
   return { status: r.status, json };
@@ -109,12 +111,14 @@ export async function seed({ url, anon, service, mask = () => {} }) {
     assert.equal(seen.status, 200);
     assert.equal(seen.json.length, a.member ? 1 : 0, `${a.role} contest visibility`);
   }
-  const players = (await call(url, `/rest/v1/contest_players?contest_id=eq.${CONTEST_ID}&select=id`, service)).json;
+  const players = (await call(url, `/rest/v1/contest_players?contest_id=eq.${CONTEST_ID}&select=id,user_id,name,handicap,group_id&order=id`, service)).json;
+  const row = (await call(url, `/rest/v1/contests?id=eq.${CONTEST_ID}&select=id,owner_id,name,course,invite_code,status,protocol,sync_enabled`, service)).json[0];
   assert.equal(players.length, 4, 'Seed roster is exactly four players');
   out.manifest = {
     seed_version: SEED_VERSION, target: 'disposable-local-supabase', api_url: url,
     accounts: Object.fromEntries(Object.entries(out.accounts).map(([r, v]) => [r, { email: v.email, user_id: v.user_id, reused: v.reused }])),
     contest: { id: CONTEST_ID, invite_code: contest.invite_code, players: players.length, course: COURSE.name },
+    rows: { contest: row, players },   // full seeded rows; the CI re-run must reproduce them exactly
     checks: ['email-sign-in x5', 'profiles x5', 'owner-rls-create', 'member-visibility x4', 'outsider-hidden'],
   };
   return out;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACCOUNTS, COURSE, CONTEST_ID, INVITE_CODE, SEED_VERSION, assertLocal, emailFor, playerId, seed } from './seed.mjs';
+import { ACCOUNTS, COURSE, CONTEST_ID, INVITE_CODE, SEED_VERSION, assertLocal, call, emailFor, playerId, seed } from './seed.mjs';
 
 test('targets only a never-linked local stack', async () => {
   for (const ok of ['http://127.0.0.1:54321', 'http://localhost:54321']) assert.doesNotThrow(() => assertLocal(ok));
@@ -25,4 +25,16 @@ test('synthetic course is a valid 18-hole layout', () => {
   assert.deepEqual(COURSE.holes.map(h => h.num), Array.from({ length: 18 }, (_, i) => i + 1));
   assert.deepEqual([...COURSE.holes.map(h => h.hcp)].sort((a, b) => a - b), Array.from({ length: 18 }, (_, i) => i + 1));
   assert.equal(COURSE.holes.reduce((s, h) => s + h.par, 0), 72);
+});
+
+test('requests never follow redirects and never leave loopback', async () => {
+  const seen = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = async (u, init) => { seen.push({ u, redirect: init.redirect }); return new Response('[]', { status: 200 }); };
+  try {
+    await call('http://127.0.0.1:54321', '/rest/v1/contests', 'k');
+    assert.deepEqual(seen, [{ u: 'http://127.0.0.1:54321/rest/v1/contests', redirect: 'error' }]);
+    await assert.rejects(call('https://example.supabase.co', '/auth/v1/admin/users', 'k'), /never-linked local stack/);
+    assert.equal(seen.length, 1);
+  } finally { globalThis.fetch = real; }
 });
