@@ -27,6 +27,18 @@
         "EXPO_PUBLIC_SIMULATOR_NO_MLKIT": "1"
       }
     },
+    "simulator-offline": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_SIMULATOR_NO_MLKIT": "1",
+        "EXPO_PUBLIC_OFFLINE_MODE": "true",
+        "EXPO_PUBLIC_DEMO_MODE": "false",
+        "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": "false"
+      }
+    },
     "testflight": {
       "distribution": "store",
       "ios": {

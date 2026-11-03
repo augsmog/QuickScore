@@ -31,12 +31,27 @@ function loadMlKit(flag) {
   return mod.exports;
 }
 
-test("only the simulator profile sets the no-ML-Kit flag", () => {
-  expect(eas.build.simulator.env[FLAG]).toBe("1");
-  expect(eas.build.simulator.ios.simulator).toBe(true);
-  for (const name of Object.keys(eas.build).filter((n) => n !== "simulator")) {
+const SIM_PROFILES = ["simulator", "simulator-offline"];
+
+test("only the simulator profiles set the no-ML-Kit flag", () => {
+  for (const name of SIM_PROFILES) {
+    expect(eas.build[name].env[FLAG]).toBe("1");
+    expect(eas.build[name].ios.simulator).toBe(true);
+    expect(eas.build[name].distribution).toBe("internal");
+    expect(eas.build[name].channel).toBeUndefined();
+    expect(eas.build[name].autoIncrement).toBeUndefined();
+  }
+  for (const name of Object.keys(eas.build).filter((n) => !SIM_PROFILES.includes(n))) {
     expect((eas.build[name].env || {})[FLAG]).toBeUndefined();
   }
+});
+
+test("simulator-offline is a local-only E2E fixture build, never production env", () => {
+  const off = eas.build["simulator-offline"];
+  expect(off.environment).toBeUndefined();
+  expect(off.env.EXPO_PUBLIC_OFFLINE_MODE).toBe("true");
+  expect(off.env.EXPO_PUBLIC_DEMO_MODE).toBe("false");
+  expect(off.env.EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING).toBe("false");
 });
 
 test("production and TestFlight profiles are byte-for-byte what they were", () => {
