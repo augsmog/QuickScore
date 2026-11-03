@@ -613,7 +613,9 @@ export function validateVariationSetup(groups: {players: Player[]}[], games: Gam
     }
   }
   if (games.some(g => !isGameImplemented(g))) return "This game is unavailable until scoring and settlement are complete.";
-  if (games.includes("fourball")) {
+  // New Four-Ball stake/layout rules apply only after setup explicitly stores
+  // the pair-score choice. Older rulesVersion: 1 contests predate this choice.
+  if (games.includes("fourball") && (config.fourBallScoring !== undefined || config.fourBallFormat !== undefined)) {
     if (config.fourBallScoring !== undefined && !["better", "total"].includes(config.fourBallScoring)) return "Choose a supported Four-Ball pair score.";
     if (config.fourBallFormat !== undefined && config.fourBallFormat !== "round_robin") return "Choose a supported Four-Ball format.";
     if (Math.round(betUnit * 100) % 2 !== 0) return "Four-Ball unit amount must use an even number of cents to split equally between partners.";
