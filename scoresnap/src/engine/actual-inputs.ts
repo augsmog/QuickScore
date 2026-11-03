@@ -69,7 +69,8 @@ export function actualInputLedger(game: GameType, players: Player[], course: Cou
       for (const id of [event.bingo,event.bango,event.bongo]) {
         const winner=find(id); if (!winner) continue;
         const points=config.bbbBirdieDouble && winner.scores[i]<=course.holes[i].par-1?2:1;
-        for (const loser of players.filter(p=>p!==winner)) pay(winner,loser,points/players.length);
+        const amount = config.bbbAmountPerOpponent ? points : points/players.length;
+        for (const loser of players.filter(p=>p!==winner)) pay(winner,loser,amount);
       }
     }
     holes++;

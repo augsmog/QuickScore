@@ -11,11 +11,11 @@ function check(source){runNode(['--import','tsx','--input-type=module','-e',`
  `]);}
 test('registry derives count without aliases or hidden rules',()=>check(`
  assert.equal(t.PLAYABLE_BASE_GAME_IDS.length,30);
- assert.equal(t.PLAYABLE_OPTION_IDS.length,26);
+ assert.equal(t.PLAYABLE_OPTION_IDS.length,25);
  assert.equal(t.PLAYABLE_FORMAT_IDS.length,1);
- assert.equal(t.PLAYABLE_GAME_COUNT,57);
+ assert.equal(t.PLAYABLE_GAME_COUNT,56);
  assert.equal(new Set(t.PLAYABLE_OPTION_IDS).size,t.PLAYABLE_OPTION_IDS.length);
- assert.equal(t.GAME_VARIATIONS.length,25);
+ assert.equal(t.GAME_VARIATIONS.length,24);
  assert.equal(t.HIDDEN_VARIATIONS.length,2);
  for(const id of ['bbb_chip_in_triple','nassau_auto_press']) assert.ok(t.HIDDEN_VARIATIONS.some(v=>v.id===id));
  for(const id of ['wolf','hammer','snake','greenies','bingo_bango_bongo','alternate_shot','chapman']) assert.ok(t.isGameImplemented(id));
