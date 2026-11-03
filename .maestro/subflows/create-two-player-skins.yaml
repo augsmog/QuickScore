@@ -22,11 +22,12 @@ appId: com.scoresnap.app
 - tapOn:
     text: "NEXT.*"
     index: 0
+# Format cards expose one combined accessibility label ("Skins, PRO, Win the hole outright..."), so match the prefix.
 - extendedWaitUntil:
-    visible: "Skins"
+    visible: "Skins, .*"
     timeout: 15000
 - tapOn:
-    text: "Skins"
+    text: "Skins, .*"
     index: 0
 - scrollUntilVisible:
     element: "NEXT.*"
