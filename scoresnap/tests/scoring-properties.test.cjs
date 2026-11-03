@@ -13,5 +13,16 @@ for (const game of games) test(`seeded scoring invariants: ${game} (60 configura
   const report = JSON.parse(output.trim());
   expect(report.configurations).toBe(60);
   expect(report.checks).toBeGreaterThan(0);
+  const requiredCounts = [
+    report.minPlayers,
+    Math.min(report.minPlayers + 1, report.maxPlayers),
+    Math.floor((report.minPlayers + report.maxPlayers) / 2),
+    report.maxPlayers,
+    ...[2, 3, 4, 8, 40].filter(count => count >= report.minPlayers && count <= report.maxPlayers),
+  ];
+  for (const count of new Set(requiredCounts)) {
+    expect(report.playerCountCoverage[count]).toBeGreaterThan(0);
+  }
+  expect(Object.values(report.playerCountCoverage).reduce((total, count) => total + count, 0)).toBe(60);
   console.log(`GS-13 ${JSON.stringify(report)}`);
 }, 30000);

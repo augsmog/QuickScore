@@ -138,6 +138,13 @@ test('consumers verify same-attempt artifact before any browser runs', () => {
 test('all original browser coverage and flag-distinct builds remain', () => {
   const flows = commands('browser-flows');
   for (const script of ['web-real-flow.mjs', 'live-share.mjs', 'join-gate.mjs', 'usability.mjs', 'safe-area-sheets.mjs', 'usability-regression.mjs', 'journeys/metrics.test.mjs', 'journeys/glyph-evidence.test.mjs', 'journeys/glyph-evidence.browser.test.mjs', 'journeys/runner.mjs', 'journeys/negative-proof.mjs', 'scripts/render-scorecard.mjs']) assert.ok(flows.includes(script), script);
+  const safeArea = steps('browser-flows').find(step => step.name?.startsWith('Safe-area sheets'));
+  assert.deepEqual(safeArea.run.trim().split('\n').map(line => line.trim()), [
+    'node --test e2e/safe-area-profiles.test.mjs',
+    'for profile in iphone-se iphone-15-pro iphone-pro-max; do',
+    'DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8089 OUT_DIR="e2e/screens/safe-area/$profile" node e2e/safe-area-sheets.mjs',
+    'done',
+  ]);
   assert.equal((flows.match(/node e2e\/web-real-flow\.mjs/g) || []).length, 2);
   assert.equal((flows.match(/node e2e\/join-gate\.mjs/g) || []).length, 2);
   assert.match(flows, /EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web-sharing --clear/);
@@ -159,17 +166,20 @@ function assertRecoveryWiring(value) {
   assert.equal(step.if,undefined);assert.equal(step['continue-on-error'],undefined);
   assert.equal(step.env?.JOURNEYS,undefined);
   const lines=step.run.trim().split('\n').map(s=>s.trim());
-  assert.ok(lines.includes('node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs'));
+  assert.ok(lines.includes('node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs e2e/journeys/reach-report.test.mjs'));
   assert.ok(lines.includes('OUT_DIR=e2e/journey-screens/td-badge-controls node --test e2e/journeys/paywall-badge.browser.test.mjs'));
-  assert.ok(lines.includes('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs'));
+  assert.ok(lines.includes('for profile in iphone-se iphone-15-pro iphone-pro-max; do'));
+  assert.ok(lines.includes('DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8092 OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs > "e2e/journey-screens/$profile-run.log" 2>&1 &'));
+  assert.ok(lines.includes('for pid in "${pids[@]}"; do wait "$pid" || status=1; done'));
+  assert.ok(lines.includes('if [ "$status" -ne 0 ]; then exit "$status"; fi'));
   assert.ok(lines.includes('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens/negative-proof node e2e/journeys/negative-proof.mjs'));
   const upload=steps[steps.indexOf(step)+1];
   assert.equal(upload.name,'Upload journey screenshots');assert.equal(upload.if,'always()');
   assert.equal(upload.with.path,'scoresnap/e2e/journey-screens');
 }
-test('AUG-293 controls, unfiltered journeys and failure captures run in the existing CI step',()=>{
+test('AUG-293 and per-profile reach reports run in the existing CI step',()=>{
  assertRecoveryWiring(workflow);
- for(const mutate of [s=>s.run=s.run.replace(' e2e/journeys/paywall-recovery.test.mjs',''),s=>s.run=s.run.split('\n').filter(l=>!l.includes('paywall-badge.browser')).join('\n'),s=>s.run=s.run.replace('OUT_DIR=e2e/journey-screens node','JOURNEYS=J-other OUT_DIR=e2e/journey-screens node'),s=>s.if='false',s=>s['continue-on-error']=true,s=>s['timeout-minutes']=3]){
+ for(const mutate of [s=>s.run=s.run.replace(' e2e/journeys/paywall-recovery.test.mjs',''),s=>s.run=s.run.split('\n').filter(l=>!l.includes('paywall-badge.browser')).join('\n'),s=>s.run=s.run.replace('for profile in iphone-se iphone-15-pro iphone-pro-max; do','for profile in iphone-se iphone-15-pro; do'),s=>s.run=s.run.replace('OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs','JOURNEYS=J-other OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs'),s=>s.if='false',s=>s['continue-on-error']=true,s=>s['timeout-minutes']=3]){
   const copy=structuredClone(workflow);mutate(copy.jobs['browser-flows'].steps.find(s=>s.name==='Journey budgets and reachability'));assert.throws(()=>assertRecoveryWiring(copy));
  }
 });

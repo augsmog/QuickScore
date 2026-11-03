@@ -586,7 +586,7 @@ export default function GameDetailsScreen() {
         {/* Skip all */}
         <Pressable
           onPress={handleSkipAll}
-          style={{ alignItems: "center", paddingVertical: 8 }}
+          style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}
         >
           <Text
             style={{

@@ -4,7 +4,7 @@ import {acceptanceSetup,acceptanceReady,acceptanceCases} from './acceptance-case
 import assert from 'node:assert/strict';
 import {seedPaidTier} from '../shared/paid-tier-fixture.mjs';
 export const fixtureVersion='two-player-empty-v1';
-export const disclosures=['round-status-chip','overflow-menu','more-menu'];
+export const disclosures=['round-status-chip','overflow-menu','more-menu','home-see-all-modes'];
 export const roundId='journey-empty-round';
 export async function setup(context,page,journey,base) {
   // Test-only IDs on existing Pressables that have no source testID. No semantics
@@ -29,9 +29,11 @@ export async function setup(context,page,journey,base) {
       localStorage.setItem('journey-fixture-seeded','1');
     },{id:roundId});
   }
-  await page.goto(base+'/');
+  // Expo's app shell can still be finishing load-only resources on the short
+  // SE profile; app readiness is asserted explicitly below after DOM parsing.
+  await page.goto(base+'/',{waitUntil:'domcontentloaded'});
   await ready(page,'home');
-  if(journey.start==='round') await page.goto(base+`/contest/${roundId}`);
+  if(journey.start==='round') await page.goto(base+`/contest/${roundId}`,{waitUntil:'domcontentloaded'});
   await ready(page,journey.start==='round'?'round-scorecard':'home');
   if(journey.start==='round') assert.deepEqual(await scores(page),[Array(18).fill(0),Array(18).fill(0)],'fixture must not pre-complete scores');
 }
@@ -47,6 +49,22 @@ export async function scores(page) {
 }
 export async function contests(page) {
   return page.evaluate(()=>JSON.parse(localStorage.getItem('snapscore-contests')||'null')?.state?.contests||[]);
+}
+async function waitForStableViewportRect(locator) {
+  await locator.waitFor({state:'visible'});
+  await locator.evaluate(el=>new Promise((resolve,reject)=>{
+    let previous=null,stable=0,frames=0;
+    const tick=()=>{
+      const r=el.getBoundingClientRect(),current=[r.x,r.y,r.width,r.height];
+      const inView=r.width>0&&r.height>0&&r.x>=0&&r.y>=0&&r.right<=innerWidth&&r.bottom<=innerHeight;
+      stable=inView&&previous&&current.every((v,i)=>Math.abs(v-previous[i])<0.5)?stable+1:0;
+      previous=current;
+      if(stable>=3)resolve();
+      else if(++frames>=120)reject(Error('control did not settle inside viewport'));
+      else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }));
 }
 export const cases={
   ...paywallCases,
@@ -91,6 +109,27 @@ export const cases={
     await check('activation',()=>page.getByText('Local invite link copied · same browser only',{exact:true}).waitFor({state:'visible'}));
     await check('destination',async()=>assert.match(await page.evaluate(()=>navigator.clipboard.readText()),/\/join\/JRNY26$/));
     await check('outcome',async()=>assert.equal((await contests(page))[0].joinCode,'JRNY26')); await step('invite-copied');
+  },
+  'J-game-rules':async({page,act,check,step})=>{
+    await check('entry',()=>ready(page,'home'));
+    await act.activate(page.getByTestId('home-see-all-modes'),{feature:'game-library'});
+    await check('library',()=>page.getByText('50+ game modes',{exact:true}).waitFor({state:'visible'}));
+    await step('game-library');
+    await waitForStableViewportRect(page.getByText('50+ game modes',{exact:true}));
+    await act.scroll(page.getByTestId('game-mode-row-skins').locator('xpath=../..'),240);
+    await step('game-modes-scroll');
+    await act.activate(page.getByTestId('game-mode-row-skins'),{feature:'skins-rules'});
+    await check('rule',async()=>{
+      const sheet=page.getByTestId('game-info-sheet');
+      await sheet.waitFor({state:'visible'});
+      assert.equal(await sheet.getByText('Skins',{exact:true}).count(),1);
+      assert.ok((await sheet.innerText()).trim().length>0);
+    });
+    await waitForStableViewportRect(page.getByTestId('game-info-close'));
+    await step('skins-rules');
+    await act.activate(page.getByTestId('game-info-close'));
+    await check('outcome',()=>page.getByTestId('game-info-sheet').waitFor({state:'hidden'}));
+    await step('home-restored');
   },
   'J-finalize-settle':async({page,act,check,step,enter})=>{
     await check('entry',()=>ready(page,'round-scorecard'));

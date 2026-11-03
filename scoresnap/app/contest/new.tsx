@@ -424,7 +424,10 @@ export default function NewContestScreen() {
           style={{
             backgroundColor: COLORS.surfaceMid,
             borderRadius: RADII.md,
-            padding: 8,
+            minWidth: 44,
+            minHeight: 44,
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           <ChevronLeft size={20} color={COLORS.textDim} />
@@ -494,6 +497,7 @@ export default function NewContestScreen() {
                 borderColor: COLORS.border,
                 borderWidth: 1,
                 borderRadius: RADII.md,
+                minHeight: 44,
                 paddingHorizontal: 16,
                 paddingVertical: 14,
                 fontSize: 15,
@@ -508,6 +512,7 @@ export default function NewContestScreen() {
               <Switch
                 testID="tournament-toggle"
                 accessibilityLabel="Multi-Day Tournament"
+                style={{ width: 44, height: 44 }}
                 value={isTournament}
                 onValueChange={(val) => {
                   if (val && !canHostTournament({numRounds}, tier)) { openPlan("/paywall?tier=td"); return; }
@@ -586,6 +591,7 @@ export default function NewContestScreen() {
                     borderColor: COLORS.border,
                     borderWidth: 1,
                     borderRadius: RADII.md,
+                    minHeight: 44,
                     paddingHorizontal: 16,
                     paddingVertical: 14,
                     fontSize: 15,
@@ -629,6 +635,7 @@ export default function NewContestScreen() {
                 testID="team-mode"
                 value={hasTeams}
                 onValueChange={setHasTeams}
+                style={{ width: 44, height: 44 }}
                 trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
                 thumbColor={COLORS.text}
               />
@@ -648,6 +655,7 @@ export default function NewContestScreen() {
                         flex: 1,
                         backgroundColor: COLORS.surfaceLow,
                         borderRadius: RADII.md,
+                        minHeight: 44,
                         paddingHorizontal: 12,
                         paddingVertical: 8,
                         fontSize: 14,
@@ -738,6 +746,7 @@ export default function NewContestScreen() {
                       color: COLORS.text,
                       backgroundColor: nameEmpty ? COLORS.warn + "08" : "transparent",
                       borderRadius: RADII.sm,
+                      minHeight: 44,
                       paddingHorizontal: nameEmpty ? 8 : 0,
                       paddingVertical: 2,
                       marginHorizontal: nameEmpty ? -8 : 0,
@@ -774,6 +783,7 @@ export default function NewContestScreen() {
                       style={{
                         backgroundColor: COLORS.surfaceHighest,
                         borderRadius: RADII.md,
+                        minHeight: 44,
                         paddingHorizontal: 10,
                         paddingVertical: 5,
                         fontSize: 14,
@@ -1097,6 +1107,7 @@ export default function NewContestScreen() {
                 style={{
                   fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                   fontSize: 40,
+                  minHeight: 44,
                   color: COLORS.text,
                   minWidth: 60,
                 }}

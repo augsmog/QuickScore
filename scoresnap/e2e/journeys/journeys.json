@@ -139,13 +139,7 @@
           "maxActivations": 2,
           "maxScrolls": 0,
           "testId": "score-par-Augie",
-          "start": "round",
-          "reachability": {
-            "status": "known_issue",
-            "linear": "AUG-306",
-            "signature": "no-accessible-name",
-            "date": "2026-10-31"
-          }
+          "start": "round"
         },
         {
           "name": "score-Sam",
@@ -156,47 +150,29 @@
           "maxActivations": 2,
           "maxScrolls": 0,
           "testId": "score-par-Sam",
-          "start": "round",
-          "reachability": {
-            "status": "known_issue",
-            "linear": "AUG-306",
-            "signature": "no-accessible-name",
-            "date": "2026-10-31"
-          }
+          "start": "round"
         },
         {
           "name": "settle",
-          "role": "button",
+          "role": "tab",
           "accessibleName": "Settlement",
           "visibleText": "SETTLEMENT",
           "class": "core",
           "maxActivations": 2,
           "maxScrolls": 0,
           "testId": "journey-settlement",
-          "start": "round",
-          "reachability": {
-            "status": "known_issue",
-            "linear": "AUG-306",
-            "signature": "no-accessible-name",
-            "date": "2026-10-31"
-          }
+          "start": "round"
         },
         {
           "name": "leaderboard",
-          "role": "button",
+          "role": "tab",
           "accessibleName": "Leaderboard",
           "visibleText": "LEADERBOARD",
           "class": "core",
           "maxActivations": 2,
           "maxScrolls": 0,
           "testId": "journey-leaderboard",
-          "start": "round",
-          "reachability": {
-            "status": "known_issue",
-            "linear": "AUG-306",
-            "signature": "no-accessible-name",
-            "date": "2026-10-31"
-          }
+          "start": "round"
         }
       ],
       "budget": {
@@ -249,19 +225,13 @@
         {
           "name": "invite",
           "role": "button",
-          "accessibleName": "Copy / share local invite",
+          "accessibleName": "Invite players",
           "visibleText": "Copy / share local invite",
           "class": "core",
           "maxActivations": 2,
           "maxScrolls": 0,
           "testId": "journey-invite",
-          "start": "round",
-          "reachability": {
-            "status": "known_issue",
-            "linear": "AUG-306",
-            "signature": "no-accessible-name",
-            "date": "2026-10-31"
-          }
+          "start": "round"
         }
       ],
       "budget": {
@@ -579,23 +549,51 @@
       ],
       "start": "home",
       "fixture": "fresh-context-v1",
-      "features": [],
+      "features": [
+        {
+          "name": "game-library",
+          "role": "button",
+          "accessibleName": "See all game modes",
+          "visibleText": "See All",
+          "class": "core",
+          "maxActivations": 1,
+          "maxScrolls": 0,
+          "testId": "home-see-all-modes",
+          "start": "home"
+        },
+        {
+          "name": "skins-rules",
+          "role": "button",
+          "accessibleName": "Skins",
+          "visibleText": "Skins",
+          "class": "supporting",
+          "maxActivations": 2,
+          "maxScrolls": 1,
+          "testId": "game-mode-row-skins",
+          "start": "home"
+        }
+      ],
       "budget": {
-        "activations": 6,
-        "screens": 4,
+        "activations": 3,
+        "screens": 5,
         "timeoutMs": 20000
       },
       "baseline": null,
-      "status": "deferred",
+      "status": "gated",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
-        "activation",
-        "destination",
+        "library",
+        "rule",
         "outcome"
       ],
-      "deferredReason": "Rules discovery adapter deferred to next phase",
-      "requiredSteps": []
+      "requiredSteps": [
+        "entry",
+        "game-library",
+        "game-modes-scroll",
+        "skins-rules",
+        "home-restored"
+      ]
     },
     {
       "id": "J-settlement-mark-lifecycle",
