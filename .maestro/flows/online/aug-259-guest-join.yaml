@@ -11,6 +11,9 @@ env:
     visible: "Skip|Next|Get Started|.*See Who Owes What.*"
     timeout: 60000
 - openLink: "snapscore://join/${JOIN_CODE}"
+- tapOn:
+    text: "Open"  # iOS asks 'Open in "SnapScore"?' for a custom-scheme link
+    optional: true
 - extendedWaitUntil:
     visible: "Join with code"
     timeout: 20000

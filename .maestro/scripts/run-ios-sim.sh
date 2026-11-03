@@ -72,7 +72,8 @@ while IFS=$'\t' read -r ID FLOW FIXTURE HIER; do
   RC=$?; set -e
   [ "$HIER" = "1" ] && maestro --device "$UDID" hierarchy > "$D/hierarchy.json" 2>/dev/null || true
   [ $RC -eq 0 ] || { FAILED=1; maestro --device "$UDID" hierarchy > "$D/hierarchy-at-failure.json" 2>/dev/null || true; }
-  find "$D" -name '*.png' -not -path "$D/*.png" -exec cp -n {} "$D/" \; 2>/dev/null || true
+  # Maestro writes takeScreenshot files under its timestamped run dir; lift them to the flow dir for the manifest.
+  find "$D" -mindepth 2 -path '*/takeScreenshot/*.png' -exec cp -n {} "$D/" \; 2>/dev/null || true
   printf '%s\t%s\t%s\t%s\n' "$ID" "$FLOW" "$RC" "$(( $(date +%s) - START ))" >> "$WORK/results.tsv"
   echo "flow $ID rc=$RC"
 done < "$WORK/flows.tsv"
