@@ -22,6 +22,8 @@ appId: com.scoresnap.app
 - scrollUntilVisible:
     element: "Search courses..."
     direction: UP
+    visibilityPercentage: 100
+    centerElement: true
 - tapOn: "Search courses..."
 - extendedWaitUntil:
     visible: "Search by course name..."
@@ -55,7 +57,10 @@ appId: com.scoresnap.app
 - tapOn: "Continue"
 - assertVisible: "Step 1/2"
 - takeScreenshot: aug-429-01-game-modes
-- tapOn: "Match Play"
+- tapOn:
+    text: "Match Play"
+    childOf:
+      id: "contest-step-gamemodes"
 - scrollUntilVisible:
     element: "Bisque Handicap"
     direction: DOWN

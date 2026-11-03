@@ -26,9 +26,11 @@ appId: com.scoresnap.app
 - extendedWaitUntil:
     visible: "Skins"
     timeout: 15000
+# Home stays mounted under the New Contest stack, so scope the tap to the Game Modes step.
 - tapOn:
     text: "Skins"
-    index: 0
+    childOf:
+      id: "contest-step-gamemodes"
 - scrollUntilVisible:
     element: "Continue"
     direction: DOWN
