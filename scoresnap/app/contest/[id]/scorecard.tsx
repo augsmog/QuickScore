@@ -44,6 +44,7 @@ import AuxiliaryPrompt, {
 import { HoleInfo, Player } from "../../../src/engine/types";
 import { calcNassauPress } from "../../../src/engine/calculators/nassau-press";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
+import { HOLE_NAV_TARGET, SCORE_STEPPER_TARGET } from "../../../src/ui/score-entry-metrics";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -644,11 +645,14 @@ export default function ScorecardScreen() {
                 >
                   {/* Minus button */}
                   <Pressable
+                    testID={`score-minus-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Decrease ${player.name} score`}
                     onPress={() => adjustScore(player.id, -1)}
                     disabled={isCompleted || displayScore <= 1}
                     style={({ pressed }) => ({
-                      width: 52,
-                      height: 52,
+                      width: SCORE_STEPPER_TARGET,
+                      height: SCORE_STEPPER_TARGET,
                       borderRadius: RADII.lg,
                       backgroundColor: COLORS.surfaceMid,
                       alignItems: "center",
@@ -710,11 +714,13 @@ export default function ScorecardScreen() {
                   {/* Plus button */}
                   <Pressable
                     testID={`score-plus-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Increase ${player.name} score`}
                     onPress={() => adjustScore(player.id, 1)}
                     disabled={isCompleted || displayScore >= 15}
                     style={({ pressed }) => ({
-                      width: 52,
-                      height: 52,
+                      width: SCORE_STEPPER_TARGET,
+                      height: SCORE_STEPPER_TARGET,
                       borderRadius: RADII.lg,
                       backgroundColor: COLORS.surfaceMid,
                       alignItems: "center",
@@ -752,6 +758,9 @@ export default function ScorecardScreen() {
             }}
           >
             <Pressable
+              testID="score-prev-hole"
+              accessibilityRole="button"
+              accessibilityLabel="Previous hole"
               onPress={handlePrevHole}
               disabled={currentHole <= 1}
               style={{
@@ -762,7 +771,7 @@ export default function ScorecardScreen() {
                 gap: 4,
                 backgroundColor: COLORS.surfaceMid,
                 borderRadius: RADII.md,
-                paddingVertical: 12,
+                minHeight: HOLE_NAV_TARGET,
                 opacity: currentHole <= 1 ? 0.3 : 1,
               }}
             >
@@ -778,6 +787,8 @@ export default function ScorecardScreen() {
             </Pressable>
             <Pressable
               testID="score-next-hole"
+              accessibilityRole="button"
+              accessibilityLabel="Next hole"
               onPress={handleNextHole}
               disabled={isCompleted}
               style={{
@@ -790,7 +801,7 @@ export default function ScorecardScreen() {
                   ? COLORS.primary + "22"
                   : COLORS.surfaceMid,
                 borderRadius: RADII.md,
-                paddingVertical: 12,
+                minHeight: HOLE_NAV_TARGET,
                 borderWidth: allScoredOnHole ? 1 : 0,
                 borderColor: COLORS.primary + "44",
                 opacity: currentHole >= 18 ? 0.3 : 1,
