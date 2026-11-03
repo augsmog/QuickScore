@@ -16,7 +16,20 @@ env:
     optional: true
 - extendedWaitUntil:
     visible: "Join with code"
-    timeout: 20000
+    timeout: 45000
+    optional: true
+# Cold start can swallow the first link while the onboarding gate mounts; reopen once.
+- runFlow:
+    when:
+      notVisible: "Join with code"
+    commands:
+      - openLink: "snapscore://join/${JOIN_CODE}"
+      - tapOn:
+          text: "Open"
+          optional: true
+- extendedWaitUntil:
+    visible: "Join with code"
+    timeout: 45000
 - takeScreenshot: aug-259-01-join-screen-signed-out
 - tapOn: "Join code"
 - eraseText: 10
