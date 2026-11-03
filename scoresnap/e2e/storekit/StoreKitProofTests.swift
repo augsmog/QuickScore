@@ -73,7 +73,13 @@ final class StoreKitProofTests: XCTestCase {
         }
         XCTAssertFalse(after, "after a subscription in the group, no second trial")
         session.clearTransactions()
-        let cleared = await Product.SubscriptionInfo.isEligibleForIntroOffer(for: group)
+        // Same bounded poll as above: the daemon recomputes eligibility asynchronously after a clear.
+        var cleared = false
+        for _ in 0..<20 {
+            cleared = await Product.SubscriptionInfo.isEligibleForIntroOffer(for: group)
+            if cleared { break }
+            try await Task.sleep(nanoseconds: 250_000_000)
+        }
         XCTAssertTrue(cleared, "cleared history must not reuse stale ineligibility")
         print("STOREKIT_PROOF eligibility before=\(before) after=\(after) cleared=\(cleared)")
     }
