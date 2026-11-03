@@ -907,7 +907,7 @@ export default function ScanReviewScreen() {
         onRequestClose={() => setShowPlayerMatchModal(null)}
       >
         <View testID="player-match-scrim" style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" }}>
-          <Pressable style={{ flex: 1 }} onPress={() => setShowPlayerMatchModal(null)} />
+          <Pressable testID="player-match-backdrop" style={{ flex: 1 }} onPress={() => setShowPlayerMatchModal(null)} />
           <SheetSurface testID="player-match-sheet"
             style={{
               backgroundColor: COLORS.surfaceMid,

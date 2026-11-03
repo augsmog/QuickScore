@@ -218,7 +218,19 @@ async function runJourney(browser,j) {
       demand(Math.abs(deltaY)<=844,'scroll-over-one-viewport');
       const before=await locator.evaluate(el=>({x:el.scrollLeft,y:el.scrollTop}));
       await locator.hover();await page.mouse.wheel(0,deltaY);
-      await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+      // RN Web can apply smooth scrolling. Wait until the target scroll view
+      // stops moving before measuring reachability again; two animation frames
+      // can observe an intermediate offset and reverse the next wheel input.
+      await locator.evaluate(el=>new Promise(resolve=>{
+        let previous=el.scrollTop,stable=0,frames=0;
+        const tick=()=>{
+          const current=el.scrollTop;
+          stable=Math.abs(current-previous)<0.5?stable+1:0;
+          previous=current;
+          if(stable>=3||++frames>=90)resolve();else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }));
       const after=await locator.evaluate(el=>({x:el.scrollLeft,y:el.scrollTop}));
       count(m,'scroll',{before,after,deltaY});scrolls++;
     },

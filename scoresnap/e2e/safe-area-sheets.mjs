@@ -49,11 +49,30 @@ try {
   };
   const checkTargets = async screen => {
     const targetSelector = 'button,[role="button"],[role="link"],[role="radio"],[role="checkbox"],[role="switch"],[tabindex="0"],a,input,select,textarea';
-    const targets = await page.locator(targetSelector).evaluateAll(elements => elements
-      .filter(el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); const backingCheckbox = el.matches('input[type="checkbox"]') && el.closest('[role="checkbox"],[role="switch"]'); const parentSemantic = el.parentElement?.closest('[role="button"],[role="link"],button,a,[role="checkbox"],[role="switch"]'); const duplicateFocusable = el.matches('[tabindex="0"]') && parentSemantic; const backdrop = el.matches('[data-testid$="-scrim"]'); const left=Math.max(0,r.left), top=Math.max(0,r.top), right=Math.min(innerWidth,r.right), bottom=Math.min(innerHeight,r.bottom); const hit = right>left && bottom>top ? document.elementFromPoint((left+right)/2,(top+bottom)/2) : null; const covered = hit && hit !== el && !el.contains(hit); return !backingCheckbox && !duplicateFocusable && !backdrop && !covered && right>left && bottom>top && r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity) > 0; })
-      .map(el => { const r = el.getBoundingClientRect(); const parent = el.parentElement?.closest('button,[role="button"],[role="link"],[role="radio"],[role="checkbox"],[role="switch"],a,input,select,textarea'); return {id:elements.indexOf(el),parentId:parent ? elements.indexOf(parent) : null,tag:el.tagName.toLowerCase(),role:el.getAttribute('role'),tabindex:el.getAttribute('tabindex'),testid:el.getAttribute('data-testid'),name: el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.innerText?.trim().replace(/\s+/g,' ').slice(0,60) || el.getAttribute('type') || el.tagName.toLowerCase(), left:r.left,top:r.top,right:r.right,bottom:r.bottom,width: r.width, height: r.height}; }));
-    for (const target of targets) assert(target.width >= 44 && target.height >= 44, `${screen}: ${target.name} target ${target.width}x${target.height} must be at least 44x44 CSS px`);
-    const overlaps = findInteractiveTargetOverlaps(targets);
+    const targets = await page.locator(targetSelector).evaluateAll(elements => elements.map((el,index) => {
+      const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+      const backingCheckbox=el.matches('input[type="checkbox"]')&&el.closest('[role="checkbox"],[role="switch"]');
+      const parentSemantic=el.parentElement?.closest('[role="button"],[role="link"],button,a,[role="checkbox"],[role="switch"]');
+      const duplicateFocusable=el.matches('[tabindex="0"]')&&parentSemantic;
+      // Full-screen tap-outside dismiss regions are visually empty backdrop,
+      // not visible tap targets; the sheet's visible controls are audited.
+      const backdrop=el.matches('[data-testid$="-scrim"],[data-testid$="-backdrop"]');
+      let left=Math.max(0,r.left),top=Math.max(0,r.top),right=Math.min(innerWidth,r.right),bottom=Math.min(innerHeight,r.bottom);
+      for(let a=el.parentElement;a;a=a.parentElement) {
+        const css=getComputedStyle(a),b=a.getBoundingClientRect();
+        if(/hidden|clip|auto|scroll/.test(css.overflowX)){left=Math.max(left,b.left);right=Math.min(right,b.right);}
+        if(/hidden|clip|auto|scroll/.test(css.overflowY)){top=Math.max(top,b.top);bottom=Math.min(bottom,b.bottom);}
+      }
+      const hit=right>left&&bottom>top?document.elementFromPoint((left+right)/2,(top+bottom)/2):null;
+      const covered=!hit||(hit!==el&&!el.contains(hit));
+      const parent=el.parentElement?.closest('button,[role="button"],[role="link"],[role="radio"],[role="checkbox"],[role="switch"],a,input,select,textarea');
+      return {id:index,parentId:parent?elements.indexOf(parent):null,tag:el.tagName.toLowerCase(),role:el.getAttribute('role'),tabindex:el.getAttribute('tabindex'),testid:el.getAttribute('data-testid'),name:el.getAttribute('aria-label')||el.getAttribute('placeholder')||el.innerText?.trim().replace(/\s+/g,' ').slice(0,60)||el.getAttribute('type')||el.tagName.toLowerCase(),left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height,visibleLeft:left,visibleTop:top,visibleRight:right,visibleBottom:bottom,visible:!backingCheckbox&&!duplicateFocusable&&!backdrop&&!covered&&right>left&&bottom>top&&r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'&&Number(s.opacity)>0};
+    }).filter(t=>t.visible));
+    for (const target of targets) {
+      assert(target.width >= 44 && target.height >= 44, `${screen}: target must be at least 44x44 CSS px: ${JSON.stringify(target)}`);
+      assert(target.visibleTop >= top && target.visibleBottom <= height-bottom, `${screen}: visible ${target.name} target intersects a safe-area band: ${JSON.stringify(target)}`);
+    }
+    const overlaps = findInteractiveTargetOverlaps(targets.map(t=>({...t,left:t.visibleLeft,top:t.visibleTop,right:t.visibleRight,bottom:t.visibleBottom})));
     assert.deepEqual(overlaps, [], `${screen}: interactive targets overlap by more than 2 CSS px: ${JSON.stringify(overlaps)}; targets: ${JSON.stringify(targets)}`);
     results.push({name:`${screen} interactive targets`,count:targets.length,targets,overlaps});
   };
@@ -154,6 +173,11 @@ try {
       games:['wolf'],gameConfig:{rulesVersion:1},createdAt:new Date().toISOString()};
     await page.evaluate(c=>localStorage.setItem('snapscore-contests',JSON.stringify({version:0,state:{contests:[c],activeContestId:c.id}})),fixture);
     await page.goto(base+'/contest/safe-fixture/scorecard?groupId=g',{waitUntil:'networkidle'});
+    await checkTargets('round scorecard');
+    await page.getByText('Settlement',{exact:true}).click();
+    await page.locator('[data-testid="settle-free"],[data-testid="settlement-scroll"],[data-testid="settlement-pending"]').waitFor();
+    await checkTargets('round settlement');
+    await page.getByText('Scorecard',{exact:true}).click();
     await page.getByText(/Record Wolf decision before play/).click();
     await geometry('preplay',false);
     await check('preplay cancel',page.getByText('Cancel — remains pending',{exact:true}));

@@ -759,6 +759,7 @@ export function GamePromptSheet({
       <View testID="game-prompt-scrim" style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" }}>
         {/* Backdrop */}
         <Pressable
+          testID="game-prompt-backdrop"
           style={{ flex: 1 }}
           onPress={onClose}
         />
