@@ -237,7 +237,7 @@ export default function LeaderboardScreen() {
                   </Text>
                   <View style={{ flexDirection: "row", gap: 4 }}>
                     {lastHoles.map(({ score, index }) => {
-                      const par = contest.course.holes[index]?.par;
+                      const par = liveRoundCourse(contest).holes[index]?.par;
                       if (par === undefined) return null;
                       const difference = score - par;
                       const filled = difference < 0 || difference >= 2;
