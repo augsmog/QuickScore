@@ -281,7 +281,8 @@ await shot("14-gs1-empty-scan-data.png");
 // but join through a distinct persisted guest UUID, without changing organizer auth.
 // Skip if cross-device sharing is disabled (feature flag)
 await page.goto(contestUrl, { waitUntil: "networkidle" });
-await openRoundStatus(page);
+// The organizer invite control is available in the round layout; reading it
+// must not open the status sheet and hide the control from the viewport.
 const joinCodeElement = page.getByTestId("organizer-join-code");
 const hasJoinCode = await joinCodeElement.count() > 0;
 // The build's flag state must match what CI expects, so a missing join UI can never silently skip the guest flow

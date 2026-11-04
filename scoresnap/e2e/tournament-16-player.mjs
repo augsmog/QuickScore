@@ -88,8 +88,8 @@ check(contestUrl.includes("/contest/"), "Tournament created");
 await orgPage.waitForTimeout(2000);
 const bodyText = await orgPage.innerText("body");
 const tabText = bodyText.toUpperCase();
-const hasMultipleTabs = tabText.includes("SCORECARD") && 
-                        tabText.includes("LEADERBOARD") && 
+const hasMultipleTabs = tabText.includes("SCORECARD") &&
+                        tabText.includes("LEADERBOARD") &&
                         tabText.includes("GAMES");
 check(hasMultipleTabs, "Contest tabs rendered (Scorecard, Leaderboard, Games)");
 const scorecardTab = orgPage.getByText(/^scorecard$/i).first();
@@ -101,11 +101,10 @@ check(
 );
 
 // Check if join code is available (cross-device sharing feature flag)
-await openRoundStatus(orgPage);
+// Read the round-layout invite control without opening the status sheet.
 const joinCodeElement = orgPage.getByTestId("organizer-join-code");
 const hasJoinCode = await joinCodeElement.count() > 0;
 const joinCodeTextEarly = hasJoinCode ? await joinCodeElement.innerText().catch(() => "") : "";
-await closeRoundStatus(orgPage);
 
 // Round 1: 4 players join and enter scores (if join code available)
 console.log("\n─── Round 1: Join & Score ───");
