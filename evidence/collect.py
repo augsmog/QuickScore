@@ -54,6 +54,17 @@ localization = one(app_localizations)
 policy_matches = re.findall(r'https?://[^\s)]+/privacy/?', localization['attributes'].get('description') or '')
 version_submission = get(f'/v1/apps/{APP}/appStoreVersions?filter[versionString]=1.0&filter[platform]=IOS&include=appStoreVersionSubmission')
 review_submissions = get(f'/v1/apps/{APP}/reviewSubmissions?limit=50')
+availability = one(get(f'/v1/apps/{APP}/appAvailabilityV2'))
+group_response = get(f'/v1/apps/{APP}/subscriptionGroups?limit=200')
+group_members = {}
+group_raw = []
+for group_item in group_response.get('data', []):
+    group_id = group_item['id']
+    group_subscriptions = get(f'/v1/subscriptionGroups/{group_id}/subscriptions?limit=200')
+    ids = [x['id'] for x in group_subscriptions.get('data', [])]
+    for sid in ids:
+        group_members[sid] = {'id': group_id, 'name': group_item.get('attributes', {}).get('referenceName')}
+    group_raw.append({'id': group_id, 'referenceName': group_item.get('attributes', {}).get('referenceName'), 'subscriptionIds': ids})
 price_schedule = get(f'/v1/apps/{APP}/appPriceSchedule')
 base_territory = get(f'/v1/appPriceSchedules/{APP}/baseTerritory')
 manual_prices = get(f'/v1/appPriceSchedules/{APP}/manualPrices?limit=200')
@@ -79,7 +90,7 @@ for ss in screenshot_sets:
 
 subscription_rows = []
 subscription_raw = []
-for label, sid, group in SUBSCRIPTIONS:
+for label, sid, _group in SUBSCRIPTIONS:
     detail = one(get(f'/v1/subscriptions/{sid}'))
     loc = get(f'/v1/subscriptions/{sid}/subscriptionLocalizations?limit=50')
     shot_payload = get(f'/v1/subscriptions/{sid}/appStoreReviewScreenshot')
@@ -87,14 +98,15 @@ for label, sid, group in SUBSCRIPTIONS:
     attrs = detail.get('attributes', {})
     localizations = loc.get('data', [])
     shot = one(shot_payload)
+    actual_group = group_members.get(sid, {})
     subscription_rows.append({
         'label': label,
         'id': sid,
         'name': attrs.get('name'),
         'productId': attrs.get('productId'),
         'state': attrs.get('state'),
-        'group': group,
-        'groupId': '22529638',
+        'group': actual_group.get('name'),
+        'groupId': actual_group.get('id'),
         'localizations': [{'locale': x.get('attributes', {}).get('locale'), 'state': x.get('attributes', {}).get('state')} for x in localizations],
         'reviewScreenshotPresent': bool(shot),
         'reviewScreenshotDeliveryState': (shot or {}).get('attributes', {}).get('assetDeliveryState', {}).get('state'),
@@ -105,6 +117,7 @@ for label, sid, group in SUBSCRIPTIONS:
     # Persist only relevant fields; excludes reviewNote and any user or credential fields.
     subscription_raw.append({
         'type': detail.get('type'), 'id': sid,
+        'group': actual_group,
         'attributes': {k: attrs.get(k) for k in ('name','productId','state','subscriptionPeriod','groupLevel')},
         'localizations': [{'id': x.get('id'), 'locale': x.get('attributes', {}).get('locale'), 'state': x.get('attributes', {}).get('state')} for x in localizations],
         'reviewScreenshot': None if not shot else {'id': shot['id'], 'assetDeliveryState': shot.get('attributes', {}).get('assetDeliveryState', {}).get('state')},
@@ -117,7 +130,7 @@ raw = {
     'app': {'id': APP, 'name': one(get(f'/v1/apps/{APP}')).get('attributes', {}).get('name'), 'contentRightsDeclaration': one(get(f'/v1/apps/{APP}')).get('attributes', {}).get('contentRightsDeclaration')},
     'appStoreVersion': {'id': version['id'], 'attributes': version.get('attributes'), 'buildId': version.get('relationships', {}).get('build', {}).get('data', {}).get('id')},
     'versionBuildIncluded': [
-        {'id': x.get('id'), 'type': x.get('type'), 'attributes': {k: x.get('attributes', {}).get(k) for k in ('version','uploadedDate','processingState','expired')}}
+        {'id': x.get('id'), 'type': x.get('type'), 'attributes': {k: x.get('attributes', {}).get(k) for k in ('version','uploadedDate','processingState','expired','usesNonExemptEncryption')}}
         for x in version_response.get('included', []) if x.get('type') == 'builds'],
     'appStoreReviewDetail': redacted_review(review.get('attributes', {})),
     'appInfo': {'id': app_info.get('id'), 'attributes': app_info.get('attributes'), 'categories': {
@@ -125,9 +138,11 @@ raw = {
         'secondary': app_info.get('relationships', {}).get('secondaryCategory', {}).get('data')},
         'ageRatingDeclarationId': app_info.get('relationships', {}).get('ageRatingDeclaration', {}).get('data', {}).get('id'),
         'localizations': [{'locale': x.get('attributes', {}).get('locale'), 'name': x.get('attributes', {}).get('name'), 'privacyPolicyUrl': x.get('attributes', {}).get('privacyPolicyUrl')} for x in app_info_response.get('included', []) if x.get('type') == 'appInfoLocalizations']},
-    'appStoreVersionLocalization': {'id': localization.get('id'), 'locale': localization.get('attributes', {}).get('locale'), 'privacyPolicyUrl': policy_matches[0] if policy_matches else None, 'reviewNotesPresent': bool(review.get('attributes', {}).get('notes')), 'reviewNotesLength': len(review.get('attributes', {}).get('notes') or '')},
+    'appStoreVersionLocalization': {'id': localization.get('id'), 'locale': localization.get('attributes', {}).get('locale'), 'privacyPolicyUrl': policy_matches[0] if policy_matches else None, 'descriptionPresent': bool(localization.get('attributes', {}).get('description')), 'descriptionLength': len(localization.get('attributes', {}).get('description') or ''), 'keywordsPresent': bool(localization.get('attributes', {}).get('keywords')), 'promotionalTextPresent': bool(localization.get('attributes', {}).get('promotionalText')), 'supportUrlPresent': bool(localization.get('attributes', {}).get('supportUrl')), 'reviewNotesPresent': bool(review.get('attributes', {}).get('notes')), 'reviewNotesLength': len(review.get('attributes', {}).get('notes') or '')},
     'appStoreScreenshots': screenshots,
     'reviewSubmission': {'count': len(review_submissions.get('data', [])), 'versionSubmissionRelationship': version_submission.get('data', [{}])[0].get('relationships', {}).get('appStoreVersionSubmission', {}).get('data')},
+    'availability': {'availableInNewTerritories': availability.get('attributes', {}).get('availableInNewTerritories')},
+    'subscriptionGroups': group_raw,
     'appPrice': {'baseTerritory': one(base_territory).get('id'), 'scheduleId': one(price_schedule).get('id'), 'manualPriceEntryPresent': bool(manual_price), 'manualPricePoint': None if not price_point else {'id': price_point['id'], 'customerPrice': price_point.get('attributes', {}).get('customerPrice'), 'proceeds': price_point.get('attributes', {}).get('proceeds')}},
     'subscriptions': subscription_raw,
 }
