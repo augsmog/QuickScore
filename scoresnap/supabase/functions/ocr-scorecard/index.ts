@@ -7,6 +7,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+const POSTHOG_PROJECT_TOKEN = Deno.env.get("POSTHOG_PROJECT_TOKEN");
+const POSTHOG_HOST = Deno.env.get("POSTHOG_HOST");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
@@ -111,33 +113,23 @@ serve(async (req) => {
     );
   }
 
-  // Call Anthropic API
-  try {
-    const anthropicResponse = await fetch(ANTHROPIC_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250514",
-        max_tokens: 2048,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mediaType,
-                  data: body.imageData,
-                },
-              },
-              {
-                type: "text",
-                text: `Extract all player names and their 18-hole golf scores from this scorecard image.
+  const model = "claude-sonnet-4-5-20250514";
+  const maxTokens = 2048;
+  const messages = [
+    {
+      role: "user",
+      content: [
+        {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: mediaType,
+            data: body.imageData,
+          },
+        },
+        {
+          type: "text",
+          text: `Extract all player names and their 18-hole golf scores from this scorecard image.
 
 Return ONLY a JSON object in this exact format (no other text):
 {
@@ -159,15 +151,39 @@ Rules:
 - Include the par row if visible on the scorecard
 - If fewer than 18 holes are visible, fill remaining with 0 and confidence 0
 - Names should match exactly what's written (initials, abbreviations, etc.)`,
-              },
-            ],
-          },
-        ],
-      }),
+        },
+      ],
+    },
+  ];
+  const traceId = crypto.randomUUID();
+  const requestStartedAt = performance.now();
+  let generationCaptured = false;
+
+  // Call Anthropic API
+  try {
+    const anthropicResponse = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({ model, max_tokens: maxTokens, messages }),
     });
 
     if (!anthropicResponse.ok) {
       const errorText = await anthropicResponse.text();
+      await captureAiGeneration({
+        distinctId: user.id,
+        traceId,
+        messages,
+        model,
+        maxTokens,
+        latency: (performance.now() - requestStartedAt) / 1000,
+        status: anthropicResponse.status,
+        error: errorText,
+      });
+      generationCaptured = true;
       console.error(`Anthropic API error: ${anthropicResponse.status} — ${errorText}`);
       return new Response(
         JSON.stringify({
@@ -179,6 +195,17 @@ Rules:
     }
 
     const data = await anthropicResponse.json();
+    await captureAiGeneration({
+      distinctId: user.id,
+      traceId,
+      messages,
+      model,
+      maxTokens,
+      latency: (performance.now() - requestStartedAt) / 1000,
+      status: anthropicResponse.status,
+      response: data,
+    });
+    generationCaptured = true;
     const content = data.content?.[0]?.text || "";
 
     // Extract JSON from response (may be wrapped in markdown code blocks)
@@ -210,6 +237,17 @@ Rules:
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
+    if (!generationCaptured) {
+      await captureAiGeneration({
+        distinctId: user.id,
+        traceId,
+        messages,
+        model,
+        maxTokens,
+        latency: (performance.now() - requestStartedAt) / 1000,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
     console.error("OCR processing error:", error);
     return new Response(
       JSON.stringify({
@@ -220,6 +258,78 @@ Rules:
     );
   }
 });
+
+/**
+ * Sends AI Observability data without affecting OCR when server analytics is not configured.
+ * This direct-capture path intentionally records the existing multimodal prompt and response.
+ */
+async function captureAiGeneration({
+  distinctId,
+  traceId,
+  messages,
+  model,
+  maxTokens,
+  latency,
+  status,
+  response,
+  error,
+}: {
+  distinctId: string;
+  traceId: string;
+  messages: unknown[];
+  model: string;
+  maxTokens: number;
+  latency: number;
+  status?: number;
+  response?: any;
+  error?: string;
+}) {
+  if (!POSTHOG_PROJECT_TOKEN || !POSTHOG_HOST) return;
+
+  const properties = {
+    distinct_id: distinctId,
+    $ai_trace_id: traceId,
+    // OCR is a one-shot workload rather than a multi-turn conversation.
+    $ai_session_id: null,
+    $ai_span_id: crypto.randomUUID(),
+    $ai_span_name: "scorecard_ocr",
+    $ai_model: model,
+    $ai_provider: "anthropic",
+    $ai_input: messages,
+    $ai_input_tokens: response?.usage?.input_tokens,
+    $ai_output_choices: response
+      ? [{ role: "assistant", content: response.content || [] }]
+      : undefined,
+    $ai_output_tokens: response?.usage?.output_tokens,
+    $ai_cache_read_input_tokens: response?.usage?.cache_read_input_tokens,
+    $ai_cache_creation_input_tokens:
+      response?.usage?.cache_creation_input_tokens,
+    $ai_latency: latency,
+    $ai_http_status: status,
+    $ai_max_tokens: maxTokens,
+    $ai_stop_reason: response?.stop_reason,
+    $ai_is_error: Boolean(error),
+    $ai_error: error,
+  };
+
+  try {
+    const posthogResponse = await fetch(new URL("/i/v0/e/", POSTHOG_HOST), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: POSTHOG_PROJECT_TOKEN,
+        event: "$ai_generation",
+        properties,
+      }),
+    });
+
+    if (!posthogResponse.ok) {
+      console.error("PostHog AI observability capture failed:", posthogResponse.status);
+    }
+  } catch (captureError) {
+    console.error("PostHog AI observability capture failed:", captureError);
+  }
+}
 
 /**
  * Ensure an array has exactly `length` elements, padding with `fill`.

@@ -45,6 +45,7 @@ import { HoleInfo, Player } from "../../../src/engine/types";
 import { calcNassauPress } from "../../../src/engine/calculators/nassau-press";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { HOLE_NAV_TARGET, SCORE_STEPPER_TARGET } from "../../../src/ui/score-entry-metrics";
+import { posthog } from "../../../src/config/posthog";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -320,7 +321,14 @@ export default function ScorecardScreen() {
 
   const doFinalize = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    try {completeContest(contest.id);} catch(error){showAlert("Confirmation required",String(error));}
+    try {
+      completeContest(contest.id);
+      posthog?.capture("round_finalized", {
+        game_ids: contest.games,
+        group_count: activeGroups.length,
+        is_tournament: Boolean(contest.isTournament),
+      });
+    } catch(error){showAlert("Confirmation required",String(error));}
   };
 
   // Calculate completion

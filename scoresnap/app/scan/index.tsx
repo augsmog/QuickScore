@@ -26,6 +26,8 @@ import { scanScorecard } from "../../src/services/ocr-service";
 import { OFFLINE_MODE } from "../../src/config/offline";
 import { NATIVE_OCR_DISABLED, NATIVE_OCR_DISABLED_MESSAGE } from "../../src/config/native-ocr";
 import { parseScoreGrid, textToGrid } from "../../src/services/score-parser";
+import { posthog } from "../../src/config/posthog";
+import { posthogAppLogger } from "../../src/services/posthog-log";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const FRAME_WIDTH = SCREEN_WIDTH - 80;
@@ -112,6 +114,14 @@ export default function ScanScreen() {
       }
 
       setProgress(100);
+      posthog?.capture("scorecard_scan_processed", {
+        player_count: result.players.length,
+        has_contest_context: Boolean(contestId),
+      });
+      posthogAppLogger.scorecardScanCompleted({
+        playerCount: result.players.length,
+        hasContestContext: Boolean(contestId),
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => {
         router.push({

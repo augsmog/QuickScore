@@ -46,6 +46,8 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
+import { posthog } from "../../src/config/posthog";
+import { posthogAppLogger } from "../../src/services/posthog-log";
 
 interface PlayerInput {
   id: string;
@@ -315,6 +317,19 @@ export default function NewContestScreen() {
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     addContest(contest);
+    posthog?.capture("contest_created", {
+      player_count: validPlayers.length,
+      group_count: groups.length,
+      game_ids: selectedGames,
+      has_teams: hasTeams,
+      is_tournament: isTournament,
+      round_count: isTournament ? numRounds : 1,
+    });
+    posthogAppLogger.contestCreated({
+      playerCount: validPlayers.length,
+      groupCount: groups.length,
+      isTournament,
+    });
     router.replace(`/contest/${contest.id}`);
   };
 

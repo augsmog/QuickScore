@@ -7,6 +7,7 @@ import { supabase } from "../db/supabase";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../config/features";
 import { deriveSession } from "../services/auth-session";
 import { getCaptchaToken } from "../services/captcha";
+import { posthog } from "../config/posthog";
 import { AUTH_STORAGE_KEY, createGatedStorage, persistGate } from "./persisted-keys";
 
 interface UserProfile {
@@ -293,3 +294,28 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+let identifiedUserId: string | null = null;
+
+useAuthStore.subscribe((state) => {
+  const user = state.user;
+
+  if (!user) {
+    if (identifiedUserId) posthog?.reset();
+    identifiedUserId = null;
+    return;
+  }
+
+  if (!posthog || user.id === identifiedUserId) return;
+
+  posthog.identify(user.id, {
+    $set: {
+      ...(user.email ? { $email: user.email } : {}),
+      ...(user.name ? { $name: user.name } : {}),
+      ...(user.firstName ? { first_name: user.firstName } : {}),
+      ...(user.lastName ? { last_name: user.lastName } : {}),
+      ...(user.provider ? { auth_provider: user.provider } : {}),
+    },
+  });
+  identifiedUserId = user.id;
+});
