@@ -29,7 +29,7 @@ BEGIN
     finish_source := 'contest_completed';
     finish_time := coalesce(NEW.updated_at, now());
   ELSE
-    IF OLD.ended_at IS NOT NULL OR NEW.ended_at IS NULL THEN
+    IF NEW.ended_at IS NULL OR (TG_OP = 'UPDATE' AND OLD.ended_at IS NOT NULL) THEN
       RETURN NEW;
     END IF;
     finish_user := NEW.owner_id;
@@ -53,7 +53,7 @@ AFTER UPDATE ON public.contests
 FOR EACH ROW EXECUTE FUNCTION public.record_first_round_finish();
 
 CREATE TRIGGER first_round_finish_on_published_round_end
-AFTER UPDATE ON public.published_rounds
+AFTER INSERT OR UPDATE ON public.published_rounds
 FOR EACH ROW EXECUTE FUNCTION public.record_first_round_finish();
 
 CREATE VIEW public.activation_daily AS

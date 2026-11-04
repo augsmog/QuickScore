@@ -3,14 +3,16 @@ BEGIN;
 INSERT INTO auth.users(id,created_at) VALUES
  ('00000000-0000-0000-0000-000000000a01','2020-01-01T12:00:00Z'),
  ('00000000-0000-0000-0000-000000000a02','2020-01-01T12:00:00Z'),
- ('00000000-0000-0000-0000-000000000a03','2020-01-01T12:00:00Z');
+ ('00000000-0000-0000-0000-000000000a03','2020-01-01T12:00:00Z'),
+ ('00000000-0000-0000-0000-000000000a04','2020-01-01T12:00:00Z');
 UPDATE auth.users SET is_anonymous=true WHERE id='00000000-0000-0000-0000-000000000a03';
 
 INSERT INTO public.contests(id,owner_id,name,course,status,invite_code,updated_at) VALUES
  ('00000000-0000-0000-0000-000000000a11','00000000-0000-0000-0000-000000000a01','First completed','{}','active','ACT001','2020-01-02T12:00:00Z'),
  ('00000000-0000-0000-0000-000000000a12','00000000-0000-0000-0000-000000000a01','Second completed','{}','active','ACT002','2020-01-03T12:00:00Z'),
  ('00000000-0000-0000-0000-000000000a13','00000000-0000-0000-0000-000000000a03','Anonymous completed','{}','active','ACT003','2020-01-02T12:00:00Z'),
- ('00000000-0000-0000-0000-000000000a14','00000000-0000-0000-0000-000000000a02','Shared round','{}','active','ACT004','2020-01-02T12:00:00Z');
+ ('00000000-0000-0000-0000-000000000a14','00000000-0000-0000-0000-000000000a02','Shared round','{}','active','ACT004','2020-01-02T12:00:00Z'),
+ ('00000000-0000-0000-0000-000000000a15','00000000-0000-0000-0000-000000000a04','Completed shared round','{}','active','ACT005','2020-01-02T12:00:00Z');
 
 UPDATE public.contests SET status='completed',updated_at='2020-01-02T12:00:00Z' WHERE id='00000000-0000-0000-0000-000000000a11';
 DO $$ DECLARE first_time timestamptz; BEGIN
@@ -44,9 +46,26 @@ DO $$ DECLARE first_time timestamptz; BEGIN
   END IF;
 END $$;
 
+-- A shared round may be published already ended; the INSERT trigger must record it.
+INSERT INTO public.published_rounds(contest_id,owner_id,local_id,snapshot,ended_at)
+VALUES ('00000000-0000-0000-0000-000000000a15','00000000-0000-0000-0000-000000000a04','activation-completed-fixture','{}',transaction_timestamp());
+DO $$ DECLARE first_time timestamptz; BEGIN
+  SELECT finished_at INTO first_time FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a04';
+  IF first_time IS DISTINCT FROM transaction_timestamp()
+      OR NOT EXISTS (SELECT 1 FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a04'
+        AND source='published_round_ended' AND contest_id='00000000-0000-0000-0000-000000000a15') THEN
+    RAISE EXCEPTION 'already-ended shared-round INSERT not recorded';
+  END IF;
+  UPDATE public.published_rounds SET ended_at=transaction_timestamp()+interval '1 day' WHERE contest_id='00000000-0000-0000-0000-000000000a15';
+  IF (SELECT count(*) FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a04') <> 1
+      OR (SELECT finished_at FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a04') IS DISTINCT FROM first_time THEN
+    RAISE EXCEPTION 'later update duplicated or moved the INSERT finish';
+  END IF;
+END $$;
+
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.activation_daily WHERE date=(transaction_timestamp() AT TIME ZONE 'UTC')::date AND signups=0
-      AND first_round_finished=2 AND activation_rate IS NULL) THEN
+      AND first_round_finished=3 AND activation_rate IS NULL) THEN
     RAISE EXCEPTION 'zero-signup activation day should be present with NULL rate';
   END IF;
   IF has_table_privilege('anon','public.first_round_finishes','SELECT') OR has_table_privilege('authenticated','public.first_round_finishes','SELECT') THEN
@@ -57,4 +76,4 @@ DO $$ BEGIN
   END IF;
 END $$;
 ROLLBACK;
-SELECT 'PASS: first finish idempotence, both completion signals, anonymous exclusion, NULL zero-signup rate, and read-only service access';
+SELECT 'PASS: first finish idempotence, both completion signals including already-ended shared-round INSERT, anonymous exclusion, NULL zero-signup rate, and read-only service access';
