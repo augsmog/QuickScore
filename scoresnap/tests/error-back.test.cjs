@@ -71,3 +71,20 @@ test('scan error and exhausted allowance both open manual entry without navigati
   expect(router.back).not.toHaveBeenCalled();
   expect(router.replace).not.toHaveBeenCalled();
 });
+
+test('join dismiss exposes the visible home label to accessibility queries', () => {
+  const source = ts.createSourceFile('app/join/[code].tsx', fs.readFileSync(path.join(__dirname, '..', 'app/join/[code].tsx'), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const labels = [];
+  function visit(node) {
+    if (ts.isJsxOpeningElement(node) && node.tagName.getText(source) === 'Pressable') {
+      const testID = node.attributes.properties.find(p => p.name?.getText(source) === 'testID');
+      if (testID?.initializer?.text === 'join-dismiss') {
+        const label = node.attributes.properties.find(p => p.name?.getText(source) === 'accessibilityLabel');
+        labels.push(label?.initializer?.text);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  expect(labels).toEqual(['Back to home']);
+});
