@@ -23,6 +23,17 @@ function requestContest(r) {
   try { return r.request().postDataJSON()?.contest_id; } catch { return undefined; }
 }
 const text = (p, value) => p.getByText(value, { exact: true }).filter({ visible: true }).first();
+// Round status sheet (direction A): sharing, join code and Online sync sit behind the header status chip.
+async function openStatus(p) {
+  if (await p.getByTestId('round-status-sheet').isVisible().catch(() => false)) return;
+  await p.getByTestId('round-status-chip').filter({ visible: true }).first().click();
+  await p.getByTestId('round-status-sheet').waitFor();
+}
+async function closeStatus(p) {
+  if (!await p.getByTestId('round-status-sheet').isVisible().catch(() => false)) return;
+  await p.getByTestId('round-status-done').click();
+  await p.getByTestId('round-status-sheet').waitFor({ state: 'hidden' });
+}
 function configure(p) {
   p.setDefaultTimeout(20000);
   p.on('dialog', d => d.accept());
@@ -87,6 +98,7 @@ async function save(i, hole, value) {
   await text(p, `Save hole ${hole}`).click();
 }
 async function retry(i) {
+  if (i === 0) await openStatus(pages[0]);
   await text(scope(i), i === 0 ? 'Retry sync' : 'Retry queued scores').click();
 }
 async function freshResponse(i, rpc, marker, trigger) {
@@ -149,6 +161,7 @@ async function converge(indices) {
     const go = async target => {
       while (await current() !== target) {
         const before = await current();
+        await closeStatus(pages[0]);
         await text(pages[0], before < target ? 'NEXT' : 'PREV').click();
         await text(pages[0], `HOLE ${String(before + (before < target ? 1 : -1)).padStart(2, '0')}`).waitFor();
       }
@@ -195,6 +208,7 @@ try {
       code = label.match(/Join code: ([A-Z0-9]{6})/)?.[1];
       assert(code, 'Organizer join code available');
       await text(a, 'Online sharing enabled. Share this invite with signed-in players.').waitFor();
+      await openStatus(a);
       await text(a, 'Online sync').click();
     });
     for (let i = 1; i < 4; i++) await step(`request and approve ${'ABCD'[i]} into distinct slot`, async () => {
@@ -217,6 +231,7 @@ try {
     });
     await step('host opens synchronized scoring screen', async () => {
       await pages[0].goto(`${contestUrl}/scorecard`);
+      await openStatus(pages[0]);
       await text(pages[0], 'Online sync').click();
       await retry(0);
       await text(pages[0], 'Current online snapshot').waitFor();
@@ -235,6 +250,7 @@ try {
       await contexts[1].setOffline(true);
       await save(1, 2, 9);
       await guest(1).getByText(/^Hole 2 · current clear · queued 9 · par/).first().waitFor();
+      await closeStatus(pages[0]);
       await text(pages[0], 'NEXT').click();
       await text(pages[0], 'HOLE 02').waitFor();
       await pages[0].getByTestId(`score-par-${names[1]}`).click();
@@ -260,6 +276,7 @@ try {
       await contexts[0].setOffline(false);
       pages[0] = await contexts[0].newPage(); configure(pages[0]);
       await pages[0].goto(`${contestUrl}/scorecard`);
+      await openStatus(pages[0]);
       await text(pages[0], 'Online sync').click();
       await converge([0, 1, 2, 3]);
       for (const i of [1, 2, 3]) assert.equal((await queueEntries(pages[i])).length, 0, 'No duplicated or pending player operations');
@@ -339,7 +356,7 @@ try {
               || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
           });
         }
-        if (hole < 4) await text(pages[0], 'NEXT').click();
+        if (hole < 4) { await closeStatus(pages[0]); await text(pages[0], 'NEXT').click(); }
       }
       const status = await freshResponse(3, 'my_sync_status', sequence, async () => {
         // Reload first: a focus response from the old document can be discarded

@@ -8,7 +8,7 @@ const base=process.env.BASE_URL ?? 'http://127.0.0.1:8089';
 const out=process.env.OUT_DIR ?? '/tmp/xdevice-two-context';
 await mkdir(out,{recursive:true});
 const browser=await chromium.launch({headless:true, ...(process.env.CHROME_BIN ? {executablePath:process.env.CHROME_BIN} : {})});
-const contexts=await Promise.all([browser.newContext(),browser.newContext(),browser.newContext()]);
+const contexts=await Promise.all([browser.newContext({viewport:{width:390,height:844}}),browser.newContext({viewport:{width:390,height:844}}),browser.newContext({viewport:{width:390,height:844}})]);
 // Block the exact fallback timer in B before application code runs.
 await contexts[1].addInitScript(() => {
   const interval = window.setInterval.bind(window);
@@ -22,6 +22,8 @@ const [a,b]=await Promise.all(contexts.slice(0,2).map(c=>c.newPage()));
 for(const p of [a,b]) { p.setDefaultTimeout(20000); p.on('dialog',d=>d.accept()); }
 const shot=(p,n)=>p.screenshot({path:path.join(out,`${n}.png`),fullPage:true});
 const text=(p,s)=>p.getByText(s,{exact:true}).filter({visible:true}).first();
+const openStatus=async p=>{ if(!await p.getByTestId('round-status-sheet').isVisible().catch(()=>false)){ await p.getByTestId('round-status-chip').filter({visible:true}).first().click(); await p.getByTestId('round-status-sheet').waitFor(); } };
+const closeStatus=async p=>{ if(await p.getByTestId('round-status-sheet').isVisible().catch(()=>false)){ await p.getByTestId('round-status-done').click(); await p.getByTestId('round-status-sheet').waitFor({state:'hidden'}); } };
 async function signIn(p,who) {
   await p.goto(`${base}/auth/sign-in`);
   await p.getByText(/Skip|Already have an account/).first().waitFor();
@@ -62,9 +64,14 @@ try {
     // Owner-hosts may have no membership row: a cold page must restore the
     // authorized snapshot before showing the invite or queuing another score.
     await a.reload();
+    // The organizer invite remains in the round header after a cold reload.
     await a.getByTestId('organizer-join-code').waitFor();
     assert.equal(await text(a,'Enable online sharing').count(),0);
     assert.equal(await a.getByTestId('organizer-join-code').innerText(),label);
+    const inviteBox = await a.getByTestId('organizer-join-code').boundingBox();
+    assert(inviteBox && inviteBox.x >= 0 && inviteBox.y >= 0 &&
+      inviteBox.x + inviteBox.width <= 390 && inviteBox.y + inviteBox.height <= 844,
+      'Organizer invite is visible inside the 390x844 viewport');
     await text(a,'Copy / share invite').click();
     await shot(a,'02-share');
     await b.goto(`${base}/join/${code}`);
@@ -75,6 +82,7 @@ try {
     assert.equal(await b.getByText(/Confirmed tournament totals/).count(),0,'No pending scorecard');
     assert.equal(await text(b,'Xdev Host').count(),0,'No pending roster');
     await shot(b,'03-request');
+    await openStatus(a);
     await text(a,'Online sync').click();
     await text(a,'Retry sync').click();
     await text(a,'Approve as Xdev Joiner').click();
@@ -122,6 +130,7 @@ try {
     await b.waitForLoadState('networkidle');
     const beforeRevision = revisionFrames;
     const scoreStarted = Date.now();
+    await closeStatus(a);
     const scoreReceipt = a.waitForResponse(r => {
       if (!r.url().endsWith('/rpc/write_score') || r.request().method() !== 'POST') return false;
       const args = r.request().postDataJSON();
