@@ -20,17 +20,17 @@ WITH cohort_users AS (
          count(c.user_id) FILTER (WHERE EXISTS (
            SELECT 1 FROM public.score_events e
            WHERE e.entered_by = c.user_id
-             AND e.created_at >= c.signed_up_at + interval '7 days'
-             AND e.created_at < c.signed_up_at + interval '8 days'
+             AND e.created_at >= c.signed_up_at + interval '168 hours'
+             AND e.created_at < c.signed_up_at + interval '192 hours'
          ))::integer AS d7_retained,
          count(c.user_id) FILTER (WHERE EXISTS (
            SELECT 1 FROM public.score_events e
            WHERE e.entered_by = c.user_id
-             AND e.created_at >= c.signed_up_at + interval '30 days'
-             AND e.created_at < c.signed_up_at + interval '31 days'
+             AND e.created_at >= c.signed_up_at + interval '720 hours'
+             AND e.created_at < c.signed_up_at + interval '744 hours'
          ))::integer AS d30_retained,
-         bool_and(c.signed_up_at + interval '8 days' <= now()) AS d7_mature,
-         bool_and(c.signed_up_at + interval '31 days' <= now()) AS d30_mature
+         bool_and(c.signed_up_at + interval '192 hours' <= now()) AS d7_mature,
+         bool_and(c.signed_up_at + interval '744 hours' <= now()) AS d30_mature
   FROM cohort_days d LEFT JOIN cohort_users c USING (signup_date)
   GROUP BY d.signup_date
 )

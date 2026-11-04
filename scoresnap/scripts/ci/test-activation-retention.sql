@@ -4,10 +4,14 @@ INSERT INTO auth.users(id, created_at, is_anonymous) VALUES
  ('00000000-0000-0000-0000-000000005201', now() - interval '40 days', false),
  ('00000000-0000-0000-0000-000000005202', now() - interval '10 days', false),
  ('00000000-0000-0000-0000-000000005203', now() - interval '2 days', false);
-INSERT INTO public.profiles(id, created_at) VALUES
- ('00000000-0000-0000-0000-000000005201', now() - interval '40 days'),
- ('00000000-0000-0000-0000-000000005202', now() - interval '10 days'),
- ('00000000-0000-0000-0000-000000005203', now() - interval '2 days');
+UPDATE public.profiles SET created_at = CASE id
+  WHEN '00000000-0000-0000-0000-000000005201' THEN now() - interval '40 days'
+  WHEN '00000000-0000-0000-0000-000000005202' THEN now() - interval '10 days'
+  WHEN '00000000-0000-0000-0000-000000005203' THEN now() - interval '2 days'
+END
+WHERE id IN ('00000000-0000-0000-0000-000000005201',
+             '00000000-0000-0000-0000-000000005202',
+             '00000000-0000-0000-0000-000000005203');
 
 INSERT INTO public.contests(id,owner_id,name,course,status,invite_code,created_at) VALUES
  ('00000000-0000-0000-0000-000000005211','00000000-0000-0000-0000-000000005201','Roster fixture','{}','active','RET521','2020-01-01T00:00:00Z');
@@ -16,9 +20,9 @@ INSERT INTO public.contest_players(id,contest_id,name) VALUES
  ('00000000-0000-0000-0000-000000005222','00000000-0000-0000-0000-000000005211','Guest 1'),
  ('00000000-0000-0000-0000-000000005223','00000000-0000-0000-0000-000000005211','Guest 2'),
  ('00000000-0000-0000-0000-000000005224','00000000-0000-0000-0000-000000005211','Guest 3');
-INSERT INTO public.contest_memberships(contest_id,user_id,role,status) VALUES
- ('00000000-0000-0000-0000-000000005211','00000000-0000-0000-0000-000000005201','host','approved'),
- ('00000000-0000-0000-0000-000000005211','00000000-0000-0000-0000-000000005202','player','approved');
+INSERT INTO public.contest_memberships(contest_id,user_id,role,status,player_id) VALUES
+ ('00000000-0000-0000-0000-000000005211','00000000-0000-0000-0000-000000005201','host','approved',NULL),
+ ('00000000-0000-0000-0000-000000005211','00000000-0000-0000-0000-000000005202','player','approved','00000000-0000-0000-0000-000000005222');
 
 -- User 1 has day-7 activity. User 2's event is outside their [day 7, day 8) interval.
 INSERT INTO public.score_events(contest_id,player_id,hole,strokes,entered_by,created_at) VALUES
@@ -36,6 +40,11 @@ DO $$ BEGIN
        WHERE signup_date=((now() - interval '2 days') AT TIME ZONE 'America/Los_Angeles')::date
          AND signups=1 AND d7_rate IS NULL AND d30_rate IS NULL) THEN
     RAISE EXCEPTION 'immature cohort rates must be NULL';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.retention_cohorts
+       WHERE signup_date=((now() - interval '10 days') AT TIME ZONE 'America/Los_Angeles')::date
+         AND signups=1 AND d7_retained=0 AND d7_rate=0) THEN
+    RAISE EXCEPTION 'activity at the exclusive D7 upper bound must not count';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM public.retention_cohorts
        WHERE signup_date=(now() AT TIME ZONE 'America/Los_Angeles')::date
