@@ -38,4 +38,5 @@ CREATE FUNCTION realtime.send(payload jsonb,event text,topic text,private boolea
 ''', 'local platform stubs')
     for migration in sorted((root/'migrations').glob('*.sql')):
         run(migration.read_text(), migration.name)
+    run((root/'proposed/20261103071000_account_handoff.sql').read_text(), 'proposed account handoff migration')
     run((root/'tests/account-handoff.sql').read_text(), 'merge, idempotency, no duplicate rounds, conflict rule, RLS and capability denial')

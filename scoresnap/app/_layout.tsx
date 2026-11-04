@@ -5,6 +5,7 @@ import { AccountHandoffPanel } from '../src/ui/AccountHandoffPanel';
 import { finishAccountHandoff } from '../src/services/account-handoff';
 import { AppState, Platform } from "react-native";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../src/config/features";
+import { isAppReadyForSession } from "../src/services/onboarding-gate";
 import { REAL_AUTH_CONFIGURED } from "../src/config/auth";
 import { supabase } from "../src/db/supabase";
 import { authLifecycle } from "../src/services/auth-lifecycle";
@@ -110,7 +111,13 @@ function useProtectedRoute() {
 
     if (CROSS_DEVICE_SHARING_ENABLED && inAuth && (!session || isAnonymous)) return;
 
-    const ready = hasCompletedOnboarding || (CROSS_DEVICE_SHARING_ENABLED && isAnonymous && !!remoteUserId);
+    const ready = isAppReadyForSession({
+      hasCompletedOnboarding,
+      crossDeviceSharingEnabled: CROSS_DEVICE_SHARING_ENABLED,
+      hasSession: !!session,
+      isAnonymous,
+      remoteUserId,
+    });
     if (!ready && !inOnboarding) {
       router.replace("/onboarding");
     } else if (ready && !session && !inAuth && !OFFLINE_MODE) {
