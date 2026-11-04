@@ -1,11 +1,9 @@
 import { SafeScreen } from "../../../src/ui/SafeScreen";
-import { OnlineSyncPanel } from "../../../src/ui/OnlineSyncPanel";
-import { LiveShare } from "../../../src/ui/LiveShare";
-import { ContestJoinCode } from "../../../src/ui/ContestJoinCode";
+import { RoundStatusSheet } from "../../../src/ui/RoundStatusSheet";
 import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, Camera, Edit3, Calendar } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Camera, Edit3, Calendar } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
@@ -30,6 +28,8 @@ export default function ContestLayout() {
   const contest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
+  const [statusOpen, setStatusOpen] = useState(false);
+  const closeStatus = useCallback(() => setStatusOpen(false), []);
   const [activeTab, setActiveTab] = useState<TabKey>("scorecard");
 
   const handleTabPress = useCallback(
@@ -73,9 +73,6 @@ export default function ContestLayout() {
 
   return (
     <SafeScreen testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top", "bottom"]}>
-      <ContestJoinCode contest={contest} />
-      <LiveShare contest={contest} />
-      <OnlineSyncPanel contest={contest} />
       {/* Header */}
       <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
@@ -157,6 +154,22 @@ export default function ContestLayout() {
             <Camera size={18} color={COLORS.accent} />
           </AnimatedPressable>
         </View>
+
+        <Pressable
+          testID="round-status-chip"
+          accessibilityRole="button"
+          accessibilityLabel={contest.status === "completed" ? "Share and sync" : "Round status"}
+          onPress={() => setStatusOpen(true)}
+          style={{ minHeight: 44, borderRadius: RADII.full, backgroundColor: COLORS.surfaceLow,
+            flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 8,
+            paddingHorizontal: 12, marginBottom: 12 }}
+        >
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary }} />
+          <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
+            {contest.status === "completed" ? "Share and sync" : "Round status"}
+          </Text>
+          <ChevronRight size={14} color={COLORS.textDim} />
+        </Pressable>
 
         {/* Team Score Banner */}
         {contest.hasTeams && contest.teamAName && contest.teamBName && (
@@ -243,6 +256,7 @@ export default function ContestLayout() {
 
       {/* Active screen — rendered directly, no Slot/router */}
       <ActiveScreen />
+      <RoundStatusSheet contest={contest} visible={statusOpen} onClose={closeStatus} />
     </SafeScreen>
   );
 }

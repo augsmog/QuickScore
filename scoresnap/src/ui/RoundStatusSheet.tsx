@@ -36,7 +36,7 @@ export function RoundStatusSheet({ contest, visible, onClose }: {
         </Text>
         <ScrollView>
           <OnlineSyncPanel contest={contest} />
-          <LiveShare contest={contest} publish={false} />
+          <LiveShare contest={contest} />
           <ContestJoinCode contest={contest} />
         </ScrollView>
         <Pressable testID="round-status-done" accessibilityRole="button" onPress={onClose}

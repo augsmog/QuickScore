@@ -2,9 +2,10 @@ const fs=require('fs'),ts=require('typescript');
 const jsx=(type,props)=>({type,props});
 function render({canGoBack=false,hasContest=true}={}){
  const back=jest.fn(),replace=jest.fn();
+ const stateValues=[];
  const contest=hasContest?{id:'c',name:'Round',course:{name:'Course'},groups:[],status:'completed'}:undefined;
  const deps={
-  react:{useState:v=>[v,()=>{}],useCallback:f=>f},
+  react:{useState:v=>{let value=v;stateValues.push(()=>value);return [v,next=>{value=typeof next==='function'?next(value):next}]},useCallback:f=>f},
   'react/jsx-runtime':{jsx,jsxs:jsx},
   'react-native':{View:'View',Text:'Text',Pressable:'Pressable'},
   'expo-router':{useLocalSearchParams:()=>({id:'c'}),useRouter:()=>({back,replace,canGoBack:()=>canGoBack})},
@@ -23,7 +24,7 @@ function render({canGoBack=false,hasContest=true}={}){
  };
  const m={exports:{}};
  new Function('require','module','exports',ts.transpileModule(fs.readFileSync('app/contest/[id]/_layout.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(!(id in deps))throw Error(id);return deps[id]},m,m.exports);
- return {tree:m.exports.default(),back,replace};
+ return {tree:m.exports.default(),back,replace,statusOpen:()=>stateValues[0]()};
 }
 const nodes=n=>!n||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];
 test('contest layout renders its current tab directly without a nested Slot',()=>{
@@ -34,6 +35,13 @@ test('contest layout renders its current tab directly without a nested Slot',()=
 test.each([['scorecard','Scorecard'],['leaderboard','Leaderboard'],['games','Games'],['settlement','Settlement']])('tab %s is present in the shared round header',(tab,label)=>{
  const {tree}=render();
  expect(nodes(tree).find(n=>n.props?.accessibilityRole==='tab'&&n.props?.accessibilityLabel===label)).toBeDefined();
+});
+test('round status chip opens the mounted status sheet',()=>{
+ const {tree,statusOpen}=render();
+ const sheet=nodes(tree).find(n=>n.type==='RoundStatusSheet');
+ expect(sheet.props.visible).toBe(false);
+ nodes(tree).find(n=>n.props?.testID==='round-status-chip').props.onPress();
+ expect(statusOpen()).toBe(true);
 });
 test.each([true,false])('round Back delegates to router history (%s)',canGoBack=>{
  const {tree,back,replace}=render({canGoBack});

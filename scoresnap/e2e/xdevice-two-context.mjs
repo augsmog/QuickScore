@@ -8,7 +8,7 @@ const base=process.env.BASE_URL ?? 'http://127.0.0.1:8089';
 const out=process.env.OUT_DIR ?? '/tmp/xdevice-two-context';
 await mkdir(out,{recursive:true});
 const browser=await chromium.launch({headless:true, ...(process.env.CHROME_BIN ? {executablePath:process.env.CHROME_BIN} : {})});
-const contexts=await Promise.all([browser.newContext(),browser.newContext(),browser.newContext()]);
+const contexts=await Promise.all([browser.newContext({viewport:{width:390,height:844}}),browser.newContext({viewport:{width:390,height:844}}),browser.newContext({viewport:{width:390,height:844}})]);
 // Block the exact fallback timer in B before application code runs.
 await contexts[1].addInitScript(() => {
   const interval = window.setInterval.bind(window);
