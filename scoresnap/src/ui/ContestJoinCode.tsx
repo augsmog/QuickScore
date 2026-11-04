@@ -14,7 +14,7 @@ import { generateJoinCode } from "../services/guest-join";
 import { COLORS } from "./theme";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../config/features";
 
-export function ContestJoinCode({ contest }: { contest: Contest }) {
+export function ContestJoinCode({ contest, header = false }: { contest: Contest; header?: boolean }) {
   const [message, setMessage] = useState("");
   useEffect(() => {
     if (contest.remoteRestored || contest.joinCode) return;
@@ -108,13 +108,16 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
   }
   
   const compact = Platform.OS === 'web' && typeof window !== 'undefined' && window.innerHeight < 700;
-  return <View style={{ paddingHorizontal: 20, paddingBottom: compact ? 4 : 10 }}>
+  return <View style={header ? { flex: 1 } : { paddingHorizontal: 20, paddingBottom: compact ? 4 : 10 }}>
     {onlineEnabled && !enabled && !contest.remoteRestored && <Pressable disabled={busy || checking} onPress={() => void enable()}><Text style={{color: COLORS.primary, paddingVertical: 12}}>{checking ? 'Checking online sharing…' : busy ? 'Enabling…' : 'Enable online sharing'}</Text></Pressable>}
     {contest.remoteRestored && checking && <Text style={{ color: COLORS.textDim }}>Checking online sharing…</Text>}
-    {!!code && (enabled || !onlineEnabled) && <><Text testID="organizer-join-code" style={{ color: COLORS.primary }}>Join code: {code}</Text>
-
-    {!onlineEnabled && <LocalJoinLimitationBanner />}
-    <Pressable accessibilityRole="button" accessibilityLabel="Invite players" onPress={share} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: COLORS.text, paddingVertical: compact ? 4 : 8 }}>{onlineEnabled ? "Copy / share invite" : "Copy / share local invite"}</Text></Pressable>
+    {!!code && (enabled || !onlineEnabled) && <>
+    {!header && !onlineEnabled && <LocalJoinLimitationBanner />}
+    <Pressable accessibilityRole="button" accessibilityLabel="Invite players" onPress={share} testID="journey-invite" style={{ minHeight: 44, justifyContent: 'center' }}>
+      <Text testID="organizer-join-code" style={{ color: COLORS.primary }}>Join code: {code}</Text>
+      <Text style={{ color: COLORS.text, fontSize: header ? 12 : 14, paddingVertical: header ? 2 : compact ? 4 : 8 }}>{onlineEnabled ? "Copy / share invite" : "Copy / share local invite"}</Text>
+    </Pressable>
+    {header && !onlineEnabled && <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Same browser only</Text>}
     </>}
     {restoredUnavailable && !message && <Text style={{ color: COLORS.textDim }}>{OWNER_INVITE_UNAVAILABLE}</Text>}
     {!!visibleMessage && <Text style={{ color: COLORS.textDim }}>{visibleMessage}</Text>}

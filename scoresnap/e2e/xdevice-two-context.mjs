@@ -56,7 +56,7 @@ try {
     await text(a,/^START$/i).click();
     await a.waitForURL(/\/contest\/[^/]+$/);
     const contestUrl=a.url();
-    await openStatus(a);
+    await closeStatus(a);
     await text(a,'Enable online sharing').click();
     const label=await a.getByTestId('organizer-join-code').innerText();
     const code=label.match(/Join code: ([A-Z0-9]{6})/)[1];
@@ -65,9 +65,7 @@ try {
     // Owner-hosts may have no membership row: a cold page must restore the
     // authorized snapshot before showing the invite or queuing another score.
     await a.reload();
-    // The organizer invite lives in the round status sheet. A reload closes
-    // that sheet, so expand it before asserting the invite is visible again.
-    await openStatus(a);
+    // The header invite must remain visible after a cold reload.
     await a.getByTestId('organizer-join-code').waitFor();
     assert.equal(await text(a,'Enable online sharing').count(),0);
     assert.equal(await a.getByTestId('organizer-join-code').innerText(),label);
@@ -85,6 +83,7 @@ try {
     assert.equal(await b.getByText(/Confirmed tournament totals/).count(),0,'No pending scorecard');
     assert.equal(await text(b,'Xdev Host').count(),0,'No pending roster');
     await shot(b,'03-request');
+    await openStatus(a);
     await text(a,'Online sync').click();
     await text(a,'Retry sync').click();
     await text(a,'Approve as Xdev Joiner').click();
@@ -126,7 +125,7 @@ try {
     const expectedHole = 1;
     const expectedStrokes = round.course.holes.find(h => h.num === expectedHole)?.par;
     assert(Number.isInteger(expectedStrokes), 'Restored course supplies hole 1 par');
-    await openStatus(a);
+    await closeStatus(a);
     await a.getByTestId('organizer-join-code').waitFor();
     assert.equal(await a.getByTestId('organizer-join-code').innerText(), label);
     assert.equal(await text(a,'Enable online sharing').count(), 0);
@@ -180,7 +179,7 @@ try {
     await text(a,/^START$/i).click();
     await a.waitForURL(/\/contest\/[^/]+$/);
     const privateUrl=a.url();
-    await openStatus(a);
+    await closeStatus(a);
     await text(a,'Enable online sharing').click();
     await a.getByTestId('organizer-join-code').waitFor();
     await shot(a,'08-private-host-round');

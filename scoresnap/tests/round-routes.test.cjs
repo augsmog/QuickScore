@@ -54,3 +54,13 @@ test.each([true,false])('missing-contest Back uses history or Home (%s)',canGoBa
  nodes(tree).find(n=>n.type==='Pressable'&&n.props?.onPress).props.onPress();
  expect(canGoBack?back:replace).toHaveBeenCalledWith(...(canGoBack?[]:['/']));
 });
+
+test('the single invite is mounted in the round header outside the hidden status sheet',()=>{
+ const {tree}=render();
+ const header=nodes(tree).find(n=>n.props?.testID==='contest-header');
+ const invites=nodes(tree).filter(n=>n.type==='ContestJoinCode');
+ expect(invites).toHaveLength(1);
+ expect(nodes(header)).toContain(invites[0]);
+ expect(invites[0].props.header).toBe(true);
+ expect(fs.readFileSync('src/ui/RoundStatusSheet.tsx','utf8')).not.toMatch(/<ContestJoinCode\b/);
+});

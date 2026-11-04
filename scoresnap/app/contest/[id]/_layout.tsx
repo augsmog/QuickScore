@@ -1,4 +1,5 @@
 import { SafeScreen } from "../../../src/ui/SafeScreen";
+import { ContestJoinCode } from "../../../src/ui/ContestJoinCode";
 import { RoundStatusSheet } from "../../../src/ui/RoundStatusSheet";
 import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
@@ -155,21 +156,25 @@ export default function ContestLayout() {
           </AnimatedPressable>
         </View>
 
-        <Pressable
-          testID="round-status-chip"
-          accessibilityRole="button"
-          accessibilityLabel={contest.status === "completed" ? "Share and sync" : "Round status"}
-          onPress={() => setStatusOpen(true)}
-          style={{ minHeight: 44, borderRadius: RADII.full, backgroundColor: COLORS.surfaceLow,
-            flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 8,
-            paddingHorizontal: 12, marginBottom: 12 }}
-        >
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary }} />
-          <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
-            {contest.status === "completed" ? "Share and sync" : "Round status"}
-          </Text>
-          <ChevronRight size={14} color={COLORS.textDim} />
-        </Pressable>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <Pressable
+            testID="round-status-chip"
+            accessibilityRole="button"
+            accessibilityLabel={contest.status === "completed" ? "Share and sync" : "Round status"}
+            onPress={() => setStatusOpen(true)}
+            style={{ minHeight: 44, borderRadius: RADII.full, backgroundColor: COLORS.surfaceLow,
+              flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 8,
+              paddingHorizontal: 12 }}
+          >
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary }} />
+            <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
+              {contest.status === "completed" ? "Share and sync" : "Round status"}
+            </Text>
+            <ChevronRight size={14} color={COLORS.textDim} />
+          </Pressable>
+
+          <ContestJoinCode contest={contest} header />
+        </View>
 
         {/* Team Score Banner */}
         {contest.hasTeams && contest.teamAName && contest.teamBName && (

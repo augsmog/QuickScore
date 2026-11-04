@@ -101,7 +101,7 @@ check(
 );
 
 // Check if join code is available (cross-device sharing feature flag)
-await openRoundStatus(orgPage);
+await closeRoundStatus(orgPage);
 const joinCodeElement = orgPage.getByTestId("organizer-join-code");
 const hasJoinCode = await joinCodeElement.count() > 0;
 const joinCodeTextEarly = hasJoinCode ? await joinCodeElement.innerText().catch(() => "") : "";
