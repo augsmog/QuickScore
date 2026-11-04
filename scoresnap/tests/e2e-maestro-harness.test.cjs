@@ -57,9 +57,9 @@ test("every flow is listed once, exists, targets the app and names its ticket", 
   const settlementText = read(settlementFlow.file);
   expect(settlementText).toMatch(/Ava \+\$7\.50 \/ Ben -\$7\.50/);
   expect(settlementText).toMatch(/\+\/-\$2\.50/);
-  expect(settlementText).toContain('assertVisible: "\\\\$8"');
-  expect(settlementText).toContain('assertVisible: "\\\\$3"');
-  expect(settlementText).toContain('assertVisible: "\\\\$5"');
+  expect(settlementText).toContain('assertVisible: "\\\\$7\\\\.50"');
+  expect(settlementText).toContain('assertVisible: "\\\\$2\\\\.50"');
+  expect(settlementText).toContain('assertVisible: "\\\\$5\\\\.00"');
   expect(settlementText).toMatch(/tapOn:\s*\n\s+text: "Mark settled Ben to Ava"\s*\n\s+index: 0/);
   expect(settlementText).toMatch(/visible:\s*\n\s+text: "Unsettle Ben to Ava"\s*\n\s+index: 0/);
   expect(settlementText).toMatch(/tapOn:\s*\n\s+text: "Unsettle Ben to Ava"\s*\n\s+index: 0/);

@@ -1,8 +1,8 @@
 # AUG-248: native Pro-fixture settlement ledger, settled mark, undo, share sheet and PDF sheet.
 # This uses one local synthetic round and never chooses an external share destination.
 # The shared fixture keeps the default $5 unit: Stroke Play contributes $5, Skins contributes $2.50,
-# so the engine ledger is Ava +$7.50 / Ben -$7.50 (Skins alone: +/-$2.50). formatMoney rounds
-# displayed values to whole dollars, so the screen assertions use the rendered $8 and $3 values.
+# so the engine ledger is Ava +$7.50 / Ben -$7.50 (Skins alone: +/-$2.50). The settlement screen,
+# generated share text, and PDF preserve cents, matching the fixture's exact engine amounts.
 appId: com.scoresnap.app
 ---
 - launchApp:
@@ -25,22 +25,22 @@ appId: com.scoresnap.app
 - takeScreenshot: aug-248-01-finalized-round
 - assertVisible:
     id: "settlement-session-total"
-- assertVisible: "\\$8"
+- assertVisible: "\\$7\\.50"
 - takeScreenshot: aug-248-02-session-total
 - scrollUntilVisible:
     element: "WHO OWES WHAT"
     direction: DOWN
 - assertVisible: ".*Ben.*Ava.*"
-- assertVisible: "\\$5"
-- assertVisible: "\\$3"
+- assertVisible: "\\$5\\.00"
+- assertVisible: "\\$2\\.50"
 - takeScreenshot: aug-248-03-settlement-transaction
 - scrollUntilVisible:
     element: "Net for the Round"
     direction: DOWN
 - assertVisible: "Ava"
 - assertVisible: "Ben"
-- assertVisible: ".*Ava.*\\+\\$8.*"
-- assertVisible: ".*Ben.*−\\$8.*"
+- assertVisible: ".*Ava.*\\+\\$7\\.50.*"
+- assertVisible: ".*Ben.*−\\$7\\.50.*"
 - takeScreenshot: aug-248-04-signed-ledger
 - scrollUntilVisible:
     element: ".*Net skins.*Whole field.*"
@@ -48,8 +48,8 @@ appId: com.scoresnap.app
 - assertVisible: ".*Net skins.*Whole field.*"
 - assertVisible: "Ava"
 - assertVisible: "Ben"
-- assertVisible: ".*Ava.*\\+\\$3.*"
-- assertVisible: ".*Ben.*−\\$3.*"
+- assertVisible: ".*Ava.*\\+\\$2\\.50.*"
+- assertVisible: ".*Ben.*−\\$2\\.50.*"
 - takeScreenshot: aug-248-05-full-width-game-breakdown
 - scrollUntilVisible:
     element: "Mark settled Ben to Ava"
@@ -103,10 +103,10 @@ appId: com.scoresnap.app
 - extendedWaitUntil:
     visible: ".*Transactions.*"
     timeout: 20000
-- assertVisible: ".*Ava: \\+\\$8.*"
-- assertVisible: ".*Ben: −\\$8.*"
-- assertVisible: "\\$5"
-- assertVisible: "\\$3"
+- assertVisible: ".*Ava: \\+\\$7\\.50.*"
+- assertVisible: ".*Ben: −\\$7\\.50.*"
+- assertVisible: "\\$5\\.00"
+- assertVisible: "\\$2\\.50"
 - takeScreenshot: aug-248-12-share-totals
 - swipe:
     start: "50%, 25%"
@@ -126,10 +126,10 @@ appId: com.scoresnap.app
     text: ".*\\.pdf.*"
     optional: true
 - extendedWaitUntil:
-    visible: ".*Ava: \\+\\$8.*"
+    visible: ".*Ava: \\+\\$7\\.50.*"
     timeout: 10000
-- assertVisible: ".*Ben: −\\$8.*"
-- assertVisible: "\\$5"
-- assertVisible: "\\$3"
+- assertVisible: ".*Ben: −\\$7\\.50.*"
+- assertVisible: "\\$5\\.00"
+- assertVisible: "\\$2\\.50"
 - takeScreenshot: aug-248-14-pdf-totals
 - assertNotVisible: ".*(Could not|failed|Unsupported).*"
