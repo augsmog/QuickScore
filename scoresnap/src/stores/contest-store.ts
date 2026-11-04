@@ -47,6 +47,7 @@ export interface TeamInfo {
 }
 
 export interface Contest {
+  remoteRestored?: boolean;
   id: string;
   name: string;
   course: Course;
@@ -533,7 +534,9 @@ export function getTournamentPlayers(contest: Contest): Player[] {
 useContestStore.subscribe((state, previous) => {
   for (const contest of state.contests) {
     if (contest.liveShareEnabled && contest !== previous.contests.find(c => c.id === contest.id)) {
-      void import('../services/live-share').then(m => m.publishSnapshot(contest)).catch(() => {
+      const auth = useAuthStore.getState();
+      const expectedActorId = auth.user?.id ?? auth.remoteUserId ?? null;
+      void import('../services/live-share').then(m => m.publishSnapshot(contest, expectedActorId)).catch(() => {
         // Local scoring remains available. Organizer can retry with Share.
       });
     }

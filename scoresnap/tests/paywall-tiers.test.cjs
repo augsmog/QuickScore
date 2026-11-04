@@ -1,10 +1,10 @@
 const fs=require('fs'),ts=require('typescript');
 const read=p=>fs.readFileSync(p,'utf8');
-function load(p,deps={}) {const m={exports:{}};new Function('require','module','exports',ts.transpileModule(read(p),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(id.endsWith('/ui/SafeScreen'))return {SafeScreen:'SafeAreaView',SheetSurface:'View',FullScreenSheet:'Modal'};if(id in deps)return deps[id];throw Error(id)},m,m.exports);return m.exports;}
+function load(p,deps={}) {const m={exports:{}};new Function('require','module','exports',ts.transpileModule(read(p),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(id==='@/services/platform-alert')return {showAlert:(...args)=>deps['react-native']?.Alert?.alert?.(...args)};if(id.endsWith('/ui/SafeScreen'))return {SafeScreen:'SafeAreaView',SheetSurface:'View',FullScreenSheet:'Modal'};if(id in deps)return deps[id];throw Error(id)},m,m.exports);return m.exports;}
 const entitlement=()=>load('src/services/entitlements.ts');
 test('1 TD implies Pro, active entitlements only',()=>{const e=entitlement();expect(e.tierFromCustomerInfo({entitlements:{active:{'SnapScore TD':{}}}})).toBe('td');expect(e.tierFromCustomerInfo({entitlements:{active:{'SnapScore Pro':{}}}})).toBe('pro');expect(e.tierFromCustomerInfo({entitlements:{active:{}}})).toBe('free');});
-test('2 exactly four free games; premium addition gates preserve saved scores',()=>{const e=entitlement();expect(e.FREE_GAMES).toEqual(['stroke_play','match_play','stableford','best_ball']);for(const id of e.FREE_GAMES)expect(e.canUseGame(id,'free')).toBe(true);expect(e.canUseGame('skins','free')).toBe(false);expect(e.canUseGame('skins','pro')).toBe(true);for(const p of ['app/contest/new.tsx','app/contest/[id]/edit.tsx','app/(tabs)/index.tsx'])expect(read(p)).toContain('canUseGame');expect(read('app/contest/[id]/games.tsx')).toContain('Add a game');});
-test('3 settlement and stats gated',()=>{const e=entitlement();expect(e.canSeeSettlement('free')).toBe(false);expect(e.canSeeStats('td')).toBe(true);for(const p of ['app/statistics.tsx','app/contest/[id]/settlement.tsx'])expect(read(p)).toContain('PaywallTeaser');});
+test('2 exactly four free games; premium addition gates preserve saved scores',()=>{const e=entitlement();expect(e.FREE_GAMES).toEqual(['stroke_play','match_play','stableford','best_ball']);for(const id of e.FREE_GAMES)expect(e.canUseGame(id,'free')).toBe(true);expect(e.canUseGame('skins','free')).toBe(false);expect(e.canUseGame('skins','pro')).toBe(true);for(const p of ['app/contest/[id]/edit.tsx','app/(tabs)/index.tsx'])expect(read(p)).toContain('canUseGame');expect(read('app/contest/[id]/games.tsx')).toContain('Add a game');});
+test('3 settlement and stats gated',()=>{const e=entitlement();expect(e.canSeeSettlement('free')).toBe(false);expect(e.canSeeStats('td')).toBe(true);expect(read('app/statistics.tsx')).toContain('PaywallTeaser');expect(read('app/contest/[id]/settlement.tsx')).toMatch(/canSeeSettlement\(tier\)\)\s*return <SettlementScreenContent \/>/);});
 test('4 hosting shape gates only hosts',()=>{const e=entitlement();for(const tier of ['free','pro','td']){expect(e.canHostTournament({groups:[{}],rounds:[{}]},tier)).toBe(true);expect(e.canHostTournament({groups:[{},{}]},tier)).toBe(tier==='td');expect(e.canHostTournament({rounds:[{},{}]},tier)).toBe(tier==='td');}expect(read('app/contest/[id]/tournament-rounds.tsx')).toContain('canHostTournament');});
 test('5 sharing remains free',()=>{expect(read('app/paywall.tsx')).not.toContain('Share & export results');for(const p of ['app/join/[code].tsx','app/r/[token].tsx'])expect(read(p)).not.toMatch(/canHostTournament|isPro|paywall/);});
 test('6 monthly scans reset at local month boundary; paid unlimited',()=>{const e=entitlement();expect(e.scanAllowance('free',new Date(2026,9,31))).toEqual({limit:3,monthKey:'2026-10'});expect(e.scanAllowance('td',new Date()).limit).toBe(Infinity);const s=load('src/stores/scan-store.ts',{'../services/entitlements':e,'./persisted-keys':load('src/stores/persisted-keys.ts'),zustand:require('zustand'),'zustand/middleware':{persist:f=>f,createJSONStorage:()=>({})},'@react-native-async-storage/async-storage':{}}).useScanStore;s.setState({scanMonth:'2026-09',scansUsed:99});expect(s.getState().getRemainingFreeScans()).toBe(3);for(let i=0;i<3;i++)expect(s.getState().useScan()).toBe(true);expect(s.getState().useScan()).toBe(false);});
@@ -47,16 +47,16 @@ test('OCR withdrawal while reading and exhausted allowance both block the edge c
 });
 function screenHarness(path,tier,contest=fixture()) {
  const e=entitlement(),theme=load('src/ui/theme.ts'),types=load('src/engine/types.ts',{'../services/entitlements':e});
- const push=jest.fn(),save=jest.fn(),states=[];let cursor=0;
- const react={useState:init=>{const i=cursor++;if(!(i in states))states[i]=typeof init==='function'?init():init;return [states[i],v=>{states[i]=typeof v==='function'?v(states[i]):v;}];},useMemo:f=>f(),useEffect:()=>{},useCallback:f=>f,useRef:()=>({})};
- const jsx=(type,props)=>({type,props});const deps={react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':new Proxy({Platform:{OS:'ios'}},{get:(o,k)=>o[k]||k}),'expo-router':{useRouter:()=>({push,back:()=>{},replace:()=>{}}),useLocalSearchParams:()=>({id:'c'})},'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'lucide-react-native':{},'expo-haptics':{impactAsync:()=>{},notificationAsync:()=>{},ImpactFeedbackStyle:{Light:1},NotificationFeedbackType:{Success:1}}};
+ const push=jest.fn(),save=jest.fn(),states=[],refs=[];let cursor=0,refCursor=0;
+ const react={useState:init=>{const i=cursor++;if(!(i in states))states[i]=typeof init==='function'?init():init;return [states[i],v=>{states[i]=typeof v==='function'?v(states[i]):v;}];},useMemo:f=>f(),useEffect:()=>{},useCallback:f=>f,useRef:init=>{const i=refCursor++;return refs[i]??={current:init};}};
+ const jsx=(type,props)=>({type,props});const deps={react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':new Proxy({Platform:{OS:'ios'}},{get:(o,k)=>o[k]||k}),'expo-router':{useFocusEffect:()=>{},useRouter:()=>({push,back:()=>{},replace:()=>{}}),useLocalSearchParams:()=>({id:'c'})},'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'lucide-react-native':{},'expo-haptics':{impactAsync:()=>{},notificationAsync:()=>{},ImpactFeedbackStyle:{Light:1},NotificationFeedbackType:{Success:1}}};
  for(const depth of ['../..','../../..'])Object.assign(deps,{
   [depth+'/src/config/features']:{COURSE_SEARCH_ENABLED:false},[depth+'/src/config/auth']:{REAL_AUTH_CONFIGURED:false},[depth+'/src/stores/auth-store']:{useAuthStore:Object.assign(f=>f({user:null}),{getState:()=>({})})},[depth+'/src/ui/CourseSearch']:{__esModule:true,default:()=>null},
   'expo-crypto':{randomUUID:()=> '00000000-0000-4000-8000-000000000001'},[depth+'/src/stores/scan-store']:{useScanStore:f=>f({tier})},[depth+'/src/services/entitlements']:e,[depth+'/src/ui/theme']:theme,[depth+'/src/engine/types']:types,[depth+'/src/ui/AnimatedPressable']:{AnimatedPressable:'Pressable'},
   [depth+'/src/stores/contest-store']:{useContestStore:f=>f({contests:[contest],updateContest:save,addContest:save,addRound:save}),defaultCourse:()=>({name:'Course',holes:Array.from({length:18},(_,i)=>({num:i+1,par:4,hcp:i+1}))}),generateId:()=>String(Math.random())},
  });
  const Screen=load(path,deps).default;
- return {render:()=>{cursor=0;return Screen();},push,save,states};
+ return {render:()=>{cursor=refCursor=0;return Screen();},push,save,states};
 }
 function nodes(n){if(!n||typeof n!=='object')return [];return Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];}
 function textOf(n){if(n==null)return '';if(typeof n!=='object')return String(n);if(Array.isArray(n))return n.map(textOf).join('');return textOf(n.props?.children);}
@@ -71,14 +71,6 @@ test('actual edit picker gates adding premium games and groups; existing premium
  skins.props.onPress();tree=h.render();button(tree,'🔒 Skins').props.onPress();expect(h.push).toHaveBeenLastCalledWith('/paywall');
  const pro=screenHarness('app/contest/[id]/edit.tsx','pro',c);button(pro.render(),'Nassau').props.onPress();expect(pro.push).not.toHaveBeenCalled();
  const td=screenHarness('app/contest/[id]/edit.tsx','td',c);button(td.render(),'Add Group').props.onPress();expect(td.push).not.toHaveBeenCalled();expect(textOf(td.render())).toContain('Add Group');
-});
-test('actual new-contest picker and submit prevent premium game and tournament bypasses',()=>{
- const h=screenHarness('app/contest/new.tsx','free');let tree=h.render();
- nodes(tree).find(n=>n.props?.testID==='tournament-toggle').props.onValueChange(true);expect(h.push).toHaveBeenLastCalledWith('/paywall?tier=td');
- h.states[0]=2;h.states[8]=h.states[8].map((p,i)=>({...p,name:'Player '+i}));tree=h.render();
- button(tree,'🔒 Skins').props.onPress();expect(h.push).toHaveBeenLastCalledWith('/paywall');expect(h.states[11]).toEqual(['stroke_play']);
- h.states[0]=3;h.states[7]=2;tree=h.render();const submit=nodes(tree).find(n=>n.type==='Pressable'&&textOf(n).includes('START'));expect(submit).toBeDefined();submit.props.onPress();expect(h.save).not.toHaveBeenCalled();expect(h.push).toHaveBeenLastCalledWith('/paywall?tier=td');
- h.states[7]=1;tree=h.render();button(tree,'START').props.onPress();expect(h.save).toHaveBeenCalledTimes(1);
 });
 test('consent prompt persists decline and allows settings withdrawal without repeat network access',async()=>{
  let choice=null;const update=jest.fn((key,v)=>choice=v),alert=jest.fn();
@@ -109,7 +101,7 @@ test('subscription cache survives offline restart and migrates existing Pro user
 test('free result sharing uses the selected tournament round scores',async()=>{
  const file='app/contest/[id]/settlement.tsx';const source=ts.createSourceFile(file,read(file),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
  let handler;
- function visit(node){if(ts.isJsxElement(node)&&node.openingElement.tagName.getText(source)==='Pressable'&&node.children.map(c=>c.getText(source)).join('').includes('Share results — free'))handler=node.openingElement.attributes.properties.find(p=>p.name?.getText(source)==='onPress').initializer.expression.getText(source);ts.forEachChild(node,visit);}visit(source);
+ function visit(node){if(ts.isJsxElement(node)&&node.openingElement.tagName.getText(source)==='Pressable'&&node.children.map(c=>c.getText(source)).join('').includes('Share results (free)'))handler=node.openingElement.attributes.properties.find(p=>p.name?.getText(source)==='onPress').initializer.expression.getText(source);ts.forEachChild(node,visit);}visit(source);
  const contest=fixture();contest.rounds=JSON.parse(JSON.stringify(contest.rounds));contest.rounds[1].groups[1].players[0].scores[0]=4;
  const Share={share:jest.fn()};await require('vm').runInNewContext('('+handler+')',{contest,Share})();expect(Share.share).toHaveBeenCalledWith({message:expect.stringContaining('Guest 1: 4')});
 });

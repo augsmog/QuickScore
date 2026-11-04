@@ -183,9 +183,11 @@ try {
       await a.getByPlaceholder('Your name').fill(names[0]);
       await a.getByPlaceholder('Player 2 name').fill(names[1]);
       for (let i = 2; i < 4; i++) { await text(a, '+ ADD PLAYER').click(); await a.getByPlaceholder(`Player ${i + 1} name`).fill(names[i]); }
-      await a.getByText(/^Next/i).filter({ visible: true }).last().click();
-      await a.getByText(/^Next/i).filter({ visible: true }).last().click();
-      await text(a, /^START CONTEST/i).click();
+      await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
+      await a.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
+      await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
+      await a.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
+      await text(a, /^START$/i).click();
       await a.waitForURL(/\/contest\/[^/]+$/);
       contestUrl = a.url(); contestId = new URL(contestUrl).pathname.split('/').pop();
       await text(a, 'Enable online sharing').click();
@@ -261,6 +263,29 @@ try {
       await text(pages[0], 'Online sync').click();
       await converge([0, 1, 2, 3]);
       for (const i of [1, 2, 3]) assert.equal((await queueEntries(pages[i])).length, 0, 'No duplicated or pending player operations');
+    });
+    await step('owner fresh context discovers scored contest and own-code restores without request', async () => {
+      const fresh = await browser.newContext();
+      try {
+        const page = await fresh.newPage(); configure(page);
+        let joins = 0;
+        page.on('request', r => { if (r.url().endsWith('/rpc/request_join')) joins++; });
+        assert.equal(await signIn(page, 'A'), true);
+        await page.goto(`${base}/contests`);
+        await poll('owner snapshot contains every accepted score', () => {
+          const s = snapshot(page);
+          return !!s && expected.every(cell => s.rounds[0]?.players
+            .find(p => p.displayName === names[cell.i])?.cells
+            .find(c => c.hole === cell.hole)?.strokes === cell.value);
+        });
+        await text(page, snapshot(page).name).waitFor();
+        await page.screenshot({ path: path.join(out, 'owner-fresh-contests.png'), fullPage: true });
+        await page.goto(`${base}/join/${code}`);
+        await page.getByLabel('Join code').fill(code);
+        await page.getByText('Find contest', { exact: true }).click();
+        await page.waitForURL(u => u.pathname === `/contest/${contestId}`);
+        assert.equal(joins, 0, 'Owner creates no pending self-request');
+      } finally { await fresh.close(); }
     });
     await step('host RPC revocation denies queued write and removes roster across reloads', async () => {
       // Freeze D's stale authorized screen, revoke while it is disconnected, then enqueue AFTER revocation.

@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { SheetSurface, FullScreenSheet, SafeScreen } from "../../src/ui/SafeScreen";
 import { GAME_MODE_LIBRARY } from "../../src/engine/game-mode-library";
 import { useScanStore } from "../../src/stores/scan-store";
@@ -44,7 +45,7 @@ export default function HomeScreen() {
   const markDemoSeen = useOnboardingStore((s) => s.markDemoSeen);
 
   const handleDeleteContest = (contest: Contest) => {
-    Alert.alert(
+    showAlert(
       "Delete Contest",
       `Are you sure you want to delete "${contest.name || contest.course.name}"? This cannot be undone.`,
       [
@@ -143,7 +144,7 @@ export default function HomeScreen() {
               marginBottom: 20,
             }}
           >
-            Scan a scorecard, confirm scores and side-game details, and settle up.
+            Add your group, pick your games, and see who owes what. Scan a card if you've got one.
           </Text>
 
           {/* CTA Buttons Row */}
@@ -562,7 +563,7 @@ export default function HomeScreen() {
               <X size={24} color={COLORS.text} />
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
+          <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20, gap: 12 }}>
             {GAME_MODE_LIBRARY.map(mode => {
               const content = <>
                 <Text style={{ fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.text }}>{mode.name}</Text>
@@ -695,7 +696,7 @@ export default function HomeScreen() {
                 <Pressable
                   testID="game-info-close"
                   onPress={() => setSelectedGame(null)}
-                  style={{ padding: 4 }}
+                  style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
                 >
                   <X size={20} color={COLORS.textDim} />
                 </Pressable>

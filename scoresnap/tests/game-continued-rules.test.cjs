@@ -47,6 +47,27 @@ test('BBB categories support no award, birdie bonus is category-specific and nev
  balanced(calculateSettlement(players,course,['bingo_bango_bongo'],.03,aux,{...config,bbbBirdieDouble:true}));
  aux.bbb[1].bongo=undefined;assert.equal(actualInputLedger('bingo_bango_bongo',players,course,aux,config).pending,true);
 `));
+test('BBB full set amount is collected from each opponent only for explicitly versioned new rounds',()=>check(`
+ const aux={bbb:holes({bingo:null,bango:null,bongo:null})};aux.bbb[1]={bingo:'A',bango:null,bongo:null};
+ assert.equal(actualInputLedger('bingo_bango_bongo',players,course,aux,config).totals.A,.75);
+ const next={...config,bbbAmountPerOpponent:true};
+ assert.deepEqual(actualInputLedger('bingo_bango_bongo',players,course,aux,next).totals,{A:3,B:-1,C:-1,D:-1});
+ assert.deepEqual(calculateSettlement(players,course,['bingo_bango_bongo'],.03,aux,next).netByPlayer,{A:.09,B:-.03,C:-.03,D:-.03});
+ assert.deepEqual(calculateSettlement(players,course,['bingo_bango_bongo'],1,aux,config).netByPlayer,{A:.75,B:-.25,C:-.25,D:-.25});
+ const {configForGame}=await import('./src/engine/types.ts').then(m=>m.default??m);
+ assert.equal(configForGame(next,'bingo_bango_bongo').bbbAmountPerOpponent,true);
+`));
+test('Double Rabbit has fixed holder-pays direction on new rounds and preserves old saved math',()=>check(`
+ players.forEach(p=>p.scores.fill(5));players[0].scores.fill(3);
+ assert.equal(c.calcRabbit(players,course,{...config,doubleRabbit:true}).totals.A,9);
+ const next={...config,rabbitHolderPays:true};
+ assert.equal(c.calcRabbit(players,course,next).totals.A,3);
+ assert.deepEqual(calculateSettlement(players,course,['rabbit'],1,undefined,next).netByPlayer,{A:3,B:-1,C:-1,D:-1});
+ assert.deepEqual(calculateSettlement(players,course,['rabbit'],1,undefined,{...config,doubleRabbit:true}).netByPlayer,{A:9,B:-3,C:-3,D:-3});
+ const {GAME_VARIATIONS,configForGame}=await import('./src/engine/types.ts').then(m=>m.default??m);
+ assert.equal(GAME_VARIATIONS.some(v=>v.id==='rabbit_double'),false);
+ assert.equal(configForGame(next,'rabbit').rabbitHolderPays,true);
+`));
 for(const game of ['alternate_shot','chapman'])test(game+': canonical team card, three teams, ties, missing, reorder and balanced split',()=>check(`
  const game='${game}',aux={teamCards:holes({Red:4,Blue:5})};players.forEach(p=>p.scores.fill(0));
  let r=calculateSettlement(players,course,[game],.03,aux,config);assert.deepEqual(r.netByPlayer,{A:.03,B:.03,C:-.03,D:-.03});balanced(r);

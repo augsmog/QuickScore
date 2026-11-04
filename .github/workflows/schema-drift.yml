@@ -88,6 +88,8 @@ jobs:
       - name: Emulate hosted platform-provided defaults and extensions (never live)
         run: psql postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/schema-drift/platform-emulation.sql
       - name: M1 baseline parity, ledger and mutation gates; M2 foundation, rollback, role and compatibility gates
+        env:
+          SNAPSCORE_DISPOSABLE_TEST: "1" # This job just created and reset the unlinked local CLI stack.
         run: bash supabase/schema-drift/verify-foundation-ci.sh
 
       - name: Rehearse live ledger adoption without executing baseline twice

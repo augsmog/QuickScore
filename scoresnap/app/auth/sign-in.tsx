@@ -1,3 +1,4 @@
+import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../../src/ui/SafeScreen";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
 import { SUPPORT_BASE_URL } from "../../src/config/support";
@@ -101,7 +102,7 @@ export default function SignInScreen() {
       setError(null);
 
       if (!GOOGLE_CLIENT_ID) {
-        Alert.alert(
+        showAlert(
           "Google Sign-In",
           "Google Sign-In is not yet configured. Please use Apple Sign-In or create an account with email."
         );

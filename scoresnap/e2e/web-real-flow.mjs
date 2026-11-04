@@ -12,6 +12,13 @@ import path from "node:path";
 
 const BASE = process.env.BASE_URL || "http://localhost:8089";
 const OUT = process.env.OUT_DIR || "e2e/screens";
+const viewport = {
+  width: Number(process.env.VIEWPORT_WIDTH || 390),
+  height: Number(process.env.VIEWPORT_HEIGHT || 844),
+};
+if (!Number.isInteger(viewport.width) || !Number.isInteger(viewport.height) || viewport.width < 320 || viewport.height < 480) {
+  throw new Error(`Invalid viewport ${viewport.width}x${viewport.height}`);
+}
 fs.mkdirSync(OUT, { recursive: true });
 
 const results = [];
@@ -21,7 +28,16 @@ const check = (ok, name, detail = "") => {
 };
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+const page = await browser.newPage({ viewport });
+console.log(`viewport: ${viewport.width}x${viewport.height}`);
+// Capture the native share request without opening a system sheet or sending
+// anything outside this test run.
+await page.addInitScript(() => {
+  Object.defineProperty(navigator, "share", {
+    configurable: true,
+    value: async payload => { window.__snapscoreSharePayload = payload; },
+  });
+});
 await seedPaidTier(page, "td");
 // This focused smoke uses only the local offline export.
 if (process.argv.includes('--home-library-only')) {
@@ -68,7 +84,8 @@ await page.getByPlaceholder("Your name").click();
 await page.getByTestId("add-group").click();
 for (const name of ["Lee", "Pat"]) await page.getByTestId(`player-group-${name}`).click();
 await shot("02-new-contest-players.png");
-await vis(page.getByText(/^next/i)).last().click();
+await vis(page.getByText(/^continue$/i)).last().click();
+await page.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
 for (const g of ["Skins", "Nassau"]) await vis(page.getByText(g, { exact: true })).first().click();
 check(await page.getByTestId("skins-mode-net").getAttribute("aria-checked") === "true", "Skins mode defaults to Net");
 await page.getByTestId("skins-mode-gross").click();
@@ -83,8 +100,9 @@ await page.getByTestId("skins-scope-field").click();
 await page.getByTestId("skins-mode-net").scrollIntoViewIfNeeded();
 await shot("03c-skins-scope-toggle.png");
 await shot("03-new-contest-games.png");
-await vis(page.getByText(/^next/i)).last().click();
-await vis(page.getByText(/start contest/i)).click();
+await vis(page.getByText(/^continue$/i)).last().click();
+await page.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
+await vis(page.getByText(/^start$/i)).click();
 await page.waitForURL(/\/contest\/[^/]+$/);
 const contestUrl = page.url();
 const contestId = contestUrl.split("/contest/")[1];
@@ -162,13 +180,24 @@ for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "1
       const row = page.getByTestId(`settlement-player-${name}`);
       await row.scrollIntoViewIfNeeded();
       const box = await row.boundingBox();
-      check(box && box.y >= 0 && box.y + box.height <= 844, `Settlement row fully reachable: ${name}`);
+      check(box && box.y >= 0 && box.y + box.height <= viewport.height, `Settlement row fully reachable: ${name}`);
     }
     await page.getByTestId("settlement-scroll").evaluate(el => { el.scrollTop = 0; });
   }
   await shot(file);
 }
 check(/\$/.test(await bodyText()), "Settlement screen shows money results");
+await vis(page.getByText(/^share results$/i)).first().click();
+await page.waitForFunction(() => !!window.__snapscoreSharePayload);
+const sharePayload = await page.evaluate(() => window.__snapscoreSharePayload);
+const sharedText = sharePayload.message ?? sharePayload.text;
+check(
+  typeof sharedText === "string" &&
+    ["Augie", "Sam", "Lee", "Pat"].every(name => sharedText.includes(name)),
+  "Group-of-four Share opens with all four players in results",
+  JSON.stringify({ title: sharePayload.title, text: sharedText })
+);
+await shot("11d-group4-share-payload.png");
 
 // Verify both screens against the same persisted contest and calculator results.
 // The first pass tests creation + persistence of Net; the second tests persisted Gross.
@@ -231,7 +260,7 @@ for (const variant of ["net", "gross", "group"]) {
   }
   const displayedTotal = cents(Number((await page.getByTestId("settlement-session-total").innerText()).replace("$","")));
   check(displayedTotal === winnerTotal, `${label}: session total equals displayed winners`);
-  for (const [width,height,suffix] of [[390,844,""],[1280,800,"-desktop"]]) {
+  for (const [width,height,suffix] of [[viewport.width,viewport.height,""],[1280,800,"-desktop"]]) {
     await page.setViewportSize({width,height});
     await page.getByTestId("settlement-scroll").evaluate(el=>{el.scrollTop=0;});
     await page.waitForTimeout(2000);
@@ -239,7 +268,7 @@ for (const variant of ["net", "gross", "group"]) {
     check(await page.getByTestId("settlement-hero-amount").isVisible(), `${label}: signed amount visible at ${width}x${height}`);
     await shot(`${variant === "group" ? "11c-settlement-group" : mode === "net" ? "11-settlement" : "11b-settlement-gross"}${suffix}.png`);
   }
-  await page.setViewportSize({width:390,height:844});
+  await page.setViewportSize(viewport);
 }
 check(JSON.stringify(modeTotals.net) !== JSON.stringify(modeTotals.group), "Scopes produce different skins with two UI-created groups");
 check(JSON.stringify(modeTotals.net) !== JSON.stringify(modeTotals.gross), "Handicaps produce different Net and Gross skins");
@@ -276,7 +305,7 @@ if (hasJoinCode) {
   const joinCode = joinText.match(/[A-HJ-NP-Z2-9]{6}$/)?.[0];
   check(!!joinCode, "Organizer sees a six-character join code");
   await shot("15-organizer-join-code.png");
-  const isolated = await browser.newContext({viewport:{width:390,height:844}});
+  const isolated = await browser.newContext({viewport});
   const isolatedPage = await isolated.newPage();
   await isolatedPage.goto(`${BASE}/join/${joinCode}`, {waitUntil:"networkidle"});
   await isolatedPage.getByPlaceholder("Display name").fill("Sam guest");
