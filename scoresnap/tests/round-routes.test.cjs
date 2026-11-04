@@ -43,6 +43,15 @@ test('round status chip opens the mounted status sheet',()=>{
  nodes(tree).find(n=>n.props?.testID==='round-status-chip').props.onPress();
  expect(statusOpen()).toBe(true);
 });
+test('organizer invite stays in the visible shared round layout outside the hidden status sheet',()=>{
+ const {tree}=render();
+ const header=nodes(tree).find(n=>n.props?.testID==='contest-header');
+ const invite=nodes(tree).find(n=>n.type==='ContestJoinCode');
+ expect(invite).toBeDefined();
+ expect(nodes(header)).not.toContain(invite);
+ expect(nodes(tree).filter(n=>n.type==='ContestJoinCode')).toHaveLength(1);
+ expect(nodes(tree).indexOf(invite)).toBeLessThan(nodes(tree).findIndex(n=>n.type==='scorecard'));
+});
 test.each([true,false])('round Back delegates to router history (%s)',canGoBack=>{
  const {tree,back,replace}=render({canGoBack});
  nodes(tree).find(n=>n.type==='Pressable'&&n.props?.onPress).props.onPress();

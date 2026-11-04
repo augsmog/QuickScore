@@ -1,5 +1,6 @@
 import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { RoundStatusSheet } from "../../../src/ui/RoundStatusSheet";
+import { ContestJoinCode } from "../../../src/ui/ContestJoinCode";
 import { useState, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -253,6 +254,9 @@ export default function ContestLayout() {
           ))}
         </View>
       </View>
+
+      {/* Keep the organizer invite visible on the round; sync controls stay in the sheet. */}
+      <ContestJoinCode contest={contest} />
 
       {/* Active screen — rendered directly, no Slot/router */}
       <ActiveScreen />

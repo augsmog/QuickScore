@@ -52,12 +52,14 @@ for (const action of ['create', 'revoke', 'snapshot']) {
 }
 `));
 
-test('round status sheet owns the only share control and settlement reads shared state', () => {
+test('round status sheet owns the only live-share control and settlement reads shared state', () => {
   const layout = readFileSync('app/contest/[id]/_layout.tsx', 'utf8');
   const statusSheet = readFileSync('src/ui/RoundStatusSheet.tsx', 'utf8');
   const settlement = readFileSync('app/contest/[id]/settlement.tsx', 'utf8');
   assert.equal((layout.match(/<RoundStatusSheet\b/g) ?? []).length, 1);
   assert.equal((statusSheet.match(/<LiveShare\b/g) ?? []).length, 1);
+  assert.doesNotMatch(statusSheet, /<ContestJoinCode\b/);
+  assert.match(layout, /<ContestJoinCode contest=\{contest\}\s*\/>/);
   assert.match(statusSheet, /display: visible \? "flex" : "none"/);
   assert.doesNotMatch(layout, /<LiveShare\b/);
   assert.doesNotMatch(settlement, /<LiveShare\b/);

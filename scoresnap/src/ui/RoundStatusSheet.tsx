@@ -4,12 +4,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Contest } from "../stores/contest-store";
 import { OnlineSyncPanel } from "./OnlineSyncPanel";
 import { LiveShare } from "./LiveShare";
-import { ContestJoinCode } from "./ContestJoinCode";
 import { COLORS, FONTS, RADII } from "./theme";
 
 // The sheet stays mounted while hidden so an open Online sync session keeps
-// pulling guest scores and the join code stays ready, as when these panels
-// sat inline above the scorecard. Hidden means display: none, so it is out of
+// pulling guest scores, as when these panels sat inline above the scorecard.
+// Hidden means display: none, so it is out of
 // layout, touch and the accessibility tree.
 export function RoundStatusSheet({ contest, visible, onClose }: {
   contest: Contest;
@@ -37,7 +36,6 @@ export function RoundStatusSheet({ contest, visible, onClose }: {
         <ScrollView>
           <OnlineSyncPanel contest={contest} />
           <LiveShare contest={contest} />
-          <ContestJoinCode contest={contest} />
         </ScrollView>
         <Pressable testID="round-status-done" accessibilityRole="button" onPress={onClose}
           style={{ minHeight: 52, width: "100%", backgroundColor: COLORS.primary,
