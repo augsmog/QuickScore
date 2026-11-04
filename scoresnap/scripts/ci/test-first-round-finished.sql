@@ -15,7 +15,7 @@ INSERT INTO public.contests(id,owner_id,name,course,status,invite_code,updated_a
 UPDATE public.contests SET status='completed',updated_at='2020-01-02T12:00:00Z' WHERE id='00000000-0000-0000-0000-000000000a11';
 DO $$ DECLARE first_time timestamptz; BEGIN
   SELECT finished_at INTO first_time FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a01';
-  IF first_time IS DISTINCT FROM '2020-01-02T12:00:00Z'::timestamptz THEN RAISE EXCEPTION 'first contest completion not recorded'; END IF;
+  IF first_time IS DISTINCT FROM transaction_timestamp() THEN RAISE EXCEPTION 'first contest completion not recorded from server timestamp'; END IF;
   UPDATE public.contests SET status='completed',updated_at='2020-01-03T12:00:00Z' WHERE id='00000000-0000-0000-0000-000000000a12';
   IF (SELECT finished_at FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a01') IS DISTINCT FROM first_time THEN RAISE EXCEPTION 'second completion moved the first-finish timestamp'; END IF;
   IF (SELECT contest_id FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a01') IS DISTINCT FROM '00000000-0000-0000-0000-000000000a11'::uuid THEN RAISE EXCEPTION 'first completion contest was not retained'; END IF;
@@ -30,20 +30,22 @@ END $$;
 
 INSERT INTO public.published_rounds(contest_id,owner_id,local_id,snapshot,ended_at)
 VALUES ('00000000-0000-0000-0000-000000000a14','00000000-0000-0000-0000-000000000a02','activation-fixture','{}',NULL);
-UPDATE public.published_rounds SET ended_at='2020-01-02T14:00:00Z' WHERE contest_id='00000000-0000-0000-0000-000000000a14';
-DO $$ BEGIN
+UPDATE public.published_rounds SET ended_at=transaction_timestamp() WHERE contest_id='00000000-0000-0000-0000-000000000a14';
+DO $$ DECLARE first_time timestamptz; BEGIN
+  SELECT finished_at INTO first_time FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a02';
   IF NOT EXISTS (SELECT 1 FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a02'
       AND source='published_round_ended' AND contest_id='00000000-0000-0000-0000-000000000a14') THEN
     RAISE EXCEPTION 'shared-round end not recorded';
   END IF;
-  UPDATE public.published_rounds SET ended_at='2020-01-03T14:00:00Z' WHERE contest_id='00000000-0000-0000-0000-000000000a14';
-  IF (SELECT count(*) FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a02') <> 1 THEN
-    RAISE EXCEPTION 're-finishing was not a no-op';
+  UPDATE public.published_rounds SET ended_at=transaction_timestamp()+interval '1 day' WHERE contest_id='00000000-0000-0000-0000-000000000a14';
+  IF (SELECT count(*) FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a02') <> 1
+      OR (SELECT finished_at FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a02') IS DISTINCT FROM first_time THEN
+    RAISE EXCEPTION 're-finishing changed or duplicated the first record';
   END IF;
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.activation_daily WHERE date='2020-01-02' AND signups=0
+  IF NOT EXISTS (SELECT 1 FROM public.activation_daily WHERE date=(transaction_timestamp() AT TIME ZONE 'UTC')::date AND signups=0
       AND first_round_finished=2 AND activation_rate IS NULL) THEN
     RAISE EXCEPTION 'zero-signup activation day should be present with NULL rate';
   END IF;
