@@ -1,45 +1,72 @@
 -- Proposed only. Apply on a disposable stack until separately approved for live use.
--- Cohorts include all non-anonymous profiles (not only first-round finishers).
--- Signup date is the America/Los_Angeles calendar date. Dn activity uses the
--- elapsed UTC interval [signup + n*24h, signup + (n+1)*24h).
+CREATE TABLE public.analytics_cohort_exclusions (
+  profile_id uuid PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  reason text NOT NULL CHECK (reason IN ('staff', 'automated_test', 'rehearsal')),
+  added_at timestamptz NOT NULL DEFAULT now()
+);
+
+REVOKE ALL ON TABLE public.analytics_cohort_exclusions FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.analytics_cohort_exclusions TO service_role;
+
 CREATE VIEW public.retention_cohorts AS
-WITH cohort_users AS (
-  SELECT p.id AS user_id,
-         (p.created_at AT TIME ZONE 'America/Los_Angeles')::date AS signup_date,
-         p.created_at AS signed_up_at
+WITH first_eligible_use AS (
+  SELECT e.entered_by AS profile_id, min(e.created_at) AS first_use_at
+  FROM public.score_events e
+  GROUP BY e.entered_by
+), cohort_members AS (
+  SELECT p.id AS profile_id,
+         f.first_use_at,
+         (f.first_use_at AT TIME ZONE 'America/Los_Angeles')::date AS cohort_date
   FROM public.profiles p
   JOIN auth.users u ON u.id = p.id
+  JOIN first_eligible_use f ON f.profile_id = p.id
+  LEFT JOIN public.analytics_cohort_exclusions x ON x.profile_id = p.id
   WHERE NOT coalesce(u.is_anonymous, false)
+    AND x.profile_id IS NULL
 ), cohort_days AS (
-  SELECT generate_series(min(signup_date)::timestamp,
+  SELECT generate_series(min(cohort_date)::timestamp,
     ((now() AT TIME ZONE 'America/Los_Angeles')::date)::timestamp,
-    interval '1 day')::date AS signup_date
-  FROM cohort_users
+    interval '1 day')::date AS cohort_date
+  FROM cohort_members
 ), daily AS (
-  SELECT d.signup_date, count(c.user_id)::integer AS signups,
-         count(c.user_id) FILTER (WHERE EXISTS (
-           SELECT 1 FROM public.score_events e
-           WHERE e.entered_by = c.user_id
-             AND e.created_at >= c.signed_up_at + interval '168 hours'
-             AND e.created_at < c.signed_up_at + interval '192 hours'
-         ))::integer AS d7_retained,
-         count(c.user_id) FILTER (WHERE EXISTS (
-           SELECT 1 FROM public.score_events e
-           WHERE e.entered_by = c.user_id
-             AND e.created_at >= c.signed_up_at + interval '720 hours'
-             AND e.created_at < c.signed_up_at + interval '744 hours'
-         ))::integer AS d30_retained,
-         bool_and(c.signed_up_at + interval '192 hours' <= now()) AS d7_mature,
-         bool_and(c.signed_up_at + interval '744 hours' <= now()) AS d30_mature
-  FROM cohort_days d LEFT JOIN cohort_users c USING (signup_date)
-  GROUP BY d.signup_date
+  SELECT d.cohort_date,
+         count(c.profile_id)::integer AS cohort_size,
+         count(c.profile_id) FILTER (
+           WHERE c.first_use_at + interval '192 hours' <= now()
+         )::integer AS d7_mature,
+         count(c.profile_id) FILTER (
+           WHERE c.first_use_at + interval '192 hours' <= now()
+             AND EXISTS (
+               SELECT 1 FROM public.score_events e
+               WHERE e.entered_by = c.profile_id
+                 AND e.created_at >= c.first_use_at + interval '168 hours'
+                 AND e.created_at < c.first_use_at + interval '192 hours'
+             )
+         )::integer AS d7_retained,
+         count(c.profile_id) FILTER (
+           WHERE c.first_use_at + interval '744 hours' <= now()
+         )::integer AS d30_mature,
+         count(c.profile_id) FILTER (
+           WHERE c.first_use_at + interval '744 hours' <= now()
+             AND EXISTS (
+               SELECT 1 FROM public.score_events e
+               WHERE e.entered_by = c.profile_id
+                 AND e.created_at >= c.first_use_at + interval '720 hours'
+                 AND e.created_at < c.first_use_at + interval '744 hours'
+             )
+         )::integer AS d30_retained
+  FROM cohort_days d LEFT JOIN cohort_members c USING (cohort_date)
+  GROUP BY d.cohort_date
 )
-SELECT signup_date, signups, d7_retained,
-       CASE WHEN signups = 0 OR NOT coalesce(d7_mature, false) THEN NULL
-            ELSE d7_retained::numeric / signups END AS d7_rate,
-       d30_retained,
-       CASE WHEN signups = 0 OR NOT coalesce(d30_mature, false) THEN NULL
-            ELSE d30_retained::numeric / signups END AS d30_rate
+SELECT cohort_date, cohort_size,
+       d7_mature, d7_retained,
+       CASE WHEN d7_mature = 0 THEN NULL
+            ELSE d7_retained::numeric / d7_mature END AS d7_rate,
+       cohort_size - d7_mature AS d7_immature,
+       d30_mature, d30_retained,
+       CASE WHEN d30_mature = 0 THEN NULL
+            ELSE d30_retained::numeric / d30_mature END AS d30_rate,
+       cohort_size - d30_mature AS d30_immature
 FROM daily;
 
 CREATE VIEW public.organizer_contest_players AS
