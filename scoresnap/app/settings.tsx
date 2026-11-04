@@ -537,7 +537,7 @@ export default function SettingsScreen() {
           <NumberRow
             icon={<Gauge size={18} color={COLORS.textDim} />}
             label="Default Unit Amount"
-            sublabel="Starting unit amount for new contests"
+            sublabel="Starting unit amount for new rounds"
             value={`$${settings.defaultBetUnit}`}
             onPress={() =>
               handleEditNumber("Default Unit Amount ($)", settings.defaultBetUnit, (v) =>
@@ -549,7 +549,7 @@ export default function SettingsScreen() {
           <NumberRow
             icon={<Gauge size={18} color={COLORS.textDim} />}
             label="Default Unit Amount"
-            sublabel="Starting unit amount for new contests"
+            sublabel="Starting unit amount for new rounds"
             value={`$${settings.defaultBetUnit}`}
             onPress={() => {}}
           />
@@ -671,7 +671,7 @@ export default function SettingsScreen() {
         <ToggleRow
           icon={<Camera size={18} color={COLORS.textDim} />}
           label="Confirm Before Import"
-          sublabel="Review scanned scores before adding to contest"
+          sublabel="Review scanned scores before adding to the round"
           value={settings.confirmBeforeImport}
           onToggle={(v) => settings.updateSetting("confirmBeforeImport", v)}
         />

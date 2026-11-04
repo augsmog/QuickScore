@@ -48,10 +48,10 @@ export default function ContestLayout() {
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
           <Text style={{ fontSize: 48, marginBottom: 16 }}>🔍</Text>
           <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
-            Contest Not Found
+            Round Not Found
           </Text>
           <Text style={{ color: COLORS.textDim, fontSize: 14, textAlign: "center", marginBottom: 20 }}>
-            This contest may have been deleted or doesn't exist.
+            This round may have been deleted or doesn't exist.
           </Text>
           <AnimatedPressable
             onPress={() => router.canGoBack() ? router.back() : router.replace("/")}

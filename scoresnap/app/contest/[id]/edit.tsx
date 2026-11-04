@@ -68,7 +68,7 @@ export default function EditContestScreen() {
           }}
         >
           <Text style={{ color: COLORS.textDim, fontSize: 16 }}>
-            Contest not found.
+            Round not found.
           </Text>
         </View>
       </SafeScreen>
@@ -149,7 +149,7 @@ export default function EditContestScreen() {
       groups: updatedGroups,
       games: enabledGames,
       betUnit,
-    }); } catch(error){showAlert("Review contest changes",String(error));return;}
+    }); } catch(error){showAlert("Review round changes",String(error));return;}
 
     router.back();
   };
@@ -198,7 +198,7 @@ export default function EditContestScreen() {
               fontWeight: "700",
             }}
           >
-            Edit Contest
+            Edit Round
           </Text>
           <View style={{ width: 32 }} />
         </View>

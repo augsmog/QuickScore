@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { View, StyleSheet } from "react-native";
-import { Home, Trophy, User } from "lucide-react-native";
+import { Home, Flag, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, FONTS } from "../../src/ui/theme";
 import { tabBarHeight } from "../../src/ui/tab-bar-metrics";
@@ -80,7 +80,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="contests"
         options={{
-          title: "Contests",
+          title: "Rounds",
           tabBarIcon: ({ color, focused }) => (
             <View
               style={
@@ -94,7 +94,7 @@ export default function TabLayout() {
                   : undefined
               }
             >
-              <Trophy size={22} color={color} />
+              <Flag size={22} color={color} />
             </View>
           ),
         }}

@@ -257,7 +257,7 @@ export default function NewContestScreen() {
     if (selectedGames.some(g => g === "skins" || g === "skins_carry")) { cleanConfig.skinsMode = gameConfig.skinsMode; cleanConfig.skinsScope = gameConfig.skinsScope; }
     for (const v of GAME_VARIATIONS) if (v.appliesTo.some(g => selectedGames.includes(g)) && gameConfig[v.configKey] !== undefined) cleanConfig[v.configKey] = gameConfig[v.configKey];
     const error = validateVariationSetup(validationGroups, selectedGames, cleanConfig, Number(betUnit));
-    if (error) { showAlert("Review contest rules", error); return null; }
+    if (error) { showAlert("Review the game rules", error); return null; }
     return cleanConfig;
   };
 
@@ -377,7 +377,7 @@ export default function NewContestScreen() {
           <ChevronLeft size={20} color={COLORS.textDim} />
         </AnimatedPressable>
         <Text style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text, flex: 1 }}>
-          New Contest
+          New Round
         </Text>
         <Text style={{ fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textDim }}>
           {step > 0 ? `Step ${step}/2` : ""}
@@ -420,7 +420,7 @@ export default function NewContestScreen() {
             {/* Contest Name */}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
               <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>
-                CONTEST NAME
+                ROUND NAME
               </Text>
               <Text style={{ fontFamily: FONTS.medium, fontSize: 10, color: COLORS.textDim }}>
                 (optional)

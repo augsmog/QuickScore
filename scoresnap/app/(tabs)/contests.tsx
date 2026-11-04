@@ -1,7 +1,7 @@
 import { SafeScreen } from "../../src/ui/SafeScreen";
 import { View, Text, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-import { Trophy, Plus } from "lucide-react-native";
+import { Flag, Plus } from "lucide-react-native";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import { useContestStore } from "../../src/stores/contest-store";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
@@ -25,7 +25,7 @@ export default function ContestsScreen() {
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <Text style={{ fontFamily: FONTS.headline, fontSize: 28, color: COLORS.text, letterSpacing: -0.5 }}>
-          CONTESTS
+          ROUNDS
         </Text>
         <AnimatedPressable
           onPress={() => router.push("/contest/new")}
@@ -41,7 +41,7 @@ export default function ContestsScreen() {
         >
           <Plus size={14} color={COLORS.primary} />
           <Text style={{ fontFamily: FONTS.bold, fontSize: 13, color: COLORS.primary }}>
-            New Contest
+            New Round
           </Text>
         </AnimatedPressable>
       </View>
@@ -49,12 +49,12 @@ export default function ContestsScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }} showsVerticalScrollIndicator={false}>
         {contests.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 64 }}>
-            <Trophy size={48} color={COLORS.textDim} />
+            <Flag size={48} color={COLORS.textDim} />
             <Text style={{ fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.textDim, marginTop: 16 }}>
-              No contests yet
+              No rounds yet
             </Text>
             <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, textAlign: "center", paddingHorizontal: 32, marginTop: 8 }}>
-              Tap "New Contest" to create your first scoring contest.
+              Tap New Round to set up your first round.
             </Text>
           </View>
         ) : (
@@ -104,7 +104,7 @@ export default function ContestsScreen() {
             {activeContests.length > 1 && (
               <>
                 <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10, marginTop: 4 }}>
-                  ACTIVE CONTESTS
+                  ACTIVE ROUNDS
                 </Text>
                 {activeContests.slice(1).map((contest) => {
                   const playerCount = contest.groups.reduce(

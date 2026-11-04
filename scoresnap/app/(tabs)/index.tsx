@@ -46,7 +46,7 @@ export default function HomeScreen() {
 
   const handleDeleteContest = (contest: Contest) => {
     showAlert(
-      "Delete Contest",
+      "Delete Round",
       `Are you sure you want to delete "${contest.name || contest.course.name}"? This cannot be undone.`,
       [
         { text: "Cancel", style: "cancel" },
@@ -133,7 +133,7 @@ export default function HomeScreen() {
               lineHeight: 34,
             }}
           >
-            Build contests. Settle up.
+            Set up games. Settle up.
           </Text>
           <Text
             style={{
@@ -153,7 +153,7 @@ export default function HomeScreen() {
             <AnimatedPressable
               testID="home-new-contest"
               accessibilityRole="button"
-              accessibilityLabel="New Contest"
+              accessibilityLabel="New Round"
               onPress={() => router.push("/contest/new")}
               style={{ minHeight: 52, borderRadius: RADII.full, overflow: "hidden" }}
             >
@@ -186,7 +186,7 @@ export default function HomeScreen() {
                     letterSpacing: 0.6,
                   }}
                 >
-                  New Contest
+                  New Round
                 </Text>
               </LinearGradient>
             </AnimatedPressable>

@@ -251,7 +251,7 @@ function SettlementScreenContent() {
 
   return (
     <ScrollView testID="settlement-scroll" style={{ flex: 1, minHeight: 0, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-      {contest.gameConfig?.rulesVersion !== 1 && <Text style={{color:COLORS.warn,marginBottom:12}}>This contest used rules that were not applied to settlement amounts. Review rules before recalculating. Legacy outcomes are preserved; supported variations apply only to new contests.</Text>}
+      {contest.gameConfig?.rulesVersion !== 1 && <Text style={{color:COLORS.warn,marginBottom:12}}>This round used rules that were not applied to settlement amounts. Review rules before recalculating. Legacy outcomes are preserved; supported variations apply only to new rounds.</Text>}
       <View style={{ backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 20, marginBottom: 24 }}>
         <Text style={sectionLabel}>{contest.status === "completed" ? "ROUND RESULTS · FINAL" : "ROUND RESULTS · LIVE"}</Text>
         {topWinner && topWinner[1] > 0 ? <>
