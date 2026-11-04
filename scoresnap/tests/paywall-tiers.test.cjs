@@ -103,7 +103,7 @@ test('free result sharing uses the selected tournament round scores',async()=>{
  let handler;
  function visit(node){if(ts.isJsxElement(node)&&node.openingElement.tagName.getText(source)==='Pressable'&&node.children.map(c=>c.getText(source)).join('').includes('Share results (free)'))handler=node.openingElement.attributes.properties.find(p=>p.name?.getText(source)==='onPress').initializer.expression.getText(source);ts.forEachChild(node,visit);}visit(source);
  const contest=fixture();contest.rounds=JSON.parse(JSON.stringify(contest.rounds));contest.rounds[1].groups[1].players[0].scores[0]=4;
- const Share={share:jest.fn()};await require('vm').runInNewContext('('+handler+')',{contest,Share})();expect(Share.share).toHaveBeenCalledWith({message:expect.stringContaining('Guest 1: 4')});
+ const Share={share:jest.fn()},webAnalytics={capture:jest.fn()};await require('vm').runInNewContext('('+handler+')()',{contest,Share,webAnalytics});expect(Share.share).toHaveBeenCalledWith({message:expect.stringContaining('Guest 1: 4')});
 });
 test('quick start and scan quick settle add only free games for a free user',()=>{
  const e=entitlement();expect(e.defaultRoundGames('free')).toEqual(['stroke_play']);expect(e.defaultRoundGames('pro')).toEqual(['stroke_play','skins']);expect(e.defaultRoundGames('td')).toEqual(['stroke_play','skins']);

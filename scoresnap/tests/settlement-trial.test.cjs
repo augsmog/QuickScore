@@ -37,6 +37,7 @@ function screen(packages = { annual: annual() }, status = 1) {
     'stores/auth-store': { useAuthStore: f => f(auth) }, 'stores/scan-store': { useScanStore: f => f(scan) },
     'stores/contest-store': { useContestStore: f => f({ contests: [] }) }, 'services/entitlements': { canSeeSettlement: tier => tier !== 'free' },
     'ui/recap/RecapCard': {}, 'ui/recap/model': {}, 'ui/LiveShare': {}, 'ui/copy': {}, 'ui/theme': { COLORS: {}, FONTS: {}, TYPOGRAPHY: {}, RADII: {} },
+    'services/analytics': { webAnalytics: { capture: jest.fn(async () => undefined) } },
   };
   for (const [k, v] of Object.entries(extras)) deps['../../../src/' + k] = v;
   deps.zustand = { useStore: (store, selector) => selector(store.getState()) };
