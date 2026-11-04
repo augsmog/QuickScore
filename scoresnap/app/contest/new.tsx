@@ -7,6 +7,7 @@ import { useState, useMemo } from "react";
 import {
   View,
   Text,
+  Dimensions,
   ScrollView,
   TextInput,
   Switch,
@@ -46,6 +47,7 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
+import { isCompactViewport } from "../../src/ui/compact-viewport";
 
 interface PlayerInput {
   id: string;
@@ -66,6 +68,7 @@ export default function NewContestScreen() {
   const router = useRouter();
   const addContest = useContestStore((s) => s.addContest);
   const user = useAuthStore((s) => s.user);
+  const compactViewport = isCompactViewport(Dimensions.get("window"));
 
   const [step, setStep] = useState(0);
   // Auto-generate contest name
@@ -385,7 +388,7 @@ export default function NewContestScreen() {
       </View>
 
       {/* Progress bar */}
-      <View style={{ flexDirection: "row", gap: 4, paddingHorizontal: 20, marginBottom: 16 }}>
+      <View style={{ flexDirection: "row", gap: 4, paddingHorizontal: 20, marginBottom: compactViewport ? 8 : 16 }}>
         {(step > 0 ? [1, 2] : []).map((s) => (
           <View
             key={s}
@@ -413,7 +416,7 @@ export default function NewContestScreen() {
         {/* ═══════ Step 1: Players & Course ═══════ */}
         {step === 0 && (
           <View>
-            <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
+            <Text style={{ fontFamily: FONTS.headline, fontSize: compactViewport ? 22 : 24, color: COLORS.text, marginBottom: compactViewport ? 8 : 20 }}>
               Players & Course
             </Text>
 
@@ -438,16 +441,16 @@ export default function NewContestScreen() {
                 borderRadius: RADII.md,
                 minHeight: 44,
                 paddingHorizontal: 16,
-                paddingVertical: 14,
+                paddingVertical: compactViewport ? 10 : 14,
                 fontSize: 15,
                 fontFamily: FONTS.regular,
                 color: COLORS.text,
-                marginBottom: 16,
+                marginBottom: compactViewport ? 8 : 16,
               }}
             />
 
             {/* Tournament Toggle */}
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: compactViewport ? 4 : 12 }}>
               <Switch
                 testID="tournament-toggle"
                 accessibilityLabel="Multi-Day Tournament"
@@ -507,7 +510,7 @@ export default function NewContestScreen() {
             <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 6 }}>
               COURSE
             </Text>
-            <View style={{ marginBottom: 16 }}>
+            <View style={{ marginBottom: compactViewport ? 8 : 16 }}>
               {COURSE_SEARCH_ENABLED ? (
                 <CourseSearch
                   initialCourseName={courseName}
@@ -554,8 +557,8 @@ export default function NewContestScreen() {
               style={{
                 backgroundColor: hasTeams ? COLORS.primary + "15" : COLORS.surfaceMid,
                 borderRadius: RADII.lg,
-                padding: 16,
-                marginBottom: 16,
+                padding: compactViewport ? 10 : 16,
+                marginBottom: compactViewport ? 8 : 16,
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "space-between",

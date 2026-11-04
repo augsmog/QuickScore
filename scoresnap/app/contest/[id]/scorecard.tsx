@@ -1,5 +1,6 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../../../src/ui/SafeScreen";
+import { isCompactViewport } from "../../../src/ui/compact-viewport";
 import { onlineEnabled } from '../../../src/services/cross-device';
 import { useOnlineStore } from '../../../src/stores/online-store';
 import { overlayScorecard } from '../../../src/services/scorecard-overlay';
@@ -81,7 +82,7 @@ export default function ScorecardScreen() {
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
   const isCompleted = contest.status === "completed";
-  const compactViewport = Dimensions.get("window").height < 700;
+  const compactViewport = isCompactViewport(Dimensions.get("window"));
   const tightSpacing = Dimensions.get("window").height < 950;
 
   // Build current-hole scores map for AuxiliaryPrompt (Tier 2 games)
