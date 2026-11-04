@@ -20,6 +20,7 @@ import { canSeeSettlement } from "../../../src/services/entitlements";
 import { RecapCard } from "../../../src/ui/recap/RecapCard";
 import { buildRecapModel } from "../../../src/ui/recap/model";
 import { liveShareScope, useLiveShareUrl } from "../../../src/services/live-share-url-state";
+import { webAnalytics } from "../../../src/services/analytics";
 import { settlementLeader } from "../../../src/ui/copy";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 
@@ -109,7 +110,7 @@ export default function SettlementScreen() {
       <Text style={{ color: COLORS.textDim, fontSize: 13, textAlign: "center" }}>{trialOffer?.billed}</Text>
       </>}
       {contest && <>
-        <Pressable testID="settle-free-share" accessibilityRole="button" onPress={() => Share.share({ message: [contest.name, ...(contest.rounds?.find(r => r.number === contest.currentRound)?.groups ?? contest.groups).flatMap(g => g.players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`))].join("\n") })} style={outlinedButton}>
+        <Pressable testID="settle-free-share" accessibilityRole="button" onPress={() => { void webAnalytics.capture("share_tapped"); return Share.share({ message: [contest.name, ...(contest.rounds?.find(r => r.number === contest.currentRound)?.groups ?? contest.groups).flatMap(g => g.players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`))].join("\n") }); }} style={outlinedButton}>
           <Text style={{ color: COLORS.primary, fontFamily: FONTS.semibold }}>Share results (free)</Text>
         </Pressable>
       </>}
@@ -189,6 +190,7 @@ function SettlementScreenContent() {
   };
   const handleShare = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void webAnalytics.capture("share_tapped");
     try {
       await Share.share({ message: generateShareText(), title: `${contest.name} — Settle up` });
     } catch (error) {
