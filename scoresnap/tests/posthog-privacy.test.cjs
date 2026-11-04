@@ -24,6 +24,7 @@ function propertyName(property) {
 function collectPiiKeys(node) {
   if (!ts.isObjectLiteralExpression(node)) return [];
   return node.properties.flatMap((property) => {
+    if (ts.isSpreadAssignment(property)) return ["<spread-payload>"];
     const name = propertyName(property);
     const nested = ts.isPropertyAssignment(property) ? collectPiiKeys(property.initializer) : [];
     return [...(name && name !== "screen_name" && forbiddenKeys.test(name) ? [name] : []), ...nested];
@@ -41,7 +42,10 @@ function inspectPostHogCaptures(sourceFiles) {
         const event = node.arguments[0];
         const payload = node.arguments[1];
         if (event && ts.isStringLiteral(event)) events.push(event.text);
-        if (payload) findings.push(...collectPiiKeys(payload).map((key) => ({ event: event?.getText(source), key })));
+        if (payload) {
+          const keys = ts.isObjectLiteralExpression(payload) ? collectPiiKeys(payload) : ["<non-literal-payload>"];
+          findings.push(...keys.map((key) => ({ event: event?.getText(source), key })));
+        }
       }
       ts.forEachChild(node, visit);
     }
