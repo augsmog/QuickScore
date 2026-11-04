@@ -166,7 +166,7 @@ test('all original browser coverage and flag-distinct builds remain', () => {
     'DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8089 OUT_DIR="e2e/screens/safe-area/$profile" node e2e/safe-area-sheets.mjs',
     'done',
   ]);
-  assert.equal((flows.match(/node e2e\/web-real-flow\.mjs/g) || []).length, 2);
+  assert.equal((flows.match(/node e2e\/web-real-flow\.mjs/g) || []).length, 3);
   assert.equal((flows.match(/node e2e\/join-gate\.mjs/g) || []).length, 2);
   assert.match(flows, /EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web-sharing --clear/);
   assert.match(flows, /EXPO_PUBLIC_DEMO_MODE=true EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web-scorecard --clear/);

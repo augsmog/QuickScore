@@ -1,0 +1,17 @@
+viewport: 375x667
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByText(/^new contest$/i).visible().first() to be visible
+
+    at /workspace/aos-work/lanes/ss-infra/aug313-group4-profiles/scoresnap/e2e/web-real-flow.mjs:60:53 {
+  log: [
+    '  - waiting for getByText(/^new contest$/i).visible().first() to be visible'
+  ],
+  name: 'TimeoutError'
+}
+
+Node.js v24.22.1
