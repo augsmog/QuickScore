@@ -138,3 +138,30 @@ test("online tee flow reaches the API's last row before confirming without savin
   expect(steps[last + 3]).toEqual({ tapOn: { id: "confirm-tees" } });
   expect(read(flow.file)).not.toMatch(/tapOn: "Start"|create-two-player/);
 });
+
+
+test("AUG-309 safe-area flow captures the first frame, sheets, player matching, keyboard and rotation", () => {
+  const flow = config.flows.find(f => f.id === "aug-309-safe-area");
+  expect(flow).toEqual(expect.objectContaining({
+    file: ".maestro/flows/offline/aug-309-safe-area.yaml",
+    build: "offline",
+    tickets: ["AUG-309", "AUG-380"],
+  }));
+  const [header, steps] = docs(flow.file);
+  expect(header.appId).toBe(config.appId);
+  const screenshots = steps.filter(s => s?.takeScreenshot).map(s => s.takeScreenshot);
+  expect(screenshots).toEqual([
+    "aug-309-01-home-see-all-first-frame",
+    "aug-309-02-game-info-portrait",
+    "aug-309-03-game-info-landscape",
+    "aug-309-04-game-info-portrait-restored",
+    "aug-309-05-player-matching-keyboard",
+    "aug-309-06-course-search-keyboard",
+  ]);
+  expect(steps).toContainEqual({ setOrientation: "LANDSCAPE_LEFT" });
+  expect(steps).toContainEqual({ setOrientation: "PORTRAIT" });
+  expect(steps).toContainEqual({ inputText: "Ava" });
+  expect(steps).toContainEqual({ inputText: "Ben" });
+  expect(steps).toContainEqual({ inputText: "E2E Tee Course" });
+  expect(steps).toContainEqual({ assertVisible: { id: "game-info-sheet" } });
+});
