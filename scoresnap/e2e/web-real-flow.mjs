@@ -22,6 +22,14 @@ const check = (ok, name, detail = "") => {
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+// Capture the native share request without opening a system sheet or sending
+// anything outside this test run.
+await page.addInitScript(() => {
+  Object.defineProperty(navigator, "share", {
+    configurable: true,
+    value: async payload => { window.__snapscoreSharePayload = payload; },
+  });
+});
 await seedPaidTier(page, "td");
 // This focused smoke uses only the local offline export.
 if (process.argv.includes('--home-library-only')) {
@@ -171,6 +179,17 @@ for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "1
   await shot(file);
 }
 check(/\$/.test(await bodyText()), "Settlement screen shows money results");
+await vis(page.getByText(/^share results$/i)).first().click();
+await page.waitForFunction(() => !!window.__snapscoreSharePayload);
+const sharePayload = await page.evaluate(() => window.__snapscoreSharePayload);
+const sharedText = sharePayload.message ?? sharePayload.text;
+check(
+  typeof sharedText === "string" &&
+    ["Augie", "Sam", "Lee", "Pat"].every(name => sharedText.includes(name)),
+  "Group-of-four Share opens with all four players in results",
+  JSON.stringify({ title: sharePayload.title, text: sharedText })
+);
+await shot("11d-group4-share-payload.png");
 
 // Verify both screens against the same persisted contest and calculator results.
 // The first pass tests creation + persistence of Net; the second tests persisted Gross.
