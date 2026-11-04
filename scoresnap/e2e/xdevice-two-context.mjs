@@ -82,6 +82,7 @@ try {
     assert.equal(await b.getByText(/Confirmed tournament totals/).count(),0,'No pending scorecard');
     assert.equal(await text(b,'Xdev Host').count(),0,'No pending roster');
     await shot(b,'03-request');
+    await openStatus(a);
     await text(a,'Online sync').click();
     await text(a,'Retry sync').click();
     await text(a,'Approve as Xdev Joiner').click();
@@ -176,7 +177,6 @@ try {
     await text(a,/^START$/i).click();
     await a.waitForURL(/\/contest\/[^/]+$/);
     const privateUrl=a.url();
-    await openStatus(a);
     await text(a,'Enable online sharing').click();
     await a.getByTestId('organizer-join-code').waitFor();
     await shot(a,'08-private-host-round');

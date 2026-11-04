@@ -203,12 +203,12 @@ try {
       await text(a, /^START$/i).click();
       await a.waitForURL(/\/contest\/[^/]+$/);
       contestUrl = a.url(); contestId = new URL(contestUrl).pathname.split('/').pop();
-      await openStatus(a);
       await text(a, 'Enable online sharing').click();
       const label = await a.getByTestId('organizer-join-code').innerText();
       code = label.match(/Join code: ([A-Z0-9]{6})/)?.[1];
       assert(code, 'Organizer join code available');
       await text(a, 'Online sharing enabled. Share this invite with signed-in players.').waitFor();
+      await openStatus(a);
       await text(a, 'Online sync').click();
     });
     for (let i = 1; i < 4; i++) await step(`request and approve ${'ABCD'[i]} into distinct slot`, async () => {
