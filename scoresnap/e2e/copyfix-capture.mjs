@@ -15,7 +15,7 @@ try {
  await page.getByText('ROUND RESULTS',{exact:true}).waitFor();
  await page.screenshot({path:out+'/profile-390.png',fullPage:true});
  await page.goto('http://127.0.0.1:18149/contest/copyfix-round/settlement',{waitUntil:'networkidle'});
- await page.getByText(/^settlement$/i).locator('visible=true').first().click({force:true});
+ await page.getByText(/^(settlement|settle up)$/i).locator('visible=true').first().click({force:true});
  await page.getByText('Try Pro free for 7 days',{exact:true}).waitFor();
  await page.screenshot({path:out+'/free-settlement-390.png'});
  console.log('PASS profile and Free teaser at 390px');

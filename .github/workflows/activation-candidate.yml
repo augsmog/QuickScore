@@ -4,9 +4,12 @@ on:
     paths:
       - '.github/workflows/activation-candidate.yml'
       - 'scoresnap/supabase/proposed/20261103170000_first_round_finished.sql'
+      - 'scoresnap/supabase/proposed/20261104090000_activation_retention.sql'
       - 'scoresnap/supabase/proposed/README-first-round-finished.md'
       - 'scoresnap/supabase/rollbacks/20261103170000_first_round_finished.sql'
+      - 'scoresnap/supabase/rollbacks/20261104090000_activation_retention.sql'
       - 'scoresnap/scripts/ci/test-first-round-finished.sql'
+      - 'scoresnap/scripts/ci/test-activation-retention.sql'
   workflow_dispatch:
 permissions:
   contents: read
@@ -39,12 +42,19 @@ jobs:
           bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit
           supabase db reset
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261103170000_first_round_finished.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261104090000_activation_retention.sql
       - name: Verify first-round activation behavior
         run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f scripts/ci/test-first-round-finished.sql
+      - name: Verify activation retention behavior
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f scripts/ci/test-activation-retention.sql
       - name: Roll back proposed activation migration
-        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/rollbacks/20261103170000_first_round_finished.sql
+        run: |
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/rollbacks/20261104090000_activation_retention.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/rollbacks/20261103170000_first_round_finished.sql
       - name: Re-apply proposed activation migration
-        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261103170000_first_round_finished.sql
+        run: |
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261103170000_first_round_finished.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261104090000_activation_retention.sql
       - name: Stop disposable stack
         if: always()
         run: supabase stop --no-backup
