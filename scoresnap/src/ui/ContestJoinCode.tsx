@@ -13,6 +13,7 @@ import { useContestStore, type Contest } from "../stores/contest-store";
 import { generateJoinCode } from "../services/guest-join";
 import { COLORS } from "./theme";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../config/features";
+import { isCompactViewport } from './compact-viewport';
 
 export function ContestJoinCode({ contest }: { contest: Contest }) {
   const [message, setMessage] = useState("");
@@ -107,8 +108,8 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
     return null;
   }
   
-  const compact = Platform.OS === 'web' && typeof window !== 'undefined' && window.innerHeight < 700;
-  return <View style={{ paddingHorizontal: 20, paddingBottom: compact ? 4 : 10 }}>
+  const compact = Platform.OS === 'web' && typeof window !== 'undefined' && isCompactViewport({ width: window.innerWidth, height: window.innerHeight });
+  return <View style={{ paddingHorizontal: 20, paddingBottom: compact ? 2 : 10 }}>
     {onlineEnabled && !enabled && !contest.remoteRestored && <Pressable disabled={busy || checking} onPress={() => void enable()}><Text style={{color: COLORS.primary, paddingVertical: 12}}>{checking ? 'Checking online sharing…' : busy ? 'Enabling…' : 'Enable online sharing'}</Text></Pressable>}
     {contest.remoteRestored && checking && <Text style={{ color: COLORS.textDim }}>Checking online sharing…</Text>}
     {!!code && (enabled || !onlineEnabled) && <><Text testID="organizer-join-code" style={{ color: COLORS.primary }}>Join code: {code}</Text>
