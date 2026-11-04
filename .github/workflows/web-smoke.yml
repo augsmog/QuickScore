@@ -85,6 +85,14 @@ jobs:
           kill -0 "$SERVER_PID"
           curl --fail --silent http://127.0.0.1:8089/ > /dev/null
           EXPECT_CROSS_DEVICE_SHARING=false BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens node e2e/web-real-flow.mjs
+          for profile in iphone-se iphone-15-pro iphone-pro-max; do
+            case "$profile" in
+              iphone-se) width=375; height=667 ;;
+              iphone-15-pro) width=393; height=852 ;;
+              iphone-pro-max) width=430; height=932 ;;
+            esac
+            VIEWPORT_WIDTH="$width" VIEWPORT_HEIGHT="$height" EXPECT_CROSS_DEVICE_SHARING=false BASE_URL=http://127.0.0.1:8089 OUT_DIR="e2e/screens/group4/$profile" node e2e/web-real-flow.mjs
+          done
           BASE_URL=http://127.0.0.1:8089 node e2e/live-share.mjs
       - name: Join gate (sharing off and game sheet)
         run: EXPECT_CROSS_DEVICE_SHARING=false BASE_URL=http://127.0.0.1:8089 node e2e/join-gate.mjs

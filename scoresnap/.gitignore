@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+.jest-cache/
 
 # Expo
 .expo/
@@ -43,7 +44,7 @@ yarn-error.*
 .env.local
 
 # Web export
-dist-web/
+dist-web*/
 
 # Local browser QA artifacts
 e2e/screens/
