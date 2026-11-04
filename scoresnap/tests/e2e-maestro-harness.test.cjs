@@ -48,6 +48,22 @@ test("every flow is listed once, exists, targets the app and names its ticket", 
     if (f.fixture) expect(fs.existsSync(path.join(repo, config.fixtures[f.fixture].file))).toBe(true);
     if ("skipInAll" in f) expect(typeof f.skipInAll === "string" && f.skipInAll.length > 20).toBe(true);
   }
+  const settlementFlow = config.flows.find((f) => f.id === "aug-248-subscribed-settlement");
+  expect(settlementFlow).toMatchObject({
+    build: "offline",
+    tickets: ["AUG-248"],
+    fixture: "paid-tier",
+  });
+  const settlementText = read(settlementFlow.file);
+  expect(settlementText).toMatch(/Ava \+\$7\.50 \/ Ben -\$7\.50/);
+  expect(settlementText).toMatch(/\+\/-\$2\.50/);
+  expect(settlementText).toContain('assertVisible: "\\\\$8"');
+  expect(settlementText).toContain('assertVisible: "\\\\$3"');
+  expect(settlementText).toContain('assertVisible: "\\\\$5"');
+  expect(settlementText).toMatch(/tapOn:\s*\n\s+text: "Mark settled Ben to Ava"\s*\n\s+index: 0/);
+  expect(settlementText).toMatch(/visible:\s*\n\s+text: "Unsettle Ben to Ava"\s*\n\s+index: 0/);
+  expect(settlementText).toMatch(/tapOn:\s*\n\s+text: "Unsettle Ben to Ava"\s*\n\s+index: 0/);
+  expect(settlementText).toMatch(/assertVisible:\s*\n\s+text: "Mark settled Ben to Ava"\s*\n\s+index: 0/);
 });
 
 test("runFlow references resolve and subflows target the app", () => {
