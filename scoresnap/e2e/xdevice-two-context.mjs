@@ -65,9 +65,16 @@ try {
     // Owner-hosts may have no membership row: a cold page must restore the
     // authorized snapshot before showing the invite or queuing another score.
     await a.reload();
+    // The organizer invite lives in the round status sheet. A reload closes
+    // that sheet, so expand it before asserting the invite is visible again.
+    await openStatus(a);
     await a.getByTestId('organizer-join-code').waitFor();
     assert.equal(await text(a,'Enable online sharing').count(),0);
     assert.equal(await a.getByTestId('organizer-join-code').innerText(),label);
+    const inviteBox = await a.getByTestId('organizer-join-code').boundingBox();
+    assert(inviteBox && inviteBox.x >= 0 && inviteBox.y >= 0 &&
+      inviteBox.x + inviteBox.width <= 390 && inviteBox.y + inviteBox.height <= 844,
+      'Organizer invite is visible inside the 390x844 viewport');
     await text(a,'Copy / share invite').click();
     await shot(a,'02-share');
     await b.goto(`${base}/join/${code}`);
