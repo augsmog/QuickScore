@@ -1,5 +1,14 @@
 # SnapScore journeys
 
+For a local web export from a checkout or git worktree, run
+`bash scoresnap/scripts/local-web-export.sh` from any directory. It uses the
+installed Expo CLI and canonicalizes the `node_modules` link for Metro; this
+avoids the lane failure where the symlinked shared dependency tree was absent
+from Metro's resolver/watch folders and Expo Router could not discover routes.
+The default output is the gitignored `scoresnap/dist-web-local/`. Pass an
+output directory and optional `EXPO_PUBLIC_*` assignments after the script,
+or set those variables in the environment before calling it.
+
 From `scoresnap/`, reuse a **sharing-on, offline** export served on localhost:
 
 ```sh
