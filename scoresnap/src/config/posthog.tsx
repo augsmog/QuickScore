@@ -30,8 +30,10 @@ export const posthog = isPostHogConfigured
       },
       errorTracking: {
         autocapture: {
-          uncaughtExceptions: true,
-          unhandledRejections: true,
+          uncaughtExceptions: false,
+          unhandledRejections: false,
+          nativeCrashes: false,
+          androidNdkCrashes: false,
           console: [],
         },
       },

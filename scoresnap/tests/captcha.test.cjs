@@ -33,6 +33,7 @@ function auth(captcha, real = true) {
     '../config/features': { CROSS_DEVICE_SHARING_ENABLED: false },
     '../services/auth-session': load('src/services/auth-session.ts', {}),
     '../config/posthog': { posthog: null },
+    '../services/posthog-identity': { identifyAnonymousOnly: () => 'anonymous-test-id' },
     '../db/supabase': { supabase: { auth: api } }, '../services/captcha': captcha,
     './persisted-keys': {
       AUTH_STORAGE_KEY: 'snapscore-auth',
@@ -363,6 +364,7 @@ function restoredAuth(sourceFile = process.env.M4A_AUTH_BASELINE || 'src/stores/
     '@react-native-async-storage/async-storage': {},
     '../config/auth': {REAL_AUTH_CONFIGURED: true}, '../config/features': {CROSS_DEVICE_SHARING_ENABLED: true},
     '../config/posthog': { posthog: null },
+    '../services/posthog-identity': { identifyAnonymousOnly: () => 'anonymous-test-id' },
     '../services/auth-session': load('src/services/auth-session.ts', {}),
     '../db/supabase': {supabase: {auth: {getSession: async () => ({data: {session}, error: null}), onAuthStateChange: cb => {listener = cb; return {data: {subscription: {unsubscribe: () => unsubscribed++}}};}}}},
     '../services/captcha': {},

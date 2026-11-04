@@ -6,6 +6,6 @@ test.each([
 ])('local calendar date in %s for %s', (timezone, instant, expected) => {
   const result = execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e',
     `const m = await import('./src/utils/local-date.ts'); const localDate = m.localDate ?? m.default.localDate; console.log(localDate('${instant}'));`],
-    { encoding: 'utf8', env: { ...process.env, TZ: timezone } });
+    { encoding: 'utf8', env: { ...process.env, TZ: timezone, TSX_DISABLE_CACHE: '1' } });
   expect(result.trim()).toBe(expected);
 });

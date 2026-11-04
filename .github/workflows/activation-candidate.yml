@@ -1,0 +1,60 @@
+name: First-round activation candidate
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/activation-candidate.yml'
+      - 'scoresnap/supabase/proposed/20261103170000_first_round_finished.sql'
+      - 'scoresnap/supabase/proposed/20261104090000_activation_retention.sql'
+      - 'scoresnap/supabase/proposed/README-first-round-finished.md'
+      - 'scoresnap/supabase/rollbacks/20261103170000_first_round_finished.sql'
+      - 'scoresnap/supabase/rollbacks/20261104090000_activation_retention.sql'
+      - 'scoresnap/scripts/ci/test-first-round-finished.sql'
+      - 'scoresnap/scripts/ci/test-activation-retention.sql'
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: read
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+jobs:
+  activation-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: scoresnap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Type-check SnapScore
+        run: npx tsc --noEmit
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - name: Start disposable stack and apply proposed activation migration
+        run: |
+          bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit
+          supabase db reset
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261103170000_first_round_finished.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261104090000_activation_retention.sql
+      - name: Verify first-round activation behavior
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f scripts/ci/test-first-round-finished.sql
+      - name: Verify activation retention behavior
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f scripts/ci/test-activation-retention.sql
+      - name: Roll back proposed activation migration
+        run: |
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/rollbacks/20261104090000_activation_retention.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/rollbacks/20261103170000_first_round_finished.sql
+      - name: Re-apply proposed activation migration
+        run: |
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261103170000_first_round_finished.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261104090000_activation_retention.sql
+      - name: Stop disposable stack
+        if: always()
+        run: supabase stop --no-backup

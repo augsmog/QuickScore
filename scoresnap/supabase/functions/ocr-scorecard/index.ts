@@ -5,6 +5,8 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { captureOcrAnalytics } from "./analytics.ts";
+
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const POSTHOG_PROJECT_TOKEN = Deno.env.get("POSTHOG_PROJECT_TOKEN");
@@ -14,6 +16,13 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 // Max payload size: 10MB (base64 image)
 const MAX_PAYLOAD_SIZE = 10 * 1024 * 1024;
+
+function captureOcrEvent(input: Parameters<typeof captureOcrAnalytics>[0]) {
+  return captureOcrAnalytics(input, {
+    projectToken: POSTHOG_PROJECT_TOKEN,
+    host: POSTHOG_HOST,
+  });
+}
 
 interface OcrRequest {
   imageData: string;
@@ -155,9 +164,7 @@ Rules:
       ],
     },
   ];
-  const traceId = crypto.randomUUID();
   const requestStartedAt = performance.now();
-  let generationCaptured = false;
 
   // Call Anthropic API
   try {
@@ -173,17 +180,10 @@ Rules:
 
     if (!anthropicResponse.ok) {
       const errorText = await anthropicResponse.text();
-      await captureAiGeneration({
-        distinctId: user.id,
-        traceId,
-        messages,
-        model,
-        maxTokens,
-        latency: (performance.now() - requestStartedAt) / 1000,
-        status: anthropicResponse.status,
-        error: errorText,
+      await captureOcrEvent({
+        success: false,
+        latencyMs: performance.now() - requestStartedAt,
       });
-      generationCaptured = true;
       console.error(`Anthropic API error: ${anthropicResponse.status} — ${errorText}`);
       return new Response(
         JSON.stringify({
@@ -195,22 +195,15 @@ Rules:
     }
 
     const data = await anthropicResponse.json();
-    await captureAiGeneration({
-      distinctId: user.id,
-      traceId,
-      messages,
-      model,
-      maxTokens,
-      latency: (performance.now() - requestStartedAt) / 1000,
-      status: anthropicResponse.status,
-      response: data,
-    });
-    generationCaptured = true;
     const content = data.content?.[0]?.text || "";
 
     // Extract JSON from response (may be wrapped in markdown code blocks)
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      await captureOcrEvent({
+        success: false,
+        latencyMs: performance.now() - requestStartedAt,
+      });
       return new Response(
         JSON.stringify({ error: "Could not extract valid JSON from OCR response" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
@@ -232,22 +225,22 @@ Rules:
       par: parsed.par ? ensureArray(parsed.par, 18, 4) : undefined,
     };
 
+    await captureOcrEvent({
+      success: true,
+      latencyMs: performance.now() - requestStartedAt,
+      playerCount: players.length,
+      scoreCount: players.reduce((total: number, player: { scores: number[] }) => total + player.scores.length, 0),
+    });
+
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    if (!generationCaptured) {
-      await captureAiGeneration({
-        distinctId: user.id,
-        traceId,
-        messages,
-        model,
-        maxTokens,
-        latency: (performance.now() - requestStartedAt) / 1000,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
+    await captureOcrEvent({
+      success: false,
+      latencyMs: performance.now() - requestStartedAt,
+    });
     console.error("OCR processing error:", error);
     return new Response(
       JSON.stringify({
@@ -258,78 +251,6 @@ Rules:
     );
   }
 });
-
-/**
- * Sends AI Observability data without affecting OCR when server analytics is not configured.
- * This direct-capture path intentionally records the existing multimodal prompt and response.
- */
-async function captureAiGeneration({
-  distinctId,
-  traceId,
-  messages,
-  model,
-  maxTokens,
-  latency,
-  status,
-  response,
-  error,
-}: {
-  distinctId: string;
-  traceId: string;
-  messages: unknown[];
-  model: string;
-  maxTokens: number;
-  latency: number;
-  status?: number;
-  response?: any;
-  error?: string;
-}) {
-  if (!POSTHOG_PROJECT_TOKEN || !POSTHOG_HOST) return;
-
-  const properties = {
-    distinct_id: distinctId,
-    $ai_trace_id: traceId,
-    // OCR is a one-shot workload rather than a multi-turn conversation.
-    $ai_session_id: null,
-    $ai_span_id: crypto.randomUUID(),
-    $ai_span_name: "scorecard_ocr",
-    $ai_model: model,
-    $ai_provider: "anthropic",
-    $ai_input: messages,
-    $ai_input_tokens: response?.usage?.input_tokens,
-    $ai_output_choices: response
-      ? [{ role: "assistant", content: response.content || [] }]
-      : undefined,
-    $ai_output_tokens: response?.usage?.output_tokens,
-    $ai_cache_read_input_tokens: response?.usage?.cache_read_input_tokens,
-    $ai_cache_creation_input_tokens:
-      response?.usage?.cache_creation_input_tokens,
-    $ai_latency: latency,
-    $ai_http_status: status,
-    $ai_max_tokens: maxTokens,
-    $ai_stop_reason: response?.stop_reason,
-    $ai_is_error: Boolean(error),
-    $ai_error: error,
-  };
-
-  try {
-    const posthogResponse = await fetch(new URL("/i/v0/e/", POSTHOG_HOST), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: POSTHOG_PROJECT_TOKEN,
-        event: "$ai_generation",
-        properties,
-      }),
-    });
-
-    if (!posthogResponse.ok) {
-      console.error("PostHog AI observability capture failed:", posthogResponse.status);
-    }
-  } catch (captureError) {
-    console.error("PostHog AI observability capture failed:", captureError);
-  }
-}
 
 /**
  * Ensure an array has exactly `length` elements, padding with `fill`.

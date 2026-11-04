@@ -29,6 +29,8 @@ import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { assertNoDefaultPii, assertReplayMask, scrubSentryEvent, sentryReplayMask, sentrySendDefaultPii } from "../src/config/sentry-privacy";
 import { PostHogAppProvider } from "../src/config/posthog";
+import { screenNameFromSegments } from "../src/services/analytics-screen";
+import { webAnalytics } from "../src/services/analytics";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -209,6 +211,19 @@ export default Sentry.wrap(function RootLayout() {
 
 function RootLayoutNav() {
   useProtectedRoute();
+  const segments = useSegments();
+  const reportedAppOpen = useRef(false);
+  const screenName = screenNameFromSegments(segments);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || reportedAppOpen.current) return;
+    reportedAppOpen.current = true;
+    void webAnalytics.capture("app_opened");
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === "web") void webAnalytics.capture("screen_viewed", { screen_name: screenName });
+  }, [screenName]);
 
   return (
     <PostHogAppProvider>
