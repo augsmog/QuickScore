@@ -29,6 +29,8 @@ import { ConfettiOverlay } from "../../src/ui/animations/ConfettiOverlay";
 
 import type { ScannedPlayer } from "../../src/services/score-parser";
 import { applyCourseHoles, autoMatchPlayers, parseReviewData, grossScore, subtotal, blockingReason, completeScores, commitQuickSettle } from "../../src/services/ocr-review";
+import { posthog } from "../../src/config/posthog";
+import { posthogAppLogger } from "../../src/services/posthog-log";
 
 interface ConcernItem {
   type: "name" | "score";
@@ -208,6 +210,15 @@ export default function ScanReviewScreen() {
         const playerScores = importPlayers.map(sp => ({ playerId: sp.matchedPlayerId!, source: sp.source, scores: completeScores(sp.scores, contest?.course.holes.length, sp.source) }));
         importScores(contestId, selectedGroupId, playerScores);
       }
+      posthog?.capture("scorecard_imported", {
+        player_count: importPlayers.length,
+        low_confidence_item_count: lowConfCount,
+      });
+      posthogAppLogger.scorecardScoresCommitted({
+        playerCount: importPlayers.length,
+        importMode: "existing_contest",
+        lowConfidenceItemCount: lowConfCount,
+      });
       setPendingNavTarget(`/contest/${contestId}`);
     } else {
       // Flow 3: "Quick Settle" — create contest from scanned data
@@ -239,6 +250,16 @@ export default function ScanReviewScreen() {
       };
 
       commitQuickSettle(scannedPlayers, () => addContest(newContest));
+      posthog?.capture("quick_settlement_created", {
+        player_count: scannedPlayers.length,
+        game_ids: newContest.games,
+        low_confidence_item_count: lowConfCount,
+      });
+      posthogAppLogger.scorecardScoresCommitted({
+        playerCount: scannedPlayers.length,
+        importMode: "quick_settle",
+        lowConfidenceItemCount: lowConfCount,
+      });
       setPendingNavTarget(`/contest/${newContest.id}`);
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

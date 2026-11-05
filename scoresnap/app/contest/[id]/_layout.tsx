@@ -1,8 +1,9 @@
 import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { RoundStatusSheet } from "../../../src/ui/RoundStatusSheet";
 import { ContestJoinCode } from "../../../src/ui/ContestJoinCode";
+import { isCompactViewport } from "../../../src/ui/compact-viewport";
 import { useState, useCallback } from "react";
-import { View, Text, Pressable } from "react-native";
+import { Dimensions, View, Text, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, ChevronRight, Camera, Edit3, Calendar } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
@@ -70,13 +71,14 @@ export default function ContestLayout() {
   }
 
   const allPlayers = contest.groups.flatMap((g) => g.players);
+  const compactViewport = isCompactViewport(Dimensions.get("window"));
   const ActiveScreen = TABS.find((t) => t.key === activeTab)!.Screen;
 
   return (
     <SafeScreen testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top", "bottom"]}>
       {/* Header */}
-      <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
+      <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: compactViewport ? 4 : 8, paddingBottom: compactViewport ? 4 : 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: compactViewport ? 6 : 12 }}>
           <AnimatedPressable
             onPress={() => router.back()}
             style={{

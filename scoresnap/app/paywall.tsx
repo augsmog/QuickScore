@@ -11,6 +11,7 @@ import { PRIVACY_URL, TERMS_URL } from '../src/config/support';
 import { PAYWALL as P } from '../src/ui/paywall-tokens';
 import { PAYWALL_COPY as C } from '../src/ui/paywall-copy';
 import { PaywallIcon, PaywallRadio } from '../src/ui/paywall-icons';
+import { posthog } from '../src/config/posthog';
 
 export default function PaywallScreen() {
   const router = useRouter();
@@ -68,7 +69,7 @@ export default function PaywallScreen() {
       </Pressable>)}</View>
       <View style={{ gap: 6, alignItems: 'center' }}>
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || v.disabled }} disabled={busy || v.disabled} style={[s.cta, (busy || v.disabled) && { opacity: 0.55 }]}
-          onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); router.back(); } })}><Text style={s.ctaText}>{v.cta}</Text></Pressable>
+          onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); posthog?.capture('subscription_purchase_completed', { selected_tier: selection.tier, billing_period: selection.period }); router.back(); } })}><Text style={s.ctaText}>{v.cta}</Text></Pressable>
         {!!v.billed && <Text style={s.billed}>{v.billed}</Text>}
         <Text style={s.small}>{v.oneTrial}</Text>
       </View>

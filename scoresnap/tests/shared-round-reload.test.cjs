@@ -24,6 +24,7 @@ function mount({ online = true, actor = 'review-actor', failure } = {}) {
     '../stores/contest-store': {}, '../services/guest-join': {}, './theme': { COLORS: {} },
     './LocalJoinLimitationBanner': {}, '../services/local-join-limitation': {},
     '../config/features': { CROSS_DEVICE_SHARING_ENABLED: true },
+    './compact-viewport': { isCompactViewport: () => true },
   };
   const mod = { exports: {} };
   new Function('require', 'module', 'exports', ts.transpileModule(fs.readFileSync('src/ui/ContestJoinCode.tsx', 'utf8'), {

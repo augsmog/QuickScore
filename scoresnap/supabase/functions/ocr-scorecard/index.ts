@@ -5,13 +5,24 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { captureOcrAnalytics } from "./analytics.ts";
+
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+const POSTHOG_PROJECT_TOKEN = Deno.env.get("POSTHOG_PROJECT_TOKEN");
+const POSTHOG_HOST = Deno.env.get("POSTHOG_HOST");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 // Max payload size: 10MB (base64 image)
 const MAX_PAYLOAD_SIZE = 10 * 1024 * 1024;
+
+function captureOcrEvent(input: Parameters<typeof captureOcrAnalytics>[0]) {
+  return captureOcrAnalytics(input, {
+    projectToken: POSTHOG_PROJECT_TOKEN,
+    host: POSTHOG_HOST,
+  });
+}
 
 interface OcrRequest {
   imageData: string;
@@ -111,33 +122,23 @@ serve(async (req) => {
     );
   }
 
-  // Call Anthropic API
-  try {
-    const anthropicResponse = await fetch(ANTHROPIC_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250514",
-        max_tokens: 2048,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mediaType,
-                  data: body.imageData,
-                },
-              },
-              {
-                type: "text",
-                text: `Extract all player names and their 18-hole golf scores from this scorecard image.
+  const model = "claude-sonnet-4-5-20250514";
+  const maxTokens = 2048;
+  const messages = [
+    {
+      role: "user",
+      content: [
+        {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: mediaType,
+            data: body.imageData,
+          },
+        },
+        {
+          type: "text",
+          text: `Extract all player names and their 18-hole golf scores from this scorecard image.
 
 Return ONLY a JSON object in this exact format (no other text):
 {
@@ -159,15 +160,30 @@ Rules:
 - Include the par row if visible on the scorecard
 - If fewer than 18 holes are visible, fill remaining with 0 and confidence 0
 - Names should match exactly what's written (initials, abbreviations, etc.)`,
-              },
-            ],
-          },
-        ],
-      }),
+        },
+      ],
+    },
+  ];
+  const requestStartedAt = performance.now();
+
+  // Call Anthropic API
+  try {
+    const anthropicResponse = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({ model, max_tokens: maxTokens, messages }),
     });
 
     if (!anthropicResponse.ok) {
       const errorText = await anthropicResponse.text();
+      await captureOcrEvent({
+        success: false,
+        latencyMs: performance.now() - requestStartedAt,
+      });
       console.error(`Anthropic API error: ${anthropicResponse.status} — ${errorText}`);
       return new Response(
         JSON.stringify({
@@ -184,6 +200,10 @@ Rules:
     // Extract JSON from response (may be wrapped in markdown code blocks)
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      await captureOcrEvent({
+        success: false,
+        latencyMs: performance.now() - requestStartedAt,
+      });
       return new Response(
         JSON.stringify({ error: "Could not extract valid JSON from OCR response" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
@@ -205,11 +225,22 @@ Rules:
       par: parsed.par ? ensureArray(parsed.par, 18, 4) : undefined,
     };
 
+    await captureOcrEvent({
+      success: true,
+      latencyMs: performance.now() - requestStartedAt,
+      playerCount: players.length,
+      scoreCount: players.reduce((total: number, player: { scores: number[] }) => total + player.scores.length, 0),
+    });
+
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
+    await captureOcrEvent({
+      success: false,
+      latencyMs: performance.now() - requestStartedAt,
+    });
     console.error("OCR processing error:", error);
     return new Response(
       JSON.stringify({
