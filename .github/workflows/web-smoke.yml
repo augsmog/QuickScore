@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - 'scoresnap/**'
+      - '.maestro/**'
       - 'GAMES_STATUS.md'
       - 'docs/xdevice/**'
       - '.github/workflows/web-smoke.yml'

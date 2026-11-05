@@ -119,6 +119,7 @@ test('aggregate rejects absent/extra dependency and missing results', () => {
 test('workflow retains triggers, permissions and established required check', () => {
   assert.deepEqual(workflow.on.push.branches, ['main']);
   assert.ok(workflow.on.pull_request.paths.includes('scoresnap/**'));
+  assert.ok(workflow.on.pull_request.paths.includes('.maestro/**'));
   assert.ok(workflow.on.pull_request.paths.includes('.github/workflows/web-smoke.yml'));
   assert.ok(Object.hasOwn(workflow.on, 'workflow_dispatch'));
   assert.deepEqual(workflow.permissions, { contents: 'read' });
