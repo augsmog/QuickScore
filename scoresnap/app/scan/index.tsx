@@ -22,10 +22,13 @@ import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import { useScanStore } from "../../src/stores/scan-store";
 import { scanScorecard } from "../../src/services/ocr-service";
+import { webAnalytics } from "../../src/services/analytics";
 
 import { OFFLINE_MODE } from "../../src/config/offline";
 import { NATIVE_OCR_DISABLED, NATIVE_OCR_DISABLED_MESSAGE } from "../../src/config/native-ocr";
 import { parseScoreGrid, textToGrid } from "../../src/services/score-parser";
+import { posthog } from "../../src/config/posthog";
+import { posthogAppLogger } from "../../src/services/posthog-log";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const FRAME_WIDTH = SCREEN_WIDTH - 80;
@@ -112,6 +115,14 @@ export default function ScanScreen() {
       }
 
       setProgress(100);
+      posthog?.capture("scorecard_scan_processed", {
+        player_count: result.players.length,
+        has_contest_context: Boolean(contestId),
+      });
+      posthogAppLogger.scorecardScanCompleted({
+        playerCount: result.players.length,
+        hasContestContext: Boolean(contestId),
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => {
         router.push({
@@ -178,12 +189,17 @@ export default function ScanScreen() {
             testID="parse-scorecard-button"
             accessibilityRole="button"
             onPress={() => {
+              const startedAt = Date.now();
+              void webAnalytics.capture("score_snap_started");
               const result = parseScoreGrid(textToGrid(scorecardText), undefined, "paste");
               if (result.players.length === 0) {
                 setTextError("No players found. Enter a player name followed by scores on each row.");
+                void webAnalytics.capture("score_snap_completed", { duration_ms: Date.now() - startedAt, success: false });
+                void webAnalytics.capture("error_shown", { code: "scorecard_parse_failed" });
                 return;
               }
               setTextError(null);
+              void webAnalytics.capture("score_snap_completed", { duration_ms: Date.now() - startedAt, success: true });
               router.push({
                 pathname: "/scan/review",
                 params: { contestId: contestId || "", photoUri: "", scanData: JSON.stringify(applyCourseHoles(result.players, requiredHoles)) },

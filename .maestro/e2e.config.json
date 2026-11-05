@@ -101,6 +101,16 @@
       "notes": "Requires simulator-offline built from candidate source with EXPO_PUBLIC_E2E_COURSE_FIXTURE=true; synthetic 16-tee course, no backend calls."
     },
     {
+      "id": "aug-309-safe-area",
+      "file": ".maestro/flows/offline/aug-309-safe-area.yaml",
+      "build": "offline",
+      "tickets": [
+        "AUG-309",
+        "AUG-380"
+      ],
+      "notes": "Test-only safe-area screenshots on the existing offline simulator build; no app source changes."
+    },
+    {
       "id": "aug-429-tee-confirm",
       "file": ".maestro/flows/online/aug-429-tee-confirm.yaml",
       "build": "online",

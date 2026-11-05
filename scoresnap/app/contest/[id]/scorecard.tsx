@@ -1,5 +1,6 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../../../src/ui/SafeScreen";
+import { isCompactViewport } from "../../../src/ui/compact-viewport";
 import { onlineEnabled } from '../../../src/services/cross-device';
 import { useOnlineStore } from '../../../src/stores/online-store';
 import { overlayScorecard } from '../../../src/services/scorecard-overlay';
@@ -45,6 +46,7 @@ import { HoleInfo, Player } from "../../../src/engine/types";
 import { calcNassauPress } from "../../../src/engine/calculators/nassau-press";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { HOLE_NAV_TARGET, SCORE_STEPPER_TARGET } from "../../../src/ui/score-entry-metrics";
+import { posthog } from "../../../src/config/posthog";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -81,7 +83,7 @@ export default function ScorecardScreen() {
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
   const isCompleted = contest.status === "completed";
-  const compactViewport = Dimensions.get("window").height < 700;
+  const compactViewport = isCompactViewport(Dimensions.get("window"));
   const tightSpacing = Dimensions.get("window").height < 950;
 
   // Build current-hole scores map for AuxiliaryPrompt (Tier 2 games)
@@ -320,7 +322,14 @@ export default function ScorecardScreen() {
 
   const doFinalize = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    try {completeContest(contest.id);} catch(error){showAlert("Confirmation required",String(error));}
+    try {
+      completeContest(contest.id);
+      posthog?.capture("round_finalized", {
+        game_ids: contest.games,
+        group_count: activeGroups.length,
+        is_tournament: Boolean(contest.isTournament),
+      });
+    } catch(error){showAlert("Confirmation required",String(error));}
   };
 
   // Calculate completion

@@ -7,6 +7,8 @@ import { supabase } from "../db/supabase";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../config/features";
 import { deriveSession } from "../services/auth-session";
 import { getCaptchaToken } from "../services/captcha";
+import { posthog } from "../config/posthog";
+import { identifyAnonymousOnly } from "../services/posthog-identity";
 import { AUTH_STORAGE_KEY, createGatedStorage, persistGate } from "./persisted-keys";
 
 interface UserProfile {
@@ -109,6 +111,7 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
+            if (CROSS_DEVICE_SHARING_ENABLED) await require('../services/account-handoff').prepareAccountHandoff();
             const { data, error } = await supabase.auth.signInWithIdToken({ provider: "apple", token: idToken, nonce });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
@@ -140,6 +143,7 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
+            if (CROSS_DEVICE_SHARING_ENABLED) await require('../services/account-handoff').prepareAccountHandoff();
             const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, access_token: accessToken });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
@@ -176,6 +180,7 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
+            if (CROSS_DEVICE_SHARING_ENABLED) await require('../services/account-handoff').prepareAccountHandoff();
             const captchaToken = await getCaptchaToken("signup");
             const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: `${firstName} ${lastName}`.trim() }, ...(captchaToken === undefined ? {} : { captchaToken }) } });
             if (error) throw error;
@@ -211,6 +216,7 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
+            if (CROSS_DEVICE_SHARING_ENABLED) await require('../services/account-handoff').prepareAccountHandoff();
             const captchaToken = await getCaptchaToken("signin");
             const { data, error } = await supabase.auth.signInWithPassword({ email, password, ...(captchaToken === undefined ? {} : { options: { captchaToken } }) });
             if (error) throw error;
@@ -293,3 +299,22 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+let identifiedAnonymousId: string | null = null;
+
+useAuthStore.subscribe((state) => {
+  const user = state.user;
+
+  if (!user) {
+    if (identifiedAnonymousId) posthog?.reset();
+    identifiedAnonymousId = null;
+    return;
+  }
+
+  if (!posthog) return;
+
+  const anonymousDistinctId = posthog.get_distinct_id();
+  if (anonymousDistinctId === identifiedAnonymousId) return;
+
+  identifiedAnonymousId = identifyAnonymousOnly(posthog);
+});
