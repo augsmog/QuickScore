@@ -215,6 +215,65 @@ check(
 );
 await shot("11d-group4-share-payload.png");
 
+// AUG-680: exercise the visible settlement marker on the real exported web app.
+// Keep this on the UI-created contest so score preservation is checked against
+// the actual scorecard saved by the flow above.
+await page.keyboard.press("Escape");
+await vis(page.getByText(/^settlement$/i)).first().click();
+const settlementScoresBefore = await page.evaluate((id) => {
+  const data = JSON.parse(localStorage.getItem("snapscore-contests"));
+  const contest = data.state.contests.find((item) => item.id === id);
+  return contest.groups.map((group) => group.players.map((player) => ({ name: player.name, scores: [...player.scores] })));
+}, contestId);
+for (const [width, height] of [[390, 844], [375, 667]]) {
+  await page.setViewportSize({ width, height });
+  await page.getByTestId("settlement-scroll").evaluate((el) => { el.scrollTop = 0; });
+  for (const name of ["Augie", "Sam", "Lee", "Pat"]) {
+    const row = page.getByTestId(`settlement-player-${name}`);
+    await row.scrollIntoViewIfNeeded();
+    const box = await row.boundingBox();
+    check(!!box && box.x >= 0 && box.y >= 0 && box.x + box.width <= width && box.y + box.height <= height,
+      `Settlement row fits ${width}x${height}: ${name}`, JSON.stringify(box));
+  }
+  await page.getByTestId("settlement-scroll").evaluate((el) => { el.scrollTop = 0; });
+  await shot(`11e-settlement-${width}x${height}.png`);
+}
+await page.setViewportSize({ width: 390, height: 844 });
+const markSettled = page.getByRole("button", { name: /mark settled Augie to Sam/i }).first();
+check(await markSettled.isVisible(), "Mark Settled is visible in settlement ledger");
+const markBox = await markSettled.boundingBox();
+check(!!markBox && markBox.width >= 44 && markBox.height >= 44, "Mark Settled target is at least 44px", JSON.stringify(markBox));
+await markSettled.click();
+const undoSettled = page.getByRole("button", { name: /unsettle Augie to Sam/i }).first();
+await undoSettled.waitFor({ state: "visible" });
+check(/^Settled\s/.test((await undoSettled.innerText()).trim()), "Mark Settled changes the visible state");
+await vis(page.getByText(/^games$/i)).first().click();
+await vis(page.getByText(/^settlement$/i)).first().click();
+const returnedUndo = page.getByRole("button", { name: /unsettle Augie to Sam/i }).first();
+check(await returnedUndo.isVisible(), "Mark Settled persists after navigating away and back");
+await returnedUndo.click();
+check(await page.getByRole("button", { name: /mark settled Augie to Sam/i }).first().isVisible(), "Unsettle returns the row to its unsettled state");
+const settlementScoresAfter = await page.evaluate((id) => {
+  const data = JSON.parse(localStorage.getItem("snapscore-contests"));
+  const contest = data.state.contests.find((item) => item.id === id);
+  return contest.groups.map((group) => group.players.map((player) => ({ name: player.name, scores: [...player.scores] })));
+}, contestId);
+check(JSON.stringify(settlementScoresAfter) === JSON.stringify(settlementScoresBefore), "Settlement mark and undo do not alter scores");
+await shot("11a-settlement-mark-undo.png");
+const pdfDownloadPromise = page.waitForEvent("download");
+await page.getByText("Export scorecard (PDF)", { exact: true }).click();
+const pdfDownload = await pdfDownloadPromise;
+const pdfPath = path.join(OUT, "settlement-scorecard.pdf");
+await pdfDownload.saveAs(pdfPath);
+const pdfText = execFileSync("pdftotext", [pdfPath, "-"], { encoding: "utf8" });
+const pdfMatchesShare = [
+  /Sam:\s*\+\$26\.25/,
+  /Augie:\s*\+\$11\.25/,
+  /Lee:\s*[−-]\$3\.75/,
+  /Pat:\s*[−-]\$33\.75/,
+].every((pattern) => pattern.test(pdfText));
+check(pdfMatchesShare, "Export PDF includes all player names and signed ledger totals", pdfText.replace(/\s+/g, " ").slice(-500));
+
 // Verify both screens against the same persisted contest and calculator results.
 // The first pass tests creation + persistence of Net; the second tests persisted Gross.
 const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("snapscore-contests")));
