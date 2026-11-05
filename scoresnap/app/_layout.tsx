@@ -31,6 +31,7 @@ import "../global.css";
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { assertNoDefaultPii, assertReplayMask, scrubSentryEvent, sentryReplayMask, sentrySendDefaultPii } from "../src/config/sentry-privacy";
+import { PostHogAppProvider } from "../src/config/posthog";
 import { screenNameFromSegments } from "../src/services/analytics-screen";
 import { webAnalytics } from "../src/services/analytics";
 import { shouldShowAccountHandoff } from "../src/services/account-handoff-screen";
@@ -238,8 +239,9 @@ function RootLayoutNav() {
   }, [screenName]);
 
   return (
-    <ErrorBoundary>
-      <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+    <PostHogAppProvider>
+      <ErrorBoundary>
+        <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
         <StatusBar style="dark" />
         {CAPTCHA_MODE !== "off" && <TurnstileHost />}
         {CROSS_DEVICE_SHARING_ENABLED && shouldShowAccountHandoff(segments) && <AccountHandoffPanel />}
@@ -286,7 +288,8 @@ function RootLayoutNav() {
             }}
           />
         </Stack>
-      </View>
-    </ErrorBoundary>
+        </View>
+      </ErrorBoundary>
+    </PostHogAppProvider>
   );
 }

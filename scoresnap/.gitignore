@@ -56,3 +56,4 @@ dist-ios/
 /node_modules
 /dist-web-scorecard/
 /dist-web-sharing/
+.env

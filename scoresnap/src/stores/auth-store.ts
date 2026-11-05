@@ -7,6 +7,8 @@ import { supabase } from "../db/supabase";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../config/features";
 import { deriveSession } from "../services/auth-session";
 import { getCaptchaToken } from "../services/captcha";
+import { posthog } from "../config/posthog";
+import { identifyAnonymousOnly } from "../services/posthog-identity";
 import { AUTH_STORAGE_KEY, createGatedStorage, persistGate } from "./persisted-keys";
 
 interface UserProfile {
@@ -297,3 +299,22 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+let identifiedAnonymousId: string | null = null;
+
+useAuthStore.subscribe((state) => {
+  const user = state.user;
+
+  if (!user) {
+    if (identifiedAnonymousId) posthog?.reset();
+    identifiedAnonymousId = null;
+    return;
+  }
+
+  if (!posthog) return;
+
+  const anonymousDistinctId = posthog.get_distinct_id();
+  if (anonymousDistinctId === identifiedAnonymousId) return;
+
+  identifiedAnonymousId = identifyAnonymousOnly(posthog);
+});
