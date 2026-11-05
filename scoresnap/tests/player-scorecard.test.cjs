@@ -112,7 +112,21 @@ test('net unavailable (non-18 course): every net field is null', () => {
   expect(sc.netAvailable).toBe(false);
   expect(sc.holes.every((h) => h.net === null)).toBe(true);
   expect(sc.front.net).toBeNull();
+  expect(sc.back.net).toBeNull();
   expect(sc.total.net).toBeNull();
+});
+
+test('missing score entries (short/sparse array) are treated as unplayed', () => {
+  // scores array shorter than the hole count: holes 3..18 have no entry at all,
+  // plus an explicit undefined mid-array. Both must render blank, not 0-stroke.
+  const scores = [4, undefined, 4]; // length 3; indexes 1 and 3..17 are missing
+  const p = { id: 'g', name: 'Gus', handicap: 0, scores };
+  const sc = buildPlayerScorecard(p, par4x18);
+  expect(sc.holes).toHaveLength(18);
+  expect(sc.holesPlayed).toBe(2); // only holes 1 and 3 have a real score
+  expect(sc.holes[1]).toMatchObject({ num: 2, strokes: null, toPar: null, net: null }); // explicit undefined
+  expect(sc.holes[5]).toMatchObject({ num: 6, strokes: null, toPar: null, net: null }); // beyond array end
+  expect(sc.total).toMatchObject({ strokes: 8, par: 8, toPar: 0 });
 });
 
 test('plus-handicap player gives strokes back (net above gross)', () => {
