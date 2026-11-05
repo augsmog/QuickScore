@@ -1,0 +1,135 @@
+# AUG-248: native Pro-fixture settlement ledger, settled mark, undo, share sheet and PDF sheet.
+# This uses one local synthetic round and never chooses an external share destination.
+# The shared fixture keeps the default $5 unit: Stroke Play contributes $5, Skins contributes $2.50,
+# so the engine ledger is Ava +$7.50 / Ben -$7.50 (Skins alone: +/-$2.50). The settlement screen,
+# generated share text, and PDF preserve cents, matching the fixture's exact engine amounts.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: false
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+- runFlow: ../../subflows/create-two-player-skins.yaml
+- runFlow: ../../subflows/score-18-holes.yaml
+- tapOn: "Finalize Round"
+- extendedWaitUntil:
+    visible: "Finalize Round\\?"
+    timeout: 10000
+- tapOn: "Finalize"
+- tapOn: "Settlement"
+- extendedWaitUntil:
+    visible:
+      id: "settlement-scroll"
+    timeout: 15000
+- assertVisible: "ROUND RESULTS.*FINAL"
+- takeScreenshot: aug-248-01-finalized-round
+- assertVisible:
+    id: "settlement-session-total"
+- assertVisible: "\\$7\\.50"
+- takeScreenshot: aug-248-02-session-total
+- scrollUntilVisible:
+    element: "WHO OWES WHAT"
+    direction: DOWN
+- assertVisible: ".*Ben.*Ava.*"
+- assertVisible: "\\$5\\.00"
+- assertVisible: "\\$2\\.50"
+- takeScreenshot: aug-248-03-settlement-transaction
+- scrollUntilVisible:
+    element: "Net for the Round"
+    direction: DOWN
+- assertVisible: "Ava"
+- assertVisible: "Ben"
+- assertVisible: ".*Ava.*\\+\\$7\\.50.*"
+- assertVisible: ".*Ben.*−\\$7\\.50.*"
+- takeScreenshot: aug-248-04-signed-ledger
+- scrollUntilVisible:
+    element: ".*Net skins.*Whole field.*"
+    direction: DOWN
+- assertVisible: ".*Net skins.*Whole field.*"
+- assertVisible: "Ava"
+- assertVisible: "Ben"
+- assertVisible: ".*Ava.*\\+\\$2\\.50.*"
+- assertVisible: ".*Ben.*−\\$2\\.50.*"
+- takeScreenshot: aug-248-05-full-width-game-breakdown
+- scrollUntilVisible:
+    element: "Mark settled Ben to Ava"
+    direction: UP
+- extendedWaitUntil:
+    visible: "Mark settled Ben to Ava"
+    timeout: 10000
+- takeScreenshot: aug-248-06-unsettled-transaction
+- tapOn:
+    text: "Mark settled Ben to Ava"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      text: "Unsettle Ben to Ava"
+      index: 0
+    timeout: 10000
+- takeScreenshot: aug-248-07-settled-timestamp
+- tapOn: "Scorecard"
+- assertVisible: ".*Thru 18.*71.*"
+- assertVisible: ".*Thru 18.*72.*"
+- takeScreenshot: aug-248-08-before-unsettle-scorecard
+- tapOn: "Settlement"
+- assertVisible:
+    text: "Unsettle Ben to Ava"
+    index: 0
+- takeScreenshot: aug-248-09-returned-settled
+- tapOn:
+    text: "Unsettle Ben to Ava"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      text: "Mark settled Ben to Ava"
+      index: 0
+    timeout: 10000
+- assertVisible:
+    text: "Mark settled Ben to Ava"
+    index: 0
+- assertNotVisible:
+    text: "Unsettle Ben to Ava"
+    index: 0
+- takeScreenshot: aug-248-10-unsettled
+- tapOn: "Scorecard"
+- assertVisible: ".*Thru 18.*71.*"
+- assertVisible: ".*Thru 18.*72.*"
+- takeScreenshot: aug-248-11-after-unsettle-scorecard
+- tapOn: "Settlement"
+- scrollUntilVisible:
+    element: "Share results"
+    direction: DOWN
+- tapOn: "Share results"
+- extendedWaitUntil:
+    visible: ".*Transactions.*"
+    timeout: 20000
+- assertVisible: ".*Ava: \\+\\$7\\.50.*"
+- assertVisible: ".*Ben: −\\$7\\.50.*"
+- assertVisible: "\\$5\\.00"
+- assertVisible: "\\$2\\.50"
+- takeScreenshot: aug-248-12-share-totals
+- swipe:
+    start: "50%, 25%"
+    end: "50%, 95%"
+- extendedWaitUntil:
+    visible: "Share results"
+    timeout: 10000
+- scrollUntilVisible:
+    element: "Export scorecard \\(PDF\\)"
+    direction: DOWN
+- tapOn: "Export scorecard \\(PDF\\)"
+- extendedWaitUntil:
+    visible: ".*(Save to Files|Copy|PDF Document|\\.pdf).*"
+    timeout: 30000
+- takeScreenshot: aug-248-13-pdf-share-sheet
+- tapOn:
+    text: ".*\\.pdf.*"
+    optional: true
+- extendedWaitUntil:
+    visible: ".*Ava: \\+\\$7\\.50.*"
+    timeout: 10000
+- assertVisible: ".*Ben: −\\$7\\.50.*"
+- assertVisible: "\\$5\\.00"
+- assertVisible: "\\$2\\.50"
+- takeScreenshot: aug-248-14-pdf-totals
+- assertNotVisible: ".*(Could not|failed|Unsupported).*"
