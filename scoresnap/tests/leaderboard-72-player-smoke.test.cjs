@@ -85,6 +85,36 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     '../../../src/utils/formatters': { formatToPar: (value) => (value === 0 ? 'E' : String(value)) },
     '../../../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
   };
+  // Smoke intent: every one of the 72 rows renders without throwing. The individual view
+  // now virtualizes via FlashList (AUG-253b), so we load the real LeaderboardResultsList
+  // with a pass-through FlashList mock (renders header + every row via renderItem + footer)
+  // and inject it into the screen's dependency map.
+  const passthroughFlashList = (props) => {
+    const { data, renderItem, keyExtractor, ListHeaderComponent, ListFooterComponent } = props;
+    return React.createElement(
+      'FlashListMock',
+      null,
+      ListHeaderComponent || null,
+      ...data.map((item, index) =>
+        React.createElement(
+          React.Fragment,
+          { key: keyExtractor ? keyExtractor(item, index) : index },
+          renderItem({ item, index }),
+        ),
+      ),
+      ListFooterComponent || null,
+    );
+  };
+  const { LeaderboardResultsList } = load('src/components/LeaderboardResultsList.tsx', {
+    react: React,
+    'react/jsx-runtime': require('react/jsx-runtime'),
+    '@shopify/flash-list': { FlashList: passthroughFlashList },
+    'react-native': rn,
+    '../ui/theme': theme,
+    '../utils/formatters': { formatToPar: (value) => (value === 0 ? 'E' : String(value)) },
+    '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
+  });
+  deps['../../../src/components/LeaderboardResultsList'] = { LeaderboardResultsList };
   const Screen = load('app/contest/[id]/index.tsx', deps).default;
   let tree;
   try {
