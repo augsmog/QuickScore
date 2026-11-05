@@ -19,7 +19,7 @@ Check these types. Leave the rest unchecked unless the "Confirm before submittin
 - **Collected:** Yes, when the person creates or signs into an email account, when Apple or Google returns an email and real auth is on, and when the signup or Stripe functions run.
 - **Linked to identity:** Yes. The email is stored on the Supabase user and on `profiles` (email sign-up: `scoresnap/src/stores/auth-store.ts:185`; `scoresnap/supabase/migrations/20261027000000_live_baseline.sql:551-561`, `192-211`).
 - **Used for tracking:** No.
-- **Purposes:** App Functionality. Also Developer's Advertising or Marketing, because `on-user-signup` sends a welcome message and a referral reward that offers a free month of Premium (`scoresnap/supabase/functions/on-user-signup/index.ts:24-65`, `158-176`). Also Analytics, because that function writes `marketing_events` with the email and increments a daily signup counter (`scoresnap/supabase/functions/on-user-signup/index.ts:186-207`).
+- **Purposes:** App Functionality. Also Developer's Advertising or Marketing, because `on-user-signup` sends a welcome message and a referral reward that offers a free month of Premium (`scoresnap/supabase/functions/on-user-signup/index.ts:64-71`, `94`). Also Analytics, because that function writes `marketing_events` signup rows keyed to the user id and increments a daily signup counter (`scoresnap/supabase/functions/on-user-signup/index.ts:65`, `74`, `76`).
 - The local fallback profiles `golfer@apple.com` and `golfer@gmail.com` are written only on the device when real auth is off (`scoresnap/src/stores/auth-store.ts:121-130`, `153-162`). Those literals are not the user's email.
 
 ### Contact Info — Name
@@ -61,7 +61,7 @@ Apple's category includes in-app messages that are not SMS. Live chat is that.
 
 ### User Content — Customer Support
 
-- **Collected:** Not by an app form. Help & Support does nothing (`scoresnap/app/(tabs)/profile.tsx:695`). Sentry's `feedbackIntegration()` is registered with no options (`scoresnap/app/_layout.tsx:74`). Whether that integration shows a form, and what it sends, is not determined in this repo.
+- **Collected:** Not by an app form. The in-app Help & Support link opens the support web page, not a form (`scoresnap/app/(tabs)/profile.tsx:567` → `scoresnap/src/config/support-links.ts:4-5`). Sentry's `feedbackIntegration()` is registered with no options (`scoresnap/app/_layout.tsx:74`). Whether that integration shows a form, and what it sends, is not determined in this repo.
 - **Recommended checkbox:** leave unchecked until someone runs a production build and sees whether the Sentry feedback widget appears. If it appears, check Customer Support, linked **Yes** (conservative: Sentry events can keep a user id, `scoresnap/src/config/sentry-privacy.ts`), tracking **No**, purpose **App Functionality**.
 
 ### Identifiers — User ID
@@ -102,14 +102,14 @@ Apple's category includes in-app messages that are not SMS. Live chat is that.
 - **Linked to identity:** Yes as a conservative answer. `sendDefaultPii` is off (`scoresnap/app/_layout.tsx:59`), but the event scrubber keeps a user id when one is present and there is no `Sentry.setUser` in the app (`scoresnap/src/config/sentry-privacy.ts`, `scrubSentryEvent`). The exact join between a trace and a person is not shown. Answering No requires confirming the Sentry payload is not tied to an account, device, or other identifier.
 - **Used for tracking:** No.
 - **Purposes:** Analytics and App Functionality.
-- Signup rows in `marketing_events` are server-side product events, not in-app analytics taps (`scoresnap/supabase/functions/on-user-signup/index.ts:186-195`). They are covered on the Email row as Analytics.
+- Signup rows in `marketing_events` are server-side product events, not in-app analytics taps (`scoresnap/supabase/functions/on-user-signup/index.ts:65`, `74`). They are covered on the Email row as Analytics.
 - **PostHog analytics (added in PR #125, current `main`).** The app also captures anonymous product-usage analytics in PostHog. The native SDK is initialized with `captureAppLifecycleEvents: true` and with all exception/crash autocapture explicitly disabled (`uncaughtExceptions`, `unhandledRejections`, `nativeCrashes`, `androidNdkCrashes`, console) (`scoresnap/src/config/posthog.tsx`), so PostHog collects app-lifecycle events but no crash or exception content (crash reporting stays on the Sentry Diagnostics rows). Named product events carry only counts, flags and selections — never names, scores, photos, emails, or free text: `contest_created` (`scoresnap/app/contest/new.tsx`), `round_finalized` (`scoresnap/app/contest/[id]/scorecard.tsx`), `subscription_purchase_completed` (`scoresnap/app/paywall.tsx`), `scorecard_scan_processed` (`scoresnap/app/scan/index.tsx`), and `scorecard_imported` / `quick_settlement_created` (`scoresnap/app/scan/review.tsx`). The same counts and flags are also sent as structured app logs (`scoresnap/src/services/posthog-log.ts`). On web, PostHog is personless with `ip: false`, autocapture off, pageview/pageleave off, and session recording disabled; it sends a fixed allow-listed set of events and drops URL/referrer data (`scoresnap/src/services/analytics-web.ts`). The cloud OCR function sends only anonymous processing metrics — success, latency, player count, score count — and never the image or any text read from it (`scoresnap/supabase/functions/ocr-scorecard/analytics.ts`).
 - **Linked to identity (PostHog portion):** No. PostHog uses only its own random anonymous identifier and no account, email, name, or device identifier (`scoresnap/src/services/posthog-identity.ts`, `scoresnap/tests/posthog-privacy.test.cjs`). The conservative "Yes" on this row is driven by the Sentry payload, not by PostHog.
 - **Used for tracking (PostHog portion):** No. No advertising SDK, no IDFA/ATT, no cross-app or data-broker sharing.
 
 ### Diagnostics — Crash Data
 
-- **Collected:** Yes. Exceptions go to Sentry from the error boundary, purchase failures, auth and purchase init, and a dev-only test button (`scoresnap/src/ui/ErrorBoundary.tsx:26-29`, `scoresnap/src/services/purchases.ts:113`, `scoresnap/app/_layout.tsx:194-195`, `scoresnap/app/(tabs)/profile.tsx:718-727`). Dev events are dropped unless tagged `force_send` (`scoresnap/app/_layout.tsx:79-81`). Public `/r/` pages disable Sentry (`scoresnap/app/_layout.tsx:49`, `scoresnap/src/config/public-share.ts:4-8`).
+- **Collected:** Yes. Exceptions go to Sentry from the error boundary, purchase failures, auth and purchase init, and a dev-only test button (`scoresnap/src/ui/ErrorBoundary.tsx:26-29`, `scoresnap/src/services/purchases.ts:113`, `scoresnap/app/_layout.tsx:194-195`, `scoresnap/app/(tabs)/profile.tsx:590-598`). Dev events are dropped unless tagged `force_send` (`scoresnap/app/_layout.tsx:79-81`). Public `/r/` pages disable Sentry (`scoresnap/app/_layout.tsx:49`, `scoresnap/src/config/public-share.ts:4-7`).
 - **Linked to identity:** Yes, same conservative reading as Product Interaction, because events can keep a user id and replay-on-error is 100% (`scoresnap/app/_layout.tsx:70`).
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
@@ -180,7 +180,7 @@ These were searched and are not collected off the device by the code that shippe
 4. Customer Support, after checking whether the Sentry feedback widget is visible.
 5. Audio Data, after confirming the Android `RECORD_AUDIO` entries are unused (`scoresnap/app.json:33-38`).
 6. Location, if `expo-location` is later added or the client starts calling `near`.
-7. The privacy policy URL for the nutrition label is https://snapscore.autumn8.me/privacy. Support contact is augie@autumn8.me. Support URL is https://snapscore.autumn8.me/support. The binary still opens `https://august-industries.com/snapscore/privacy` (`scoresnap/app/auth/sign-in.tsx:613`, `scoresnap/app/settings.tsx:610`). This repository does not publish https://snapscore.autumn8.me/privacy, so confirm that page is live before submitting the label.
+7. The privacy policy URL for the nutrition label is https://snapscore.autumn8.me/privacy. Support contact is augie@autumn8.me. Support URL is https://snapscore.autumn8.me/support. The binary opens these URLs from `SUPPORT_BASE_URL` (`scoresnap/src/config/support.ts:2`), e.g. the privacy link at `scoresnap/app/auth/sign-in.tsx:615` and `scoresnap/app/settings.tsx:731`. Both pages are live (HTTP 200, verified Nov 5 2026; see AUG-682).
 
 ## Sources
 
@@ -194,10 +194,10 @@ Same commit and files as `docs/privacy-policy.md`. The label rows above cite:
 - `scoresnap/app/settings.tsx:552-557`, `610`
 - `scoresnap/app/scan/index.tsx:76-82`, `101`, `152-177`
 - `scoresnap/app/paywall.tsx:52-54`
-- `scoresnap/app/(tabs)/profile.tsx:132`, `695`, `718-727`
+- `scoresnap/app/(tabs)/profile.tsx:132`, `567`, `590-598`
 - `scoresnap/src/config/auth.ts:2`
 - `scoresnap/src/config/features.ts:1-8`
-- `scoresnap/src/config/public-share.ts:4-8`
+- `scoresnap/src/config/public-share.ts:4-7`
 - `scoresnap/src/stores/auth-store.ts:14-21`, `54`, `109-162`, `173-192`, `247-253`
 - `scoresnap/src/stores/contest-store.ts:355`
 - `scoresnap/src/stores/settings-store.ts:13`
@@ -214,8 +214,8 @@ Same commit and files as `docs/privacy-policy.md`. The label rows above cite:
 - `scoresnap/src/services/purchases.ts:76-79`, `87-88`, `106-110`, `139-152`, `214-218`
 - `scoresnap/src/ui/CourseSearch.tsx:40-51`, `156-160`, `533`
 - `scoresnap/src/ui/ErrorBoundary.tsx:26-29`
-- `scoresnap/supabase/functions/ocr-scorecard/index.ts:49-75`, `114-136`, `208-210`
+- `scoresnap/supabase/functions/ocr-scorecard/index.ts:49-75`, `114-136`, `213-221`
 - `scoresnap/supabase/functions/course-data/index.ts:27-32`, `50-74`, `115`
-- `scoresnap/supabase/functions/on-user-signup/index.ts:24-65`, `78-90`, `158-207`
+- `scoresnap/supabase/functions/on-user-signup/index.ts:21-32`, `64-76`, `87-100`
 - `scoresnap/supabase/functions/stripe-webhook/index.ts:10-19`, `30`, `54-63`, `68-80`, `108-113`
 - `scoresnap/supabase/migrations/20261027000000_live_baseline.sql:192-211`, `551-561`, `669-706`
