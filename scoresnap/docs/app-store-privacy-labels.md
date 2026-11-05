@@ -20,11 +20,11 @@ Check these types. Leave the rest unchecked unless the "Confirm before submittin
 - **Linked to identity:** Yes. The email is stored on the Supabase user and on `profiles` (email sign-up: `scoresnap/src/stores/auth-store.ts:185`; `scoresnap/supabase/migrations/20261027000000_live_baseline.sql:551-561`, `192-211`).
 - **Used for tracking:** No.
 - **Purposes:** App Functionality. Also Developer's Advertising or Marketing, because `on-user-signup` sends a welcome message and a referral reward that offers a free month of Premium (`scoresnap/supabase/functions/on-user-signup/index.ts:24-65`, `158-176`). Also Analytics, because that function writes `marketing_events` with the email and increments a daily signup counter (`scoresnap/supabase/functions/on-user-signup/index.ts:186-207`).
-- The local fallback profiles `golfer@apple.com` and `golfer@gmail.com` are written only on the device when real auth is off (`scoresnap/src/stores/auth-store.ts:87-99`, `117-129`). Those literals are not the user's email.
+- The local fallback profiles `golfer@apple.com` and `golfer@gmail.com` are written only on the device when real auth is off (`scoresnap/src/stores/auth-store.ts:121-130`, `153-162`). Those literals are not the user's email.
 
 ### Contact Info — Name
 
-- **Collected:** Yes for the account name. Email sign-up sends `full_name` to Supabase (`scoresnap/src/stores/auth-store.ts:146`). Apple sign-in requests `FULL_NAME` (`scoresnap/app/auth/sign-in.tsx:69-72`). This code does not copy Apple's returned full name into Supabase metadata; it sends the identity token (`scoresnap/src/stores/auth-store.ts:80-83`).
+- **Collected:** Yes for the account name. Email sign-up sends `full_name` to Supabase (`scoresnap/src/stores/auth-store.ts:185`). Apple sign-in requests `FULL_NAME` (`scoresnap/app/auth/sign-in.tsx:69-72`). This code does not copy Apple's returned full name into Supabase metadata; it sends the identity token (`scoresnap/src/stores/auth-store.ts:115`).
 - **Linked to identity:** Yes for the name sent as `full_name` on the auth user.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
@@ -66,11 +66,11 @@ Apple's category includes in-app messages that are not SMS. Live chat is that.
 
 ### Identifiers — User ID
 
-- **Collected:** Yes. Supabase user id is the account id (`scoresnap/src/stores/auth-store.ts:53`, `83`). Live-share and profile rows use `auth.uid()` (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:557`, `689`).
+- **Collected:** Yes. Supabase user id is the account id (`scoresnap/src/stores/auth-store.ts:50`, `81`). Live-share and profile rows use `auth.uid()` (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:557`, `689`).
 - **Linked to identity:** Yes.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
-- The chat session is a separate 32-byte random id. The server stores only its SHA-256 (`scoresnap/src/services/live-chat.ts:9-15`, `scoresnap/supabase/migrations/20261027000000_live_baseline.sql:669`). It is not the Supabase user id. The local skip-sign-in id (`anon-<timestamp>`) stays on the device (`scoresnap/src/stores/auth-store.ts:206-217`).
+- The chat session is a separate 32-byte random id. The server stores only its SHA-256 (`scoresnap/src/services/live-chat.ts:9-15`, `scoresnap/supabase/migrations/20261027000000_live_baseline.sql:669`). It is not the Supabase user id. The local skip-sign-in id (`anon-<timestamp>`) stays on the device (`scoresnap/src/stores/auth-store.ts:247-253`).
 - RevenueCat receives the SnapScore user id: `configure` passes `appUserID` and sign-in calls `identifyUser`, which runs `Purchases.logIn` (`scoresnap/src/services/purchases.ts:80-83`, `231`, `246`, `scoresnap/src/stores/auth-store.ts:54`). Tell App Store Connect the SnapScore account id is sent to RevenueCat. The SDK may also create its own id. That possibility is under Device ID.
 
 ### Identifiers — Device ID
@@ -142,7 +142,7 @@ These were searched and are not collected off the device by the code that shippe
 
 | Apple category | Why it stays unchecked |
 | --- | --- |
-| Contact Info — Phone Number, Physical Address, Other User Contact Info | No phone or address field in the auth profile or signup call (`scoresnap/src/stores/auth-store.ts:9-16`, `136-146`). |
+| Contact Info — Phone Number, Physical Address, Other User Contact Info | No phone or address field in the auth profile or signup call (`scoresnap/src/stores/auth-store.ts:14-21`, `173-185`). |
 | Health & Fitness | No health type, API, or permission. |
 | Financial Info — Payment Info, Credit Info | No card or credit field. Store payment UI is Purchases, above. |
 | Location — Precise or Coarse | The course-search UI will request foreground coordinates if `expo-location` loads, then uses them in memory to sort (`scoresnap/src/ui/CourseSearch.tsx:40-51`, `156-160`). `searchCourses` sends only the text query (`scoresnap/src/services/course-api.ts:22-25`). `expo-location` is not in `package.json`. `app.json` has no location purpose string. The edge function accepts `near`, and no app caller passes it (`scoresnap/supabase/functions/course-data/index.ts:54-57`). If a future build sends coordinates, check Precise Location. |
@@ -198,7 +198,7 @@ Same commit and files as `docs/privacy-policy.md`. The label rows above cite:
 - `scoresnap/src/config/auth.ts:2`
 - `scoresnap/src/config/features.ts:1-8`
 - `scoresnap/src/config/public-share.ts:4-8`
-- `scoresnap/src/stores/auth-store.ts:53`, `80-99`, `117-129`, `136-180`, `206-217`
+- `scoresnap/src/stores/auth-store.ts:14-21`, `54`, `109-162`, `173-192`, `247-253`
 - `scoresnap/src/stores/contest-store.ts:355`
 - `scoresnap/src/stores/settings-store.ts:13`
 - `scoresnap/src/services/claude-ocr.ts:22-38`
