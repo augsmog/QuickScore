@@ -36,6 +36,17 @@ test.each([[5, 'primary', 10], [4, 'transparent', 10], [3, 'transparent', 0], [2
           playerId: p.id, name: p.name, total: 4, toPar: 4 - c.holes[0].par,
         })),
       },
+      // Gross/Net toggle helper (AUG-246c). This fixture uses a 1-hole course,
+      // so net is unavailable and the individual view renders gross rows.
+      '../../../src/engine/calculators/leaderboard-view': {
+        buildLeaderboard: (ps, c) => ({
+          rows: ps.map(p => ({
+            playerId: p.id, name: p.name, total: 4, toPar: 4 - c.holes[0].par,
+          })),
+          netAvailable: false,
+          mode: 'gross',
+        }),
+      },
       '../../../src/utils/formatters': { formatToPar: n => String(n) },
       '../../../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
     };

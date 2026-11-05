@@ -6,6 +6,7 @@ import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
+import { buildLeaderboard } from "../../../src/engine/calculators/leaderboard-view";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 
@@ -17,6 +18,7 @@ export default function LeaderboardScreen() {
 
   const [viewMode, setViewMode] = useState<"individual" | "groups">("individual");
   const [scoreView, setScoreView] = useState<"cumulative" | "daily">("cumulative");
+  const [rankMode, setRankMode] = useState<"gross" | "net">("gross");
 
   if (!contest) return null;
 
@@ -58,7 +60,12 @@ export default function LeaderboardScreen() {
     );
   }
 
-  const results = calcStrokePlay(allPlayers, scoreView === "daily" ? liveRoundCourse(contest) : contest.course);
+  const leaderboardCourse = scoreView === "daily" ? liveRoundCourse(contest) : contest.course;
+  const results = calcStrokePlay(allPlayers, leaderboardCourse);
+  // Gross/Net toggle (AUG-246c): gross is the default and identical to before.
+  // Net ranks the individual leaderboard by net total using the handicap strokes
+  // already entered for net games; it is only offered when the course supports it.
+  const { rows: individualResults, netAvailable } = buildLeaderboard(allPlayers, leaderboardCourse, rankMode);
 
 
   // Compute team stats if teams exist
@@ -160,14 +167,54 @@ export default function LeaderboardScreen() {
       {/* Individual Leaderboard */}
       {viewMode === "individual" && (
         <>
-          {results.map((r, i) => {
+          {/* Gross / Net toggle (Direction A, Figma 11:43). Hidden when the course
+              cannot be ranked net, so Gross always shows for unsupported courses. */}
+          {netAvailable && (
+            <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
+              <AnimatedPressable
+                testID="leaderboard-rank-gross"
+                onPress={() => setRankMode("gross")}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  minHeight: 44,
+                  justifyContent: "center",
+                  borderRadius: RADII.md - 2,
+                  alignItems: "center",
+                  backgroundColor: rankMode === "gross" ? COLORS.surfaceHigh : "transparent",
+                }}
+              >
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: rankMode === "gross" ? COLORS.text : COLORS.textDim }}>
+                  Gross
+                </Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                testID="leaderboard-rank-net"
+                onPress={() => setRankMode("net")}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  minHeight: 44,
+                  justifyContent: "center",
+                  borderRadius: RADII.md - 2,
+                  alignItems: "center",
+                  backgroundColor: rankMode === "net" ? COLORS.surfaceHigh : "transparent",
+                }}
+              >
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: rankMode === "net" ? COLORS.text : COLORS.textDim }}>
+                  Net
+                </Text>
+              </AnimatedPressable>
+            </View>
+          )}
+          {individualResults.map((r, i) => {
             const player = allPlayers.find((p) => p.id === r.playerId);
             const holesPlayed = player
               ? player.scores.filter((s) => s > 0).length
               : 0;
 
-            const rank = results.findIndex((result) => result.total === r.total) + 1;
-            const tied = results.filter((result) => result.total === r.total).length > 1;
+            const rank = individualResults.findIndex((result) => result.total === r.total) + 1;
+            const tied = individualResults.filter((result) => result.total === r.total).length > 1;
             const lastHoles = (recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [])
               .map((score, index) => ({ score, index }))
               .filter(({ score }) => score > 0)
