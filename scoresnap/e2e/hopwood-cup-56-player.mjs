@@ -1,3 +1,4 @@
+import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 /**
  * Hopwood Cup 56-player E2E smoke test
  * 
@@ -29,6 +30,7 @@ const orgContext = await browser.newContext({ viewport: { width: 390, height: 84
 const orgPage = await orgContext.newPage();
 
 // Track page errors
+await seedPaidTier(orgPage, "td");
 const pageErrors = [];
 orgPage.on("pageerror", (e) => pageErrors.push(e.message));
 
@@ -61,16 +63,18 @@ try {
   await rounds2.waitFor({ state: "visible", timeout: 5000 });
   await rounds2.click();
   
-  // Click Next/Continue
-  await orgPage.getByText(/^next|continue/i).last().click();
+  // Continue from Players & Course
+  await orgPage.getByText(/^continue$/i).last().click();
+  await orgPage.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
   await orgPage.waitForTimeout(1000);
   
-  // Stroke Play should be pre-selected, click Next to game settings
-  await orgPage.getByText(/^next/i).last().click();
+  // Stroke Play should be pre-selected, continue to Round Settings
+  await orgPage.getByText(/^continue$/i).last().click();
+  await orgPage.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
   await orgPage.waitForTimeout(1000);
   
-  // Click Start Contest
-  await orgPage.getByText(/start contest/i).click();
+  // Start the contest
+  await orgPage.getByText(/^start$/i).click();
   
   // Wait for contest page
   await orgPage.waitForURL(/\/contest\/[^/]+$/);

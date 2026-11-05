@@ -4,14 +4,14 @@ const ts = require('typescript');
 const vm = require('node:vm');
 
 // Execute actual button handlers without loading native screen dependencies.
-function handlersFor(file, label, router) {
+function handlersFor(file, label, router, setPhase) {
   const source = ts.createSourceFile(file, fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const handlers = [];
   function visit(node) {
     if (ts.isJsxElement(node) && ['Pressable', 'AnimatedPressable'].includes(node.openingElement.tagName.getText(source))) {
       if (node.children.map(child => child.getText(source)).join(' ').includes(label)) {
         const prop = node.openingElement.attributes.properties.find(p => p.name?.getText(source) === 'onPress');
-        handlers.push(vm.runInNewContext(`(${prop.initializer.expression.getText(source)})`, { router }));
+        handlers.push(vm.runInNewContext(`(${prop.initializer.expression.getText(source)})`, { router, setPhase }));
       }
     }
     ts.forEachChild(node, visit);
@@ -25,7 +25,6 @@ for (const [file, label, count] of [
   ['app/scan/review.tsx', 'Go Back', 1],
   ['app/contest/[id]/_layout.tsx', 'Go Back', 1],
   ['app/scan/index.tsx', 'Go Back', 1],
-  ['app/scan/index.tsx', 'Enter scores manually instead', 2],
 ]) {
   for (const hasHistory of [false, true]) {
     test(`${file}: ${label} ${hasHistory ? 'uses history' : 'falls back to home'}`, () => {
@@ -60,3 +59,15 @@ for (const hasHistory of [false, true]) {
     expect(router.back).not.toHaveBeenCalled();
   });
 }
+
+// Manual entry is available inside the scan screen even on cold-start links or after decline.
+test('scan error and exhausted allowance both open manual entry without navigation', () => {
+  const router = {back:jest.fn(),replace:jest.fn()};
+  const setPhase = jest.fn();
+  const handlers = handlersFor('app/scan/index.tsx', 'Enter scores manually instead', router, setPhase);
+  expect(handlers).toHaveLength(2);
+  for (const handler of handlers) handler();
+  expect(setPhase.mock.calls).toEqual([['text-entry'], ['text-entry']]);
+  expect(router.back).not.toHaveBeenCalled();
+  expect(router.replace).not.toHaveBeenCalled();
+});

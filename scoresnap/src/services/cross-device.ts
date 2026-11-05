@@ -1,0 +1,235 @@
+import { persistGate } from '../stores/persisted-keys';
+import { tournamentCompletion } from './tournament-completion';
+import { loadSyncCapability, revisionChannel, snapshotScore } from './sync-v1';
+import { foregroundSync, foregroundRetry } from './online-client';
+import { Platform } from 'react-native';
+import * as Crypto from 'expo-crypto';
+import { supabase } from '../db/supabase';
+import { outboxStorage } from '../db/outbox-storage';
+import { CROSS_DEVICE_SHARING_ENABLED } from '../config/features';
+import { REAL_AUTH_CONFIGURED } from '../config/auth';
+import { anonymousSignInOptions } from './captcha';
+import { scoreOutbox, type ScoreDraft, type Receipt } from './score-outbox';
+import { onlineClient } from './online-client';
+import { useOnlineStore } from '../stores/online-store';
+
+export const onlineEnabled = CROSS_DEVICE_SHARING_ENABLED && REAL_AUTH_CONFIGURED;
+// Cache by session object identity token (never persisted or logged), including a
+// shared first probe so foreground refreshes cannot race missing-function calls.
+let ownerCapability: { session: string; available?: boolean; probe?: Promise<boolean> } | undefined;
+export const client = onlineClient(async (name, args) => {
+  if (!onlineEnabled) throw Error('Cross-device sharing is off');
+  return supabase.rpc(name, args);
+}, (id, membership, snapshot) => {
+  useOnlineStore.getState().repair(id, membership, snapshot);
+  // A slower response may have been rejected by the revision gate. Do not persist
+  // its code (or score overlay) after the current in-memory snapshot won that race.
+  if (membership && snapshot && useOnlineStore.getState().events[id]?.snapshot !== snapshot) return;
+  if (membership?.role === 'host' && snapshot) {
+    const store = require('../stores/contest-store').useContestStore;
+    if (!store.getState().contests.some((c: { id: string }) => c.id === id)) {
+      store.setState((state: { contests: unknown[] }) => ({ contests: [...state.contests, require('./restore-owner-contest').restoreOwnerContest(snapshot)] }));
+    } else {
+      store.setState((state: { contests: import('../stores/contest-store').Contest[] }) => ({ contests: state.contests.map(c => c.id === id && c.remoteRestored ? { ...require('./scorecard-overlay').overlayScorecard(c, snapshot), joinCode: require('./owner-invite').snapshotOwnerInviteCode(id, snapshot), games: snapshot.games, gameConfig: snapshot.game_settings?.gameConfig, betUnit: snapshot.game_settings?.betUnit ?? c.betUnit, hasTeams: snapshot.game_settings?.hasTeams ?? c.hasTeams } : c) }));
+    }
+  } else if (!membership) {
+    const store = require('../stores/contest-store').useContestStore;
+    store.setState((state: { contests: import('../stores/contest-store').Contest[] }) => ({ contests: state.contests.filter(c => c.id !== id || !c.remoteRestored) }));
+  }
+}, async code => {
+  const { data: auth, error: authError } = await supabase.auth.getSession();
+  if (authError) throw authError;
+  if (!auth.session || auth.session.user.is_anonymous) { ownerCapability = undefined; return []; }
+  const session = auth.session.access_token ?? auth.session.user.id;
+  if (ownerCapability?.session !== session) ownerCapability = { session };
+  const capability = ownerCapability;
+  const enumerate = async () => {
+    const result = await supabase.rpc('list_owned_contests', { code: code ?? null });
+    if (result.error) {
+      if (['PGRST202', '42883'].includes(result.error.code) || result.status === 404 || (result.error as { status?: number }).status === 404) {
+        capability.available = false;
+        return [];
+      }
+      throw result.error;
+    }
+    capability.available = true;
+    return result.data ?? [];
+  };
+  let rows: { id: string }[] | undefined;
+  if (capability.available === undefined) {
+    if (!capability.probe) {
+      const probe = enumerate().then(result => { rows = result; return capability.available!; });
+      capability.probe = probe;
+      try { await probe; } finally { if (capability.probe === probe) capability.probe = undefined; }
+    } else await capability.probe;
+  }
+  if (capability.available) return rows ?? await enumerate();
+  if (!code) return []; // Existing my_sync_status membership discovery stays available.
+  // RLS hides protocol-1 rows, so a local ID is only a hint. onlineClient must
+  // still prove host authorization before restoring it; never trust local ownership.
+  const store = require('../stores/contest-store').useContestStore;
+  const local = store.getState().contests.find((c: { joinCode?: string }) => c.joinCode?.toUpperCase() === code);
+  if (local) return [{ id: local.id, legacyHint: true }];
+  // Preserve the live request_join flow for codes with no local ID hint.
+  // Fresh-device owner detection requires the proposed owner RPC.
+  return [];
+});
+let signingIn: Promise<string> | undefined;
+export async function remoteIdentity() {
+  if (!onlineEnabled) throw Error('Cross-device sharing is off');
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  if (data.session) return data.session.user.id;
+  if (!signingIn) signingIn = (async () => {
+    const result = await supabase.auth.signInAnonymously(await anonymousSignInOptions());
+    if (result.error) throw Error('Guest sign-in unavailable. Sign in with email or Apple, then reopen your invite.');
+    if (!result.data.session) throw Error('Guest session unavailable');
+    return result.data.session.user.id;
+  })().finally(() => { signingIn = undefined; });
+  return signingIn;
+}
+let generation = 0;
+const active = new Set<Promise<unknown>>();
+export async function resetOnlineQueues() {
+  generation += 1;
+  await Promise.allSettled([...active]);
+  boxes.clear();
+  await outboxStorage.clear();
+}
+const boxes = new Map<string, ReturnType<typeof scoreOutbox>>();
+async function box(expectedActor?: string) {
+  const actor = await remoteIdentity();
+  if (expectedActor && actor !== expectedActor) throw Error('Identity changed during replay');
+  if (!boxes.has(actor)) boxes.set(actor, scoreOutbox({
+    getItem: key => outboxStorage.getItem(key),
+    setItem: (key, value) => persistGate.suppressed ? Promise.resolve() : outboxStorage.setItem(key, value),
+  }, actor, Crypto.randomUUID, async args => {
+    if (persistGate.suppressed) throw Object.assign(Error('Account reset'), { code: '42501' });
+    // Refresh before replay; never replay an old identity's operations as another user.
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (data.session?.user.id !== actor) throw Object.assign(Error('Identity changed'), { code: '42501' });
+    await requireSyncCapability(args.contest_id);
+    const current = await supabase.auth.getSession();
+    if (current.error) throw current.error;
+    if (current.data.session?.user.id !== actor) throw Object.assign(Error('Identity changed'), { code: '42501' });
+    if (persistGate.suppressed) throw Object.assign(Error('Account reset'), { code: '42501' });
+    const result = await supabase.rpc('write_score', args);
+    if (result.error) throw result.error;
+    return result.data as Receipt;
+  }, async (entries, retained) => {
+    if (!entries.some(e => e.localEdit) && !retained?.localEdit) return;
+    const store = require('../stores/contest-store');
+    let retention;
+    if (retained?.localEdit) {
+      const d = retained.draft;
+      const snapshot = useOnlineStore.getState().events[d.contest_id]?.snapshot;
+      const local = (kind: string, id: string | null) => snapshot?.id_map.find(m => m.kind === kind && m.server_id === id)?.local_id ?? id;
+      retention = { contestId: d.contest_id, key: retained.localCell ?? JSON.stringify([local('round', d.round_id), local('player', d.player_id), d.hole]), token: retained.localEdit, strokes: d.strokes ?? 0 };
+    }
+    await store.applyOnlineSettlement(entries.filter(e => e.localEdit).map(e => ({ contestId: e.draft.contest_id, token: e.localEdit! })), retention);
+  }));
+  return boxes.get(actor)!;
+}
+// Web Locks excludes other tabs for the entire read/modify/write sequence.
+let nativeWriter: Promise<unknown> = Promise.resolve();
+function writer<T>(work: () => Promise<T>): Promise<T> {
+  const epoch = generation;
+  const guarded = async () => {
+    if (persistGate.suppressed || epoch !== generation) throw Error('Account reset');
+    return work();
+  };
+  const pending = runWriter(guarded);
+  active.add(pending);
+  return pending.finally(() => active.delete(pending));
+}
+async function runWriter<T>(work: () => Promise<T>): Promise<T> {
+  const result = nativeWriter.then(() => {
+    if (Platform.OS !== 'web') return work();
+    const locks = (globalThis.navigator as any)?.locks;
+    if (!locks) throw Error('This browser cannot safely queue online scores; use one supported browser');
+    return locks.request('snapscore-online-outbox', work);
+  });
+  nativeWriter = result.catch(() => undefined);
+  return result;
+}
+export async function queueOnlineScore(draft: ScoreDraft, expectedVersion: number, localEdit?: string, localCell?: string) {
+  return writer(async () => (await box()).enqueue(draft, expectedVersion, localEdit, localCell));
+}
+export async function replayOnlineScores(expectedActor?: string) {
+  if (!onlineEnabled) return;
+  // No anonymous signup just because a timer fires.
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  if (!data.session) return;
+  if (expectedActor && data.session.user.id !== expectedActor) throw Error('Identity changed during replay');
+  return writer(async () => (await box(data.session.user.id)).replay());
+}
+export async function onlineQueue() { return writer(async () => (await box()).inspect()); }
+export async function resolveOnlineConflict(id: string, choice: 'keep-current' | 'use-mine') {
+  return writer(async () => (await box()).resolve(id, choice, true));
+}
+
+export async function requireSyncCapability(contest: string) {
+  if (!onlineEnabled) throw Error('Cross-device sharing is off');
+  return loadSyncCapability(onlineEnabled, contest, async () => {
+    const { data, error } = await supabase.rpc('sync_capabilities', { contest_id: contest });
+    if (error) throw error;
+    return data;
+  }, () => client.deny(contest));
+}
+export function watchOnline(contest: string, refresh: () => Promise<any>, report: (error: unknown) => void) {
+  if (!onlineEnabled) return () => {};
+  let stopped = false;
+  let remove: (() => void) | undefined;
+  const poll = foregroundSync(refresh, report);
+  void (async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (!data.session) throw Error('Session unavailable');
+    await supabase.realtime.setAuth(data.session.access_token);
+    return requireSyncCapability(contest);
+  })().then(cap => {
+    if (!stopped) remove = revisionChannel(supabase, cap, () => { void refresh().catch(report); }, poll.hint);
+  }).catch(report);
+  return () => { stopped = true; poll.stop(); remove?.(); };
+}
+export async function queueSnapshotScore(contest: string, round: string, player: string, hole: number, strokes: number | null, localEdit?: string) {
+  const event = useOnlineStore.getState().events[contest];
+  if (!event) throw Error('Refresh the online scorecard before scoring');
+  const { draft, version } = snapshotScore(onlineEnabled, event.snapshot, round, player, hole, strokes);
+  const local = (kind: string, id: string) => event.snapshot.id_map.find(m => m.kind === kind && m.server_id === id)?.local_id ?? id;
+  const localCell = localEdit ? JSON.stringify([local('round', round), local('player', player), hole]) : undefined;
+  await queueOnlineScore(draft, version, localEdit, localCell);
+  await replayOnlineScores();
+}
+
+export const refreshOnline = foregroundRetry(async () => {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  return data.session?.user.id ?? null;
+}, replayOnlineScores, async () => { await client.discover(); return null; });
+
+/** No anonymous signup from completion controls; refresh current authorization. */
+const completion = tournamentCompletion({
+  rpc: async (name, args) => {
+    if (!onlineEnabled) throw Error('Cross-device sharing is off');
+    return supabase.rpc(name, args);
+  },
+  actor: async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return data.session?.user.id ?? null;
+  },
+  queue: async () => (await box()).inspect(),
+  refresh: async id => {
+    const event = useOnlineStore.getState().events[id];
+    if (event?.membership.role === 'host') return (await client.rejoinHost(id)).snapshot;
+    return client.rejoin(id);
+  },
+});
+
+export const tournament = {
+  submit: (id: string, round: string, group: string) => writer(() => completion.submit(id, round, group)),
+  finalize: (id: string) => writer(() => completion.finalize(id)),
+};

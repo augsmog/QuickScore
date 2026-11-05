@@ -1,3 +1,5 @@
+> Historical planning/sprint document. Current selectable and settled capabilities are recorded in [GAMES_STATUS.md](../../GAMES_STATUS.md) and the derived engine registry; historical completion statements below are not release evidence.
+
 # PRD: AI Contest Configuration ("QuickSetup")
 
 ## Overview
@@ -166,7 +168,7 @@ The AI cannot create a contest without ALL of the following resolved:
 User prompt
     ↓
 AI (Claude API via Edge Function) — system prompt includes:
-  - All 30 game types with descriptions and config options
+  - historical game inventory with descriptions and config options
   - Custom game schema
   - Contest creation schema
   - Clarification question templates

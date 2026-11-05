@@ -1,6 +1,18 @@
 # Snapshot provenance
 
-## Current single-capture snapshot — 2026-10-27 02:20 MST
+## Current snapshot — post-M3, 2026-10-28
+
+M3 (`20261028162155_tournament_rounds_live`) was applied live on 2026-10-28
+at 9:21 AM PT. Supabase recorded version `20261028162155`.
+`live.json` is the post-M3 schema. This refresh ran
+`python3 scoresnap/supabase/schema-drift/drift.py normalize` on
+`schema-snapshot/expected-m3.json` and wrote that output over `live.json`.
+The two files are byte-for-byte equal. No live Supabase query was used.
+The eleven-row live ledger ends with version `20261028162155`, name
+`tournament_rounds_live`. `baseline.json` remains the pre-M2 physical schema.
+`expected-after.json` remains the post-M2b schema.
+
+## Historical post-M2b snapshot — 2026-10-27 02:20 MST
 
 Augie-approved live apply of M2 (`20261027120000_sync_foundation`) and M2b
 (`20261027130000_guest_write_guard`) completed on project `pltgbizexllikiwryozm`
@@ -125,3 +137,27 @@ authenticator) is the MEMBER, i.e. what those roles can inherit or SET ROLE to �
 Edges granting app roles to platform roles (postgres, supabase_storage_admin, local-only
 supabase_realtime_admin) are platform wiring that differs between hosted and the local image and are
 deliberately excluded. live.json = normalize(raw: aos-state/snapscore-xdevice/m1/live-catalog-v5-capture.json).
+
+## M4b authoring, 2026-10-29
+
+`expected-after.json` now describes the complete pending sync_api chain;
+`expected-m2b.json` preserves the previous M2b expectation and `expected-m3.json`
+remains the M3 expectation. `live.json` was not refreshed from a service. Its
+existing physical fields are unchanged; the new `realtime_app_policies: []`
+field records that the pending M4b-named policies are absent before this migration.
+The exporter now inventories those app-owned policies in the managed realtime
+schema; they must not be excluded from future drift comparisons. This is a
+catalog-format extension, not a new hosted read receipt.
+
+## Pending chat moderation expectation — 2026-10-31
+
+`expected-after.json` includes `20261031180000_chat_report_block.sql`.
+The additions were captured by the native PostgreSQL 17.11 disposable CI run
+https://github.com/augsmog/QuickScore/actions/runs/41251830874/job/124686783351
+at commit `ef41c47e453400ef561ab29a54255005c6be4ebe`. The exact unified catalog
+comparison was applied with every old line and hunk length verified against the
+previous snapshot. All prior catalog entries remain; the 13 changed inventories
+only add chat moderation objects, privileges, and foreign-key triggers.
+`expected-after-syncapi.json` preserves the historical pre-chat expectation;
+the record command now updates only the current full-chain expectation.
+No live capture or migration apply was performed.

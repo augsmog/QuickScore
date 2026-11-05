@@ -56,7 +56,8 @@ check('archived 001–008 shape',old_shape)
 # The fixture is explicit: the guard must not accept an arbitrary baseline.
 applied = load(HERE/'expected-ledger.json')
 assert applied == load(HERE/'fixtures/live-applied-ledger.json')
-adopted = applied[:-2]
+assert len(applied) == 12 and applied[-1] == {'name':'account_purge','version':'20261028223000'}
+adopted = [m for m in applied if m['version'] <= '20261027000000']
 assert adopted == load(HERE/'fixtures/live-adopted-ledger.json')
 for mode, entries in [('live', applied), ('baseline', adopted), ('pre-adoption', adopted[:-1]),
                       ('local', adopted + [{'version':'20261027120000','name':'sync_foundation'},
@@ -76,10 +77,12 @@ bad_ledgers = {
     'seven pre-adoption': adopted[:-1],
     'nine M2 applied': adopted + [{'version':'20261027120000','name':'sync_foundation'}],
     'eight adopted': adopted,
-    'eleven extra': applied + [{'version':'99999999999999','name':'unexpected'}],
-    'ten renamed': applied[:-1] + [dict(applied[-1], name='renamed')],
-    'ten reordered': applied[:-2] + applied[-2:][::-1],
-    'ten duplicate': applied[:-1] + [applied[-2]],
+    'ten M2b applied': applied[:-1],
+    'eleven old stamp': applied[:-1] + [{'version':'20261028100000','name':'tournament_rounds_live'}],
+    'twelve extra': applied + [{'version':'99999999999999','name':'unexpected'}],
+    'eleven renamed': applied[:-1] + [dict(applied[-1], name='renamed')],
+    'eleven reordered': applied[:-2] + applied[-2:][::-1],
+    'eleven duplicate': applied[:-1] + [applied[-2]],
     'missing': adopted[:2] + adopted[3:],
     'reordered': [adopted[1], adopted[0]] + adopted[2:],
     'duplicate': adopted[:-1] + [adopted[0]],
@@ -90,16 +93,16 @@ bad_ledgers = {
 }
 with tempfile.TemporaryDirectory() as d:
     p = pathlib.Path(d) / 'capture.json'
-    for name, entries in [('applied ten', applied), *bad_ledgers.items()]:
+    for name, entries in [('applied eleven', applied), *bad_ledgers.items()]:
         capture = copy.deepcopy(snapshot)
         capture['migrations'] = entries
         p.write_text(json.dumps(capture))
         guard = subprocess.run(['bash', str(HERE/'preapply-check.sh'), str(p)], capture_output=True, text=True)
-        if name == 'applied ten':
+        if name == 'applied eleven':
             assert guard.returncode == 0, guard
             assert guard.stdout.splitlines() == [
                 'Schema matches', 'Ledger matches: live', 'Guard passed.',
-                'Next: M3 requires separate approval; no approved apply is pending.'], guard
+                'Next: review LIVE-APPLY-SYNC-API.md before the separately authorized sync_api apply.'], guard
         else:
             assert guard.returncode == 1 and 'live ledger mismatch' in guard.stderr, (name, guard)
             assert 'Guard passed.' not in guard.stdout and 'Next:' not in guard.stdout, (name, guard)
@@ -159,3 +162,47 @@ for sql in re.findall(r'\$q\$(.*?)\$q\$', suite, re.S):
         continue
     assert {name.strip() for name in used} <= columns[table], sql
 print('PASS: every INSERT/UPDATE probe uses expected-after.json columns')
+
+full = load(HERE.parent / 'schema-snapshot/expected-after.json')
+assert len(full['realtime_app_policies']) == 3, 'M4b realtime policy inventory missing'
+for index in range(3):
+    changed = copy.deepcopy(full)
+    del changed['realtime_app_policies'][index]
+    assert differences(full, changed), 'Realtime policy drift escaped'
+print('PASS: each M4b managed-schema app policy deletion is detected')
+
+# Live ledger rehearsal derives pending files from the reviewed active manifest.
+import runpy
+rehearsal = runpy.run_path(str(HERE/'rehearsal-pending.py'))['check']
+active = sorted(n for n in json.loads((HERE/'active-migrations.json').read_text()) if n >= '20261027000000_live_baseline.sql')
+before = '\n'.join(active)
+after = '\n'.join(n for n in active if not n.startswith('20261027000000_'))
+rehearsal(before, False)
+rehearsal(after, True)
+for log, adopted in [(before, True),(after, False),(before.replace('20261029180000_sync_api.sql',''),False),(after+'\n20261030180000_unreviewed.sql',True),(before+'\n20260320041248_create_revenue_events_and_marketing_tables.sql',False)]:
+    try:
+        rehearsal(log, adopted)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError('unsafe adoption pending set accepted')
+print('PASS: adoption expects sync_api and rejects baseline re-execution, missing/extra migrations')
+
+actual_ci_dry_run = """DRY RUN: migrations will *not* be pushed to the database.
+Connecting to local database...
+Would push these migrations:
+ • 20261027000000_live_baseline.sql
+ • 20261027120000_sync_foundation.sql
+ • 20261027130000_guest_write_guard.sql
+ • 20261028162155_tournament_rounds_live.sql
+ • 20261028223000_account_purge.sql
+ • 20261029180000_sync_api.sql
+ • 20261031180000_chat_report_block.sql
+ • 20261101003300_signup_processing.sql
+ • 20261101003400_signup_webhook_trigger.sql
+ • 20261103010000_signup_webhook_vault_url.sql
+Finished supabase db push.
+"""
+rehearsal(actual_ci_dry_run, False)
+rehearsal(actual_ci_dry_run.replace(' • 20261027000000_live_baseline.sql\n',''), True)
+print('PASS: reviewed ten-pending dry run; nine pending after baseline adoption')

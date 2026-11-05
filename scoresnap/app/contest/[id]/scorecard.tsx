@@ -1,3 +1,14 @@
+import { showAlert } from "@/services/platform-alert";
+import { SafeScreen } from "../../../src/ui/SafeScreen";
+import { isCompactViewport } from "../../../src/ui/compact-viewport";
+import { onlineEnabled } from '../../../src/services/cross-device';
+import { useOnlineStore } from '../../../src/stores/online-store';
+import { overlayScorecard } from '../../../src/services/scorecard-overlay';
+import { executionGameConfig } from "../../../src/engine/types";
+import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actual-inputs";
+import { PrePlayDeclarations } from "../../../src/ui/PrePlayDeclarations";
+import { scopedAuxiliary, calculateContestSettlement, liveRoundCourse, liveSkinsStatus, liveNassauLabels } from "../../../src/engine/contest-results";
+import { calcNassauRules } from "../../../src/engine/calculators/nassau";
 import { useState, useCallback, useMemo } from "react";
 import {
   View,
@@ -27,21 +38,26 @@ import {
   scoreName,
 } from "../../../src/ui/theme";
 import { useContestStore, getActiveGroups } from "../../../src/stores/contest-store";
-import { SafeAreaView } from "react-native-safe-area-context";
 import AuxiliaryPrompt, {
   needsAuxiliaryPrompt,
   AuxPromptResult,
 } from "../../../src/ui/AuxiliaryPrompt";
 import { HoleInfo, Player } from "../../../src/engine/types";
 import { calcNassauPress } from "../../../src/engine/calculators/nassau-press";
-import { calcSkins } from "../../../src/engine/calculators/skins";
+import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
+import { HOLE_NAV_TARGET, SCORE_STEPPER_TARGET } from "../../../src/ui/score-entry-metrics";
+import { posthog } from "../../../src/config/posthog";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const contest = useContestStore((s) =>
+  const savedContest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
+
+  const snapshot = useOnlineStore(s => s.events[id]?.snapshot);
+  const displayContest = savedContest && onlineEnabled ? overlayScorecard(savedContest, snapshot) : savedContest;
+  const contest=displayContest?{...displayContest,gameConfig:executionGameConfig(displayContest.games,displayContest.gameConfig)}:undefined;
   const updateScore = useContestStore((s) => s.updateScore);
   const completeContest = useContestStore((s) => s.completeContest);
   const updateAuxiliaryData = useContestStore((s) => s.updateAuxiliaryData);
@@ -49,6 +65,7 @@ export default function ScorecardScreen() {
   const [currentHole, setCurrentHole] = useState(1);
   const [selectedGroup, setSelectedGroup] = useState(0);
   const [showAuxPrompt, setShowAuxPrompt] = useState(false);
+  const [declaration,setDeclaration]=useState<"wolf"|"bisque"|"jokerDeclarations"|null>(null);
 
   if (!contest) return null;
 
@@ -57,10 +74,17 @@ export default function ScorecardScreen() {
   const group = activeGroups[selectedGroup];
   if (!group) return null;
 
-  const holeData = contest.course.holes[currentHole - 1];
+  const activeRound=contest.isTournament?contest.rounds?.find(r=>r.number===contest.currentRound):undefined;
+  const course = liveRoundCourse(contest);
+  const sharedCard=contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot" || g==="chapman");
+  const auxiliary=scopedAuxiliary(contest,group.id,activeRound?.id);
+  const displayPlayers=sharedCard?group.players.filter((p,i,all)=>all.findIndex(q=>q.team===p.team)===i).map(p=>({...p,name:`Team ${p.team}`,scores:course.holes.map((_,i)=>auxiliary.teamCards?.[i+1]?.[p.team!]??0)})):group.players;
+  const holeData = course.holes[currentHole - 1];
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
   const isCompleted = contest.status === "completed";
+  const compactViewport = isCompactViewport(Dimensions.get("window"));
+  const tightSpacing = Dimensions.get("window").height < 950;
 
   // Build current-hole scores map for AuxiliaryPrompt (Tier 2 games)
   const currentPlayerScores = useMemo(() => {
@@ -94,15 +118,16 @@ export default function ScorecardScreen() {
       (contest.games.includes("nassau") || contest.games.includes("nassau_press")) &&
       players.length >= 2
     ) {
-      const result = calcNassauPress(players[0], players[1]);
+      const ledger = contest.gameConfig?.rulesVersion === 1 ? calcNassauRules(players, course, contest.games.includes("nassau_press"), contest.gameConfig) : undefined;
+      const result = ledger ? {...ledger,presses:ledger.bets.filter(b => b.parent).map(b => ({startHole:b.start}))} : calcNassauPress(players[0], players[1]);
       const isBack9 = currentHole > 9;
       const nineStatus = isBack9 ? result.back : result.front;
       const nineName = isBack9 ? "Back 9" : "Front 9";
-      const leader = nineStatus > 0 ? players[0].name : nineStatus < 0 ? players[1].name : null;
+      const { leader, down: downPlayer } = liveNassauLabels(result, nineStatus);
 
       if (Math.abs(nineStatus) >= 1) {
         statuses.push({
-          label: `${nineName}: ${leader?.split(" ")[0]} ${Math.abs(nineStatus)} UP`,
+          label: `${nineName}: ${leader} ${Math.abs(nineStatus)} UP`,
           detail: "",
           color: COLORS.primary,
         });
@@ -117,35 +142,33 @@ export default function ScorecardScreen() {
       }
 
       // Detect if press is about to trigger (someone is exactly 2 down)
-      if (Math.abs(nineStatus) === 2 && result.presses.length === 0) {
-        const downPlayer = nineStatus > 0 ? players[1].name : players[0].name;
+      if (!ledger && Math.abs(nineStatus) === 2 && result.presses.length === 0) {
         statuses.push({
-          label: `${downPlayer.split(" ")[0]} is 2-DOWN`,
+          label: `${downPlayer} is 2-DOWN`,
           detail: "Auto-press triggered!",
           color: COLORS.error,
         });
       }
     }
 
+    if(contest.gameConfig?.rulesVersion===1)for(const game of contest.games.filter(g=>ACTUAL_INPUT_GAMES.includes(g))){const result=actualInputLedger(game,players,course,auxiliary,contest.gameConfig);statuses.push({label:`${game.replace(/_/g," ")}: ${result.pending?"pending":"confirmed"}`,detail:`${result.holes} confirmed holes · ${players.map(p=>`${p.name} ${result.totals[p.name]}u`).join(", ")}`,color:result.pending?COLORS.warn:COLORS.primary});}
     // Skins carryover status
     if (
-      (contest.games.includes("skins") || contest.games.includes("skins_carry")) &&
-      players.length >= 2
+      (contest.games.includes("skins") || contest.games.includes("skins_carry"))
     ) {
-      const isCarry = contest.games.includes("skins_carry");
-      const result = calcSkins(players, contest.course, isCarry, contest.gameConfig?.skinsMode);
-      const carriedSkins = result.remaining;
+      const result = liveSkinsStatus(contest, group.id);
+      const carriedSkins = result?.remaining ?? 0;
       if (carriedSkins > 0) {
         statuses.push({
           label: `${carriedSkins} skin${carriedSkins > 1 ? "s" : ""} carrying`,
-          detail: `${carriedSkins + 1}x value next win`,
+          detail: "Unawarded units in this scope",
           color: COLORS.gold,
         });
       }
     }
 
     return statuses;
-  }, [group.players, currentHole, contest.games, contest.course, contest.gameConfig]);
+  }, [group.players, currentHole, contest.games, course, contest.gameConfig, auxiliary, activeGroups, group.id]);
 
   // ── Score adjustment via +/- buttons ──
   const adjustScore = useCallback(
@@ -153,7 +176,7 @@ export default function ScorecardScreen() {
       if (isCompleted) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      const player = group.players.find((p) => p.id === playerId);
+      const player = displayPlayers.find((p) => p.id === playerId);
       if (!player) return;
 
       const currentScore = player.scores[currentHole - 1] || 0;
@@ -161,9 +184,12 @@ export default function ScorecardScreen() {
       const baseScore = currentScore > 0 ? currentScore : par;
       const newScore = Math.max(1, Math.min(15, baseScore + delta));
 
+      if(contest.gameConfig?.bisqueHandicap && !auxiliary.bisque?.[currentHole]) {setDeclaration("bisque");return;}
+      if(contest.gameConfig?.jokerEnabled && !auxiliary.jokerDeclarations?.[0]) {setDeclaration("jokerDeclarations");return;}
+      if(contest.gameConfig?.rulesVersion===1 && contest.games.includes("wolf") && !auxiliary.wolf?.[currentHole]) {setDeclaration("wolf");return;}
       updateScore(contest.id, group.id, playerId, currentHole, newScore);
     },
-    [contest.id, group, currentHole, par, updateScore, isCompleted]
+    [contest, auxiliary, group, displayPlayers, currentHole, par, updateScore, isCompleted]
   );
 
   // Set a player to exactly par (tap the score display)
@@ -171,9 +197,12 @@ export default function ScorecardScreen() {
     (playerId: string) => {
       if (isCompleted) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if(contest.gameConfig?.bisqueHandicap && !auxiliary.bisque?.[currentHole]) {setDeclaration("bisque");return;}
+      if(contest.gameConfig?.jokerEnabled && !auxiliary.jokerDeclarations?.[0]) {setDeclaration("jokerDeclarations");return;}
+      if(contest.gameConfig?.rulesVersion===1 && contest.games.includes("wolf") && !auxiliary.wolf?.[currentHole]) {setDeclaration("wolf");return;}
       updateScore(contest.id, group.id, playerId, currentHole, par);
     },
-    [contest.id, group.id, currentHole, par, updateScore, isCompleted]
+    [contest, auxiliary, group.id, currentHole, par, updateScore, isCompleted]
   );
 
   // Clear a player's score (long press the score)
@@ -197,12 +226,12 @@ export default function ScorecardScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Check if Tier 2 games need aux input before advancing
-    if (needsAuxiliaryPrompt(contest.games, currentHoleInfo, currentPlayerScores)) {
+    if (contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games.filter(g=>g!=="wolf" || !auxiliary.wolf?.[currentHole]), currentHoleInfo, currentPlayerScores)) {
       setShowAuxPrompt(true);
     } else {
       advanceToNextHole();
     }
-  }, [contest.games, currentHoleInfo, currentPlayerScores, advanceToNextHole]);
+  }, [contest.games, contest.gameConfig, auxiliary, currentHole, currentHoleInfo, currentPlayerScores, advanceToNextHole]);
 
   const handlePrevHole = useCallback(() => {
     if (currentHole > 1) {
@@ -214,22 +243,25 @@ export default function ScorecardScreen() {
   // Handle Tier 2 aux prompt results
   const handleAuxComplete = useCallback(
     (results: AuxPromptResult) => {
-      setShowAuxPrompt(false);
+      try {
+      if (results.junk) updateAuxiliaryData(contest.id,"junk",currentHole,results.junk,group.id);
+      if (results.bbb) updateAuxiliaryData(contest.id, "bbb", currentHole, results.bbb, group.id);
       if (results.wolf) {
-        updateAuxiliaryData(contest.id, "wolf", currentHole, results.wolf);
+        updateAuxiliaryData(contest.id, "wolf", currentHole, results.wolf, group.id);
       }
       if (results.hammer) {
-        updateAuxiliaryData(contest.id, "hammer", currentHole, results.hammer);
+        updateAuxiliaryData(contest.id, "hammer", currentHole, results.hammer, group.id);
       }
       if (results.snake) {
-        updateAuxiliaryData(contest.id, "snake", currentHole, results.snake);
+        updateAuxiliaryData(contest.id, "snake", currentHole, results.snake, group.id);
       }
       if (results.greenies !== undefined) {
-        updateAuxiliaryData(contest.id, "greenies", currentHole, results.greenies);
+        updateAuxiliaryData(contest.id, "greenies", currentHole, results.greenies, group.id);
       }
-      advanceToNextHole();
+      setShowAuxPrompt(false);advanceToNextHole();
+      } catch(error){showAlert("Confirm inputs",String(error));}
     },
-    [contest.id, currentHole, updateAuxiliaryData, advanceToNextHole]
+    [contest.id, group.id, currentHole, updateAuxiliaryData, advanceToNextHole]
   );
 
   const handleAuxSkip = useCallback(() => {
@@ -238,6 +270,14 @@ export default function ScorecardScreen() {
   }, [advanceToNextHole]);
 
   const handleFinalizeRound = useCallback(() => {
+    if(contest.gameConfig?.rulesVersion===1){
+      const result=calculateContestSettlement(contest);
+      if(result.pending){
+        if((contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games,currentHoleInfo,currentPlayerScores))) setShowAuxPrompt(true);
+        showAlert("Confirmation required","Enter every score and confirm side-game inputs on every hole before finalizing. Skip leaves that hole pending.");
+        return;
+      }
+    }
     const allPlayers = activeGroups.flatMap((g) => g.players);
     const totalScores = allPlayers.reduce(
       (sum, p) => sum + p.scores.filter((s) => s > 0).length,
@@ -247,7 +287,7 @@ export default function ScorecardScreen() {
     const percentComplete = Math.round((totalScores / totalExpected) * 100);
 
     if (percentComplete < 50) {
-      Alert.alert(
+      showAlert(
         "Incomplete Scorecard",
         `Only ${percentComplete}% of scores have been entered. Are you sure you want to finalize?`,
         [
@@ -260,7 +300,7 @@ export default function ScorecardScreen() {
         ]
       );
     } else if (percentComplete < 100) {
-      Alert.alert(
+      showAlert(
         "Finalize Round?",
         `${percentComplete}% of scores entered. Missing scores will be counted as 0. This locks the scorecard.`,
         [
@@ -269,7 +309,7 @@ export default function ScorecardScreen() {
         ]
       );
     } else {
-      Alert.alert(
+      showAlert(
         "Finalize Round?",
         "This will lock scores and calculate final settlements. You can still view results after.",
         [
@@ -282,11 +322,18 @@ export default function ScorecardScreen() {
 
   const doFinalize = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    completeContest(contest.id);
+    try {
+      completeContest(contest.id);
+      posthog?.capture("round_finalized", {
+        game_ids: contest.games,
+        group_count: activeGroups.length,
+        is_tournament: Boolean(contest.isTournament),
+      });
+    } catch(error){showAlert("Confirmation required",String(error));}
   };
 
   // Calculate completion
-  const allPlayers = contest.groups.flatMap((g) => g.players);
+  const allPlayers = sharedCard?activeGroups.flatMap(g=>{const aux=scopedAuxiliary(contest,g.id,activeRound?.id);return [...new Set(g.players.map(p=>p.team!))].map(team=>({scores:course.holes.map((_,i)=>aux.teamCards?.[i+1]?.[team]??0)}));}):activeGroups.flatMap((g) => g.players);
   const totalScores = allPlayers.reduce(
     (sum, p) => sum + p.scores.filter((s) => s > 0).length,
     0
@@ -296,13 +343,13 @@ export default function ScorecardScreen() {
     totalExpected > 0 ? Math.round((totalScores / totalExpected) * 100) : 0;
 
   // Check if all players on current hole have scores
-  const allScoredOnHole = group.players.every(
+  const allScoredOnHole = displayPlayers.every(
     (p) => (p.scores[currentHole - 1] || 0) > 0
   );
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
+      <SafeScreen edges={[]} style={{ flex: 1 }}>
         {/* Completed Banner */}
         {isCompleted && (
           <View
@@ -333,8 +380,8 @@ export default function ScorecardScreen() {
         <View
           style={{
             paddingHorizontal: 20,
-            paddingTop: 12,
-            paddingBottom: 8,
+            paddingTop: tightSpacing ? 8 : 12,
+            paddingBottom: tightSpacing ? 4 : 8,
             flexDirection: "row",
             alignItems: "flex-end",
             justifyContent: "space-between",
@@ -351,7 +398,7 @@ export default function ScorecardScreen() {
             </Text>
             <Text
               style={{
-                fontSize: 40,
+                fontSize: compactViewport ? 30 : 40,
                 fontFamily: FONTS.headline,
                 color: COLORS.text,
                 marginTop: 2,
@@ -420,6 +467,13 @@ export default function ScorecardScreen() {
           </View>
         </View>
 
+        {contest.gameConfig?.rulesVersion===1 && <View style={{paddingHorizontal:20}}>
+          {contest.games.includes("wolf") && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("wolf")} style={{minHeight:44,justifyContent:"center"}}><Text style={{color:COLORS.primary,padding:12}}>Record Wolf decision before play {auxiliary.wolf?.[currentHole]?"✓":"— required"}</Text></Pressable>}
+          {contest.gameConfig.bisqueHandicap && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("bisque")}><Text style={{color:COLORS.primary,padding:12}}>Declare 0–2 Bisque strokes before this hole {auxiliary.bisque?.[currentHole]?"✓":"— required"}</Text></Pressable>}
+          {contest.gameConfig.jokerEnabled && <Pressable disabled={group.players.some(p=>p.scores.some(n=>n>0))} onPress={()=>setDeclaration("jokerDeclarations")}><Text style={{color:COLORS.primary,padding:12}}>Record two public Joker holes per player before round {auxiliary.jokerDeclarations?.[0]?"✓":"— required"}</Text></Pressable>}
+        </View>}
+        {declaration && <PrePlayDeclarations kind={declaration} players={group.players} course={course} hole={currentHole} config={contest.gameConfig??{}} onClose={()=>setDeclaration(null)} onSave={(key,h,value)=>{try{updateAuxiliaryData(contest.id,key,h,value,group.id);}catch(error){showAlert("Invalid declaration",String(error));}}}/>}
+        {contest.gameConfig?.progressiveSnake && <Text style={{color:COLORS.textDim,paddingHorizontal:20}}>Progressive Snake exposure: after N changes of holder, each opponent receives {contest.betUnit} × 2^N from the final holder. Maximum with this group: {group.players.length*course.holes.length-1} changes. Unsafe numeric amounts cannot settle.</Text>}
         {/* Live Game Status Banners */}
         {liveGameStatus.length > 0 && (
           <View style={{ paddingHorizontal: 20, marginBottom: 8, gap: 6 }}>
@@ -503,11 +557,11 @@ export default function ScorecardScreen() {
 
         {/* ── Player Score Steppers ── */}
         <ScrollView
-          style={{ flex: 1, marginTop: 8 }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12, gap: 8 }}
+          style={{ flex: 1, minHeight: 0, marginTop: tightSpacing ? 4 : 8 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: tightSpacing ? 4 : 12, gap: tightSpacing ? 4 : 8 }}
           showsVerticalScrollIndicator={false}
         >
-          {group.players.map((player, idx) => {
+          {displayPlayers.map((player, idx) => {
             const score = player.scores[currentHole - 1] || 0;
             const hasScore = score > 0;
             const displayScore = hasScore ? score : par;
@@ -516,10 +570,7 @@ export default function ScorecardScreen() {
             const label = hasScore ? scoreName(score, par) : "par";
             const total = player.scores.reduce((a, b) => a + b, 0);
             const holesPlayed = player.scores.filter((s) => s > 0).length;
-            const totalPar = contest.course.holes
-              .slice(0, holesPlayed)
-              .reduce((a, h) => a + h.par, 0);
-            const totalToPar = total - totalPar;
+            const totalToPar = calcStrokePlay([player], course)[0].toPar;
 
             return (
               <Animated.View
@@ -528,7 +579,7 @@ export default function ScorecardScreen() {
                 style={{
                   backgroundColor: COLORS.surfaceHigh,
                   borderRadius: RADII.lg,
-                  padding: 14,
+                  padding: compactViewport ? 4 : tightSpacing ? 10 : 14,
                   borderLeftWidth: 3,
                   borderLeftColor: hasScore ? color : COLORS.surfaceHighest,
                   opacity: isCompleted ? 0.7 : 1,
@@ -540,7 +591,7 @@ export default function ScorecardScreen() {
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: 10,
+                    marginBottom: tightSpacing ? 2 : 10,
                   }}
                 >
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
@@ -557,7 +608,7 @@ export default function ScorecardScreen() {
                         }}
                       />
                     )}
-                    <View>
+                    <View style={{ flexDirection: compactViewport && holesPlayed > 0 ? "row" : "column", alignItems: "baseline", gap: compactViewport ? 8 : 0 }}>
                       <Text
                         style={{
                           fontSize: 15,
@@ -605,11 +656,14 @@ export default function ScorecardScreen() {
                 >
                   {/* Minus button */}
                   <Pressable
+                    testID={`score-minus-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Decrease ${player.name} score`}
                     onPress={() => adjustScore(player.id, -1)}
                     disabled={isCompleted || displayScore <= 1}
                     style={({ pressed }) => ({
-                      width: 52,
-                      height: 52,
+                      width: compactViewport ? 44 : SCORE_STEPPER_TARGET,
+                      height: compactViewport ? 44 : SCORE_STEPPER_TARGET,
                       borderRadius: RADII.lg,
                       backgroundColor: COLORS.surfaceMid,
                       alignItems: "center",
@@ -625,6 +679,9 @@ export default function ScorecardScreen() {
                   {/* Score display — tap sets to par, long press clears */}
                   <Pressable
                     testID={`score-par-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set ${player.name} score to par`}
+                    accessibilityState={{ disabled: isCompleted }}
                     onPress={() => {
                       if (!hasScore) setToPar(player.id);
                     }}
@@ -671,11 +728,13 @@ export default function ScorecardScreen() {
                   {/* Plus button */}
                   <Pressable
                     testID={`score-plus-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Increase ${player.name} score`}
                     onPress={() => adjustScore(player.id, 1)}
                     disabled={isCompleted || displayScore >= 15}
                     style={({ pressed }) => ({
-                      width: 52,
-                      height: 52,
+                      width: compactViewport ? 44 : SCORE_STEPPER_TARGET,
+                      height: compactViewport ? 44 : SCORE_STEPPER_TARGET,
                       borderRadius: RADII.lg,
                       backgroundColor: COLORS.surfaceMid,
                       alignItems: "center",
@@ -708,11 +767,14 @@ export default function ScorecardScreen() {
           <View
             style={{
               flexDirection: "row",
-              gap: 12,
-              marginBottom: 4,
+              gap: tightSpacing ? 8 : 12,
+              marginBottom: tightSpacing ? 2 : 4,
             }}
           >
             <Pressable
+              testID="score-prev-hole"
+              accessibilityRole="button"
+              accessibilityLabel="Previous hole"
               onPress={handlePrevHole}
               disabled={currentHole <= 1}
               style={{
@@ -723,7 +785,7 @@ export default function ScorecardScreen() {
                 gap: 4,
                 backgroundColor: COLORS.surfaceMid,
                 borderRadius: RADII.md,
-                paddingVertical: 12,
+                minHeight: compactViewport ? 44 : HOLE_NAV_TARGET,
                 opacity: currentHole <= 1 ? 0.3 : 1,
               }}
             >
@@ -739,8 +801,10 @@ export default function ScorecardScreen() {
             </Pressable>
             <Pressable
               testID="score-next-hole"
+              accessibilityRole="button"
+              accessibilityLabel="Next hole"
               onPress={handleNextHole}
-              disabled={currentHole >= 18}
+              disabled={isCompleted}
               style={{
                 flex: 1,
                 flexDirection: "row",
@@ -751,7 +815,7 @@ export default function ScorecardScreen() {
                   ? COLORS.primary + "22"
                   : COLORS.surfaceMid,
                 borderRadius: RADII.md,
-                paddingVertical: 12,
+                minHeight: compactViewport ? 44 : HOLE_NAV_TARGET,
                 borderWidth: allScoredOnHole ? 1 : 0,
                 borderColor: COLORS.primary + "44",
                 opacity: currentHole >= 18 ? 0.3 : 1,
@@ -770,18 +834,40 @@ export default function ScorecardScreen() {
                 color={allScoredOnHole ? COLORS.primary : COLORS.textDim}
               />
             </Pressable>
+            {!isCompleted && compactViewport && (
+              <Pressable
+                onPress={handleFinalizeRound}
+                style={{
+                  flex: 1.5,
+                  backgroundColor: percentComplete === 100 ? COLORS.primary : COLORS.surfaceMid,
+                  borderRadius: RADII.lg,
+                  minHeight: 44,
+                  paddingHorizontal: 4,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  ...(percentComplete === 100 ? GLOW.primary : {}),
+                }}
+              >
+                <CheckCircle size={18} color={percentComplete === 100 ? COLORS.onPrimary : COLORS.warn} />
+                <Text style={{ color: percentComplete === 100 ? COLORS.onPrimary : COLORS.warn, fontFamily: FONTS.bold, fontSize: 12 }}>
+                  Finalize Round
+                </Text>
+              </Pressable>
+            )}
           </View>
 
           {/* Finalize Round */}
           {!isCompleted && (
-            <View style={{ marginTop: 4 }}>
+            <View style={{ marginTop: tightSpacing ? 0 : 4 }}>
               {/* Progress bar */}
               <View
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  marginBottom: 6,
+                  marginBottom: tightSpacing ? 3 : 6,
                 }}
               >
                 <Text
@@ -810,7 +896,7 @@ export default function ScorecardScreen() {
                   height: 4,
                   borderRadius: 2,
                   backgroundColor: COLORS.surfaceHighest,
-                  marginBottom: 10,
+                  marginBottom: tightSpacing ? 6 : 10,
                   overflow: "hidden",
                 }}
               >
@@ -827,7 +913,7 @@ export default function ScorecardScreen() {
                 />
               </View>
 
-              <Pressable
+              {!compactViewport && <Pressable
                 onPress={handleFinalizeRound}
                 style={{
                   backgroundColor:
@@ -835,7 +921,8 @@ export default function ScorecardScreen() {
                       ? COLORS.primary
                       : COLORS.surfaceMid,
                   borderRadius: RADII.lg,
-                  paddingVertical: 14,
+                  minHeight: 44,
+                  paddingVertical: tightSpacing ? 6 : 14,
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
@@ -863,11 +950,11 @@ export default function ScorecardScreen() {
                 >
                   Finalize Round
                 </Text>
-              </Pressable>
+              </Pressable>}
             </View>
           )}
         </View>
-      </SafeAreaView>
+      </SafeScreen>
 
       {/* Tier 2 Game Auxiliary Prompts */}
       <AuxiliaryPrompt
@@ -875,6 +962,8 @@ export default function ScorecardScreen() {
         holeNumber={currentHole}
         holeInfo={currentHoleInfo}
         players={group.players}
+        gameConfig={contest.gameConfig}
+        wolfConfirmed={!!auxiliary.wolf?.[currentHole]}
         activeGames={contest.games}
         currentPlayerScores={currentPlayerScores}
         wolfOrder={wolfOrder}

@@ -1,0 +1,60 @@
+app/contest/[id]/games.tsx(553,32): error TS2554: Expected 3 arguments, but got 2.
+app/contest/[id]/settlement.tsx(570,44): error TS2339: Property 'gameBreakdowns' does not exist on type 'SettlementSummary'.
+app/contest/new.tsx(470,36): error TS2551: Property 'cardBg' does not exist on type '{ readonly bg: "#FAF4E8"; readonly surface: "#FFFFFF"; readonly surfaceLowest: "#FFFFFF"; readonly surfaceLow: "#FAF4E8"; readonly surfaceMid: "#F3ECDD"; readonly surfaceHigh: "#F3ECDD"; ... 33 more ...; readonly blue: "#245C98"; }'. Did you mean 'card'?
+app/onboarding.tsx(291,21): error TS2694: Namespace '"/workspace/aos-work/snapscore-m4a-20261029/code/scoresnap/node_modules/react-native-reanimated/lib/typescript/Animated"' has no exported member 'SharedValue'.
+app/onboarding.tsx(307,21): error TS2694: Namespace '"/workspace/aos-work/snapscore-m4a-20261029/code/scoresnap/node_modules/react-native-reanimated/lib/typescript/Animated"' has no exported member 'SharedValue'.
+src/engine/__tests__/all-calculators.test.ts(353,36): error TS2554: Expected 2 arguments, but got 3.
+src/engine/__tests__/all-calculators.test.ts(358,44): error TS2554: Expected 2 arguments, but got 3.
+src/engine/__tests__/all-calculators.test.ts(363,48): error TS2554: Expected 2 arguments, but got 3.
+src/engine/__tests__/all-calculators.test.ts(366,48): error TS2554: Expected 2 arguments, but got 3.
+src/engine/__tests__/all-calculators.test.ts(1063,14): error TS2339: Property 'holder' does not exist on type 'RabbitResult'.
+src/engine/__tests__/all-calculators.test.ts(1063,62): error TS2339: Property 'holder' does not exist on type 'RabbitResult'.
+src/engine/__tests__/all-calculators.test.ts(1117,13): error TS2339: Property 'holder' does not exist on type 'SnakeResult'.
+src/engine/__tests__/all-calculators.test.ts(1117,60): error TS2339: Property 'holder' does not exist on type 'SnakeResult'.
+src/engine/__tests__/hopwood-cup-56-player.test.ts(12,32): error TS2307: Cannot find module '../stroke-play' or its corresponding type declarations.
+src/engine/settlement.ts(942,43): error TS2339: Property 'holder' does not exist on type 'SnakeResult'.
+supabase/functions/ocr-scorecard/index.ts(5,23): error TS2307: Cannot find module 'https://deno.land/std@0.177.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/ocr-scorecard/index.ts(6,30): error TS2307: Cannot find module 'https://esm.sh/@supabase/supabase-js@2' or its corresponding type declarations.
+supabase/functions/ocr-scorecard/index.ts(9,27): error TS2304: Cannot find name 'Deno'.
+supabase/functions/ocr-scorecard/index.ts(10,22): error TS2304: Cannot find name 'Deno'.
+supabase/functions/ocr-scorecard/index.ts(11,27): error TS2304: Cannot find name 'Deno'.
+supabase/functions/ocr-scorecard/index.ts(31,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/on-user-signup/index.ts(5,23): error TS2307: Cannot find module 'https://deno.land/std@0.177.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/on-user-signup/index.ts(6,30): error TS2307: Cannot find module 'https://esm.sh/@supabase/supabase-js@2' or its corresponding type declarations.
+supabase/functions/on-user-signup/index.ts(8,22): error TS2304: Cannot find name 'Deno'.
+supabase/functions/on-user-signup/index.ts(9,30): error TS2304: Cannot find name 'Deno'.
+supabase/functions/on-user-signup/index.ts(10,24): error TS2304: Cannot find name 'Deno'.
+supabase/functions/on-user-signup/index.ts(11,21): error TS2304: Cannot find name 'Deno'.
+supabase/functions/on-user-signup/index.ts(78,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/stripe-webhook/index.ts(5,23): error TS2307: Cannot find module 'https://deno.land/std@0.177.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/stripe-webhook/index.ts(6,30): error TS2307: Cannot find module 'https://esm.sh/@supabase/supabase-js@2' or its corresponding type declarations.
+supabase/functions/stripe-webhook/index.ts(8,22): error TS2304: Cannot find name 'Deno'.
+supabase/functions/stripe-webhook/index.ts(9,30): error TS2304: Cannot find name 'Deno'.
+supabase/functions/stripe-webhook/index.ts(10,31): error TS2304: Cannot find name 'Deno'.
+supabase/functions/stripe-webhook/index.ts(11,21): error TS2304: Cannot find name 'Deno'.
+supabase/functions/stripe-webhook/index.ts(12,24): error TS2304: Cannot find name 'Deno'.
+supabase/functions/stripe-webhook/index.ts(47,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+tests/helpers/unplayed-holes.ts(22,28): error TS2345: Argument of type '{ name: string; holes: { num: number; par: number; hcp: number; }[]; }' is not assignable to parameter of type 'Course'.
+  Types of property 'holes' are incompatible.
+    Type '{ num: number; par: number; hcp: number; }[]' is not assignable to type 'HoleInfo[]'.
+      Property 'yards' is missing in type '{ num: number; par: number; hcp: number; }' but required in type 'HoleInfo'.
+tests/helpers/unplayed-holes.ts(27,29): error TS2345: Argument of type '{ name: string; holes: { num: number; par: number; hcp: number; }[]; }' is not assignable to parameter of type 'Course'.
+  Types of property 'holes' are incompatible.
+    Type '{ num: number; par: number; hcp: number; }[]' is not assignable to type 'HoleInfo[]'.
+      Property 'yards' is missing in type '{ num: number; par: number; hcp: number; }' but required in type 'HoleInfo'.
+tests/helpers/unplayed-holes.ts(27,59): error TS2345: Argument of type '{ name: string; holes: { num: number; par: number; hcp: number; }[]; }' is not assignable to parameter of type 'Course'.
+  Types of property 'holes' are incompatible.
+    Type '{ num: number; par: number; hcp: number; }[]' is not assignable to type 'HoleInfo[]'.
+      Property 'yards' is missing in type '{ num: number; par: number; hcp: number; }' but required in type 'HoleInfo'.
+tests/helpers/unplayed-holes.ts(31,31): error TS2345: Argument of type '{ name: string; holes: { num: number; par: number; hcp: number; }[]; }' is not assignable to parameter of type 'Course'.
+  Types of property 'holes' are incompatible.
+    Type '{ num: number; par: number; hcp: number; }[]' is not assignable to type 'HoleInfo[]'.
+      Property 'yards' is missing in type '{ num: number; par: number; hcp: number; }' but required in type 'HoleInfo'.
+tests/helpers/unplayed-holes.ts(35,41): error TS2345: Argument of type '{ name: string; holes: { num: number; par: number; hcp: number; }[]; }' is not assignable to parameter of type 'Course'.
+  Types of property 'holes' are incompatible.
+    Type '{ num: number; par: number; hcp: number; }[]' is not assignable to type 'HoleInfo[]'.
+      Property 'yards' is missing in type '{ num: number; par: number; hcp: number; }' but required in type 'HoleInfo'.
+tests/helpers/unplayed-holes.ts(41,52): error TS2345: Argument of type '{ name: string; holes: { num: number; par: number; hcp: number; }[]; }' is not assignable to parameter of type 'Course'.
+  Types of property 'holes' are incompatible.
+    Type '{ num: number; par: number; hcp: number; }[]' is not assignable to type 'HoleInfo[]'.
+      Property 'yards' is missing in type '{ num: number; par: number; hcp: number; }' but required in type 'HoleInfo'.

@@ -1,3 +1,4 @@
+import { SafeScreen } from "../../src/ui/SafeScreen";
 import { COLORS, FONTS } from "../../src/ui/theme";
 import { useEffect, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
@@ -26,7 +27,7 @@ export default function SharedScoreboard() {
     const timer = setInterval(refresh, CHAT_POLL_MS);
     return () => { alive = false; clearInterval(timer); };
   }, [token]);
-  return <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+  return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}><ScrollView style={styles.page} contentContainerStyle={styles.content}>
     <Head><title>Live scoreboard · SnapScore</title><meta name="referrer" content="no-referrer" /><meta name="robots" content="noindex,nofollow" /></Head>
     <Text style={styles.title}>Live scoreboard</Text>
     <Text style={styles.note}>Scores and chat · updates every 5 seconds</Text>
@@ -47,6 +48,6 @@ export default function SharedScoreboard() {
       {round.games.map((g,i)=><View key={i}><Text style={styles.heading}>{g.game.replace(/_/g,' ')}</Text>{g.standings.map((s,j)=><Text key={j} style={styles.text}>{s.displayName}: {s.units > 0 ? '+' : ''}{s.units} units</Text>)}</View>)}
       <LiveChat key={token} token={token} />
     </>}
-  </ScrollView>;
+  </ScrollView></SafeScreen>;
 }
 const styles = StyleSheet.create({ page:{flex:1,backgroundColor:COLORS.bg},content:{padding:20,paddingTop:48,maxWidth:860,width:'100%',alignSelf:'center',gap:12},title:{fontSize:30,fontFamily:FONTS.display,color:COLORS.text},heading:{fontSize:18,fontFamily:FONTS.display,color:COLORS.primary,marginTop:14},note:{fontFamily:FONTS.regular,color:COLORS.textDim,fontSize:14},text:{fontFamily:FONTS.regular,color:COLORS.text,fontSize:16,lineHeight:26},row:{paddingVertical:12,borderBottomWidth:1,borderColor:COLORS.border},grid:{flexDirection:'row',paddingVertical:12},name:{fontFamily:FONTS.regular,color:COLORS.text,width:130},cell:{fontFamily:FONTS.score,fontVariant:['tabular-nums'],color:COLORS.text,width:38,textAlign:'center'} });

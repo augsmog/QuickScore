@@ -24,6 +24,8 @@ Module.prototype.require = function (id: string) {
   if (id === '../db/supabase' || id.endsWith('/db/supabase')) {
     return { supabase: mockSupabase };
   }
+  if (id.endsWith('/stores/settings-store')) return {useSettingsStore:{getState:()=>({ocrConsent:true})}};
+  if (id.endsWith('/stores/scan-store')) return {useScanStore:{getState:()=>({useScan:()=>true})}};
   if (id === 'expo-file-system/legacy') {
     return (globalThis as any).mockFileSystem;
   }

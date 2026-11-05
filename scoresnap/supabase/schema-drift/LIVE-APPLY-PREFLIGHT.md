@@ -1,12 +1,15 @@
 # Next milestone live preflight
 
+M3 (`20261028162155_tournament_rounds_live`) was applied live on 2026-10-28
+at 9:21 AM PT. Supabase recorded version `20261028162155`.
 M2 and M2b were applied live with Augie approval on project
 `pltgbizexllikiwryozm` on 2026-10-27 at approximately 02:20 MST.
 Baseline ledger adoption completed on 2026-10-26 at 23:11 MST.
-No approved apply is pending. M3 requires separate approval.
+No approved apply is pending.
 
-Use a fresh read-only capture of the post-M2b schema and exactly the ten ordered
-rows in `expected-ledger.json`. Run:
+Use a fresh read-only capture of the post-M3 schema and exactly the eleven ordered
+rows in `expected-ledger.json`. The last row is version `20261028162155`,
+name `tournament_rounds_live`. Run:
 
 ```sh
 bash scoresnap/supabase/schema-drift/preapply-check.sh CAPTURE.json
@@ -18,33 +21,36 @@ Expected output (exit status 0):
 Schema matches
 Ledger matches: live
 Guard passed.
-Next: M3 requires separate approval; no approved apply is pending.
+Next: M3 was applied on 2026-10-28; no approved apply is pending.
 ```
 
 The guard runs only Python against files; it neither connects nor applies SQL.
-Live mode requires exact list equality: eight, nine, eleven, missing, renamed,
-extra, duplicate, reordered and wrong baseline name/version ledgers fail closed.
-The ten rows are the eight adopted rows followed by M2 then M2b.
+Live mode requires exact list equality: eight, nine, ten, twelve, the old
+`20261028100000` stamp, missing, renamed, extra, duplicate, reordered and wrong
+baseline name/version ledgers fail closed.
+The eleven rows are the eight adopted rows followed by M2, M2b, then M3.
 `baseline` retains the eight-row prefix; `pre-adoption` retains its first seven;
-`local` retains the full ten-row chain. Those three modes compare sorted rows
+`local` retains the ten-row M2b prefix. Those three modes compare sorted rows
 for historical CI/rehearsal semantics; live mode requires input order too.
-`schema-snapshot/live.json` is normalized from the post-apply single capture
-and matches `expected-after.json`. `baseline.json` preserves the pre-M2 physical
-schema for CI, rollback and adoption rehearsal. See snapshot `PROVENANCE.md`.
+`schema-snapshot/live.json` is `drift.py normalize` of `expected-m3.json` and
+matches that post-M3 schema byte for byte. `baseline.json` preserves the pre-M2
+physical schema for CI, rollback and adoption rehearsal. See snapshot `PROVENANCE.md`.
 Never execute baseline DDL on live or repeat adoption repair.
 
 SHA256 (files in this directory):
 
 ```text
-c8fd85bd1acc57ab87dbb6294baa8488f464d9953eacc96068feab2318b99388  preapply-check.sh
-28fe833309d506592aa3201742ce5c1ef1b28d3fcf020e48255bbdacbd484486  drift.py
-b3335057646f63786a439d5e14012d10080ecfb23c907713161320695b28ece7  expected-ledger.json
+162e9f297ade7278a02d4fd6277cd713cb18b8121b43bda25763772674278b2a  preapply-check.sh
+88e84a4298fd72acb3173eb09395332286c33f476802646e08416e9e9c3ee9a2  drift.py
+0cfbb87b133980ff4063e067e0d5d946a1e2e0d244a6c8b6714ff68cd3681000  expected-ledger.json
 ```
 
-Local offline verification for this refresh: `selftest.py`,
-`check-active-sql.py`, `verify-offline.sh`, and standalone
-`verify-foundation.py` all passed. The raw capture passes live/local ledger checks
-and preapply; normalized live matches expected-after. Shell syntax and
-`git diff --check` passed. No migration or rollback SQL changed. Single-user
-PG17 does not verify raw RLS filtering or event-trigger firing; pinned-stack CI
-and concurrent-session races were not run in this offline task.
+Local offline verification for this refresh: `selftest.py`, `check-active-sql.py`,
+`reference-guard.py`, and `verify-offline.sh` (PostgreSQL 17 single-user,
+including `verify-foundation.py` and the SQL fixtures) passed. `live.json` and
+`expected-m3.json` are byte-for-byte equal. Shell syntax and `git diff --check`
+passed. The migration and rollback files were renamed to `20261028162155`; their
+path comments were updated to that filename. Single-user PostgreSQL does not
+verify raw RLS filtering or event-trigger firing; pinned-stack CI and
+concurrent-session races were not run in this offline task. No live Supabase
+connection was used.

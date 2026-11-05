@@ -1,0 +1,125 @@
+{
+  "schema": "aos-e2e/v1",
+  "product": "snapscore",
+  "repo": "augsmog/QuickScore",
+  "platform": "ios",
+  "appId": "com.scoresnap.app",
+  "appDir": "scoresnap",
+  "evidenceRoot": "aos-state/e2e/snapscore",
+  "device": {
+    "type": "iPhone 16",
+    "runtime": "latest"
+  },
+  "builds": {
+    "online": {
+      "easProfile": "simulator",
+      "notes": "production EAS environment, ML Kit compiled out (arm64)"
+    },
+    "offline": {
+      "easProfile": "simulator-offline",
+      "notes": "local-only fixture build, no backend, ML Kit compiled out (arm64)"
+    }
+  },
+  "fixtures": {
+    "paid-tier": {
+      "file": ".maestro/fixtures/asyncstorage-paid-tier.json",
+      "notes": "same persisted subscription cache as e2e/shared/paid-tier-fixture.mjs; no purchase bypass"
+    }
+  },
+  "flows": [
+    {
+      "id": "aug-269-onboarding",
+      "file": ".maestro/flows/online/aug-269-onboarding.yaml",
+      "build": "online",
+      "tickets": [
+        "AUG-269"
+      ]
+    },
+    {
+      "id": "aug-259-guest-join",
+      "file": ".maestro/flows/online/aug-259-guest-join.yaml",
+      "build": "online",
+      "tickets": [
+        "AUG-259"
+      ],
+      "liveWrite": "anonymous guest join request on round DGTWEW (the ticket's acceptance)",
+      "skipInAll": "The online simulator build uses the production EAS env, where EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING is off, so the join screen is 'Same browser only' and server code DGTWEW never resolves (proof run 41688614786). Run by id against a cross-device-enabled build; evidence ticket AUG-404 is needs-device-lab."
+    },
+    {
+      "id": "aug-270-home-subhead",
+      "file": ".maestro/flows/offline/aug-270-home-subhead.yaml",
+      "build": "offline",
+      "tickets": [
+        "AUG-270"
+      ]
+    },
+    {
+      "id": "aug-271-paywall",
+      "file": ".maestro/flows/offline/aug-271-paywall.yaml",
+      "build": "offline",
+      "tickets": [
+        "AUG-271"
+      ]
+    },
+    {
+      "id": "aug-325-score-entry",
+      "file": ".maestro/flows/offline/aug-325-score-entry.yaml",
+      "build": "offline",
+      "tickets": [
+        "AUG-325"
+      ],
+      "fixture": "paid-tier",
+      "captureHierarchy": true
+    },
+    {
+      "id": "aug-319-settled-persists",
+      "file": ".maestro/flows/offline/aug-319-settled-persists.yaml",
+      "build": "offline",
+      "tickets": [
+        "AUG-319"
+      ],
+      "fixture": "paid-tier"
+    },
+    {
+      "id": "aug-315-export-pdf",
+      "file": ".maestro/flows/offline/aug-315-export-pdf.yaml",
+      "build": "offline",
+      "tickets": [
+        "AUG-315"
+      ],
+      "fixture": "paid-tier",
+      "partial": "simulator share sheet only; physical iOS+Android recipient checks stay open"
+    },
+    {
+      "id": "aug-429-ux-pass",
+      "file": ".maestro/flows/offline/aug-429-ux-pass.yaml",
+      "build": "offline",
+      "tickets": [
+        "AUG-429"
+      ],
+      "captureHierarchy": true,
+      "notes": "Requires simulator-offline built from candidate source with EXPO_PUBLIC_E2E_COURSE_FIXTURE=true; synthetic 16-tee course, no backend calls."
+    },
+    {
+      "id": "aug-429-tee-confirm",
+      "file": ".maestro/flows/online/aug-429-tee-confirm.yaml",
+      "build": "online",
+      "tickets": [
+        "AUG-429"
+      ],
+      "captureHierarchy": true,
+      "notes": "Read-only course search (Pebble Beach); no contest saved. Requires candidate simulator build with course search enabled. Last-row selector follows API ordering.",
+      "skipInAll": "The online simulator build opens on the sign-in gate after onboarding (proof run 41727220634), and this flow must not create accounts or use credentials. Run by id against a signed-in test build; offline aug-429-ux-pass covers the pinned Confirm tees on a 16-tee fixture."
+    }
+  ],
+  "blocked": [
+    {
+      "tickets": [
+        "AUG-294",
+        "AUG-331"
+      ],
+      "reason": "needs a signed-in demo/owner account; adding its credential as a CI secret needs Augie's yes"
+    }
+  ],
+  "knownBlocks": []
+}

@@ -1,0 +1,2 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {strokeKey,nassauKey,assertStrokeMark} from './settlement-row-contract.mjs';
+test('intended transaction key and timestamp required',()=>{const stamp='2026-11-02T00:00:00Z';assert.equal(assertStrokeMark({marks:{[strokeKey]:stamp}}),stamp);assert.throws(()=>assertStrokeMark({marks:{[nassauKey]:stamp}}),/intended Stroke Play/);assert.throws(()=>assertStrokeMark({marks:{[strokeKey]:stamp,[nassauKey]:stamp}}),/intended Stroke Play/);});

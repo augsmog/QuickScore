@@ -1,3 +1,5 @@
+> Historical planning/sprint document. Current selectable and settled capabilities are recorded in [GAMES_STATUS.md](GAMES_STATUS.md) and the derived engine registry; historical completion statements below are not release evidence.
+
 # SnapScore Friend-Group Pilot - Ready Status
 
 ## ✅ What's Ready
@@ -12,7 +14,7 @@
 **Enable:** Build with `EXPO_PUBLIC_OFFLINE_MODE=true` (explicit opt-in only; native app builds without it keep sign-in and onboarding).
 
 ### 2. Complete Game Implementation
-- ✅ **All 29 side games fully implemented**
+- ✅ **Historical calculator inventory (not release acceptance)**
 - ✅ 761 engine checks passing (+129 scorecard scenario checks); Jest runs these suites plus 3 local-date cases
 - ✅ Zero-sum settlement validation
 - ✅ Multi-game concurrent support (run 2-8 games at once)
@@ -70,7 +72,7 @@ Real screenshots of the exported web build, driven by Playwright (`scoresnap/e2e
 
 ## 🎮 Fully Supported Games
 
-All 29 games work with manual score entry:
+historical game inventory work with manual score entry:
 
 ### Individual (4 games)
 ✅ Stroke Play • Match Play • Stableford • Modified Stableford
@@ -112,7 +114,7 @@ Some games need auxiliary data beyond scores:
 | Feature | Web | Mobile (iOS/Android) |
 |---------|-----|---------------------|
 | Manual score entry | ✅ Full | ✅ Full |
-| All 29 game calculations | ✅ Full | ✅ Full |
+| historical game inventory | ✅ Full | ✅ Full |
 | Settlement engine | ✅ Full | ✅ Full |
 | Leaderboards | ✅ Full | ✅ Full |
 | **OCR scanning** | ❌ Not supported | ✅ Camera-based |
@@ -305,7 +307,7 @@ The offline web flow passes automated checks; this does not establish native cam
 ## ✅ Deployment Readiness Checklist
 
 - [x] Offline mode working
-- [x] All 29 games implemented & tested
+- [x] historical game inventory implemented & tested
 - [x] Settlement engine validates zero-sum
 - [x] Manual score entry functional
 - [x] Web build exports successfully
@@ -323,7 +325,7 @@ The offline web flow passes automated checks; this does not establish native cam
 **SnapScore is pilot-ready!**
 
 ✅ All core features work  
-✅ All 29 games implemented  
+✅ historical game inventory implemented
 ✅ 761 engine checks passing (+129 scorecard scenario checks); Jest runs these suites plus 3 local-date cases
 ✅ Web preview mode (no auth)  
 ✅ Deployment docs complete  

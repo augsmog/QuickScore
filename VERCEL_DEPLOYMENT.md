@@ -1,3 +1,5 @@
+> Historical planning/sprint document. Current selectable and settled capabilities are recorded in [GAMES_STATUS.md](GAMES_STATUS.md) and the derived engine registry; historical completion statements below are not release evidence.
+
 # SnapScore Vercel Deployment Guide
 
 This guide explains how to deploy the SnapScore Golf Score App to Vercel for web-based previews and friend-group testing.
@@ -127,7 +129,7 @@ When the build is made with `EXPO_PUBLIC_OFFLINE_MODE=true` (explicit opt-in; it
 - ✅ No Supabase or backend required
 - ⚠️ Camera OCR is not available on web; the Scan screen offers "Enter scorecard as text", which runs the same parser
 - ✅ Manual score entry works fully
-- ✅ All 29 game types work with manual entry
+- ✅ historical game inventory work with manual entry
 
 ### Share with Friends
 

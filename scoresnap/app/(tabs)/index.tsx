@@ -1,13 +1,17 @@
+import { showAlert } from "@/services/platform-alert";
+import { SheetSurface, FullScreenSheet, SafeScreen } from "../../src/ui/SafeScreen";
+import { GAME_MODE_LIBRARY } from "../../src/engine/game-mode-library";
+import { useScanStore } from "../../src/stores/scan-store";
+import { canUseGame, defaultRoundGames } from "../../src/services/entitlements";
 import { GAME_SHEET_STYLE } from "../../src/ui/gameSheetStyle";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
 import { localDate } from "../../src/utils/local-date";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useAuthStore } from "../../src/stores/auth-store";
 import { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, Modal, FlatList, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, FlatList, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Camera, ChevronRight, X, Lock, Users, Plus } from "lucide-react-native";
+import { Camera, ChevronRight, X, Users, Plus, Hash } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../src/ui/theme";
 import {
@@ -23,6 +27,7 @@ import { useOnboardingStore } from "../../src/stores/onboarding-store";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const tier = useScanStore(s => s.tier);
   const storedContests = useContestStore((s) => s.contests);
   const demoMode = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
   // Also hide demo rounds persisted before the explicit isDemo flag existed.
@@ -34,12 +39,13 @@ export default function HomeScreen() {
   const deleteContest = useContestStore((s) => s.deleteContest);
   const activeContests = contests.filter((c) => c.status === "active");
   const completedContests = contests.filter((c) => c.status === "completed");
+  const [showGameLibrary, setShowGameLibrary] = useState(false);
   const [selectedGame, setSelectedGame] = useState<GameTypeInfo | null>(null);
   const hasSeenDemo = useOnboardingStore((s) => s.hasSeenDemo);
   const markDemoSeen = useOnboardingStore((s) => s.markDemoSeen);
 
   const handleDeleteContest = (contest: Contest) => {
-    Alert.alert(
+    showAlert(
       "Delete Contest",
       `Are you sure you want to delete "${contest.name || contest.course.name}"? This cannot be undone.`,
       [
@@ -83,7 +89,7 @@ export default function HomeScreen() {
       betUnit: 5,
       hasTeams: false,
       groups: [group],
-      games: ["stroke_play", "skins"],
+      games: defaultRoundGames(tier),
       createdAt: new Date().toISOString(),
     };
     addContest(contest);
@@ -94,14 +100,13 @@ export default function HomeScreen() {
   const allGameNames = ALL_GAMES.map((g) => ({ id: g.id, name: g.name, icon: g.icon }));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       <ScrollView
         testID="home-scroll"
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
-        {CROSS_DEVICE_SHARING_ENABLED && (<Pressable onPress={() => router.push("/join/enter")} style={{ padding: 16 }}><Text style={{ color: COLORS.primary, textAlign: "center" }}>Join with code</Text></Pressable>)}
         {/* ── Wordmark ── */}
         <View style={{ alignItems: "center", marginTop: 18, marginBottom: 28 }}>
           <Text
@@ -128,7 +133,7 @@ export default function HomeScreen() {
               lineHeight: 34,
             }}
           >
-            Precision Scoring{"\n"}in a Snap
+            Build contests. Settle up.
           </Text>
           <Text
             style={{
@@ -139,32 +144,41 @@ export default function HomeScreen() {
               marginBottom: 20,
             }}
           >
-            Scan any physical scorecard and let AI read every stroke. Then settle bets across 8 game modes with more coming soon.
+            Add your group, pick your games, and see who owes what. Scan a card if you've got one.
           </Text>
 
           {/* CTA Buttons Row */}
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            {/* Scan Scorecard — gradient primary */}
+          <View style={{ gap: 12 }}>
+            {/* New Contest — gradient primary */}
             <AnimatedPressable
-              onPress={() => router.push("/scan")}
-              style={{ flex: 1, borderRadius: RADII.xl, overflow: "hidden" }}
+              testID="home-new-contest"
+              accessibilityRole="button"
+              accessibilityLabel="New Contest"
+              onPress={() => router.push("/contest/new")}
+              style={{ minHeight: 52, borderRadius: RADII.full, overflow: "hidden" }}
             >
               <LinearGradient
                 colors={[COLORS.primary, COLORS.primaryContainer]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{
-                  borderRadius: RADII.xl,
+                  minHeight: 52,
+                  borderRadius: RADII.full,
                   paddingVertical: 15,
+                  paddingHorizontal: 12,
                   alignItems: "center",
                   flexDirection: "row",
                   justifyContent: "center",
                   gap: 8,
                 }}
               >
-                <Camera size={18} color={COLORS.onPrimary} />
+                <Plus size={18} color={COLORS.onPrimary} />
                 <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
                   style={{
+                    flexShrink: 1,
                     fontFamily: FONTS.semibold,
                     fontSize: 13,
                     color: COLORS.onPrimary,
@@ -172,44 +186,93 @@ export default function HomeScreen() {
                     letterSpacing: 0.6,
                   }}
                 >
-                  Scan Scorecard
+                  New Contest
                 </Text>
               </LinearGradient>
             </AnimatedPressable>
 
-            {/* New Contest — ghost button */}
-            <AnimatedPressable
-              onPress={() => router.push("/contest/new")}
-              style={{
-                flex: 1,
-                borderRadius: RADII.xl,
-                borderWidth: 1,
-                borderColor: COLORS.accentGlow,
-                paddingVertical: 15,
-                alignItems: "center",
-                flexDirection: "row",
-                justifyContent: "center",
-                gap: 8,
-                backgroundColor: "transparent",
-              }}
-            >
-              <Plus size={18} color={COLORS.primary} />
-              <Text
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <AnimatedPressable
+                testID="home-scan"
+                accessibilityRole="button"
+                accessibilityLabel="Scan Scorecard"
+                onPress={() => router.push("/scan")}
                 style={{
-                  fontFamily: FONTS.semibold,
-                  fontSize: 13,
-                  color: COLORS.primary,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.6,
+                  flex: 1,
+                  minHeight: 52,
+                  borderRadius: RADII.full,
+                  borderWidth: 1,
+                  borderColor: COLORS.accentGlow,
+                  paddingVertical: 15,
+                  paddingHorizontal: 12,
+                  alignItems: "center",
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  gap: 8,
+                  backgroundColor: "transparent",
                 }}
               >
-                New Contest
-              </Text>
-            </AnimatedPressable>
+                <Camera size={18} color={COLORS.primary} />
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
+                  style={{
+                    flexShrink: 1,
+                    fontFamily: FONTS.semibold,
+                    fontSize: 13,
+                    color: COLORS.primary,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.6,
+                  }}
+                >
+                  Scan Scorecard
+                </Text>
+              </AnimatedPressable>
+              {CROSS_DEVICE_SHARING_ENABLED && (
+                <AnimatedPressable
+                  testID="home-join-code"
+                  accessibilityRole="button"
+                  accessibilityLabel="Join with code"
+                  onPress={() => router.push("/join/enter")}
+                  style={{
+                    flex: 1,
+                    minHeight: 52,
+                    borderRadius: RADII.full,
+                    borderWidth: 1,
+                    borderColor: COLORS.accentGlow,
+                    paddingVertical: 15,
+                    paddingHorizontal: 12,
+                    alignItems: "center",
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    gap: 8,
+                    backgroundColor: "transparent",
+                  }}
+                >
+                  <Hash size={18} color={COLORS.primary} />
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.85}
+                    style={{
+                      flexShrink: 1,
+                      fontFamily: FONTS.semibold,
+                      fontSize: 13,
+                      color: COLORS.primary,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.6,
+                    }}
+                  >
+                    Join with code
+                  </Text>
+                </AnimatedPressable>
+              )}
+            </View>
           </View>
         </View>
 
-        {/* ── Your Active Bets ── */}
+        {/* ── Your Active Games ── */}
         {activeContests.length > 0 && (
           <View style={{ marginBottom: 28, paddingHorizontal: 20 }}>
             <Text
@@ -219,7 +282,7 @@ export default function HomeScreen() {
                 marginBottom: 12,
               }}
             >
-              YOUR ACTIVE BETS
+              YOUR ACTIVE GAMES
             </Text>
 
             {activeContests.map((contest) => {
@@ -358,7 +421,13 @@ export default function HomeScreen() {
             >
               GAME MODES
             </Text>
-            <Pressable onPress={() => setSelectedGame(ALL_GAMES[0])}>
+            <Pressable
+              onPress={() => setShowGameLibrary(true)}
+              accessibilityRole="button"
+              accessibilityLabel="See all game modes"
+              testID="home-see-all-modes"
+              style={{ minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "center" }}
+            >
               <Text
                 style={{
                   fontFamily: FONTS.semibold,
@@ -486,8 +555,34 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
+      <FullScreenSheet visible={showGameLibrary} animationType="slide" onRequestClose={() => setShowGameLibrary(false)}>
+        <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+          <View style={{ paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text accessibilityRole="header" style={{ fontFamily: FONTS.semibold, fontSize: 24, color: COLORS.text }}>50+ game modes</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close game mode library" onPress={() => setShowGameLibrary(false)} style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}>
+              <X size={24} color={COLORS.text} />
+            </Pressable>
+          </View>
+          <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20, gap: 12 }}>
+            {GAME_MODE_LIBRARY.map(mode => {
+              const content = <>
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.text }}>{mode.name}</Text>
+                <Text style={{ fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textDim, marginTop: 6 }}>{mode.desc}</Text>
+              </>;
+              const style = { padding: 16, borderRadius: 12, backgroundColor: COLORS.secondaryContainer, minHeight: 44 };
+              return mode.game ? (
+                <Pressable key={mode.id} testID={`game-mode-row-${mode.id}`} accessibilityRole="button" accessibilityLabel={mode.name} style={style} onPress={() => {
+                  setShowGameLibrary(false);
+                  setSelectedGame(mode.game!);
+                }}>{content}</Pressable>
+              ) : <View key={mode.id} testID={`game-mode-row-${mode.id}`} style={style}>{content}</View>;
+            })}
+          </ScrollView>
+        </View>
+      </FullScreenSheet>
+
       {/* ── Game Info Modal ── */}
-      <Modal
+      <FullScreenSheet
         visible={selectedGame !== null}
         animationType="slide"
         transparent
@@ -496,11 +591,11 @@ export default function HomeScreen() {
         <View style={{ flex: 1, justifyContent: "flex-end" }}>
           <Pressable
             testID="game-info-scrim"
-            style={{ flex: 1, backgroundColor: COLORS.sheetScrim }}
+            style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: COLORS.sheetScrim }}
             onPress={() => setSelectedGame(null)}
           />
           {selectedGame && (
-            <View
+            <SheetSurface
               testID="game-info-sheet"
               style={[GAME_SHEET_STYLE, {
                 paddingHorizontal: 24,
@@ -599,8 +694,9 @@ export default function HomeScreen() {
                   </Text>
                 </View>
                 <Pressable
+                  testID="game-info-close"
                   onPress={() => setSelectedGame(null)}
-                  style={{ padding: 4 }}
+                  style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
                 >
                   <X size={20} color={COLORS.textDim} />
                 </Pressable>
@@ -682,6 +778,7 @@ export default function HomeScreen() {
                 <AnimatedPressable
                   onPress={() => {
                     setSelectedGame(null);
+                    if (!canUseGame(selectedGame.id, tier)) { router.push("/paywall"); return; }
                     router.push("/contest/new");
                   }}
                   style={{
@@ -707,7 +804,7 @@ export default function HomeScreen() {
                         fontSize: 15,
                       }}
                     >
-                      Play {selectedGame.name}
+                      {!canUseGame(selectedGame.id, tier) ? "Try Pro with" : "Play"} {selectedGame.name}
                     </Text>
                   </LinearGradient>
                 </AnimatedPressable>
@@ -732,10 +829,10 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               )}
-            </View>
+            </SheetSurface>
           )}
         </View>
-      </Modal>
-    </SafeAreaView>
+      </FullScreenSheet>
+    </SafeScreen>
   );
 }

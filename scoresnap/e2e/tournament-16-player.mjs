@@ -1,3 +1,4 @@
+import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 // Tournament e2e test: 16 players, 2-3 rounds, multiple foursomes
 // Tests join, scoring, regrouping, leaderboard aggregation, and usability
 // Usage: BASE_URL=http://localhost:8089 node e2e/tournament-16-player.mjs
@@ -21,7 +22,24 @@ const browser = await chromium.launch();
 
 // Organizer creates a 16-player tournament
 const orgPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+await seedPaidTier(orgPage, "td");
 const pageErrors = [];
+// Round status sheet (direction A): sharing, join code and sync live behind the header status chip.
+async function openRoundStatus(p) {
+  const chip = p.getByTestId("round-status-chip").filter({ visible: true }).first();
+  await chip.waitFor({ timeout: 10000 }).catch(() => {});
+  if (await chip.count() && !(await p.getByTestId("round-status-sheet").isVisible().catch(() => false))) {
+    await chip.click();
+    await p.getByTestId("round-status-sheet").waitFor();
+  }
+}
+async function closeRoundStatus(p) {
+  if (await p.getByTestId("round-status-sheet").isVisible().catch(() => false)) {
+    await p.getByTestId("round-status-done").click();
+    await p.getByTestId("round-status-sheet").waitFor({ state: "hidden" });
+  }
+}
+
 orgPage.on("pageerror", (e) => pageErrors.push(e.message));
 
 await orgPage.goto(BASE + "/", { waitUntil: "networkidle" });
@@ -49,28 +67,15 @@ for (let i = 4; i < 16; i++) {
   // Select the group (implementation may vary based on UI)
 }
 
-// Navigate to games selection screen
-const nextBtn = orgPage.getByText(/^next/i).last();
-await nextBtn.click();
-await orgPage.waitForTimeout(2000);
-
-// Verify we're on step 2 (games screen)
-const bodyAfterNext = await orgPage.innerText("body");
-if (!bodyAfterNext.includes("STEP 02") && !bodyAfterNext.includes("Select Game")) {
-  console.log("⚠️ Not on games screen after clicking Next");
-  console.log("Body contains:", bodyAfterNext.substring(0, 300));
-  // Try clicking Next again
-  await orgPage.getByText(/^next/i).last().click();
-  await orgPage.waitForTimeout(1000);
-}
-
-// Stroke Play should be pre-selected by default
-// Click Next to proceed to final step (wager settings)
-await orgPage.getByText(/^next/i).last().click();
-await orgPage.waitForTimeout(1000);
-
-// Final step: click Start Contest
-await orgPage.getByText(/start contest/i).click();
+// Players & Course precedes the two numbered setup steps.
+await orgPage.getByText(/^continue$/i).last().click();
+await orgPage.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
+check((await orgPage.innerText('body')).includes('Step 1/2'), 'Game Modes is step 1/2');
+// Stroke Play is pre-selected; continue to Round Settings.
+await orgPage.getByText(/^continue$/i).last().click();
+await orgPage.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
+check((await orgPage.innerText('body')).includes('Step 2/2'), 'Round Settings is step 2/2');
+await orgPage.getByTestId('contest-start').click();
 
 await orgPage.waitForURL(/\/contest\/[^/]+$/);
 const contestUrl = orgPage.url();
@@ -79,12 +84,13 @@ const contestId = contestUrl.split("/contest/")[1];
 check(contestUrl.includes("/contest/"), "Tournament created");
 
 // Wait for contest page to fully render - verify multiple tab labels are present
-// Note: tabs use textTransform: "uppercase" so text renders as "SCORECARD" etc.
+// Note: tab label case is a styling choice, so compare case-insensitively.
 await orgPage.waitForTimeout(2000);
 const bodyText = await orgPage.innerText("body");
-const hasMultipleTabs = bodyText.includes("SCORECARD") && 
-                        bodyText.includes("LEADERBOARD") && 
-                        bodyText.includes("GAMES");
+const tabText = bodyText.toUpperCase();
+const hasMultipleTabs = tabText.includes("SCORECARD") &&
+                        tabText.includes("LEADERBOARD") &&
+                        tabText.includes("GAMES");
 check(hasMultipleTabs, "Contest tabs rendered (Scorecard, Leaderboard, Games)");
 const scorecardTab = orgPage.getByText(/^scorecard$/i).first();
 const scorecardVisible = await scorecardTab.waitFor({ state: "visible", timeout: 10000 }).then(() => true, () => false);
@@ -95,8 +101,10 @@ check(
 );
 
 // Check if join code is available (cross-device sharing feature flag)
+// Read the round-layout invite control without opening the status sheet.
 const joinCodeElement = orgPage.getByTestId("organizer-join-code");
 const hasJoinCode = await joinCodeElement.count() > 0;
+const joinCodeTextEarly = hasJoinCode ? await joinCodeElement.innerText().catch(() => "") : "";
 
 // Round 1: 4 players join and enter scores (if join code available)
 console.log("\n─── Round 1: Join & Score ───");
@@ -104,7 +112,7 @@ const playerContexts = [];
 let joinCode = null;
 
 if (hasJoinCode) {
-  const joinCodeText = await joinCodeElement.innerText().catch(() => "");
+  const joinCodeText = joinCodeTextEarly;
   joinCode = joinCodeText.match(/[A-HJ-NP-Z2-9]{6}$/)?.[0];
   check(!!joinCode, "Join code visible", joinCode);
 
@@ -169,7 +177,7 @@ if (playerContexts.length > 0) {
 
 // Test usability: Back button from every screen
 console.log("\n─── Usability: Back Navigation ───");
-for (const tabName of ["Games", "Settlement"]) {
+for (const tabName of ["Games", "(Settlement|Settle up)"]) {
   const tab = orgPage.getByText(new RegExp(`^${tabName}$`, "i")).first();
   const tabExists = await tab.isVisible().catch(() => false);
   if (tabExists) {

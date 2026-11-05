@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { calcStableford, calcModStableford, calcQuota, calcChicago, calcDots, calcAcesDeuces } from '../../src/engine/calculators';
 import { calculateSettlement } from '../../src/engine/settlement';
 import type { GameType } from '../../src/engine/types';
-const course = { name: 'Unplayed', holes: Array.from({length:18}, (_, i) => ({num:i+1,par:4,hcp:i+1})) };
+const course = { name: 'Unplayed', holes: Array.from({length:18}, (_, i) => ({num:i+1,par:4,hcp:i+1,yards:350})) };
 const games: GameType[] = ['stableford','mod_stableford','quota','chicago','dots','aces_deuces'];
 // Includes uneven progress: an unplayed opponent must not generate an ace.
 for (const played of [[], [0,1,2,3,4,5,6,7,8], [0,2,5,11]]) {

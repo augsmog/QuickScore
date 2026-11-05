@@ -44,10 +44,10 @@ export function buildRecapModel(settlement: SettlementSummary, details: {
       const label = game.startsWith('skins')
         ? `${skinsLabel(details.gameConfig)}${game === 'skins_carry' ? ' · carryover' : ''}`
         : game === 'nassau_press' ? 'Nassau + presses' : 'Nassau';
-      return `${label}: ${leaders.length ? leaders.map(([name, cents]) => `${name} ${recapMoney(cents / 100)}`).join(' · ') : 'No net payouts'}`;
+      return `${label}: ${leaders.length ? leaders.map(([name, cents]) => `${name} ${recapMoney(cents / 100)}`).join(' · ') : 'No net settlement amounts'}`;
     });
   return { ...presentation, players, winner: winners[0] ?? null, winners, lines,
-    headline: winners.length > 1 ? 'Shared honors' : winners.length ? 'What a round!' : 'All square',
+    headline: winners.length > 1 ? 'Shared honors' : winners.length ? 'Round recap' : 'All square',
     winnerNames: winners.map(p => p.name).join(' & '),
   };
 }

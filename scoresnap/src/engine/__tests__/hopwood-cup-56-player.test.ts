@@ -9,7 +9,7 @@
  * - Net stroke play leaderboard with ties
  */
 
-import { calcStrokePlay } from "../stroke-play";
+import { calcStrokePlay } from "../calculators/stroke-play";
 import type { Course, Player } from "../types";
 
 // ═══════════════════════════════════════════════════════════════════

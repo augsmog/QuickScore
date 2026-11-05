@@ -6,8 +6,10 @@ try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   let state = 'active'; let calls = 0; let messages = []; let posts = 0; let limited = false;
-  await context.route('**/rest/v1/rpc/list_messages', async route => {
-    assert.deepEqual(route.request().postDataJSON(), {p_token:'a'.repeat(64),p_since:null});
+  await context.route('**/rest/v1/rpc/list_moderated_messages', async route => {
+    const p = route.request().postDataJSON();
+    assert.deepEqual(p, {p_token:'a'.repeat(64),p_local_id:null,p_session:p.p_session});
+    assert.match(p.p_session,/^[a-f0-9]{64}$/);
     await route.fulfill({status:state === 'active' ? 200 : 400,contentType:'application/json',body:JSON.stringify(state === 'active' ? messages : {message:state+' link',code:'P0001'})});
   });
   let senderSession;
@@ -18,7 +20,7 @@ try {
     senderSession=p.p_session;
     assert.equal(p.p_name,'Pat'); posts++;
     if (limited) { await route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({message:'chat rate limit',code:'P0001'})}); return; }
-    messages.push({display_name:p.p_name,body:p.p_body,created_at:new Date().toISOString()});
+    messages.push({id:'message-1',participant_id:'participant-pat',is_own:true,display_name:p.p_name,body:p.p_body,created_at:new Date().toISOString()});
     await route.fulfill({status:200,contentType:'application/json',body:'null'});
   });
   await context.route('**/rest/v1/rpc/get_shared_round', async route => {
@@ -59,7 +61,7 @@ try {
   assert.equal(await page.getByText('Sam',{exact:true}).count(),0); assert(calls>=2);
   console.log('PASS: polling removes scoreboard on expiry');
   state='active';
-  messages=[{display_name:'Pat',body:'Visible before revocation',created_at:new Date().toISOString()}];
+  messages=[{id:'message-2',participant_id:'participant-pat',is_own:true,display_name:'Pat',body:'Visible before revocation',created_at:new Date().toISOString()}];
   await page.getByText('Pat: Visible before revocation',{exact:true}).waitFor({timeout:12000});
   await page.getByLabel('Chat message').waitFor();
   state='revoked';

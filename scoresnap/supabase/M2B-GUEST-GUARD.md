@@ -151,8 +151,9 @@ No network, live database or secrets were accessed. That receipt preceded the ap
 
 ## Post-apply live preflight (2026-10-27 02:20 MST)
 
-M2 and M2b are applied live. The next milestone preflight requires the post-M2b
-schema and exactly ten ordered ledger rows: eight adopted rows, M2, then M2b.
-Eight, nine, eleven, renamed, reordered, duplicate and extra rows fail closed.
-No approved apply is pending; M3 requires separate approval. See
+M2 and M2b are applied live. M3 (`20261028162155_tournament_rounds_live`) was
+applied on 2026-10-28. The current preflight requires the post-M3 schema and
+exactly eleven ordered ledger rows: eight adopted rows, M2, M2b, then M3.
+Eight, nine, ten, twelve, renamed, reordered, duplicate and extra rows fail closed.
+No approved apply is pending. See
 [schema-drift/LIVE-APPLY-PREFLIGHT.md](schema-drift/LIVE-APPLY-PREFLIGHT.md).

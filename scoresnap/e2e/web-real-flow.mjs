@@ -1,3 +1,5 @@
+import { checkHomeGameLibrary } from './shared/home-game-library.mjs';
+import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 // Real-app web verification for SnapScore (no mockups).
 // Drives the REAL exported web build (EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web)
 // served with an SPA fallback, and saves real screenshots.
@@ -10,6 +12,13 @@ import path from "node:path";
 
 const BASE = process.env.BASE_URL || "http://localhost:8089";
 const OUT = process.env.OUT_DIR || "e2e/screens";
+const viewport = {
+  width: Number(process.env.VIEWPORT_WIDTH || 390),
+  height: Number(process.env.VIEWPORT_HEIGHT || 844),
+};
+if (!Number.isInteger(viewport.width) || !Number.isInteger(viewport.height) || viewport.width < 320 || viewport.height < 480) {
+  throw new Error(`Invalid viewport ${viewport.width}x${viewport.height}`);
+}
 fs.mkdirSync(OUT, { recursive: true });
 
 const results = [];
@@ -19,8 +28,38 @@ const check = (ok, name, detail = "") => {
 };
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+const page = await browser.newPage({ viewport });
+console.log(`viewport: ${viewport.width}x${viewport.height}`);
+// Capture the native share request without opening a system sheet or sending
+// anything outside this test run.
+await page.addInitScript(() => {
+  Object.defineProperty(navigator, "share", {
+    configurable: true,
+    value: async payload => { window.__snapscoreSharePayload = payload; },
+  });
+});
+await seedPaidTier(page, "td");
+// This focused smoke uses only the local offline export.
+if (process.argv.includes('--home-library-only')) {
+  await page.route('**/*', route => new URL(route.request().url()).origin === new URL(BASE).origin ? route.continue() : route.abort());
+}
 const pageErrors = [];
+// Round status sheet (direction A): sharing, join code and sync live behind the header status chip.
+async function openRoundStatus(p) {
+  const chip = p.getByTestId("round-status-chip").filter({ visible: true }).first();
+  await chip.waitFor({ timeout: 10000 }).catch(() => {});
+  if (await chip.count() && !(await p.getByTestId("round-status-sheet").isVisible().catch(() => false))) {
+    await chip.click();
+    await p.getByTestId("round-status-sheet").waitFor();
+  }
+}
+async function closeRoundStatus(p) {
+  if (await p.getByTestId("round-status-sheet").isVisible().catch(() => false)) {
+    await p.getByTestId("round-status-done").click();
+    await p.getByTestId("round-status-sheet").waitFor({ state: "hidden" });
+  }
+}
+
 page.on("pageerror", (e) => pageErrors.push(e.message));
 
 const vis = (loc) => loc.locator("visible=true");
@@ -35,9 +74,16 @@ const bodyText = () => page.innerText("body");
 // 1. Home
 await page.goto(BASE + "/", { waitUntil: "networkidle" });
 await vis(page.getByText(/^new contest$/i)).first().waitFor();
-check(/Precision Scoring/i.test(await bodyText()), "Home screen renders from real web build");
+check(/Build contests\. Settle up\./i.test(await bodyText()), "Home screen renders from real web build");
 check(!/Sample Round/.test(await bodyText()), "Home has no implicit demo round");
 await shot("01-home.png");
+
+await checkHomeGameLibrary(page, path.join(OUT, 'seeall-open.png'));
+check(true, 'Home See All opens the playable game-mode library');
+if (process.argv.includes('--home-library-only')) {
+  await browser.close();
+  process.exit(0);
+}
 
 // 2. Create a foursome (Stroke Play + Skins + Nassau)
 await vis(page.getByText(/^new contest$/i)).first().click();
@@ -54,7 +100,8 @@ await page.getByPlaceholder("Your name").click();
 await page.getByTestId("add-group").click();
 for (const name of ["Lee", "Pat"]) await page.getByTestId(`player-group-${name}`).click();
 await shot("02-new-contest-players.png");
-await vis(page.getByText(/^next/i)).last().click();
+await vis(page.getByText(/^continue$/i)).last().click();
+await page.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
 for (const g of ["Skins", "Nassau"]) await vis(page.getByText(g, { exact: true })).first().click();
 check(await page.getByTestId("skins-mode-net").getAttribute("aria-checked") === "true", "Skins mode defaults to Net");
 await page.getByTestId("skins-mode-gross").click();
@@ -69,8 +116,9 @@ await page.getByTestId("skins-scope-field").click();
 await page.getByTestId("skins-mode-net").scrollIntoViewIfNeeded();
 await shot("03c-skins-scope-toggle.png");
 await shot("03-new-contest-games.png");
-await vis(page.getByText(/^next/i)).last().click();
-await vis(page.getByText(/start contest/i)).click();
+await vis(page.getByText(/^continue$/i)).last().click();
+await page.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
+await vis(page.getByText(/^start$/i)).click();
 await page.waitForURL(/\/contest\/[^/]+$/);
 const contestUrl = page.url();
 const contestId = contestUrl.split("/contest/")[1];
@@ -135,7 +183,7 @@ await page.waitForTimeout(500);
 await shot("08-contest-leaderboard.png");
 const lb = await bodyText();
 check(["81", "72", "90", "108"].every(total => lb.includes(total)), "Leaderboard shows all four real totals (81, 72, 90, 108)");
-for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "10-games.png"], [/^settlement$/i, "11-settlement.png"]]) {
+for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "10-games.png"], [/^(settlement|settle up)$/i, "11-settlement.png"]]) {
   await vis(page.getByText(tab)).first().click();
   await page.waitForTimeout(1500);
   if (file === "10-games.png") {
@@ -148,13 +196,24 @@ for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "1
       const row = page.getByTestId(`settlement-player-${name}`);
       await row.scrollIntoViewIfNeeded();
       const box = await row.boundingBox();
-      check(box && box.y >= 0 && box.y + box.height <= 844, `Settlement row fully reachable: ${name}`);
+      check(box && box.y >= 0 && box.y + box.height <= viewport.height, `Settlement row fully reachable: ${name}`);
     }
     await page.getByTestId("settlement-scroll").evaluate(el => { el.scrollTop = 0; });
   }
   await shot(file);
 }
 check(/\$/.test(await bodyText()), "Settlement screen shows money results");
+await vis(page.getByText(/^share results$/i)).first().click();
+await page.waitForFunction(() => !!window.__snapscoreSharePayload);
+const sharePayload = await page.evaluate(() => window.__snapscoreSharePayload);
+const sharedText = sharePayload.message ?? sharePayload.text;
+check(
+  typeof sharedText === "string" &&
+    ["Augie", "Sam", "Lee", "Pat"].every(name => sharedText.includes(name)),
+  "Group-of-four Share opens with all four players in results",
+  JSON.stringify({ title: sharePayload.title, text: sharedText })
+);
+await shot("11d-group4-share-payload.png");
 
 // Verify both screens against the same persisted contest and calculator results.
 // The first pass tests creation + persistence of Net; the second tests persisted Gross.
@@ -195,7 +254,7 @@ for (const variant of ["net", "gross", "group"]) {
   }
   if (variant === "gross") await shot("10b-games-gross.png");
   if (variant === "group") await shot("10c-games-group.png");
-  await vis(page.getByText(/^settlement$/i)).first().click();
+  await vis(page.getByText(/^(settlement|settle up)$/i)).first().click();
   await page.getByTestId("settlement-skins-mode").waitFor();
   check(await page.getByTestId("settlement-skins-mode").innerText() === label, `Settlement shows ${label}`);
   for (const [name,amount] of Object.entries(expected.settlement.netByPlayer)) {
@@ -217,16 +276,15 @@ for (const variant of ["net", "gross", "group"]) {
   }
   const displayedTotal = cents(Number((await page.getByTestId("settlement-session-total").innerText()).replace("$","")));
   check(displayedTotal === winnerTotal, `${label}: session total equals displayed winners`);
-  for (const [width,height,suffix] of [[390,844,""],[1280,800,"-desktop"]]) {
+  for (const [width,height,suffix] of [[viewport.width,viewport.height,""],[1280,800,"-desktop"]]) {
     await page.setViewportSize({width,height});
     await page.getByTestId("settlement-scroll").evaluate(el=>{el.scrollTop=0;});
     await page.waitForTimeout(2000);
-    const g = await page.getByTestId("settlement-chip-graphic").boundingBox();
-    const a = await page.getByTestId("settlement-hero-amount").boundingBox();
-    check(g && a && !(g.x<a.x+a.width && g.x+g.width>a.x && g.y<a.y+a.height && g.y+g.height>a.y), `${label}: chip and amount do not overlap at ${width}x${height}`);
+    check(await page.getByTestId("settlement-chip-graphic").count() === 0, `${label}: chip graphic removed at ${width}x${height}`);
+    check(await page.getByTestId("settlement-hero-amount").isVisible(), `${label}: signed amount visible at ${width}x${height}`);
     await shot(`${variant === "group" ? "11c-settlement-group" : mode === "net" ? "11-settlement" : "11b-settlement-gross"}${suffix}.png`);
   }
-  await page.setViewportSize({width:390,height:844});
+  await page.setViewportSize(viewport);
 }
 check(JSON.stringify(modeTotals.net) !== JSON.stringify(modeTotals.group), "Scopes produce different skins with two UI-created groups");
 check(JSON.stringify(modeTotals.net) !== JSON.stringify(modeTotals.gross), "Handicaps produce different Net and Gross skins");
@@ -250,6 +308,8 @@ await shot("14-gs1-empty-scan-data.png");
 // but join through a distinct persisted guest UUID, without changing organizer auth.
 // Skip if cross-device sharing is disabled (feature flag)
 await page.goto(contestUrl, { waitUntil: "networkidle" });
+// The organizer invite control is available in the round layout; reading it
+// must not open the status sheet and hide the control from the viewport.
 const joinCodeElement = page.getByTestId("organizer-join-code");
 const hasJoinCode = await joinCodeElement.count() > 0;
 // The build's flag state must match what CI expects, so a missing join UI can never silently skip the guest flow
@@ -263,7 +323,7 @@ if (hasJoinCode) {
   const joinCode = joinText.match(/[A-HJ-NP-Z2-9]{6}$/)?.[0];
   check(!!joinCode, "Organizer sees a six-character join code");
   await shot("15-organizer-join-code.png");
-  const isolated = await browser.newContext({viewport:{width:390,height:844}});
+  const isolated = await browser.newContext({viewport});
   const isolatedPage = await isolated.newPage();
   await isolatedPage.goto(`${BASE}/join/${joinCode}`, {waitUntil:"networkidle"});
   await isolatedPage.getByPlaceholder("Display name").fill("Sam guest");
@@ -301,6 +361,7 @@ if (hasJoinCode) {
   check(true, "Cross-device sharing disabled (feature flag); skipping join code tests");
   // Verify no share/join UI strings render when flag is off
   await page.goto(contestUrl, { waitUntil: "networkidle" });
+  await openRoundStatus(page);
   const bodyContent = await page.innerText("body");
   const forbiddenStrings = [
     "Share live scoreboard",
@@ -316,8 +377,9 @@ if (hasJoinCode) {
     "No share/join UI strings visible when flag off",
     foundStrings.length > 0 ? `Found: ${foundStrings.join(", ")}` : "clean"
   );
+  await closeRoundStatus(page);
   // Settlement recap must not advertise live sharing when the flag is off
-  await vis(page.getByText(/^settlement$/i)).first().click();
+  await vis(page.getByText(/^(settlement|settle up)$/i)).first().click();
   await page.getByTestId("recap-card").waitFor({ state: "attached" });
   const recapText = await page.getByTestId("recap-card").innerText();
   const recapForbidden = ["FOLLOW THE ROUND", "add a live link", "Share live scoreboard"].filter(s => recapText.toUpperCase().includes(s.toUpperCase()));

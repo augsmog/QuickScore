@@ -4,7 +4,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
 import { supabase } from "../db/supabase";
+import { CROSS_DEVICE_SHARING_ENABLED } from "../config/features";
+import { deriveSession } from "../services/auth-session";
 import { getCaptchaToken } from "../services/captcha";
+import { posthog } from "../config/posthog";
+import { identifyAnonymousOnly } from "../services/posthog-identity";
+import { AUTH_STORAGE_KEY, createGatedStorage, persistGate } from "./persisted-keys";
 
 interface UserProfile {
   id: string;
@@ -15,7 +20,10 @@ interface UserProfile {
   provider?: "apple" | "google" | "email" | "anonymous";
 }
 
+let authSubscription: { unsubscribe(): void } | undefined;
+
 interface AuthState {
+  remoteUserId: string | null;
   session: { user: UserProfile } | null;
   user: UserProfile | null;
   isLoading: boolean;
@@ -37,9 +45,20 @@ interface AuthState {
   setSession: (session: AuthState["session"]) => void;
 }
 
+let purchaseActor: string | null | undefined;
+function syncPurchaseIdentity(session: any) {
+  const actor = session?.user && !session.user.is_anonymous ? session.user.id as string : null;
+  if (actor === purchaseActor) return;
+  purchaseActor = actor;
+  const purchases = require('../services/purchases');
+  if (actor) void purchases.identifyUser(actor);
+  else void purchases.logOutPurchases();
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
+      remoteUserId: null,
       session: null,
       user: null,
       isLoading: false,
@@ -47,16 +66,30 @@ export const useAuthStore = create<AuthState>()(
       isAnonymous: false,
 
       initialize: async () => {
+        if (CROSS_DEVICE_SHARING_ENABLED && useAuthStore.persist && !useAuthStore.persist.hasHydrated()) await useAuthStore.persist.rehydrate();
         const state = get();
         if (REAL_AUTH_CONFIGURED) {
           const apply = (session: any) => {
+            syncPurchaseIdentity(session);
+            if (CROSS_DEVICE_SHARING_ENABLED) {
+              const derived = deriveSession(session);
+              // Preserve the explicit local skip when no remote session exists.
+              const local = !session && get().user?.id.startsWith("anon-");
+              set({ ...(local ? { remoteUserId: null } : derived), isInitialized: true, isLoading: false });
+              return;
+            }
             const user = session ? { id: session.user.id, email: session.user.email, provider: "email" as const, name: session.user.user_metadata?.full_name } : null;
             set({ session: user ? { user } : null, user, isAnonymous: false, isInitialized: true, isLoading: false });
           };
+          authSubscription?.unsubscribe();
+          authSubscription = supabase.auth.onAuthStateChange((event, session) => {
+            const previous = persistGate.suppressed;
+            if (event === "SIGNED_OUT" && persistGate.suppressSignedOutPersist) persistGate.suppressed = true;
+            try { apply(session); } finally { persistGate.suppressed = previous; }
+          }).data.subscription;
           const { data, error } = await supabase.auth.getSession();
-          if (error) throw error;
+          if (error) { set({ isInitialized: true, isLoading: false }); throw error; }
           apply(data.session);
-          supabase.auth.onAuthStateChange((_event, session) => apply(session));
           return;
         }
         if (state.session || state.isAnonymous) {
@@ -74,13 +107,15 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithApple: async (idToken: string, nonce: string) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
+            if (CROSS_DEVICE_SHARING_ENABLED) await require('../services/account-handoff').prepareAccountHandoff();
             const { data, error } = await supabase.auth.signInWithIdToken({ provider: "apple", token: idToken, nonce });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
-            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            const user: UserProfile = CROSS_DEVICE_SHARING_ENABLED ? deriveSession(data.session).user! : { id: data.session.user.id, email: data.session.user.email, provider: "email" };
             set({ session: { user }, user, isLoading: false, isAnonymous: false });
             return;
           }
@@ -104,13 +139,15 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithGoogle: async (idToken: string, accessToken?: string) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
+            if (CROSS_DEVICE_SHARING_ENABLED) await require('../services/account-handoff').prepareAccountHandoff();
             const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, access_token: accessToken });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
-            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            const user: UserProfile = CROSS_DEVICE_SHARING_ENABLED ? deriveSession(data.session).user! : { id: data.session.user.id, email: data.session.user.email, provider: "email" };
             set({ session: { user }, user, isLoading: false, isAnonymous: false });
             return;
           }
@@ -139,14 +176,16 @@ export const useAuthStore = create<AuthState>()(
         firstName: string,
         lastName: string
       ) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
+            if (CROSS_DEVICE_SHARING_ENABLED) await require('../services/account-handoff').prepareAccountHandoff();
             const captchaToken = await getCaptchaToken("signup");
             const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: `${firstName} ${lastName}`.trim() }, ...(captchaToken === undefined ? {} : { captchaToken }) } });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
-            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            const user: UserProfile = CROSS_DEVICE_SHARING_ENABLED ? deriveSession(data.session).user! : { id: data.session.user.id, email: data.session.user.email, provider: "email" };
             set({ session: { user }, user, isLoading: false, isAnonymous: false });
             return;
           }
@@ -173,14 +212,16 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithEmail: async (email: string, password: string) => {
+        persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
+            if (CROSS_DEVICE_SHARING_ENABLED) await require('../services/account-handoff').prepareAccountHandoff();
             const captchaToken = await getCaptchaToken("signin");
             const { data, error } = await supabase.auth.signInWithPassword({ email, password, ...(captchaToken === undefined ? {} : { options: { captchaToken } }) });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
-            const user: UserProfile = { id: data.session.user.id, email: data.session.user.email, provider: "email" };
+            const user: UserProfile = CROSS_DEVICE_SHARING_ENABLED ? deriveSession(data.session).user! : { id: data.session.user.id, email: data.session.user.email, provider: "email" };
             set({ session: { user }, user, isLoading: false, isAnonymous: false });
             return;
           }
@@ -204,12 +245,14 @@ export const useAuthStore = create<AuthState>()(
       },
 
       skipSignIn: () => {
+        persistGate.suppressSignedOutPersist = false;
         const user: UserProfile = {
           id: `anon-${Date.now()}`,
           name: "Golfer",
           provider: "anonymous",
         };
         set({
+          remoteUserId: null,
           session: { user },
           user,
           isLoading: false,
@@ -218,8 +261,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signOut: () => {
+        purchaseActor = null;
+        void require("../services/purchases").logOutPurchases();
+        persistGate.suppressSignedOutPersist = false;
         if (REAL_AUTH_CONFIGURED) void supabase.auth.signOut();
         // Clear auth state
+        set({ remoteUserId: null });
         set({
           session: null,
           user: null,
@@ -229,6 +276,7 @@ export const useAuthStore = create<AuthState>()(
         // Clear user-scoped data so next account starts fresh
         // Import stores lazily to avoid circular dependency
         const { useContestStore } = require("./contest-store");
+        require("./settlement-store").settlementMarks.getState().reset();
         useContestStore.getState().resetAll();
       },
 
@@ -237,14 +285,36 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: "snapscore-auth",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: AUTH_STORAGE_KEY,
+      storage: createJSONStorage(() => createGatedStorage(AsyncStorage)),
+      merge: (persisted: any, current) => CROSS_DEVICE_SHARING_ENABLED
+        ? { ...current, ...persisted, isInitialized: false, remoteUserId: null }
+        : { ...current, ...persisted },
       partialize: (state) => ({
         session: state.session,
         user: state.user,
         isAnonymous: state.isAnonymous,
-        isInitialized: state.isInitialized,
+        ...(CROSS_DEVICE_SHARING_ENABLED ? {} : { isInitialized: state.isInitialized }),
       }),
     }
   )
 );
+
+let identifiedAnonymousId: string | null = null;
+
+useAuthStore.subscribe((state) => {
+  const user = state.user;
+
+  if (!user) {
+    if (identifiedAnonymousId) posthog?.reset();
+    identifiedAnonymousId = null;
+    return;
+  }
+
+  if (!posthog) return;
+
+  const anonymousDistinctId = posthog.get_distinct_id();
+  if (anonymousDistinctId === identifiedAnonymousId) return;
+
+  identifiedAnonymousId = identifyAnonymousOnly(posthog);
+});

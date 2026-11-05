@@ -1,199 +1,164 @@
+import { useOnlineStore } from '../stores/online-store';
 /**
- * Tournament Supabase sync service
- * Syncs tournament rounds, groups, and scores to Supabase tables
+ * Tournament sync against rewritten 008.
+ * Rounds, groups and player metadata go through sync_round_bundle.
+ * Scores append through write_score. Players are never deleted to rebuild a foursome.
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TOURNAMENT_OUTBOX_KEY, persistGate } from '../stores/persisted-keys';
+import * as Crypto from 'expo-crypto';
+import { resetOnlineQueues, replayOnlineScores, remoteIdentity, queueSnapshotScore, requireSyncCapability } from './cross-device';
+import { CROSS_DEVICE_SHARING_ENABLED } from '../config/features';
 import { REAL_AUTH_CONFIGURED } from '../config/auth';
 import { supabase } from '../db/supabase';
-import type { Contest, RoundInfo, ContestGroup } from '../stores/contest-store';
-import type { Player } from '../engine/types';
+import { useContestStore } from '../stores/contest-store';
+import type { Contest, ContestGroup, RoundInfo } from '../stores/contest-store';
+import {
+  emptyOutbox,
+  enqueueScore,
+  rememberBundle,
+  resolveWrite,
+  roundPayload,
+  type Outbox,
+} from './tournament-sync-plan';
 
-/**
- * Sync a round to Supabase
- */
+let generation = 0;
+let writers: Promise<void>[] = [];
+const current = (epoch: number) => epoch === generation && !persistGate.suppressed;
+export async function resetTournamentOutbox(): Promise<void> {
+  generation += 1;
+  await Promise.allSettled([...writers]);
+  await resetOnlineQueues();
+}
+async function save(key: string, value: Outbox, epoch: number) {
+  if (!current(epoch)) return;
+  const write = AsyncStorage.setItem(key, JSON.stringify(value));
+  writers.push(write);
+  try { await write; } finally { writers = writers.filter(p => p !== write); }
+}
+const STORAGE_KEY = 'snapscore.tournament.id-map.v1';
+async function load(contestId: string): Promise<{ key: string; outbox: Outbox }> {
+  const actor = await remoteIdentity();
+  const legacy = await AsyncStorage.getItem(TOURNAMENT_OUTBOX_KEY);
+  if (legacy) {
+    const previous = JSON.parse(legacy);
+    if (previous.ops?.length || previous.conflicts?.length) throw new Error('Legacy unsent requests need identity review before online replay. They remain on this device.');
+  }
+  const key = `${STORAGE_KEY}.${actor}.${contestId}`;
+  const raw = await AsyncStorage.getItem(key);
+  const outbox = raw ? JSON.parse(raw) : emptyOutbox();
+  if (!outbox.ids?.rounds || !outbox.ids?.players) throw new Error('Online ID map is damaged');
+  const snapshot = useOnlineStore.getState().events[contestId]?.snapshot;
+  for (const entry of snapshot?.id_map ?? []) {
+    if (entry.kind === 'round') outbox.ids.rounds[entry.local_id] = entry.server_id;
+    if (entry.kind === 'player') outbox.ids.players[entry.local_id] = entry.server_id;
+  }
+  return { key, outbox };
+}
+
+async function requireHost(): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session || session.user.is_anonymous) throw new Error('Sign in to sync tournaments.');
+}
+
+export async function flushTournamentOutbox(): Promise<void> {
+  if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
+  const epoch = generation;
+  if (!current(epoch)) return;
+  await replayOnlineScores();
+}
+
 export async function syncRound(contestId: string, round: RoundInfo): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
-  
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || session.user.is_anonymous) {
-    throw new Error('Sign in to sync tournaments.');
-  }
-
-  // Upsert round
-  const { error: roundError } = await supabase
-    .from('contest_rounds')
-    .upsert({
-      id: round.id,
-      contest_id: contestId,
-      round_number: round.number,
-      name: round.name,
-      date: round.date || null,
-      course_name: round.course?.name || null,
-      course_data: round.course || null,
-    }, {
-      onConflict: 'id',
-    });
-
-  if (roundError) {
-    console.error('Failed to sync round:', roundError);
-    throw new Error(`Failed to sync round: ${roundError.message}`);
-  }
-
-  // Sync groups for this round
-  await syncRoundGroups(contestId, round.id, round.groups);
+  if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
+  const epoch = generation;
+  if (!current(epoch)) return;
+  await requireSyncCapability(contestId);
+  if (!current(epoch)) return;
+  const saved = await load(contestId);
+  if (!current(epoch)) return;
+  await requireHost();
+  if (!current(epoch)) return;
+  const { data, error } = await supabase.rpc('sync_round_bundle', {
+    contest_id: contestId,
+    payload: roundPayload(round, useContestStore.getState().contests.find(c => c.id === contestId)),
+  });
+  if (!current(epoch)) return;
+  if (error || !data?.round_id) throw new Error(error?.message || 'Failed to sync round.');
+  const mapped = rememberBundle(saved.outbox, round.id, data);
+  await save(saved.key, mapped, epoch);
+  if (!current(epoch)) return;
+  await flushTournamentOutbox();
 }
 
-/**
- * Sync groups for a specific round
- */
-export async function syncRoundGroups(contestId: string, roundId: string, groups: ContestGroup[]): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || session.user.is_anonymous) return;
-
-  // Delete existing groups for this round (we'll recreate them)
-  const { error: deleteError } = await supabase
-    .from('contest_groups')
-    .delete()
-    .eq('round_id', roundId);
-
-  if (deleteError) {
-    console.error('Failed to delete old groups:', deleteError);
-  }
-
-  // Insert new groups
-  for (const group of groups) {
-    const { error: groupError } = await supabase
-      .from('contest_groups')
-      .insert({
-        id: group.id,
-        contest_id: contestId,
-        round_id: roundId,
-        name: group.name,
-        tee_time: group.teeTime || null,
-        external_id: group.externalId || null,
-      });
-
-    if (groupError) {
-      console.error('Failed to sync group:', groupError);
-      continue;
-    }
-
-    // Sync players in this group
-    await syncGroupPlayers(contestId, group.id, group.players);
-  }
+export async function syncRoundGroups(
+  contestId: string,
+  roundId: string,
+  groups: ContestGroup[],
+  roundNumber = 1,
+  localEdit?: string,
+  roundName?: string,
+): Promise<void> {
+  await syncRound(contestId, {
+    id: roundId,
+    number: roundNumber,
+    name: roundName || `Round ${roundNumber}`,
+    groups,
+  });
 }
 
-/**
- * Sync players within a group
- */
-export async function syncGroupPlayers(contestId: string, groupId: string, players: Player[]): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || session.user.is_anonymous) return;
-
-  // Delete existing players for this group
-  const { error: deleteError } = await supabase
-    .from('contest_players')
-    .delete()
-    .eq('group_id', groupId);
-
-  if (deleteError) {
-    console.error('Failed to delete old players:', deleteError);
-  }
-
-  // Insert players
-  for (let i = 0; i < players.length; i++) {
-    const player = players[i];
-    const { error: playerError } = await supabase
-      .from('contest_players')
-      .insert({
-        id: player.id,
-        contest_id: contestId,
-        group_id: groupId,
-        name: player.name,
-        handicap: player.handicap,
-        team: player.team || null,
-        sort_order: i,
-        status: player.status || 'active',
-        course_handicaps: player.courseHandicaps || null,
-      });
-
-    if (playerError) {
-      console.error('Failed to sync player:', playerError);
-    }
-  }
+export async function syncContestTournamentMeta(contestId: string, isTournament: boolean, currentRound: number): Promise<void> {
+  if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
+  const epoch = generation;
+  if (!current(epoch)) return;
+  await requireHost();
+  if (!current(epoch)) return;
+  await requireSyncCapability(contestId);
+  if (!current(epoch)) return;
+  const { error } = await supabase.rpc('set_tournament_meta', {
+    contest_id: contestId,
+    is_tournament: isTournament,
+    current_round: currentRound,
+  });
+  if (error) console.error('Failed to sync tournament meta:', error.message);
 }
 
-/**
- * Sync a player's score for a specific hole and round
- */
 export async function syncScore(
   contestId: string,
   roundId: string,
   playerId: string,
   hole: number,
-  strokes: number
+  strokes: number,
+  roundNumber = 1,
+  localEdit?: string,
 ): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || session.user.is_anonymous) return;
-
-  const { error } = await supabase
-    .from('hole_scores')
-    .upsert({
-      contest_id: contestId,
-      round_id: roundId,
-      player_id: playerId,
-      hole,
-      strokes,
-    }, {
-      onConflict: 'contest_id,player_id,hole,round_id',
-    });
-
-  if (error) {
-    console.error('Failed to sync score:', error);
-    throw new Error(`Failed to sync score: ${error.message}`);
+  if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
+  const epoch = generation;
+  if (!current(epoch)) return;
+  try {
+  const { outbox } = await load(contestId);
+  if (!current(epoch)) return;
+  const op = enqueueScore(emptyOutbox(), { contestId, roundLocalId: roundId, roundNumber, playerLocalId: playerId, hole, strokes }, Crypto.randomUUID()).ops[0];
+  const args = resolveWrite(outbox.ids, op);
+  if (!args || !args.round_id) throw new Error('Online round is not ready. Score remains local and is not queued.');
+  await queueSnapshotScore(args.contest_id, args.round_id, args.player_id, args.hole, args.strokes, localEdit);
+  if (!current(epoch)) return;
+  await flushTournamentOutbox();
+  } catch (error) {
+    if (!current(epoch)) return;
+    useOnlineStore.setState({ error: 'Online score not confirmed. Review Online sync; this score remains saved locally.' });
+    throw error;
   }
 }
 
-/**
- * Update contest tournament metadata
- */
-export async function syncContestTournamentMeta(contestId: string, isTournament: boolean, currentRound: number): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || session.user.is_anonymous) return;
-
-  const { error } = await supabase
-    .from('contests')
-    .update({
-      is_tournament: isTournament,
-      current_round: currentRound,
-    })
-    .eq('id', contestId);
-
-  if (error) {
-    console.error('Failed to sync tournament meta:', error);
-  }
-}
-
-/**
- * Sync entire tournament structure (rounds and groups)
- */
 export async function syncTournament(contest: Contest): Promise<void> {
-  if (!REAL_AUTH_CONFIGURED) return;
+  if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
   if (!contest.isTournament || !contest.rounds) return;
-
-  // Sync tournament metadata
+  const epoch = generation;
+  if (!current(epoch)) return;
   await syncContestTournamentMeta(contest.id, true, contest.currentRound || 1);
-
-  // Sync all rounds
   for (const round of contest.rounds) {
+    if (!current(epoch)) return;
     await syncRound(contest.id, round);
   }
 }

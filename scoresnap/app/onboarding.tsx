@@ -1,9 +1,10 @@
+import { SafeScreen } from "../src/ui/SafeScreen";
 import { OFFLINE_MODE } from "../src/config/offline";
 import { useRef, useEffect } from "react";
-import { View, Text, Pressable, Dimensions } from "react-native";
+import { View, Text, Pressable, Dimensions, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
+  type SharedValue,
   useSharedValue,
   useAnimatedStyle,
   useAnimatedScrollHandler,
@@ -15,8 +16,9 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { COLORS } from "../src/ui/theme";
 import { useOnboardingStore } from "../src/stores/onboarding-store";
-import { GolfBallScene } from "../src/ui/animations/GolfBallScene";
-import { ScanBeamScene } from "../src/ui/animations/ScanBeamScene";
+import { SettlementScene } from "../src/ui/animations/SettlementScene";
+import { ManualScoreScene } from "../src/ui/animations/ManualScoreScene";
+import { CROSS_DEVICE_SHARING_ENABLED } from "../src/config/features";
 import { LeaderboardScene } from "../src/ui/animations/LeaderboardScene";
 import { AnimatedPageDots } from "../src/ui/animations/AnimatedPageDots";
 import { StaggeredText } from "../src/ui/animations/StaggeredText";
@@ -32,24 +34,24 @@ interface SlideData {
 
 const slides: SlideData[] = [
   {
-    id: "scan",
-    title: "Snap Your Scorecard",
-    subtitle:
-      "Point your camera at any handwritten or printed golf scorecard. AI reads every score in seconds.",
-    accent: COLORS.accent,
-  },
-  {
     id: "settle",
-    title: "Settle Bets Instantly",
+    title: "See Who Owes What",
     subtitle:
-      "Skins, Nassau, Stableford, and more game modes calculated automatically. No more bar napkin math.",
+      "Skins, Nassau, Stableford and more, calculated for your group. This example has 12 players.",
     accent: COLORS.gold,
   },
   {
-    id: "compete",
-    title: "Track Every Round",
+    id: "score",
+    title: "Score However You Like",
     subtitle:
-      "Leaderboards, settlement history, and shareable scorecards. Know who owes who — always.",
+      "Enter scores hole by hole, or scan a printed card and check what it reads.",
+    accent: COLORS.accent,
+  },
+  {
+    id: "track",
+    title: "Keep Your Rounds",
+    subtitle:
+      "Leaderboards, round results and shareable scorecards in one place.",
     accent: COLORS.blue,
   },
 ];
@@ -58,6 +60,7 @@ const ACCENT_COLORS = slides.map((s) => s.accent);
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const compact = useWindowDimensions().height < 700;
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
   const scrollRef = useRef<Animated.ScrollView>(null);
   const scrollX = useSharedValue(0);
@@ -133,7 +136,7 @@ export default function OnboardingScreen() {
   }));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
       {/* Skip button */}
       <Animated.View
         style={[
@@ -170,7 +173,7 @@ export default function OnboardingScreen() {
               flex: 1,
               justifyContent: "center",
               alignItems: "center",
-              paddingHorizontal: 40,
+              paddingHorizontal: compact ? 24 : 40,
             }}
           >
             {/* Animated illustration */}
@@ -190,7 +193,7 @@ export default function OnboardingScreen() {
               <Text
                 style={{
                   color: COLORS.text,
-                  fontSize: 28,
+                  fontSize: compact ? 24 : 28,
                   fontWeight: "800",
                   textAlign: "center",
                   marginBottom: 12,
@@ -209,8 +212,8 @@ export default function OnboardingScreen() {
               pageWidth={SCREEN_WIDTH}
               style={{
                 color: COLORS.textDim,
-                fontSize: 16,
-                lineHeight: 24,
+                fontSize: compact ? 14 : 16,
+                lineHeight: compact ? 20 : 24,
                 textAlign: "center",
               }}
             />
@@ -219,9 +222,24 @@ export default function OnboardingScreen() {
       </Animated.ScrollView>
 
       {/* Bottom: Dots + CTA */}
-      <View style={{ paddingHorizontal: 24, paddingBottom: 20, alignItems: "center" }}>
+      <View style={{ paddingHorizontal: 24, paddingBottom: compact ? 8 : 20, alignItems: "center" }}>
+        {CROSS_DEVICE_SHARING_ENABLED && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Join a group"
+            onPress={() => {
+              completeOnboarding();
+              router.replace("/join/enter");
+            }}
+            style={{ padding: compact ? 8 : 16, marginBottom: compact ? 4 : 8 }}
+          >
+            <Text style={{ color: COLORS.text, fontSize: 17, fontWeight: "700" }}>
+              Join a group
+            </Text>
+          </Pressable>
+        )}
         {/* Animated page dots */}
-        <View style={{ marginBottom: 24 }}>
+        <View style={{ marginBottom: compact ? 12 : 24 }}>
           <AnimatedPageDots
             scrollX={scrollX}
             pageWidth={SCREEN_WIDTH}
@@ -277,7 +295,7 @@ export default function OnboardingScreen() {
           </Animated.View>
         </Pressable>
       </View>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }
 
@@ -288,10 +306,10 @@ function SlideIllustration({
   pageWidth,
 }: {
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   pageWidth: number;
 }) {
-  const scenes = [GolfBallScene, ScanBeamScene, LeaderboardScene];
+  const scenes = [SettlementScene, ManualScoreScene, LeaderboardScene];
   const Scene = scenes[index];
   return <Scene scrollX={scrollX} pageIndex={index} pageWidth={pageWidth} />;
 }
@@ -304,7 +322,7 @@ function ParallaxText({
   speedMultiplier,
   children,
 }: {
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   pageIndex: number;
   pageWidth: number;
   speedMultiplier: number;

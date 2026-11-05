@@ -1,3 +1,4 @@
+import { roundProgressNotice } from "../copy";
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import { COLORS, FONTS } from '../theme';
 import type { RecapModel } from './model';
@@ -10,11 +11,10 @@ export function RecapCard({ model }: { model: RecapModel }) {
     <Text style={styles.title}>{model.title}</Text>
     <Text style={styles.muted}>{model.course}</Text>
     <View style={styles.hero}>
-      <Text style={styles.trophy} accessibilityLabel="Trophy">🏆</Text>
       <Text style={styles.eyebrow}>{model.headline}</Text>
       <Text style={styles.winner}>{model.winnerNames || 'Everyone finishes even'}</Text>
       {!!model.winner && <Text style={styles.amount}>{model.winner.amount}{model.winners.length > 1 ? ' each' : ''}</Text>}
-      {!model.completed && <Text style={styles.muted}>Current standings · results may change</Text>}
+      {!!roundProgressNotice(model.completed) && <Text style={styles.muted}>{roundProgressNotice(model.completed)}</Text>}
     </View>
     <Text style={styles.eyebrow}>SCORES & NET $</Text>
     {model.players.map(player => <View key={player.name} style={styles.row}>
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   title: { color: COLORS.text, fontFamily: FONTS.headline, fontSize: 24 },
   muted: { color: COLORS.textDim, fontFamily: FONTS.regular, fontSize: 12, lineHeight: 18 },
   hero: { alignItems: 'center', backgroundColor: COLORS.primary + '12', borderRadius: 18, padding: 20, gap: 8, marginVertical: 8 },
-  trophy: { fontSize: 36 }, winner: { color: COLORS.text, fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 24, textAlign: 'center' },
+  winner: { color: COLORS.text, fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 24, textAlign: 'center' },
   amount: { color: COLORS.primary, fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 44 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.textDim + '33' },
   player: { flex: 1, minWidth: 0, gap: 3 },

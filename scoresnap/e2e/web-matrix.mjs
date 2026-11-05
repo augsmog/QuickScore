@@ -1,3 +1,4 @@
+import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -12,7 +13,7 @@ const OUT = process.env.OUT_DIR || 'e2e/screens/matrix';
 const bundles = [
   { id:'duel-match', count:2, games:['Match Play'], ids:['match_play'] },
   { id:'duel-skins', count:2, games:['Skins'], ids:['skins'] },
-  { id:'foursome', count:4, games:['Skins','Nassau'], ids:['skins','nassau'] },
+  { id:'foursome', count:4, games:['Skins','Nassau'], ids:['skins','nassau'], teams:true },
   { id:'foursome-best-ball', count:4, games:['Best Ball'], ids:['best_ball'], teams:true },
   { id:'field-skins', count:8, games:['Skins'], ids:['skins'] },
   { id:'field-best-ball', count:8, games:['Best Ball'], ids:['best_ball'], teams:true },
@@ -35,6 +36,7 @@ try {
     for (let attempt = 0; attempt <= retries; attempt++) {
       const start = Date.now(), errors = [];
       const context = await browser.newContext({viewport:{width:390,height:844}});
+      await seedPaidTier(context, "pro");
       // Permit Expo Camera's public static QR worker; block external service calls.
       await context.route('**/*', route => (new URL(route.request().url()).origin === new URL(BASE).origin || route.request().url() === 'https://cdn.jsdelivr.net/npm/jsqr@1.2.0/dist/jsQR.min.js') ? route.continue() : route.abort());
       const page = await context.newPage();
@@ -56,10 +58,12 @@ try {
           await page.getByTestId('team-mode').click();
           for (const [i,name] of names.entries()) await page.getByTestId(`player-team-${name}-${i<flow.count/2?'A':'B'}`).click();
         }
-        await visible(page.getByText(/^next/i)).click();
+        await visible(page.getByText(/^continue$/i)).click();
+        await page.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
         for (const game of flow.games) await visible(page.getByText(game,{exact:true})).click();
-        await visible(page.getByText(/^next/i)).click();
-        await visible(page.getByText(/start contest/i)).click();
+        await visible(page.getByText(/^continue$/i)).click();
+        await page.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
+        await visible(page.getByText(/^start$/i)).click();
         await page.waitForURL(/\/contest\/[^/]+$/);
         const contestUrl = page.url(), id = new URL(contestUrl).pathname.split('/')[2];
         const readContest = () => page.evaluate(id => JSON.parse(localStorage.getItem('snapscore-contests')).state.contests.find(c=>c.id===id),id);
@@ -178,15 +182,29 @@ try {
         const expected = calculateSettlement(players,contest.course,contest.games,contest.betUnit,contest.auxiliaryData,contest.gameConfig,contest.groups);
         const cents = n => { assert.ok(Number.isFinite(n)); return Math.round(n*100); };
         assert.equal(Object.values(expected.netByPlayer).reduce((a,b)=>a+cents(b),0),0);
+        await visible(page.getByText(/^(settlement|settle up)$/i)).click();
+        if (flow.holes < contest.course.holes.length) {
+          // Nine played on an eighteen-hole card is an unfinished round, never
+          // a shortened contest with silently pro-rated final cash.
+          assert.equal(expected.pending,true);
+          assert.deepEqual(expected.transactions,[]);
+          await page.getByText(/Settlement pending\./).waitFor({state:'visible'});
+          assert.equal(await page.getByTestId('settlement-session-total').count(),0);
+          assert.deepEqual(errors,[]);
+          await page.screenshot({path:path.join(OUT,`${flow.id}-settlement-pending.png`)});
+          results.push({id:flow.id,attempt:attempt+1,ok:true,pending:true,seconds:(Date.now()-start)/1000});
+          console.log(`PASS ${flow.id} (unfinished card correctly pending)`);
+          break;
+        }
+        assert.equal(expected.pending,undefined);
         assert.ok(Object.values(expected.netByPlayer).some(n=>n>0),'Nontrivial payout required');
-        await visible(page.getByText(/^settlement$/i)).click();
         let displayedBalance=0, winners=0;
         for (const [name,net] of Object.entries(expected.netByPlayer)) {
           const row = page.getByTestId(`settlement-player-${name}`);
           await row.scrollIntoViewIfNeeded();
           const text = await row.innerText();
-          const money = text.match(/([+-]?)\$(\d+\.\d{2})/);
-          const displayed = /Even/.test(text) ? 0 : (money?.[1]==='-'?-1:1)*cents(Number(money?.[2]));
+          const money = text.match(/([+\-\u2212]?)\$(\d+\.\d{2})/);
+          const displayed = /Even/.test(text) ? 0 : (money?.[1]==='-'||money?.[1]==='\u2212'?-1:1)*cents(Number(money?.[2]));
           assert.equal(displayed,cents(net),`${name} displayed settlement`);
           displayedBalance+=displayed; if(displayed>0) winners+=displayed;
           const ledger = expected.transactions.reduce((sum,t)=>sum+(t.to===name?cents(t.amount):0)-(t.from===name?cents(t.amount):0),0);

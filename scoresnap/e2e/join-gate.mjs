@@ -9,15 +9,32 @@ let browser;
 try {
   browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  // Offline smoke must never reach external services.
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    // Scanner is outside this smoke; satisfy its worker import locally.
+    if (url.href === 'https://cdn.jsdelivr.net/npm/jsqr@1.2.0/dist/jsQR.min.js') return route.fulfill({ contentType: 'application/javascript', body: 'self.jsQR = () => null;' });
+    return ['127.0.0.1', 'localhost'].includes(url.hostname) || ['data:', 'blob:'].includes(url.protocol)
+      ? route.continue() : route.abort();
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem('snapscore-onboarding', JSON.stringify({ version: 0, state: { hasCompletedOnboarding: true, hasSeenDemo: true } }));
+    const user = { id: 'anon-join-smoke', name: 'Golfer', provider: 'anonymous' };
+    localStorage.setItem('snapscore-auth', JSON.stringify({ version: 0, state: { user, session: { user }, isAnonymous: true } }));
+  });
   page.setDefaultTimeout(10000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base, { waitUntil: 'networkidle' });
-  await page.getByText('Precision Scoring', { exact: false }).waitFor();
-  const joins = page.getByText(/Join with code/i);
+  await page.getByText('Build contests. Settle up.', { exact: false }).waitFor();
+  // Use the stable control ID: staged launch copy can change its label.
+  const joins = page.getByTestId('home-join-code');
   assert.equal(await joins.count(), sharing ? 1 : 0);
   if (sharing) {
     assert(await joins.isVisible(), 'sharing-on home join must be visible');
+    assert.equal(await joins.textContent(), 'Join with code');
+    await joins.click();
+    await page.getByLabel('Join code', { exact: true }).waitFor();
   } else {
     const wordmark = page.getByText('SNAPSCORE', { exact: true });
     const scroll = page.getByTestId('home-scroll');
@@ -33,7 +50,7 @@ try {
       return content.firstElementChild === el.parentElement;
     }), 'wordmark must be the first scroll content element');
 
-    await page.getByText('Modified Stableford', { exact: true }).click();
+    await page.getByText('Modified Stableford (SnapScore)', { exact: true }).click();
     const sheet = page.getByTestId('game-info-sheet');
     await sheet.waitFor({ state: 'visible' });
     const style = await sheet.evaluate(el => {
@@ -59,7 +76,7 @@ try {
       await page.getByText('Join with code — no account needed', { exact: true }).waitFor({ state: 'detached' });
       await page.getByText('Create Account', { exact: false }).waitFor();
     } else {
-      await page.getByText('Precision Scoring', { exact: false }).waitFor();
+      await page.getByText('Build contests. Settle up.', { exact: false }).waitFor();
       console.log('Offline auth redirected to home; join text remains absent');
     }
     assert.equal(await page.getByText(/Join with code/i).count(), 0);

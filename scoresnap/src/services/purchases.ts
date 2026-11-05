@@ -4,12 +4,11 @@
  * Manages in-app subscriptions via Apple StoreKit 2 and Google Play Billing.
  * Connected to Stripe for web signups via RevenueCat dashboard.
  *
- * Products (configure in RevenueCat dashboard):
- * - monthly:  $2.99/month
- * - yearly:   $19.99/year (7-day free trial)
- * - lifetime: $29.99 one-time
- *
- * Entitlement: "SnapScore Pro" (identifier: "pro")
+ * Products: snapscore.pro.annual ($24.99/yr), snapscore.pro.monthly ($3.99/mo),
+ * snapscore.td.annual ($79.99/yr), snapscore.td.monthly ($12.99/mo).
+ * Entitlements: "SnapScore Pro" and "SnapScore TD" (TD grants both).
+ * One SnapScore subscription group: TD level 1, Pro level 2.
+ * Annual plans offer an eligible 7-day trial, once per Apple ID per group.
  */
 
 import { Platform, NativeModules } from "react-native";
@@ -24,7 +23,7 @@ import Purchases, {
 import { useScanStore } from "../stores/scan-store";
 
 // Entitlement ID configured in RevenueCat dashboard
-const ENTITLEMENT_ID = "SnapScore Pro";
+import { tierFromCustomerInfo } from "./entitlements";
 
 let isConfigured = false;
 
@@ -50,7 +49,12 @@ function isNativeModuleAvailable(): boolean {
  * Gracefully skips in environments where the native module isn't available
  * (Expo Go, simulators without StoreKit config, etc.).
  */
-export async function initPurchases(userId?: string): Promise<void> {
+let initialization: Promise<void> | undefined;
+export function initPurchases(userId?: string): Promise<void> {
+  if (!initialization) initialization = configurePurchases(userId).finally(() => { initialization = undefined; });
+  return initialization;
+}
+async function configurePurchases(userId?: string): Promise<void> {
   if (isConfigured) return;
 
   // Guard: skip entirely if native module isn't linked (Expo Go)
@@ -95,8 +99,7 @@ export async function initPurchases(userId?: string): Promise<void> {
  * Sync Pro status whenever customer info changes.
  */
 function handleCustomerInfoUpdate(info: CustomerInfo): void {
-  const isPro = info.entitlements.active[ENTITLEMENT_ID] !== undefined;
-  useScanStore.getState().setPro(isPro);
+  useScanStore.getState().setTier(tierFromCustomerInfo(info));
 }
 
 /**
@@ -118,21 +121,16 @@ export async function getOfferings(): Promise<PurchasesOffering | null> {
 /**
  * Get specific packages from the current offering.
  */
-export async function getPackages(): Promise<{
-  monthly: PurchasesPackage | null;
-  annual: PurchasesPackage | null;
-  lifetime: PurchasesPackage | null;
-}> {
+export async function getPackages() {
   const offering = await getOfferings();
-  if (!offering) {
-    return { monthly: null, annual: null, lifetime: null };
-  }
+  const find = (id: string) => offering?.availablePackages.find(p => p.identifier === id) ?? null;
+  return { annual: find("$rc_annual"), monthly: find("$rc_monthly"),
+    td_annual: find("td_annual"), td_monthly: find("td_monthly") };
+}
 
-  return {
-    monthly: offering.monthly || null,
-    annual: offering.annual || null,
-    lifetime: offering.lifetime || null,
-  };
+export async function syncProStatus(): Promise<void> {
+  const info = await getCustomerInfo();
+  if (info) handleCustomerInfoUpdate(info);
 }
 
 /**
@@ -148,9 +146,8 @@ export async function purchasePackage(
   }
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    const isPro = customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
-    useScanStore.getState().setPro(isPro);
-    return isPro;
+    handleCustomerInfoUpdate(customerInfo);
+    return tierFromCustomerInfo(customerInfo) !== "free";
   } catch (e: any) {
     if (e.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
       return false;
@@ -172,9 +169,8 @@ export async function restorePurchases(): Promise<boolean> {
   }
   try {
     const info = await Purchases.restorePurchases();
-    const isPro = info.entitlements.active[ENTITLEMENT_ID] !== undefined;
-    useScanStore.getState().setPro(isPro);
-    return isPro;
+    handleCustomerInfoUpdate(info);
+    return tierFromCustomerInfo(info) !== "free";
   } catch (e) {
     console.error("Restore failed:", e);
     Sentry.captureException(e, { tags: { service: "purchases", action: "restore" } });
@@ -189,7 +185,8 @@ export async function checkProStatus(): Promise<boolean> {
   if (!isConfigured) return false;
   try {
     const info = await Purchases.getCustomerInfo();
-    return info.entitlements.active[ENTITLEMENT_ID] !== undefined;
+    handleCustomerInfoUpdate(info);
+    return tierFromCustomerInfo(info) !== "free";
   } catch {
     return false;
   }
@@ -211,25 +208,42 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
  * Identify user for cross-device subscription sync.
  * Call after sign-in with a stable user ID.
  */
-export async function identifyUser(userId: string): Promise<void> {
-  if (!isConfigured) return;
-  try {
-    await Purchases.logIn(userId);
-    const info = await Purchases.getCustomerInfo();
-    handleCustomerInfoUpdate(info);
-  } catch (e) {
-    console.warn("Failed to identify user:", e);
-  }
+let identityQueue: Promise<void> = Promise.resolve();
+let identified: string | null = null;
+// Read-only guard for offer previews; never reuse eligibility across account changes.
+let identityRevision = 0;
+let settledIdentityRevision = -1;
+export async function waitForPurchaseIdentity(expectedActor: string | null): Promise<number | null> {
+  const revision = identityRevision;
+  await identityQueue;
+  return isPurchaseIdentityCurrent(revision, expectedActor) ? revision : null;
 }
+export function isPurchaseIdentityCurrent(revision: number, expectedActor: string | null): boolean {
+  return isConfigured && identified === expectedActor && revision === identityRevision && revision === settledIdentityRevision;
+}
+function changeIdentity(userId: string | null): Promise<void> {
+  const revision = ++identityRevision;
+  const pending = identityQueue.then(async () => {
+    await initPurchases();
+    if (!isConfigured) return;
+    if (userId) {
+      if (identified === userId) return;
+      const { customerInfo } = await Purchases.logIn(userId);
+      identified = userId;
+      handleCustomerInfoUpdate(customerInfo);
+    } else {
+      // RevenueCat rejects logging out an already anonymous SDK identity.
+      if (!await Purchases.isAnonymous()) {
+        const info = await Purchases.logOut();
+        handleCustomerInfoUpdate(info);
+      }
+      identified = null;
+    }
+  });
+  identityQueue = pending.then(() => { settledIdentityRevision = revision; }).catch(e => { console.warn("Could not update purchase account:", e); });
+  return identityQueue;
+}
+export function identifyUser(userId: string): Promise<void> { return changeIdentity(userId); }
 
-/**
- * Log out user (resets to anonymous). Call on sign-out.
- */
-export async function logOutPurchases(): Promise<void> {
-  if (!isConfigured) return;
-  try {
-    await Purchases.logOut();
-  } catch (e) {
-    console.warn("Failed to log out purchases:", e);
-  }
-}
+/** Anonymous Supabase guests use an anonymous RevenueCat identity. */
+export function logOutPurchases(): Promise<void> { return changeIdentity(null); }
