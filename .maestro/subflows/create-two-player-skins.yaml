@@ -20,23 +20,23 @@ appId: com.scoresnap.app
 - assertVisible: "Ava"
 - assertVisible: "Ben"
 - tapOn:
-    text: "Continue"
+    text: "NEXT.*"
     index: 0
 # Mode cards expose stable IDs and selected accessibility state.
 - extendedWaitUntil:
-    visible: "Skins"
+    visible: "Skins, PRO.*"
     timeout: 15000
 - tapOn:
-    id: "game-mode-skins"
+    text: "Skins, PRO.*"
 - assertVisible:
-    id: "game-mode-skins"
+    text: "Skins, PRO.*"
     selected: true
 - scrollUntilVisible:
-    element: "Continue"
+    element: "NEXT.*"
     direction: DOWN
     optional: true
 - tapOn:
-    text: "Continue"
+    text: "NEXT.*"
     index: 0
 - scrollUntilVisible:
     element: "Start"
