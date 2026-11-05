@@ -139,6 +139,22 @@ test("online tee flow reaches the API's last row before confirming without savin
   expect(read(flow.file)).not.toMatch(/tapOn: "Start"|create-two-player/);
 });
 
+test("safe-area flow reveals and anchors the Home Skins chip in GAME MODES", () => {
+  const flow = config.flows.find((f) => f.id === "aug-309-safe-area");
+  expect(flow).toBeDefined();
+  const [, steps] = docs(flow.file);
+  const homeSkins = { text: "^Skins$", below: { text: "^GAME MODES$" } };
+  expect(steps).toContainEqual({
+    scrollUntilVisible: {
+      element: homeSkins,
+      direction: "RIGHT",
+      visibilityPercentage: 100,
+    },
+  });
+  const skinsTaps = steps.filter((step) => step.tapOn?.text?.includes("Skins"));
+  expect(skinsTaps).toEqual([{ tapOn: homeSkins }]);
+});
+
 
 test("AUG-309 safe-area flow captures the first frame, sheets, player matching, keyboard and rotation", () => {
   const flow = config.flows.find(f => f.id === "aug-309-safe-area");

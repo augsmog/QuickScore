@@ -13,7 +13,17 @@ appId: com.scoresnap.app
 - takeScreenshot: aug-309-01-home-see-all-first-frame
 - tapOn: "Close game mode library"
 # The game info sheet is opened from a Home mode chip and stays open for the rotation captures.
-- tapOn: "Skins"
+- scrollUntilVisible:
+    element:
+      text: "^Skins$"
+      below:
+        text: "^GAME MODES$"
+    direction: RIGHT
+    visibilityPercentage: 100
+- tapOn:
+    text: "^Skins$"
+    below:
+      text: "^GAME MODES$"
 - assertVisible:
     id: "game-info-sheet"
 - assertVisible:
