@@ -3,6 +3,11 @@ const ts = require('typescript');
 const jsx = (type, props) => ({ type, props });
 const nodes = n => !n || typeof n !== 'object' ? []
   : Array.isArray(n) ? n.flatMap(nodes) : [n, ...nodes(n.props?.children)];
+const holeStripModule = { exports: {} };
+new Function('module', 'exports', ts.transpileModule(
+  fs.readFileSync('src/ui/leaderboard-hole-strip.ts', 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+).outputText)(holeStripModule, holeStripModule.exports);
 
 test.each([[5, 'primary', 10], [4, 'transparent', 10], [3, 'transparent', 0], [2, 'error', 0]])(
   'recent-hole symbol uses active-round par %i when the course changes', (par, background, radius) => {
@@ -38,6 +43,7 @@ test.each([[5, 'primary', 10], [4, 'transparent', 10], [3, 'transparent', 0], [2
       },
       '../../../src/utils/formatters': { formatToPar: n => String(n) },
       '../../../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
+      '../../../src/ui/leaderboard-hole-strip': holeStripModule.exports,
     };
     const m = { exports: {} };
     new Function('require', 'module', 'exports', ts.transpileModule(
