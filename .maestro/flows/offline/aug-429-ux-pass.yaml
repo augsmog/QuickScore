@@ -57,10 +57,13 @@ appId: com.scoresnap.app
 - tapOn: "Continue"
 - assertVisible: "Step 1/2"
 - takeScreenshot: aug-429-01-game-modes
+# iOS flattens the a11y tree: the chip is a sibling of id "contest-step-gamemodes", not a
+# descendant, so `childOf` matched nothing (AUG-612). Match Play is a POPULAR FORMATS chip
+# (scoresnap/app/contest/new.tsx), so scope by that section label and anchor the text.
 - tapOn:
-    text: "Match Play"
-    childOf:
-      id: "contest-step-gamemodes"
+    text: "^Match Play$"
+    below:
+      text: "POPULAR FORMATS"
 - scrollUntilVisible:
     element: "Bisque Handicap"
     direction: DOWN
