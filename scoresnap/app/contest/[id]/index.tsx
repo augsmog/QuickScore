@@ -6,8 +6,10 @@ import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
+import { buildLeaderboard } from "../../../src/engine/calculators/leaderboard-view";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
+import { lastThreePlayedHoleChips } from "../../../src/ui/leaderboard-hole-strip";
 
 export default function LeaderboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,6 +19,7 @@ export default function LeaderboardScreen() {
 
   const [viewMode, setViewMode] = useState<"individual" | "groups">("individual");
   const [scoreView, setScoreView] = useState<"cumulative" | "daily">("cumulative");
+  const [rankMode, setRankMode] = useState<"gross" | "net">("gross");
 
   if (!contest) return null;
 
@@ -58,7 +61,12 @@ export default function LeaderboardScreen() {
     );
   }
 
-  const results = calcStrokePlay(allPlayers, scoreView === "daily" ? liveRoundCourse(contest) : contest.course);
+  const leaderboardCourse = scoreView === "daily" ? liveRoundCourse(contest) : contest.course;
+  const results = calcStrokePlay(allPlayers, leaderboardCourse);
+  // Gross/Net toggle (AUG-246c): gross is the default and identical to before.
+  // Net ranks the individual leaderboard by net total using the handicap strokes
+  // already entered for net games; it is only offered when the course supports it.
+  const { rows: individualResults, netAvailable } = buildLeaderboard(allPlayers, leaderboardCourse, rankMode);
 
 
   // Compute team stats if teams exist
@@ -160,18 +168,75 @@ export default function LeaderboardScreen() {
       {/* Individual Leaderboard */}
       {viewMode === "individual" && (
         <>
-          {results.map((r, i) => {
+          {/* Gross / Net toggle (Direction A, Figma 11:43). Hidden when the course
+              cannot be ranked net, so Gross always shows for unsupported courses. */}
+          {netAvailable && (
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 16 }}>
+              <View
+                testID="leaderboard-rank-toggle"
+                style={{ flexDirection: "row", width: 150, height: 36, backgroundColor: COLORS.surfaceMid, borderRadius: RADII.full, padding: 2, gap: 2 }}
+              >
+                <AnimatedPressable
+                  testID="leaderboard-rank-gross"
+                  onPress={() => setRankMode("gross")}
+                  hitSlop={{ top: 6, bottom: 6 }}
+                  style={{
+                    width: 72,
+                    height: 32,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: RADII.full,
+                    backgroundColor: rankMode === "gross" ? COLORS.primary : "transparent",
+                  }}
+                >
+                  <Text
+                    style={
+                      rankMode === "gross"
+                        ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
+                        : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
+                    }
+                  >
+                    Gross
+                  </Text>
+                </AnimatedPressable>
+                <AnimatedPressable
+                  testID="leaderboard-rank-net"
+                  onPress={() => setRankMode("net")}
+                  hitSlop={{ top: 6, bottom: 6 }}
+                  style={{
+                    width: 72,
+                    height: 32,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: RADII.full,
+                    backgroundColor: rankMode === "net" ? COLORS.primary : "transparent",
+                  }}
+                >
+                  <Text
+                    style={
+                      rankMode === "net"
+                        ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
+                        : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
+                    }
+                  >
+                    Net
+                  </Text>
+                </AnimatedPressable>
+              </View>
+            </View>
+          )}
+          {individualResults.map((r, i) => {
             const player = allPlayers.find((p) => p.id === r.playerId);
             const holesPlayed = player
               ? player.scores.filter((s) => s > 0).length
               : 0;
 
-            const rank = results.findIndex((result) => result.total === r.total) + 1;
-            const tied = results.filter((result) => result.total === r.total).length > 1;
-            const lastHoles = (recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [])
-              .map((score, index) => ({ score, index }))
-              .filter(({ score }) => score > 0)
-              .slice(-3);
+            const rank = individualResults.findIndex((result) => result.total === r.total) + 1;
+            const tied = individualResults.filter((result) => result.total === r.total).length > 1;
+            const recentScores = recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [];
+            // Par source is the contest course per AUG-620 brief item 8 (contest.course.holes[i].par),
+            // not the active-round course; chip pars stay stable regardless of tournament round.
+            const lastHoles = lastThreePlayedHoleChips(recentScores, contest.course.holes);
 
             return (
               <View
@@ -236,26 +301,20 @@ export default function LeaderboardScreen() {
                     {formatToPar(r.toPar).replace("-", "−")}
                   </Text>
                   <View style={{ flexDirection: "row", gap: 4 }}>
-                    {lastHoles.map(({ score, index }) => {
-                      const par = liveRoundCourse(contest).holes[index]?.par;
-                      if (par === undefined) return null;
-                      const difference = score - par;
-                      const filled = difference < 0 || difference >= 2;
-                      const color = difference >= 2 ? COLORS.error : COLORS.primary;
+                    {lastHoles.map(({ score, index, shape, color, filled }) => {
+                      const chipColor = color === "error" ? COLORS.error : COLORS.primary;
                       return (
-                        <View key={index} accessibilityLabel={`Hole ${index + 1}: ${score} strokes`}
-                          style={{ width: 20, height: 20, borderRadius: difference <= 0 ? 10 : 0,
-                            borderWidth: 1, borderColor: color,
-                            backgroundColor: filled ? color : "transparent",
+                        <View key={index} testID={`leaderboard-hole-chip-${r.playerId}-${index}`}
+                          accessibilityLabel={`Hole ${index + 1}: ${score} strokes`}
+                          style={{ width: 20, height: 20, borderRadius: shape === "circle" ? 10 : 0,
+                            borderWidth: 1, borderColor: chipColor,
+                            backgroundColor: filled ? chipColor : "transparent",
                             alignItems: "center", justifyContent: "center" }}>
                           <Text style={{ fontFamily: FONTS.score, fontSize: 11,
                             color: filled ? COLORS.onPrimary : COLORS.text }}>{score}</Text>
                         </View>
                       );
                     })}
-                    {Array.from({ length: 3 - lastHoles.length }, (_, index) => (
-                      <View key={`empty-${index}`} style={{ width: 20, height: 20 }} />
-                    ))}
                   </View>
                 </View>
               </View>
