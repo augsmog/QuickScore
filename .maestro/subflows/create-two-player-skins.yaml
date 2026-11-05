@@ -22,18 +22,15 @@ appId: com.scoresnap.app
 - tapOn:
     text: "Continue"
     index: 0
-# Mode chips expose their existing game name.
+# Mode cards expose stable IDs and selected accessibility state.
 - extendedWaitUntil:
     visible: "Skins"
     timeout: 15000
-# iOS flattens the a11y tree: the Skins chip is a sibling of id "contest-step-gamemodes",
-# not a descendant, so `childOf` matched nothing (AUG-612). Scope by the section label
-# "POPULAR FORMATS" (unique to the Game Modes step, so Home underneath can't match) and
-# anchor the text to avoid the adjacent "Skins (Carryover)" chip.
 - tapOn:
-    text: "^Skins$"
-    below:
-      text: "POPULAR FORMATS"
+    id: "game-mode-skins"
+- assertVisible:
+    id: "game-mode-skins"
+    selected: true
 - scrollUntilVisible:
     element: "Continue"
     direction: DOWN
