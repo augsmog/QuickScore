@@ -170,7 +170,9 @@ export default function LeaderboardScreen() {
             const rank = results.findIndex((result) => result.total === r.total) + 1;
             const tied = results.filter((result) => result.total === r.total).length > 1;
             const recentScores = recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [];
-            const lastHoles = lastThreePlayedHoleChips(recentScores, liveRoundCourse(contest).holes);
+            // Par source is the contest course per AUG-620 brief item 8 (contest.course.holes[i].par),
+            // not the active-round course; chip pars stay stable regardless of tournament round.
+            const lastHoles = lastThreePlayedHoleChips(recentScores, contest.course.holes);
 
             return (
               <View
