@@ -1,6 +1,6 @@
 const fs = require('fs');
 const ts = require('typescript');
-const jsx = (type, props) => ({ type, props });
+const jsx = (type, props) => typeof type === 'function' ? type(props) : ({ type, props });
 const nodes = n => !n || typeof n !== 'object' ? []
   : Array.isArray(n) ? n.flatMap(nodes) : [n, ...nodes(n.props?.children)];
 
@@ -18,6 +18,7 @@ test.each([[5, 'primary', 10], [4, 'transparent', 10], [3, 'transparent', 0], [2
       react: { useState: () => [++state === 1 ? 'individual' : 'daily', () => {}] },
       'react/jsx-runtime': { jsx, jsxs: jsx },
       'react-native': { View: 'View', Text: 'Text', ScrollView: 'ScrollView' },
+      '@shopify/flash-list': { FlashList: props => jsx('FlashList', { ...props, children: [props.ListHeaderComponent, ...(props.data || []).map((item, index) => props.renderItem({ item, index })), props.ListFooterComponent] }) },
       'expo-router': { useLocalSearchParams: () => ({ id: 'c' }) },
       'lucide-react-native': { Flag: 'Flag' },
       '../../../src/engine/contest-results': {

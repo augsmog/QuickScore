@@ -1,7 +1,8 @@
+import { FlashList } from "@shopify/flash-list";
 import { teamCardPlayers, liveRoundCourse } from "../../../src/engine/contest-results";
 import { Flag } from "lucide-react-native";
 import { useState } from "react";
-import { View, Text, ScrollView } from "react-native";
+import { View, Text } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
@@ -76,138 +77,14 @@ export default function LeaderboardScreen() {
   const teamBTotal = teamBPlayers.reduce((sum, p) => sum + p.scores.reduce((a, b) => a + b, 0), 0);
 
   return (
-    <ScrollView
+    <FlashList
       style={{ flex: 1, backgroundColor: COLORS.bg }}
       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
       showsVerticalScrollIndicator={false}
-    >
-      {/* Round name and course live in the shared header; tournaments note the day's course here. */}
-      {contest.isTournament && (
-        <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, marginBottom: 12 }}>
-          {(scoreView === "daily" ? liveRoundCourse(contest) : contest.course).name}
-        </Text>
-      )}
+      data={viewMode === "individual" ? individualResults : []}
+      keyExtractor={(row) => row.playerId}
+      renderItem={({ item: r, index: i }) => {
 
-      {/* Tournament: Cumulative / Daily toggle */}
-      {contest.isTournament && contest.rounds && contest.rounds.length > 1 && (
-        <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
-          <AnimatedPressable
-            onPress={() => setScoreView("cumulative")}
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              minHeight: 44,
-              justifyContent: "center",
-              borderRadius: RADII.md - 2,
-              alignItems: "center",
-              backgroundColor: scoreView === "cumulative" ? COLORS.surfaceHigh : "transparent",
-            }}
-          >
-            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: scoreView === "cumulative" ? COLORS.text : COLORS.textDim }}>
-              CUMULATIVE
-            </Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            onPress={() => setScoreView("daily")}
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              minHeight: 44,
-              justifyContent: "center",
-              borderRadius: RADII.md - 2,
-              alignItems: "center",
-              backgroundColor: scoreView === "daily" ? COLORS.surfaceHigh : "transparent",
-            }}
-          >
-            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: scoreView === "daily" ? COLORS.text : COLORS.textDim }}>
-              ROUND {contest.currentRound || 1}
-            </Text>
-          </AnimatedPressable>
-        </View>
-      )}
-
-      {/* Individual / Groups toggle */}
-      {(contest.groups.length > 1 || hasTeams) && (
-        <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
-          <AnimatedPressable
-            onPress={() => setViewMode("individual")}
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              minHeight: 44,
-              justifyContent: "center",
-              borderRadius: RADII.md - 2,
-              alignItems: "center",
-              backgroundColor: viewMode === "individual" ? COLORS.surfaceHigh : "transparent",
-            }}
-          >
-            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: viewMode === "individual" ? COLORS.text : COLORS.textDim }}>
-              INDIVIDUAL
-            </Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            onPress={() => setViewMode("groups")}
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              minHeight: 44,
-              justifyContent: "center",
-              borderRadius: RADII.md - 2,
-              alignItems: "center",
-              backgroundColor: viewMode === "groups" ? COLORS.surfaceHigh : "transparent",
-            }}
-          >
-            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: viewMode === "groups" ? COLORS.text : COLORS.textDim }}>
-              GROUPS
-            </Text>
-          </AnimatedPressable>
-        </View>
-      )}
-
-      {/* Individual Leaderboard */}
-      {viewMode === "individual" && (
-        <>
-          {/* Gross / Net toggle (Direction A, Figma 11:43). Hidden when the course
-              cannot be ranked net, so Gross always shows for unsupported courses. */}
-          {netAvailable && (
-            <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
-              <AnimatedPressable
-                testID="leaderboard-rank-gross"
-                onPress={() => setRankMode("gross")}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  minHeight: 44,
-                  justifyContent: "center",
-                  borderRadius: RADII.md - 2,
-                  alignItems: "center",
-                  backgroundColor: rankMode === "gross" ? COLORS.surfaceHigh : "transparent",
-                }}
-              >
-                <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: rankMode === "gross" ? COLORS.text : COLORS.textDim }}>
-                  Gross
-                </Text>
-              </AnimatedPressable>
-              <AnimatedPressable
-                testID="leaderboard-rank-net"
-                onPress={() => setRankMode("net")}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  minHeight: 44,
-                  justifyContent: "center",
-                  borderRadius: RADII.md - 2,
-                  alignItems: "center",
-                  backgroundColor: rankMode === "net" ? COLORS.surfaceHigh : "transparent",
-                }}
-              >
-                <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: rankMode === "net" ? COLORS.text : COLORS.textDim }}>
-                  Net
-                </Text>
-              </AnimatedPressable>
-            </View>
-          )}
-          {individualResults.map((r, i) => {
             const player = allPlayers.find((p) => p.id === r.playerId);
             const holesPlayed = player
               ? player.scores.filter((s) => s > 0).length
@@ -307,10 +184,136 @@ export default function LeaderboardScreen() {
                 </View>
               </View>
             );
-          })}
-        </>
+      }}
+      ListHeaderComponent={(
+        <View>
+      {/* Round name and course live in the shared header; tournaments note the day's course here. */}
+      {contest.isTournament && (
+        <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, marginBottom: 12 }}>
+          {(scoreView === "daily" ? liveRoundCourse(contest) : contest.course).name}
+        </Text>
       )}
 
+      {/* Tournament: Cumulative / Daily toggle */}
+      {contest.isTournament && contest.rounds && contest.rounds.length > 1 && (
+        <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
+          <AnimatedPressable
+            onPress={() => setScoreView("cumulative")}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              minHeight: 44,
+              justifyContent: "center",
+              borderRadius: RADII.md - 2,
+              alignItems: "center",
+              backgroundColor: scoreView === "cumulative" ? COLORS.surfaceHigh : "transparent",
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: scoreView === "cumulative" ? COLORS.text : COLORS.textDim }}>
+              CUMULATIVE
+            </Text>
+          </AnimatedPressable>
+          <AnimatedPressable
+            onPress={() => setScoreView("daily")}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              minHeight: 44,
+              justifyContent: "center",
+              borderRadius: RADII.md - 2,
+              alignItems: "center",
+              backgroundColor: scoreView === "daily" ? COLORS.surfaceHigh : "transparent",
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: scoreView === "daily" ? COLORS.text : COLORS.textDim }}>
+              ROUND {contest.currentRound || 1}
+            </Text>
+          </AnimatedPressable>
+        </View>
+      )}
+
+      {/* Individual / Groups toggle */}
+      {(contest.groups.length > 1 || hasTeams) && (
+        <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
+          <AnimatedPressable
+            onPress={() => setViewMode("individual")}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              minHeight: 44,
+              justifyContent: "center",
+              borderRadius: RADII.md - 2,
+              alignItems: "center",
+              backgroundColor: viewMode === "individual" ? COLORS.surfaceHigh : "transparent",
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: viewMode === "individual" ? COLORS.text : COLORS.textDim }}>
+              INDIVIDUAL
+            </Text>
+          </AnimatedPressable>
+          <AnimatedPressable
+            onPress={() => setViewMode("groups")}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              minHeight: 44,
+              justifyContent: "center",
+              borderRadius: RADII.md - 2,
+              alignItems: "center",
+              backgroundColor: viewMode === "groups" ? COLORS.surfaceHigh : "transparent",
+            }}
+          >
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: viewMode === "groups" ? COLORS.text : COLORS.textDim }}>
+              GROUPS
+            </Text>
+          </AnimatedPressable>
+        </View>
+      )}
+
+      {/* Gross / Net toggle (Direction A, Figma 11:43). Hidden when the course
+          cannot be ranked net, so Gross always shows for unsupported courses. */}
+      {viewMode === "individual" && netAvailable && (
+            <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
+              <AnimatedPressable
+                testID="leaderboard-rank-gross"
+                onPress={() => setRankMode("gross")}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  minHeight: 44,
+                  justifyContent: "center",
+                  borderRadius: RADII.md - 2,
+                  alignItems: "center",
+                  backgroundColor: rankMode === "gross" ? COLORS.surfaceHigh : "transparent",
+                }}
+              >
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: rankMode === "gross" ? COLORS.text : COLORS.textDim }}>
+                  Gross
+                </Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                testID="leaderboard-rank-net"
+                onPress={() => setRankMode("net")}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  minHeight: 44,
+                  justifyContent: "center",
+                  borderRadius: RADII.md - 2,
+                  alignItems: "center",
+                  backgroundColor: rankMode === "net" ? COLORS.surfaceHigh : "transparent",
+                }}
+              >
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: rankMode === "net" ? COLORS.text : COLORS.textDim }}>
+                  Net
+                </Text>
+              </AnimatedPressable>
+            </View>
+          )}
+        </View>
+      )}
+      ListFooterComponent={(
+        <View>
       {/* Group Performance (team view) */}
       {viewMode === "groups" && hasTeams && (
         <>
@@ -447,7 +450,9 @@ export default function LeaderboardScreen() {
         </>
       )}
 
-      <View style={{ height: 16 }} />
-    </ScrollView>
+          <View style={{ height: 16 }} />
+        </View>
+      )}
+    />
   );
 }
