@@ -2,6 +2,7 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { isSavedContestPath } from './xdevice-route.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -244,7 +245,7 @@ try {
       await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
       await a.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
       await text(a, /^START$/i).click();
-      await a.waitForURL(/\/contest\/[^/]+$/);
+      await a.waitForURL(url => isSavedContestPath(url.pathname));
       contestUrl = a.url(); contestId = new URL(contestUrl).pathname.split('/').pop();
       await text(a, 'Enable online sharing').click();
       const label = await a.getByTestId('organizer-join-code').innerText();
