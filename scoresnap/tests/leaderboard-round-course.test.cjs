@@ -3,15 +3,24 @@ const ts = require('typescript');
 const jsx = (type, props) => ({ type, props });
 const nodes = n => !n || typeof n !== 'object' ? []
   : Array.isArray(n) ? n.flatMap(nodes) : [n, ...nodes(n.props?.children)];
+const holeStripModule = { exports: {} };
+new Function('module', 'exports', ts.transpileModule(
+  fs.readFileSync('src/ui/leaderboard-hole-strip.ts', 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+).outputText)(holeStripModule, holeStripModule.exports);
 
+// AUG-620 brief item 8: the last-3-holes chips take par from contest.course.holes[i].par,
+// not the active tournament round's course. The contest course par varies below while the
+// active round course is pinned to par 4; the chip glyph must follow the contest course, so
+// a round-course source would wrongly classify every case as par (transparent circle / r10).
 test.each([[5, 'primary', 10], [4, 'transparent', 10], [3, 'transparent', 0], [2, 'error', 0]])(
-  'recent-hole symbol uses active-round par %i when the course changes', (par, background, radius) => {
+  'recent-hole symbol uses contest-course par %i regardless of active round', (par, background, radius) => {
     const course = p => ({ name: `Par ${p}`, holes: [{ num: 1, par: p, hcp: 1 }] });
     const players = [{ id: 'p1', name: 'Player', handicap: 0, scores: [4] }];
     const contest = {
       id: 'c', name: 'Tournament', isTournament: true, currentRound: 2,
-      course: course(4), games: ['stroke_play'], groups: [{ id: 'g', players }],
-      rounds: [{ number: 2, course: course(par), groups: [{ id: 'g', players }] }],
+      course: course(par), games: ['stroke_play'], groups: [{ id: 'g', players }],
+      rounds: [{ number: 2, course: course(4), groups: [{ id: 'g', players }] }],
     };
     let state = 0;
     const deps = {
@@ -38,6 +47,7 @@ test.each([[5, 'primary', 10], [4, 'transparent', 10], [3, 'transparent', 0], [2
       },
       '../../../src/utils/formatters': { formatToPar: n => String(n) },
       '../../../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
+      '../../../src/ui/leaderboard-hole-strip': holeStripModule.exports,
     };
     const m = { exports: {} };
     new Function('require', 'module', 'exports', ts.transpileModule(

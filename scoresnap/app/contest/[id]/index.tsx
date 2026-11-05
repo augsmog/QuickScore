@@ -8,6 +8,7 @@ import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../..
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
+import { lastThreePlayedHoleChips } from "../../../src/ui/leaderboard-hole-strip";
 
 export default function LeaderboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -168,10 +169,10 @@ export default function LeaderboardScreen() {
 
             const rank = results.findIndex((result) => result.total === r.total) + 1;
             const tied = results.filter((result) => result.total === r.total).length > 1;
-            const lastHoles = (recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [])
-              .map((score, index) => ({ score, index }))
-              .filter(({ score }) => score > 0)
-              .slice(-3);
+            const recentScores = recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [];
+            // Par source is the contest course per AUG-620 brief item 8 (contest.course.holes[i].par),
+            // not the active-round course; chip pars stay stable regardless of tournament round.
+            const lastHoles = lastThreePlayedHoleChips(recentScores, contest.course.holes);
 
             return (
               <View
@@ -236,26 +237,20 @@ export default function LeaderboardScreen() {
                     {formatToPar(r.toPar).replace("-", "−")}
                   </Text>
                   <View style={{ flexDirection: "row", gap: 4 }}>
-                    {lastHoles.map(({ score, index }) => {
-                      const par = liveRoundCourse(contest).holes[index]?.par;
-                      if (par === undefined) return null;
-                      const difference = score - par;
-                      const filled = difference < 0 || difference >= 2;
-                      const color = difference >= 2 ? COLORS.error : COLORS.primary;
+                    {lastHoles.map(({ score, index, shape, color, filled }) => {
+                      const chipColor = color === "error" ? COLORS.error : COLORS.primary;
                       return (
-                        <View key={index} accessibilityLabel={`Hole ${index + 1}: ${score} strokes`}
-                          style={{ width: 20, height: 20, borderRadius: difference <= 0 ? 10 : 0,
-                            borderWidth: 1, borderColor: color,
-                            backgroundColor: filled ? color : "transparent",
+                        <View key={index} testID={`leaderboard-hole-chip-${r.playerId}-${index}`}
+                          accessibilityLabel={`Hole ${index + 1}: ${score} strokes`}
+                          style={{ width: 20, height: 20, borderRadius: shape === "circle" ? 10 : 0,
+                            borderWidth: 1, borderColor: chipColor,
+                            backgroundColor: filled ? chipColor : "transparent",
                             alignItems: "center", justifyContent: "center" }}>
                           <Text style={{ fontFamily: FONTS.score, fontSize: 11,
                             color: filled ? COLORS.onPrimary : COLORS.text }}>{score}</Text>
                         </View>
                       );
                     })}
-                    {Array.from({ length: 3 - lastHoles.length }, (_, index) => (
-                      <View key={`empty-${index}`} style={{ width: 20, height: 20 }} />
-                    ))}
                   </View>
                 </View>
               </View>
