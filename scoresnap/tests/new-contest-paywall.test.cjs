@@ -15,7 +15,7 @@ function harness(initialTier = 'free', {comingSoon = false, validate} = {}) {
   const useAuthStore = select => select(auth); useAuthStore.getState = () => auth;
   const mocks = {
     react, 'react/jsx-runtime': {jsx, jsxs: jsx},
-    'react-native': new Proxy({Platform: {OS: 'web'}}, {get: (o, k) => o[k] ?? k}),
+    'react-native': new Proxy({Platform: {OS: 'web'}, Dimensions: {get: () => ({width: 375, height: 667})}}, {get: (o, k) => o[k] ?? k}),
     'expo-router': {useRouter: () => ({push, replace, back: jest.fn()}), useFocusEffect: callback => {focus = callback;}},
     'lucide-react-native': new Proxy({}, {get: (_, k) => k}),
     'expo-crypto': {randomUUID: () => `contest-${++id}`},
@@ -23,6 +23,7 @@ function harness(initialTier = 'free', {comingSoon = false, validate} = {}) {
     '../../src/ui/alert': {showAlert: jest.fn()}, '../../src/ui/SafeScreen': {SafeScreen: 'SafeScreen'},
     '../../src/ui/AnimatedPressable': {AnimatedPressable: 'Pressable'},
     '../../src/ui/CourseSearch': {default: 'CourseSearch'},
+    '../../src/ui/compact-viewport': {isCompactViewport: () => true},
     '../../src/stores/scan-store': {useScanStore: select => select({tier})},
     '../../src/stores/auth-store': {useAuthStore},
     '../../src/stores/contest-store': {generateId: () => `p${++id}`, useContestStore: select => select({addContest}), defaultCourse: name => ({name, holes: []})},

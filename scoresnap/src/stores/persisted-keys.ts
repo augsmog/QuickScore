@@ -24,6 +24,8 @@ export const PERSISTED_ACCOUNT_KEYS = [
   CHAT_NAME_KEY,
   CHAT_MODERATION_KEY,
   TOURNAMENT_OUTBOX_KEY,
+  "snapscore.account-handoff.v1",
+  "snapscore.guest-history-handoff.v1",
 ] as const;
 
 export const persistGate = {
