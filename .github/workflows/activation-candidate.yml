@@ -13,6 +13,9 @@ on:
       - 'scoresnap/scripts/ci/test-first-round-finished.sql'
       - 'scoresnap/scripts/ci/test-activation-retention.sql'
       - 'scoresnap/scripts/ci/test-activation-share-rate.sql'
+      - 'scoresnap/scripts/ci/test-day14-report.sql'
+      - 'scoresnap/scripts/ci/test-day14-report.py'
+      - 'scoresnap/scripts/analytics/day14-report.sql'
   workflow_dispatch:
 permissions:
   contents: read
@@ -53,6 +56,8 @@ jobs:
         run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f scripts/ci/test-activation-retention.sql
       - name: Verify activation share-rate behavior
         run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f scripts/ci/test-activation-share-rate.sql
+      - name: Verify Day 14 report worksheet
+        run: python3 scripts/ci/test-day14-report.py postgresql://postgres:postgres@127.0.0.1:54322/postgres
       - name: Roll back proposed activation migration
         run: |
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/rollbacks/20261104110000_activation_share_rate.sql
