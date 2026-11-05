@@ -170,41 +170,58 @@ export default function LeaderboardScreen() {
           {/* Gross / Net toggle (Direction A, Figma 11:43). Hidden when the course
               cannot be ranked net, so Gross always shows for unsupported courses. */}
           {netAvailable && (
-            <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
-              <AnimatedPressable
-                testID="leaderboard-rank-gross"
-                onPress={() => setRankMode("gross")}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  minHeight: 44,
-                  justifyContent: "center",
-                  borderRadius: RADII.md - 2,
-                  alignItems: "center",
-                  backgroundColor: rankMode === "gross" ? COLORS.surfaceHigh : "transparent",
-                }}
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 16 }}>
+              <View
+                testID="leaderboard-rank-toggle"
+                style={{ flexDirection: "row", width: 150, height: 36, backgroundColor: COLORS.surfaceMid, borderRadius: RADII.full, padding: 2, gap: 2 }}
               >
-                <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: rankMode === "gross" ? COLORS.text : COLORS.textDim }}>
-                  Gross
-                </Text>
-              </AnimatedPressable>
-              <AnimatedPressable
-                testID="leaderboard-rank-net"
-                onPress={() => setRankMode("net")}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  minHeight: 44,
-                  justifyContent: "center",
-                  borderRadius: RADII.md - 2,
-                  alignItems: "center",
-                  backgroundColor: rankMode === "net" ? COLORS.surfaceHigh : "transparent",
-                }}
-              >
-                <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: rankMode === "net" ? COLORS.text : COLORS.textDim }}>
-                  Net
-                </Text>
-              </AnimatedPressable>
+                <AnimatedPressable
+                  testID="leaderboard-rank-gross"
+                  onPress={() => setRankMode("gross")}
+                  hitSlop={{ top: 6, bottom: 6 }}
+                  style={{
+                    width: 72,
+                    height: 32,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: RADII.full,
+                    backgroundColor: rankMode === "gross" ? COLORS.primary : "transparent",
+                  }}
+                >
+                  <Text
+                    style={
+                      rankMode === "gross"
+                        ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
+                        : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
+                    }
+                  >
+                    Gross
+                  </Text>
+                </AnimatedPressable>
+                <AnimatedPressable
+                  testID="leaderboard-rank-net"
+                  onPress={() => setRankMode("net")}
+                  hitSlop={{ top: 6, bottom: 6 }}
+                  style={{
+                    width: 72,
+                    height: 32,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: RADII.full,
+                    backgroundColor: rankMode === "net" ? COLORS.primary : "transparent",
+                  }}
+                >
+                  <Text
+                    style={
+                      rankMode === "net"
+                        ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
+                        : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
+                    }
+                  >
+                    Net
+                  </Text>
+                </AnimatedPressable>
+              </View>
             </View>
           )}
           {individualResults.map((r, i) => {
