@@ -139,6 +139,7 @@ test('actual review screen renders incomplete and corrected states side by side'
  'expo-haptics':{},'../../src/ui/theme':load('src/ui/theme.ts'),
  '../../src/stores/contest-store':{useContestStore:select=>select({contests:[],addContest:()=>{},importScores:()=>{}})},
  '../../src/services/ocr-review':review,'../../src/ui/animations/ConfettiOverlay':{ConfettiOverlay:()=>null},
+ '../../src/config/posthog':{posthog:null},'../../src/services/posthog-log':{posthogAppLogger:{scorecardScoresCommitted(){}}},
  }).default;
  const r=raw();r.scores[6]=null;data=JSON.stringify([r]);const incomplete=renderToStaticMarkup(React.createElement(screen));
  expect(incomplete).toContain('Partial: 68');expect(incomplete).toContain('Hole 7 is blank for Player A');
@@ -216,6 +217,7 @@ for (const partial of [false,true]) test(`real two-group smoke imports and keeps
  'expo-haptics':{notificationAsync:()=>{},NotificationFeedbackType:{Success:'success'}},'../../src/ui/theme':load('src/ui/theme.ts'),
  '../../src/stores/contest-store':{useContestStore:select=>select(store.getState())},
  '../../src/services/ocr-review':review,'../../src/ui/animations/ConfettiOverlay':{ConfettiOverlay:'Confetti'},
+ '../../src/config/posthog':{posthog:null},'../../src/services/posthog-log':{posthogAppLogger:{scorecardScoresCommitted(){}}},
  }).default;
  let nodes;
  const render=()=>{cursor=0;nodes=[];const walk=n=>{if(!n||typeof n!=='object')return;if(Array.isArray(n)){n.forEach(walk);return;}nodes.push(n);walk(n.props?.children);};walk(screen());};

@@ -28,6 +28,8 @@ function harness(initialTier = 'free', {comingSoon = false, validate} = {}) {
     '../../src/stores/auth-store': {useAuthStore},
     '../../src/stores/contest-store': {generateId: () => `p${++id}`, useContestStore: select => select({addContest}), defaultCourse: name => ({name, holes: []})},
     '../../src/config/features': {COURSE_SEARCH_ENABLED: false}, '../../src/config/auth': {REAL_AUTH_CONFIGURED: false},
+    '../../src/config/posthog': {posthog: null},
+    '../../src/services/posthog-log': {posthogAppLogger: {contestCreated() {}}},
   };
   if (comingSoon) {
     const actual = loadTS()('src/engine/types.ts');

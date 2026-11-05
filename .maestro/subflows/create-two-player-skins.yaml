@@ -26,11 +26,14 @@ appId: com.scoresnap.app
 - extendedWaitUntil:
     visible: "Skins"
     timeout: 15000
-# Home stays mounted under the New Contest stack, so scope the tap to the Game Modes step.
+# iOS flattens the a11y tree: the Skins chip is a sibling of id "contest-step-gamemodes",
+# not a descendant, so `childOf` matched nothing (AUG-612). Scope by the section label
+# "POPULAR FORMATS" (unique to the Game Modes step, so Home underneath can't match) and
+# anchor the text to avoid the adjacent "Skins (Carryover)" chip.
 - tapOn:
-    text: "Skins"
-    childOf:
-      id: "contest-step-gamemodes"
+    text: "^Skins$"
+    below:
+      text: "POPULAR FORMATS"
 - scrollUntilVisible:
     element: "Continue"
     direction: DOWN

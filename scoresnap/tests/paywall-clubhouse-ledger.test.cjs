@@ -41,7 +41,7 @@ function screen({restore=async()=>true,owner='free',target}={}){
  '@expo-google-fonts/inter':{useFonts:()=>[true]},
  '../src/services/purchases':{getPackages:async()=>packages,purchasePackage:async()=>true,restorePurchases:restore,syncProStatus:async()=>{}},
  '../src/services/paywall-plans':plans,'../src/stores/scan-store':{useScanStore:f=>f({tier:owner})},
- '../src/config/support':load('src/config/support.ts'),'../src/ui/paywall-copy':{PAYWALL_COPY:C},
+ '../src/config/support':load('src/config/support.ts'),'../src/config/posthog':{posthog:null},'../src/ui/paywall-copy':{PAYWALL_COPY:C},
  '../src/ui/paywall-tokens':load('src/ui/paywall-tokens.ts'),'../src/ui/paywall-icons':{PaywallIcon:'Icon',PaywallRadio:'Radio'},
  }).default;
  return {render:()=>{cursor=0;return Screen()},states,effects,alert,openURL,back};
