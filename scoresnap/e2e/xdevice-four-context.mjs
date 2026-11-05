@@ -2,12 +2,43 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { isSavedContestPath } from './xdevice-route.mjs';
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { summarize, toMarkdown } = require('./consumer-ux-metrics.cjs');
 const base = process.env.BASE_URL ?? 'http://127.0.0.1:8089';
 const out = process.env.OUT_DIR ?? '/tmp/xdevice-four-context';
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_BIN ? { executablePath: process.env.CHROME_BIN } : {}) });
-const contexts = await Promise.all(Array.from({ length: 4 }, () => browser.newContext()));
+const devices = [
+  { name: 'iPhone SE (375×667)', viewport: { width: 375, height: 667 } },
+  { name: 'iPhone 15 Pro (393×852)', viewport: { width: 393, height: 852 } },
+  { name: 'iPhone 15 Pro Max (430×932)', viewport: { width: 430, height: 932 } },
+  { name: 'iPad representative landscape (1024×768)', viewport: { width: 1024, height: 768 } },
+];
+const contexts = await Promise.all(devices.map(device => browser.newContext({
+  viewport: device.viewport,
+  deviceScaleFactor: 1,
+  isMobile: true,
+  hasTouch: true,
+})));
+for (const context of contexts) await context.addInitScript(() => {
+  const key = '__aug81_consumer_observations__';
+  const read = () => { try { return JSON.parse(sessionStorage.getItem(key) || '[]'); } catch { return []; } };
+  const record = event => { const events = read(); events.push(event); sessionStorage.setItem(key, JSON.stringify(events)); };
+  document.addEventListener('click', event => {
+    const element = event.target.closest('button,a,[role="button"],input,select,[data-testid]') || event.target;
+    const rect = element.getBoundingClientRect();
+    const label = element.getAttribute('aria-label') || element.getAttribute('placeholder') || element.innerText || element.getAttribute('data-testid') || element.tagName;
+    record({ type: 'activate', label: String(label).replace(/\s+/g, ' ').trim().slice(0, 120), y: rect.top + window.scrollY, viewportHeight: window.innerHeight });
+  }, true);
+  let lastScroll = 0;
+  document.addEventListener('scroll', () => {
+    const now = Date.now();
+    if (now - lastScroll > 250) { record({ type: 'scroll' }); lastScroll = now; }
+  }, { capture: true, passive: true });
+});
 const pages = await Promise.all(contexts.map(c => c.newPage()));
 const names = ['Xdev Host', 'Xdev Bravo', 'Xdev Charlie', 'Xdev Delta'];
 const snapshots = new WeakMap();
@@ -180,6 +211,16 @@ async function converge(indices) {
 async function queueEntries(p) {
   return p.evaluate(contestId => Object.keys(localStorage).filter(k => k.includes('snapscore.outbox.v1.')).flatMap(k => JSON.parse(localStorage.getItem(k)).entries).filter(e => e.draft.contest_id === contestId), contestId);
 }
+async function writeConsumerReport() {
+  const events = await Promise.all(pages.map(page => page.evaluate(() => {
+    try { return JSON.parse(sessionStorage.getItem('__aug81_consumer_observations__') || '[]'); } catch { return []; }
+  })));
+  const rows = summarize(events, devices.map(device => device.name));
+  await Promise.all([
+    import('node:fs/promises').then(fs => fs.writeFile(path.join(out, 'consumer-ux.json'), `${JSON.stringify({ simulation: true, rows }, null, 2)}\n`)),
+    import('node:fs/promises').then(fs => fs.writeFile(path.join(out, 'consumer-ux.md'), toMarkdown(rows))),
+  ]);
+}
 let contestId, contestUrl, code;
 try {
   const signed = [];
@@ -196,12 +237,15 @@ try {
       await a.getByPlaceholder('Your name').fill(names[0]);
       await a.getByPlaceholder('Player 2 name').fill(names[1]);
       for (let i = 2; i < 4; i++) { await text(a, '+ ADD PLAYER').click(); await a.getByPlaceholder(`Player ${i + 1} name`).fill(names[i]); }
+      await a.getByTestId('add-group').click();
+      for (const i of [1, 3]) await a.getByTestId(`player-group-${names[i]}`).click();
+      for (const i of [1, 3]) await a.getByTestId(`player-group-${names[i]}`).getByText('G2').waitFor();
       await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
       await a.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
       await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
       await a.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
-      await text(a, /^START$/i).click();
-      await a.waitForURL(/\/contest\/[^/]+$/);
+      await a.getByTestId('contest-start').click();
+      await a.waitForURL(url => isSavedContestPath(url.pathname));
       contestUrl = a.url(); contestId = new URL(contestUrl).pathname.split('/').pop();
       await text(a, 'Enable online sharing').click();
       const label = await a.getByTestId('organizer-join-code').innerText();
@@ -235,6 +279,12 @@ try {
       await text(pages[0], 'Online sync').click();
       await retry(0);
       await text(pages[0], 'Current online snapshot').waitFor();
+      const round = snapshot(pages[0])?.rounds[0];
+      assert(round && round.groups.length === 2, 'Server snapshot preserves the two-group fixture');
+      const groupByName = new Map(round.players.map(player => [player.displayName, player.group_id]));
+      assert.equal(groupByName.get(names[0]), groupByName.get(names[2]), 'A and C are assigned to group 1');
+      assert.equal(groupByName.get(names[1]), groupByName.get(names[3]), 'B and D are assigned to group 2');
+      assert.notEqual(groupByName.get(names[0]), groupByName.get(names[1]), 'Each simulated device is associated with the intended group');
     });
     await step('offline drafts visible immediately; reconnect D B C', async () => {
       for (const i of [1, 2, 3]) {
@@ -375,6 +425,7 @@ try {
     });
     console.log('PASS four isolated browsers: approve x3, offline reconnect D,B,C, same-hole conflict resolved, host leave/return, removed-phone lockout');
   }
+  await writeConsumerReport();
 } catch (error) {
   for (const [i, p] of pages.entries()) if (!p.isClosed()) await p.screenshot({ path: path.join(out, `failure-${i}.png`), fullPage: true }).catch(() => {});
   throw error;
