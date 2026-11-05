@@ -94,7 +94,8 @@ test("selectors used by flows exist in the app source", () => {
   }
   for (const id of ids) {
     const literal = src.includes(`testID="${id}"`) || (["course-tee-last", "course-tee-row"].includes(id) && src.includes('testID={ti === selectedCourse.teeBoxes.length - 1 ? "course-tee-last"'));
-    const templ = /^score-(minus|par|plus)-/.test(id) && src.includes(`testID={\`score-${id.split("-")[1]}-\${player.name}\`}`);
+    const templ = (/^score-(minus|par|plus)-/.test(id) && src.includes(`testID={\`score-${id.split("-")[1]}-\${player.name}\`}`))
+      || (/^game-mode-/.test(id) && src.includes("testID={`game-mode-${game.id}`}"));
     expect([id, literal || templ]).toEqual([id, true]);
   }
 });

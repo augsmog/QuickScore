@@ -101,7 +101,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     '@shopify/flash-list': { FlashList: passthroughFlashList },
     'react-native': rn,
     '../ui/theme': theme,
-    '../engine/contest-results': { liveRoundCourse: (value) => value.course },
+    '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
     '../utils/formatters': { formatToPar: (value) => (value === 0 ? 'E' : String(value)) },
   });
   deps['../../../src/components/LeaderboardResultsList'] = { LeaderboardResultsList };

@@ -78,7 +78,7 @@ function componentDeps(capture, visibleCount) {
       FONTS: new Proxy({}, { get: (_, key) => String(key) }),
       RADII: new Proxy({}, { get: () => 8 }),
     },
-    '../engine/contest-results': { liveRoundCourse: (value) => value.course },
+    '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
     '../utils/formatters': { formatToPar: (value) => (value === 0 ? 'E' : String(value)) },
   };
 }
