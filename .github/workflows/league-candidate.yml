@@ -8,6 +8,9 @@ on:
       - 'scoresnap/supabase/proposed/20261103150000_lightweight_leagues.sql'
       - 'scoresnap/scripts/ci/test-league-candidate.sql'
   workflow_dispatch:
+concurrency:
+  group: league-candidate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
   packages: read
