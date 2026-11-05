@@ -72,6 +72,16 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     '../../../src/engine/calculators/stroke-play': load('src/engine/calculators/stroke-play.ts', {
       '../types': {},
     }),
+    '../../../src/engine/calculators/leaderboard-view': load('src/engine/calculators/leaderboard-view.ts', {
+      '../types': {},
+      './stroke-play': load('src/engine/calculators/stroke-play.ts', { '../types': {} }),
+      './net-stroke-play': load('src/engine/calculators/net-stroke-play.ts', {
+        '../types': {},
+        './skins': load('src/engine/calculators/skins.ts', { '../types': {} }),
+        './stroke-play': load('src/engine/calculators/stroke-play.ts', { '../types': {} }),
+      }),
+    }),
+    '../../../src/ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
     '../../../src/utils/formatters': { formatToPar: (value) => (value === 0 ? 'E' : String(value)) },
     '../../../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
   };
