@@ -44,7 +44,7 @@ Check these types. Leave the rest unchecked unless the "Confirm before submittin
 Use this row for contest content other than chat. Chat is Emails or Text Messages, below. Apple also has Gameplay Content. These records are golf scores and side-game units, not a saved game inside a game engine. Other User Content is the closer category for the scores. Confirm that choice with whoever submits the label.
 
 - **Collected:** Yes when live share or tournament sync runs. The payload is display names, hole scores, totals, score to par, game ids, unit standings, handicaps, and course JSON (`scoresnap/src/services/live-share-snapshot.ts:51-71`, `scoresnap/src/services/tournament-sync.ts:22-127`, `145-155`).
-- **Also stored on device** for every contest, even when those network calls are off (`scoresnap/src/stores/contest-store.ts:355`). On-device copies are not a nutrition-label collection by themselves.
+- **Also stored on device** for all contests, even when those network calls are off (`scoresnap/src/stores/contest-store.ts:355`). On-device copies are not a nutrition-label collection by themselves.
 - **Linked to identity:** Yes. Both paths require a non-anonymous Supabase session, and share rows are stored under `auth.uid()` (`scoresnap/src/services/live-share.ts:10-12`, `scoresnap/supabase/migrations/20261027000000_live_baseline.sql:689-706`).
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
