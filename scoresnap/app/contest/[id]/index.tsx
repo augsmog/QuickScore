@@ -8,6 +8,7 @@ import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../..
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
+import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
 
 export default function LeaderboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -68,12 +69,10 @@ export default function LeaderboardScreen() {
   const teamATotal = teamAPlayers.reduce((sum, p) => sum + p.scores.reduce((a, b) => a + b, 0), 0);
   const teamBTotal = teamBPlayers.reduce((sum, p) => sum + p.scores.reduce((a, b) => a + b, 0), 0);
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: COLORS.bg }}
-      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
-      showsVerticalScrollIndicator={false}
-    >
+  // Shared header (course note + toggles). Reused as the FlashList ListHeaderComponent
+  // in individual view and inside the ScrollView in groups view so both views look identical.
+  const header = (
+    <>
       {/* Round name and course live in the shared header; tournaments note the day's course here. */}
       {contest.isTournament && (
         <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, marginBottom: 12 }}>
@@ -157,115 +156,34 @@ export default function LeaderboardScreen() {
         </View>
       )}
 
-      {/* Individual Leaderboard */}
-      {viewMode === "individual" && (
-        <>
-          {results.map((r, i) => {
-            const player = allPlayers.find((p) => p.id === r.playerId);
-            const holesPlayed = player
-              ? player.scores.filter((s) => s > 0).length
-              : 0;
+    </>
+  );
 
-            const rank = results.findIndex((result) => result.total === r.total) + 1;
-            const tied = results.filter((result) => result.total === r.total).length > 1;
-            const lastHoles = (recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [])
-              .map((score, index) => ({ score, index }))
-              .filter(({ score }) => score > 0)
-              .slice(-3);
+  // Individual view: virtualize the ranked rows with FlashList (72+ player fields).
+  if (viewMode === "individual") {
+    return (
+      <LeaderboardResultsList
+        results={results}
+        allPlayers={allPlayers}
+        recentPlayers={recentPlayers}
+        contest={contest}
+        ListHeaderComponent={header}
+        ListFooterComponent={<View style={{ height: 16 }} />}
+      />
+    );
+  }
 
-            return (
-              <View
-                key={r.playerId}
-                testID={`leaderboard-player-${r.name}`}
-                style={{
-                  backgroundColor: i === 0 ? COLORS.surfaceHigh : COLORS.surfaceMid,
-                  borderRadius: RADII.lg,
-                  padding: 14,
-                  marginBottom: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
-                <Text style={{ width: 28, fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
-                  {tied ? `T${rank}` : rank}
-                </Text>
-
-                {/* Avatar initial */}
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: COLORS.surfaceHighest,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ fontFamily: FONTS.bold, fontSize: 14, color: COLORS.text }}>
-                    {r.name[0]?.toUpperCase() || "?"}
-                  </Text>
-                </View>
-
-                {/* Player Info */}
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    {player?.team && contest.hasTeams && (
-                      <View
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: player.team === "A" ? COLORS.primary : COLORS.secondary,
-                        }}
-                      />
-                    )}
-                    <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>
-                      {r.name}
-                    </Text>
-                  </View>
-                  <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>
-                    Total <Text testID={`leaderboard-total-${r.name}`}>{r.total}</Text> · thru {holesPlayed}
-                  </Text>
-                </View>
-
-                <View style={{ alignItems: "flex-end", gap: 6 }}>
-                  <Text testID={`leaderboard-topar-${r.name}`}
-                    style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28,
-                      color: r.toPar < 0 ? COLORS.primary : r.toPar > 0 ? COLORS.error : COLORS.text }}>
-                    {formatToPar(r.toPar).replace("-", "−")}
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: 4 }}>
-                    {lastHoles.map(({ score, index }) => {
-                      const par = liveRoundCourse(contest).holes[index]?.par;
-                      if (par === undefined) return null;
-                      const difference = score - par;
-                      const filled = difference < 0 || difference >= 2;
-                      const color = difference >= 2 ? COLORS.error : COLORS.primary;
-                      return (
-                        <View key={index} accessibilityLabel={`Hole ${index + 1}: ${score} strokes`}
-                          style={{ width: 20, height: 20, borderRadius: difference <= 0 ? 10 : 0,
-                            borderWidth: 1, borderColor: color,
-                            backgroundColor: filled ? color : "transparent",
-                            alignItems: "center", justifyContent: "center" }}>
-                          <Text style={{ fontFamily: FONTS.score, fontSize: 11,
-                            color: filled ? COLORS.onPrimary : COLORS.text }}>{score}</Text>
-                        </View>
-                      );
-                    })}
-                    {Array.from({ length: 3 - lastHoles.length }, (_, index) => (
-                      <View key={`empty-${index}`} style={{ width: 20, height: 20 }} />
-                    ))}
-                  </View>
-                </View>
-              </View>
-            );
-          })}
-        </>
-      )}
+  // Groups view: a handful of team/group cards, no 72+ scaling concern, stays a ScrollView.
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: COLORS.bg }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {header}
 
       {/* Group Performance (team view) */}
-      {viewMode === "groups" && hasTeams && (
+      {hasTeams && (
         <>
           <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 12 }}>
             GROUP PERFORMANCE
@@ -342,7 +260,7 @@ export default function LeaderboardScreen() {
       )}
 
       {/* Group Performance for non-team contests in groups view */}
-      {viewMode === "groups" && !hasTeams && (
+      {!hasTeams && (
         <>
           <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 12 }}>
             GROUP PERFORMANCE
