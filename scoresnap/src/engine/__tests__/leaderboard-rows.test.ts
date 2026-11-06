@@ -110,6 +110,65 @@ describe("buildLeaderboardRows", () => {
     expect(rows[0].thru).toBe("F");
   });
 
+  // AUG-253n: pre-start tee-time token on the sibling `teeTime` field.
+  test("tee time: not-started player exposes the group tee time, thru stays null", () => {
+    const none = player("n", "None", Array(18).fill(0));
+    const results = calcStrokePlay([none], COURSE);
+    const groups: LeaderboardGroup[] = [{ id: "g1", players: [{ id: "n" }], teeTime: "8:40 AM" }];
+    const rows = buildLeaderboardRows(results, [none], { holeCount: 18, groups });
+    expect(rows[0].thru).toBe(null);
+    expect(rows[0].teeTime).toBe("8:40 AM");
+  });
+
+  test("tee time: a started (mid-round) player clears the tee time", () => {
+    const partial = player("p", "Partial", [...Array(7).fill(4), ...Array(11).fill(0)]);
+    const results = calcStrokePlay([partial], COURSE);
+    const groups: LeaderboardGroup[] = [{ id: "g1", players: [{ id: "p" }], teeTime: "9:10 AM" }];
+    const rows = buildLeaderboardRows(results, [partial], { holeCount: 18, groups });
+    expect(rows[0].thru).toBe(7);
+    expect(rows[0].teeTime).toBe(null);
+  });
+
+  test("tee time: a finished player clears the tee time (thru F, teeTime null)", () => {
+    const full = player("f", "Full", Array(18).fill(4));
+    const results = calcStrokePlay([full], COURSE);
+    const groups: LeaderboardGroup[] = [{ id: "g1", players: [{ id: "f" }], teeTime: "7:30 AM" }];
+    const rows = buildLeaderboardRows(results, [full], { holeCount: 18, groups });
+    expect(rows[0].thru).toBe("F");
+    expect(rows[0].teeTime).toBe(null);
+  });
+
+  test("tee time: not-started player with no tee time (group omits / empty) is null", () => {
+    const noTee = player("a", "A", Array(18).fill(0));
+    const emptyTee = player("b", "B", Array(18).fill(0));
+    const ungrouped = player("c", "C", Array(18).fill(0));
+    const players = [noTee, emptyTee, ungrouped];
+    const results = calcStrokePlay(players, COURSE);
+    const groups: LeaderboardGroup[] = [
+      { id: "g1", players: [{ id: "a" }] }, // teeTime omitted
+      { id: "g2", players: [{ id: "b" }], teeTime: "" }, // empty tee time ignored
+    ];
+    const rows = buildLeaderboardRows(results, players, { holeCount: 18, groups });
+    const byId = Object.fromEntries(rows.map((r) => [r.playerId, r.teeTime]));
+    expect(byId["a"]).toBe(null);
+    expect(byId["b"]).toBe(null);
+    expect(byId["c"]).toBe(null);
+  });
+
+  test("tee time: omitting tee-time input leaves every row's teeTime null and thru unchanged", () => {
+    const full = player("f", "Full", Array(18).fill(4));
+    const partial = player("p", "Partial", [...Array(7).fill(4), ...Array(11).fill(0)]);
+    const none = player("n", "None", Array(18).fill(0));
+    const players = [full, partial, none];
+    const results = calcStrokePlay(players, COURSE);
+    const rows = buildLeaderboardRows(results, players, { holeCount: 18 });
+    expect(rows.every((r) => r.teeTime === null)).toBe(true);
+    const byId = Object.fromEntries(rows.map((r) => [r.playerId, r.thru]));
+    expect(byId["f"]).toBe("F");
+    expect(byId["p"]).toBe(7);
+    expect(byId["n"]).toBe(null);
+  });
+
   test("search + group filters keep the original field rank", () => {
     const results: StrokePlayResult[] = [
       { playerId: "a", name: "Alice", front: 0, back: 0, total: 70, toPar: -2 },
