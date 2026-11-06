@@ -30,6 +30,23 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- AUG-737 (AUG-277 Gap 1): a scan Quick Settle commits a contest for its owner and
+-- flips it from 'active' to 'completed' (scoresnap/app/scan/review.tsx) — the same
+-- contests active->completed write shape asserted above for a01 (non-anonymous) and
+-- a03 (anonymous). Assert that shape records the activation signal exactly once for a
+-- non-anonymous owner via the contest_completed source and never for an anonymous one.
+-- Pure assertions over the rows already created above: no new finish, so the counts
+-- and zero-signup activation_daily total below are unchanged.
+DO $$ BEGIN
+  IF (SELECT count(*) FROM public.first_round_finishes
+      WHERE user_id='00000000-0000-0000-0000-000000000a01' AND source='contest_completed') <> 1 THEN
+    RAISE EXCEPTION 'quick-settle-shaped contest completion not recorded exactly once for non-anonymous owner';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a03') THEN
+    RAISE EXCEPTION 'quick-settle-shaped completion recorded for anonymous owner';
+  END IF;
+END $$;
+
 INSERT INTO public.published_rounds(contest_id,owner_id,local_id,snapshot,ended_at)
 VALUES ('00000000-0000-0000-0000-000000000a14','00000000-0000-0000-0000-000000000a02','activation-fixture','{}',NULL);
 UPDATE public.published_rounds SET ended_at=transaction_timestamp() WHERE contest_id='00000000-0000-0000-0000-000000000a14';

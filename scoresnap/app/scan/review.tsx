@@ -241,7 +241,14 @@ export default function ScanReviewScreen() {
         id: generateId(),
         name: `${dayName} Round`,
         course: defaultCourse("Scanned Course"),
-        status: "active",
+        // Quick Settle commits a fully scored, scanned round — it IS finished, so
+        // create it completed (not "active"). Activation (AUG-277 Gap 1): for a
+        // non-anonymous owner the completed status is the durable server signal the
+        // first_round_finish trigger records once it reaches Supabase; previously the
+        // contest stayed "active" forever so scan-only users never activated. Default
+        // games (stroke_play[, skins]) carry no manual settlement input and all 18
+        // holes are filled, so completing at creation trips no settlement guard.
+        status: "completed",
         betUnit: 5,
         hasTeams: false,
         groups: [group],
@@ -863,6 +870,7 @@ export default function ScanReviewScreen() {
         {(reason || commitError) && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: COLORS.error, marginBottom: 8 }}>{reason || commitError}</Text>}
         {/* Confirm & Calculate — primary CTA */}
         <Pressable
+          testID="scan-commit"
           onPress={handleCommit}
           disabled={!!reason}
           accessibilityState={{ disabled: !!reason }}
