@@ -1,15 +1,16 @@
 import { teamCardPlayers, liveRoundCourse } from "../../../src/engine/contest-results";
 import { Flag } from "lucide-react-native";
 import { useState } from "react";
-import { View, Text, ScrollView } from "react-native";
+import { View, Text, ScrollView, TextInput } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { buildLeaderboard } from "../../../src/engine/calculators/leaderboard-view";
+import { buildLeaderboardRows } from "../../../src/engine/leaderboard-rows";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
-import { lastThreePlayedHoleChips } from "../../../src/ui/leaderboard-hole-strip";
+import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
 
 export default function LeaderboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -20,6 +21,8 @@ export default function LeaderboardScreen() {
   const [viewMode, setViewMode] = useState<"individual" | "groups">("individual");
   const [scoreView, setScoreView] = useState<"cumulative" | "daily">("cumulative");
   const [rankMode, setRankMode] = useState<"gross" | "net">("gross");
+  // AUG-735 (AUG-253g): case-insensitive name search over the individual field.
+  const [playerQuery, setPlayerQuery] = useState("");
 
   if (!contest) return null;
 
@@ -76,12 +79,11 @@ export default function LeaderboardScreen() {
   const teamATotal = teamAPlayers.reduce((sum, p) => sum + p.scores.reduce((a, b) => a + b, 0), 0);
   const teamBTotal = teamBPlayers.reduce((sum, p) => sum + p.scores.reduce((a, b) => a + b, 0), 0);
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: COLORS.bg }}
-      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
-      showsVerticalScrollIndicator={false}
-    >
+  // Shared header (course note + round/view toggles). Reused as the FlashList
+  // ListHeaderComponent in individual view and inside the ScrollView in groups view
+  // so both views render the same chrome above the list (AUG-253b re-cut).
+  const header = (
+    <>
       {/* Round name and course live in the shared header; tournaments note the day's course here. */}
       {contest.isTournament && (
         <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, marginBottom: 12 }}>
@@ -165,163 +167,143 @@ export default function LeaderboardScreen() {
         </View>
       )}
 
-      {/* Individual Leaderboard */}
-      {viewMode === "individual" && (
-        <>
-          {/* Gross / Net toggle (Direction A, Figma 11:43). Hidden when the course
-              cannot be ranked net, so Gross always shows for unsupported courses. */}
-          {netAvailable && (
-            <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 16 }}>
-              <View
-                testID="leaderboard-rank-toggle"
-                style={{ flexDirection: "row", width: 150, height: 36, backgroundColor: COLORS.surfaceMid, borderRadius: RADII.full, padding: 2, gap: 2 }}
-              >
-                <AnimatedPressable
-                  testID="leaderboard-rank-gross"
-                  onPress={() => setRankMode("gross")}
-                  hitSlop={{ top: 6, bottom: 6 }}
-                  style={{
-                    width: 72,
-                    height: 32,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    borderRadius: RADII.full,
-                    backgroundColor: rankMode === "gross" ? COLORS.primary : "transparent",
-                  }}
-                >
-                  <Text
-                    style={
-                      rankMode === "gross"
-                        ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
-                        : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
-                    }
-                  >
-                    Gross
-                  </Text>
-                </AnimatedPressable>
-                <AnimatedPressable
-                  testID="leaderboard-rank-net"
-                  onPress={() => setRankMode("net")}
-                  hitSlop={{ top: 6, bottom: 6 }}
-                  style={{
-                    width: 72,
-                    height: 32,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    borderRadius: RADII.full,
-                    backgroundColor: rankMode === "net" ? COLORS.primary : "transparent",
-                  }}
-                >
-                  <Text
-                    style={
-                      rankMode === "net"
-                        ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
-                        : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
-                    }
-                  >
-                    Net
-                  </Text>
-                </AnimatedPressable>
-              </View>
-            </View>
-          )}
-          {individualResults.map((r, i) => {
-            const player = allPlayers.find((p) => p.id === r.playerId);
-            const holesPlayed = player
-              ? player.scores.filter((s) => s > 0).length
-              : 0;
+    </>
+  );
 
-            const rank = individualResults.findIndex((result) => result.total === r.total) + 1;
-            const tied = individualResults.filter((result) => result.total === r.total).length > 1;
-            const recentScores = recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [];
-            // Par source is the contest course per AUG-620 brief item 8 (contest.course.holes[i].par),
-            // not the active-round course; chip pars stay stable regardless of tournament round.
-            const lastHoles = lastThreePlayedHoleChips(recentScores, contest.course.holes);
+  // Gross / Net toggle (Direction A, Figma 11:43) — rendered at the top of the virtualized
+  // individual list. Hidden when the course cannot be ranked net, so Gross always shows for
+  // unsupported courses. Pressing it flips rankMode, which re-ranks via buildLeaderboard.
+  const grossNetToggle = netAvailable ? (
+    <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 16 }}>
+      <View
+        testID="leaderboard-rank-toggle"
+        style={{ flexDirection: "row", width: 150, height: 36, backgroundColor: COLORS.surfaceMid, borderRadius: RADII.full, padding: 2, gap: 2 }}
+      >
+        <AnimatedPressable
+          testID="leaderboard-rank-gross"
+          onPress={() => setRankMode("gross")}
+          hitSlop={{ top: 6, bottom: 6 }}
+          style={{
+            width: 72,
+            height: 32,
+            justifyContent: "center",
+            alignItems: "center",
+            borderRadius: RADII.full,
+            backgroundColor: rankMode === "gross" ? COLORS.primary : "transparent",
+          }}
+        >
+          <Text
+            style={
+              rankMode === "gross"
+                ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
+                : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
+            }
+          >
+            Gross
+          </Text>
+        </AnimatedPressable>
+        <AnimatedPressable
+          testID="leaderboard-rank-net"
+          onPress={() => setRankMode("net")}
+          hitSlop={{ top: 6, bottom: 6 }}
+          style={{
+            width: 72,
+            height: 32,
+            justifyContent: "center",
+            alignItems: "center",
+            borderRadius: RADII.full,
+            backgroundColor: rankMode === "net" ? COLORS.primary : "transparent",
+          }}
+        >
+          <Text
+            style={
+              rankMode === "net"
+                ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
+                : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
+            }
+          >
+            Net
+          </Text>
+        </AnimatedPressable>
+      </View>
+    </View>
+  ) : null;
 
-            return (
-              <View
-                key={r.playerId}
-                testID={`leaderboard-player-${r.name}`}
-                style={{
-                  backgroundColor: i === 0 ? COLORS.surfaceHigh : COLORS.surfaceMid,
-                  borderRadius: RADII.lg,
-                  padding: 14,
-                  marginBottom: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
-                <Text style={{ width: 28, fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
-                  {tied ? `T${rank}` : rank}
-                </Text>
+  // Search over the full individual field (AUG-735 / AUG-253g). buildLeaderboardRows
+  // fixes each player's competition rank over the WHOLE field before applying the
+  // case-insensitive name filter, so a searched subset keeps real field ranks
+  // (AUG-675 contract). Empty query returns every player, so the default view is
+  // unchanged / pixel-identical.
+  const searchedRows = buildLeaderboardRows(individualResults, allPlayers, {
+    holeCount: leaderboardCourse.holes.length,
+    query: playerQuery,
+  });
+  const rankByPlayerId = new Map(
+    searchedRows.map((r) => [r.playerId, { rankLabel: r.rankLabel, tied: r.tied }]),
+  );
+  const visibleIds = new Set(searchedRows.map((r) => r.playerId));
+  const visibleResults = individualResults.filter((r) => visibleIds.has(r.playerId));
 
-                {/* Avatar initial */}
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: COLORS.surfaceHighest,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ fontFamily: FONTS.bold, fontSize: 14, color: COLORS.text }}>
-                    {r.name[0]?.toUpperCase() || "?"}
-                  </Text>
-                </View>
+  // Search field for the individual leaderboard (Figma 15:2). Mirrors the shipped
+  // CourseSearch "Search by course name..." affordance; placeholder is a functional
+  // filter label, not a copy change (AUG-735 scope).
+  const playerSearch = (
+    <View style={{ marginBottom: 12 }}>
+      <TextInput
+        testID="leaderboard-search"
+        accessibilityLabel="Search players"
+        placeholder="Search players"
+        placeholderTextColor={COLORS.textDim}
+        value={playerQuery}
+        onChangeText={setPlayerQuery}
+        autoCapitalize="none"
+        autoCorrect={false}
+        style={{
+          fontFamily: FONTS.regular,
+          fontSize: 15,
+          color: COLORS.text,
+          backgroundColor: COLORS.surfaceMid,
+          borderRadius: RADII.md,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          minHeight: 44,
+        }}
+      />
+    </View>
+  );
 
-                {/* Player Info */}
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    {player?.team && contest.hasTeams && (
-                      <View
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: player.team === "A" ? COLORS.primary : COLORS.secondary,
-                        }}
-                      />
-                    )}
-                    <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>
-                      {r.name}
-                    </Text>
-                  </View>
-                  <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>
-                    Total <Text testID={`leaderboard-total-${r.name}`}>{r.total}</Text> · thru {holesPlayed}
-                  </Text>
-                </View>
+  // Individual view: virtualize the ranked rows with FlashList (72+ player fields, AUG-253).
+  // The screen owns ranking (buildLeaderboard), the Gross/Net toggle and the search; the
+  // list only recycles the already-ranked rows, which stay pixel-identical to the prior
+  // ScrollView when the search is empty.
+  if (viewMode === "individual") {
+    return (
+      <LeaderboardResultsList
+        results={visibleResults}
+        rankByPlayerId={rankByPlayerId}
+        allPlayers={allPlayers}
+        recentPlayers={recentPlayers}
+        contest={contest}
+        ListHeaderComponent={
+          <>
+            {header}
+            {grossNetToggle}
+            {playerSearch}
+          </>
+        }
+        ListFooterComponent={<View style={{ height: 16 }} />}
+      />
+    );
+  }
 
-                <View style={{ alignItems: "flex-end", gap: 6 }}>
-                  <Text testID={`leaderboard-topar-${r.name}`}
-                    style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28,
-                      color: r.toPar < 0 ? COLORS.primary : r.toPar > 0 ? COLORS.error : COLORS.text }}>
-                    {formatToPar(r.toPar).replace("-", "−")}
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: 4 }}>
-                    {lastHoles.map(({ score, index, shape, color, filled }) => {
-                      const chipColor = color === "error" ? COLORS.error : COLORS.primary;
-                      return (
-                        <View key={index} testID={`leaderboard-hole-chip-${r.playerId}-${index}`}
-                          accessibilityLabel={`Hole ${index + 1}: ${score} strokes`}
-                          style={{ width: 20, height: 20, borderRadius: shape === "circle" ? 10 : 0,
-                            borderWidth: 1, borderColor: chipColor,
-                            backgroundColor: filled ? chipColor : "transparent",
-                            alignItems: "center", justifyContent: "center" }}>
-                          <Text style={{ fontFamily: FONTS.score, fontSize: 11,
-                            color: filled ? COLORS.onPrimary : COLORS.text }}>{score}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </View>
-              </View>
-            );
-          })}
-        </>
-      )}
+  // Groups view: a handful of team/group cards, no 72+ scaling concern, stays a ScrollView.
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: COLORS.bg }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {header}
 
       {/* Group Performance (team view) */}
       {viewMode === "groups" && hasTeams && (

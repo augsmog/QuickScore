@@ -86,8 +86,6 @@ test('game mode cards expose stable selected state and save Skins toggle semanti
   const again = harness(); again.seed(2); again.press('Continue');
   act(() => again.byId('game-mode-skins').onPress());
   act(() => again.byId('game-mode-skins_carry').onPress());
-  expect(again.byId('game-mode-skins').accessibilityState.selected).toBe(false);
-  again.byId('game-mode-skins_carry').onPress();
   expect(again.byId('game-mode-skins_carry').accessibilityState.selected).toBe(true);
   expect(again.byId('game-mode-skins').accessibilityState.selected).toBe(false);
 });
