@@ -1,12 +1,13 @@
 import { teamCardPlayers, liveRoundCourse } from "../../../src/engine/contest-results";
 import { Flag } from "lucide-react-native";
 import { useState } from "react";
-import { View, Text, ScrollView } from "react-native";
+import { View, Text, ScrollView, TextInput } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { buildLeaderboard } from "../../../src/engine/calculators/leaderboard-view";
+import { buildLeaderboardRows } from "../../../src/engine/leaderboard-rows";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
@@ -20,6 +21,8 @@ export default function LeaderboardScreen() {
   const [viewMode, setViewMode] = useState<"individual" | "groups">("individual");
   const [scoreView, setScoreView] = useState<"cumulative" | "daily">("cumulative");
   const [rankMode, setRankMode] = useState<"gross" | "net">("gross");
+  // AUG-735 (AUG-253g): case-insensitive name search over the individual field.
+  const [playerQuery, setPlayerQuery] = useState("");
 
   if (!contest) return null;
 
@@ -226,13 +229,58 @@ export default function LeaderboardScreen() {
     </View>
   ) : null;
 
+  // Search over the full individual field (AUG-735 / AUG-253g). buildLeaderboardRows
+  // fixes each player's competition rank over the WHOLE field before applying the
+  // case-insensitive name filter, so a searched subset keeps real field ranks
+  // (AUG-675 contract). Empty query returns every player, so the default view is
+  // unchanged / pixel-identical.
+  const searchedRows = buildLeaderboardRows(individualResults, allPlayers, {
+    holeCount: leaderboardCourse.holes.length,
+    query: playerQuery,
+  });
+  const rankByPlayerId = new Map(
+    searchedRows.map((r) => [r.playerId, { rankLabel: r.rankLabel, tied: r.tied }]),
+  );
+  const visibleIds = new Set(searchedRows.map((r) => r.playerId));
+  const visibleResults = individualResults.filter((r) => visibleIds.has(r.playerId));
+
+  // Search field for the individual leaderboard (Figma 15:2). Mirrors the shipped
+  // CourseSearch "Search by course name..." affordance; placeholder is a functional
+  // filter label, not a copy change (AUG-735 scope).
+  const playerSearch = (
+    <View style={{ marginBottom: 12 }}>
+      <TextInput
+        testID="leaderboard-search"
+        accessibilityLabel="Search players"
+        placeholder="Search players"
+        placeholderTextColor={COLORS.textDim}
+        value={playerQuery}
+        onChangeText={setPlayerQuery}
+        autoCapitalize="none"
+        autoCorrect={false}
+        style={{
+          fontFamily: FONTS.regular,
+          fontSize: 15,
+          color: COLORS.text,
+          backgroundColor: COLORS.surfaceMid,
+          borderRadius: RADII.md,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          minHeight: 44,
+        }}
+      />
+    </View>
+  );
+
   // Individual view: virtualize the ranked rows with FlashList (72+ player fields, AUG-253).
-  // The screen owns ranking (buildLeaderboard) and the Gross/Net toggle; the list only
-  // recycles the already-ranked rows, which stay pixel-identical to the prior ScrollView.
+  // The screen owns ranking (buildLeaderboard), the Gross/Net toggle and the search; the
+  // list only recycles the already-ranked rows, which stay pixel-identical to the prior
+  // ScrollView when the search is empty.
   if (viewMode === "individual") {
     return (
       <LeaderboardResultsList
-        results={individualResults}
+        results={visibleResults}
+        rankByPlayerId={rankByPlayerId}
         allPlayers={allPlayers}
         recentPlayers={recentPlayers}
         contest={contest}
@@ -240,6 +288,7 @@ export default function LeaderboardScreen() {
           <>
             {header}
             {grossNetToggle}
+            {playerSearch}
           </>
         }
         ListFooterComponent={<View style={{ height: 16 }} />}

@@ -10,6 +10,14 @@ import type { Contest } from "../stores/contest-store";
 type LeaderboardResultsListProps = {
   /** Ranked rows for the active Gross/Net mode (buildLeaderboard output), already sorted. */
   results: StrokePlayResult[];
+  /**
+   * Optional field-rank lookup keyed by playerId (buildLeaderboardRows output,
+   * AUG-675/AUG-735). When provided, each row shows its rank over the FULL field
+   * — computed before any search filter — so a searched subset keeps real ranks
+   * instead of renumbering 1..n over the visible rows. When omitted, the rank is
+   * derived from `results` (unchanged legacy behavior for unfiltered callers).
+   */
+  rankByPlayerId?: Map<string, { rankLabel: string; tied: boolean }>;
   /** All players in the current view, used to resolve holes played. */
   allPlayers: Player[];
   /** Players whose recent-form strokes drive the last-3-holes strip. */
@@ -30,6 +38,7 @@ type LeaderboardResultsListProps = {
  */
 export function LeaderboardResultsList({
   results,
+  rankByPlayerId,
   allPlayers,
   recentPlayers,
   contest,
@@ -51,8 +60,16 @@ export function LeaderboardResultsList({
             ? player.scores.filter((s) => s > 0).length
             : 0;
 
-          const rank = results.findIndex((result) => result.total === r.total) + 1;
-          const tied = results.filter((result) => result.total === r.total).length > 1;
+          // Prefer the precomputed field rank (survives search filtering); fall back to
+          // the legacy inline computation over `results` when no lookup is supplied.
+          const ranked = rankByPlayerId?.get(r.playerId);
+          const fallbackRank = results.findIndex((result) => result.total === r.total) + 1;
+          const fallbackTied = results.filter((result) => result.total === r.total).length > 1;
+          const rankLabel = ranked
+            ? ranked.rankLabel
+            : fallbackTied
+              ? `T${fallbackRank}`
+              : `${fallbackRank}`;
           const recentScores = recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [];
           // Par source is the contest course per AUG-620 brief item 8 (contest.course.holes[i].par),
           // not the active-round course; chip pars stay stable regardless of tournament round.
@@ -72,7 +89,7 @@ export function LeaderboardResultsList({
               }}
             >
               <Text style={{ width: 28, fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
-                {tied ? `T${rank}` : rank}
+                {rankLabel}
               </Text>
 
               {/* Avatar initial */}

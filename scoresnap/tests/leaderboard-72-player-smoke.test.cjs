@@ -46,7 +46,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
       holes: Array.from({ length: 18 }, (_, index) => ({ num: index + 1, par: 4 })),
     },
   };
-  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView' };
+  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput' };
   const theme = {
     COLORS: new Proxy({}, { get: (_, key) => String(key) }),
     FONTS: new Proxy({}, { get: (_, key) => String(key) }),
@@ -81,6 +81,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
         './stroke-play': load('src/engine/calculators/stroke-play.ts', { '../types': {} }),
       }),
     }),
+    '../../../src/engine/leaderboard-rows': load('src/engine/leaderboard-rows.ts', { './types': {} }),
     '../../../src/ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
     '../../../src/utils/formatters': { formatToPar: (value) => (value === 0 ? 'E' : String(value)) },
     '../../../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
@@ -124,6 +125,8 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     const rows = tree.root.findAll((node) => /^leaderboard-player-Player \d{2}$/.test(node.props.testID || ''));
     expect(rows).toHaveLength(72);
     expect(rows.map((node) => node.props.testID)).toContain('leaderboard-player-Player 72');
+    // Search affordance (AUG-735) renders in the individual list header.
+    expect(tree.root.findAll((node) => (node.props.testID || '') === 'leaderboard-search')).toHaveLength(1);
   } finally {
     if (tree) await act(async () => tree.unmount());
   }
