@@ -8,6 +8,7 @@ import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../..
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { buildLeaderboard } from "../../../src/engine/calculators/leaderboard-view";
 import { buildLeaderboardRows } from "../../../src/engine/leaderboard-rows";
+import { getFixtureYouPlayerId } from "../../../src/engine/you-fixture";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
@@ -234,15 +235,24 @@ export default function LeaderboardScreen() {
   // case-insensitive name filter, so a searched subset keeps real field ranks
   // (AUG-675 contract). Empty query returns every player, so the default view is
   // unchanged / pixel-identical.
+  // AUG-253j: pin the fixture/debug "You" row to the front. youPlayerId is a fixture id
+  // (no real user↔player link yet — AUG-254 is out of scope), so it is undefined in
+  // production and this is a no-op there: the default view stays pixel-identical.
+  const youPlayerId = getFixtureYouPlayerId();
   const searchedRows = buildLeaderboardRows(individualResults, allPlayers, {
     holeCount: leaderboardCourse.holes.length,
     query: playerQuery,
+    youPlayerId,
   });
   const rankByPlayerId = new Map(
-    searchedRows.map((r) => [r.playerId, { rankLabel: r.rankLabel, tied: r.tied }]),
+    searchedRows.map((r) => [r.playerId, { rankLabel: r.rankLabel, tied: r.tied, isYou: r.isYou === true }]),
   );
-  const visibleIds = new Set(searchedRows.map((r) => r.playerId));
-  const visibleResults = individualResults.filter((r) => visibleIds.has(r.playerId));
+  // Render order follows searchedRows so the pinned You row shows first; when youPlayerId
+  // is unset and the query is empty this is exactly individualResults (unchanged order).
+  const resultById = new Map(individualResults.map((r) => [r.playerId, r]));
+  const visibleResults = searchedRows
+    .map((row) => resultById.get(row.playerId))
+    .filter((r): r is NonNullable<typeof r> => r != null);
 
   // Search field for the individual leaderboard (Figma 15:2). Mirrors the shipped
   // CourseSearch "Search by course name..." affordance; placeholder is a functional

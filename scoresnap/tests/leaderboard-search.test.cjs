@@ -96,6 +96,7 @@ function buildScreen() {
       }),
     }),
     '../../../src/engine/leaderboard-rows': load('src/engine/leaderboard-rows.ts', { './types': {} }),
+    '../../../src/engine/you-fixture': load('src/engine/you-fixture.ts', {}),
     '../../../src/ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
     '../../../src/utils/formatters': { formatToPar: (value) => (value === 0 ? 'E' : String(value)) },
     '../../../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
