@@ -23,18 +23,37 @@ export interface LeaderboardRow {
   isYou?: true;
   /**
    * Holes completed: `'F'` when the player has a score on every course hole,
-   * the number of holes played when 1..holeCount-1, and `null` when 0.
-   * (Tee-time display is out of scope: no tee-time field exists on the model.)
+   * the number of holes played when 1..holeCount-1, and `null` when 0 / no data.
+   * `thru` never carries a tee time; the pre-start tee-time token lives on the
+   * sibling `teeTime` field below (AUG-253n) so the 16-player golden regression
+   * and every existing `thru` consumer stay byte-stable.
    */
   thru: "F" | number | null;
+  /**
+   * AUG-253n: the pre-start tee-time token for a player who has not teed off.
+   * Deterministic contract, driven purely by `thru` + the player's group tee
+   * time (from `opts.groups[].teeTime`, i.e. RoundInfo start data):
+   *   - `thru === null` (not started) AND a group tee time is known → that token (e.g. `"8:40 AM"`).
+   *   - started (`thru` is a number) or finished (`thru === "F"`) → always `null`.
+   *   - not started but no tee time is known → `null`.
+   * The caller renders THRU as `thru ?? teeTime ?? "—"`: finished shows `F`,
+   * mid-round shows the hole count, pre-start shows the tee time, and a player
+   * with neither score nor tee time shows nothing.
+   */
+  teeTime: string | null;
   /** The id of the group the player belongs to (from `opts.groups`), or `null` when ungrouped / unknown. */
   groupId: string | null;
 }
 
-/** Minimal group shape needed for membership — a subset of `ContestGroup`. */
+/**
+ * Minimal group shape needed for membership and the pre-start tee time — a
+ * subset of `ContestGroup` / `PlannedGroup` (both carry `teeTime?: string`).
+ */
 export interface LeaderboardGroup {
   id: string;
   players: { id: string }[];
+  /** Optional start time for the group; surfaces on a not-started row's `teeTime`. */
+  teeTime?: string;
 }
 
 export interface BuildLeaderboardRowsOptions {
@@ -70,10 +89,16 @@ export function buildLeaderboardRows(
 
   // playerId -> group id, for row.groupId and the group filter.
   const groupByPlayer = new Map<string, string>();
+  // playerId -> group tee time, for a not-started row's pre-start token.
+  const teeTimeByPlayer = new Map<string, string>();
   if (groups) {
     for (const g of groups) {
       for (const member of g.players) {
-        if (!groupByPlayer.has(member.id)) groupByPlayer.set(member.id, g.id);
+        if (!groupByPlayer.has(member.id)) {
+          groupByPlayer.set(member.id, g.id);
+          // A non-empty tee time follows the same first-group-wins rule as groupId.
+          if (g.teeTime != null && g.teeTime !== "") teeTimeByPlayer.set(member.id, g.teeTime);
+        }
       }
     }
   }
@@ -98,6 +123,7 @@ export function buildLeaderboardRows(
 
     const tied = (countByTotal.get(r.total) ?? 0) > 1;
     const player = playerById.get(r.playerId);
+    const thru = computeThru(player, holeCount);
 
     rows.push({
       playerId: r.playerId,
@@ -106,7 +132,10 @@ export function buildLeaderboardRows(
       rank,
       tied,
       rankLabel: tied ? `T${rank}` : `${rank}`,
-      thru: computeThru(player, holeCount),
+      thru,
+      // Tee time only when the player has not started (thru === null); a known
+      // score (number or "F") always clears it.
+      teeTime: thru === null ? (teeTimeByPlayer.get(r.playerId) ?? null) : null,
       groupId: groupByPlayer.get(r.playerId) ?? null,
     });
   }
