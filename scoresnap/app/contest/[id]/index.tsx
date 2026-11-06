@@ -238,11 +238,11 @@ export default function LeaderboardScreen() {
     holeCount: leaderboardCourse.holes.length,
     query: playerQuery,
   });
-  const rankByPlayerId = new Map(
-    searchedRows.map((r) => [r.playerId, { rankLabel: r.rankLabel, tied: r.tied }]),
-  );
-  const visibleIds = new Set(searchedRows.map((r) => r.playerId));
-  const visibleResults = individualResults.filter((r) => visibleIds.has(r.playerId));
+  const resultByPlayerId = new Map(individualResults.map((result) => [result.playerId, result]));
+  const visibleRows = searchedRows.flatMap((row) => {
+    const result = resultByPlayerId.get(row.playerId);
+    return result ? [{ ...result, rankLabel: row.rankLabel, thru: row.thru }] : [];
+  });
 
   // Search field for the individual leaderboard (Figma 15:2). Mirrors the shipped
   // CourseSearch "Search by course name..." affordance; placeholder is a functional
@@ -279,8 +279,7 @@ export default function LeaderboardScreen() {
   if (viewMode === "individual") {
     return (
       <LeaderboardResultsList
-        results={visibleResults}
-        rankByPlayerId={rankByPlayerId}
+        results={visibleRows}
         allPlayers={allPlayers}
         recentPlayers={recentPlayers}
         contest={contest}

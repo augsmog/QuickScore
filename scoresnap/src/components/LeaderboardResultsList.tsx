@@ -5,19 +5,15 @@ import { COLORS, FONTS, RADII } from "../ui/theme";
 import { formatToPar } from "../utils/formatters";
 import { lastThreePlayedHoleChips } from "../ui/leaderboard-hole-strip";
 import type { Player, StrokePlayResult } from "../engine/types";
+import type { LeaderboardRow } from "../engine/leaderboard-rows";
 import type { Contest } from "../stores/contest-store";
+
+type LeaderboardDisplayRow = StrokePlayResult & Pick<LeaderboardRow, "rankLabel" | "thru">;
 
 type LeaderboardResultsListProps = {
   /** Ranked rows for the active Gross/Net mode (buildLeaderboard output), already sorted. */
-  results: StrokePlayResult[];
-  /**
-   * Optional field-rank lookup keyed by playerId (buildLeaderboardRows output,
-   * AUG-675/AUG-735). When provided, each row shows its rank over the FULL field
-   * — computed before any search filter — so a searched subset keeps real ranks
-   * instead of renumbering 1..n over the visible rows. When omitted, the rank is
-   * derived from `results` (unchanged legacy behavior for unfiltered callers).
-   */
-  rankByPlayerId?: Map<string, { rankLabel: string; tied: boolean }>;
+  /** Rows enriched with rank and THRU from buildLeaderboardRows before rendering. */
+  results: LeaderboardDisplayRow[];
   /** All players in the current view, used to resolve holes played. */
   allPlayers: Player[];
   /** Players whose recent-form strokes drive the last-3-holes strip. */
@@ -38,13 +34,15 @@ type LeaderboardResultsListProps = {
  */
 export function LeaderboardResultsList({
   results,
-  rankByPlayerId,
   allPlayers,
   recentPlayers,
   contest,
   ListHeaderComponent,
   ListFooterComponent,
 }: LeaderboardResultsListProps) {
+  const playerById = new Map(allPlayers.map((player) => [player.id, player]));
+  const recentScoresByPlayerId = new Map(recentPlayers.map((player) => [player.id, player.scores]));
+
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <FlashList
@@ -55,22 +53,8 @@ export function LeaderboardResultsList({
         ListHeaderComponent={ListHeaderComponent}
         ListFooterComponent={ListFooterComponent}
         renderItem={({ item: r, index: i }) => {
-          const player = allPlayers.find((p) => p.id === r.playerId);
-          const holesPlayed = player
-            ? player.scores.filter((s) => s > 0).length
-            : 0;
-
-          // Prefer the precomputed field rank (survives search filtering); fall back to
-          // the legacy inline computation over `results` when no lookup is supplied.
-          const ranked = rankByPlayerId?.get(r.playerId);
-          const fallbackRank = results.findIndex((result) => result.total === r.total) + 1;
-          const fallbackTied = results.filter((result) => result.total === r.total).length > 1;
-          const rankLabel = ranked
-            ? ranked.rankLabel
-            : fallbackTied
-              ? `T${fallbackRank}`
-              : `${fallbackRank}`;
-          const recentScores = recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [];
+          const player = playerById.get(r.playerId);
+          const recentScores = recentScoresByPlayerId.get(r.playerId) ?? [];
           // Par source is the contest course per AUG-620 brief item 8 (contest.course.holes[i].par),
           // not the active-round course; chip pars stay stable regardless of tournament round.
           const lastHoles = lastThreePlayedHoleChips(recentScores, contest.course.holes);
@@ -88,9 +72,17 @@ export function LeaderboardResultsList({
                 gap: 12,
               }}
             >
-              <Text style={{ width: 28, fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
-                {rankLabel}
-              </Text>
+              <View style={{ width: 34, alignItems: "center" }}>
+                <Text testID={`leaderboard-rank-${r.playerId}`} style={{ fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
+                  {r.rankLabel}
+                </Text>
+                <Text style={{ fontFamily: FONTS.regular, fontSize: 7, color: COLORS.textDim, marginTop: 2 }}>
+                  THRU
+                </Text>
+                <Text testID={`leaderboard-thru-${r.playerId}`} accessibilityLabel={`THRU ${r.thru === null ? "not started" : r.thru}`} style={{ fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>
+                  {r.thru === null ? "—" : String(r.thru)}
+                </Text>
+              </View>
 
               {/* Avatar initial */}
               <View
@@ -126,7 +118,7 @@ export function LeaderboardResultsList({
                   </Text>
                 </View>
                 <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>
-                  Total <Text testID={`leaderboard-total-${r.name}`}>{r.total}</Text> · thru {holesPlayed}
+                  Total <Text testID={`leaderboard-total-${r.name}`}>{r.total}</Text>
                 </Text>
               </View>
 
