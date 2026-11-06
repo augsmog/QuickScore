@@ -43,7 +43,7 @@ Check these types. Leave the rest unchecked unless the "Confirm before submittin
 
 Use this row for contest content other than chat. Chat is Emails or Text Messages, below. Apple also has Gameplay Content. These records are golf scores and side-game units, not a saved game inside a game engine. Other User Content is the closer category for the scores. Confirm that choice with whoever submits the label.
 
-- **Collected:** Yes when live share or tournament sync runs. The payload is display names, hole scores, totals, score to par, game ids, unit standings, handicaps, and course JSON (`scoresnap/src/services/live-share-snapshot.ts:51-71`, `scoresnap/src/services/tournament-sync.ts:22-127`, `145-155`).
+- **Collected:** Yes when live share or tournament sync runs. A live snapshot carries display names, hole scores, totals, score to par, game ids, and unit standings (`scoresnap/src/services/live-share-snapshot.ts:51-71`); the tournament-sync round bundle additionally carries player names, handicaps, teams, and course JSON (`scoresnap/src/services/tournament-sync-plan.ts:89-116`), and per-hole scores are transmitted separately (`scoresnap/src/services/tournament-sync.ts:141-144`).
 - **Also stored on device** for all contests, even when those network calls are off (`scoresnap/src/stores/contest-store.ts:465-466`). On-device copies are not a nutrition-label collection by themselves.
 - **Linked to identity:** Yes. Both paths require a non-anonymous Supabase session (`scoresnap/src/services/live-share.ts:16-19` → `scoresnap/src/services/live-share-auth.ts:4-6`), and share rows are stored under `auth.uid()` (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:689-706`).
 - **Used for tracking:** No.
@@ -55,7 +55,7 @@ Use this row for contest content other than chat. Chat is Emails or Text Message
 Apple's category includes in-app messages that are not SMS. Live chat is that.
 
 - **Collected:** Yes. A viewer posts a display name of 1–30 characters and a body of 1–500 characters through `post_message` (`scoresnap/src/services/live-chat.ts:44-50`, `scoresnap/src/services/live-chat-model.ts:4-9`).
-- **Linked to identity:** Yes, on the same standard as Other User Content. The post is not tied to a Supabase account. It is stored with a SHA-256 of a random local session (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:669-678`). The host who reads the moderation list is the signed-in owner (`scoresnap/src/services/live-chat.ts:52-55`). Answer **Yes** because the messages are kept with a persistent session identifier and can be read by the account that owns the round. This code does not strip that identifier before the message is stored.
+- **Linked to identity:** Yes, on the same standard as Other User Content. The post is not tied to a Supabase account. It is stored with a SHA-256 of a random local session (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:669-678`). The host who reads the moderation list is the signed-in owner: the `list_host_messages` RPC (`scoresnap/src/services/live-chat.ts:52-55`) requires `owner_id = auth.uid()` on the round (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:625-628`). Answer **Yes** because the messages are kept with a persistent session identifier and can be read by the account that owns the round. This code does not strip that identifier before the message is stored.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
 
@@ -66,7 +66,7 @@ Apple's category includes in-app messages that are not SMS. Live chat is that.
 
 ### Identifiers — User ID
 
-- **Collected:** Yes. Supabase user id is the account id (`scoresnap/src/stores/auth-store.ts:50`, `81`). Live-share rows are stored under `auth.uid()` (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:689`); the `profiles` row id is the authenticated user's id, set by the `handle_new_user` trigger (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:557-558`).
+- **Collected:** Yes. Supabase user id is the account id (`scoresnap/src/stores/auth-store.ts:50`, `81`). Live-share rows are stored under `auth.uid()` (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:704-705`); the `profiles` row id is the authenticated user's id, set by the `handle_new_user` trigger (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:557-558`).
 - **Linked to identity:** Yes.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
@@ -130,7 +130,7 @@ Apple's category includes in-app messages that are not SMS. Live chat is that.
 
 ### Financial Info — Other Financial Info
 
-- **Collected:** Yes. A published live snapshot's game standings include numeric `units`, but they are computed with a unit-size argument of `1`, not `contest.betUnit`, so the snapshot itself does not carry the dollar unit (`scoresnap/src/services/live-share-snapshot.ts:69-70`). The dollar `betUnit` is a contest field (`scoresnap/src/stores/contest-store.ts:56`) persisted on the device with the contest store (`scoresnap/src/stores/contest-store.ts:465-466`). It does leave the device when tournament sync runs: `syncRound` sends `roundPayload`, whose `game_settings.betUnit` carries the contest bet unit (`scoresnap/src/services/tournament-sync.ts:82-85`, `scoresnap/src/services/tournament-sync-plan.ts:89-91`). The default unit size in settings stays on the device (`scoresnap/src/stores/settings-store.ts:15`).
+- **Collected:** Yes. A published live snapshot's game standings include numeric `units`, but they are computed with a unit-size argument of `1`, not `contest.betUnit`, so the snapshot itself does not carry the dollar unit (`scoresnap/src/services/live-share-snapshot.ts:69-70`). The dollar `betUnit` is a contest field (`scoresnap/src/stores/contest-store.ts:56`) persisted on the device with the contest store (`scoresnap/src/stores/contest-store.ts:465-466`). It does leave the device when tournament sync runs: `syncRound` sends `roundPayload`, whose `game_settings.betUnit` carries the contest bet unit (`scoresnap/src/services/tournament-sync.ts:82-85`, `scoresnap/src/services/tournament-sync-plan.ts:89-91`). The default unit size is a setting (`scoresnap/src/stores/settings-store.ts:15`) persisted only on the device (`scoresnap/src/stores/settings-store.ts:86-87`).
 - **Linked to identity:** Yes when published, because the snapshot is stored for `auth.uid()`.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
@@ -200,7 +200,7 @@ Same commit and files as `docs/privacy-policy.md`. The label rows above cite:
 - `scoresnap/src/config/public-share.ts:4-7`
 - `scoresnap/src/stores/auth-store.ts:14-21`, `54`, `109-162`, `173-192`, `247-253`
 - `scoresnap/src/stores/contest-store.ts:56`, `465-466`
-- `scoresnap/src/stores/settings-store.ts:15`
+- `scoresnap/src/stores/settings-store.ts:15`, `86-87`
 - `scoresnap/src/services/claude-ocr.ts:24`, `26-28`, `36-44`
 - `scoresnap/src/services/ocr-service.ts:42`, `57-76`, `109-119`
 - `scoresnap/src/services/ml-kit-ocr.ts:30-34`
@@ -208,7 +208,7 @@ Same commit and files as `docs/privacy-policy.md`. The label rows above cite:
 - `scoresnap/src/services/live-share-snapshot.ts:51-71`
 - `scoresnap/src/services/live-chat.ts:21-23`, `44-55`
 - `scoresnap/src/services/live-chat-model.ts:4-9`
-- `scoresnap/src/services/tournament-sync.ts:22-127`, `145-155` and `scoresnap/src/services/tournament-sync-plan.ts:89-91`
+- `scoresnap/src/services/tournament-sync.ts:82-85`, `141-144` and `scoresnap/src/services/tournament-sync-plan.ts:89-116`
 - `scoresnap/src/services/course-api.ts:14`, `30`
 - `scoresnap/src/ui/LiveShare.tsx:93-94`
 - `scoresnap/src/services/purchases.ts:80-83`, `87-88`, `106-119`, `139-156`, `176`, `231`, `246`
@@ -218,4 +218,4 @@ Same commit and files as `docs/privacy-policy.md`. The label rows above cite:
 - `scoresnap/supabase/functions/course-data/index.ts:27-32`, `50-74`, `115`
 - `scoresnap/supabase/functions/on-user-signup/index.ts:21-32`, `64-76`, `87-100`
 - `scoresnap/supabase/functions/stripe-webhook/index.ts:57-68`
-- `scoresnap/supabase/migrations/20261027000000_live_baseline.sql:192-211`, `551-561`, `669-706`
+- `scoresnap/supabase/migrations/20261027000000_live_baseline.sql:192-211`, `551-561`, `625-628`, `669-706`
