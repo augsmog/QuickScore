@@ -52,7 +52,7 @@ export default function JoinContest() {
     {onlineEnabled && <OnlineGuestScorecard />}
     {!contest && <>
       <TextInput accessibilityLabel="Join code" placeholder="Join code" placeholderTextColor={COLORS.textDim} value={code} onChangeText={setCode} autoCapitalize="characters" maxLength={6} style={{ fontFamily: FONTS.regular, color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />
-      <TextInput placeholder="Display name" placeholderTextColor={COLORS.textDim} value={name} onChangeText={setName} style={{ fontFamily: FONTS.regular, color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />
+      <TextInput placeholder="Your name" placeholderTextColor={COLORS.textDim} value={name} onChangeText={setName} style={{ fontFamily: FONTS.regular, color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />
       {button("Find contest", () => { void lookup(); })}
     </>}
     {!!error && <Text style={{ fontFamily: FONTS.regular, color: COLORS.error }}>{error}</Text>}
