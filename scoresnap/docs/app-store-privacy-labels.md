@@ -6,7 +6,7 @@ PostHog is an added analytics destination. It is configured to be anonymous and 
 
 Apple's form asks, for each collected data type: linked to the user's identity (yes/no), used for tracking (yes/no), and purposes. "Collected" here means the code transmits it off the device or stores it on a server. Data that stays in memory on the device is listed under "Do not check" so it is not forgotten.
 
-**Used for tracking** is **No** for every row. The dependency list has no advertising SDK, and application source has no App Tracking Transparency prompt and no call that sends data to an ad network or data broker (`scoresnap/package.json:14-55`). That answer describes this repository. It does not describe Sentry, RevenueCat, Apple, Google, Anthropic, Cloudflare, or Supabase dashboard settings, which are not in the repo. If a vendor account enables their advertising product, change that row before submission.
+**Used for tracking** is **No** for every row. The dependency list has no advertising SDK, and application source has no App Tracking Transparency prompt and no call that sends data to an ad network or data broker (`scoresnap/package.json:14-63`). That answer describes this repository. It does not describe Sentry, RevenueCat, Apple, Google, Anthropic, Cloudflare, or Supabase dashboard settings, which are not in the repo. If a vendor account enables their advertising product, change that row before submission.
 
 **Purposes** use Apple's set: Third-Party Advertising, Developer's Advertising or Marketing, Analytics, Product Personalization, App Functionality, Other Purposes. Third-Party Advertising and Product Personalization are not selected anywhere. Nothing in the app personalizes content from a profile of interests.
 
@@ -24,38 +24,38 @@ Check these types. Leave the rest unchecked unless the "Confirm before submittin
 
 ### Contact Info — Name
 
-- **Collected:** Yes for the account name. Email sign-up sends `full_name` to Supabase (`scoresnap/src/stores/auth-store.ts:185`). Apple sign-in requests `FULL_NAME` (`scoresnap/app/auth/sign-in.tsx:69-72`). This code does not copy Apple's returned full name into Supabase metadata; it sends the identity token (`scoresnap/src/stores/auth-store.ts:115`).
+- **Collected:** Yes for the account name. Email sign-up sends `full_name` to Supabase (`scoresnap/src/stores/auth-store.ts:185`). Apple sign-in requests `FULL_NAME` (`scoresnap/app/auth/sign-in.tsx:73`). This code does not copy Apple's returned full name into Supabase metadata; it sends the identity token (`scoresnap/src/stores/auth-store.ts:115`).
 - **Linked to identity:** Yes for the name sent as `full_name` on the auth user.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
-- Player names typed or read from a scorecard are under User Content, not this row. They are not verified as the account holder's name (`scoresnap/src/services/live-share-snapshot.ts:63-65`).
+- Player names typed or read from a scorecard are under User Content, not this row. They are not verified as the account holder's name (`scoresnap/src/services/live-share-snapshot.ts:64-66`).
 
 ### User Content — Photos or Videos
 
-- **Collected:** Yes, when cloud OCR runs. The photo is base64-encoded and posted to the `ocr-scorecard` function, which posts it to `https://api.anthropic.com/v1/messages` (`scoresnap/src/services/claude-ocr.ts:22-38`, `scoresnap/supabase/functions/ocr-scorecard/index.ts:114-136`).
-- **Not every photo.** The upload is skipped only when ML Kit returns at least two players with average confidence of 0.7 or higher (`scoresnap/src/services/ocr-service.ts:54-67`). Claude also runs for one player at any confidence, for a zero-player ML Kit result, and when ML Kit is unavailable or throws (`scoresnap/src/services/ocr-service.ts:46`, `70-73`, `106-115`). Web and offline mode use a text box and do not upload an image (`scoresnap/app/scan/index.tsx:152-177`). The ML Kit wrapper itself has no network call (`scoresnap/src/services/ml-kit-ocr.ts:30-34`).
-- **Linked to identity:** Yes. The function rejects the request unless `supabase.auth.getUser` accepts the bearer token (`scoresnap/supabase/functions/ocr-scorecard/index.ts:49-75`). The function has no table insert or `from(...)` call, so it does not write the image or the user id into a table (whole file: `scoresnap/supabase/functions/ocr-scorecard/index.ts`). The link is the authenticated request, not a stored photo library.
+- **Collected:** Yes, when cloud OCR runs. The photo is base64-encoded (`scoresnap/src/services/claude-ocr.ts:26-28`) and posted to the `ocr-scorecard` function (`scoresnap/src/services/claude-ocr.ts:39-44`), which embeds it in the Claude message (`scoresnap/supabase/functions/ocr-scorecard/index.ts:131-137`) and POSTs it to `https://api.anthropic.com/v1/messages` (`scoresnap/supabase/functions/ocr-scorecard/index.ts:171-179`).
+- **Not every photo.** The upload is skipped when ML Kit returns at least two players with average confidence of 0.7 or higher (`scoresnap/src/services/ocr-service.ts:57-69`). Claude also runs for one player at any confidence (`scoresnap/src/services/ocr-service.ts:72-76`), and as the primary engine for a zero-player ML Kit result or when ML Kit is unavailable or throws (`scoresnap/src/services/ocr-service.ts:109-119`). Web and offline mode use a text box and do not upload an image (`scoresnap/app/scan/index.tsx:152-177`). The ML Kit wrapper itself has no network call (`scoresnap/src/services/ml-kit-ocr.ts:30-34`).
+- **Linked to identity:** Yes. The function rejects the request unless `supabase.auth.getUser` accepts the bearer token (`scoresnap/supabase/functions/ocr-scorecard/index.ts:76-86`). The function has no table insert or `from(...)` call, so it does not write the image or the user id into a table (whole file: `scoresnap/supabase/functions/ocr-scorecard/index.ts`). The link is the authenticated request, not a stored photo library.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
-- The settings switch "Auto Claude Vision" does not gate this upload (`scoresnap/app/settings.tsx:552-557`, `scoresnap/src/services/ocr-service.ts:36-131`).
+- The cloud upload is gated: `scanScorecard` only calls Claude when `cloudEnabled()` is true, which requires both the cloud-scan consent (`ocrConsent === true`) and the "Auto Claude Vision" switch (`autoClaude`) (`scoresnap/src/services/ocr-service.ts:42`, `75`, `118`; settings toggles at `scoresnap/app/settings.tsx:660`, `663-668`). `recognizeWithClaude` re-checks consent before and after reading the file and enforces the monthly cloud-scan limit (`scoresnap/src/services/claude-ocr.ts:24`, `36`, `37`).
 
 ### User Content — Other User Content
 
 Use this row for contest content other than chat. Chat is Emails or Text Messages, below. Apple also has Gameplay Content. These records are golf scores and side-game units, not a saved game inside a game engine. Other User Content is the closer category for the scores. Confirm that choice with whoever submits the label.
 
 - **Collected:** Yes when live share or tournament sync runs. The payload is display names, hole scores, totals, score to par, game ids, unit standings, handicaps, and course JSON (`scoresnap/src/services/live-share-snapshot.ts:51-71`, `scoresnap/src/services/tournament-sync.ts:22-127`, `145-155`).
-- **Also stored on device** for all contests, even when those network calls are off (`scoresnap/src/stores/contest-store.ts:355`). On-device copies are not a nutrition-label collection by themselves.
-- **Linked to identity:** Yes. Both paths require a non-anonymous Supabase session, and share rows are stored under `auth.uid()` (`scoresnap/src/services/live-share.ts:10-12`, `scoresnap/supabase/migrations/20261027000000_live_baseline.sql:689-706`).
+- **Also stored on device** for all contests, even when those network calls are off (`scoresnap/src/stores/contest-store.ts:465-466`). On-device copies are not a nutrition-label collection by themselves.
+- **Linked to identity:** Yes. Both paths require a non-anonymous Supabase session (`scoresnap/src/services/live-share.ts:16-19` → `scoresnap/src/services/live-share-auth.ts:4-6`), and share rows are stored under `auth.uid()` (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:689-706`).
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
-- Anyone with the share token can read the published names and scores (`scoresnap/src/services/live-share.ts:30-33`). The raw URL is copied to the clipboard or passed to the system share sheet (`scoresnap/src/ui/LiveShare.tsx:39-40`).
+- Anyone with the share token can read the published names and scores (`scoresnap/src/services/live-share.ts:40-50`). The raw URL is copied to the clipboard or passed to the system share sheet (`scoresnap/src/ui/LiveShare.tsx:93-94`).
 
 ### User Content — Emails or Text Messages
 
 Apple's category includes in-app messages that are not SMS. Live chat is that.
 
-- **Collected:** Yes. A viewer posts a display name of 1–30 characters and a body of 1–500 characters through `post_message` (`scoresnap/src/services/live-chat.ts:31-35`, `scoresnap/src/services/live-chat-model.ts:4-9`).
-- **Linked to identity:** Yes, on the same standard as Other User Content. The post is not tied to a Supabase account. It is stored with a SHA-256 of a random local session (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:669-678`). The host who reads the moderation list is the signed-in owner (`scoresnap/src/services/live-chat.ts:38-39`). Answer **Yes** because the messages are kept with a persistent session identifier and can be read by the account that owns the round. This code does not strip that identifier before the message is stored.
+- **Collected:** Yes. A viewer posts a display name of 1–30 characters and a body of 1–500 characters through `post_message` (`scoresnap/src/services/live-chat.ts:44-50`, `scoresnap/src/services/live-chat-model.ts:4-9`).
+- **Linked to identity:** Yes, on the same standard as Other User Content. The post is not tied to a Supabase account. It is stored with a SHA-256 of a random local session (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:669-678`). The host who reads the moderation list is the signed-in owner (`scoresnap/src/services/live-chat.ts:52-55`). Answer **Yes** because the messages are kept with a persistent session identifier and can be read by the account that owns the round. This code does not strip that identifier before the message is stored.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
 
@@ -66,31 +66,31 @@ Apple's category includes in-app messages that are not SMS. Live chat is that.
 
 ### Identifiers — User ID
 
-- **Collected:** Yes. Supabase user id is the account id (`scoresnap/src/stores/auth-store.ts:50`, `81`). Live-share and profile rows use `auth.uid()` (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:557`, `689`).
+- **Collected:** Yes. Supabase user id is the account id (`scoresnap/src/stores/auth-store.ts:50`, `81`). Live-share rows are stored under `auth.uid()` (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:689`); the `profiles` row id is the authenticated user's id, set by the `handle_new_user` trigger (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:557-558`).
 - **Linked to identity:** Yes.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
-- The chat session is a separate 32-byte random id. The server stores only its SHA-256 (`scoresnap/src/services/live-chat.ts:9-15`, `scoresnap/supabase/migrations/20261027000000_live_baseline.sql:669`). It is not the Supabase user id. The local skip-sign-in id (`anon-<timestamp>`) stays on the device (`scoresnap/src/stores/auth-store.ts:247-253`).
+- The chat session is a separate 32-byte random id (`scoresnap/src/services/live-chat.ts:21-23`). The server stores only its SHA-256 (`scoresnap/supabase/migrations/20261027000000_live_baseline.sql:669`). It is not the Supabase user id. The local skip-sign-in id (`anon-<timestamp>`) stays on the device (`scoresnap/src/stores/auth-store.ts:247-253`).
 - RevenueCat receives the SnapScore user id: `configure` passes `appUserID` and sign-in calls `identifyUser`, which runs `Purchases.logIn` (`scoresnap/src/services/purchases.ts:80-83`, `231`, `246`, `scoresnap/src/stores/auth-store.ts:54`). Tell App Store Connect the SnapScore account id is sent to RevenueCat. The SDK may also create its own id. That possibility is under Device ID.
 
 ### Identifiers — Device ID
 
 - **App code does not read a device identifier, IDFA, or IDFV.**
-- Sentry is initialized with `sendDefaultPii` off (`scoresnap/app/_layout.tsx:48-59`), enforced by `scoresnap/src/config/sentry-privacy.ts:8-29`; user context is reduced to an id and replays are masked. Expo Updates is configured (`scoresnap/app.json:82-87`). RevenueCat receives the SnapScore user id as `appUserID` and through `Purchases.logIn` (`scoresnap/src/services/purchases.ts:80-83`, `231`, `246`). What those SDKs attach is not visible in this repository.
+- Sentry is initialized with `sendDefaultPii` off (`scoresnap/app/_layout.tsx:48-59`), enforced by `scoresnap/src/config/sentry-privacy.ts:8-29`; user context is reduced to an id and replays are masked. Expo Updates is configured (`scoresnap/app.json:90-92`). RevenueCat receives the SnapScore user id as `appUserID` and through `Purchases.logIn` (`scoresnap/src/services/purchases.ts:80-83`, `231`, `246`). What those SDKs attach is not visible in this repository.
 - **Recommended checkbox:** check Device ID, linked **Yes**, tracking **No**, purposes **App Functionality** and **Analytics**, until the owner confirms the Sentry and RevenueCat payloads do not include one. Unchecking it requires that confirmation. This draft does not treat that confirmation as already done.
 
 ### Purchases
 
-- **Collected:** Yes, when RevenueCat is configured. The app loads offerings, customer info, and the `SnapScore Pro` entitlement, and it can present the paywall and customer center (`scoresnap/src/services/purchases.ts:87-88`, `106-110`, `150-152`, `scoresnap/app/paywall.tsx:52-54`, `scoresnap/app/(tabs)/profile.tsx:132`).
+- **Collected:** Yes, when RevenueCat is configured. The app loads offerings, customer info, and the `SnapScore Pro` entitlement, and it can present the paywall and customer center (`scoresnap/src/services/purchases.ts:87-88`, `106-110`, `150-152`, `scoresnap/app/paywall.tsx:71-72`, `scoresnap/app/(tabs)/profile.tsx:131`).
 - **Linked to identity:** Yes. Purchases are tied to the store account and to RevenueCat customer info. They are also tied to the SnapScore user id: sign-in calls `identifyUser` (`scoresnap/src/stores/auth-store.ts:54`), which logs the user into RevenueCat with that id (`scoresnap/src/services/purchases.ts:231`, `246`). Answer **Yes**.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
 - The app does not read a card number. Payment entry is the native purchase sheet (`scoresnap/src/services/purchases.ts:139-150`).
-- If the Stripe webhook is deployed, it stores customer email and amount (`scoresnap/supabase/functions/stripe-webhook/index.ts:68-80`). The mobile binary does not call Stripe. Include those server records if that webhook is live.
+- If the Stripe webhook is deployed, it stores customer email and amount (`scoresnap/supabase/functions/stripe-webhook/index.ts:57-68`). The mobile binary does not call Stripe. Include those server records if that webhook is live.
 
 ### Search History
 
-- **Collected:** Yes, when course search is enabled. The typed query is sent to `course-data` on a request that carries the caller's JWT (`scoresnap/src/services/course-api.ts:12`, `22-25`). For a text search the stored cache key is `search.toString()`, which includes the normalized query, `limit`, and any coverage filter. That key is not the user id (`scoresnap/supabase/functions/course-data/index.ts:50-74`, `115`). The in-memory rate-limit map uses `jwt.sub` or the first `x-forwarded-for` value and a call count, not the query (`scoresnap/supabase/functions/course-data/index.ts:27-32`).
+- **Collected:** Yes, when course search is enabled. The typed query is sent to `course-data` on a request that carries the caller's JWT (`scoresnap/src/services/course-api.ts:30` → `scoresnap/src/services/course-api.ts:14`). For a text search the stored cache key is `search.toString()`, which includes the normalized query, `limit`, and any coverage filter. That key is not the user id (`scoresnap/supabase/functions/course-data/index.ts:50-74`, `115`). The in-memory rate-limit map uses `jwt.sub` or the first `x-forwarded-for` value and a call count, not the query (`scoresnap/supabase/functions/course-data/index.ts:27-32`).
 - **Linked to identity:** Yes. The cache row itself is not keyed by user id, and this code has no step that removes the JWT or other identifier before the query is collected. Apple's not-linked bar requires that removal. A single answer of No does not meet it.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
@@ -109,7 +109,7 @@ Apple's category includes in-app messages that are not SMS. Live chat is that.
 
 ### Diagnostics — Crash Data
 
-- **Collected:** Yes. Exceptions go to Sentry from the error boundary, purchase failures, auth and purchase init, and a dev-only test button (`scoresnap/src/ui/ErrorBoundary.tsx:26-29`, `scoresnap/src/services/purchases.ts:113`, `scoresnap/app/_layout.tsx:194-195`, `scoresnap/app/(tabs)/profile.tsx:590-598`). Dev events are dropped unless tagged `force_send` (`scoresnap/app/_layout.tsx:79-81`). Public `/r/` pages disable Sentry (`scoresnap/app/_layout.tsx:49`, `scoresnap/src/config/public-share.ts:4-7`).
+- **Collected:** Yes. Exceptions go to Sentry from the error boundary, purchase failures, auth and purchase init, and a dev-only test button (`scoresnap/src/ui/ErrorBoundary.tsx:26-29`, `scoresnap/src/services/purchases.ts:116`, `156`, `176`, `scoresnap/app/_layout.tsx:194-195`, `scoresnap/app/(tabs)/profile.tsx:590-598`). Dev events are dropped unless tagged `force_send` (`scoresnap/app/_layout.tsx:79-81`). Public `/r/` pages disable Sentry (`scoresnap/app/_layout.tsx:49`, `scoresnap/src/config/public-share.ts:4-7`).
 - **Linked to identity:** Yes, same conservative reading as Product Interaction, because events can keep a user id and replay-on-error is 100% (`scoresnap/app/_layout.tsx:70`).
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
@@ -123,18 +123,18 @@ Apple's category includes in-app messages that are not SMS. Live chat is that.
 
 ### Diagnostics — Other Diagnostic Data
 
-- **Collected:** Yes. Session replay is on for 10% of sessions and 100% of error sessions (`scoresnap/app/_layout.tsx:69-70`). `mobileReplayIntegration(sentryReplayMask)` sets `maskAllText`, `maskAllImages`, and `maskAllVectors` to true explicitly (`scoresnap/app/_layout.tsx:73`, `scoresnap/src/config/sentry-privacy.ts:12-16`). The app pins `@sentry/react-native` 8.4.0 (`scoresnap/package.json:19`, `scoresnap/package-lock.json:7020`). That version defaults `maskAllText`, `maskAllImages`, and `maskAllVectors` to true, and the explicit mask keeps them on. The recording those defaults produce masks text and images. `sendDefaultPii` is off and asserted off at startup (`scoresnap/app/_layout.tsx:41`, `59`). `enableLogs: true` is set in the same init (`scoresnap/app/_layout.tsx:60`). `feedbackIntegration()` is also on (`scoresnap/app/_layout.tsx:74`).
+- **Collected:** Yes. Session replay is on for 10% of sessions and 100% of error sessions (`scoresnap/app/_layout.tsx:69-70`). `mobileReplayIntegration(sentryReplayMask)` sets `maskAllText`, `maskAllImages`, and `maskAllVectors` to true explicitly (`scoresnap/app/_layout.tsx:73`, `scoresnap/src/config/sentry-privacy.ts:12-16`). The app pins `@sentry/react-native` 8.4.0 (`scoresnap/package.json:20`, `scoresnap/package-lock.json:7096-7097`). That version defaults `maskAllText`, `maskAllImages`, and `maskAllVectors` to true, and the explicit mask keeps them on. The recording those defaults produce masks text and images. `sendDefaultPii` is off and asserted off at startup (`scoresnap/app/_layout.tsx:41`, `59`). `enableLogs: true` is set in the same init (`scoresnap/app/_layout.tsx:60`). `feedbackIntegration()` is also on (`scoresnap/app/_layout.tsx:74`).
 - **Linked to identity:** Yes, conservative, because events can keep a user id. Masking text and images does not by itself make the replay not linked.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality and Analytics. Replay samples how a session behaves, which is an analytics use in addition to debugging.
 
 ### Financial Info — Other Financial Info
 
-- **Collected:** Yes when a live snapshot is published. Game standings include numeric `units`. Those units are computed with a unit-size argument of `1`, not `contest.betUnit` (`scoresnap/src/services/live-share-snapshot.ts:67-70`). The dollar `betUnit` stays on the device (`scoresnap/src/stores/contest-store.ts:39`, `355`). Settings store a default unit size on the device (`scoresnap/src/stores/settings-store.ts:13`).
+- **Collected:** Yes. A published live snapshot's game standings include numeric `units`, but they are computed with a unit-size argument of `1`, not `contest.betUnit`, so the snapshot itself does not carry the dollar unit (`scoresnap/src/services/live-share-snapshot.ts:69-70`). The dollar `betUnit` is a contest field (`scoresnap/src/stores/contest-store.ts:56`) persisted on the device with the contest store (`scoresnap/src/stores/contest-store.ts:465-466`). It does leave the device when tournament sync runs: `syncRound` sends `roundPayload`, whose `game_settings.betUnit` carries the contest bet unit (`scoresnap/src/services/tournament-sync.ts:82-85`, `scoresnap/src/services/tournament-sync-plan.ts:89-91`). The default unit size in settings stays on the device (`scoresnap/src/stores/settings-store.ts:15`).
 - **Linked to identity:** Yes when published, because the snapshot is stored for `auth.uid()`.
 - **Used for tracking:** No.
 - **Purposes:** App Functionality.
-- Stripe amounts, if the webhook runs, belong here too (`scoresnap/supabase/functions/stripe-webhook/index.ts:73-75`).
+- Stripe amounts, if the webhook runs, belong here too (`scoresnap/supabase/functions/stripe-webhook/index.ts:62`).
 
 ## Do not check
 
@@ -145,10 +145,10 @@ These were searched and are not collected off the device by the code that shippe
 | Contact Info — Phone Number, Physical Address, Other User Contact Info | No phone or address field in the auth profile or signup call (`scoresnap/src/stores/auth-store.ts:14-21`, `173-185`). |
 | Health & Fitness | No health type, API, or permission. |
 | Financial Info — Payment Info, Credit Info | No card or credit field. Store payment UI is Purchases, above. |
-| Location — Precise or Coarse | The course-search UI will request foreground coordinates if `expo-location` loads, then uses them in memory to sort (`scoresnap/src/ui/CourseSearch.tsx:40-51`, `156-160`). `searchCourses` sends only the text query (`scoresnap/src/services/course-api.ts:22-25`). `expo-location` is not in `package.json`. `app.json` has no location purpose string. The edge function accepts `near`, and no app caller passes it (`scoresnap/supabase/functions/course-data/index.ts:54-57`). If a future build sends coordinates, check Precise Location. |
+| Location — Precise or Coarse | The course-search UI will request foreground coordinates if `expo-location` loads, then uses them in memory to sort (`scoresnap/src/ui/CourseSearch.tsx:40-51`, `156-160`). `searchCourses` sends only the text query (`scoresnap/src/services/course-api.ts:30`). `expo-location` is not in `package.json`. `app.json` has no location purpose string. The edge function accepts `near`, and no app caller passes it (`scoresnap/supabase/functions/course-data/index.ts:54-57`). If a future build sends coordinates, check Precise Location. |
 | Sensitive Info | No field for race, religion, sexuality, biometrics, or similar. |
 | Contacts | No contacts permission or API. |
-| User Content — Audio Data | `RECORD_AUDIO` is in the Android permission list twice (`scoresnap/app.json:33-38`). No application code records audio. Do not check Audio Data unless a build actually records. In-app chat is checked under Emails or Text Messages, above. |
+| User Content — Audio Data | `RECORD_AUDIO` is not requested: it is listed under Android `blockedPermissions` (`scoresnap/app.json:37`), and the `expo-camera` plugin sets `microphonePermission` and `recordAudioAndroid` to false (`scoresnap/app.json:54-55`). No application code records audio. Do not check Audio Data unless a build actually records. In-app chat is checked under Emails or Text Messages, above. |
 | Browsing History | The only WebView loads the Turnstile challenge (`scoresnap/src/components/TurnstileHost.tsx:64-80`). It does not read browser history. |
 | Usage Data — Advertising Data, Other Usage Data | No ad SDK. Product Interaction covers the Sentry navigation and trace data. |
 | Identifiers — other than User ID and the conditional Device ID | No separate advertising identifier is read. |
@@ -178,7 +178,7 @@ These were searched and are not collected off the device by the code that shippe
 2. Search History, if the App Store build does not set `EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true` (`scoresnap/src/config/features.ts:1-2`).
 3. Developer's Advertising or Marketing on Email, if `on-user-signup` is not deployed. The function is in the repo; the app does not invoke it (`scoresnap/supabase/functions/on-user-signup/index.ts:78-90`).
 4. Customer Support, after checking whether the Sentry feedback widget is visible.
-5. Audio Data, after confirming the Android `RECORD_AUDIO` entries are unused (`scoresnap/app.json:33-38`).
+5. Audio Data: `RECORD_AUDIO` is blocked (`scoresnap/app.json:37`) and the camera plugin disables the microphone and audio recording (`scoresnap/app.json:54-55`); confirm no build adds a recording path.
 6. Location, if `expo-location` is later added or the client starts calling `near`.
 7. The privacy policy URL for the nutrition label is https://snapscore.autumn8.me/privacy. Support contact is augie@autumn8.me. Support URL is https://snapscore.autumn8.me/support. The binary opens these URLs from `SUPPORT_BASE_URL` (`scoresnap/src/config/support.ts:2`), e.g. the privacy link at `scoresnap/app/auth/sign-in.tsx:615` and `scoresnap/app/settings.tsx:731`. Both pages are live (HTTP 200, verified Nov 5 2026; see AUG-682).
 
@@ -186,36 +186,36 @@ These were searched and are not collected off the device by the code that shippe
 
 Same commit and files as `docs/privacy-policy.md`. The label rows above cite:
 
-- `scoresnap/package.json:14-55` and `scoresnap/package.json:19`
-- `scoresnap/package-lock.json:7020`
-- `scoresnap/app.json:33-38`, `56-62`, `76-87`
+- `scoresnap/package.json:14-63` and `scoresnap/package.json:20`
+- `scoresnap/package-lock.json:7096-7097`
+- `scoresnap/app.json:33-41`, `54-55`, `90-92`
 - `scoresnap/app/_layout.tsx:41-81`, `195`
-- `scoresnap/app/auth/sign-in.tsx:27-32`, `69-78`, `98-124`, `613`
-- `scoresnap/app/settings.tsx:552-557`, `610`
+- `scoresnap/app/auth/sign-in.tsx:27-32`, `69-78`, `98-124`, `610-616`
+- `scoresnap/app/settings.tsx:660`, `663-668`, `731`
 - `scoresnap/app/scan/index.tsx:76-82`, `101`, `152-177`
-- `scoresnap/app/paywall.tsx:52-54`
-- `scoresnap/app/(tabs)/profile.tsx:132`, `567`, `590-598`
+- `scoresnap/app/paywall.tsx:50-53`, `71-72`, `78-80`
+- `scoresnap/app/(tabs)/profile.tsx:131`, `567`, `590-598`
 - `scoresnap/src/config/auth.ts:2`
 - `scoresnap/src/config/features.ts:1-8`
 - `scoresnap/src/config/public-share.ts:4-7`
 - `scoresnap/src/stores/auth-store.ts:14-21`, `54`, `109-162`, `173-192`, `247-253`
-- `scoresnap/src/stores/contest-store.ts:355`
-- `scoresnap/src/stores/settings-store.ts:13`
-- `scoresnap/src/services/claude-ocr.ts:22-38`
-- `scoresnap/src/services/ocr-service.ts:36-131`
+- `scoresnap/src/stores/contest-store.ts:56`, `465-466`
+- `scoresnap/src/stores/settings-store.ts:15`
+- `scoresnap/src/services/claude-ocr.ts:24`, `26-28`, `36-44`
+- `scoresnap/src/services/ocr-service.ts:42`, `57-76`, `109-119`
 - `scoresnap/src/services/ml-kit-ocr.ts:30-34`
-- `scoresnap/src/services/live-share.ts:10-33`
+- `scoresnap/src/services/live-share.ts:16-19`, `40-50` and `scoresnap/src/services/live-share-auth.ts:4-6`
 - `scoresnap/src/services/live-share-snapshot.ts:51-71`
-- `scoresnap/src/services/live-chat.ts:9-35`, `38-39`
+- `scoresnap/src/services/live-chat.ts:21-23`, `44-55`
 - `scoresnap/src/services/live-chat-model.ts:4-9`
-- `scoresnap/src/services/tournament-sync.ts:22-127`, `145-155`
-- `scoresnap/src/services/course-api.ts:12`, `22-25`
-- `scoresnap/src/ui/LiveShare.tsx:39-40`
-- `scoresnap/src/services/purchases.ts:76-79`, `87-88`, `106-110`, `139-152`, `214-218`
-- `scoresnap/src/ui/CourseSearch.tsx:40-51`, `156-160`, `533`
+- `scoresnap/src/services/tournament-sync.ts:22-127`, `145-155` and `scoresnap/src/services/tournament-sync-plan.ts:89-91`
+- `scoresnap/src/services/course-api.ts:14`, `30`
+- `scoresnap/src/ui/LiveShare.tsx:93-94`
+- `scoresnap/src/services/purchases.ts:80-83`, `87-88`, `106-119`, `139-156`, `176`, `231`, `246`
+- `scoresnap/src/ui/CourseSearch.tsx:40-51`, `156-160`
 - `scoresnap/src/ui/ErrorBoundary.tsx:26-29`
-- `scoresnap/supabase/functions/ocr-scorecard/index.ts:49-75`, `114-136`, `213-221`
+- `scoresnap/supabase/functions/ocr-scorecard/index.ts:76-86`, `131-137`, `171-179`
 - `scoresnap/supabase/functions/course-data/index.ts:27-32`, `50-74`, `115`
 - `scoresnap/supabase/functions/on-user-signup/index.ts:21-32`, `64-76`, `87-100`
-- `scoresnap/supabase/functions/stripe-webhook/index.ts:10-19`, `30`, `54-63`, `68-80`, `108-113`
+- `scoresnap/supabase/functions/stripe-webhook/index.ts:57-68`
 - `scoresnap/supabase/migrations/20261027000000_live_baseline.sql:192-211`, `551-561`, `669-706`
