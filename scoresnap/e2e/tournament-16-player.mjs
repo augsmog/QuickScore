@@ -94,6 +94,16 @@ const hasMultipleTabs = tabText.includes("SCORECARD") &&
                         tabText.includes("LEADERBOARD") &&
                         tabText.includes("GAMES");
 check(hasMultipleTabs, "Contest tabs rendered (Scorecard, Leaderboard, Games)");
+await orgPage.getByText(/^scorecard$/i).first().click();
+let screenshotScoresEntered = 0;
+for (const playerName of playerNames.slice(0, 3)) {
+  const scorePlus = orgPage.getByTestId(`score-plus-${playerName}`);
+  if (await scorePlus.isVisible().catch(() => false)) {
+    await scorePlus.click();
+    screenshotScoresEntered++;
+  }
+}
+check(screenshotScoresEntered === 3, "Score three players before leaderboard capture", `${screenshotScoresEntered} scores entered`);
 await orgPage.getByText(/^leaderboard$/i).first().click();
 await orgPage.getByTestId("leaderboard-search").waitFor({ state: "visible", timeout: 10000 });
 const grossButton = orgPage.getByTestId("leaderboard-rank-gross");
@@ -112,9 +122,8 @@ for (let index = 0; index < rowCount && rowsWithRankAndThru < 3; index++) {
   const row = leaderboardRows.nth(index);
   const box = await row.boundingBox();
   if (!box || box.x >= viewport.width || box.x + box.width <= 0 || box.y >= viewport.height || box.y + box.height <= 0) continue;
-  const rowId = (await row.getAttribute("data-testid")).replace("leaderboard-player-", "");
-  const rank = orgPage.getByTestId(`leaderboard-rank-${rowId}`);
-  const thru = orgPage.getByTestId(`leaderboard-thru-${rowId}`);
+  const rank = row.locator('[data-testid^="leaderboard-rank-"]');
+  const thru = row.locator('[data-testid^="leaderboard-thru-"]');
   if (await rank.isVisible() && await thru.isVisible()) rowsWithRankAndThru++;
 }
 check(rowsWithRankAndThru >= 3, "At least 3 visible rows show rank and THRU", `${rowsWithRankAndThru} rows`);
