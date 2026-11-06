@@ -367,5 +367,37 @@ describe("buildLeaderboardRows R1/Today columns (AUG-253m)", () => {
       expect(row.today).toEqual(todayBy[row.playerId]);
       expect(row.rankLabel).toBe(plain.find((r) => r.playerId === row.playerId)!.rankLabel);
     }
+
+    // Group filter composes with roundInfo the same way: surviving rows keep
+    // their full-field rank AND their R1/Today. Split the field into two groups.
+    const groups: LeaderboardGroup[] = [
+      { id: "gA", players: players.filter((_, i) => i % 2 === 0).map((p) => ({ id: p.id })) },
+      { id: "gB", players: players.filter((_, i) => i % 2 === 1).map((p) => ({ id: p.id })) },
+    ];
+    const grouped = buildLeaderboardRows(results, players, { holeCount: 18, roundInfo, groups, groupId: "gB" });
+    expect(grouped.length).toBe(36);
+    for (const row of grouped) {
+      expect(row.groupId).toBe("gB");
+      expect(row.r1).toEqual(r1By[row.playerId]);
+      expect(row.today).toEqual(todayBy[row.playerId]);
+      expect(row.rankLabel).toBe(plain.find((r) => r.playerId === row.playerId)!.rankLabel);
+    }
+
+    // Group filter + search + you-pin all together, still with roundInfo intact.
+    const youB = grouped[grouped.length - 1].playerId;
+    const combined = buildLeaderboardRows(results, players, {
+      holeCount: 18,
+      roundInfo,
+      groups,
+      groupId: "gB",
+      youPlayerId: youB,
+    });
+    expect(combined[0]).toMatchObject({
+      playerId: youB,
+      isYou: true,
+      rankLabel: plain.find((r) => r.playerId === youB)!.rankLabel,
+      r1: r1By[youB],
+      today: todayBy[youB],
+    });
   });
 });
