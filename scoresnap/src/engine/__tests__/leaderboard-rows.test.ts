@@ -185,3 +185,105 @@ describe("buildLeaderboardRows", () => {
     }
   });
 });
+
+// AUG-253i (AUG-745) / AUG-253j (AUG-746): the pinned-"You" contract. youPlayerId is a
+// fixture/debug id (there is no real user↔player link yet — AUG-254). When it matches a row
+// that survives the filters, that row is flagged `isYou` and moved to the front WITHOUT
+// renumbering any rank/label/tied. Unset or unmatched is a byte-identical no-op.
+describe("buildLeaderboardRows youPlayerId pin", () => {
+  const FIELD: StrokePlayResult[] = [
+    { playerId: "a", name: "Alice", front: 0, back: 0, total: 70, toPar: -2 },
+    { playerId: "b", name: "Bob", front: 0, back: 0, total: 72, toPar: 0 },
+    { playerId: "c", name: "Carol", front: 0, back: 0, total: 72, toPar: 0 },
+    { playerId: "d", name: "Dave", front: 0, back: 0, total: 75, toPar: 3 },
+  ];
+
+  test("unset youPlayerId → identical to the no-option call, no isYou anywhere (golden)", () => {
+    const base = buildLeaderboardRows(FIELD, [], { holeCount: 18 });
+    const withUndefined = buildLeaderboardRows(FIELD, [], { holeCount: 18, youPlayerId: undefined });
+    expect(withUndefined).toEqual(base);
+    expect(withUndefined.every((r) => r.isYou === undefined)).toBe(true);
+  });
+
+  test("present (non-leader) → that row is first, flagged isYou, every rank/label unchanged", () => {
+    const base = buildLeaderboardRows(FIELD, [], { holeCount: 18 });
+    const rows = buildLeaderboardRows(FIELD, [], { holeCount: 18, youPlayerId: "c" });
+
+    // Carol (field rank T2, 3rd on the board) is pinned to the front.
+    expect(rows.map((r) => r.playerId)).toEqual(["c", "a", "b", "d"]);
+    expect(rows[0].isYou).toBe(true);
+    // No other row is flagged.
+    expect(rows.filter((r) => r.isYou).map((r) => r.playerId)).toEqual(["c"]);
+    // Field ranks/labels/tied are the player's real values, not renumbered by the move.
+    const labelById = Object.fromEntries(rows.map((r) => [r.playerId, r.rankLabel]));
+    const baseLabelById = Object.fromEntries(base.map((r) => [r.playerId, r.rankLabel]));
+    expect(labelById).toEqual(baseLabelById);
+    expect(rows.find((r) => r.playerId === "c")!.rankLabel).toBe("T2");
+    expect(rows.find((r) => r.playerId === "c")!.rank).toBe(2);
+  });
+
+  test("matches the leader → stays first and is flagged, order and ranks unchanged", () => {
+    const base = buildLeaderboardRows(FIELD, [], { holeCount: 18 });
+    const rows = buildLeaderboardRows(FIELD, [], { holeCount: 18, youPlayerId: "a" });
+    expect(rows.map((r) => r.playerId)).toEqual(base.map((r) => r.playerId));
+    expect(rows[0].playerId).toBe("a");
+    expect(rows[0].isYou).toBe(true);
+    expect(rows[0].rankLabel).toBe("1");
+    expect(rows.slice(1).every((r) => r.isYou === undefined)).toBe(true);
+  });
+
+  test("unmatched youPlayerId → no-op: no pin, no isYou, identical to base", () => {
+    const base = buildLeaderboardRows(FIELD, [], { holeCount: 18 });
+    const rows = buildLeaderboardRows(FIELD, [], { holeCount: 18, youPlayerId: "zzz" });
+    expect(rows).toEqual(base);
+    expect(rows.every((r) => r.isYou === undefined)).toBe(true);
+  });
+
+  test("youPlayerId survives a search filter → pinned, field rank preserved", () => {
+    // Query "a" keeps Alice(1), Carol(T2), Dave(4); pin Carol to the front.
+    const rows = buildLeaderboardRows(FIELD, [], { holeCount: 18, query: "a", youPlayerId: "c" });
+    expect(rows.map((r) => r.playerId)).toEqual(["c", "a", "d"]);
+    expect(rows[0].isYou).toBe(true);
+    expect(rows[0].rankLabel).toBe("T2"); // Carol's real field rank, not "1"
+  });
+
+  test("youPlayerId filtered OUT by search → no pin, no isYou (ranks still pre-filter)", () => {
+    // Query "a" drops Bob; pinning Bob is then a no-op.
+    const rows = buildLeaderboardRows(FIELD, [], { holeCount: 18, query: "a", youPlayerId: "b" });
+    expect(rows.map((r) => r.playerId)).toEqual(["a", "c", "d"]);
+    expect(rows.every((r) => r.isYou === undefined)).toBe(true);
+  });
+
+  test("youPlayerId composes with a group filter: pin only within the surviving group", () => {
+    const groups: LeaderboardGroup[] = [
+      { id: "g1", players: [{ id: "a" }, { id: "d" }] },
+      { id: "g2", players: [{ id: "b" }, { id: "c" }] },
+    ];
+    const rows = buildLeaderboardRows(FIELD, [], { holeCount: 18, groups, groupId: "g2", youPlayerId: "c" });
+    expect(rows.map((r) => r.playerId)).toEqual(["c", "b"]);
+    expect(rows[0].isYou).toBe(true);
+    expect(rows[0].rankLabel).toBe("T2");
+    // A youPlayerId in the filtered-out group is a no-op.
+    const other = buildLeaderboardRows(FIELD, [], { holeCount: 18, groups, groupId: "g2", youPlayerId: "a" });
+    expect(other.every((r) => r.isYou === undefined)).toBe(true);
+  });
+
+  test("16-player fixture: pinned You keeps its real field rank at the top", () => {
+    const players: Player[] = Array.from({ length: 16 }, (_, i) =>
+      player(`p${i}`, `Player ${i}`, roundTo(70 + i)),
+    );
+    const results = calcStrokePlay(players, COURSE);
+    const youId = results[6].playerId; // the 7th player on the board
+    const expectedLabel = refLabel(results, results[6].total);
+
+    const rows = buildLeaderboardRows(results, players, { holeCount: 18, youPlayerId: youId });
+    expect(rows[0].playerId).toBe(youId);
+    expect(rows[0].isYou).toBe(true);
+    expect(rows[0].rankLabel).toBe(expectedLabel);
+    // Exactly one flagged row, and every other label is unchanged from the base board.
+    expect(rows.filter((r) => r.isYou)).toHaveLength(1);
+    const base = buildLeaderboardRows(results, players, { holeCount: 18 });
+    const baseLabelById = Object.fromEntries(base.map((r) => [r.playerId, r.rankLabel]));
+    for (const row of rows) expect(row.rankLabel).toBe(baseLabelById[row.playerId]);
+  });
+});

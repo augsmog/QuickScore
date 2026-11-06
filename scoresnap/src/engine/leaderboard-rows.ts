@@ -27,6 +27,14 @@ export interface LeaderboardRow {
   thru: "F" | number | null;
   /** The id of the group the player belongs to (from `opts.groups`), or `null` when ungrouped / unknown. */
   groupId: string | null;
+  /**
+   * True only on the row whose `playerId` matches `opts.youPlayerId` (AUG-253i/AUG-253j).
+   * Absent on every other row. Drives the "You" affordance on the FlashList; it does NOT
+   * change `rank`/`rankLabel`/`tied`/`thru` (those stay the player's real field values).
+   * There is no real user↔player link yet (AUG-254, out of scope): `youPlayerId` is a
+   * fixture/debug id, so this is always absent in production unless a fixture supplies one.
+   */
+  isYou?: boolean;
 }
 
 /** Minimal group shape needed for membership — a subset of `ContestGroup`. */
@@ -44,6 +52,15 @@ export interface BuildLeaderboardRowsOptions {
   query?: string;
   /** Keep only players in this group id, applied AFTER ranks are computed so ranks are preserved. */
   groupId?: string;
+  /**
+   * Fixture/debug id of the "you" player (AUG-253i/AUG-253j). When set and the matching row
+   * survives the `query`/`groupId` filters, that row gains `isYou: true` and is moved to the
+   * FRONT of the returned array — without renumbering any `rank`/`rankLabel`/`tied`/`thru`
+   * (field ranks stay competition ranks). When unset or unmatched (incl. filtered out), the
+   * output is byte-for-byte what it was before this option existed (golden regression).
+   * NOT a real account↔player link (that is AUG-254).
+   */
+  youPlayerId?: string;
 }
 
 /**
@@ -58,7 +75,7 @@ export function buildLeaderboardRows(
   players: Player[],
   opts: BuildLeaderboardRowsOptions,
 ): LeaderboardRow[] {
-  const { holeCount, groups, query, groupId } = opts;
+  const { holeCount, groups, query, groupId, youPlayerId } = opts;
 
   // playerId -> player, for THRU (holes with a score on this course).
   const playerById = new Map<string, Player>();
@@ -115,6 +132,17 @@ export function buildLeaderboardRows(
   }
   if (groupId != null) {
     filtered = filtered.filter((row) => row.groupId === groupId);
+  }
+
+  // Pin the "you" row to the front WITHOUT touching its rank/label/tied/thru. Only when
+  // it survived the filters above; a filtered-out or unmatched youPlayerId is a no-op, so
+  // the unpinned path returns the exact same array as before this option existed.
+  if (youPlayerId != null) {
+    const youIndex = filtered.findIndex((row) => row.playerId === youPlayerId);
+    if (youIndex !== -1) {
+      const youRow: LeaderboardRow = { ...filtered[youIndex], isYou: true };
+      filtered = [youRow, ...filtered.slice(0, youIndex), ...filtered.slice(youIndex + 1)];
+    }
   }
   return filtered;
 }
