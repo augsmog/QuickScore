@@ -30,13 +30,12 @@ function load(file, deps) {
 // fixed over the full field before filtering (AUG-675 contract), so a searched
 // subset keeps real field ranks and the empty query shows everyone.
 //
-// Deterministic 5-player field, distinct totals so ranks are 1..5 in name order:
-// Amy Adams (lowest) ... Eve Evans (highest). 18-hole hcp map so net is available
+// Deterministic 5-player field with a tied lead and 18-hole hcp map so net is available
 // and the Gross/Net toggle renders in the header.
 function buildScreen() {
   const roster = [
     { id: 'p1', name: 'Amy Adams', per: 3 },
-    { id: 'p2', name: 'Bob Brown', per: 4 },
+    { id: 'p2', name: 'Bob Brown', per: 3 },
     { id: 'p3', name: 'Cara Cole', per: 5 },
     { id: 'p4', name: 'Dan Diaz', per: 6 },
     { id: 'p5', name: 'Eve Evans', per: 7 },
@@ -191,6 +190,18 @@ test('filtered row keeps its field rank (ranks computed before the filter)', asy
     );
     const rankText = rankNode.findAll((n) => typeof n.children?.[0] === 'string')[0];
     expect(rankText.children[0]).toBe('3');
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});
+
+test('FlashList cells display tied rank labels from the leaderboard row model', async () => {
+  const tree = await mount();
+  try {
+    for (const playerId of ['p1', 'p2']) {
+      const rank = tree.root.find((node) => node.props.testID === `leaderboard-rank-${playerId}`);
+      expect(rank.children[0]).toBe('T1');
+    }
   } finally {
     await act(async () => tree.unmount());
   }
