@@ -313,7 +313,7 @@ useAuthStore.subscribe((state) => {
 
   if (!posthog) return;
 
-  const anonymousDistinctId = posthog.get_distinct_id();
+  const anonymousDistinctId = posthog.getDistinctId();
   if (anonymousDistinctId === identifiedAnonymousId) return;
 
   identifiedAnonymousId = identifyAnonymousOnly(posthog);
