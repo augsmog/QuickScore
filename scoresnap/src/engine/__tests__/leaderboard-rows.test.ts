@@ -158,6 +158,45 @@ describe("buildLeaderboardRows", () => {
       ["Alice", "1"],
       ["ALBERT", "4"],
     ]);
+
+    // Pinning composes after both filters and preserves the pre-filter competition rank.
+    const pinnedCarol = buildLeaderboardRows(results, [], {
+      holeCount: 18,
+      groups,
+      query: "car",
+      groupId: "g2",
+      youPlayerId: "c",
+    });
+    expect(pinnedCarol).toHaveLength(1);
+    expect(pinnedCarol[0]).toMatchObject({ playerId: "c", isYou: true, rank: 2, rankLabel: "T2", tied: true });
+
+    // A filtered-out player and an omitted id preserve the exact previous output.
+    expect(buildLeaderboardRows(results, [], { holeCount: 18, groups, youPlayerId: "c", query: "al", groupId: "g1" }))
+      .toEqual(combined);
+    expect(buildLeaderboardRows(results, [], { holeCount: 18, groups })).toEqual(all);
+    expect(buildLeaderboardRows(results, [], { holeCount: 18, groups, youPlayerId: "missing" })).toEqual(all);
+  });
+
+  test("16-player field pins the selected player without changing rank data or other order", () => {
+    const players = Array.from({ length: 16 }, (_, i) =>
+      player(`p${i + 1}`, `Player ${i + 1}`, roundTo(72 + i)),
+    );
+    const results = calcStrokePlay(players, COURSE);
+    const original = buildLeaderboardRows(results, players, { holeCount: 18 });
+    const youPlayerId = original[15].playerId;
+    const expectedYou = original.find((row) => row.playerId === youPlayerId)!;
+    const pinned = buildLeaderboardRows(results, players, { holeCount: 18, youPlayerId });
+
+    expect(pinned[0]).toMatchObject({
+      playerId: youPlayerId,
+      isYou: true,
+      rank: expectedYou.rank,
+      rankLabel: expectedYou.rankLabel,
+      tied: expectedYou.tied,
+      thru: expectedYou.thru,
+    });
+    expect(pinned.slice(1)).toEqual(original.filter((row) => row.playerId !== youPlayerId));
+    expect(pinned.slice(1).every((row) => !row.isYou)).toBe(true);
   });
 
   test("72-player field: rank labels match the current index.tsx findIndex/filter logic exactly", () => {
@@ -183,5 +222,20 @@ describe("buildLeaderboardRows", () => {
     for (let i = 1; i < rows.length; i++) {
       expect(rows[i].rank).toBeGreaterThanOrEqual(rows[i - 1].rank);
     }
+
+    const youPlayerId = rows[71].playerId;
+    const expectedYou = rows[71];
+    const pinned = buildLeaderboardRows(results, players, { holeCount: 18, youPlayerId });
+    expect(pinned[0]).toMatchObject({
+      playerId: youPlayerId,
+      isYou: true,
+      rank: expectedYou.rank,
+      rankLabel: expectedYou.rankLabel,
+      tied: expectedYou.tied,
+      thru: expectedYou.thru,
+    });
+    expect(pinned.slice(1).map((row) => row.playerId)).toEqual(
+      rows.slice(0, 71).map((row) => row.playerId),
+    );
   });
 });

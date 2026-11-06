@@ -19,6 +19,8 @@ export interface LeaderboardRow {
   tied: boolean;
   /** `T<rank>` when tied, else `<rank>` — identical to today's index.tsx `tied ? `T${rank}` : rank`. */
   rankLabel: string;
+  /** Present only when this row matches the caller's pinned current-player id. */
+  isYou?: true;
   /**
    * Holes completed: `'F'` when the player has a score on every course hole,
    * the number of holes played when 1..holeCount-1, and `null` when 0.
@@ -38,6 +40,8 @@ export interface LeaderboardGroup {
 export interface BuildLeaderboardRowsOptions {
   /** Number of holes on the course the `results` were computed for; drives THRU. Required. */
   holeCount: number;
+  /** Player id to pin to the top of the filtered result without changing field rank. */
+  youPlayerId?: string;
   /** Contest groups, used for each row's `groupId` and the `groupId` filter. */
   groups?: LeaderboardGroup[];
   /** Case-insensitive name substring filter, applied AFTER ranks are computed so ranks are preserved. */
@@ -58,7 +62,7 @@ export function buildLeaderboardRows(
   players: Player[],
   opts: BuildLeaderboardRowsOptions,
 ): LeaderboardRow[] {
-  const { holeCount, groups, query, groupId } = opts;
+  const { holeCount, groups, query, groupId, youPlayerId } = opts;
 
   // playerId -> player, for THRU (holes with a score on this course).
   const playerById = new Map<string, Player>();
@@ -115,6 +119,14 @@ export function buildLeaderboardRows(
   }
   if (groupId != null) {
     filtered = filtered.filter((row) => row.groupId === groupId);
+  }
+
+  if (youPlayerId) {
+    const youIndex = filtered.findIndex((row) => row.playerId === youPlayerId);
+    if (youIndex >= 0) {
+      const youRow = { ...filtered[youIndex], isYou: true as const };
+      return [youRow, ...filtered.slice(0, youIndex), ...filtered.slice(youIndex + 1)];
+    }
   }
   return filtered;
 }
