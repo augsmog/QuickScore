@@ -17,7 +17,7 @@ type LeaderboardResultsListProps = {
    * instead of renumbering 1..n over the visible rows. When omitted, the rank is
    * derived from `results` (unchanged legacy behavior for unfiltered callers).
    */
-  rankByPlayerId?: Map<string, { rankLabel: string; tied: boolean }>;
+  rankByPlayerId?: Map<string, { rankLabel: string; tied: boolean; isYou?: boolean }>;
   /** All players in the current view, used to resolve holes played. */
   allPlayers: Player[];
   /** Players whose recent-form strokes drive the last-3-holes strip. */
@@ -63,6 +63,11 @@ export function LeaderboardResultsList({
           // Prefer the precomputed field rank (survives search filtering); fall back to
           // the legacy inline computation over `results` when no lookup is supplied.
           const ranked = rankByPlayerId?.get(r.playerId);
+          // AUG-253j: pinned "You" row. The row model (buildLeaderboardRows + youPlayerId)
+          // already moved this row to the front and flagged it; the field rank label below
+          // is still the player's real competition rank, so the chip marks "you" without
+          // implying you lead. Absent (production default) → no chip, unchanged rows.
+          const isYou = ranked?.isYou === true;
           const fallbackRank = results.findIndex((result) => result.total === r.total) + 1;
           const fallbackTied = results.filter((result) => result.total === r.total).length > 1;
           const rankLabel = ranked
@@ -124,6 +129,22 @@ export function LeaderboardResultsList({
                   <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>
                     {r.name}
                   </Text>
+                  {isYou && (
+                    <View
+                      testID={`leaderboard-you-chip-${r.playerId}`}
+                      accessibilityLabel="Your row"
+                      style={{
+                        backgroundColor: COLORS.primary,
+                        borderRadius: RADII.full,
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                      }}
+                    >
+                      <Text style={{ fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.onPrimary }}>
+                        You
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>
                   Total <Text testID={`leaderboard-total-${r.name}`}>{r.total}</Text> · thru {holesPlayed}
