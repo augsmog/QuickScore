@@ -103,12 +103,15 @@ const grossSelected = !hasGrossToggle || await grossButton.evaluate((element) =>
   return background !== "transparent" && background !== "rgba(0, 0, 0, 0)";
 });
 check(grossSelected, "Gross leaderboard selected", hasGrossToggle ? "Gross toggle is active" : "Gross is the only supported ranking");
-const visibleRows = orgPage.locator('[data-testid^="leaderboard-player-"]:visible');
-await visibleRows.first().waitFor({ state: "visible", timeout: 10000 });
-const visibleRowCount = await visibleRows.count();
+const leaderboardRows = orgPage.locator('[data-testid^="leaderboard-player-"]');
+await leaderboardRows.first().waitFor({ state: "visible", timeout: 10000 });
+const viewport = orgPage.viewportSize();
+const rowCount = await leaderboardRows.count();
 let rowsWithRankAndThru = 0;
-for (let index = 0; index < Math.min(visibleRowCount, 3); index++) {
-  const row = visibleRows.nth(index);
+for (let index = 0; index < rowCount && rowsWithRankAndThru < 3; index++) {
+  const row = leaderboardRows.nth(index);
+  const box = await row.boundingBox();
+  if (!box || box.x >= viewport.width || box.x + box.width <= 0 || box.y >= viewport.height || box.y + box.height <= 0) continue;
   const rowId = (await row.getAttribute("data-testid")).replace("leaderboard-player-", "");
   const rank = orgPage.getByTestId(`leaderboard-rank-${rowId}`);
   const thru = orgPage.getByTestId(`leaderboard-thru-${rowId}`);
