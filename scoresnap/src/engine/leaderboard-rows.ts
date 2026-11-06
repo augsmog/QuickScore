@@ -29,6 +29,43 @@ export interface LeaderboardRow {
   thru: "F" | number | null;
   /** The id of the group the player belongs to (from `opts.groups`), or `null` when ungrouped / unknown. */
   groupId: string | null;
+  /**
+   * AUG-253m: Round-1 score for the R1 column (Figma 15:2 / AUG-253), or `null`
+   * when the player has no round-1 result. Present ONLY when `opts.roundInfo`
+   * is supplied; the field is omitted otherwise so existing callers and golden
+   * fixtures are unchanged. The UI (a later sibling) renders the column; this
+   * module only carries the value.
+   */
+  r1?: LeaderboardRoundScore | null;
+  /**
+   * AUG-253m: Current-round ("Today") score for the Today column (Figma 15:2),
+   * or `null` when the player has no current-round result. Present ONLY when
+   * `opts.roundInfo` is supplied; omitted otherwise.
+   */
+  today?: LeaderboardRoundScore | null;
+}
+
+/** A single round's score for the R1 / Today columns (Figma 15:2). */
+export interface LeaderboardRoundScore {
+  /** Gross strokes in the round (or net when the caller passes net round rows). */
+  total: number;
+  /** Strokes relative to par in the round. */
+  toPar: number;
+}
+
+/**
+ * Per-round results for the R1 / Today columns (Figma 15:2 / AUG-253). Each
+ * field is the `calcStrokePlay(...)` output for that round — the same
+ * `StrokePlayResult[]` shape as the cumulative `results`, which the caller
+ * computes per `RoundInfo` (contest-store). Rows copy their own round
+ * `total`/`toPar` keyed by `playerId`; a player absent from a round's results
+ * yields `null` for that column.
+ */
+export interface LeaderboardRoundInfo {
+  /** Round-1 results, driving the R1 column. */
+  r1?: StrokePlayResult[];
+  /** The current/active round's results, driving the Today column. */
+  today?: StrokePlayResult[];
 }
 
 /** Minimal group shape needed for membership — a subset of `ContestGroup`. */
@@ -48,6 +85,14 @@ export interface BuildLeaderboardRowsOptions {
   query?: string;
   /** Keep only players in this group id, applied AFTER ranks are computed so ranks are preserved. */
   groupId?: string;
+  /**
+   * AUG-253m: optional per-round results for the R1 / Today columns (Figma
+   * 15:2). When omitted, rows carry no `r1`/`today` (fields stay undefined) and
+   * every existing fixture is byte-for-byte unchanged. When present, each row
+   * gets its matching round score, or `null` when that round has no result for
+   * the player. Does not affect rank, ties, THRU, filtering, or the you-pin.
+   */
+  roundInfo?: LeaderboardRoundInfo;
 }
 
 /**
@@ -62,11 +107,17 @@ export function buildLeaderboardRows(
   players: Player[],
   opts: BuildLeaderboardRowsOptions,
 ): LeaderboardRow[] {
-  const { holeCount, groups, query, groupId, youPlayerId } = opts;
+  const { holeCount, groups, query, groupId, youPlayerId, roundInfo } = opts;
 
   // playerId -> player, for THRU (holes with a score on this course).
   const playerById = new Map<string, Player>();
   for (const p of players) playerById.set(p.id, p);
+
+  // playerId -> per-round score, for the R1 / Today columns (AUG-253m). Built
+  // once in O(n) per supplied round; absent when `roundInfo` is omitted so the
+  // row objects keep their legacy shape.
+  const r1ById = roundInfo?.r1 ? indexRoundScores(roundInfo.r1) : undefined;
+  const todayById = roundInfo?.today ? indexRoundScores(roundInfo.today) : undefined;
 
   // playerId -> group id, for row.groupId and the group filter.
   const groupByPlayer = new Map<string, string>();
@@ -99,7 +150,7 @@ export function buildLeaderboardRows(
     const tied = (countByTotal.get(r.total) ?? 0) > 1;
     const player = playerById.get(r.playerId);
 
-    rows.push({
+    const row: LeaderboardRow = {
       playerId: r.playerId,
       name: r.name,
       total: r.total,
@@ -108,7 +159,14 @@ export function buildLeaderboardRows(
       rankLabel: tied ? `T${rank}` : `${rank}`,
       thru: computeThru(player, holeCount),
       groupId: groupByPlayer.get(r.playerId) ?? null,
-    });
+    };
+    // Only attach R1 / Today when the caller supplies round context, so rows
+    // without `roundInfo` stay identical to the pre-AUG-253m model.
+    if (roundInfo) {
+      row.r1 = r1ById?.get(r.playerId) ?? null;
+      row.today = todayById?.get(r.playerId) ?? null;
+    }
+    rows.push(row);
   }
 
   // Filters run after ranks are fixed, so they never renumber.
@@ -129,6 +187,19 @@ export function buildLeaderboardRows(
     }
   }
   return filtered;
+}
+
+/**
+ * Index a round's `StrokePlayResult[]` into a `playerId -> {total,toPar}` map
+ * for the R1 / Today columns. A player with more than one row in the same round
+ * keeps the first (callers pass one row per player, as `calcStrokePlay` does).
+ */
+function indexRoundScores(results: StrokePlayResult[]): Map<string, LeaderboardRoundScore> {
+  const byId = new Map<string, LeaderboardRoundScore>();
+  for (const r of results) {
+    if (!byId.has(r.playerId)) byId.set(r.playerId, { total: r.total, toPar: r.toPar });
+  }
+  return byId;
 }
 
 /** THRU for a player over the first `holeCount` holes: 'F' all played, count when partial, null when none. */
