@@ -239,3 +239,165 @@ describe("buildLeaderboardRows", () => {
     );
   });
 });
+
+// AUG-253m: R1 / Today columns (Figma 15:2). Pure model only — the UI wire is a
+// later sibling. These prove: absent roundInfo leaves the row model byte-for-byte
+// unchanged; present roundInfo sets r1/today from the per-round StrokePlayResult[];
+// a player missing from a round (or an omitted round array) yields null; and the
+// columns compose with search/group filters and the you-pin without rank drift.
+describe("buildLeaderboardRows R1/Today columns (AUG-253m)", () => {
+  const LEGACY_ROW_KEYS = ["playerId", "name", "total", "rank", "tied", "rankLabel", "thru", "groupId"];
+
+  function scoreMap(results: StrokePlayResult[]): Record<string, { total: number; toPar: number }> {
+    return Object.fromEntries(results.map((r) => [r.playerId, { total: r.total, toPar: r.toPar }]));
+  }
+
+  test("absent roundInfo: rows carry no r1/today and match the legacy model exactly", () => {
+    const players = Array.from({ length: 16 }, (_, i) => player(`p${i + 1}`, `Player ${i + 1}`, roundTo(72 + i)));
+    const results = calcStrokePlay(players, COURSE);
+
+    const rows = buildLeaderboardRows(results, players, { holeCount: 18 });
+    // No r1/today keys at all (not even undefined) so JSON/goldens are unchanged.
+    for (const row of rows) {
+      expect("r1" in row).toBe(false);
+      expect("today" in row).toBe(false);
+      expect(Object.keys(row).sort()).toEqual([...LEGACY_ROW_KEYS].sort());
+    }
+    // Passing roundInfo: undefined is identical to omitting it.
+    expect(buildLeaderboardRows(results, players, { holeCount: 18, roundInfo: undefined })).toStrictEqual(rows);
+  });
+
+  test("16-player field: present R1 + Today set each row's round score; rank is unchanged", () => {
+    const players = Array.from({ length: 16 }, (_, i) => player(`p${i + 1}`, `Player ${i + 1}`, roundTo(72 + i)));
+    const results = calcStrokePlay(players, COURSE);
+
+    // Round 1 and the current round scored independently of the cumulative board.
+    const r1Results = calcStrokePlay(
+      players.map((p, i) => player(p.id, p.name, roundTo(70 + i))),
+      COURSE,
+    );
+    const todayResults = calcStrokePlay(
+      players.map((p, i) => player(p.id, p.name, roundTo(80 - i))),
+      COURSE,
+    );
+    const r1By = scoreMap(r1Results);
+    const todayBy = scoreMap(todayResults);
+
+    const plain = buildLeaderboardRows(results, players, { holeCount: 18 });
+    const rows = buildLeaderboardRows(results, players, {
+      holeCount: 18,
+      roundInfo: { r1: r1Results, today: todayResults },
+    });
+
+    for (const row of rows) {
+      expect(row.r1).toEqual(r1By[row.playerId]);
+      expect(row.today).toEqual(todayBy[row.playerId]);
+    }
+    // R1/Today carry real to-par, not just copies of the cumulative total.
+    expect(rows[0].today).toEqual({ total: expect.any(Number), toPar: expect.any(Number) });
+    // Adding the columns must not perturb order, rank, ties, or THRU.
+    expect(rows.map((r) => [r.playerId, r.rankLabel, r.rank, r.tied, r.thru])).toEqual(
+      plain.map((r) => [r.playerId, r.rankLabel, r.rank, r.tied, r.thru]),
+    );
+  });
+
+  test("a player absent from a round, or an omitted round array, yields null", () => {
+    const players = Array.from({ length: 16 }, (_, i) => player(`p${i + 1}`, `Player ${i + 1}`, roundTo(72 + i)));
+    const results = calcStrokePlay(players, COURSE);
+    const r1Results = calcStrokePlay(
+      players.map((p, i) => player(p.id, p.name, roundTo(70 + i))),
+      COURSE,
+    );
+    // Drop player p1 from the round-1 results.
+    const partialR1 = r1Results.filter((r) => r.playerId !== "p1");
+
+    const rows = buildLeaderboardRows(results, players, { holeCount: 18, roundInfo: { r1: partialR1 } });
+    const byId = Object.fromEntries(rows.map((r) => [r.playerId, r]));
+    expect(byId["p1"].r1).toBeNull(); // present in roundInfo but missing from the r1 rows
+    expect(byId["p2"].r1).toEqual({ total: r1Results.find((r) => r.playerId === "p2")!.total, toPar: r1Results.find((r) => r.playerId === "p2")!.toPar });
+    // `today` array omitted entirely → null for every row (field still present).
+    expect(rows.every((r) => r.today === null)).toBe(true);
+  });
+
+  test("72-player field: R1/Today compose with the you-pin and filters without rank drift", () => {
+    const totalsPattern = [68, 70, 70, 72, 72, 72, 74, 75, 76, 76, 78, 80];
+    const players: Player[] = Array.from({ length: 72 }, (_, i) =>
+      player(`p${i}`, `Player ${i}`, roundTo(totalsPattern[i % totalsPattern.length] + Math.floor(i / 36))),
+    );
+    const results = calcStrokePlay(players, COURSE);
+    const r1Results = calcStrokePlay(
+      players.map((p, i) => player(p.id, p.name, roundTo(69 + (i % 9)))),
+      COURSE,
+    );
+    const todayResults = calcStrokePlay(
+      players.map((p, i) => player(p.id, p.name, roundTo(71 + (i % 7)))),
+      COURSE,
+    );
+    const roundInfo = { r1: r1Results, today: todayResults };
+    const r1By = scoreMap(r1Results);
+    const todayBy = scoreMap(todayResults);
+
+    const plain = buildLeaderboardRows(results, players, { holeCount: 18 });
+    const rows = buildLeaderboardRows(results, players, { holeCount: 18, roundInfo });
+
+    // Ranks identical to the no-roundInfo board.
+    expect(rows.map((r) => r.rankLabel)).toEqual(plain.map((r) => r.rankLabel));
+    for (const row of rows) {
+      expect(row.r1).toEqual(r1By[row.playerId]);
+      expect(row.today).toEqual(todayBy[row.playerId]);
+    }
+
+    // Pin the last player: the pinned row keeps its field rank AND its R1/Today.
+    const youPlayerId = rows[71].playerId;
+    const expectedYou = rows[71];
+    const pinned = buildLeaderboardRows(results, players, { holeCount: 18, roundInfo, youPlayerId });
+    expect(pinned[0]).toMatchObject({
+      playerId: youPlayerId,
+      isYou: true,
+      rank: expectedYou.rank,
+      rankLabel: expectedYou.rankLabel,
+      r1: expectedYou.r1,
+      today: expectedYou.today,
+    });
+
+    // Search filter preserves R1/Today on each surviving row and its field rank.
+    const searched = buildLeaderboardRows(results, players, { holeCount: 18, roundInfo, query: "Player 1" });
+    for (const row of searched) {
+      expect(row.r1).toEqual(r1By[row.playerId]);
+      expect(row.today).toEqual(todayBy[row.playerId]);
+      expect(row.rankLabel).toBe(plain.find((r) => r.playerId === row.playerId)!.rankLabel);
+    }
+
+    // Group filter composes with roundInfo the same way: surviving rows keep
+    // their full-field rank AND their R1/Today. Split the field into two groups.
+    const groups: LeaderboardGroup[] = [
+      { id: "gA", players: players.filter((_, i) => i % 2 === 0).map((p) => ({ id: p.id })) },
+      { id: "gB", players: players.filter((_, i) => i % 2 === 1).map((p) => ({ id: p.id })) },
+    ];
+    const grouped = buildLeaderboardRows(results, players, { holeCount: 18, roundInfo, groups, groupId: "gB" });
+    expect(grouped.length).toBe(36);
+    for (const row of grouped) {
+      expect(row.groupId).toBe("gB");
+      expect(row.r1).toEqual(r1By[row.playerId]);
+      expect(row.today).toEqual(todayBy[row.playerId]);
+      expect(row.rankLabel).toBe(plain.find((r) => r.playerId === row.playerId)!.rankLabel);
+    }
+
+    // Group filter + search + you-pin all together, still with roundInfo intact.
+    const youB = grouped[grouped.length - 1].playerId;
+    const combined = buildLeaderboardRows(results, players, {
+      holeCount: 18,
+      roundInfo,
+      groups,
+      groupId: "gB",
+      youPlayerId: youB,
+    });
+    expect(combined[0]).toMatchObject({
+      playerId: youB,
+      isYou: true,
+      rankLabel: plain.find((r) => r.playerId === youB)!.rankLabel,
+      r1: r1By[youB],
+      today: todayBy[youB],
+    });
+  });
+});
