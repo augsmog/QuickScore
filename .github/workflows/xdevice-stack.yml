@@ -173,7 +173,7 @@ jobs:
           node e2e/xdevice-two-context.mjs 2>&1 | tee "$OUT_DIR/browser.log"
           export OUT_DIR="$GITHUB_WORKSPACE/xdevice-browser-evidence/four"
           mkdir -p "$OUT_DIR"
-          node e2e/xdevice-four-context.mjs 2>&1 | tee "$OUT_DIR/four.log"
+          XDEV_TEST_TD_HOST=1 node e2e/xdevice-four-context.mjs 2>&1 | tee "$OUT_DIR/four.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

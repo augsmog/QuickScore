@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { summarize, toMarkdown } = require('./consumer-ux-metrics.cjs');
+import { withTdFixtureEntitlement } from './xdevice-td-fixture.mjs';
 const base = process.env.BASE_URL ?? 'http://127.0.0.1:8089';
 const out = process.env.OUT_DIR ?? '/tmp/xdevice-four-context';
 await mkdir(out, { recursive: true });
@@ -217,7 +218,7 @@ async function writeConsumerReport() {
   })));
   const rows = summarize(events, devices.map(device => device.name));
   await Promise.all([
-    import('node:fs/promises').then(fs => fs.writeFile(path.join(out, 'consumer-ux.json'), `${JSON.stringify({ simulation: true, rows }, null, 2)}\n`)),
+    import('node:fs/promises').then(fs => fs.writeFile(path.join(out, 'consumer-ux.json'), `${JSON.stringify({ simulation: true, entitlementFixture: 'disposable TD organizer; ordinary guest accounts', rows }, null, 2)}\n`)),
     import('node:fs/promises').then(fs => fs.writeFile(path.join(out, 'consumer-ux.md'), toMarkdown(rows))),
   ]);
 }
@@ -231,6 +232,13 @@ try {
     assert.equal(process.env.XDEV_SIGNIN_ONLY, '1', 'All A–D credentials required; XDEV_SIGNIN_ONLY=1 allows only sign-in smoke');
     console.log('PASS sign-in screen in four isolated contexts; full flow NOT RUN (credentials absent)');
   } else {
+    assert.equal(process.env.XDEV_TEST_TD_HOST, '1', 'The four-player two-group organizer scenario requires the disposable TD test entitlement fixture');
+    assert(['127.0.0.1', 'localhost', '::1'].includes(new URL(base).hostname), 'TD fixture is restricted to a loopback disposable stack');
+    const scanState = await pages[0].evaluate(() => localStorage.getItem('snapscore-scans'));
+    const tdScanState = withTdFixtureEntitlement(scanState);
+    await pages[0].evaluate(value => localStorage.setItem('snapscore-scans', value), tdScanState);
+    await pages[0].reload();
+    await pages[0].waitForURL(u => !u.pathname.includes('/auth/'));
     await step('create four-player contest and enable sharing', async () => {
       const a = pages[0];
       await a.goto(`${base}/contest/new`);
