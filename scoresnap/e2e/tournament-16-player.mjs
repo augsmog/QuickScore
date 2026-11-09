@@ -175,6 +175,74 @@ if (playerContexts.length > 0) {
   check(true, "Skipped: no player contexts");
 }
 
+// ─── Settlement Gating (AUG-278b: TD readiness G4) ───
+// Asserts the settle GATE end-to-end on the real multi-group tournament. The
+// organizer is seeded on the paid "td" tier (seedPaidTier above), so opening
+// Settle up must BYPASS the free paywall and reach the real settlement screen.
+// A sibling page in the SAME browser context (which already holds this contest
+// in persisted storage) is then seeded to the FREE tier to prove the free gate
+// renders. The settle-ledger MATH for a multi-group field is asserted
+// deterministically in src/engine/__tests__/contest-settlement-16p.test.ts — a
+// live non-empty ledger here would need cross-device scoring (G1, out of scope).
+console.log("\n─── Settlement Gating (AUG-278b G4) ───");
+async function openSettlement(p) {
+  const tab = p.getByText(/^(settlement|settle up)$/i).first();
+  if (await tab.isVisible().catch(() => false)) {
+    await tab.click();
+    await p.waitForTimeout(800);
+    return true;
+  }
+  return false;
+}
+
+// Paid tier (td): the free gate must NOT show; the real settlement screen renders.
+const paidOpened = await openSettlement(orgPage);
+check(paidOpened, "Paid org: Settle up tab reachable");
+if (paidOpened) {
+  const settleFreeOnPaid = await orgPage.getByTestId("settle-free").isVisible().catch(() => false);
+  check(!settleFreeOnPaid, "Paid org (td): free paywall gate is bypassed", settleFreeOnPaid ? "settle-free shown" : "no settle-free");
+  // Some paid container must render: ready ledger, pending, all-even, or the
+  // "complete the round" empty state (no scores when cross-device is off).
+  const paidBody = await orgPage.innerText("body").catch(() => "");
+  const paidContainer =
+    (await orgPage.getByTestId("settlement-scroll").isVisible().catch(() => false)) ||
+    (await orgPage.getByTestId("settlement-pending").isVisible().catch(() => false)) ||
+    (await orgPage.getByTestId("settlement-all-even").isVisible().catch(() => false)) ||
+    paidBody.includes("Complete the round to see settlement");
+  check(paidContainer, "Paid org (td): real settlement screen renders (not the paywall)");
+}
+
+// Free tier: a FREE user (its own isolated context — no seedPaidTier) creates a
+// minimal single-group contest of its own and opens Settle up; `canSeeSettlement`
+// is false for the free tier, so the settle-free paywall gate must render. The
+// contest-shell layout (_layout.tsx) renders tabs from internal state starting on
+// Scorecard and ignores the URL, so we must CLICK the Settle up tab rather than
+// deep-link to /settlement, and the page must hold its own contest (contexts are
+// isolated, so a fresh context cannot see the organizer's contest).
+const freeCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const freePage = await freeCtx.newPage();
+freePage.on("pageerror", (e) => pageErrors.push(`free: ${e.message}`));
+await freePage.goto(BASE + "/", { waitUntil: "networkidle" });
+await freePage.getByText(/^new contest$/i).first().click();
+await freePage.getByPlaceholder("Your name").fill("Free Host");
+await freePage.getByPlaceholder("Player 2 name").fill("Free Guest");
+await freePage.getByText(/^continue$/i).last().click();
+await freePage.getByTestId("contest-step-gamemodes").waitFor({ state: "visible" });
+await freePage.getByText(/^continue$/i).last().click(); // Stroke Play is free + pre-selected
+await freePage.getByTestId("contest-step-round-settings").waitFor({ state: "visible" });
+await freePage.getByTestId("contest-start").click();
+await freePage.waitForURL(/\/contest\/[^/]+$/);
+await freePage.waitForTimeout(1500);
+const freeSettleOpened = await openSettlement(freePage);
+check(freeSettleOpened, "Free user: Settle up tab reachable");
+await freePage.getByTestId("settle-free").waitFor({ timeout: 10000 }).catch(() => {});
+const freeGateVisible = await freePage.getByTestId("settle-free").isVisible().catch(() => false);
+check(freeGateVisible, "Free tier: settle-free paywall gate renders");
+// settle-free-trial (the 7-day-trial CTA) only renders when a live StoreKit
+// annual trial offer resolves; that purchase view is unavailable in the offline
+// web build, so the trial CTA itself is exercised by the paywall tests, not here.
+await freeCtx.close();
+
 // Test usability: Back button from every screen
 console.log("\n─── Usability: Back Navigation ───");
 for (const tabName of ["Games", "(Settlement|Settle up)"]) {
