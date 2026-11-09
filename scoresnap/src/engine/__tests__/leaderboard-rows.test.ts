@@ -553,7 +553,10 @@ describe("buildLeaderboardRows compose-filter matrix (AUG-253o)", () => {
           }
 
           // Canonical field order over just the survivors (ascending total / rank).
-          const fieldOrder = field.map((r) => r.playerId).filter((id) => survivors.has(id));
+          // Derived from the sorted calcStrokePlay results — NOT from a
+          // buildLeaderboardRows call — so the ordering check stays independent
+          // of the model under test (which only preserves this input order).
+          const fieldOrder = results.map((r) => r.playerId).filter((id) => survivors.has(id));
 
           if (useYou && survivors.has(YOU)) {
             expect(rows[0].playerId).toBe(YOU);
