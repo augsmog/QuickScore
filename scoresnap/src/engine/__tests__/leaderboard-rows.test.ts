@@ -1,5 +1,6 @@
 import { buildLeaderboardRows, LeaderboardGroup } from "../leaderboard-rows";
 import { calcStrokePlay } from "../calculators/stroke-play";
+import { calcNetStrokePlay, NetBreakdown } from "../calculators/net-stroke-play";
 import type { Course, Player, StrokePlayResult } from "../types";
 
 // The repository intentionally does not install @types/jest; Jest supplies these globals at runtime.
@@ -462,5 +463,123 @@ describe("buildLeaderboardRows R1/Today columns (AUG-253m)", () => {
       r1: r1By[youB],
       today: todayBy[youB],
     });
+  });
+});
+
+// AUG-253p: NET-INPUT ranking golden (pure model). `buildLeaderboardRows` ranks
+// by whatever `total` the caller passes, so when the caller hands it NET rows
+// (total/toPar already carrying net, as the net leaderboard produces from
+// `calcNetStrokePlay`) the competition rank / `T` labels / tie flags follow the
+// NET totals, independent of gross. This is net-INPUT ranking only — it ships NO
+// Net toggle UI and NO Option C full-handicap index work (AUG-562). View-level
+// net is covered by `scoresnap/tests/leaderboard-net.test.cjs`; this is the
+// pure-model golden. Uses the module-level par-72 COURSE (unique 1..18 stroke
+// index => net-supported; a full round allocates exactly `handicap` strokes, so
+// net = gross - handicap for handicaps 0..18).
+describe("buildLeaderboardRows ranks NET input totals (AUG-253p)", () => {
+  // 16-player field engineered so net = gross - handicap REORDERS the board
+  // versus gross and makes a three-way net tie at 72. Gross totals are all
+  // distinct (gross ranks 1..16, no gross ties), so every tie / reorder below
+  // can only come from the net totals.
+  //   p0 72/0 ->72  p1 74/2 ->72*  p2 77/5 ->72*  p3 70/0 ->70
+  //   p4 85/12->73  p5 88/14->74   p6 90/15->75   p7 76/0 ->76
+  //   p8 95/18->77  p9 80/2 ->78   p10 83/4->79   p11 86/6->80
+  //   p12 89/8->81  p13 92/10->82  p14 94/11->83  p15 96/12->84
+  // (* the three-way tie; their gross is 72/74/77 — not tied in gross.)
+  const FIELD: Array<[string, number, number]> = [
+    ["p0", 72, 0], ["p1", 74, 2], ["p2", 77, 5], ["p3", 70, 0],
+    ["p4", 85, 12], ["p5", 88, 14], ["p6", 90, 15], ["p7", 76, 0],
+    ["p8", 95, 18], ["p9", 80, 2], ["p10", 83, 4], ["p11", 86, 6],
+    ["p12", 89, 8], ["p13", 92, 10], ["p14", 94, 11], ["p15", 96, 12],
+  ];
+
+  function makePlayers(): Player[] {
+    return FIELD.map(([id, gross, hcp], i) => ({ ...player(id, `Player ${i + 1}`, roundTo(gross)), handicap: hcp }));
+  }
+
+  // Project a net leaderboard into the plain StrokePlayResult shape the UI feeds
+  // to buildLeaderboardRows: `total`/`toPar` carry the NET numbers, already
+  // sorted by net total ascending (calcNetStrokePlay sorts; we keep that order).
+  function netRows(players: Player[]): StrokePlayResult[] {
+    return calcNetStrokePlay(players, COURSE).map((r) => {
+      const net = r.net as NetBreakdown; // COURSE is net-supported in this fixture
+      return { playerId: r.playerId, name: r.name, front: r.front, back: r.back, total: net.netTotal, toPar: net.netToPar };
+    });
+  }
+
+  test("fixture sanity: net = gross - handicap, a 3-way net tie, and net reorders gross", () => {
+    const players = makePlayers();
+    const net = calcNetStrokePlay(players, COURSE);
+    for (const r of net) {
+      const [, gross, hcp] = FIELD.find(([id]) => id === r.playerId)!;
+      expect((r.net as NetBreakdown).netTotal).toBe(gross - hcp);
+    }
+    const rows = netRows(players);
+    const counts = new Map<number, number>();
+    for (const r of rows) counts.set(r.total, (counts.get(r.total) ?? 0) + 1);
+    expect(counts.get(72)).toBe(3);
+    expect([...counts.values()].filter((c) => c > 1)).toEqual([3]);
+    const grossOrder = calcStrokePlay(players, COURSE).map((r) => r.playerId);
+    expect(rows.map((r) => r.playerId)).not.toEqual(grossOrder);
+  });
+
+  test("16-player field: rank / rankLabel / tied follow the NET totals, not gross", () => {
+    const players = makePlayers();
+    const rows = netRows(players);
+    const built = buildLeaderboardRows(rows, players, { holeCount: 18 });
+
+    for (const row of built) {
+      expect(row.rankLabel).toBe(refLabel(rows, row.total));
+      expect(row.tied).toBe(rows.filter((x) => x.total === row.total).length > 1);
+    }
+    // The three net-72 players share rank 2 and read T2.
+    const tieRows = built.filter((r) => r.total === 72);
+    expect(tieRows.map((r) => r.playerId).sort()).toEqual(["p0", "p1", "p2"]);
+    expect(tieRows.every((r) => r.rank === 2 && r.tied && r.rankLabel === "T2")).toBe(true);
+    // Leader is the net-70 player; next distinct total is the T2 group, then rank
+    // 5 — competition ranking on NET (1, T2, T2, T2, 5, ...), not 1..n.
+    expect(built[0]).toMatchObject({ playerId: "p3", rank: 1, rankLabel: "1", tied: false });
+    expect(built[4]).toMatchObject({ total: 73, rank: 5, rankLabel: "5" });
+
+    // PROOF it is net, not gross: at least one player's rank differs between the
+    // gross board and the net board; p1 is T2 in net but not in gross.
+    const grossRows = buildLeaderboardRows(calcStrokePlay(players, COURSE), players, { holeCount: 18 });
+    const grossRankById = Object.fromEntries(grossRows.map((r) => [r.playerId, r.rank]));
+    const netRankById = Object.fromEntries(built.map((r) => [r.playerId, r.rank]));
+    expect(Object.keys(netRankById).some((id) => netRankById[id] !== grossRankById[id])).toBe(true);
+    expect(netRankById["p1"]).toBe(2);
+    expect(grossRankById["p1"]).not.toBe(2);
+  });
+
+  test("query + youPlayerId preserve the NET field ranks (no renumber)", () => {
+    const players = makePlayers();
+    const rows = netRows(players);
+    const full = buildLeaderboardRows(rows, players, { holeCount: 18 });
+    const fieldRankById = Object.fromEntries(full.map((r) => [r.playerId, { rank: r.rank, label: r.rankLabel, tied: r.tied }]));
+
+    const searched = buildLeaderboardRows(rows, players, { holeCount: 18, query: "Player 1" });
+    expect(searched.length).toBeGreaterThan(0);
+    for (const row of searched) {
+      expect(row.rank).toBe(fieldRankById[row.playerId].rank);
+      expect(row.rankLabel).toBe(fieldRankById[row.playerId].label);
+      expect(row.tied).toBe(fieldRankById[row.playerId].tied);
+    }
+
+    // You-pin on one of the three net-tie players: floats to the top but keeps
+    // rank 2 / T2 (the NET field rank); the rest keep their NET ranks and order.
+    const pinned = buildLeaderboardRows(rows, players, { holeCount: 18, youPlayerId: "p1" });
+    expect(pinned[0]).toMatchObject({ playerId: "p1", isYou: true, rank: 2, rankLabel: "T2", tied: true });
+    expect(pinned.slice(1)).toEqual(full.filter((r) => r.playerId !== "p1"));
+    for (const row of pinned) {
+      expect(row.rank).toBe(fieldRankById[row.playerId].rank);
+      expect(row.rankLabel).toBe(fieldRankById[row.playerId].label);
+    }
+
+    // query + youPlayerId together still keep the pinned player's NET field rank.
+    const both = buildLeaderboardRows(rows, players, { holeCount: 18, query: "Player", youPlayerId: "p2" });
+    expect(both[0]).toMatchObject({ playerId: "p2", isYou: true, rank: 2, rankLabel: "T2" });
+    for (const row of both) {
+      expect(row.rank).toBe(fieldRankById[row.playerId].rank);
+    }
   });
 });
