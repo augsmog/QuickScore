@@ -305,7 +305,11 @@ describe("buildLeaderboardRows", () => {
 // a player missing from a round (or an omitted round array) yields null; and the
 // columns compose with search/group filters and the you-pin without rank drift.
 describe("buildLeaderboardRows R1/Today columns (AUG-253m)", () => {
-  const LEGACY_ROW_KEYS = ["playerId", "name", "total", "rank", "tied", "rankLabel", "thru", "groupId"];
+  // Base keys present on every row regardless of roundInfo. `teeTime` (AUG-760) and `groupId` are
+  // always-present siblings of `thru` (value null when inapplicable); only `r1`/`today` are gated on
+  // roundInfo. teeTime landed via a branch cut before this assertion existed, so the Nov-8 merge of
+  // AUG-760 into main left this list stale — a semantic (not textual) merge break.
+  const LEGACY_ROW_KEYS = ["playerId", "name", "total", "rank", "tied", "rankLabel", "thru", "teeTime", "groupId"];
 
   function scoreMap(results: StrokePlayResult[]): Record<string, { total: number; toPar: number }> {
     return Object.fromEntries(results.map((r) => [r.playerId, { total: r.total, toPar: r.toPar }]));
