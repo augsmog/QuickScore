@@ -1,0 +1,43 @@
+{
+  "appId": "6761034352",
+  "reviewContactPresent": false,
+  "reviewNotesPresent": false,
+  "reviewSubmissionCount": 0,
+  "reviewSubmissionCountKnown": true,
+  "subscriptions": [
+    {
+      "id": "6828962896",
+      "productId": "snapscore.pro.annual",
+      "state": "READY_TO_SUBMIT",
+      "submissionVersionId": "9f99d742-ff69-46a0-a0ba-d821c30c3db9"
+    },
+    {
+      "id": "6828974108",
+      "productId": "snapscore.pro.monthly",
+      "state": "READY_TO_SUBMIT",
+      "submissionVersionId": "6bc40a58-f562-46f6-beed-f93ee0d8e931"
+    },
+    {
+      "id": "6828959474",
+      "productId": "snapscore.td.annual",
+      "state": "READY_TO_SUBMIT",
+      "submissionVersionId": "23b1a90c-8980-4489-9ef3-5d7c7f4625cc"
+    },
+    {
+      "id": "6828962048",
+      "productId": "snapscore.td.monthly",
+      "state": "READY_TO_SUBMIT",
+      "submissionVersionId": "fc0aad7e-fadd-4308-b704-ccb373798e1d"
+    }
+  ],
+  "version": {
+    "build": {
+      "id": "13faeb61-da22-4338-ae4e-28c980d7be6c",
+      "number": "31",
+      "processingState": "VALID"
+    },
+    "id": "8e659917-44dc-421e-85ea-b7014351e365",
+    "state": "PREPARE_FOR_SUBMISSION",
+    "version": "1.0"
+  }
+}
