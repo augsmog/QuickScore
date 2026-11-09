@@ -583,3 +583,96 @@ describe("buildLeaderboardRows ranks NET input totals (AUG-253p)", () => {
     }
   });
 });
+
+// AUG-253q: THRU edge cases (pure model). Hardens the `computeThru` / `thru`
+// contract so cell/matrix work (AUG-747/758) cannot regress on partial cards.
+// THRU is driven purely by the player's `scores` and the `holeCount` argument:
+// a hole counts as played when its score is > 0 (null/0/undefined = not played),
+// only indices [0, holeCount) are inspected, 0 played => null, all holeCount
+// played => "F". Adds NO tee-time field and NO UI (AUG-760 owns tee-time).
+describe("computeThru / thru contract edge cases (AUG-253q)", () => {
+  // Helper: run one player through the model and read back the single row's thru.
+  function thruOf(scores: number[], holeCount: number): "F" | number | null {
+    const p = player("x", "X", scores);
+    const rows = buildLeaderboardRows(calcStrokePlay([p], sliceCourse(holeCount)), [p], { holeCount });
+    return rows[0].thru;
+  }
+  // Course sized to `holeCount` so calcStrokePlay only grades real holes; THRU
+  // itself is holeCount-driven and independent of this, but we keep the card honest.
+  function sliceCourse(holeCount: number): Course {
+    return { name: `C${holeCount}`, holes: COURSE.holes.slice(0, holeCount) };
+  }
+
+  test("(a) 0 holes scored -> thru is null", () => {
+    expect(thruOf(Array(18).fill(0), 18)).toBe(null);
+  });
+
+  test("(b) 1..holeCount-1 holes scored -> thru is the count of holes played", () => {
+    // 1 of 18, a middle count, and holeCount-1 of 18.
+    expect(thruOf([4, ...Array(17).fill(0)], 18)).toBe(1);
+    expect(thruOf([...Array(7).fill(4), ...Array(11).fill(0)], 18)).toBe(7);
+    expect(thruOf([...Array(17).fill(4), 0], 18)).toBe(17);
+    // A hole counts by having a score > 0, not by position: scattered scored
+    // holes count how many were played, not the furthest index reached.
+    expect(thruOf([4, 0, 4, 0, 4, ...Array(13).fill(0)], 18)).toBe(3);
+  });
+
+  test("(c) all holeCount holes scored -> 'F'", () => {
+    expect(thruOf(Array(18).fill(4), 18)).toBe("F");
+  });
+
+  test("(d) scores longer than holeCount still 'F' (holes past holeCount are ignored)", () => {
+    // 20 scored entries, holeCount 18 -> first 18 all played -> F, extras ignored.
+    expect(thruOf(Array(20).fill(4), 18)).toBe("F");
+    // And extra scored holes PAST holeCount never inflate a partial card to 'F':
+    // 17 played within [0,18) plus holes 19 & 20 scored -> still a partial 17, not F.
+    const scores = [...Array(17).fill(4), 0, 4, 4]; // indices 18,19 scored; index 17 = 0
+    expect(scores.length).toBe(20);
+    expect(thruOf(scores, 18)).toBe(17);
+  });
+
+  test("(e) player absent from players[] -> thru is null and no throw; ranking still computed", () => {
+    // Results reference ids with no matching Player entry; computeThru(undefined)
+    // must return null instead of throwing, and rank/label still come from totals.
+    const results: StrokePlayResult[] = [
+      { playerId: "ghost1", name: "G1", front: 0, back: 0, total: 70, toPar: -2 },
+      { playerId: "ghost2", name: "G2", front: 0, back: 0, total: 72, toPar: 0 },
+      { playerId: "ghost3", name: "G3", front: 0, back: 0, total: 72, toPar: 0 },
+    ];
+    let rows!: ReturnType<typeof buildLeaderboardRows>;
+    expect(() => {
+      rows = buildLeaderboardRows(results, [], { holeCount: 18 });
+    }).not.toThrow();
+    expect(rows.map((r) => r.thru)).toEqual([null, null, null]);
+    // The missing-player case does not disturb competition ranking on the totals.
+    expect(rows.map((r) => r.rankLabel)).toEqual(["1", "T2", "T2"]);
+  });
+
+  test("(f) 9 vs 18 holeCount on a 9-hole card: THRU follows the holeCount argument", () => {
+    // Chosen contract (cited in PR body): THRU is holeCount-driven. A completed
+    // 9-hole card graded with its real holeCount (9) reads 'F'. Grading the same
+    // card with holeCount=18 reports a partial 9 (indices 9..17 are unscored),
+    // NOT 'F' — callers must pass the course's hole count.
+    const nineScored = [...Array(9).fill(4), ...Array(9).fill(0)];
+    expect(thruOf(nineScored, 9)).toBe("F");
+    expect(thruOf(nineScored, 18)).toBe(9);
+  });
+
+  test("existing 16-player tie golden stays green with THRU inputs omitted (results-only, thru defaults null)", () => {
+    // No players[] passed -> every thru defaults to null, and the competition
+    // ranking / T-labels on a multi-way tie are unchanged.
+    const totals = [68, 70, 70, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82];
+    const results: StrokePlayResult[] = totals.map((t, i) => ({
+      playerId: `q${i}`,
+      name: `Q${i}`,
+      front: 0,
+      back: 0,
+      total: t,
+      toPar: t - 72,
+    }));
+    const rows = buildLeaderboardRows(results, [], { holeCount: 18 });
+    expect(rows.every((r) => r.thru === null)).toBe(true);
+    expect(rows.slice(0, 5).map((r) => r.rankLabel)).toEqual(["1", "T2", "T2", "T2", "5"]);
+    expect(rows.filter((r) => r.total === 70).every((r) => r.rank === 2 && r.tied)).toBe(true);
+  });
+});
