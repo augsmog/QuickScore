@@ -1,4 +1,4 @@
-import { buildLeaderboardRows, LeaderboardGroup } from "../leaderboard-rows";
+import { buildLeaderboardRows, BuildLeaderboardRowsOptions, LeaderboardGroup, LeaderboardRow } from "../leaderboard-rows";
 import { calcStrokePlay } from "../calculators/stroke-play";
 import type { Course, Player, StrokePlayResult } from "../types";
 
@@ -462,5 +462,151 @@ describe("buildLeaderboardRows R1/Today columns (AUG-253m)", () => {
       r1: r1By[youB],
       today: todayBy[youB],
     });
+  });
+});
+
+// AUG-253o: query × groupId × youPlayerId compose-filter matrix (parent AUG-253,
+// root AUG-498 SS-NEXT). Proves that the three view filters compose in EVERY one
+// of the eight cartesian combinations on a 72-player field without ever
+// renumbering a player's field rank, plus the four documented negative cases.
+// Pure model only — no FlashList screen, web-matrix, or contest-store touched.
+describe("buildLeaderboardRows compose-filter matrix (AUG-253o)", () => {
+  const SIZE = 72;
+  const GROUP_COUNT = 6;
+  // Repeated totals so tie groups of varying sizes appear throughout the field;
+  // the `+ floor(i/36)` keeps the back half from being a byte copy of the front.
+  const totalsPattern = [68, 70, 70, 72, 72, 72, 74, 75, 76, 76, 78, 80];
+  const groupOf = (i: number) => `g${i % GROUP_COUNT}`;
+
+  const players: Player[] = Array.from({ length: SIZE }, (_, i) =>
+    player(`p${i}`, `Player ${i}`, roundTo(totalsPattern[i % totalsPattern.length] + Math.floor(i / 36))),
+  );
+  const results = calcStrokePlay(players, COURSE);
+  // Each player belongs to exactly one group (i % GROUP_COUNT), so the model's
+  // first-group-wins membership equals groupOf(i).
+  const groups: LeaderboardGroup[] = Array.from({ length: GROUP_COUNT }, (_, g) => ({
+    id: `g${g}`,
+    players: players.filter((_, i) => i % GROUP_COUNT === g).map((p) => ({ id: p.id })),
+  }));
+
+  // The unfiltered field is the single source of truth for every row's rank /
+  // rankLabel / tied and for the canonical (sorted) order.
+  const field = buildLeaderboardRows(results, players, { holeCount: 18, groups });
+  const ref = new Map(field.map((r) => [r.playerId, { rank: r.rank, rankLabel: r.rankLabel, tied: r.tied }]));
+
+  const QUERY = "Player 1"; // matches p1 and p10..p19 (11 players)
+  const GROUP = "g4"; // i % 6 === 4 → p4, p10, p16, ... p70 (12 players)
+  const YOU = "p10"; // name "Player 10" matches QUERY AND i%6===4 is in GROUP, so it survives all three filters
+
+  // Which player ids SHOULD survive a filter combo, derived straight from the
+  // fixture rules — deliberately independent of the model under test.
+  function expectedSurvivors(opts: { query?: string; groupId?: string }): Set<string> {
+    const q = opts.query?.trim().toLowerCase();
+    const ids = players
+      .filter((_, i) => {
+        const nameOk = !q ? true : `player ${i}`.includes(q);
+        const groupOk = opts.groupId == null ? true : groupOf(i) === opts.groupId;
+        return nameOk && groupOk;
+      })
+      .map((p) => p.id);
+    return new Set(ids);
+  }
+
+  // Every surviving row must still carry its unfiltered field rank/label/tie.
+  function assertRanksPreserved(rows: LeaderboardRow[]) {
+    for (const row of rows) {
+      const r = ref.get(row.playerId)!;
+      expect(row.rank).toBe(r.rank);
+      expect(row.rankLabel).toBe(r.rankLabel);
+      expect(row.tied).toBe(r.tied);
+    }
+  }
+
+  // The cartesian 2^3 matrix: query? × groupId? × youPlayerId?.
+  for (const useQuery of [false, true]) {
+    for (const useGroup of [false, true]) {
+      for (const useYou of [false, true]) {
+        const label =
+          [useQuery ? "query" : null, useGroup ? "groupId" : null, useYou ? "youPlayerId" : null]
+            .filter(Boolean)
+            .join("+") || "no filter";
+        test(`matrix [${label}] preserves field rank and composes correctly`, () => {
+          const opts: BuildLeaderboardRowsOptions = { holeCount: 18, groups };
+          if (useQuery) opts.query = QUERY;
+          if (useGroup) opts.groupId = GROUP;
+          if (useYou) opts.youPlayerId = YOU;
+          const rows = buildLeaderboardRows(results, players, opts);
+
+          // Core AC: every surviving row keeps the unfiltered field rank/label/tie.
+          assertRanksPreserved(rows);
+
+          // Membership is exactly the query ∩ group survivors; the you-pin never
+          // adds or removes members, it only reorders when YOU already survives.
+          const survivors = expectedSurvivors({
+            query: useQuery ? QUERY : undefined,
+            groupId: useGroup ? GROUP : undefined,
+          });
+          expect(new Set(rows.map((r) => r.playerId))).toEqual(survivors);
+
+          if (useGroup) {
+            expect(rows.every((r) => r.groupId === GROUP)).toBe(true);
+          }
+
+          // Canonical field order over just the survivors (ascending total / rank).
+          const fieldOrder = field.map((r) => r.playerId).filter((id) => survivors.has(id));
+
+          if (useYou && survivors.has(YOU)) {
+            expect(rows[0].playerId).toBe(YOU);
+            expect(rows[0].isYou).toBe(true);
+            expect(rows.slice(1).every((r) => !r.isYou)).toBe(true);
+            // Non-pinned rows stay in field order (survivors minus the pinned YOU).
+            expect(rows.slice(1).map((r) => r.playerId)).toEqual(fieldOrder.filter((id) => id !== YOU));
+          } else {
+            expect(rows.every((r) => !r.isYou)).toBe(true);
+            expect(rows.map((r) => r.playerId)).toEqual(fieldOrder);
+          }
+        });
+      }
+    }
+  }
+
+  // --- Negative cases (AUG-253o) ---
+
+  test("negative: empty / whitespace-only query ≡ no query", () => {
+    const base = buildLeaderboardRows(results, players, { holeCount: 18, groups });
+    expect(buildLeaderboardRows(results, players, { holeCount: 18, groups, query: "" })).toEqual(base);
+    expect(buildLeaderboardRows(results, players, { holeCount: 18, groups, query: "   " })).toEqual(base);
+  });
+
+  test("negative: unknown groupId → empty list, no throw", () => {
+    expect(() =>
+      buildLeaderboardRows(results, players, { holeCount: 18, groups, groupId: "no-such-group" }),
+    ).not.toThrow();
+    expect(buildLeaderboardRows(results, players, { holeCount: 18, groups, groupId: "no-such-group" })).toEqual([]);
+  });
+
+  test("negative: youPlayerId absent from field → list unchanged, no phantom You row", () => {
+    const base = buildLeaderboardRows(results, players, { holeCount: 18, groups });
+    const out = buildLeaderboardRows(results, players, { holeCount: 18, groups, youPlayerId: "not-a-player" });
+    expect(out).toEqual(base);
+    expect(out.some((r) => r.isYou)).toBe(false);
+  });
+
+  test("negative: youPlayerId filtered out by query → You pin not injected", () => {
+    // "Player 2" does not contain "Player 1", so p2 is removed by the query and
+    // pinning it must yield the plain filtered list (no pin, no phantom row).
+    const filtered = buildLeaderboardRows(results, players, { holeCount: 18, groups, query: QUERY });
+    const out = buildLeaderboardRows(results, players, { holeCount: 18, groups, query: QUERY, youPlayerId: "p2" });
+    expect(out).toEqual(filtered);
+    expect(out.some((r) => r.isYou)).toBe(false);
+  });
+
+  test("negative: youPlayerId filtered out by group → You pin not injected", () => {
+    // p0 is in g0, not g4; under the g4 filter it is removed, so pinning it is a
+    // no-op and the result equals the plain group-filtered list.
+    const filtered = buildLeaderboardRows(results, players, { holeCount: 18, groups, groupId: GROUP });
+    const out = buildLeaderboardRows(results, players, { holeCount: 18, groups, groupId: GROUP, youPlayerId: "p0" });
+    expect(out).toEqual(filtered);
+    expect(out.some((r) => r.isYou)).toBe(false);
   });
 });
