@@ -212,22 +212,36 @@ if (paidOpened) {
   check(paidContainer, "Paid org (td): real settlement screen renders (not the paywall)");
 }
 
-// Free tier: a sibling page in the same browser context already holds this
-// contest in persisted storage; seeded to the free tier it must show settle-free.
-const freePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
-await freePage.addInitScript(() => {
-  try {
-    localStorage.setItem("snapscore-scans", JSON.stringify({ version: 1, state: { tier: "free", isPro: false, isTD: false, scanMonth: "", scansUsed: 0 } }));
-  } catch { /* storage may be unavailable before first paint */ }
-});
-await freePage.goto(`${BASE}/contest/${contestId}/settlement`, { waitUntil: "networkidle" });
+// Free tier: a FREE user (its own isolated context — no seedPaidTier) creates a
+// minimal single-group contest of its own and opens Settle up; `canSeeSettlement`
+// is false for the free tier, so the settle-free paywall gate must render. The
+// contest-shell layout (_layout.tsx) renders tabs from internal state starting on
+// Scorecard and ignores the URL, so we must CLICK the Settle up tab rather than
+// deep-link to /settlement, and the page must hold its own contest (contexts are
+// isolated, so a fresh context cannot see the organizer's contest).
+const freeCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const freePage = await freeCtx.newPage();
+freePage.on("pageerror", (e) => pageErrors.push(`free: ${e.message}`));
+await freePage.goto(BASE + "/", { waitUntil: "networkidle" });
+await freePage.getByText(/^new contest$/i).first().click();
+await freePage.getByPlaceholder("Your name").fill("Free Host");
+await freePage.getByPlaceholder("Player 2 name").fill("Free Guest");
+await freePage.getByText(/^continue$/i).last().click();
+await freePage.getByTestId("contest-step-gamemodes").waitFor({ state: "visible" });
+await freePage.getByText(/^continue$/i).last().click(); // Stroke Play is free + pre-selected
+await freePage.getByTestId("contest-step-round-settings").waitFor({ state: "visible" });
+await freePage.getByTestId("contest-start").click();
+await freePage.waitForURL(/\/contest\/[^/]+$/);
+await freePage.waitForTimeout(1500);
+const freeSettleOpened = await openSettlement(freePage);
+check(freeSettleOpened, "Free user: Settle up tab reachable");
 await freePage.getByTestId("settle-free").waitFor({ timeout: 10000 }).catch(() => {});
 const freeGateVisible = await freePage.getByTestId("settle-free").isVisible().catch(() => false);
 check(freeGateVisible, "Free tier: settle-free paywall gate renders");
 // settle-free-trial (the 7-day-trial CTA) only renders when a live StoreKit
 // annual trial offer resolves; that purchase view is unavailable in the offline
 // web build, so the trial CTA itself is exercised by the paywall tests, not here.
-await freePage.close();
+await freeCtx.close();
 
 // Test usability: Back button from every screen
 console.log("\n─── Usability: Back Navigation ───");
