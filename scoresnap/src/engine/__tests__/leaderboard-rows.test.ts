@@ -676,3 +676,118 @@ describe("computeThru / thru contract edge cases (AUG-253q)", () => {
     expect(rows.filter((r) => r.total === 70).every((r) => r.rank === 2 && r.tied)).toBe(true);
   });
 });
+
+// AUG-253r: group-membership edge cases for buildLeaderboardRows — the
+// first-group-wins rule for `groupId`/`teeTime`, ungrouped players, unknown
+// group-filter ids, empty vs omitted `groups`, and group members absent from
+// `results`. Pure model; no UI, no FlashList, no web-matrix. Does not overlap
+// AUG-775 (query×groupId×youPlayerId compose matrix) or AUG-777 (THRU edges).
+describe("buildLeaderboardRows — group membership edges (AUG-253r)", () => {
+  // Four well-separated totals so every row is its own rank (1,2,3,4).
+  const results: StrokePlayResult[] = [
+    { playerId: "a", name: "Alice", front: 0, back: 0, total: 70, toPar: -2 },
+    { playerId: "b", name: "Bob", front: 0, back: 0, total: 72, toPar: 0 },
+    { playerId: "c", name: "Carol", front: 0, back: 0, total: 74, toPar: 2 },
+    { playerId: "d", name: "Dave", front: 0, back: 0, total: 76, toPar: 4 },
+  ];
+
+  test("player listed in two groups keeps the FIRST group's id and tee time (not-started)", () => {
+    // Alice appears in g1 then g2; both carry a tee time. groupId and teeTime
+    // must both resolve to g1's (first-group-wins). No players[] passed, so
+    // every thru is null (not started) and the tee-time token surfaces.
+    const groups: LeaderboardGroup[] = [
+      { id: "g1", players: [{ id: "a" }, { id: "b" }], teeTime: "8:00 AM" },
+      { id: "g2", players: [{ id: "a" }, { id: "c" }], teeTime: "9:20 AM" },
+    ];
+    const rows = buildLeaderboardRows(results, [], { holeCount: 18, groups });
+    const alice = rows.find((r) => r.playerId === "a");
+    expect(alice?.groupId).toBe("g1");
+    expect(alice?.thru).toBe(null);
+    expect(alice?.teeTime).toBe("8:00 AM");
+  });
+
+  // Observed rule (asserted below): `teeTime` is STRICTLY the first group's tee
+  // time. If the player's first group has a missing or empty-string tee time,
+  // `teeTime` is null even when a later group the player is in has one — the
+  // second group's membership block is skipped once `groupByPlayer` already has
+  // the player, so its tee time is never read.
+  test("first group has no/empty tee time, second has one: teeTime is null (strict first-group-wins)", () => {
+    const omittedFirst: LeaderboardGroup[] = [
+      { id: "g1", players: [{ id: "a" }] }, // teeTime omitted
+      { id: "g2", players: [{ id: "a" }], teeTime: "9:20 AM" },
+    ];
+    const emptyFirst: LeaderboardGroup[] = [
+      { id: "g1", players: [{ id: "a" }], teeTime: "" }, // empty string
+      { id: "g2", players: [{ id: "a" }], teeTime: "9:20 AM" },
+    ];
+    for (const groups of [omittedFirst, emptyFirst]) {
+      const rows = buildLeaderboardRows(results, [], { holeCount: 18, groups });
+      const alice = rows.find((r) => r.playerId === "a");
+      expect(alice?.groupId).toBe("g1"); // still the first group for membership
+      expect(alice?.teeTime).toBe(null); // but no tee time falls through from g2
+    }
+  });
+
+  test("player in no group: groupId null, teeTime null, excluded by any groupId filter but still ranked", () => {
+    const groups: LeaderboardGroup[] = [
+      { id: "g1", players: [{ id: "a" }, { id: "b" }], teeTime: "8:00 AM" },
+    ];
+    const all = buildLeaderboardRows(results, [], { holeCount: 18, groups });
+    // Carol and Dave are ungrouped.
+    const carol = all.find((r) => r.playerId === "c");
+    const dave = all.find((r) => r.playerId === "d");
+    expect(carol).toMatchObject({ groupId: null, teeTime: null, rank: 3 });
+    expect(dave).toMatchObject({ groupId: null, teeTime: null, rank: 4 });
+
+    // Filtering to g1 drops the ungrouped rows; the surviving rows keep their
+    // full-field ranks (Alice 1, Bob 2) — ranks are computed before filtering.
+    const g1 = buildLeaderboardRows(results, [], { holeCount: 18, groups, groupId: "g1" });
+    expect(g1.map((r) => [r.playerId, r.rank])).toEqual([
+      ["a", 1],
+      ["b", 2],
+    ]);
+    expect(g1.some((r) => r.groupId === null)).toBe(false);
+  });
+
+  test("groupId filter naming an unknown group id returns [] without throwing; unfiltered ranks unchanged", () => {
+    const groups: LeaderboardGroup[] = [
+      { id: "g1", players: [{ id: "a" }, { id: "b" }] },
+      { id: "g2", players: [{ id: "c" }, { id: "d" }] },
+    ];
+    const unfiltered = buildLeaderboardRows(results, [], { holeCount: 18, groups });
+    let filtered: ReturnType<typeof buildLeaderboardRows> | undefined;
+    expect(() => {
+      filtered = buildLeaderboardRows(results, [], { holeCount: 18, groups, groupId: "nope" });
+    }).not.toThrow();
+    expect(filtered).toEqual([]);
+    // Re-running unfiltered yields the same ranks the unknown filter never touched.
+    expect(buildLeaderboardRows(results, [], { holeCount: 18, groups })).toEqual(unfiltered);
+    expect(unfiltered.map((r) => [r.playerId, r.rank])).toEqual([
+      ["a", 1],
+      ["b", 2],
+      ["c", 3],
+      ["d", 4],
+    ]);
+  });
+
+  test("groups: [] and groups omitted produce identical rows (every groupId null)", () => {
+    const emptyGroups = buildLeaderboardRows(results, [], { holeCount: 18, groups: [] });
+    const omittedGroups = buildLeaderboardRows(results, [], { holeCount: 18 });
+    expect(emptyGroups).toEqual(omittedGroups);
+    expect(emptyGroups.every((r) => r.groupId === null)).toBe(true);
+    expect(emptyGroups.every((r) => r.teeTime === null)).toBe(true);
+  });
+
+  test("group member id not present in results is ignored (no phantom row)", () => {
+    // "ghost" is a member of g1 but has no StrokePlayResult; it must not appear.
+    const groups: LeaderboardGroup[] = [
+      { id: "g1", players: [{ id: "a" }, { id: "ghost" }], teeTime: "8:00 AM" },
+    ];
+    const rows = buildLeaderboardRows(results, [], { holeCount: 18, groups });
+    expect(rows.map((r) => r.playerId)).toEqual(["a", "b", "c", "d"]);
+    expect(rows.some((r) => r.playerId === "ghost")).toBe(false);
+    // Filtering to g1 returns only the real member Alice, not the ghost.
+    const g1 = buildLeaderboardRows(results, [], { holeCount: 18, groups, groupId: "g1" });
+    expect(g1.map((r) => r.playerId)).toEqual(["a"]);
+  });
+});
