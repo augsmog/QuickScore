@@ -53,6 +53,57 @@ function refLabel(results: StrokePlayResult[], total: number): string {
 }
 
 describe("buildLeaderboardRows", () => {
+  test("empty field stays empty with optional filters, pin, groups, and round context", () => {
+    expect(buildLeaderboardRows([], [], { holeCount: 18 })).toEqual([]);
+    expect(buildLeaderboardRows([], [], {
+      holeCount: 18,
+      youPlayerId: "me",
+      query: "player",
+      groupId: "g1",
+      groups: [{ id: "g1", players: [{ id: "me" }] }],
+      roundInfo: { r1: [], today: [] },
+    })).toEqual([]);
+  });
+
+  test("single player has rank 1 and is not tied", () => {
+    expect(buildLeaderboardRows([
+      { playerId: "solo", name: "Solo", front: 0, back: 0, total: -3, toPar: -75 },
+    ], [], { holeCount: 18 })).toMatchObject([
+      { playerId: "solo", rank: 1, tied: false, rankLabel: "1" },
+    ]);
+  });
+
+  test("negative totals use competition ranks (1, T2, T2, 4)", () => {
+    const results: StrokePlayResult[] = [-5, -3, -3, 0].map((total, i) => ({
+      playerId: `p${i}`, name: `P${i}`, front: 0, back: 0, total, toPar: total - 72,
+    }));
+    const rows = buildLeaderboardRows(results, [], { holeCount: 18 });
+    expect(rows.map((row) => row.rankLabel)).toEqual(["1", "T2", "T2", "4"]);
+    expect(rows.map((row) => row.rank)).toEqual([1, 2, 2, 4]);
+  });
+
+  test("unsorted totals can disagree: duplicate total is globally tied but gets separate ranks", () => {
+    const results: StrokePlayResult[] = [70, 72, 70].map((total, i) => ({
+      playerId: `p${i}`, name: `P${i}`, front: 0, back: 0, total, toPar: total - 72,
+    }));
+    const rows = buildLeaderboardRows(results, [], { holeCount: 18 });
+    expect(rows.map((row) => [row.rank, row.tied, row.rankLabel])).toEqual([
+      [1, true, "T1"], [2, false, "2"], [3, true, "T3"],
+    ]);
+  });
+
+  test("duplicate playerIds emit both rows and pin marks the first matching row", () => {
+    const results: StrokePlayResult[] = [
+      { playerId: "dup", name: "First", front: 0, back: 0, total: 70, toPar: -2 },
+      { playerId: "other", name: "Other", front: 0, back: 0, total: 71, toPar: -1 },
+      { playerId: "dup", name: "Second", front: 0, back: 0, total: 72, toPar: 0 },
+    ];
+    const rows = buildLeaderboardRows(results, [], { holeCount: 18, youPlayerId: "dup" });
+    expect(rows.map((row) => [row.name, row.rank, row.isYou === true])).toEqual([
+      ["First", 1, true], ["Other", 2, false], ["Second", 3, false],
+    ]);
+  });
+
   test("3-way tie shares a rank and the next distinct total skips (1, T2, T2, T2, 5)", () => {
     const results: StrokePlayResult[] = [
       { playerId: "a", name: "A", front: 0, back: 0, total: 70, toPar: -2 },
