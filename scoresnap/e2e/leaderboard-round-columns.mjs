@@ -6,7 +6,10 @@ import { chromium } from "playwright";
 
 const BASE = process.env.BASE_URL || "http://127.0.0.1:8090";
 const OUT = process.env.OUT_DIR || "e2e/screens/leaderboard-round-columns";
-const id = "aug819-round-columns-16";
+const FIELD_SIZE = Number(process.env.FIELD_SIZE ?? 16);
+assert.ok([16, 72].includes(FIELD_SIZE), "FIELD_SIZE must be 16 or 72");
+const id = `aug844-round-columns-${FIELD_SIZE}`;
+const longPlayerName = `The Extraordinarily Long Player ${FIELD_SIZE}`;
 const course = {
   name: "Round Columns GC",
   holes: Array.from({ length: 18 }, (_, i) => ({ num: i + 1, par: 4, hcp: i + 1, yards: 380 })),
@@ -30,17 +33,19 @@ function partialRound2Scores() {
   return Array.from({ length: 18 }, (_, i) => (i < R2_PLAYED ? 3 : 0));
 }
 function roundGroups(roundNumber) {
-  const players = Array.from({ length: 16 }, (_, index) => ({
+  const players = Array.from({ length: FIELD_SIZE }, (_, index) => ({
     id: `p${index + 1}`,
-    name: `Player ${String(index + 1).padStart(2, "0")}`,
+    name: index + 1 === FIELD_SIZE ? longPlayerName : `Player ${String(index + 1).padStart(2, "0")}`,
     handicap: 0,
     team: null,
-    scores: roundNumber === 1 ? scoresFor(68 + index) : partialRound2Scores(),
+    scores: roundNumber === 1 ? scoresFor(68 + index) : index + 1 === FIELD_SIZE ? Array(18).fill(0) : partialRound2Scores(),
   }));
+  const groupSize = FIELD_SIZE / 4;
   return Array.from({ length: 4 }, (_, groupIndex) => ({
     id: `r${roundNumber}-g${groupIndex + 1}`,
     name: `Group ${groupIndex + 1}`,
-    players: players.slice(groupIndex * 4, groupIndex * 4 + 4),
+    teeTime: `8:${String(groupIndex * 10).padStart(2, "0")} AM`,
+    players: players.slice(groupIndex * groupSize, groupIndex * groupSize + groupSize),
   }));
 }
 const rounds = [1, 2].map((number) => ({
@@ -48,7 +53,7 @@ const rounds = [1, 2].map((number) => ({
 }));
 const contest = {
   id,
-  name: "Round Columns 16-Player Fixture",
+  name: `Round Columns ${FIELD_SIZE}-Player Fixture`,
   course,
   status: "active",
   betUnit: 0,
@@ -62,7 +67,7 @@ const contest = {
 };
 
 fs.mkdirSync(OUT, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}) });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
 try {
   await context.route("**/*", (route) => new URL(route.request().url()).origin === new URL(BASE).origin ? route.continue() : route.abort());
@@ -83,12 +88,41 @@ try {
   await page.waitForURL(new RegExp(`/contest/${id}$`));
   await page.getByRole("tab", { name: /^leaderboard$/i }).click();
   await page.getByTestId("leaderboard-round-columns").waitFor({ state: "visible" });
+  await page.getByText("ROUND 2", { exact: true }).click();
   const rows = page.locator('[data-testid^="leaderboard-player-"]');
-  assert.equal(await rows.count(), 16, "fixture displays the full 16-player field");
+  assert.ok(await rows.count() >= Math.min(FIELD_SIZE, 16), `FlashList renders enough of the ${FIELD_SIZE}-player field to check visible rows`);
   for (const playerId of ["p3", "p1", "p2"]) {
     await page.getByTestId(`leaderboard-r1-${playerId}`).waitFor({ state: "visible" });
     await page.getByTestId(`leaderboard-today-${playerId}`).waitFor({ state: "visible" });
   }
+  const headerIds = ["pos", "player", "topar", "thru", "r1", "today"].map((key) => `leaderboard-column-header-${key}`);
+  const cellsForVisibleRows = () => rows.evaluateAll((nodes) => nodes
+    .filter((row) => { const box = row.getBoundingClientRect(); return box.bottom > 0 && box.top < window.innerHeight; })
+    .map((row) => Array.from(row.querySelectorAll("[data-testid]"))
+      .map((cell) => ({ id: cell.getAttribute("data-testid"), left: cell.getBoundingClientRect().left, right: cell.getBoundingClientRect().right }))
+      .filter((cell) => /^(leaderboard-(pos|name|topar|thru|r1|today)-|leaderboard-column-header-)/.test(cell.id || ""))));
+  const assertInBoundsAndOrdered = (cells, label) => {
+    assert.ok(cells.length >= 6, `${label} has all six visible cells`);
+    for (const cell of cells) assert.ok(cell.right <= 390.5, `${label} ${cell.id} ends at ${cell.right}, beyond 390px`);
+    for (let i = 1; i < cells.length; i++) assert.ok(cells[i].left >= cells[i - 1].right - 0.5, `${label} ${cells[i - 1].id} overlaps ${cells[i].id}`);
+  };
+  const headerCells = await page.evaluate((ids) => ids.map((id) => {
+    const box = document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect();
+    return { id, left: box.left, right: box.right };
+  }), headerIds);
+  assertInBoundsAndOrdered(headerCells, "header");
+  for (const [index, cells] of (await cellsForVisibleRows()).entries()) {
+    assertInBoundsAndOrdered(cells, `visible row ${index + 1}`);
+  }
+  const lastId = `p${FIELD_SIZE}`;
+  await page.getByTestId(`leaderboard-name-${lastId}`).scrollIntoViewIfNeeded();
+  const longName = await page.getByTestId(`leaderboard-name-${lastId}`).innerText();
+  assert.equal(longName, longPlayerName);
+  assert.ok(longName.length >= 24, "measured row includes a long display name");
+  assert.equal(await page.getByTestId(`leaderboard-thru-${lastId}`).innerText(), "8:30 AM", "not-started player shows tee time");
+  const lastRow = (await cellsForVisibleRows()).find((cells) => cells.some((cell) => cell.id === `leaderboard-name-${lastId}`));
+  assert.ok(lastRow, "last field row is visible after scrolling");
+  assertInBoundsAndOrdered(lastRow, `last row ${lastId}`);
   assert.equal(await page.getByTestId("leaderboard-r1-p3").innerText(), "70");
   // Today reflects the partial current round: 3 holes at −1 each → −3.
   assert.equal(await page.getByTestId("leaderboard-today-p3").innerText(), "−3");
@@ -98,10 +132,10 @@ try {
     assert.equal(await page.getByTestId(`leaderboard-thru-${playerId}`).innerText(), String(R2_PLAYED));
   }
   assert.deepEqual(errors, [], "no page errors");
-  const screenshot = path.join(OUT, "two-round-16-player-390x844.png");
+  const screenshot = path.join(OUT, `two-round-${FIELD_SIZE}-player-390x844.png`);
   await page.screenshot({ path: screenshot });
   const sha256 = crypto.createHash("sha256").update(fs.readFileSync(screenshot)).digest("hex");
-  console.log(`PASS screenshot=${screenshot} rows=16 viewport=390x844 sha256=${sha256}`);
+  console.log(`PASS screenshot=${screenshot} rows=${FIELD_SIZE} viewport=390x844 sha256=${sha256}`);
 } finally {
   await context.close();
   await browser.close();
