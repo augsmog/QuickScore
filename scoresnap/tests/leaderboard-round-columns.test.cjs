@@ -156,3 +156,58 @@ test('round columns use effective Gross mode when the current course cannot supp
   expect(r1.rows[0].total).toBe(72);
   expect(buildLeaderboard([roundPlayer(18)], roundCourse(18), current.mode).rows[0].total).toBe(72);
 });
+
+test('supported Net mode re-ranks R1 and Today columns while current-round THRU stays progress-only', async () => {
+  const stroke = load('src/engine/calculators/stroke-play.ts', { '../types': {} });
+  const skins = load('src/engine/calculators/skins.ts', { '../types': {} });
+  const net = load('src/engine/calculators/net-stroke-play.ts', {
+    '../types': {}, './stroke-play': stroke, './skins': skins,
+  });
+  const { buildLeaderboard } = load('src/engine/calculators/leaderboard-view.ts', {
+    '../types': {}, './stroke-play': stroke, './net-stroke-play': net,
+  });
+  const roundCourse = { name: 'Net Cup', holes: Array.from({ length: 18 }, (_, i) => ({ num: i + 1, par: 4, hcp: i + 1 })) };
+  const alice = { id: 'p1', name: 'Alice', handicap: 0, scores: Array(18).fill(4) };
+  const bob = { id: 'p2', name: 'Bob', handicap: 18, scores: [...Array(8).fill(5), ...Array(10).fill(4)] };
+  const gross = buildLeaderboard([alice, bob], roundCourse, 'gross');
+  const active = buildLeaderboard([alice, bob], roundCourse, 'net');
+  expect(gross.rows.map((row) => row.playerId)).toEqual(['p1', 'p2']);
+  expect(active.mode).toBe('net');
+  expect(active.rows.map((row) => row.playerId)).toEqual(['p2', 'p1']);
+  expect(active.rows[0]).toMatchObject({ total: 62, toPar: -10 });
+
+  const round1Players = [alice, bob];
+  const todayPlayers = [
+    { ...alice, scores: [...Array(9).fill(4), ...Array(9).fill(0)] },
+    { ...bob, scores: [...Array(8).fill(5), 4, ...Array(9).fill(0)] },
+  ];
+  const netRound1 = buildLeaderboard(round1Players, roundCourse, active.mode).rows;
+  const grossRound1 = buildLeaderboard(round1Players, roundCourse, 'gross').rows;
+  const netToday = buildLeaderboard(todayPlayers, roundCourse, active.mode).rows;
+  const grossToday = buildLeaderboard(todayPlayers, roundCourse, 'gross').rows;
+  const netRows = buildLeaderboardRows(active.rows, todayPlayers, {
+    holeCount: 18,
+    roundInfo: { r1: netRound1, today: netToday },
+  });
+  const grossRows = buildLeaderboardRows(gross.rows, todayPlayers, {
+    holeCount: 18,
+    roundInfo: { r1: grossRound1, today: grossToday },
+  });
+  expect(netRows.map((row) => row.playerId)).toEqual(['p2', 'p1']);
+  expect(netRows[0]).toMatchObject({ r1: { total: 62 }, today: { total: 35 }, thru: 9 });
+  expect(grossRows[0]).toMatchObject({ playerId: 'p1', r1: { total: 72 }, today: { total: 36 }, thru: 9 });
+  expect(netRows.map((row) => row.thru)).toEqual(grossRows.map((row) => row.thru));
+
+  const rankByPlayerId = new Map(netRows.map((row) => [row.playerId, {
+    rankLabel: row.rankLabel, tied: row.tied, thru: row.thru, r1: row.r1, today: row.today,
+  }]));
+  const tree = await render(rankByPlayerId, active.rows, [alice, bob]);
+  try {
+    expect(tree.root.findAll((node) => node.props.testID === 'leaderboard-player-Bob')).toHaveLength(1);
+    expect(cellText(tree, 'leaderboard-r1-p2')).toBe('62');
+    expect(cellText(tree, 'leaderboard-today-p2')).toBe('−1');
+    expect(cellText(tree, 'leaderboard-thru-p2')).toBe('9');
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});
