@@ -1,6 +1,7 @@
 import { calculateContestSettlement } from "../contest-results";
 import type { Course, Player } from "../types";
 import type { Contest, ContestGroup, RoundInfo } from "../../stores/contest-store";
+import "./contest-settlement-multiround.test";
 
 // The repository intentionally does not install @types/jest; Jest supplies these globals at runtime.
 declare const describe: (name: string, fn: () => void) => void;
