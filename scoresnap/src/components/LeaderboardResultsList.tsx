@@ -8,7 +8,9 @@ import type { Player, StrokePlayResult } from "../engine/types";
 import type { LeaderboardRow } from "../engine/leaderboard-rows";
 import type { Contest } from "../stores/contest-store";
 
-type LeaderboardDisplayRow = StrokePlayResult & Partial<Pick<LeaderboardRow, "rankLabel" | "thru" | "teeTime" | "isYou">>;
+type LeaderboardDisplayRow = StrokePlayResult
+  & Omit<Partial<Pick<LeaderboardRow, "rankLabel" | "thru" | "teeTime" | "isYou">>, "isYou">
+  & { isYou?: boolean };
 
 type LeaderboardResultsListProps = {
   /** Ranked rows for the active Gross/Net mode (buildLeaderboard output), already sorted. */
