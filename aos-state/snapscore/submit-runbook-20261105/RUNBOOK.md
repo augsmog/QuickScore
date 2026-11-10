@@ -22,8 +22,10 @@ python3 aos-state/snapscore/submit-runbook-20261105/submit_runbook.py --dry-run
 | `version.build.number`, `version.build.processingState` | `GET /v1/builds/{buildId}` (`attributes.version`, `attributes.processingState`) |
 | `subscriptions[].productId`, `.id`, `.state` | `GET /v1/apps/{appId}/subscriptionGroups?limit=200`, then `GET /v1/subscriptionGroups/{snapScoreGroupId}/subscriptions?limit=200`; select the exact four product IDs below |
 | `subscriptions[].submissionVersionId` | For each matching subscription: `GET /v1/subscriptions/{subscriptionId}/versions?limit=200`; use the current `PREPARE_FOR_SUBMISSION` or `READY_FOR_REVIEW` version, else `UNKNOWN` |
-| `reviewContactPresent`, `reviewNotesPresent` | `GET /v1/appStoreVersions/{versionId}/appStoreReviewDetail`; only booleans are stored |
-| `reviewSubmissionCount` | `GET /v1/apps/{appId}/reviewSubmissions?limit=200` |
+| `reviewContactPresent`, `reviewNotesPresent` | `GET /v1/appStoreVersions/{versionId}/appStoreReviewDetail` to resolve the detail resource, then `GET /v1/appStoreReviewDetails/{reviewDetailId}` to inspect attributes; only booleans are stored (false if the detail cannot be read) |
+| `reviewSubmissionCount`, `reviewSubmissionCountKnown` | `GET /v1/apps/{appId}/reviewSubmissions?limit=200`; absent/malformed `data` records `UNKNOWN` and `false`, never an inferred zero |
+
+For all observed version, build and product fields, a missing or null value is written as `UNKNOWN`. A missing build relationship is retried through its relationship endpoint; if still absent, build fields remain `UNKNOWN`.
 
 Expected current subscription product IDs: `snapscore.pro.annual`, `snapscore.pro.monthly`, `snapscore.td.annual`, `snapscore.td.monthly`. The dry-run does not substitute legacy or differently named products.
 

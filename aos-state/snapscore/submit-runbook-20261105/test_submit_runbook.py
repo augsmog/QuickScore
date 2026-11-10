@@ -110,6 +110,42 @@ class SubmitRunbookTests(unittest.TestCase):
         ids = [body["data"]["relationships"]["subscriptionVersion"]["data"]["id"] for body in intents[1]["bodies"][1:]]
         self.assertEqual(ids, [f"<SUBSCRIPTION_ID:{pid}>" for pid in rb.PRODUCT_IDS])
 
+    def test_missing_review_detail_is_boolean_false_and_missing_review_list_is_unknown(self):
+        def missing_review(method, path, body=None):
+            self.calls.append((method, path, body))
+            if method != "GET": raise AssertionError("write attempted")
+            if path.endswith("/appStoreReviewDetail") or path.startswith("/v1/appStoreReviewDetails/") or path.endswith("/reviewSubmissions?limit=200"):
+                return 200, {}
+            return 200, response(path)
+        data = rb.collect_preflight(missing_review, APP)
+        self.assertIs(data["reviewContactPresent"], False)
+        self.assertIs(data["reviewNotesPresent"], False)
+        self.assertEqual(data["reviewSubmissionCount"], "UNKNOWN")
+        self.assertIs(data["reviewSubmissionCountKnown"], False)
+
+    def test_null_observations_and_missing_build_relationship_stay_unknown(self):
+        def null_data(method, path, body=None):
+            self.calls.append((method, path, body))
+            if method != "GET": raise AssertionError("write attempted")
+            payload = response(path)
+            if "/appStoreVersions?" in path:
+                payload["data"][0]["attributes"]["appStoreState"] = None
+                payload["data"][0]["relationships"]["build"]["data"] = None
+            elif path.endswith("/build"):
+                return 200, {"data": None}
+            elif path == "/v1/subscriptionGroups/group-1/subscriptions?limit=200":
+                payload["data"][0]["attributes"]["state"] = None
+            elif path.startswith("/v1/subscriptions/"):
+                payload["data"][0]["id"] = None
+            return 200, payload
+        data = rb.collect_preflight(null_data, APP)
+        self.assertEqual(data["version"]["state"], "UNKNOWN")
+        self.assertEqual(data["version"]["build"], {"id": "UNKNOWN", "number": "UNKNOWN", "processingState": "UNKNOWN"})
+        self.assertEqual(data["subscriptions"][0]["state"], "UNKNOWN")
+        self.assertEqual(data["subscriptions"][0]["submissionVersionId"], "UNKNOWN")
+        intent = rb.write_intents(data, APP)[1]["bodies"][1]
+        self.assertEqual(intent["data"]["relationships"]["subscriptionVersion"]["data"]["id"], f"<SUBSCRIPTION_ID:{rb.PRODUCT_IDS[0]}>")
+
 
 if __name__ == "__main__":
     unittest.main()

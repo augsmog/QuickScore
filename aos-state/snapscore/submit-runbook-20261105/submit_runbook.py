@@ -22,6 +22,8 @@ def _rows(payload: Any) -> list[dict[str, Any]]:
 def _relationship_id(row: dict[str, Any], key: str) -> str | None:
     try: return row["relationships"][key]["data"]["id"]
     except (KeyError, TypeError): return None
+def _known(value: Any) -> Any:
+    return value if value is not None else "UNKNOWN"
 def collect_preflight(call: Callable[..., Any], app_id: str) -> dict[str, Any]:
     path = f"/v1/apps/{app_id}/appStoreVersions?filter[versionString]=1.0&filter[platform]=IOS&include=build,appStoreReviewDetail&limit=200"
     versions = _rows(get_only(call, path))
@@ -33,22 +35,24 @@ def collect_preflight(call: Callable[..., Any], app_id: str) -> dict[str, Any]:
         attrs = version.get("attributes") or {}
         build_id = _relationship_id(version, "build")
         if not build_id:
-            linked = get_only(call, f"/v1/appStoreVersions/{version['id']}/build").get("data", {})
-            build_id = linked.get("id")
+            linked = get_only(call, f"/v1/appStoreVersions/{version['id']}/build").get("data") or {}
+            build_id = linked.get("id") if isinstance(linked, dict) else None
         build = {"id": build_id or "UNKNOWN", "number": "UNKNOWN", "processingState": "UNKNOWN"}
         if build_id:
-            b = get_only(call, f"/v1/builds/{build_id}").get("data", {})
+            b = get_only(call, f"/v1/builds/{build_id}").get("data") or {}
+            if not isinstance(b, dict): b = {}
             ba = b.get("attributes") or {}
-            build = {"id": b.get("id", build_id), "number": ba.get("version", "UNKNOWN"), "processingState": ba.get("processingState", "UNKNOWN")}
+            build = {"id": _known(b.get("id", build_id)), "number": _known(ba.get("version")), "processingState": _known(ba.get("processingState"))}
         review_id = _relationship_id(version, "appStoreReviewDetail")
         if not review_id:
             linked = get_only(call, f"/v1/appStoreVersions/{version['id']}/appStoreReviewDetail").get("data", {})
             review_id = linked.get("id")
         if review_id:
-            detail = get_only(call, f"/v1/appStoreReviewDetails/{review_id}").get("data", {}).get("attributes", {})
+            detail_data = get_only(call, f"/v1/appStoreReviewDetails/{review_id}").get("data") or {}
+            detail = detail_data.get("attributes") or {} if isinstance(detail_data, dict) else {}
             presence = {"contactPresent": all(bool(detail.get(k)) for k in ("contactFirstName", "contactLastName", "contactPhone", "contactEmail")), "notesPresent": bool(detail.get("notes"))}
-        else: presence = {"contactPresent": None, "notesPresent": None}
-        vs = {"id": version.get("id", "UNKNOWN"), "version": attrs.get("versionString", "UNKNOWN"), "state": attrs.get("appStoreState", "UNKNOWN"), "build": build}
+        else: presence = {"contactPresent": False, "notesPresent": False}
+        vs = {"id": _known(version.get("id")), "version": _known(attrs.get("versionString")), "state": _known(attrs.get("appStoreState")), "build": build}
     groups = _rows(get_only(call, f"/v1/apps/{app_id}/subscriptionGroups?limit=200"))
     group = next((g for g in groups if (g.get("attributes") or {}).get("referenceName") == "SnapScore"), None)
     if group and group.get("id"):
@@ -58,21 +62,23 @@ def collect_preflight(call: Callable[..., Any], app_id: str) -> dict[str, Any]:
         for pid in PRODUCT_IDS:
             product = by_product.get(pid)
             product_id = product.get("id") if product else None
-            state = (product.get("attributes") or {}).get("state", "UNKNOWN") if product else "UNKNOWN"
+            state = _known((product.get("attributes") or {}).get("state")) if product else "UNKNOWN"
             version_id = "UNKNOWN"
             if product_id:
                 versions = _rows(get_only(call, f"/v1/subscriptions/{product_id}/versions?limit=200"))
                 candidate = next((v for v in versions if (v.get("attributes") or {}).get("state") in ("PREPARE_FOR_SUBMISSION", "READY_FOR_REVIEW")), None)
-                if candidate: version_id = candidate.get("id", "UNKNOWN")
+                if candidate: version_id = _known(candidate.get("id"))
             products.append({"productId": pid, "id": product_id or "UNKNOWN", "state": state, "submissionVersionId": version_id})
     else: products = [{"productId": pid, "id": "UNKNOWN", "state": "UNKNOWN", "submissionVersionId": "UNKNOWN"} for pid in PRODUCT_IDS]
-    reviews = _rows(get_only(call, f"/v1/apps/{app_id}/reviewSubmissions?limit=200"))
-    return {"appId": app_id, "version": vs, "subscriptions": products, "reviewSubmissionCount": len(reviews), "reviewSubmissionCountKnown": True, "reviewContactPresent": presence["contactPresent"], "reviewNotesPresent": presence["notesPresent"]}
+    review_response = get_only(call, f"/v1/apps/{app_id}/reviewSubmissions?limit=200")
+    reviews_known = isinstance(review_response, dict) and isinstance(review_response.get("data"), list)
+    reviews = _rows(review_response)
+    return {"appId": app_id, "version": vs, "subscriptions": products, "reviewSubmissionCount": len(reviews) if reviews_known else "UNKNOWN", "reviewSubmissionCountKnown": reviews_known, "reviewContactPresent": bool(presence["contactPresent"]), "reviewNotesPresent": bool(presence["notesPresent"])}
 def write_intents(preflight: dict[str, Any], app_id: str) -> list[dict[str, Any]]:
     version_id = (preflight.get("version") or {}).get("id") or "UNKNOWN"
     if version_id == "UNKNOWN": version_id = "<VERSION_1_0_ID_FROM_PREFLIGHT>"
     products = preflight.get("subscriptions") or []
-    if {p.get("productId") for p in products} != set(PRODUCT_IDS) or any(p.get("submissionVersionId") == "UNKNOWN" for p in products):
+    if {p.get("productId") for p in products} != set(PRODUCT_IDS) or any(not p.get("submissionVersionId") or p.get("submissionVersionId") == "UNKNOWN" for p in products):
         product_ids = [f"<SUBSCRIPTION_ID:{pid}>" for pid in PRODUCT_IDS]
     else: product_ids = [str(next(p["submissionVersionId"] for p in products if p["productId"] == pid)) for pid in PRODUCT_IDS]
     create = {"method": "POST", "path": "/v1/reviewSubmissions", "body": {"data": {"type": "reviewSubmissions", "relationships": {"app": {"data": {"type": "apps", "id": app_id}}}}}}
