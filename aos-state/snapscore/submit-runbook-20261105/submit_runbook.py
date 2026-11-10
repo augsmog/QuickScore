@@ -28,14 +28,19 @@ def collect_preflight(call: Callable[..., Any], app_id: str) -> dict[str, Any]:
     path = f"/v1/apps/{app_id}/appStoreVersions?filter[versionString]=1.0&filter[platform]=IOS&include=build,appStoreReviewDetail&limit=200"
     versions = _rows(get_only(call, path))
     version = next((r for r in versions if (r.get("attributes") or {}).get("versionString") == "1.0"), None)
+    if version is None and len(versions) == 1:
+        # A filtered GET may still return a malformed/null record; preserve the
+        # observation as UNKNOWN instead of manufacturing the requested value.
+        version = versions[0]
     if version is None:
-        vs = {"id": "UNKNOWN", "version": "1.0", "state": "UNKNOWN", "build": {"id": "UNKNOWN", "number": "UNKNOWN", "processingState": "UNKNOWN"}}
+        vs = {"id": "UNKNOWN", "version": "UNKNOWN", "state": "UNKNOWN", "build": {"id": "UNKNOWN", "number": "UNKNOWN", "processingState": "UNKNOWN"}}
         presence = {"contactPresent": None, "notesPresent": None}
     else:
         attrs = version.get("attributes") or {}
         build_id = _relationship_id(version, "build")
         if not build_id:
-            linked = get_only(call, f"/v1/appStoreVersions/{version['id']}/build").get("data") or {}
+            version_id = version.get("id")
+            linked = get_only(call, f"/v1/appStoreVersions/{version_id}/build").get("data") or {} if version_id else {}
             build_id = linked.get("id") if isinstance(linked, dict) else None
         build = {"id": build_id or "UNKNOWN", "number": "UNKNOWN", "processingState": "UNKNOWN"}
         if build_id:
@@ -45,8 +50,9 @@ def collect_preflight(call: Callable[..., Any], app_id: str) -> dict[str, Any]:
             build = {"id": _known(b.get("id", build_id)), "number": _known(ba.get("version")), "processingState": _known(ba.get("processingState"))}
         review_id = _relationship_id(version, "appStoreReviewDetail")
         if not review_id:
-            linked = get_only(call, f"/v1/appStoreVersions/{version['id']}/appStoreReviewDetail").get("data", {})
-            review_id = linked.get("id")
+            version_id = version.get("id")
+            linked = get_only(call, f"/v1/appStoreVersions/{version_id}/appStoreReviewDetail").get("data") if version_id else None
+            review_id = linked.get("id") if isinstance(linked, dict) else None
         if review_id:
             detail_data = get_only(call, f"/v1/appStoreReviewDetails/{review_id}").get("data") or {}
             detail = detail_data.get("attributes") or {} if isinstance(detail_data, dict) else {}

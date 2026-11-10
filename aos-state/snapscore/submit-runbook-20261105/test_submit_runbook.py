@@ -146,6 +146,40 @@ class SubmitRunbookTests(unittest.TestCase):
         intent = rb.write_intents(data, APP)[1]["bodies"][1]
         self.assertEqual(intent["data"]["relationships"]["subscriptionVersion"]["data"]["id"], f"<SUBSCRIPTION_ID:{rb.PRODUCT_IDS[0]}>")
 
+    def test_absent_version_string_is_reported_unknown(self):
+        def missing_version_string(method, path, body=None):
+            self.calls.append((method, path, body))
+            if method != "GET": raise AssertionError("write attempted")
+            if "/appStoreVersions?" in path:
+                return 200, {"data": [{"id": VERSION, "attributes": {"versionString": None, "appStoreState": "PREPARE_FOR_SUBMISSION"}}]}
+            return 200, response(path)
+        data = rb.collect_preflight(missing_version_string, APP)
+        self.assertEqual(data["version"]["id"], VERSION)
+        self.assertEqual(data["version"]["version"], "UNKNOWN")
+        self.assertFalse(any("/appStoreVersions/None/" in path for _, path, _ in self.calls))
+
+    def test_missing_version_id_never_builds_none_relationship_paths(self):
+        def missing_id(method, path, body=None):
+            self.calls.append((method, path, body))
+            if method != "GET": raise AssertionError("write attempted")
+            if "/appStoreVersions?" in path:
+                return 200, {"data": [{"attributes": {"versionString": "1.0", "appStoreState": "PREPARE_FOR_SUBMISSION"}}]}
+            return 200, response(path)
+        data = rb.collect_preflight(missing_id, APP)
+        self.assertEqual(data["version"]["id"], "UNKNOWN")
+        self.assertEqual(data["version"]["build"]["id"], "UNKNOWN")
+        self.assertFalse(any("/appStoreVersions/None/" in path for _, path, _ in self.calls))
+
+    def test_null_review_detail_response_returns_boolean_presence(self):
+        def null_review(method, path, body=None):
+            self.calls.append((method, path, body))
+            if method != "GET": raise AssertionError("write attempted")
+            if path == "/v1/appStoreReviewDetails/review-detail": return 200, {"data": None}
+            return 200, response(path)
+        data = rb.collect_preflight(null_review, APP)
+        self.assertIs(data["reviewContactPresent"], False)
+        self.assertIs(data["reviewNotesPresent"], False)
+
 
 if __name__ == "__main__":
     unittest.main()
