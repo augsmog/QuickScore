@@ -33,7 +33,7 @@ Expected current subscription product IDs: `snapscore.pro.annual`, `snapscore.pr
 
 The current App Store Connect Review Submission API requires a submission resource before its items can be attached. Therefore the valid request order shown by the tool is:
 
-1. `POST /v1/reviewSubmissions` to create a draft submission for this app.
+1. `POST /v1/reviewSubmissions` to create a draft submission for this app, with `platform: IOS` included (optional in the current API).
 2. `POST /v1/reviewSubmissionItems` for version 1.0 and each of the four `subscriptionVersion` resources (five items total).
 3. `PATCH /v1/reviewSubmissions/{id}` with `attributes.submitted: true` to submit the completed group.
 

@@ -70,7 +70,7 @@ def collect_preflight(call: Callable[..., Any], app_id: str) -> dict[str, Any]:
             if product_id:
                 versions = _rows(get_only(call, f"/v1/subscriptions/{product_id}/versions?limit=200"))
                 candidate = next((v for v in versions if (v.get("attributes") or {}).get("state") in ("PREPARE_FOR_SUBMISSION", "READY_FOR_REVIEW")), None)
-                if candidate: version_id = candidate.get("id", "UNKNOWN")
+                if candidate: version_id = candidate.get("id") or "UNKNOWN"
             products.append({"productId": pid, "id": product_id or "UNKNOWN", "state": state, "submissionVersionId": version_id})
     else: products = [{"productId": pid, "id": "UNKNOWN", "state": "UNKNOWN", "submissionVersionId": "UNKNOWN"} for pid in PRODUCT_IDS]
     review_payload = get_only(call, f"/v1/apps/{app_id}/reviewSubmissions?limit=200")
@@ -82,10 +82,10 @@ def write_intents(preflight: dict[str, Any], app_id: str) -> list[dict[str, Any]
     version_id = (preflight.get("version") or {}).get("id") or "UNKNOWN"
     if version_id == "UNKNOWN": version_id = "<VERSION_1_0_ID_FROM_PREFLIGHT>"
     products = preflight.get("subscriptions") or []
-    if {p.get("productId") for p in products} != set(PRODUCT_IDS) or any(p.get("submissionVersionId") == "UNKNOWN" for p in products):
-        product_ids = [f"<SUBSCRIPTION_ID:{pid}>" for pid in PRODUCT_IDS]
+    if {p.get("productId") for p in products} != set(PRODUCT_IDS) or any(not p.get("submissionVersionId") or p.get("submissionVersionId") == "UNKNOWN" for p in products):
+        product_ids = [f"<SUBSCRIPTION_VERSION_ID:{pid}>" for pid in PRODUCT_IDS]
     else: product_ids = [str(next(p["submissionVersionId"] for p in products if p["productId"] == pid)) for pid in PRODUCT_IDS]
-    create = {"method": "POST", "path": "/v1/reviewSubmissions", "body": {"data": {"type": "reviewSubmissions", "relationships": {"app": {"data": {"type": "apps", "id": app_id}}}}}}
+    create = {"method": "POST", "path": "/v1/reviewSubmissions", "body": {"data": {"type": "reviewSubmissions", "attributes": {"platform": "IOS"}, "relationships": {"app": {"data": {"type": "apps", "id": app_id}}}}}}
     items = []
     relations = [("appStoreVersion", "appStoreVersions", version_id)] + [("subscriptionVersion", "subscriptionVersions", pid) for pid in product_ids]
     for relation, typ, rid in relations:

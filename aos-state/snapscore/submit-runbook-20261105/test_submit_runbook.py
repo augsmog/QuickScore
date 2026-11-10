@@ -64,6 +64,7 @@ class SubmitRunbookTests(unittest.TestCase):
             ("POST", "/v1/reviewSubmissionItems"),
             ("PATCH", "/v1/reviewSubmissions/<REVIEW_SUBMISSION_ID_FROM_STEP_1>"),
         ])
+        self.assertEqual(intents[0]["body"]["data"]["attributes"], {"platform": "IOS"})
         self.assertEqual(len(intents[1]["bodies"]), 5)  # version 1.0 plus four subscriptions
         attached = [b["data"]["relationships"]["subscriptionVersion"]["data"]["id"] for b in intents[1]["bodies"][1:]]
         expected = [row["submissionVersionId"] for row in data["subscriptions"]]
@@ -108,7 +109,7 @@ class SubmitRunbookTests(unittest.TestCase):
         self.assertTrue(all(row["state"] == "UNKNOWN" and row["id"] == "UNKNOWN" for row in data["subscriptions"]))
         intents = rb.write_intents(data, APP)
         ids = [body["data"]["relationships"]["subscriptionVersion"]["data"]["id"] for body in intents[1]["bodies"][1:]]
-        self.assertEqual(ids, [f"<SUBSCRIPTION_ID:{pid}>" for pid in rb.PRODUCT_IDS])
+        self.assertEqual(ids, [f"<SUBSCRIPTION_VERSION_ID:{pid}>" for pid in rb.PRODUCT_IDS])
 
     def test_missing_build_link_and_null_attributes_stay_unknown(self):
         def missing_build_link(method, path, body=None):
@@ -142,6 +143,19 @@ class SubmitRunbookTests(unittest.TestCase):
         data = rb.collect_preflight(incomplete, APP)
         self.assertEqual(data["reviewSubmissionCount"], "UNKNOWN")
         self.assertFalse(data["reviewSubmissionCountKnown"])
+
+    def test_null_subscription_version_ids_remain_unknown_in_intents(self):
+        def null_subscription_version(method, path, body=None):
+            self.calls.append((method, path, body))
+            if method != "GET": raise AssertionError(f"network write attempted: {method} {path}")
+            payload = response(path)
+            if path.endswith("/versions?limit=200") and path.startswith("/v1/subscriptions/"):
+                payload["data"][0]["id"] = None
+            return 200, payload
+        data = rb.collect_preflight(null_subscription_version, APP)
+        self.assertEqual({row["submissionVersionId"] for row in data["subscriptions"]}, {"UNKNOWN"})
+        ids = [body["data"]["relationships"]["subscriptionVersion"]["data"]["id"] for body in rb.write_intents(data, APP)[1]["bodies"][1:]]
+        self.assertEqual(ids, [f"<SUBSCRIPTION_VERSION_ID:{pid}>" for pid in rb.PRODUCT_IDS])
 
         def paginated(method, path, body=None):
             self.calls.append((method, path, body))
