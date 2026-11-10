@@ -23,7 +23,9 @@ python3 aos-state/snapscore/submit-runbook-20261105/submit_runbook.py --dry-run
 | `subscriptions[].productId`, `.id`, `.state` | `GET /v1/apps/{appId}/subscriptionGroups?limit=200`, then `GET /v1/subscriptionGroups/{snapScoreGroupId}/subscriptions?limit=200`; select the exact four product IDs below |
 | `subscriptions[].submissionVersionId` | For each matching subscription: `GET /v1/subscriptions/{subscriptionId}/versions?limit=200`; use the current `PREPARE_FOR_SUBMISSION` or `READY_FOR_REVIEW` version, else `UNKNOWN` |
 | `reviewContactPresent`, `reviewNotesPresent` | `GET /v1/appStoreVersions/{versionId}/appStoreReviewDetail`; only booleans are stored |
-| `reviewSubmissionCount` | `GET /v1/apps/{appId}/reviewSubmissions?limit=200` |
+| `reviewSubmissionCount` | `GET /v1/apps/{appId}/reviewSubmissions?limit=200`; count is `UNKNOWN` unless a data list is present and the response has no `links.next` page |
+
+Missing build linkage, build records, or build attributes remain `UNKNOWN`. A missing or paginated review-submission collection is never reported as a complete count.
 
 Expected current subscription product IDs: `snapscore.pro.annual`, `snapscore.pro.monthly`, `snapscore.td.annual`, `snapscore.td.monthly`. The dry-run does not substitute legacy or differently named products.
 

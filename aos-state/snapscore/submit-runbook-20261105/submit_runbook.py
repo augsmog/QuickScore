@@ -19,6 +19,9 @@ def get_only(call: Callable[..., Any], path: str) -> Any:
 def _rows(payload: Any) -> list[dict[str, Any]]:
     rows = payload.get("data") if isinstance(payload, dict) else None
     return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+def _data(payload: Any) -> dict[str, Any]:
+    data = payload.get("data") if isinstance(payload, dict) else None
+    return data if isinstance(data, dict) else {}
 def _relationship_id(row: dict[str, Any], key: str) -> str | None:
     try: return row["relationships"][key]["data"]["id"]
     except (KeyError, TypeError): return None
@@ -33,22 +36,26 @@ def collect_preflight(call: Callable[..., Any], app_id: str) -> dict[str, Any]:
         attrs = version.get("attributes") or {}
         build_id = _relationship_id(version, "build")
         if not build_id:
-            linked = get_only(call, f"/v1/appStoreVersions/{version['id']}/build").get("data", {})
+            linked = _data(get_only(call, f"/v1/appStoreVersions/{version['id']}/build"))
             build_id = linked.get("id")
         build = {"id": build_id or "UNKNOWN", "number": "UNKNOWN", "processingState": "UNKNOWN"}
         if build_id:
-            b = get_only(call, f"/v1/builds/{build_id}").get("data", {})
+            b = _data(get_only(call, f"/v1/builds/{build_id}"))
             ba = b.get("attributes") or {}
-            build = {"id": b.get("id", build_id), "number": ba.get("version", "UNKNOWN"), "processingState": ba.get("processingState", "UNKNOWN")}
+            build = {"id": b.get("id") or build_id, "number": ba.get("version") or "UNKNOWN", "processingState": ba.get("processingState") or "UNKNOWN"}
         review_id = _relationship_id(version, "appStoreReviewDetail")
         if not review_id:
-            linked = get_only(call, f"/v1/appStoreVersions/{version['id']}/appStoreReviewDetail").get("data", {})
+            linked = _data(get_only(call, f"/v1/appStoreVersions/{version['id']}/appStoreReviewDetail"))
             review_id = linked.get("id")
         if review_id:
-            detail = get_only(call, f"/v1/appStoreReviewDetails/{review_id}").get("data", {}).get("attributes", {})
-            presence = {"contactPresent": all(bool(detail.get(k)) for k in ("contactFirstName", "contactLastName", "contactPhone", "contactEmail")), "notesPresent": bool(detail.get("notes"))}
+            detail_payload = get_only(call, f"/v1/appStoreReviewDetails/{review_id}")
+            detail_data = _data(detail_payload)
+            detail = detail_data.get("attributes")
+            if isinstance(detail, dict):
+                presence = {"contactPresent": all(bool(detail.get(k)) for k in ("contactFirstName", "contactLastName", "contactPhone", "contactEmail")), "notesPresent": bool(detail.get("notes"))}
+            else: presence = {"contactPresent": None, "notesPresent": None}
         else: presence = {"contactPresent": None, "notesPresent": None}
-        vs = {"id": version.get("id", "UNKNOWN"), "version": attrs.get("versionString", "UNKNOWN"), "state": attrs.get("appStoreState", "UNKNOWN"), "build": build}
+        vs = {"id": version.get("id") or "UNKNOWN", "version": attrs.get("versionString") or "UNKNOWN", "state": attrs.get("appStoreState") or "UNKNOWN", "build": build}
     groups = _rows(get_only(call, f"/v1/apps/{app_id}/subscriptionGroups?limit=200"))
     group = next((g for g in groups if (g.get("attributes") or {}).get("referenceName") == "SnapScore"), None)
     if group and group.get("id"):
@@ -58,7 +65,7 @@ def collect_preflight(call: Callable[..., Any], app_id: str) -> dict[str, Any]:
         for pid in PRODUCT_IDS:
             product = by_product.get(pid)
             product_id = product.get("id") if product else None
-            state = (product.get("attributes") or {}).get("state", "UNKNOWN") if product else "UNKNOWN"
+            state = ((product.get("attributes") or {}).get("state") or "UNKNOWN") if product else "UNKNOWN"
             version_id = "UNKNOWN"
             if product_id:
                 versions = _rows(get_only(call, f"/v1/subscriptions/{product_id}/versions?limit=200"))
@@ -66,8 +73,11 @@ def collect_preflight(call: Callable[..., Any], app_id: str) -> dict[str, Any]:
                 if candidate: version_id = candidate.get("id", "UNKNOWN")
             products.append({"productId": pid, "id": product_id or "UNKNOWN", "state": state, "submissionVersionId": version_id})
     else: products = [{"productId": pid, "id": "UNKNOWN", "state": "UNKNOWN", "submissionVersionId": "UNKNOWN"} for pid in PRODUCT_IDS]
-    reviews = _rows(get_only(call, f"/v1/apps/{app_id}/reviewSubmissions?limit=200"))
-    return {"appId": app_id, "version": vs, "subscriptions": products, "reviewSubmissionCount": len(reviews), "reviewSubmissionCountKnown": True, "reviewContactPresent": presence["contactPresent"], "reviewNotesPresent": presence["notesPresent"]}
+    review_payload = get_only(call, f"/v1/apps/{app_id}/reviewSubmissions?limit=200")
+    complete_review_list = isinstance(review_payload, dict) and isinstance(review_payload.get("data"), list) and not (review_payload.get("links") or {}).get("next")
+    reviews = _rows(review_payload)
+    review_count: int | str = len(reviews) if complete_review_list else "UNKNOWN"
+    return {"appId": app_id, "version": vs, "subscriptions": products, "reviewSubmissionCount": review_count, "reviewSubmissionCountKnown": complete_review_list, "reviewContactPresent": presence["contactPresent"], "reviewNotesPresent": presence["notesPresent"]}
 def write_intents(preflight: dict[str, Any], app_id: str) -> list[dict[str, Any]]:
     version_id = (preflight.get("version") or {}).get("id") or "UNKNOWN"
     if version_id == "UNKNOWN": version_id = "<VERSION_1_0_ID_FROM_PREFLIGHT>"

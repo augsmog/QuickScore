@@ -110,6 +110,48 @@ class SubmitRunbookTests(unittest.TestCase):
         ids = [body["data"]["relationships"]["subscriptionVersion"]["data"]["id"] for body in intents[1]["bodies"][1:]]
         self.assertEqual(ids, [f"<SUBSCRIPTION_ID:{pid}>" for pid in rb.PRODUCT_IDS])
 
+    def test_missing_build_link_and_null_attributes_stay_unknown(self):
+        def missing_build_link(method, path, body=None):
+            self.calls.append((method, path, body))
+            if method != "GET": raise AssertionError(f"network write attempted: {method} {path}")
+            data = response(path)
+            if "/appStoreVersions?" in path:
+                data["data"][0]["relationships"]["build"]["data"] = None
+            if path.endswith("/build"):
+                return 200, {"data": None}
+            return 200, data
+        data = rb.collect_preflight(missing_build_link, APP)
+        self.assertEqual(data["version"]["build"], {"id": "UNKNOWN", "number": "UNKNOWN", "processingState": "UNKNOWN"})
+
+        def null_build_fields(method, path, body=None):
+            self.calls.append((method, path, body))
+            if method != "GET": raise AssertionError(f"network write attempted: {method} {path}")
+            payload = response(path)
+            if path == "/v1/builds/build-29": payload["data"]["attributes"] = {"version": None, "processingState": None}
+            return 200, payload
+        data = rb.collect_preflight(null_build_fields, APP)
+        self.assertEqual(data["version"]["build"]["number"], "UNKNOWN")
+        self.assertEqual(data["version"]["build"]["processingState"], "UNKNOWN")
+
+    def test_review_submission_count_unknown_when_missing_or_paginated(self):
+        def incomplete(method, path, body=None):
+            self.calls.append((method, path, body))
+            if method != "GET": raise AssertionError(f"network write attempted: {method} {path}")
+            if "/reviewSubmissions?" in path: return 200, {}
+            return 200, response(path)
+        data = rb.collect_preflight(incomplete, APP)
+        self.assertEqual(data["reviewSubmissionCount"], "UNKNOWN")
+        self.assertFalse(data["reviewSubmissionCountKnown"])
+
+        def paginated(method, path, body=None):
+            self.calls.append((method, path, body))
+            if method != "GET": raise AssertionError(f"network write attempted: {method} {path}")
+            if "/reviewSubmissions?" in path: return 200, {"data": [{"id": "submission-1"}], "links": {"next": "https://example.invalid/next"}}
+            return 200, response(path)
+        data = rb.collect_preflight(paginated, APP)
+        self.assertEqual(data["reviewSubmissionCount"], "UNKNOWN")
+        self.assertFalse(data["reviewSubmissionCountKnown"])
+
 
 if __name__ == "__main__":
     unittest.main()
