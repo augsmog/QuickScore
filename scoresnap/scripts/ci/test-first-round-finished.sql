@@ -63,9 +63,29 @@ DO $$ DECLARE first_time timestamptz; BEGIN
   END IF;
 END $$;
 
+-- Gap 2 (AUG-744): an owner who never toggled Live Share finishes a round. The client publishes a
+-- single completed snapshot through publish_shared_round (no prior live-share publish exists), which
+-- sets ended_at from the completed flag; the published_round INSERT trigger must record the finish
+-- exactly once for the non-anonymous owner. Re-publishing the already-completed round adds nothing.
+INSERT INTO auth.users(id,created_at) VALUES ('00000000-0000-0000-0000-000000000a05','2020-01-02T12:00:00Z');
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims = '{"sub":"00000000-0000-0000-0000-000000000a05","role":"authenticated","is_anonymous":false}';
+SELECT public.publish_shared_round('gap2-complete-no-share', '{"completed":true,"players":[{"displayName":"Pat","scores":[4],"total":4,"toPar":0}],"games":[]}');
+SELECT public.publish_shared_round('gap2-complete-no-share', '{"completed":true,"players":[{"displayName":"Pat","scores":[4],"total":4,"toPar":0}],"games":[]}');
+RESET ROLE;
+DO $$ BEGIN
+  IF (SELECT count(*) FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a05') <> 1 THEN
+    RAISE EXCEPTION 'Gap 2: completed snapshot published without a prior Live Share toggle did not record exactly one finish';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a05'
+      AND source='published_round_ended') THEN
+    RAISE EXCEPTION 'Gap 2: finish recorded under the wrong source';
+  END IF;
+END $$;
+
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.activation_daily WHERE date=(transaction_timestamp() AT TIME ZONE 'UTC')::date AND signups=0
-      AND first_round_finished=3 AND activation_rate IS NULL) THEN
+      AND first_round_finished=4 AND activation_rate IS NULL) THEN
     RAISE EXCEPTION 'zero-signup activation day should be present with NULL rate';
   END IF;
   IF has_table_privilege('anon','public.first_round_finishes','SELECT') OR has_table_privilege('authenticated','public.first_round_finishes','SELECT') THEN
@@ -76,4 +96,4 @@ DO $$ BEGIN
   END IF;
 END $$;
 ROLLBACK;
-SELECT 'PASS: first finish idempotence, both completion signals including already-ended shared-round INSERT, anonymous exclusion, NULL zero-signup rate, and read-only service access';
+SELECT 'PASS: first finish idempotence, both completion signals including already-ended shared-round INSERT and Gap-2 publish_shared_round completed snapshot without a prior Live Share toggle, anonymous exclusion, NULL zero-signup rate, and read-only service access';

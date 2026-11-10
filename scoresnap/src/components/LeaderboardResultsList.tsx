@@ -8,12 +8,18 @@ import type { Player, StrokePlayResult } from "../engine/types";
 import type { LeaderboardRow } from "../engine/leaderboard-rows";
 import type { Contest } from "../stores/contest-store";
 
-type LeaderboardDisplayRow = StrokePlayResult & Pick<LeaderboardRow, "rankLabel" | "thru">;
+type LeaderboardDisplayRow = StrokePlayResult & Partial<Pick<LeaderboardRow, "rankLabel" | "thru" | "teeTime" | "isYou">>;
 
 type LeaderboardResultsListProps = {
   /** Ranked rows for the active Gross/Net mode (buildLeaderboard output), already sorted. */
-  /** Rows enriched with rank and THRU from buildLeaderboardRows before rendering. */
+  /** Rows enriched with rank, You state, THRU, and tee time before rendering. */
   results: LeaderboardDisplayRow[];
+  /**
+   * Compatibility for existing callers/tests that hand over raw results and a
+   * prepared field-rank lookup. The production contest screen supplies enriched
+   * rows directly, avoiding per-cell rank scans.
+   */
+  rankByPlayerId?: Map<string, { rankLabel: string; tied: boolean; isYou?: boolean }>;
   /** All players in the current view, used to resolve holes played. */
   allPlayers: Player[];
   /** Players whose recent-form strokes drive the last-3-holes strip. */
@@ -34,6 +40,7 @@ type LeaderboardResultsListProps = {
  */
 export function LeaderboardResultsList({
   results,
+  rankByPlayerId,
   allPlayers,
   recentPlayers,
   contest,
@@ -42,6 +49,24 @@ export function LeaderboardResultsList({
 }: LeaderboardResultsListProps) {
   const playerById = new Map(allPlayers.map((player) => [player.id, player]));
   const recentScoresByPlayerId = new Map(recentPlayers.map((player) => [player.id, player.scores]));
+  const scoreCounts = new Map<number, number>();
+  for (const result of results) scoreCounts.set(result.total, (scoreCounts.get(result.total) ?? 0) + 1);
+  const firstRankByTotal = new Map<number, number>();
+  for (let index = 0; index < results.length; index += 1) {
+    if (!firstRankByTotal.has(results[index].total)) firstRankByTotal.set(results[index].total, index + 1);
+  }
+  const fallbackRanks = new Map<string, { rankLabel: string; tied: boolean }>();
+  for (const result of results) {
+    if (fallbackRanks.has(result.playerId)) continue;
+    const rank = firstRankByTotal.get(result.total) ?? 0;
+    const tied = (scoreCounts.get(result.total) ?? 0) > 1;
+    fallbackRanks.set(result.playerId, { rankLabel: tied ? `T${rank}` : `${rank}`, tied });
+  }
+  const fallbackThru = new Map<string, "F" | number | null>();
+  for (const player of allPlayers) {
+    const holes = player.scores.filter((score) => score > 0).length;
+    fallbackThru.set(player.id, holes === 0 ? null : holes === contest.course.holes.length ? "F" : holes);
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -55,6 +80,14 @@ export function LeaderboardResultsList({
         renderItem={({ item: r, index: i }) => {
           const player = playerById.get(r.playerId);
           const recentScores = recentScoresByPlayerId.get(r.playerId) ?? [];
+          const ranked = rankByPlayerId?.get(r.playerId);
+          const fallbackRank = fallbackRanks.get(r.playerId);
+          const rankLabel = r.rankLabel ?? ranked?.rankLabel ?? fallbackRank?.rankLabel ?? "—";
+          // The row model pins You after computing field ranks, so this badge does not
+          // imply that the current user leads. Keep the prepared row's field rank intact.
+          const isYou = r.isYou === true || ranked?.isYou === true;
+          const thru = r.thru === undefined ? fallbackThru.get(r.playerId) ?? null : r.thru;
+          const teeTime = r.teeTime ?? null;
           // Par source is the contest course per AUG-620 brief item 8 (contest.course.holes[i].par),
           // not the active-round course; chip pars stay stable regardless of tournament round.
           const lastHoles = lastThreePlayedHoleChips(recentScores, contest.course.holes);
@@ -74,13 +107,13 @@ export function LeaderboardResultsList({
             >
               <View style={{ width: 34, alignItems: "center" }}>
                 <Text testID={`leaderboard-rank-${r.playerId}`} style={{ fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
-                  {r.rankLabel}
+                  {rankLabel}
                 </Text>
                 <Text style={{ fontFamily: FONTS.regular, fontSize: 7, color: COLORS.textDim, marginTop: 2 }}>
                   THRU
                 </Text>
-                <Text testID={`leaderboard-thru-${r.playerId}`} accessibilityLabel={`THRU ${r.thru === null ? "not started" : r.thru}`} style={{ fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>
-                  {r.thru === null ? "—" : String(r.thru)}
+                <Text testID={`leaderboard-thru-${r.playerId}`} accessibilityLabel={`THRU ${thru === null ? (teeTime ?? "not started") : thru}`} style={{ fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>
+                  {thru ?? teeTime ?? "—"}
                 </Text>
               </View>
 
@@ -116,6 +149,22 @@ export function LeaderboardResultsList({
                   <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>
                     {r.name}
                   </Text>
+                  {isYou && (
+                    <View
+                      testID={`leaderboard-you-chip-${r.playerId}`}
+                      accessibilityLabel="Your row"
+                      style={{
+                        backgroundColor: COLORS.primary,
+                        borderRadius: RADII.full,
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                      }}
+                    >
+                      <Text style={{ fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.onPrimary }}>
+                        You
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>
                   Total <Text testID={`leaderboard-total-${r.name}`}>{r.total}</Text>

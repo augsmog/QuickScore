@@ -8,6 +8,7 @@ import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../..
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { buildLeaderboard } from "../../../src/engine/calculators/leaderboard-view";
 import { buildLeaderboardRows } from "../../../src/engine/leaderboard-rows";
+import { getFixtureYouPlayerId } from "../../../src/engine/you-fixture";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
@@ -234,14 +235,24 @@ export default function LeaderboardScreen() {
   // case-insensitive name filter, so a searched subset keeps real field ranks
   // (AUG-675 contract). Empty query returns every player, so the default view is
   // unchanged / pixel-identical.
+  // AUG-253j: pin the fixture/debug "You" row to the front. youPlayerId is a fixture id
+  // (no real user↔player link yet — AUG-254 is out of scope), so it is undefined in
+  // production and this is a no-op there: the default view stays pixel-identical.
+  const youPlayerId = getFixtureYouPlayerId();
   const searchedRows = buildLeaderboardRows(individualResults, allPlayers, {
     holeCount: leaderboardCourse.holes.length,
     query: playerQuery,
+    youPlayerId,
   });
+  // Carry the complete display contract from the prepared model into FlashList.
+  // Filtering has already happened after full-field rank calculation, so a searched
+  // result keeps its real rank, pinned-You marker, THRU, and pre-start tee time.
   const resultByPlayerId = new Map(individualResults.map((result) => [result.playerId, result]));
   const visibleRows = searchedRows.flatMap((row) => {
     const result = resultByPlayerId.get(row.playerId);
-    return result ? [{ ...result, rankLabel: row.rankLabel, thru: row.thru }] : [];
+    return result
+      ? [{ ...result, rankLabel: row.rankLabel, isYou: row.isYou === true, thru: row.thru, teeTime: row.teeTime }]
+      : [];
   });
 
   // Search field for the individual leaderboard (Figma 15:2). Mirrors the shipped
