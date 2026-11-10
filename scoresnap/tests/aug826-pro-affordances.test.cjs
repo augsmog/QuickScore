@@ -31,6 +31,7 @@ const text = node => node == null || typeof node === 'boolean' ? '' : typeof nod
 // ---- profile.tsx: plan badge, scan-usage card, Pro upgrade/manage block ----
 function profileScreen(proEnabled, scan = { scansUsed: 0, isPro: false, getRemainingFreeScans: () => 0 }) {
   const push = jest.fn();
+  const presentCustomerCenter = jest.fn(async () => {});
   const jsx = (type, props) => ({ type, props });
   const Profile = load('app/(tabs)/profile.tsx', {
     react: { useState: value => [value, jest.fn()], useMemo: fn => fn() },
@@ -39,7 +40,7 @@ function profileScreen(proEnabled, scan = { scansUsed: 0, isPro: false, getRemai
     'expo-router': { useRouter: () => ({ push }) },
     'lucide-react-native': new Proxy({}, { get: (_, name) => 'Icon:' + name }),
     '@sentry/react-native': {},
-    'react-native-purchases-ui': {},
+    'react-native-purchases-ui': { __esModule: true, default: { presentCustomerCenter } },
     '../../src/ui/SafeScreen': { SafeScreen: 'SafeScreen' },
     '../../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
     '../../src/ui/theme': load('src/ui/theme.ts', {}),
@@ -53,7 +54,7 @@ function profileScreen(proEnabled, scan = { scansUsed: 0, isPro: false, getRemai
     '../../src/services/entitlements': { proEnabled: () => proEnabled },
     '../../src/config/support-links': { openSupport: jest.fn() },
   }).default;
-  return { tree: Profile(), push };
+  return { tree: Profile(), push, presentCustomerCenter };
 }
 describe('profile.tsx Pro affordances', () => {
   test('flag ON renders plan badge, scan-usage card and the Pro upgrade block', () => {
@@ -68,6 +69,21 @@ describe('profile.tsx Pro affordances', () => {
     expect(text(tree)).not.toContain('Scorecard Scans');
     expect(text(tree)).not.toContain('Upgrade to SnapScore Pro');
     expect(text(tree)).not.toContain('free scans left');
+  });
+  test.each(['pro', 'td'])('flag OFF keeps Manage Subscription for an active %s entitlement', async tier => {
+    // RevenueCat customer info maps either raw active entitlement to a non-free scan-store tier.
+    const { tree, presentCustomerCenter } = profileScreen(false, {
+      scansUsed: 0, isPro: true, tier, getRemainingFreeScans: () => 0,
+    });
+    const manage = nodes(tree).find(n => n.type === 'Pressable' && text(n).includes('Manage Subscription'));
+    expect(manage).toBeDefined();
+    await manage.props.onPress();
+    expect(presentCustomerCenter).toHaveBeenCalledTimes(1);
+  });
+  test('flag OFF with no active entitlement does not render subscription management or upsell', () => {
+    const { tree } = profileScreen(false);
+    expect(text(tree)).not.toContain('Manage Subscription');
+    expect(text(tree)).not.toContain('Upgrade to SnapScore Pro');
   });
   test('flag OFF leaves no control that routes to the Pro /paywall', () => {
     const { tree, push } = profileScreen(false);
