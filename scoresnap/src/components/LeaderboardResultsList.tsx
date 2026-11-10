@@ -89,12 +89,12 @@ export function LeaderboardResultsList({
       flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8,
       height: 28, borderBottomWidth: 1, borderBottomColor: COLORS.outline,
     }}>
-      <Text style={{ width: 30, fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>POS</Text>
-      <Text style={{ flex: 1, fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>PLAYER</Text>
-      <Text style={{ width: 44, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>TO PAR</Text>
-      <Text style={{ width: 58, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>THRU</Text>
-      <Text style={{ width: 30, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>R1</Text>
-      <Text style={{ width: 44, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>TODAY</Text>
+      <Text testID="leaderboard-column-header-pos" style={{ width: 30, fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>POS</Text>
+      <Text testID="leaderboard-column-header-player" style={{ flex: 1, fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>PLAYER</Text>
+      <Text testID="leaderboard-column-header-topar" style={{ width: 44, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>TO PAR</Text>
+      <Text testID="leaderboard-column-header-thru" style={{ width: 58, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>THRU</Text>
+      <Text testID="leaderboard-column-header-r1" style={{ width: 30, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>R1</Text>
+      <Text testID="leaderboard-column-header-today" style={{ width: 44, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>TODAY</Text>
     </View>
   ) : null;
   return (
@@ -151,7 +151,7 @@ export function LeaderboardResultsList({
             >
               {rowHasRoundColumns ? (
                 <>
-                  <Text style={{ width: 30, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textDim }}>
+                  <Text testID={`leaderboard-pos-${r.playerId}`} style={{ width: 30, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textDim }}>
                     {rankLabel}
                   </Text>
                   <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -160,7 +160,7 @@ export function LeaderboardResultsList({
                         You
                       </Text>
                     )}
-                    <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: isYou ? FONTS.semibold : FONTS.regular, fontSize: 14, color: COLORS.text }}>
+                    <Text testID={`leaderboard-name-${r.playerId}`} numberOfLines={1} style={{ flexShrink: 1, fontFamily: isYou ? FONTS.semibold : FONTS.regular, fontSize: 14, color: COLORS.text }}>
                       {isYou ? `— ${r.name}` : r.name}
                     </Text>
                   </View>
