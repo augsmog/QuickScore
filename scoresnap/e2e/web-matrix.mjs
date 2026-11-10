@@ -174,7 +174,12 @@ try {
         assert.deepEqual(contest.groups.flatMap(g=>g.players).map(p=>p.scores),scores);
         for (const [i,name] of names.entries()) {
           assert.equal(await page.getByTestId(`leaderboard-total-${name}`).innerText(),String(scores[i].reduce((a,b)=>a+b,0)));
-          assert.match(await page.getByTestId(`leaderboard-player-${name}`).innerText(),new RegExp(`thru ${flow.holes}\\b`));
+          // AUG-253k: the cell now renders THRU from the leaderboard row model —
+          // `F` once every course hole is scored (a finished round), otherwise the
+          // played-hole count. A full-field 18-hole flow is finished, so expect
+          // `thru F`; a partial flow (fewer holes than the card) still shows the count.
+          const expectedThru = flow.holes >= contest.course.holes.length ? 'F' : String(flow.holes);
+          assert.match(await page.getByTestId(`leaderboard-player-${name}`).innerText(),new RegExp(`thru ${expectedThru}\\b`));
         }
         await page.screenshot({path:path.join(OUT,`${flow.id}-leaderboard.png`)});
         stage = 'settlement';
