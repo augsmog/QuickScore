@@ -21,6 +21,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import { useScanStore } from "../../src/stores/scan-store";
+import { proEnabled } from "../../src/services/entitlements";
 import { scanScorecard } from "../../src/services/ocr-service";
 import { webAnalytics } from "../../src/services/analytics";
 
@@ -72,7 +73,10 @@ export default function ScanScreen() {
     if (!cameraRef.current) return;
 
     if (!canScan()) {
-      setPhase("paywall");
+      // AUG-826: never route to the Pro paywall while pro_enabled is off. Scans are
+      // unlimited then (scanAllowance resolves to td), so canScan() is always true and
+      // this branch is unreachable; the guard keeps it provably unreachable for Pro.
+      if (proEnabled()) setPhase("paywall");
       return;
     }
 
@@ -519,8 +523,8 @@ export default function ScanScreen() {
               harsh glare.
             </Text>
 
-            {/* Free scan badge */}
-            {!isPro && (
+            {/* Free scan badge — AUG-826: hidden while pro_enabled is off (scans are unlimited then). */}
+            {proEnabled() && !isPro && (
               <View
                 style={{
                   backgroundColor:
