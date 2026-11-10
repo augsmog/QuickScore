@@ -97,13 +97,16 @@ test.each(['free', 'pro', 'td'])('Manage plan renders the shipped %s name and pr
 
 // AUG-826: when pro_enabled is off, the Manage plan row (its only route to the Pro paywall) is
 // gone, but Restore purchases stays so a returning TD/Pro buyer can still recover entitlements.
-test.each(['free', 'pro', 'td'])('pro_enabled off hides Manage plan for %s but keeps Restore purchases', tier => {
+test.each(['free', 'pro', 'td'])('pro_enabled off hides Manage plan for %s but keeps Restore purchases', async tier => {
   const store = scanStore();
   store.getState().setTier(tier);
   const screen = settingsScreen(store, false);
   const tree = screen.render();
   expect(planRow(tree)).toBeUndefined();
-  expect(nodes(tree).some(node => text(node) === 'Restore purchases')).toBe(true);
+  const restore = nodes(tree).find(node => node.props?.accessibilityLabel === 'Restore purchases');
+  expect(restore).toBeDefined();
+  await restore.props.onPress();
+  expect(screen.restore).toHaveBeenCalledTimes(1);
 });
 
 test('same screen follows upgrades, TD-to-Pro changes and expiry without altering store state', () => {
