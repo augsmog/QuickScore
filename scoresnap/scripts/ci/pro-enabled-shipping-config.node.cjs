@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
-const scoresnap = path.resolve(__dirname, '..');
+const scoresnap = path.resolve(__dirname, '../..');
 const root = path.resolve(scoresnap, '..');
 const flag = 'EXPO_PUBLIC_PRO_ENABLED';
 const allowedFlagOnWorkflows = [
