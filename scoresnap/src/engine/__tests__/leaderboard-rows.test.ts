@@ -848,6 +848,132 @@ describe("buildLeaderboardRows — group membership edges (AUG-253r)", () => {
   });
 });
 
+// AUG-253t: seeded-fixture rank/tie/label invariants for buildLeaderboardRows.
+// The AUG-253o-s children pin hand-written cases; this block adds a deterministic,
+// seeded property check across hundreds of random field shapes so the rank/tie/
+// label contract cannot regress unnoticed when later UI work (AUG-747, AUG-736)
+// lands. Pure model only — no UI, no new dependency (no fast-check), and no
+// unseeded randomness: a fixed mulberry32 PRNG drives every field and the seed is
+// printed on any failure so it reproduces exactly. The invariants asserted hold
+// ONLY for the documented precondition (AUG-806): results passed sorted by total
+// ascending, which `makeField` guarantees.
+describe("buildLeaderboardRows seeded rank/tie/label invariants (AUG-253t)", () => {
+  // mulberry32: a tiny deterministic 32-bit PRNG. Same seed → same sequence, so
+  // every field below is reproducible without Math.random or a new dependency.
+  function mulberry32(seed: number): () => number {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Build one field for `seed`: 1..120 players, totals drawn from a small range
+  // (-10..19) so duplicate totals and negative totals both appear, then sorted by
+  // total ascending — the precondition buildLeaderboardRows documents (AUG-806).
+  // playerIds are unique, so the row model must emit exactly one row per input.
+  function makeField(seed: number): StrokePlayResult[] {
+    const rng = mulberry32(seed);
+    const n = 1 + Math.floor(rng() * 120); // 1..120 players
+    const results: StrokePlayResult[] = [];
+    for (let i = 0; i < n; i++) {
+      const total = Math.floor(rng() * 30) - 10; // -10..19 → forces ties + negatives
+      results.push({ playerId: `p${i}`, name: `Player ${i}`, front: 0, back: 0, total, toPar: total - 72 });
+    }
+    results.sort((a, b) => a.total - b.total); // documented sorted-ascending input
+    return results;
+  }
+
+  // Deterministically pick a player id from a field to drive the you-pin check,
+  // keyed off the seed so it varies per field but is still reproducible.
+  function pickYou(seed: number, results: StrokePlayResult[]): string {
+    const idx = Math.floor(mulberry32(seed ^ 0x9e3779b9)() * results.length);
+    return results[idx].playerId;
+  }
+
+  function fail(seed: number, msg: string): never {
+    throw new Error(`invariant failed (reproduce with seed=${seed}): ${msg}`);
+  }
+
+  test(">=200 seeded fields satisfy the rank / tie / rankLabel / pin invariants", () => {
+    const SEED_COUNT = 250; // >= 200 fields (AC)
+    let sawDuplicateTotal = false;
+    let sawNegativeTotal = false;
+    let sawField120OrNear = 0;
+
+    for (let seed = 1; seed <= SEED_COUNT; seed++) {
+      const results = makeField(seed);
+      const rows = buildLeaderboardRows(results, [], { holeCount: 18 });
+
+      // Row count equals the unique-input count: no phantom, no dropped rows.
+      if (rows.length !== results.length) {
+        fail(seed, `row count ${rows.length} != input count ${results.length}`);
+      }
+
+      const totalCounts = new Map<number, number>();
+      for (const r of results) totalCounts.set(r.total, (totalCounts.get(r.total) ?? 0) + 1);
+      if ([...totalCounts.values()].some((c) => c > 1)) sawDuplicateTotal = true;
+      if (results.some((r) => r.total < 0)) sawNegativeTotal = true;
+      if (results.length >= 100) sawField120OrNear++;
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        // rows preserve the sorted input order, so rows[i].total === results[i].total.
+        // Ranks are non-decreasing down the board.
+        if (i > 0 && row.rank < rows[i - 1].rank) {
+          fail(seed, `rank decreased at row ${i}: ${rows[i - 1].rank} -> ${row.rank}`);
+        }
+        // Competition rank: 1 + the number of players with a strictly lower total.
+        const strictlyLower = results.reduce((acc, r) => acc + (r.total < row.total ? 1 : 0), 0);
+        if (row.rank !== strictlyLower + 1) {
+          fail(seed, `row ${i} (total ${row.total}) rank ${row.rank} != ${strictlyLower + 1} (1 + strictly-lower)`);
+        }
+        // `tied` is true iff another row shares this total.
+        const sameTotal = totalCounts.get(row.total) ?? 0;
+        const expectTied = sameTotal > 1;
+        if (row.tied !== expectTied) {
+          fail(seed, `row ${i} (total ${row.total}) tied ${row.tied} != ${expectTied}`);
+        }
+        // `rankLabel` is `T<rank>` iff tied, else `<rank>`.
+        const expectLabel = expectTied ? `T${row.rank}` : `${row.rank}`;
+        if (row.rankLabel !== expectLabel) {
+          fail(seed, `row ${i} rankLabel "${row.rankLabel}" != "${expectLabel}"`);
+        }
+      }
+
+      // Pinned-You invariant: pinning a player floats them to row 0 with the SAME
+      // rank, tied and rankLabel as that player's row in the unpinned call.
+      const youPlayerId = pickYou(seed, results);
+      const unpinned = rows.find((r) => r.playerId === youPlayerId);
+      if (!unpinned) fail(seed, `picked youPlayerId ${youPlayerId} missing from unpinned rows`);
+      const pinned = buildLeaderboardRows(results, [], { holeCount: 18, youPlayerId });
+      const you = pinned[0];
+      if (you.playerId !== youPlayerId || you.isYou !== true) {
+        fail(seed, `pinned row 0 is ${you.playerId} (isYou=${you.isYou}), expected pinned ${youPlayerId}`);
+      }
+      if (you.rank !== unpinned!.rank || you.tied !== unpinned!.tied || you.rankLabel !== unpinned!.rankLabel) {
+        fail(
+          seed,
+          `pinned ${youPlayerId} {rank:${you.rank},tied:${you.tied},label:${you.rankLabel}} != unpinned ` +
+            `{rank:${unpinned!.rank},tied:${unpinned!.tied},label:${unpinned!.rankLabel}}`,
+        );
+      }
+      // Pinning does not drop or duplicate rows.
+      if (pinned.length !== rows.length) {
+        fail(seed, `pinned length ${pinned.length} != unpinned ${rows.length}`);
+      }
+    }
+
+    // The fixture actually exercised the shapes the AC calls for.
+    expect(sawDuplicateTotal).toBe(true);
+    expect(sawNegativeTotal).toBe(true);
+    expect(sawField120OrNear).toBeGreaterThan(0);
+  });
+});
+
 // AUG-253o: query × groupId × youPlayerId compose-filter matrix (parent AUG-253,
 // root AUG-498 SS-NEXT). Proves that the three view filters compose in EVERY one
 // of the eight cartesian combinations on a 72-player field without ever
