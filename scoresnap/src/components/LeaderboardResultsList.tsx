@@ -17,7 +17,10 @@ type LeaderboardResultsListProps = {
    * instead of renumbering 1..n over the visible rows. When omitted, the rank is
    * derived from `results` (unchanged legacy behavior for unfiltered callers).
    */
-  rankByPlayerId?: Map<string, { rankLabel: string; tied: boolean; isYou?: boolean }>;
+  rankByPlayerId?: Map<
+    string,
+    { rankLabel: string; tied: boolean; thru?: "F" | number | null; isYou?: boolean }
+  >;
   /** All players in the current view, used to resolve holes played. */
   allPlayers: Player[];
   /** Players whose recent-form strokes drive the last-3-holes strip. */
@@ -36,6 +39,33 @@ type LeaderboardResultsListProps = {
  * is unchanged — chip par comes from the contest course, not the active round course.
  * FlashList 2.0.2 (MIT) auto-measures row height, so no fixed height is set.
  */
+/**
+ * AUG-253k: THRU readout for a leaderboard cell, from the row model's `thru`
+ * (`buildLeaderboardRows`): `"F"` when the player has finished, the hole count
+ * mid-round, and an em-dash when they have not started (`null`/absent). Kept as
+ * a tiny pure helper so the cell never recomputes holes-played itself.
+ */
+export function formatThru(thru: "F" | number | null | undefined): string {
+  if (thru === "F") return "F";
+  if (typeof thru === "number") return String(thru);
+  return "—";
+}
+
+// Fallback THRU for a caller that supplies ranks without `thru` (e.g. older
+// tests) or no rank map at all. Mirrors `buildLeaderboardRows`' `computeThru`:
+// "F" when every course hole has a score, the played-hole count when partial,
+// and null when none are played.
+function deriveThru(player: Player | undefined, holeCount: number): "F" | number | null {
+  if (!player || holeCount <= 0) return null;
+  let played = 0;
+  for (let i = 0; i < holeCount; i++) {
+    if ((player.scores[i] ?? 0) > 0) played++;
+  }
+  if (played === 0) return null;
+  if (played >= holeCount) return "F";
+  return played;
+}
+
 export function LeaderboardResultsList({
   results,
   rankByPlayerId,
@@ -45,6 +75,41 @@ export function LeaderboardResultsList({
   ListHeaderComponent,
   ListFooterComponent,
 }: LeaderboardResultsListProps) {
+  const holeCount = contest.course.holes.length;
+  // AUG-253k: when the screen does not pass a row-model rank map, build the
+  // field rank + THRU once in a single O(n) pass here, so renderItem never runs
+  // the old per-row `results.findIndex`/`results.filter` recompute (O(n^2) over
+  // a 72+ player field). Ranks follow competition rules (ties share the first
+  // position, the next distinct total skips): 1, 2, 2, 4.
+  const fallbackRanks = rankByPlayerId
+    ? null
+    : (() => {
+        const playerById = new Map<string, Player>();
+        for (const p of allPlayers) playerById.set(p.id, p);
+        const countByTotal = new Map<number, number>();
+        for (const x of results) countByTotal.set(x.total, (countByTotal.get(x.total) ?? 0) + 1);
+        const byId = new Map<
+          string,
+          { rankLabel: string; tied: boolean; thru: "F" | number | null; isYou: boolean }
+        >();
+        let prevTotal: number | undefined;
+        let prevRank = 0;
+        for (let i = 0; i < results.length; i++) {
+          const x = results[i];
+          const rank = i > 0 && x.total === prevTotal ? prevRank : i + 1;
+          prevTotal = x.total;
+          prevRank = rank;
+          const tied = (countByTotal.get(x.total) ?? 0) > 1;
+          const player = playerById.get(x.playerId);
+          byId.set(x.playerId, {
+            rankLabel: tied ? `T${rank}` : `${rank}`,
+            tied,
+            thru: deriveThru(player, holeCount),
+            isYou: false,
+          });
+        }
+        return byId;
+      })();
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <FlashList
@@ -56,25 +121,21 @@ export function LeaderboardResultsList({
         ListFooterComponent={ListFooterComponent}
         renderItem={({ item: r, index: i }) => {
           const player = allPlayers.find((p) => p.id === r.playerId);
-          const holesPlayed = player
-            ? player.scores.filter((s) => s > 0).length
-            : 0;
 
-          // Prefer the precomputed field rank (survives search filtering); fall back to
-          // the legacy inline computation over `results` when no lookup is supplied.
-          const ranked = rankByPlayerId?.get(r.playerId);
+          // AUG-253k: consume the row model (rankLabel + THRU) instead of
+          // recomputing per row. The screen's rank map wins; otherwise the
+          // single-pass `fallbackRanks` built above supplies the same values.
+          const ranked = rankByPlayerId?.get(r.playerId) ?? fallbackRanks?.get(r.playerId);
           // AUG-253j: pinned "You" row. The row model (buildLeaderboardRows + youPlayerId)
           // already moved this row to the front and flagged it; the field rank label below
           // is still the player's real competition rank, so the chip marks "you" without
           // implying you lead. Absent (production default) → no chip, unchanged rows.
           const isYou = ranked?.isYou === true;
-          const fallbackRank = results.findIndex((result) => result.total === r.total) + 1;
-          const fallbackTied = results.filter((result) => result.total === r.total).length > 1;
-          const rankLabel = ranked
-            ? ranked.rankLabel
-            : fallbackTied
-              ? `T${fallbackRank}`
-              : `${fallbackRank}`;
+          const rankLabel = ranked?.rankLabel ?? "";
+          // THRU from the row model; if a caller passes ranks without `thru`,
+          // derive it from the player's scores (same contract as computeThru).
+          const thru =
+            ranked && ranked.thru !== undefined ? ranked.thru : deriveThru(player, holeCount);
           const recentScores = recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [];
           // Par source is the contest course per AUG-620 brief item 8 (contest.course.holes[i].par),
           // not the active-round course; chip pars stay stable regardless of tournament round.
@@ -93,7 +154,10 @@ export function LeaderboardResultsList({
                 gap: 12,
               }}
             >
-              <Text style={{ width: 28, fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
+              <Text
+                testID={`leaderboard-rank-${r.name}`}
+                style={{ width: 28, fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}
+              >
                 {rankLabel}
               </Text>
 
@@ -147,7 +211,8 @@ export function LeaderboardResultsList({
                   )}
                 </View>
                 <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>
-                  Total <Text testID={`leaderboard-total-${r.name}`}>{r.total}</Text> · thru {holesPlayed}
+                  Total <Text testID={`leaderboard-total-${r.name}`}>{r.total}</Text> · thru{" "}
+                  <Text testID={`leaderboard-thru-${r.name}`}>{formatThru(thru)}</Text>
                 </Text>
               </View>
 

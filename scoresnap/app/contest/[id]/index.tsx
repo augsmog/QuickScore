@@ -245,7 +245,13 @@ export default function LeaderboardScreen() {
     youPlayerId,
   });
   const rankByPlayerId = new Map(
-    searchedRows.map((r) => [r.playerId, { rankLabel: r.rankLabel, tied: r.tied, isYou: r.isYou === true }]),
+    searchedRows.map((r) => [
+      r.playerId,
+      // AUG-253k: carry the row model's THRU alongside the field rank so the
+      // FlashList cell renders `row.thru` (F / hole count / em-dash) instead of
+      // recomputing holes-played locally.
+      { rankLabel: r.rankLabel, tied: r.tied, thru: r.thru, isYou: r.isYou === true },
+    ]),
   );
   // Render order follows searchedRows so the pinned You row shows first; when youPlayerId
   // is unset and the query is empty this is exactly individualResults (unchanged order).
