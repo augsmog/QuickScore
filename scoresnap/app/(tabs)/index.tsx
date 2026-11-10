@@ -2,7 +2,7 @@ import { showAlert } from "@/services/platform-alert";
 import { SheetSurface, FullScreenSheet, SafeScreen } from "../../src/ui/SafeScreen";
 import { GAME_MODE_LIBRARY } from "../../src/engine/game-mode-library";
 import { useScanStore } from "../../src/stores/scan-store";
-import { canUseGame, defaultRoundGames } from "../../src/services/entitlements";
+import { canUseGame, defaultRoundGames, proEnabled } from "../../src/services/entitlements";
 import { GAME_SHEET_STYLE } from "../../src/ui/gameSheetStyle";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
 import { localDate } from "../../src/utils/local-date";
@@ -778,7 +778,7 @@ export default function HomeScreen() {
                 <AnimatedPressable
                   onPress={() => {
                     setSelectedGame(null);
-                    if (!canUseGame(selectedGame.id, tier)) { router.push("/paywall"); return; }
+                    if (proEnabled() && !canUseGame(selectedGame.id, tier)) { router.push("/paywall"); return; }
                     router.push("/contest/new");
                   }}
                   style={{
@@ -804,7 +804,7 @@ export default function HomeScreen() {
                         fontSize: 15,
                       }}
                     >
-                      {!canUseGame(selectedGame.id, tier) ? "Try Pro with" : "Play"} {selectedGame.name}
+                      {proEnabled() && !canUseGame(selectedGame.id, tier) ? "Try Pro with" : "Play"} {selectedGame.name}
                     </Text>
                   </LinearGradient>
                 </AnimatedPressable>

@@ -23,6 +23,7 @@ import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../src/ui/theme";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 import { useContestStore, Contest } from "../../src/stores/contest-store";
 import { useScanStore } from "../../src/stores/scan-store";
+import { proEnabled } from "../../src/services/entitlements";
 import { useAuthStore } from "../../src/stores/auth-store";
 import { restorePurchases, getCustomerInfo } from "../../src/services/purchases";
 import { openSupport } from "../../src/config/support-links";
@@ -114,6 +115,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const contests = useContestStore((s) => s.contests);
   const { scansUsed, isPro, getRemainingFreeScans } = useScanStore();
+  const proIsEnabled = proEnabled();
   const authUser = useAuthStore((s) => s.user);
   const freeRemaining = getRemainingFreeScans();
   const [showingCustomerCenter, setShowingCustomerCenter] = useState(false);
@@ -172,9 +174,11 @@ export default function ProfileScreen() {
               <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text }}>{displayName}</Text>
             )}
             <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>Member since {memberYear}</Text>
-            <View testID="profile-plan-badge" accessibilityLabel={`Plan: ${isPro ? "Pro" : "Free"}`} style={{ alignSelf: "flex-start", borderRadius: RADII.full, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: isPro ? COLORS.primary : COLORS.outline, backgroundColor: COLORS.surface }}>
-              <Text style={{ fontFamily: FONTS.semibold, fontSize: 12, color: isPro ? COLORS.primary : COLORS.textDim }}>{isPro ? "Pro" : "Free"}</Text>
-            </View>
+            {proIsEnabled && (
+              <View testID="profile-plan-badge" accessibilityLabel={`Plan: ${isPro ? "Pro" : "Free"}`} style={{ alignSelf: "flex-start", borderRadius: RADII.full, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: isPro ? COLORS.primary : COLORS.outline, backgroundColor: COLORS.surface }}>
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 12, color: isPro ? COLORS.primary : COLORS.textDim }}>{isPro ? "Pro" : "Free"}</Text>
+              </View>
+            )}
           </View>
           <AnimatedPressable
             onPress={() => router.push("/settings")}
@@ -263,15 +267,15 @@ export default function ProfileScreen() {
             <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
               Scorecard Scans
             </Text>
-            <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
+            {proIsEnabled && <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
               {isPro
                 ? "Unlimited scans (Pro)"
                 : freeRemaining > 0
                 ? `${freeRemaining} of 3 free scans left this month`
                 : "0 of 3 free scans left this month · Manual entry available"}
-            </Text>
+            </Text>}
           </View>
-          {!isPro && freeRemaining === 0 && (
+          {proIsEnabled && !isPro && freeRemaining === 0 && (
             <AnimatedPressable
               onPress={() => router.push("/paywall")}
               style={{
@@ -486,7 +490,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ========== PRO UPGRADE / MANAGE SUBSCRIPTION ========== */}
-        {isPro ? (
+        {proIsEnabled && (isPro ? (
           <AnimatedPressable
             onPress={handleManageSubscription}
             style={{
@@ -558,7 +562,7 @@ export default function ProfileScreen() {
               ))}
             </View>
           </AnimatedPressable>
-        )}
+        ))}
 
         {/* ========== SETTINGS LINKS ========== */}
         {[
