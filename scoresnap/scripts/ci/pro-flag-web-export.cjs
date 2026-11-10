@@ -40,7 +40,7 @@ test('web exports bake opposite Pro flag values into their bundles', () => {
 
 test('workflow keeps exports, output directories, and Metro caches isolated', () => {
   const workflow = fs.readFileSync(path.resolve(root, '../.github/workflows/web-smoke.yml'), 'utf8');
-  assert.match(workflow, /EXPO_PUBLIC_PRO_ENABLED=false TMPDIR=.*metro-cache-pro-off[\s\S]*?--output-dir dist-web-pro-off --clear/);
-  assert.match(workflow, /EXPO_PUBLIC_PRO_ENABLED=true TMPDIR=.*metro-cache-pro-on[\s\S]*?--output-dir dist-web-pro-on --clear/);
+  assert.match(workflow, /EXPO_PUBLIC_PRO_ENABLED=false EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR=.*metro-cache-pro-off[\s\S]*?--output-dir dist-web-pro-off --clear/);
+  assert.match(workflow, /EXPO_PUBLIC_PRO_ENABLED=true EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR=.*metro-cache-pro-on[\s\S]*?--output-dir dist-web-pro-on --clear/);
   assert.match(workflow, /node --test scripts\/ci\/pro-flag-web-export\.cjs/);
 });
