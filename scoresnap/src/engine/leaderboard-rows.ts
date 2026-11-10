@@ -115,8 +115,10 @@ export interface BuildLeaderboardRowsOptions {
 }
 
 /**
- * Build leaderboard rows from `calcStrokePlay(...)` output (already sorted by
- * `total` ascending). Ranks and tie flags are computed in a single linear pass
+ * Build leaderboard rows from `calcStrokePlay(...)` output. Callers must pass
+ * results sorted by `total` ascending: ranks use adjacent totals while tie
+ * flags count globally, so unsorted input can produce inconsistent labels.
+ * Ranks and tie flags are computed in a single linear pass
  * over the full result set BEFORE any filtering, so a searched or group-scoped
  * view still shows each player's real field rank. Pass net rows (total/toPar
  * already carrying net values, as `buildLeaderboard` produces) to rank net.
