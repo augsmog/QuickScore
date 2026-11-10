@@ -492,7 +492,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ========== PRO UPGRADE / MANAGE SUBSCRIPTION (AUG-826: Pro subscription affordance; hidden while pro_enabled is off) ========== */}
-        {proEnabled() && (isPro ? (
+        {(proEnabled() || isPro) && (isPro ? (
           <AnimatedPressable
             onPress={handleManageSubscription}
             style={{
