@@ -1,7 +1,11 @@
 const fs=require('fs'),ts=require('typescript');
 const read=p=>fs.readFileSync(p,'utf8');
 function load(p,deps={}) {const m={exports:{}};new Function('require','module','exports',ts.transpileModule(read(p),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(id==='@/services/platform-alert')return {showAlert:(...args)=>deps['react-native']?.Alert?.alert?.(...args)};if(id.endsWith('/ui/SafeScreen'))return {SafeScreen:'SafeAreaView',SheetSurface:'View',FullScreenSheet:'Modal'};if(id in deps)return deps[id];throw Error(id)},m,m.exports);return m.exports;}
-const entitlement=()=>load('src/services/entitlements.ts');
+// AUG-817: this suite encodes the Pro-enabled product contract (free is gated, 3-scan cap, hosting
+// shape gates). Pin the reversible pro_enabled flag ON (setProEnabled) on every freshly-loaded
+// entitlements module so it keeps passing when the shipped default is OFF; the flag-off direction
+// lives in tests/pro-enabled-flag.test.cjs. The same instance is passed to the scan-store below.
+const entitlement=()=>{const e=load('src/services/entitlements.ts');e.setProEnabled(true);return e;};
 test('1 TD implies Pro, active entitlements only',()=>{const e=entitlement();expect(e.tierFromCustomerInfo({entitlements:{active:{'SnapScore TD':{}}}})).toBe('td');expect(e.tierFromCustomerInfo({entitlements:{active:{'SnapScore Pro':{}}}})).toBe('pro');expect(e.tierFromCustomerInfo({entitlements:{active:{}}})).toBe('free');});
 test('2 exactly four free games; premium addition gates preserve saved scores',()=>{const e=entitlement();expect(e.FREE_GAMES).toEqual(['stroke_play','match_play','stableford','best_ball']);for(const id of e.FREE_GAMES)expect(e.canUseGame(id,'free')).toBe(true);expect(e.canUseGame('skins','free')).toBe(false);expect(e.canUseGame('skins','pro')).toBe(true);for(const p of ['app/contest/[id]/edit.tsx','app/(tabs)/index.tsx'])expect(read(p)).toContain('canUseGame');expect(read('app/contest/[id]/games.tsx')).toContain('Add games');});
 test('3 settlement and stats gated',()=>{const e=entitlement();expect(e.canSeeSettlement('free')).toBe(false);expect(e.canSeeStats('td')).toBe(true);expect(read('app/statistics.tsx')).toContain('PaywallTeaser');expect(read('app/contest/[id]/settlement.tsx')).toMatch(/canSeeSettlement\(tier\)\)\s*return <SettlementScreenContent \/>/);});

@@ -26,6 +26,9 @@ import { ErrorBoundary } from "../src/ui/ErrorBoundary";
 import { useOnboardingStore } from "../src/stores/onboarding-store";
 import { useAuthStore } from "../src/stores/auth-store";
 import { initPurchases } from "../src/services/purchases";
+// AUG-817: establish the reversible pro_enabled flag from its build-time source at startup,
+// before any gating runs. Default false keeps SnapScore Pro dormant / all features free.
+import "../src/config/pro-membership";
 import { COLORS } from "../src/ui/theme";
 import "../global.css";
 import * as Sentry from '@sentry/react-native';
