@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '../..');
 
 function jsBundleText(directory) {
   const absolute = path.join(root, directory);
@@ -42,5 +42,5 @@ test('workflow keeps exports, output directories, and Metro caches isolated', ()
   const workflow = fs.readFileSync(path.resolve(root, '../.github/workflows/web-smoke.yml'), 'utf8');
   assert.match(workflow, /EXPO_PUBLIC_PRO_ENABLED=false TMPDIR=.*metro-cache-pro-off[\s\S]*?--output-dir dist-web-pro-off --clear/);
   assert.match(workflow, /EXPO_PUBLIC_PRO_ENABLED=true TMPDIR=.*metro-cache-pro-on[\s\S]*?--output-dir dist-web-pro-on --clear/);
-  assert.match(workflow, /node --test tests\/pro-flag-web-export\.test\.cjs/);
+  assert.match(workflow, /node --test scripts\/ci\/pro-flag-web-export\.cjs/);
 });

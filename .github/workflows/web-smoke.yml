@@ -46,7 +46,7 @@ jobs:
           EXPO_PUBLIC_PRO_ENABLED=true TMPDIR="$RUNNER_TEMP/metro-cache-pro-on" \
             npx expo export --platform web --output-dir dist-web-pro-on --clear
       - name: Verify Pro flag is baked into both exports
-        run: node --test tests/pro-flag-web-export.test.cjs
+        run: node --test scripts/ci/pro-flag-web-export.cjs
       - run: node --test e2e/usability-gate.test.mjs scripts/ci/web-pipeline.test.mjs
       - run: npm test -- --runInBand
       - name: Build and identify standard offline app
