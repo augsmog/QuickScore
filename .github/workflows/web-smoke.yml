@@ -17,6 +17,12 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 permissions:
   contents: read
+env:
+  # AUG-817: the web-smoke journeys (e2e/journeys/runner.mjs, etc.) assert the Pro-enabled product
+  # contract (free paywall/settle gates). Build with the reversible pro_enabled flag ON so they
+  # reproduce pre-flag (main) behavior. Shipped flag-off behavior (Pro dormant / features free) is
+  # covered by the unit dual-run suite (tests/pro-enabled-flag.test.cjs) and device-evidence AUG-825.
+  EXPO_PUBLIC_PRO_ENABLED: 'true'
 jobs:
   build-standard:
     runs-on: ubuntu-latest
