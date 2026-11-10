@@ -21,6 +21,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import { useScanStore } from "../../src/stores/scan-store";
+import { proEnabled } from "../../src/services/entitlements";
 import { scanScorecard } from "../../src/services/ocr-service";
 import { webAnalytics } from "../../src/services/analytics";
 
@@ -67,11 +68,12 @@ export default function ScanScreen() {
   const insets = useSafeAreaInsets();
   const { canScan, getRemainingFreeScans, isPro } =
     useScanStore();
+  const proIsEnabled = proEnabled();
 
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current) return;
 
-    if (!canScan()) {
+    if (!canScan() && proEnabled()) {
       setPhase("paywall");
       return;
     }
@@ -520,7 +522,7 @@ export default function ScanScreen() {
             </Text>
 
             {/* Free scan badge */}
-            {!isPro && (
+            {proIsEnabled && !isPro && (
               <View
                 style={{
                   backgroundColor:
@@ -936,7 +938,7 @@ export default function ScanScreen() {
       )}
 
       {/* Paywall State */}
-      {phase === "paywall" && (
+      {proIsEnabled && phase === "paywall" && (
         <View
           style={{
             flex: 1,

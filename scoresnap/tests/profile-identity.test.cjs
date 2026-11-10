@@ -13,7 +13,7 @@ function load(path, dependencies) {
   }, module, module.exports, false);
   return module.exports;
 }
-function screen(user, isAnonymous = false) {
+function screen(user, isAnonymous = false, proIsEnabled = true, freeRemaining = 3) {
   const state = { user, isAnonymous };
   const push = jest.fn(), support = jest.fn();
   const jsx = (type, props) => ({ type, props });
@@ -32,7 +32,8 @@ function screen(user, isAnonymous = false) {
     '../../src/ui/copy': { signedRoundAmount: jest.fn() },
     '../../src/engine/contest-results': { calculateContestSettlement: jest.fn() },
     '../../src/stores/contest-store': { useContestStore: select => select({ contests: [] }) },
-    '../../src/stores/scan-store': { useScanStore: () => ({ scansUsed: 0, isPro: false, getRemainingFreeScans: () => 3 }) },
+    '../../src/stores/scan-store': { useScanStore: () => ({ scansUsed: 0, isPro: false, getRemainingFreeScans: () => freeRemaining }) },
+    '../../src/services/entitlements': { proEnabled: () => proIsEnabled },
     '../../src/stores/auth-store': { useAuthStore: select => select(state) },
     '../../src/services/purchases': {},
     '../../src/config/support-links': { openSupport: support },
@@ -44,6 +45,20 @@ const nodes = node => !node || typeof node !== 'object' ? [] : Array.isArray(nod
 const text = node => node == null || typeof node === 'boolean' ? '' : typeof node !== 'object'
   ? String(node) : Array.isArray(node) ? node.map(text).join('') : text(node.props?.children);
 const control = (tree, label) => nodes(tree).find(n => n.type === 'Pressable' && ((label === 'Settings' && n.props.testID === 'profile-settings-gear') || n.props.accessibilityLabel === label || text(n) === label));
+
+test.each([false, true])('Pro profile affordances follow the flag (%s)', proIsEnabled => {
+  const s = screen({ id: 'local', name: 'Avery Jones' }, false, proIsEnabled, 0);
+  const tree = s.render();
+  if (proIsEnabled) {
+    expect(nodes(tree).find(n => n.props?.testID === 'profile-plan-badge')).toBeDefined();
+    expect(text(tree)).toContain('0 of 3 free scans left this month');
+    expect(text(tree)).toContain('Upgrade to SnapScore Pro');
+  } else {
+    expect(nodes(tree).find(n => n.props?.testID === 'profile-plan-badge')).toBeUndefined();
+    expect(text(tree)).not.toMatch(/\d of 3 free scans left|Upgrade to SnapScore Pro/);
+    expect(nodes(tree).filter(n => n.type === 'Pressable').some(n => n.props?.onPress && String(n.props.onPress).includes('/paywall'))).toBe(false);
+  }
+});
 
 describe.each([false, true])('identity with anonymous=%s', anonymous => {
   test.each([undefined, '', '   ', 'Golfer', ' Golfer '])('no unfulfillable action for name %p', name => {

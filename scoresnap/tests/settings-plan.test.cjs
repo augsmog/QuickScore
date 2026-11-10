@@ -31,7 +31,9 @@ function scanStore(saved) {
   }).useScanStore;
 }
 
-function settingsScreen(store) {
+function settingsScreen(store, proIsEnabled = true) {
+  const entitlements = load('src/services/entitlements.ts');
+  entitlements.setProEnabled(proIsEnabled);
   const push = jest.fn(), back = jest.fn(), restore = jest.fn(async () => true);
   const states = [];
   let cursor = 0;
@@ -57,6 +59,7 @@ function settingsScreen(store) {
     '../src/ui/theme': load('src/ui/theme.ts'),
     '../src/ui/paywall-copy': { PAYWALL_COPY: C },
     '../src/stores/scan-store': { useScanStore: selector => selector(store.getState()) },
+    '../src/services/entitlements': entitlements,
     '../src/stores/settings-store': { useSettingsStore: () => ({ scoreFormat: 'gross', defaultTee: 'white' }) },
     '../src/stores/auth-store': { useAuthStore: () => ({ user: null, isAnonymous: true }) },
     '../src/services/purchases': { restorePurchases: restore },
@@ -91,6 +94,22 @@ test.each(['free', 'pro', 'td'])('Manage plan renders the shipped %s name and pr
   expect(screen.restore).not.toHaveBeenCalled();
   nodes(screen.render()).find(node => node.props?.accessibilityLabel === 'Back').props.onPress();
   expect(screen.back).toHaveBeenCalledTimes(1);
+});
+
+test.each(['free', 'pro', 'td'])('flag-off settings suppresses Pro plan route and keeps TD management (%s)', tier => {
+  const store = scanStore();
+  store.getState().setTier(tier);
+  const screen = settingsScreen(store, false);
+  const row = planRow(screen.render());
+  if (tier === 'td') {
+    expect(text(row)).toBe(`Manage plan${C.td}`);
+    row.props.onPress();
+    expect(screen.push).toHaveBeenCalledWith('/paywall');
+  } else {
+    expect(row).toBeUndefined();
+    expect(screen.push).not.toHaveBeenCalled();
+  }
+  expect(nodes(screen.render()).some(node => node.props?.accessibilityLabel === 'Restore purchases')).toBe(true);
 });
 
 test('same screen follows upgrades, TD-to-Pro changes and expiry without altering store state', () => {

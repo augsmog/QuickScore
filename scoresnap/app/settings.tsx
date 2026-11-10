@@ -44,6 +44,7 @@ import {
 import { useAuthStore } from "../src/stores/auth-store";
 import { restorePurchases } from "../src/services/purchases";
 import { useScanStore } from "../src/stores/scan-store";
+import { proEnabled } from "../src/services/entitlements";
 import { openSupport } from "../src/config/support-links";
 import { PAYWALL_COPY as C } from "../src/ui/paywall-copy";
 import { SUPPORT_BASE_URL } from "../src/config/support";
@@ -247,6 +248,7 @@ export default function SettingsScreen() {
   const settings = useSettingsStore();
   const { user, signOut, isAnonymous } = useAuthStore();
   const tier = useScanStore((s) => s.tier);
+  const manageTier = proEnabled() ? tier : tier === "td" ? "td" : null;
   const [restoring, setRestoring] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -501,7 +503,7 @@ export default function SettingsScreen() {
         )}
 
         <SectionHeader title="Subscription" />
-        <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[tier]} onPress={() => router.push("/paywall")} />
+        {manageTier && <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[manageTier]} onPress={() => router.push("/paywall")} />}
         <AnimatedPressable accessibilityRole="button" accessibilityLabel="Restore purchases" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
           style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
           <RotateCcw size={18} color={COLORS.textDim} />
