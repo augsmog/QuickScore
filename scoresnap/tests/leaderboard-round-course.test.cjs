@@ -25,7 +25,7 @@ test.each([[5, 'primary', 10], [4, 'transparent', 10], [3, 'transparent', 0], [2
       course: course(par), games: ['stroke_play'], groups: [{ id: 'g', players }],
       rounds: [{ number: 2, course: course(4), groups: [{ id: 'g', players }] }],
     };
-    const results = [{ playerId: 'p1', name: 'Player', total: 4, toPar: 4 - par }];
+    const results = [{ playerId: 'p1', name: 'Player', total: 4, toPar: 4 - par, rankLabel: '1', thru: 1 }];
     const deps = {
       react: {},
       'react/jsx-runtime': { jsx, jsxs: jsx },

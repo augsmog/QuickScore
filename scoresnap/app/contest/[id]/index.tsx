@@ -244,15 +244,16 @@ export default function LeaderboardScreen() {
     query: playerQuery,
     youPlayerId,
   });
-  const rankByPlayerId = new Map(
-    searchedRows.map((r) => [r.playerId, { rankLabel: r.rankLabel, tied: r.tied, isYou: r.isYou === true }]),
-  );
-  // Render order follows searchedRows so the pinned You row shows first; when youPlayerId
-  // is unset and the query is empty this is exactly individualResults (unchanged order).
-  const resultById = new Map(individualResults.map((r) => [r.playerId, r]));
-  const visibleResults = searchedRows
-    .map((row) => resultById.get(row.playerId))
-    .filter((r): r is NonNullable<typeof r> => r != null);
+  // Carry the complete display contract from the prepared model into FlashList.
+  // Filtering has already happened after full-field rank calculation, so a searched
+  // result keeps its real rank, pinned-You marker, THRU, and pre-start tee time.
+  const resultByPlayerId = new Map(individualResults.map((result) => [result.playerId, result]));
+  const visibleRows = searchedRows.flatMap((row) => {
+    const result = resultByPlayerId.get(row.playerId);
+    return result
+      ? [{ ...result, rankLabel: row.rankLabel, isYou: row.isYou === true, thru: row.thru, teeTime: row.teeTime }]
+      : [];
+  });
 
   // Search field for the individual leaderboard (Figma 15:2). Mirrors the shipped
   // CourseSearch "Search by course name..." affordance; placeholder is a functional
@@ -289,8 +290,7 @@ export default function LeaderboardScreen() {
   if (viewMode === "individual") {
     return (
       <LeaderboardResultsList
-        results={visibleResults}
-        rankByPlayerId={rankByPlayerId}
+        results={visibleRows}
         allPlayers={allPlayers}
         recentPlayers={recentPlayers}
         contest={contest}

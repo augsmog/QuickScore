@@ -4,6 +4,8 @@ import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 // Usage: BASE_URL=http://localhost:8089 node e2e/tournament-16-player.mjs
 
 import { chromium } from "playwright";
+import fs from "node:fs";
+import path from "node:path";
 
 const BASE = process.env.BASE_URL || "http://localhost:8089";
 const MIN_TAP_TARGET = 44; // px
@@ -92,6 +94,43 @@ const hasMultipleTabs = tabText.includes("SCORECARD") &&
                         tabText.includes("LEADERBOARD") &&
                         tabText.includes("GAMES");
 check(hasMultipleTabs, "Contest tabs rendered (Scorecard, Leaderboard, Games)");
+await orgPage.getByText(/^scorecard$/i).first().click();
+let screenshotScoresEntered = 0;
+for (const playerName of playerNames.slice(0, 3)) {
+  const scorePlus = orgPage.getByTestId(`score-plus-${playerName}`);
+  if (await scorePlus.isVisible().catch(() => false)) {
+    await scorePlus.click();
+    screenshotScoresEntered++;
+  }
+}
+check(screenshotScoresEntered === 3, "Score three players before leaderboard capture", `${screenshotScoresEntered} scores entered`);
+await orgPage.getByText(/^leaderboard$/i).first().click();
+await orgPage.getByTestId("leaderboard-search").waitFor({ state: "visible", timeout: 10000 });
+const grossButton = orgPage.getByTestId("leaderboard-rank-gross");
+const hasGrossToggle = (await grossButton.count()) > 0;
+const grossSelected = !hasGrossToggle || await grossButton.evaluate((element) => {
+  const background = getComputedStyle(element).backgroundColor;
+  return background !== "transparent" && background !== "rgba(0, 0, 0, 0)";
+});
+check(grossSelected, "Gross leaderboard selected", hasGrossToggle ? "Gross toggle is active" : "Gross is the only supported ranking");
+const leaderboardRows = orgPage.locator('[data-testid^="leaderboard-player-"]');
+await leaderboardRows.first().waitFor({ state: "visible", timeout: 10000 });
+const viewport = orgPage.viewportSize();
+const rowCount = await leaderboardRows.count();
+let rowsWithRankAndThru = 0;
+for (let index = 0; index < rowCount && rowsWithRankAndThru < 3; index++) {
+  const row = leaderboardRows.nth(index);
+  const box = await row.boundingBox();
+  if (!box || box.x >= viewport.width || box.x + box.width <= 0 || box.y >= viewport.height || box.y + box.height <= 0) continue;
+  const rank = row.locator('[data-testid^="leaderboard-rank-"]');
+  const thru = row.locator('[data-testid^="leaderboard-thru-"]');
+  if (await rank.isVisible() && await thru.isVisible()) rowsWithRankAndThru++;
+}
+check(rowsWithRankAndThru >= 3, "At least 3 visible rows show rank and THRU", `${rowsWithRankAndThru} rows`);
+const leaderboardScreenshot = process.env.AUG747_SCREENSHOT || "/tmp/aug747-16-player-gross.png";
+fs.mkdirSync(path.dirname(leaderboardScreenshot), { recursive: true });
+await orgPage.screenshot({ path: leaderboardScreenshot });
+console.log(`AUG-747 leaderboard screenshot: ${leaderboardScreenshot}`);
 const scorecardTab = orgPage.getByText(/^scorecard$/i).first();
 const scorecardVisible = await scorecardTab.waitFor({ state: "visible", timeout: 10000 }).then(() => true, () => false);
 check(
