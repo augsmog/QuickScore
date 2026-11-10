@@ -4,6 +4,7 @@ import { FlashList } from "@shopify/flash-list";
 import { COLORS, FONTS, RADII } from "../ui/theme";
 import { formatToPar } from "../utils/formatters";
 import { lastThreePlayedHoleChips } from "../ui/leaderboard-hole-strip";
+import type { LeaderboardRoundScore } from "../engine/leaderboard-rows";
 import type { Player, StrokePlayResult } from "../engine/types";
 import type { LeaderboardRow } from "../engine/leaderboard-rows";
 import type { Contest } from "../stores/contest-store";
@@ -21,7 +22,15 @@ type LeaderboardResultsListProps = {
    * prepared field-rank lookup. The production contest screen supplies enriched
    * rows directly, avoiding per-cell rank scans.
    */
-  rankByPlayerId?: Map<string, { rankLabel: string; tied: boolean; isYou?: boolean }>;
+  rankByPlayerId?: Map<string, {
+    rankLabel: string;
+    tied: boolean;
+    isYou?: boolean;
+    thru?: "F" | number | null;
+    teeTime?: string | null;
+    r1?: LeaderboardRoundScore | null;
+    today?: LeaderboardRoundScore | null;
+  }>;
   /** All players in the current view, used to resolve holes played. */
   allPlayers: Player[];
   /** Players whose recent-form strokes drive the last-3-holes strip. */
@@ -70,6 +79,24 @@ export function LeaderboardResultsList({
     fallbackThru.set(player.id, holes === 0 ? null : holes === contest.course.holes.length ? "F" : holes);
   }
 
+  // AUG-253v: multi-round tournaments pass round-level data (r1/today + current-round
+  // thru) through rankByPlayerId; when present we render the Figma 15:2 column layout.
+  const showRoundColumns = Array.from(rankByPlayerId?.values() ?? []).some(
+    (row) => Object.prototype.hasOwnProperty.call(row, "r1") || Object.prototype.hasOwnProperty.call(row, "today"),
+  );
+  const columnsHeader = showRoundColumns ? (
+    <View testID="leaderboard-round-columns" style={{
+      flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8,
+      height: 28, borderBottomWidth: 1, borderBottomColor: COLORS.outline,
+    }}>
+      <Text style={{ width: 30, fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>POS</Text>
+      <Text style={{ flex: 1, fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>PLAYER</Text>
+      <Text style={{ width: 44, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>TO PAR</Text>
+      <Text style={{ width: 58, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>THRU</Text>
+      <Text style={{ width: 30, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>R1</Text>
+      <Text style={{ width: 44, textAlign: "right", fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textDim }}>TODAY</Text>
+    </View>
+  ) : null;
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <FlashList
@@ -77,7 +104,7 @@ export function LeaderboardResultsList({
         keyExtractor={(r) => r.playerId}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={ListHeaderComponent}
+        ListHeaderComponent={<>{ListHeaderComponent}{columnsHeader}</>}
         ListFooterComponent={ListFooterComponent}
         renderItem={({ item: r, index: i }) => {
           const player = playerById.get(r.playerId);
@@ -90,6 +117,12 @@ export function LeaderboardResultsList({
           const isYou = r.isYou === true || ranked?.isYou === true;
           const thru = r.thru === undefined ? fallbackThru.get(r.playerId) ?? null : r.thru;
           const teeTime = r.teeTime ?? null;
+          // AUG-253v: a multi-round row carries r1/today (+ current-round thru) via ranked;
+          // render the compact column layout then instead of the default card row.
+          const rowHasRoundColumns = !!ranked && (
+            Object.prototype.hasOwnProperty.call(ranked, "r1") ||
+            Object.prototype.hasOwnProperty.call(ranked, "today")
+          );
           // Par source is the contest course per AUG-620 brief item 8 (contest.course.holes[i].par),
           // not the active-round course; chip pars stay stable regardless of tournament round.
           const lastHoles = lastThreePlayedHoleChips(recentScores, contest.course.holes);
@@ -97,7 +130,16 @@ export function LeaderboardResultsList({
           return (
             <View
               testID={`leaderboard-player-${r.name}`}
-              style={{
+              style={rowHasRoundColumns ? {
+                backgroundColor: isYou ? COLORS.surfaceHighest : "transparent",
+                height: 44,
+                paddingHorizontal: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.outline,
+              } : {
                 backgroundColor: i === 0 ? COLORS.surfaceHigh : COLORS.surfaceMid,
                 borderRadius: RADII.lg,
                 padding: 14,
@@ -107,6 +149,36 @@ export function LeaderboardResultsList({
                 gap: 12,
               }}
             >
+              {rowHasRoundColumns ? (
+                <>
+                  <Text style={{ width: 30, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textDim }}>
+                    {rankLabel}
+                  </Text>
+                  <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    {isYou && (
+                      <Text testID={`leaderboard-you-chip-${r.playerId}`} accessibilityLabel="Your row" style={{ fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.primary }}>
+                        You
+                      </Text>
+                    )}
+                    <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: isYou ? FONTS.semibold : FONTS.regular, fontSize: 14, color: COLORS.text }}>
+                      {isYou ? `— ${r.name}` : r.name}
+                    </Text>
+                  </View>
+                  <Text testID={`leaderboard-topar-${r.name}`} style={{ width: 44, textAlign: "right", fontFamily: FONTS.semibold, fontSize: 16, color: r.toPar < 0 ? COLORS.primary : r.toPar > 0 ? COLORS.error : COLORS.text }}>
+                    {formatToPar(r.toPar).replace("-", "−")}
+                  </Text>
+                  <Text testID={`leaderboard-thru-${r.playerId}`} style={{ width: 58, textAlign: "right", fontFamily: FONTS.medium, fontSize: 12, color: COLORS.text }}>
+                    {ranked?.thru === "F" ? "F" : ranked?.thru ?? ranked?.teeTime ?? "—"}
+                  </Text>
+                  <Text testID={`leaderboard-r1-${r.playerId}`} style={{ width: 30, textAlign: "right", fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textDim }}>
+                    {ranked?.r1 == null ? "—" : ranked.r1.total}
+                  </Text>
+                  <Text testID={`leaderboard-today-${r.playerId}`} style={{ width: 44, textAlign: "right", fontFamily: FONTS.semibold, fontSize: 14, color: ranked?.today && ranked.today.toPar < 0 ? COLORS.primary : ranked?.today && ranked.today.toPar > 0 ? COLORS.error : COLORS.text }}>
+                    {ranked?.today == null ? "—" : formatToPar(ranked.today.toPar).replace("-", "−")}
+                  </Text>
+                </>
+              ) : (
+                <>
               <View style={{ width: 34, alignItems: "center" }}>
                 <Text testID={`leaderboard-rank-${r.playerId}`} style={{ fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
                   {rankLabel}
@@ -196,6 +268,8 @@ export function LeaderboardResultsList({
                   })}
                 </View>
               </View>
+                </>
+              )}
             </View>
           );
         }}
