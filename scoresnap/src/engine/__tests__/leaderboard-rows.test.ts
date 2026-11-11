@@ -137,13 +137,54 @@ describe("buildLeaderboardRows", () => {
     expect(rows.every((r) => r.rank === 1 && r.tied)).toBe(true);
   });
 
-  test("no scores → thru is null; distinct totals are not tied", () => {
+  test("no-score players have null rank and never tie", () => {
     const players = [player("a", "A", Array(18).fill(0)), player("b", "B", Array(18).fill(0))];
     const results = calcStrokePlay(players, COURSE); // both total 0
     const rows = buildLeaderboardRows(results, players, { holeCount: 18 });
     expect(rows.map((r) => r.thru)).toEqual([null, null]);
-    // both total 0 → tied T1
-    expect(rows.map((r) => r.rankLabel)).toEqual(["T1", "T1"]);
+    expect(rows.map((r) => r.rank)).toEqual([null, null]);
+    expect(rows.map((r) => r.rankLabel)).toEqual(["—", "—"]);
+    expect(rows.every((r) => !r.tied)).toBe(true);
+  });
+
+  test("mixed tournament ranks started players first and puts unstarted last without a rank", () => {
+    const noScore = player("no-score", "No score", Array(18).fill(0));
+    const first = player("first", "First", roundTo(72));
+    const second = player("second", "Second", roundTo(74));
+    const players = [noScore, first, second];
+    const results = calcStrokePlay(players, COURSE);
+    const rows = buildLeaderboardRows(results, players, { holeCount: 18 });
+
+    expect(rows.map((row) => row.playerId)).toEqual(["first", "second", "no-score"]);
+    expect(rows.map((row) => [row.rank, row.rankLabel, row.tied])).toEqual([
+      [1, "1", false],
+      [2, "2", false],
+      [null, "—", false],
+    ]);
+
+    const filtered = buildLeaderboardRows(results, players, { holeCount: 18, query: "Second" });
+    expect(filtered).toMatchObject([{ playerId: "second", rank: 2, rankLabel: "2" }]);
+    const pinned = buildLeaderboardRows(results, players, { holeCount: 18, youPlayerId: "no-score" });
+    expect(pinned[0]).toMatchObject({ playerId: "no-score", rank: null, rankLabel: "—", isYou: true });
+    expect(pinned.find((row) => row.playerId === "first")).toMatchObject({ rank: 1, rankLabel: "1" });
+  });
+
+  test("unstarted rows use tee-time order, then roster order when tee time is unknown", () => {
+    const roster = [
+      player("late", "Late", Array(18).fill(0)),
+      player("early", "Early", Array(18).fill(0)),
+      player("unknown", "Unknown", Array(18).fill(0)),
+      player("started", "Started", roundTo(72)),
+    ];
+    const results = calcStrokePlay(roster, COURSE);
+    const rows = buildLeaderboardRows(results, roster, {
+      holeCount: 18,
+      groups: [
+        { id: "late-group", players: [{ id: "late" }], teeTime: "9:00 AM" },
+        { id: "early-group", players: [{ id: "early" }], teeTime: "8:30 AM" },
+      ],
+    });
+    expect(rows.map((row) => row.playerId)).toEqual(["started", "early", "late", "unknown"]);
   });
 
   test("THRU: F for a full round, the count for a partial round, null for none", () => {
