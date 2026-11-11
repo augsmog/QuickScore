@@ -9,9 +9,9 @@ export type GroupStatus =
 
 /** Return the course-hole sequence beginning at a shotgun start hole. */
 export function holesPlayedOrder(startHole: number, holes = 18): number[] {
-  validateHole(startHole);
   if (!Number.isInteger(holes) || holes < 1 || holes > 18) throw new RangeError("holes must be an integer from 1 to 18");
-  return Array.from({ length: holes }, (_, i) => ((startHole - 1 + i) % 18) + 1);
+  validateHole(startHole, holes);
+  return Array.from({ length: holes }, (_, i) => ((startHole - 1 + i) % holes) + 1);
 }
 
 /** Derive group progress from holes with scores and the most recent score time. */
@@ -22,6 +22,7 @@ export function groupStatus({
   lastScoreAt,
   now,
   staleMinutes = 20,
+  holes = 18,
 }: {
   scoredHoles: number[];
   startType?: StartType;
@@ -29,17 +30,19 @@ export function groupStatus({
   lastScoreAt: Date | string | number | null;
   now: Date | string | number;
   staleMinutes?: number;
+  holes?: number;
 }): GroupStatus {
-  validateHole(startSlot.hole);
+  if (!Number.isInteger(holes) || holes < 1 || holes > 18) throw new RangeError("holes must be an integer from 1 to 18");
+  if (startType !== "tee_times") validateHole(startSlot.hole, holes);
   if (startSlot.wave !== undefined && startSlot.wave !== "A" && startSlot.wave !== "B") throw new RangeError("wave must be A or B");
   if (!Number.isFinite(staleMinutes) || staleMinutes < 0) throw new RangeError("staleMinutes must be non-negative");
-  const order = holesPlayedOrder(startType === "tee_times" ? 1 : startSlot.hole);
+  const order = holesPlayedOrder(startType === "tee_times" ? 1 : startSlot.hole, holes);
   const scored = new Set(scoredHoles);
-  for (const hole of scored) validateHole(hole);
+  for (const hole of scored) validateHole(hole, holes);
   let played = 0;
   while (played < order.length && scored.has(order[played])) played++;
   if (played === 0) return { kind: "not_started" };
-  if (played === 18) return { kind: "final" };
+  if (played === holes) return { kind: "final" };
 
   if (lastScoreAt !== null) {
     const last = toMillis(lastScoreAt);
@@ -51,8 +54,8 @@ export function groupStatus({
   return { kind: "thru", n: played };
 }
 
-function validateHole(hole: number): void {
-  if (!Number.isInteger(hole) || hole < 1 || hole > 18) throw new RangeError("hole must be an integer from 1 to 18");
+function validateHole(hole: number, max = 18): void {
+  if (!Number.isInteger(hole) || hole < 1 || hole > max) throw new RangeError(`hole must be an integer from 1 to ${max}`);
 }
 
 function toMillis(value: Date | string | number): number {

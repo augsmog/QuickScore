@@ -26,6 +26,7 @@ describe("group status", () => {
     expect(groupStatus({ scoredHoles: [7, 8], startSlot: { hole: 7, wave: "A" }, lastScoreAt: now, now })).toEqual({ kind: "thru", n: 2 });
     expect(groupStatus({ scoredHoles: [7, 8], startSlot: { hole: 7, wave: "B" }, lastScoreAt: now, now })).toEqual({ kind: "thru", n: 2 });
     expect(groupStatus({ scoredHoles: [1, 2], startType: "tee_times", startSlot: { hole: 10 }, lastScoreAt: now, now })).toEqual({ kind: "thru", n: 2 });
+    expect(groupStatus({ scoredHoles: [1, 2], startType: "tee_times", startSlot: { hole: 10 }, lastScoreAt: now, now, holes: 9 })).toEqual({ kind: "thru", n: 2 });
   });
 
   it("rejects invalid slots and reports a group with no scores as not started", () => {
