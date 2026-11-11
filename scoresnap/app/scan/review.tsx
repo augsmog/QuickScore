@@ -31,6 +31,9 @@ import type { ScannedPlayer } from "../../src/services/score-parser";
 import { applyCourseHoles, autoMatchPlayers, parseReviewData, grossScore, subtotal, blockingReason, completeScores, commitQuickSettle } from "../../src/services/ocr-review";
 import { posthog } from "../../src/config/posthog";
 import { posthogAppLogger } from "../../src/services/posthog-log";
+import { enqueueQuickSettleCompletion } from "../../src/services/quick-settle-completion-sync";
+import * as Crypto from "expo-crypto";
+import { useAuthStore } from "../../src/stores/auth-store";
 
 interface ConcernItem {
   type: "name" | "score";
@@ -238,10 +241,10 @@ export default function ScanReviewScreen() {
       };
 
       const newContest: Contest = {
-        id: generateId(),
+        id: Crypto.randomUUID(),
         name: `${dayName} Round`,
         course: defaultCourse("Scanned Course"),
-        status: "active",
+        status: "completed",
         betUnit: 5,
         hasTeams: false,
         groups: [group],
@@ -249,7 +252,16 @@ export default function ScanReviewScreen() {
         createdAt: new Date().toISOString(),
       };
 
-      commitQuickSettle(scannedPlayers, () => addContest(newContest));
+      commitQuickSettle(scannedPlayers, () => {
+        addContest(newContest);
+        // Persist an owner-bound completion signal before any network attempt. Anonymous
+        // and local-only sessions are ignored by the outbox service.
+        const auth = useAuthStore.getState();
+        const ownerId = auth.isAnonymous ? null : auth.session?.user.id ?? null;
+        void enqueueQuickSettleCompletion(newContest.id, ownerId).catch((error) =>
+          console.error("Quick Settle completion signal remains queued:", error),
+        );
+      });
       posthog?.capture("quick_settlement_created", {
         player_count: scannedPlayers.length,
         game_ids: newContest.games,
@@ -863,6 +875,7 @@ export default function ScanReviewScreen() {
         {(reason || commitError) && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: COLORS.error, marginBottom: 8 }}>{reason || commitError}</Text>}
         {/* Confirm & Calculate — primary CTA */}
         <Pressable
+          testID="scan-commit"
           onPress={handleCommit}
           disabled={!!reason}
           accessibilityState={{ disabled: !!reason }}
