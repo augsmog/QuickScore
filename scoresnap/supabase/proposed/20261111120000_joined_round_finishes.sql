@@ -33,11 +33,7 @@ BEGIN
     IF TG_OP = 'UPDATE' AND OLD.ended_at IS NOT NULL THEN
       RETURN NEW;
     END IF;
-    finish_contest := CASE
-      WHEN NEW.local_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-        THEN NEW.local_id::uuid
-      ELSE NEW.contest_id
-    END;
+    finish_contest := NEW.contest_id;
     finish_time := NEW.ended_at;
     finish_source := 'published_round_ended';
   END IF;

@@ -43,7 +43,7 @@ INSERT INTO public.contest_memberships(contest_id, user_id, role, status, player
 -- Install the trigger before exercising both completion paths. The migration is
 -- intentionally idempotent so this fixture can also compare view re-application.
 INSERT INTO public.published_rounds(contest_id, owner_id, local_id, snapshot, ended_at) VALUES
- ('00000000-0000-0000-0000-000000005923','00000000-0000-0000-0000-000000005908','00000000-0000-0000-0000-000000005923','{}',NULL);
+ ('00000000-0000-0000-0000-000000005923','00000000-0000-0000-0000-000000005908','00000000-0000-0000-0000-000000005924','{}',NULL);
 \i supabase/proposed/20261111120000_joined_round_finishes.sql
 
 -- First observed finish timestamps are captured at the transition and must
@@ -94,11 +94,14 @@ DO $$ BEGIN
               EXCEPT SELECT * FROM completion_event_before)) THEN
     RAISE EXCEPTION 'later contest edits/status toggles or published-round updates moved a first finish event';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.contest_finish_events
-      WHERE contest_id='00000000-0000-0000-0000-000000005921'
-        AND finished_at=now()-interval '3 hours'
-        AND source='contest_completed') THEN
-    RAISE EXCEPTION 'contest event must preserve its timestamp from the first completed transition';
+  IF NOT EXISTS (
+      SELECT 1 FROM public.contest_finish_events e
+      JOIN public.first_round_finishes f
+        ON f.user_id='00000000-0000-0000-0000-000000005901'
+       AND e.contest_id='00000000-0000-0000-0000-000000005921'
+       AND e.finished_at=f.finished_at
+       AND e.source='contest_completed') THEN
+    RAISE EXCEPTION 'contest event must use the completion timestamp captured by the existing owner-finish trigger';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM public.contest_finish_events
       WHERE contest_id='00000000-0000-0000-0000-000000005923'
