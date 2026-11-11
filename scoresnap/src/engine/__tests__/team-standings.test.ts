@@ -36,7 +36,7 @@ describe("teamStandings", () => {
   it("uses each player's allocated net strokes for best N, including a plus handicap", () => {
     const teams = [{ name: "Pair", players: [player("plus", full(5), -1), player("even", full(5)), player("high", full(8)), player("other", full(9))] }];
     const rows = teamStandings(teams, course, { countBest: 2, net: true }) as any[];
-    // On SI 1 the plus player receives -1 (one stroke added); the even player is the second count.
+    // The -1 player gets a stroke added at SI 18; the even player is the second count.
     expect(rows[0].total).toBe(18 * 10 + 1);
     expect(rows[0].holesPlayed).toBe(18);
     expect(rows[0].toPar).toBe(18 * 2 + 1);
@@ -53,6 +53,8 @@ describe("teamStandings", () => {
   it("returns unavailable instead of estimating net on a 9-hole course", () => {
     const nine = { ...course, holes: course.holes.slice(0, 9) };
     expect(teamStandings([{ name: "Pair", players: [player("one", full(4))] }], nine, { countBest: 1, net: true })).toBe("unavailable");
+    const malformed = { ...course, holes: course.holes.map((hole, index) => index === 4 ? null as any : hole) };
+    expect(teamStandings([{ name: "Pair", players: [player("one", full(4))] }], malformed, { countBest: 1, net: true })).toBe("unavailable");
   });
 
   it("composes with assignFlights so each flight has an independent rank set", () => {

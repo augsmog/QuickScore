@@ -64,7 +64,7 @@ function supportsNet(course: Course): boolean {
   if (!Array.isArray(course?.holes) || course.holes.length !== 18) return false;
   const indexes = new Set<number>();
   for (const hole of course.holes) {
-    if (!Number.isInteger(hole.hcp) || hole.hcp < 1 || hole.hcp > 18) return false;
+    if (!hole || !Number.isInteger(hole.hcp) || hole.hcp < 1 || hole.hcp > 18) return false;
     indexes.add(hole.hcp);
   }
   return indexes.size === 18;
