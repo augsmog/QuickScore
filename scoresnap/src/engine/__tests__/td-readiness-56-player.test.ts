@@ -140,7 +140,7 @@ describe("AUG-278c G2: scored 56-player multi-group leaderboard", () => {
 
   test("the distinct total after a tie skips the shared positions (1,1,3 rule)", () => {
     // The unstarted p01 is excluded from field ranks; p02/p03 tie at 1, then p04 is 3.
-    const tiedRank = byId.get("p02")!.rank;
+    const tiedRank = byId.get("p02")!.rank!; // p02 is started in this fixture
     const p4 = byId.get("p04")!; // next distinct total (74)
     expect(p4.total).toBe(74);
     expect(p4.tied).toBe(false);

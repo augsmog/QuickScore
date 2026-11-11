@@ -964,8 +964,15 @@ describe("buildLeaderboardRows seeded rank/tie/label invariants (AUG-253t)", () 
         const row = rows[i];
         // rows preserve the sorted input order, so rows[i].total === results[i].total.
         // Ranks are non-decreasing down the board.
-        if (i > 0 && row.rank < rows[i - 1].rank) {
-          fail(seed, `rank decreased at row ${i}: ${rows[i - 1].rank} -> ${row.rank}`);
+        if (i > 0) {
+          const currentRank = row.rank;
+          const previousRank = rows[i - 1].rank;
+          if (currentRank === null || previousRank === null) {
+            fail(seed, `started-only seeded field produced null rank at row ${i - 1} or ${i}`);
+          }
+          if (currentRank < previousRank) {
+            fail(seed, `rank decreased at row ${i}: ${previousRank} -> ${currentRank}`);
+          }
         }
         // Competition rank: 1 + the number of players with a strictly lower total.
         const strictlyLower = results.reduce((acc, r) => acc + (r.total < row.total ? 1 : 0), 0);
