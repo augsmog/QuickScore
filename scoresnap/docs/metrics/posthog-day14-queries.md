@@ -11,13 +11,21 @@ SQL tab and the `logs` table. Log bodies and attributes are queryable, and the
 React Native SDK attaches the current distinct ID as `posthogDistinctId` to each
 log. See [Logs](https://posthog.com/docs/logs), [SQL access](https://posthog.com/docs/sql),
 [link logs to a person](https://posthog.com/docs/logs/link-person), and
-[log-based metrics](https://posthog.com/docs/logs/metrics).
+[log-based metrics](https://posthog.com/docs/logs/metrics). The current
+[official Logs HogQL schema](https://github.com/PostHog/posthog/blob/master/posthog/hogql/database/schema/logs.py)
+defines the query read budgets and the `body`, `attributes`, and `timestamp`
+columns used below.
 
-Before the first report, confirm the project's Logs SQL schema and retention in
-PostHog. The SQL editor's documented starter query is `SELECT * FROM logs
-LIMIT 10`. A log-backed query only covers records still retained; a Day-14
-boundary may need to be run before records expire. No production query, insight,
-dashboard, metric rule, or other PostHog write was created for this pack.
+PostHog's current schema caps bytes read by a user HogQL query against Logs at
+50,000,000,000 bytes on Free and 150,000,000,000 bytes on Paid/Enterprise. This
+is a scan budget, not a row limit; keep the timestamp filter selective and
+narrow the window if a query reaches the cap. The [Logs pricing docs](https://posthog.com/docs/logs/pricing)
+state that retention is 14 days by default, configurable per service or source;
+custom retention applies to newly ingested logs. Confirm the project's current
+setting before the report: a Day-14 query must run before relevant records
+expire, or use an approved custom retention configuration. The Logs SQL editor's
+documented starter query is `SELECT * FROM logs LIMIT 10`. No production query,
+insight, dashboard, metric rule, or other PostHog write was created for this pack.
 
 ## First scan
 
@@ -47,14 +55,16 @@ IDs among retained matching logs, not a lifetime first-scan count.
 
 Source strings: `tournament director entitlement started` and
 `contest setup saved` (`posthog-log.ts`). The query counts distinct people who
-had a setup-saved log in the same reporting window and then emitted an
+had a setup-saved log in the same reporting window before emitting an
 entitlement-start log, split into normal, trial, and intro periods. Normal is
 reported as a normal-period entitlement start; this logger does not itself
 verify a store transaction or establish revenue.
 
 ```sql
 WITH organizers AS (
-  SELECT attributes['posthogDistinctId'] AS distinct_id
+  SELECT
+    attributes['posthogDistinctId'] AS distinct_id,
+    min(timestamp) AS first_setup_at
   FROM logs
   WHERE timestamp >= toDateTime('{{start}}')
     AND timestamp < toDateTime('{{end}}')
@@ -72,6 +82,7 @@ INNER JOIN organizers
   ON organizers.distinct_id = entitlement.attributes['posthogDistinctId']
 WHERE entitlement.timestamp >= toDateTime('{{start}}')
   AND entitlement.timestamp < toDateTime('{{end}}')
+  AND entitlement.timestamp >= organizers.first_setup_at
   AND entitlement.body = 'tournament director entitlement started'
   AND entitlement.attributes['period_type'] IN ('normal', 'trial', 'intro')
 GROUP BY day, period_type
