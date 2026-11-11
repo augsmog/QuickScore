@@ -37,6 +37,17 @@ WITH worksheet AS (
          s.confirmed_share_rate::numeric, 0.10::numeric, NULL::numeric,
          'Planning assumption: 10%; confirmed non-organizer member only. Link creation and server join requests are separate signals; invitations: not measured.'
   FROM public.round_share_rate s
+
+  UNION ALL
+
+  SELECT 'joined finish', (f.first_joined_finish_at AT TIME ZONE 'UTC')::date::text,
+         'joined-round first finishes (registered / anonymous)',
+         count(*) FILTER (WHERE NOT f.is_anonymous)::numeric,
+         count(*) FILTER (WHERE f.is_anonymous)::numeric,
+         NULL::numeric, NULL::numeric, NULL::numeric,
+         'Not part of activation; activation definition unchanged.'::text
+  FROM public.joined_round_finishes f
+  GROUP BY (f.first_joined_finish_at AT TIME ZONE 'UTC')::date
 )
 SELECT section, period, metric, numerator, denominator, rate,
        target_low, target_high, notes

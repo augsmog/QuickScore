@@ -47,6 +47,12 @@ BEGIN
         AND confirmed_share_denominator=1 AND confirmed_share_rate=1) THEN
     RAISE EXCEPTION 'Day 14 report confirmed share fixture should be 1/1';
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.joined_round_finishes
+      WHERE user_id='00000000-0000-0000-0000-000000005802'
+        AND contest_id='00000000-0000-0000-0000-000000005811'
+        AND NOT is_anonymous) THEN
+    RAISE EXCEPTION 'Day 14 report should include the approved joined-round finish signal';
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM public.retention_cohorts WHERE d7_mature=0 AND d7_immature=1 AND d7_rate IS NULL) THEN
     RAISE EXCEPTION 'immature cohorts should be reported with NULL D7 rate';
   END IF;
