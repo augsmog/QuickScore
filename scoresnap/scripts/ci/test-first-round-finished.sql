@@ -4,7 +4,8 @@ INSERT INTO auth.users(id,created_at) VALUES
  ('00000000-0000-0000-0000-000000000a01','2020-01-01T12:00:00Z'),
  ('00000000-0000-0000-0000-000000000a02','2020-01-01T12:00:00Z'),
  ('00000000-0000-0000-0000-000000000a03','2020-01-01T12:00:00Z'),
- ('00000000-0000-0000-0000-000000000a04','2020-01-01T12:00:00Z');
+ ('00000000-0000-0000-0000-000000000a04','2020-01-01T12:00:00Z'),
+ ('00000000-0000-0000-0000-000000000a05','2020-01-01T12:00:00Z');
 UPDATE auth.users SET is_anonymous=true WHERE id='00000000-0000-0000-0000-000000000a03';
 
 INSERT INTO public.contests(id,owner_id,name,course,status,invite_code,updated_at) VALUES
@@ -27,6 +28,54 @@ UPDATE public.contests SET status='completed',updated_at='2020-01-02T12:00:00Z' 
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a03') THEN
     RAISE EXCEPTION 'anonymous owner was recorded';
+  END IF;
+END $$;
+
+-- Authenticated Quick Settle outbox: exact owner/operation acknowledgment, idempotent
+-- repeats, account isolation, and anonymous exclusion. All writes roll back below.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000a04',true);
+DO $$ DECLARE ack jsonb; alias_ack jsonb; BEGIN
+  ack := public.record_quick_settle_completion(
+    '00000000-0000-0000-0000-000000000a21','00000000-0000-0000-0000-000000000a04','00000000-0000-0000-0000-000000000a31');
+  IF ack IS DISTINCT FROM '{"operationId":"00000000-0000-0000-0000-000000000a21","ownerId":"00000000-0000-0000-0000-000000000a04"}'::jsonb THEN
+    RAISE EXCEPTION 'Quick Settle RPC did not acknowledge the matching operation and owner';
+  END IF;
+  PERFORM public.record_quick_settle_completion(
+    '00000000-0000-0000-0000-000000000a21','00000000-0000-0000-0000-000000000a04','00000000-0000-0000-0000-000000000a31');
+  alias_ack := public.record_quick_settle_completion(
+    '00000000-0000-0000-0000-000000000a23','00000000-0000-0000-0000-000000000a04','00000000-0000-0000-0000-000000000a31');
+  IF alias_ack IS DISTINCT FROM '{"operationId":"00000000-0000-0000-0000-000000000a23","ownerId":"00000000-0000-0000-0000-000000000a04"}'::jsonb THEN
+    RAISE EXCEPTION 'Quick Settle RPC did not acknowledge the durable second operation';
+  END IF;
+  PERFORM set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000a02',true);
+  BEGIN
+    PERFORM public.record_quick_settle_completion(
+      '00000000-0000-0000-0000-000000000a23','00000000-0000-0000-0000-000000000a02','00000000-0000-0000-0000-000000000a31');
+    RAISE EXCEPTION 'second operation was accepted under a different owner';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  PERFORM set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000a05',true);
+  BEGIN
+    PERFORM public.record_quick_settle_completion(
+      '00000000-0000-0000-0000-000000000a23','00000000-0000-0000-0000-000000000a05','00000000-0000-0000-0000-000000000a32');
+    RAISE EXCEPTION 'second operation was accepted for a different contest';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  PERFORM set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000a03',true);
+  BEGIN
+    PERFORM public.record_quick_settle_completion(
+      '00000000-0000-0000-0000-000000000a22','00000000-0000-0000-0000-000000000a03','00000000-0000-0000-0000-000000000a32');
+    RAISE EXCEPTION 'anonymous owner was accepted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+DO $$ BEGIN
+  IF (SELECT count(*) FROM public.quick_settle_completion_operations WHERE owner_id='00000000-0000-0000-0000-000000000a04' AND contest_id='00000000-0000-0000-0000-000000000a31') <> 2
+      OR (SELECT count(DISTINCT operation_id) FROM public.quick_settle_completion_operations WHERE owner_id='00000000-0000-0000-0000-000000000a04' AND contest_id='00000000-0000-0000-0000-000000000a31') <> 2
+      OR (SELECT count(*) FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a04' AND source='quick_settle' AND contest_id='00000000-0000-0000-0000-000000000a31') <> 1 THEN
+    RAISE EXCEPTION 'operation aliases were not durably bound or duplicated the first-finish row';
   END IF;
 END $$;
 
@@ -65,24 +114,24 @@ END $$;
 
 -- A shared round may be published already ended; the INSERT trigger must record it.
 INSERT INTO public.published_rounds(contest_id,owner_id,local_id,snapshot,ended_at)
-VALUES ('00000000-0000-0000-0000-000000000a15','00000000-0000-0000-0000-000000000a04','activation-completed-fixture','{}',transaction_timestamp());
+VALUES ('00000000-0000-0000-0000-000000000a15','00000000-0000-0000-0000-000000000a05','activation-completed-fixture','{}',transaction_timestamp());
 DO $$ DECLARE first_time timestamptz; BEGIN
-  SELECT finished_at INTO first_time FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a04';
+  SELECT finished_at INTO first_time FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a05';
   IF first_time IS DISTINCT FROM transaction_timestamp()
-      OR NOT EXISTS (SELECT 1 FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a04'
+      OR NOT EXISTS (SELECT 1 FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a05'
         AND source='published_round_ended' AND contest_id='00000000-0000-0000-0000-000000000a15') THEN
     RAISE EXCEPTION 'already-ended shared-round INSERT not recorded';
   END IF;
   UPDATE public.published_rounds SET ended_at=transaction_timestamp()+interval '1 day' WHERE contest_id='00000000-0000-0000-0000-000000000a15';
-  IF (SELECT count(*) FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a04') <> 1
-      OR (SELECT finished_at FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a04') IS DISTINCT FROM first_time THEN
+  IF (SELECT count(*) FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a05') <> 1
+      OR (SELECT finished_at FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a05') IS DISTINCT FROM first_time THEN
     RAISE EXCEPTION 'later update duplicated or moved the INSERT finish';
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.activation_daily WHERE date=(transaction_timestamp() AT TIME ZONE 'UTC')::date AND signups=0
-      AND first_round_finished=3 AND activation_rate IS NULL) THEN
+      AND first_round_finished=4 AND activation_rate IS NULL) THEN
     RAISE EXCEPTION 'zero-signup activation day should be present with NULL rate';
   END IF;
   IF has_table_privilege('anon','public.first_round_finishes','SELECT') OR has_table_privilege('authenticated','public.first_round_finishes','SELECT') THEN
