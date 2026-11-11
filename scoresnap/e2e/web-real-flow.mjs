@@ -5,6 +5,7 @@ import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 // served with an SPA fallback, and saves real screenshots.
 // Usage: BASE_URL=http://localhost:8089 OUT_DIR=./e2e/screens node e2e/web-real-flow.mjs
 // Requires the `playwright` package and Chromium (npx playwright install chromium).
+import { execFileSync } from "node:child_process";
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
