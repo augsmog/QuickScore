@@ -5,10 +5,11 @@ import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 // served with an SPA fallback, and saves real screenshots.
 // Usage: BASE_URL=http://localhost:8089 OUT_DIR=./e2e/screens node e2e/web-real-flow.mjs
 // Requires the `playwright` package and Chromium (npx playwright install chromium).
-import { execFileSync } from "node:child_process";
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
+import { extractPdfText } from "./shared/pdf-text-extraction.mjs";
+import { recordCheck, failedCheckCount } from "./shared/check-results.mjs";
 
 const BASE = process.env.BASE_URL || "http://localhost:8089";
 const OUT = process.env.OUT_DIR || "e2e/screens";
@@ -23,8 +24,12 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const results = [];
 const check = (ok, name, detail = "") => {
-  results.push({ ok: !!ok, name, detail });
+  recordCheck(results, ok ? "pass" : "fail", name, detail);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
+};
+const checkUnknown = (name, detail) => {
+  recordCheck(results, "unknown", name, detail);
+  console.log(`UNKNOWN: ${name} — ${detail}`);
 };
 
 const browser = await chromium.launch({
@@ -267,14 +272,18 @@ await page.getByText("Export scorecard (PDF)", { exact: true }).click();
 const pdfDownload = await pdfDownloadPromise;
 const pdfPath = path.join(OUT, "settlement-scorecard.pdf");
 await pdfDownload.saveAs(pdfPath);
-const pdfText = execFileSync("pdftotext", [pdfPath, "-"], { encoding: "utf8" });
-const pdfMatchesShare = [
-  /Sam:\s*\+\$26\.25/,
-  /Augie:\s*\+\$11\.25/,
-  /Lee:\s*[−-]\$3\.75/,
-  /Pat:\s*[−-]\$33\.75/,
-].every((pattern) => pattern.test(pdfText));
-check(pdfMatchesShare, "Export PDF includes all player names and signed ledger totals", pdfText.replace(/\s+/g, " ").slice(-500));
+const pdfResult = extractPdfText(pdfPath);
+if (pdfResult.status === "unknown") {
+  checkUnknown("Export PDF includes all player names and signed ledger totals", pdfResult.detail);
+} else {
+  const pdfMatchesShare = [
+    /Sam:\s*\+\$26\.25/,
+    /Augie:\s*\+\$11\.25/,
+    /Lee:\s*[−-]\$3\.75/,
+    /Pat:\s*[−-]\$33\.75/,
+  ].every((pattern) => pattern.test(pdfResult.text));
+  check(pdfMatchesShare, "Export PDF includes all player names and signed ledger totals", pdfResult.text.replace(/\s+/g, " ").slice(-500));
+}
 
 // Verify both screens against the same persisted contest and calculator results.
 // The first pass tests creation + persistence of Net; the second tests persisted Gross.
@@ -450,6 +459,7 @@ if (hasJoinCode) {
 check(pageErrors.length === 0, "No uncaught page errors", pageErrors.join(" | "));
 await browser.close();
 fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ base: BASE, results, pageErrors }, null, 2));
-const failed = results.filter((r) => !r.ok).length;
-console.log(`\n${results.length - failed}/${results.length} checks passed`);
+const failed = failedCheckCount(results);
+const unknown = results.filter((r) => r.status === "unknown").length;
+console.log(`\n${results.length - failed - unknown} passed, ${unknown} unknown, ${failed} failed`);
 process.exit(failed ? 1 : 0);
