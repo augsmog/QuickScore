@@ -150,6 +150,17 @@ jobs:
             VIEWPORT_WIDTH="$width" VIEWPORT_HEIGHT="$height" EXPECT_CROSS_DEVICE_SHARING=false BASE_URL=http://127.0.0.1:8089 OUT_DIR="e2e/screens/group4/$profile" node e2e/web-real-flow.mjs
           done
           BASE_URL=http://127.0.0.1:8089 node e2e/live-share.mjs
+      - name: Daily and cumulative leaderboard round columns
+        run: BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens/leaderboard-round-columns node e2e/leaderboard-round-columns.mjs
+      - name: Upload daily and cumulative leaderboard screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 1
+        with:
+          name: leaderboard-round-columns-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap/e2e/screens/leaderboard-round-columns
+          if-no-files-found: error
+          retention-days: 7
       - name: Join gate (sharing off and game sheet)
         run: EXPECT_CROSS_DEVICE_SHARING=false BASE_URL=http://127.0.0.1:8089 node e2e/join-gate.mjs
       - name: Browser smoke (cross-device sharing flag on, guest join flow)
