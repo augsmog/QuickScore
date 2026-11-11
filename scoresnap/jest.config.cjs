@@ -9,6 +9,7 @@ module.exports = {
     '<rootDir>/src/engine/__tests__/group-status.test.ts',
     '<rootDir>/src/engine/__tests__/cut-line.test.ts',
     '<rootDir>/src/engine/__tests__/flights.test.ts',
+    '<rootDir>/src/engine/__tests__/team-standings.test.ts',
   ],
   cacheDirectory: process.env.JEST_CACHE_DIR || '<rootDir>/.jest-cache',
 };
