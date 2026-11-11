@@ -7,6 +7,7 @@ module.exports = {
     '<rootDir>/src/engine/__tests__/contest-settlement-16p.test.ts',
     '<rootDir>/src/engine/__tests__/td-readiness-56-player.test.ts',
     '<rootDir>/src/engine/__tests__/group-status.test.ts',
+    '<rootDir>/src/engine/__tests__/start-slots.test.ts',
     '<rootDir>/src/engine/__tests__/cut-line.test.ts',
     '<rootDir>/src/engine/__tests__/flights.test.ts',
     '<rootDir>/src/engine/__tests__/team-standings.test.ts',
