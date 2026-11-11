@@ -2,6 +2,7 @@
 
 This is a source map, not a report of measured outcomes. Any targets used in a
 Day-14/30 review remain planning assumptions until real cohorts are measured.
+Logger-sourced Day-14 query templates are in `docs/metrics/posthog-day14-queries.md`.
 Pro is disabled behind `pro_enabled`; Tournament Director is the only paid IAP.
 There is no Pro entitlement or Pro trial metric in this map.
 
