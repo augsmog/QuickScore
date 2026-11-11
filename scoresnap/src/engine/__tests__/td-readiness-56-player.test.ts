@@ -118,11 +118,12 @@ describe("AUG-278c G2: scored 56-player multi-group leaderboard", () => {
     expect(byId.get("p10")!.total).toBe(80);
   });
 
-  test("scored field is ranked by total ascending", () => {
-    const totals = rows.map((r) => r.total);
+  test("started field is ranked by total ascending and no-shows stay last", () => {
+    const totals = rows.filter((r) => r.rank !== null).map((r) => r.total);
     for (let k = 1; k < totals.length; k++) {
       expect(totals[k]).toBeGreaterThanOrEqual(totals[k - 1]);
     }
+    expect(rows[rows.length - 1].playerId).toBe("p01");
   });
 
   test("deliberate tie (p02, p03 both 72) shares the competition rank and a T-label", () => {
@@ -137,9 +138,9 @@ describe("AUG-278c G2: scored 56-player multi-group leaderboard", () => {
     expect(p3.rankLabel).toBe(`T${p3.rank}`);
   });
 
-  test("the distinct total after a tie skips the shared positions (1,2,2,4 rule)", () => {
-    // Field sorted ascending: p01 (0) first, then the 72-tie (p02,p03), then p04 (74)...
-    const tiedRank = byId.get("p02")!.rank;
+  test("the distinct total after a tie skips the shared positions (1,1,3 rule)", () => {
+    // The unstarted p01 is excluded from field ranks; p02/p03 tie at 1, then p04 is 3.
+    const tiedRank = byId.get("p02")!.rank!; // p02 is started in this fixture
     const p4 = byId.get("p04")!; // next distinct total (74)
     expect(p4.total).toBe(74);
     expect(p4.tied).toBe(false);
@@ -147,21 +148,15 @@ describe("AUG-278c G2: scored 56-player multi-group leaderboard", () => {
     expect(p4.rankLabel).toBe(`${p4.rank}`);
   });
 
-  test("a player with no scores is included at total 0 (current behaviour, documented)", () => {
-    // Current product behaviour: `calcStrokePlay` returns a no-score player with
-    // total 0, and `buildLeaderboardRows` ranks the field by total ascending, so a
-    // no-show (p01) sorts to the top with rank 1 and THRU null. The leaderboard
-    // screen (app/contest/[id]/index.tsx) gates the *whole* board on `hasScores`
-    // but does not drop individual no-score players from a field that has any
-    // scores. This is asserted — not treated as a bug fix — to document G2's
-    // current edge behaviour; a change to drop/not-rank no-shows would be a
-    // separate shared-engine ticket.
+  test("a player with no scores stays visible after started players without a rank", () => {
+    // No-shows stay in the board but do not consume or display a field rank.
     const noShow = byId.get("p01")!;
     expect(noShow.total).toBe(0);
     expect(noShow.thru).toBeNull();
-    expect(noShow.rank).toBe(1);
+    expect(noShow.rank).toBeNull();
+    expect(noShow.rankLabel).toBe("—");
     expect(noShow.tied).toBe(false);
-    expect(rows[0].playerId).toBe("p01");
+    expect(rows[rows.length - 1].playerId).toBe("p01");
   });
 
   test("scored players show THRU 'F' for a completed 18-hole round", () => {
