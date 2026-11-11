@@ -34,7 +34,7 @@ function load(file, imports = {}) {
 // quick_settlement_created analytics event still fires.
 const review = load('src/services/ocr-review.ts');
 
-function mountQuickSettle({ addContest, capture }) {
+function mountQuickSettle({ addContest, capture, enqueue = () => {} }) {
   const element = (tag) => (props) => React.createElement(tag, props, props.children);
   const scanData = JSON.stringify([
     { name: 'Player A', scores: Array(18).fill(4), confidence: Array(18).fill(0.95), nameConfidence: 1 },
@@ -60,6 +60,9 @@ function mountQuickSettle({ addContest, capture }) {
     '../../src/ui/animations/ConfettiOverlay': { ConfettiOverlay: () => null },
     '../../src/config/posthog': { posthog: { capture } },
     '../../src/services/posthog-log': { posthogAppLogger: { scorecardScoresCommitted() {} } },
+    '../../src/services/quick-settle-completion-sync': { enqueueQuickSettleCompletion: enqueue },
+    '../../src/stores/auth-store': { useAuthStore: { getState: () => ({ session: { user: { id: '11111111-1111-4111-8111-111111111111' } }, isAnonymous: false }) } },
+    'expo-crypto': { randomUUID: () => '22222222-2222-4222-8222-222222222222' },
     '../../src/stores/contest-store': {
       useContestStore: (select) => select({ contests: [], addContest, importScores: () => {} }),
       generateId: (() => { let n = 0; return () => `test-id-${n++}`; })(),
@@ -74,12 +77,14 @@ function mountQuickSettle({ addContest, capture }) {
   return tree;
 }
 
-test('Quick Settle creates a completed contest and still fires quick_settlement_created', () => {
+test('Quick Settle creates a completed contest, queues its completion, and still fires analytics', () => {
   const created = [];
   const events = [];
+  const queued = [];
   const tree = mountQuickSettle({
     addContest: (c) => created.push(c),
     capture: (name, props) => events.push({ name, props }),
+    enqueue: (id, ownerId) => { queued.push([id, ownerId]); return Promise.resolve(true); },
   });
   try {
     // The bottom commit CTA (quick-settle flow, no existing contest).
@@ -92,6 +97,8 @@ test('Quick Settle creates a completed contest and still fires quick_settlement_
 
     expect(created).toHaveLength(1);
     expect(created[0].status).toBe('completed');
+    expect(queued).toEqual([[created[0].id, '11111111-1111-4111-8111-111111111111']]);
+    expect(created[0].id).toBe('22222222-2222-4222-8222-222222222222');
     // The scanned scores survive into the created round (fully scored => completable).
     expect(created[0].groups[0].players[0].scores).toEqual(Array(18).fill(4));
 
