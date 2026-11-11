@@ -35,6 +35,7 @@ describe("contest group statuses", () => {
   it("uses nine-hole course length for final and rejects an out-of-range shotgun slot", () => {
     const contest = makeContest({ course: course(9), groups: [group("g", [player("p", Array(9).fill(4))])] });
     expect(contestGroupStatuses(contest, { now, startType: "tee_times" })[0].status).toEqual({ kind: "final" });
+    expect(contestGroupStatuses(contest, { now, startType: "tee_times", startSlots: { g: { hole: 10 } } })[0].status).toEqual({ kind: "final" });
     expect(() => contestGroupStatuses(contest, { now, startType: "shotgun", startSlots: { g: { hole: 10 } } })).toThrow(RangeError);
   });
 

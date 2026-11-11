@@ -33,7 +33,7 @@ export function groupStatus({
   holes?: number;
 }): GroupStatus {
   if (!Number.isInteger(holes) || holes < 1 || holes > 18) throw new RangeError("holes must be an integer from 1 to 18");
-  validateHole(startSlot.hole, holes);
+  if (startType !== "tee_times") validateHole(startSlot.hole, holes);
   if (startSlot.wave !== undefined && startSlot.wave !== "A" && startSlot.wave !== "B") throw new RangeError("wave must be A or B");
   if (!Number.isFinite(staleMinutes) || staleMinutes < 0) throw new RangeError("staleMinutes must be non-negative");
   const order = holesPlayedOrder(startType === "tee_times" ? 1 : startSlot.hole, holes);
