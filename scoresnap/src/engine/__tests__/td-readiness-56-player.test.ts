@@ -119,7 +119,8 @@ describe("AUG-278c G2: scored 56-player multi-group leaderboard", () => {
   });
 
   test("scored field is ranked by total ascending", () => {
-    const totals = rows.map((r) => r.total);
+    // AUG-863: unstarted players sort after the scored field, so check the started rows.
+    const totals = rows.filter((r) => r.thru !== null).map((r) => r.total);
     for (let k = 1; k < totals.length; k++) {
       expect(totals[k]).toBeGreaterThanOrEqual(totals[k - 1]);
     }
@@ -138,8 +139,9 @@ describe("AUG-278c G2: scored 56-player multi-group leaderboard", () => {
   });
 
   test("the distinct total after a tie skips the shared positions (1,2,2,4 rule)", () => {
-    // Field sorted ascending: p01 (0) first, then the 72-tie (p02,p03), then p04 (74)...
-    const tiedRank = byId.get("p02")!.rank;
+    // Started field sorted ascending: the 72-tie (p02,p03), then p04 (74)...; the
+    // no-show p01 is unranked and last (AUG-863).
+    const tiedRank = byId.get("p02")!.rank!;
     const p4 = byId.get("p04")!; // next distinct total (74)
     expect(p4.total).toBe(74);
     expect(p4.tied).toBe(false);
@@ -147,21 +149,19 @@ describe("AUG-278c G2: scored 56-player multi-group leaderboard", () => {
     expect(p4.rankLabel).toBe(`${p4.rank}`);
   });
 
-  test("a player with no scores is included at total 0 (current behaviour, documented)", () => {
-    // Current product behaviour: `calcStrokePlay` returns a no-score player with
-    // total 0, and `buildLeaderboardRows` ranks the field by total ascending, so a
-    // no-show (p01) sorts to the top with rank 1 and THRU null. The leaderboard
-    // screen (app/contest/[id]/index.tsx) gates the *whole* board on `hasScores`
-    // but does not drop individual no-score players from a field that has any
-    // scores. This is asserted — not treated as a bug fix — to document G2's
-    // current edge behaviour; a change to drop/not-rank no-shows would be a
-    // separate shared-engine ticket.
+  test("a player with no scores sorts last with no rank number (AUG-863 PM rule)", () => {
+    // AUG-863 is the shared-engine ticket this test previously deferred to: a
+    // no-show (total 0 placeholder from calcStrokePlay, THRU null) ranks below
+    // every scored player, gets rankLabel "—", takes no rank position, and
+    // creates no tie. The scored field's ranks start at 1.
     const noShow = byId.get("p01")!;
     expect(noShow.total).toBe(0);
     expect(noShow.thru).toBeNull();
-    expect(noShow.rank).toBe(1);
+    expect(noShow.rank).toBeNull();
+    expect(noShow.rankLabel).toBe("—");
     expect(noShow.tied).toBe(false);
-    expect(rows[0].playerId).toBe("p01");
+    expect(rows[rows.length - 1].playerId).toBe("p01");
+    expect(rows[0].rank).toBe(1);
   });
 
   test("scored players show THRU 'F' for a completed 18-hole round", () => {

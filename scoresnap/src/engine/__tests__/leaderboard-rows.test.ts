@@ -137,13 +137,15 @@ describe("buildLeaderboardRows", () => {
     expect(rows.every((r) => r.rank === 1 && r.tied)).toBe(true);
   });
 
-  test("no scores → thru is null; distinct totals are not tied", () => {
+  test("no scores → thru is null; unstarted players are unranked and never tied (AUG-863)", () => {
     const players = [player("a", "A", Array(18).fill(0)), player("b", "B", Array(18).fill(0))];
     const results = calcStrokePlay(players, COURSE); // both total 0
     const rows = buildLeaderboardRows(results, players, { holeCount: 18 });
     expect(rows.map((r) => r.thru)).toEqual([null, null]);
-    // both total 0 → tied T1
-    expect(rows.map((r) => r.rankLabel)).toEqual(["T1", "T1"]);
+    // AUG-863 PM rule: no rank number, no tie, roster order among themselves
+    // (was "T1","T1" when the 0 placeholder total was ranked).
+    expect(rows.map((r) => r.rankLabel)).toEqual(["—", "—"]);
+    expect(rows.map((r) => [r.playerId, r.rank, r.tied])).toEqual([["a", null, false], ["b", null, false]]);
   });
 
   test("THRU: F for a full round, the count for a partial round, null for none", () => {
@@ -923,7 +925,7 @@ describe("buildLeaderboardRows seeded rank/tie/label invariants (AUG-253t)", () 
         const row = rows[i];
         // rows preserve the sorted input order, so rows[i].total === results[i].total.
         // Ranks are non-decreasing down the board.
-        if (i > 0 && row.rank < rows[i - 1].rank) {
+        if (i > 0 && row.rank! < rows[i - 1].rank!) {
           fail(seed, `rank decreased at row ${i}: ${rows[i - 1].rank} -> ${row.rank}`);
         }
         // Competition rank: 1 + the number of players with a strictly lower total.
@@ -1120,5 +1122,78 @@ describe("buildLeaderboardRows compose-filter matrix (AUG-253o)", () => {
     const out = buildLeaderboardRows(results, players, { holeCount: 18, groups, groupId: GROUP, youPlayerId: "p0" });
     expect(out).toEqual(filtered);
     expect(out.some((r) => r.isYou)).toBe(false);
+  });
+});
+
+// AUG-863: PM rule — a player with no scores yet (thru === null) ranks below
+// every started player, has no rank number (rankLabel "—"), takes no rank
+// position and creates no ties. Unstarted players keep entry order: group
+// tee-time order when known, then roster order.
+
+const COURSE_863: Course = {
+  name: "Test GC",
+  holes: Array.from({ length: 18 }, (_, i) => ({ num: i + 1, par: 4, hcp: i + 1, yards: 350 })),
+};
+
+const p863 = (id: string, name: string, scores: number[]): Player => ({ id, name, handicap: 0, scores });
+const partial863 = (holes: number, strokes = 4) => [...Array(holes).fill(strokes), ...Array(18 - holes).fill(0)];
+const none863 = () => Array(18).fill(0);
+
+function rowsFor863(players: Player[], groups?: LeaderboardGroup[]) {
+  // calcStrokePlay sorts by total ascending — the documented input contract.
+  return buildLeaderboardRows(calcStrokePlay(players, COURSE_863), players, { holeCount: 18, groups });
+}
+
+describe("buildLeaderboardRows — unstarted players rank last (AUG-863)", () => {
+  test("failing-first: mixed tournament, one unstarted + two started → unstarted last with '—', started 1 and 2", () => {
+    const players = [p863("s1", "Started One", partial863(9, 4)), p863("u", "Unstarted", none863()), p863("s2", "Started Two", partial863(3, 5))];
+    const rows = rowsFor863(players);
+    expect(rows.map((r) => r.playerId)).toEqual(["s2", "s1", "u"]);
+    expect(rows.map((r) => r.rankLabel)).toEqual(["1", "2", "—"]);
+    expect(rows[2]).toMatchObject({ rank: null, tied: false, thru: null });
+  });
+
+  test("unstarted players create no ties and take no rank position", () => {
+    const players = [p863("a", "A", partial863(9, 4)), p863("u1", "U1", none863()), p863("u2", "U2", none863()), p863("b", "B", partial863(9, 4)), p863("c", "C", partial863(9, 5))];
+    const rows = rowsFor863(players);
+    expect(rows.map((r) => r.rankLabel)).toEqual(["T1", "T1", "3", "—", "—"]);
+    expect(rows.slice(3).every((r) => r.rank === null && r.tied === false)).toBe(true);
+  });
+
+  test("started ties unchanged: 1, 2, 2, 4 still holds with an unstarted player in the field", () => {
+    const players = [p863("a", "A", partial863(9, 3)), p863("b", "B", partial863(9, 4)), p863("c", "C", partial863(9, 4)), p863("d", "D", partial863(9, 5)), p863("u", "U", none863())];
+    const rows = rowsFor863(players);
+    expect(rows.map((r) => r.rank)).toEqual([1, 2, 2, 4, null]);
+    expect(rows.map((r) => r.rankLabel)).toEqual(["1", "T2", "T2", "4", "—"]);
+  });
+
+  test("unstarted order: tee-time order when known, then roster order", () => {
+    const players = [p863("s", "S", partial863(4)), p863("r1", "Roster1", none863()), p863("r2", "Roster2", none863()), p863("late", "Late", none863()), p863("early", "Early", none863())];
+    const groups: LeaderboardGroup[] = [
+      { id: "g-late", players: [{ id: "late" }], teeTime: "1:10 PM" },
+      { id: "g-early", players: [{ id: "early" }], teeTime: "8:40 AM" },
+    ];
+    const rows = rowsFor863(players, groups);
+    expect(rows.map((r) => r.playerId)).toEqual(["s", "early", "late", "r1", "r2"]);
+    expect(rows.find((r) => r.playerId === "early")?.teeTime).toBe("8:40 AM");
+  });
+
+  test("filters and the you-pin keep real field ranks; a pinned unstarted player stays '—'", () => {
+    const players = [p863("a", "Alice", partial863(9, 4)), p863("u", "Una", none863()), p863("b", "Bob", partial863(9, 5))];
+    const results = calcStrokePlay(players, COURSE_863);
+    const searched = buildLeaderboardRows(results, players, { holeCount: 18, query: "bo" });
+    expect(searched.map((r) => [r.playerId, r.rankLabel])).toEqual([["b", "2"]]);
+    const pinned = buildLeaderboardRows(results, players, { holeCount: 18, youPlayerId: "u" });
+    expect(pinned.map((r) => [r.playerId, r.rankLabel, r.isYou === true])).toEqual([
+      ["u", "—", true],
+      ["a", "1", false],
+      ["b", "2", false],
+    ]);
+  });
+
+  test("results-only callers (no player records) keep legacy ranks", () => {
+    const players = [p863("a", "A", partial863(9, 4)), p863("u", "U", none863())];
+    const rows = buildLeaderboardRows(calcStrokePlay(players, COURSE_863), [], { holeCount: 18 });
+    expect(rows.map((r) => r.rankLabel)).toEqual(["1", "2"]);
   });
 });

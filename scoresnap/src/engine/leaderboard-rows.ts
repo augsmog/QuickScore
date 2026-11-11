@@ -13,11 +13,19 @@ export interface LeaderboardRow {
   name: string;
   /** Effective total from the input results (gross strokes, or net total when the caller passes net rows). */
   total: number;
-  /** 1-based competition rank: ties share the rank of the first position, the next distinct total skips (1, 2, 2, 4). */
-  rank: number;
-  /** True when more than one player shares this total. */
+  /**
+   * 1-based competition rank over STARTED players only: ties share the rank of
+   * the first position, the next distinct total skips (1, 2, 2, 4).
+   * AUG-863: `null` for an unstarted player (known roster player with no score
+   * on any of the `holeCount` holes) — they take no rank position.
+   */
+  rank: number | null;
+  /** True when more than one started player shares this total. Always false for an unstarted player. */
   tied: boolean;
-  /** `T<rank>` when tied, else `<rank>` — identical to today's index.tsx `tied ? `T${rank}` : rank`. */
+  /**
+   * `T<rank>` when tied, else `<rank>` — identical to today's index.tsx
+   * `tied ? `T${rank}` : rank`. AUG-863: `—` for an unstarted player.
+   */
   rankLabel: string;
   /** Present only when this row matches the caller's pinned current-player id. */
   isYou?: true;
@@ -122,6 +130,15 @@ export interface BuildLeaderboardRowsOptions {
  * over the full result set BEFORE any filtering, so a searched or group-scoped
  * view still shows each player's real field rank. Pass net rows (total/toPar
  * already carrying net values, as `buildLeaderboard` produces) to rank net.
+ *
+ * AUG-863 (PM rule recorded on the ticket): a player with no scores yet ranks
+ * below every player with at least one score, gets no rank number (`rank`
+ * null, `rankLabel` `—`), takes no rank position and creates no ties, so the
+ * started players' ranks are computed over started players only. Unstarted
+ * players keep entry order among themselves: group tee-time order when a tee
+ * time is known, then roster (`players`) order. "Unstarted" requires the
+ * player to be present in `players`; a result with no matching player record
+ * (results-only callers) has unknown progress and keeps its legacy rank.
  */
 export function buildLeaderboardRows(
   results: StrokePlayResult[],
@@ -156,35 +173,47 @@ export function buildLeaderboardRows(
     }
   }
 
-  // Tie counts in one pass, so `tied` matches today's
-  // `results.filter((x) => x.total === total).length > 1`.
+  // playerId -> roster index, for the unstarted players' entry order.
+  const rosterIndex = new Map<string, number>();
+  players.forEach((p, i) => {
+    if (!rosterIndex.has(p.id)) rosterIndex.set(p.id, i);
+  });
+
+  // AUG-863: split the field into started rows (keep the caller's total order
+  // and get competition ranks) and unstarted rows (sorted last, unranked).
+  const started: { r: StrokePlayResult; thru: "F" | number | null }[] = [];
+  const unstarted: { r: StrokePlayResult; inputIndex: number }[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const thru = computeThru(playerById.get(r.playerId), holeCount);
+    if (isUnstarted(playerById.get(r.playerId), holeCount)) {
+      unstarted.push({ r, inputIndex: i });
+    } else {
+      started.push({ r, thru });
+    }
+  }
+
+  // Tie counts over started players only, so `tied` matches today's
+  // `results.filter((x) => x.total === total).length > 1` for started rows and
+  // an unstarted player's placeholder total can never create a tie.
   const countByTotal = new Map<number, number>();
-  for (const r of results) {
+  for (const { r } of started) {
     countByTotal.set(r.total, (countByTotal.get(r.total) ?? 0) + 1);
   }
 
-  const rows: LeaderboardRow[] = [];
-  let prevTotal: number | undefined;
-  let prevRank = 0;
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
-    // Competition rank: first row of a tie group takes its 1-based position
-    // (= today's `findIndex((x) => x.total === total) + 1`); the rest repeat it.
-    const rank = i > 0 && r.total === prevTotal ? prevRank : i + 1;
-    prevTotal = r.total;
-    prevRank = rank;
-
-    const tied = (countByTotal.get(r.total) ?? 0) > 1;
-    const player = playerById.get(r.playerId);
-    const thru = computeThru(player, holeCount);
-
+  const makeRow = (
+    r: StrokePlayResult,
+    thru: "F" | number | null,
+    rank: number | null,
+    tied: boolean,
+  ): LeaderboardRow => {
     const row: LeaderboardRow = {
       playerId: r.playerId,
       name: r.name,
       total: r.total,
       rank,
       tied,
-      rankLabel: tied ? `T${rank}` : `${rank}`,
+      rankLabel: rank === null ? "—" : tied ? `T${rank}` : `${rank}`,
       thru,
       // Tee time only when the player has not started (thru === null); a known
       // score (number or "F") always clears it.
@@ -197,8 +226,32 @@ export function buildLeaderboardRows(
       row.r1 = r1ById?.get(r.playerId) ?? null;
       row.today = todayById?.get(r.playerId) ?? null;
     }
-    rows.push(row);
+    return row;
+  };
+
+  const rows: LeaderboardRow[] = [];
+  let prevTotal: number | undefined;
+  let prevRank = 0;
+  for (let i = 0; i < started.length; i++) {
+    const { r, thru } = started[i];
+    // Competition rank: first row of a tie group takes its 1-based position
+    // (= today's `findIndex((x) => x.total === total) + 1`); the rest repeat it.
+    const rank = i > 0 && r.total === prevTotal ? prevRank : i + 1;
+    prevTotal = r.total;
+    prevRank = rank;
+    rows.push(makeRow(r, thru, rank, (countByTotal.get(r.total) ?? 0) > 1));
   }
+
+  // Unstarted: tee-time order when a group tee time is known (unparseable or
+  // missing tee times after known ones), then roster order, then input order.
+  const unstartedKey = (u: { r: StrokePlayResult; inputIndex: number }) => ({
+    tee: teeTimeMinutes(teeTimeByPlayer.get(u.r.playerId)),
+    roster: rosterIndex.get(u.r.playerId) ?? Number.POSITIVE_INFINITY,
+    input: u.inputIndex,
+  });
+  const keyed = unstarted.map((u) => ({ u, k: unstartedKey(u) }));
+  keyed.sort((a, b) => a.k.tee - b.k.tee || a.k.roster - b.k.roster || a.k.input - b.k.input);
+  for (const { u } of keyed) rows.push(makeRow(u.r, null, null, false));
 
   // Filters run after ranks are fixed, so they never renumber.
   let filtered = rows;
@@ -231,6 +284,39 @@ function indexRoundScores(results: StrokePlayResult[]): Map<string, LeaderboardR
     if (!byId.has(r.playerId)) byId.set(r.playerId, { total: r.total, toPar: r.toPar });
   }
   return byId;
+}
+
+/**
+ * AUG-863: a known roster player with no score on any of the first `holeCount`
+ * holes. A result with no matching player record is NOT unstarted (progress is
+ * unknown), so results-only callers keep their legacy ranks.
+ */
+function isUnstarted(player: Player | undefined, holeCount: number): boolean {
+  if (!player || holeCount <= 0) return false;
+  return computeThru(player, holeCount) === null;
+}
+
+/**
+ * Minutes after midnight for a tee-time token such as `"8:40 AM"`, `"1:05 pm"`
+ * or `"13:05"`; `+Infinity` when absent or unparseable, so those sort after
+ * known tee times and fall back to roster order.
+ */
+function teeTimeMinutes(token: string | undefined): number {
+  if (!token) return Number.POSITIVE_INFINITY;
+  const m = /^\s*(\d{1,2}):(\d{2})\s*([AaPp][Mm])?\s*$/.exec(token);
+  if (!m) return Number.POSITIVE_INFINITY;
+  let h = Number(m[1]);
+  const min = Number(m[2]);
+  if (min > 59) return Number.POSITIVE_INFINITY;
+  const ampm = m[3]?.toUpperCase();
+  if (ampm) {
+    if (h < 1 || h > 12) return Number.POSITIVE_INFINITY;
+    if (h === 12) h = 0;
+    if (ampm === "PM") h += 12;
+  } else if (h > 23) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return h * 60 + min;
 }
 
 /** THRU for a player over the first `holeCount` holes: 'F' all played, count when partial, null when none. */
