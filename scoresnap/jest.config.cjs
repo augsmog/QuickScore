@@ -11,6 +11,7 @@ module.exports = {
     '<rootDir>/src/engine/__tests__/flights.test.ts',
     '<rootDir>/src/engine/__tests__/team-standings.test.ts',
     '<rootDir>/src/engine/__tests__/contest-teams.test.ts',
+    '<rootDir>/src/engine/__tests__/contest-flights.test.ts',
   ],
   cacheDirectory: process.env.JEST_CACHE_DIR || '<rootDir>/.jest-cache',
 };
