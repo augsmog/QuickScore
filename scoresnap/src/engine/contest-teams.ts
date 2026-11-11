@@ -22,12 +22,14 @@ export function contestTeams(
       : [];
   if (!definitions.length) return "no_teams";
 
-  const selectedRound = opts.roundId
-    ? contest.rounds?.find((round) => round.id === opts.roundId)
-    : contest.isTournament && contest.rounds && contest.currentRound
-      ? contest.rounds.find((round) => round.number === contest.currentRound)
-      : undefined;
-  const groups = selectedRound?.groups ?? (opts.roundId ? [] : contest.groups);
+  let groups;
+  if (opts.roundId !== undefined) {
+    groups = contest.rounds?.find((round) => round.id === opts.roundId)?.groups ?? [];
+  } else if (contest.isTournament && contest.rounds && contest.currentRound) {
+    groups = contest.rounds.find((round) => round.number === contest.currentRound)?.groups ?? [];
+  } else {
+    groups = contest.groups;
+  }
   const playersById = new Map<string, Player>();
   for (const group of groups) {
     for (const player of group.players) {

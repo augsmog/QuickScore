@@ -29,6 +29,17 @@ describe("contestTeams", () => {
     expect(result.empty).toHaveLength(19);
   });
 
+  it("prefers a team ID when it collides with another team's name", () => {
+    const contest = base({
+      teams: [{ id: "t1", name: "One" }, { id: "t2", name: "t1" }],
+      groups: [group("g", [player("p", "t1")])],
+    });
+    expect(contestTeams(contest)).toMatchObject({
+      teams: [{ name: "One", players: [{ id: "p" }] }],
+      empty: ["t1"],
+    });
+  });
+
   it("supports legacy A/B names and excludes empty teams", () => {
     const result = contestTeams(base({ teams: undefined, teamAName: "Alpha", teamBName: "Beta", groups: [group("g", [player("a", "A"), player("b", "Beta")])] }));
     expect(result).toEqual({ teams: [{ name: "Alpha", players: [expect.objectContaining({ id: "a" })] }, { name: "Beta", players: [expect.objectContaining({ id: "b" })] }], unassigned: [], empty: [] });
@@ -40,6 +51,16 @@ describe("contestTeams", () => {
     const contest = base({ isTournament: true, currentRound: 2, rounds: [{ id: "r1", number: 1, name: "R1", groups: [first] }, { id: "r2", number: 2, name: "R2", groups: [second] }] });
     expect(contestTeams(contest)).toMatchObject({ teams: [{ name: "Two", players: [{ id: "second-player" }] }] });
     expect(contestTeams(contest, { roundId: "r1" })).toMatchObject({ teams: [{ name: "One", players: [{ id: "first-player" }] }] });
+  });
+
+  it("matches getActiveGroups when the tournament current round is missing", () => {
+    const contest = base({
+      isTournament: true,
+      currentRound: 2,
+      rounds: [{ id: "r1", number: 1, name: "R1", groups: [group("stale", [player("stale", "t1")])] }],
+    });
+    expect(contestTeams(contest)).toEqual({ teams: [], unassigned: [], empty: ["One", "Two"] });
+    expect(contestTeamStandings(contest, { countBest: 1, net: false })).toEqual([]);
   });
 
   it("deduplicates players without mutating contest data and composes standings", () => {
