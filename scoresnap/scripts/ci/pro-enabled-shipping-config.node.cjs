@@ -27,6 +27,14 @@ function isTruthy(value) {
   return !['', 'false', '0', 'no', 'off'].includes(value.trim().toLowerCase());
 }
 
+function enabledWorkflowPaths(files) {
+  return files
+    .filter(({ name }) => /\.(yml|yaml)$/.test(name))
+    .filter(({ source }) => new RegExp(`${flag}\\s*:\\s*["']?true\\b`, 'i').test(source))
+    .map(({ name }) => name)
+    .sort();
+}
+
 test('shipping EAS profiles cannot enable the Pro flag', () => {
   const eas = JSON.parse(fs.readFileSync(path.join(scoresnap, 'eas.json'), 'utf8'));
   for (const name of ['production', 'testflight', 'preview', 'simulator', 'simulator-offline']) {
@@ -46,11 +54,18 @@ test('sample env and TypeScript unset default keep Pro disabled', () => {
 
 test('only the explicit CI workflow allowlist may enable the flag', () => {
   const workflowRoot = path.join(root, '.github/workflows');
-  const enabledWorkflows = filesBelow(workflowRoot)
-    .filter((filename) => /\.(yml|yaml)$/.test(filename))
-    .filter((filename) => new RegExp(`${flag}\\s*:\\s*["']?true\\b`, 'i').test(fs.readFileSync(filename, 'utf8')))
-    .map((filename) => path.relative(root, filename))
-    .sort();
+  const files = filesBelow(workflowRoot).map((filename) => ({
+    name: path.relative(root, filename),
+    source: fs.readFileSync(filename, 'utf8'),
+  }));
 
-  assert.deepEqual(enabledWorkflows, allowedFlagOnWorkflows);
+  assert.deepEqual(enabledWorkflowPaths(files), allowedFlagOnWorkflows);
+});
+
+test('an out-of-allowlist flag-on workflow fixture fails the guard', () => {
+  const fixture = [
+    ...allowedFlagOnWorkflows.map((name) => ({ name, source: `${flag}: true` })),
+    { name: '.github/workflows/unauthorized-fixture.yml', source: `env:\n  ${flag}: true\n` },
+  ];
+  assert.throws(() => assert.deepEqual(enabledWorkflowPaths(fixture), allowedFlagOnWorkflows));
 });
