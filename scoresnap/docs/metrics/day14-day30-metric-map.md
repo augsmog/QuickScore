@@ -3,7 +3,7 @@
 This is a source map, not a report of measured outcomes. Any targets used in a
 Day-14/30 review remain planning assumptions until real cohorts are measured.
 Pro is disabled behind `pro_enabled`; Tournament Director is the only paid IAP.
-There is no Pro trial metric in this map.
+There is no Pro entitlement or Pro trial metric in this map.
 
 | Metric | Source and interpretation |
 | --- | --- |
@@ -13,7 +13,7 @@ There is no Pro trial metric in this map.
 | Share rate | table `public.round_share_rate` in `supabase/proposed/20261104110000_activation_share_rate.sql`; `confirmed_share_rate` is confirmed non-organizer members divided by eligible completed rounds. Link creation and join-request intent are separate signals, not confirmed shares. Proposed only. |
 | D7 retention | table `public.retention_cohorts` in `supabase/proposed/20261104090000_activation_retention.sql`; `d7_rate` counts eligible accounts with a score event in the 168–192 hour window after first eligible use, over mature accounts. Proposed only. |
 | D30 retention | table `public.retention_cohorts` in `supabase/proposed/20261104090000_activation_retention.sql`; `d30_rate` counts eligible accounts with a score event in the 720–744 hour window after first eligible use, over mature accounts. Proposed only. |
-| Tournament Director paid conversion | MISSING — no paid-conversion event/table exists in this tree. Proposed child: `Instrument Tournament Director paid conversion from verified entitlement state`. Measure verified TD entitlement starts against eligible free organizer accounts; do not count a Pro trial. |
+| Tournament Director paid conversion | event `tournament director entitlement started` in `src/services/posthog-log.ts`; count only `period_type = normal` for organizer accounts with at least one `contest setup saved`; report `trial` and `intro` starts separately. The active `SnapScore TD` entitlement is read directly from RevenueCat; the Pro feature flag does not affect this event. |
 
 Supporting events currently present in code are `contest setup saved` and
 `scorecard scores committed`, both in `src/services/posthog-log.ts`. They are

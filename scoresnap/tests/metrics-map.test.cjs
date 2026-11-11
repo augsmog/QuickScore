@@ -36,12 +36,17 @@ describe('Day-14/30 metric map source links', () => {
     }
   });
 
-  test('uses Tournament Director conversion and keeps the Pro-free launch framing', () => {
+  test('uses the TD entitlement event and keeps the Pro-free launch framing', () => {
     expect(map).toContain('Tournament Director paid conversion');
+    expect(map).toContain('event `tournament director entitlement started`');
+    expect(map).toContain('`period_type = normal`');
+    expect(map).toContain('organizer accounts with at least one `contest setup saved`');
+    expect(map).toContain('report `trial` and `intro` starts separately');
     expect(map).toContain('Pro is disabled behind `pro_enabled`');
     expect(map).not.toMatch(/trial-to-paid/i);
     expect(map.split('\n').filter((line) => line.startsWith('| ')).map((line) => line.split('|')[1])
-      .join(' ')).not.toMatch(/trial/i);
+      .join(' ')).not.toMatch(/Pro trial/i);
+    expect(map).not.toContain('MISSING');
     expect(map).not.toMatch(/50\+\s+game modes/i);
     expect(map).toContain('planning assumptions');
   });
