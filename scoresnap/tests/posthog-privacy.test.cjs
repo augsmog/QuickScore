@@ -66,7 +66,7 @@ function nativeCaptureSources() {
 
 test("PostHog identity only uses its current anonymous distinct ID", () => {
   const client = {
-    get_distinct_id: jest.fn(() => "anonymous-session-uuid"),
+    getDistinctId: jest.fn(() => "anonymous-session-uuid"),
     identify: jest.fn(),
   };
 

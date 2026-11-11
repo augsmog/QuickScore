@@ -18,7 +18,7 @@ You may create an account using Apple Sign-In, Google Sign-In, or email and pass
 
 ## 3. Subscription and Payments
 
-The App offers a free tier with limited features and a paid subscription ("SnapScore Pro") with additional capabilities including unlimited OCR scorecard scanning.
+The App is free to use, including the in-app games and scorecard scanning. The App offers a paid subscription ("SnapScore Tournament Director") that lets a host run multi-round, multi-group tournaments; players join and score for free.
 
 - Subscriptions are billed through your Apple App Store account
 - Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period

@@ -27,7 +27,9 @@ const check = (ok, name, detail = "") => {
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
 };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined,
+});
 const page = await browser.newPage({ viewport });
 console.log(`viewport: ${viewport.width}x${viewport.height}`);
 // Capture the native share request without opening a system sheet or sending
@@ -141,8 +143,8 @@ const scorecard = [
   "Lee,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5",
   "Pat,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6",
 ].join("\n");
-await page.goto(`${BASE}/scan?contestId=${contestId}`, { waitUntil: "networkidle" });
-await page.getByTestId("scorecard-text-input").waitFor();
+await page.goto(`${BASE}/scan?contestId=${contestId}`, { waitUntil: "domcontentloaded" });
+await page.getByTestId("scorecard-text-input").waitFor({ state: "visible", timeout: 10000 });
 // Empty input must not navigate or invent data
 await page.getByTestId("parse-scorecard-button").click();
 await page.waitForTimeout(500);

@@ -17,6 +17,12 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 permissions:
   contents: read
+env:
+  # AUG-817: the web-smoke journeys (e2e/journeys/runner.mjs, etc.) assert the Pro-enabled product
+  # contract (free paywall/settle gates). Build with the reversible pro_enabled flag ON so they
+  # reproduce pre-flag (main) behavior. Shipped flag-off behavior (Pro dormant / features free) is
+  # covered by the unit dual-run suite (tests/pro-enabled-flag.test.cjs) and device-evidence AUG-825.
+  EXPO_PUBLIC_PRO_ENABLED: 'true'
 jobs:
   build-standard:
     runs-on: ubuntu-latest
@@ -32,6 +38,39 @@ jobs:
           cache: npm
           cache-dependency-path: scoresnap/package-lock.json
       - run: npm ci
+      - name: Export Pro flag off and on with isolated Metro caches
+        run: |
+          mkdir -p "$RUNNER_TEMP/metro-cache-pro-off" "$RUNNER_TEMP/metro-cache-pro-on"
+          EXPO_PUBLIC_PRO_ENABLED=false EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="$RUNNER_TEMP/metro-cache-pro-off" \
+            npx expo export --platform web --output-dir dist-web-pro-off --clear
+          EXPO_PUBLIC_PRO_ENABLED=true EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="$RUNNER_TEMP/metro-cache-pro-on" \
+            npx expo export --platform web --output-dir dist-web-pro-on --clear
+      - name: Verify Pro flag is baked into both exports
+        run: node --test scripts/ci/pro-flag-web-export.cjs
+      - name: Install Chromium for Pro-off acceptance journey
+        run: npx playwright install --with-deps chromium
+      - name: Pro flag-off Playwright journey and flag-on negative proof
+        run: |
+          WEB_ROOT=dist-web-pro-off PORT=8093 node e2e/serve.mjs > /tmp/pro-off-server.log 2>&1 &
+          PRO_OFF_PID=$!
+          WEB_ROOT=dist-web-pro-on PORT=8094 node e2e/serve.mjs > /tmp/pro-on-server.log 2>&1 &
+          PRO_ON_PID=$!
+          trap 'kill "$PRO_OFF_PID" "$PRO_ON_PID" 2>/dev/null || true' EXIT
+          for port in 8093 8094; do
+            for attempt in {1..30}; do
+              if curl --fail --silent "http://127.0.0.1:$port/" > /dev/null; then break; fi
+              sleep 1
+            done
+            curl --fail --silent "http://127.0.0.1:$port/" > /dev/null
+          done
+          BASE_URL=http://127.0.0.1:8093 OUT_DIR=e2e/journey-screens/pro-off-free node e2e/journeys/pro-off-free.mjs
+          mkdir -p e2e/journey-screens/pro-on-negative
+          set +e
+          BASE_URL=http://127.0.0.1:8094 OUT_DIR=e2e/journey-screens/pro-on-negative node e2e/journeys/pro-off-free.mjs > e2e/journey-screens/pro-on-negative/run.log 2>&1
+          negative_status=$?
+          set -e
+          if [ "$negative_status" -eq 0 ]; then echo 'Flag-on journey unexpectedly passed'; exit 1; fi
+          grep -E 'FIRST_PRO_GATE (skins-create|settlement):' e2e/journey-screens/pro-on-negative/run.log
       - run: node --test e2e/usability-gate.test.mjs scripts/ci/web-pipeline.test.mjs
       - run: npm test -- --runInBand
       - name: Build and identify standard offline app
@@ -52,6 +91,22 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
+      - name: Upload Pro-off journey proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pro-off-free-journey-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap/e2e/journey-screens/pro-off-free
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload flag-on negative proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pro-on-negative-journey-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap/e2e/journey-screens/pro-on-negative
+          if-no-files-found: error
+          retention-days: 7
   browser-flows:
     runs-on: ubuntu-latest
     timeout-minutes: 40
