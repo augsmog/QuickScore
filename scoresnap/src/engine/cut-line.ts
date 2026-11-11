@@ -50,3 +50,23 @@ export function applyCut(
     cutScore,
   };
 }
+
+/**
+ * Attach cut status to the displayed leaderboard rows without changing their
+ * order or rank labels. When `fullFieldRows` is supplied, the boundary is
+ * computed from the full field so search/group filters cannot change status.
+ * Pass the unfiltered rows from buildLeaderboardRows as that third argument.
+ */
+export function withCutStatus<T extends LeaderboardRow>(
+  rows: T[],
+  rule: CutRule,
+  fullFieldRows: Pick<LeaderboardRow, "playerId" | "total" | "thru">[] = rows,
+): (T & { cut: "made" | "missed"; cutScore: number | null })[] {
+  const { made, cutScore } = applyCut(fullFieldRows, rule);
+  const madeIds = new Set(made);
+  return rows.map((row) => ({
+    ...row,
+    cut: row.thru !== null && madeIds.has(row.playerId) ? "made" : "missed",
+    cutScore,
+  }));
+}
