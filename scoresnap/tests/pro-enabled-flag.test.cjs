@@ -34,25 +34,31 @@ const MULTI_ROUND = { rounds: [{}, {}] };
 test('fresh entitlements module defaults to Pro dormant (flag OFF) without any wiring', () => {
   const e = load('src/services/entitlements.ts');
   expect(e.proEnabled()).toBe(false);
-  expect(e.resolveTier('free')).toBe('td');
+  expect(e.resolveTier('free')).toBe('pro');
+  expect(e.resolveTier('td')).toBe('td');
 });
 
-describe('flag OFF (shipped default: Pro dormant, all former paid features free)', () => {
+describe('flag OFF (shipped default: Pro features free; TD hosting stays paid)', () => {
   test('every gate opens on a fresh free account', () => {
     const e = entitlements(false);
     expect(e.proEnabled()).toBe(false);
-    // resolver opens everything to td so neither a Pro nor a TD paywall can appear
-    expect(e.resolveTier('free')).toBe('td');
-    expect(e.resolveTier('pro')).toBe('td');
+    // Pro features resolve to pro; tournament hosting still checks the raw TD entitlement.
+    expect(e.resolveTier('free')).toBe('pro');
+    expect(e.resolveTier('pro')).toBe('pro');
     expect(e.resolveTier('td')).toBe('td');
     // every former paid gate is now free for a 'free' subscription state
     expect(e.canUseGame('skins', 'free')).toBe(true);
     for (const id of e.FREE_GAMES) expect(e.canUseGame(id, 'free')).toBe(true);
     expect(e.canSeeSettlement('free')).toBe(true);
     expect(e.canSeeStats('free')).toBe(true);
-    expect(e.canHostTournament(MULTI_GROUP, 'free')).toBe(true);
-    expect(e.canHostTournament(MULTI_ROUND, 'free')).toBe(true);
-    expect(e.canPublishHostedContest(MULTI_GROUP, 'free')).toBe(true);
+    expect(e.canHostTournament({}, 'free')).toBe(true);
+    expect(e.canHostTournament(MULTI_GROUP, 'free')).toBe(false);
+    expect(e.canHostTournament(MULTI_ROUND, 'free')).toBe(false);
+    expect(e.canHostTournament(MULTI_GROUP, 'pro')).toBe(false);
+    expect(e.canHostTournament(MULTI_ROUND, 'pro')).toBe(false);
+    expect(e.canHostTournament(MULTI_GROUP, 'td')).toBe(true);
+    expect(e.canHostTournament(MULTI_ROUND, 'td')).toBe(true);
+    expect(e.canPublishHostedContest(MULTI_GROUP, 'free')).toBe(false);
     expect(e.scanAllowance('free', new Date(2026, 9, 31)).limit).toBe(Infinity);
     expect(e.defaultRoundGames('free')).toEqual(['stroke_play', 'skins']);
     // purchase/restore integrity: tierFromCustomerInfo still reports the real (raw) entitlement
