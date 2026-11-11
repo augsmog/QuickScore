@@ -33,31 +33,31 @@ END $$;
 
 -- Quick Settle operation IDs are durable idempotency keys bound to one owner and contest.
 SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000a04',true);
+SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000a06',true);
 DO $$ DECLARE ack jsonb; BEGIN
-  ack := public.record_quick_settle_completion('00000000-0000-0000-0000-000000000a21','00000000-0000-0000-0000-000000000a04','00000000-0000-0000-0000-000000000a31');
-  IF ack IS DISTINCT FROM '{"operationId":"00000000-0000-0000-0000-000000000a21","ownerId":"00000000-0000-0000-0000-000000000a04"}'::jsonb THEN RAISE EXCEPTION 'first Quick Settle op was not acknowledged'; END IF;
-  PERFORM public.record_quick_settle_completion('00000000-0000-0000-0000-000000000a21','00000000-0000-0000-0000-000000000a04','00000000-0000-0000-0000-000000000a31');
-  PERFORM public.record_quick_settle_completion('00000000-0000-0000-0000-000000000a23','00000000-0000-0000-0000-000000000a04','00000000-0000-0000-0000-000000000a31');
-  PERFORM set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000a06',true);
+  ack := public.record_quick_settle_completion('00000000-0000-0000-0000-000000000a21','00000000-0000-0000-0000-000000000a06','00000000-0000-0000-0000-000000000a31');
+  IF ack IS DISTINCT FROM '{"operationId":"00000000-0000-0000-0000-000000000a21","ownerId":"00000000-0000-0000-0000-000000000a06"}'::jsonb THEN RAISE EXCEPTION 'first Quick Settle op was not acknowledged'; END IF;
+  PERFORM public.record_quick_settle_completion('00000000-0000-0000-0000-000000000a21','00000000-0000-0000-0000-000000000a06','00000000-0000-0000-0000-000000000a31');
+  PERFORM public.record_quick_settle_completion('00000000-0000-0000-0000-000000000a23','00000000-0000-0000-0000-000000000a06','00000000-0000-0000-0000-000000000a31');
+  PERFORM set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000a04',true);
   BEGIN
-    PERFORM public.record_quick_settle_completion('00000000-0000-0000-0000-000000000a23','00000000-0000-0000-0000-000000000a06','00000000-0000-0000-0000-000000000a31');
+    PERFORM public.record_quick_settle_completion('00000000-0000-0000-0000-000000000a23','00000000-0000-0000-0000-000000000a04','00000000-0000-0000-0000-000000000a31');
     RAISE EXCEPTION 'operation ID was accepted under a different owner';
   EXCEPTION WHEN unique_violation THEN NULL;
   END;
-  PERFORM set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000a04',true);
+  PERFORM set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000a06',true);
   BEGIN
-    PERFORM public.record_quick_settle_completion('00000000-0000-0000-0000-000000000a23','00000000-0000-0000-0000-000000000a04','00000000-0000-0000-0000-000000000a32');
+    PERFORM public.record_quick_settle_completion('00000000-0000-0000-0000-000000000a23','00000000-0000-0000-0000-000000000a06','00000000-0000-0000-0000-000000000a32');
     RAISE EXCEPTION 'operation ID was accepted under a different contest';
   EXCEPTION WHEN unique_violation THEN NULL;
   END;
 END $$;
 RESET ROLE;
 DO $$ BEGIN
-  IF (SELECT count(*) FROM public.quick_settle_completion_operations WHERE owner_id='00000000-0000-0000-0000-000000000a04' AND contest_id='00000000-0000-0000-0000-000000000a31') <> 2
-      OR NOT EXISTS (SELECT 1 FROM public.quick_settle_completion_operations WHERE operation_id='00000000-0000-0000-0000-000000000a23' AND owner_id='00000000-0000-0000-0000-000000000a04' AND contest_id='00000000-0000-0000-0000-000000000a31')
-      OR EXISTS (SELECT 1 FROM public.quick_settle_completion_operations WHERE operation_id='00000000-0000-0000-0000-000000000a23' AND (owner_id<>'00000000-0000-0000-0000-000000000a04' OR contest_id<>'00000000-0000-0000-0000-000000000a31'))
-      OR NOT EXISTS (SELECT 1 FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a04' AND source='quick_settle' AND contest_id='00000000-0000-0000-0000-000000000a31') THEN
+  IF (SELECT count(*) FROM public.quick_settle_completion_operations WHERE owner_id='00000000-0000-0000-0000-000000000a06' AND contest_id='00000000-0000-0000-0000-000000000a31') <> 2
+      OR NOT EXISTS (SELECT 1 FROM public.quick_settle_completion_operations WHERE operation_id='00000000-0000-0000-0000-000000000a23' AND owner_id='00000000-0000-0000-0000-000000000a06' AND contest_id='00000000-0000-0000-0000-000000000a31')
+      OR EXISTS (SELECT 1 FROM public.quick_settle_completion_operations WHERE operation_id='00000000-0000-0000-0000-000000000a23' AND (owner_id<>'00000000-0000-0000-0000-000000000a06' OR contest_id<>'00000000-0000-0000-0000-000000000a31'))
+      OR NOT EXISTS (SELECT 1 FROM public.first_round_finishes WHERE user_id='00000000-0000-0000-0000-000000000a06' AND source='quick_settle' AND contest_id='00000000-0000-0000-0000-000000000a31') THEN
     RAISE EXCEPTION 'operation aliases/binding or one-row finish invariant failed';
   END IF;
 END $$;
