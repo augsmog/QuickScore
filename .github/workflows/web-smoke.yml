@@ -38,6 +38,8 @@ jobs:
           cache: npm
           cache-dependency-path: scoresnap/package-lock.json
       - run: npm ci
+      - name: Enforce Pro-disabled shipping configuration
+        run: node --test scripts/ci/pro-enabled-shipping-config.node.cjs
       - name: Export Pro flag off and on with isolated Metro caches
         run: |
           mkdir -p "$RUNNER_TEMP/metro-cache-pro-off" "$RUNNER_TEMP/metro-cache-pro-on"
