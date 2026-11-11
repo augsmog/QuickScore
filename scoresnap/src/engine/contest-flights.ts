@@ -3,6 +3,8 @@ import type { Course, Player } from "./types";
 import { buildLeaderboard, type RankMode } from "./calculators/leaderboard-view";
 import { flightStandings, type FlightRule, type FlightStanding } from "./flights";
 
+export type ContestFlightStandings = FlightStanding[] & { effectiveRankMode: RankMode };
+
 // AUG-256d: flights counterpart of contest-teams.ts (AUG-877). Turns a real
 // Contest plus a caller-supplied FlightRule into per-flight standings, built the
 // same way the contest screen builds the individual leaderboard. Pure and
@@ -64,8 +66,10 @@ export function contestFlightStandings(
   contest: Contest,
   rule: FlightRule,
   opts: { rankMode: RankMode; roundId?: string },
-): FlightStanding[] {
+): ContestFlightStandings {
   const { players, course, groups } = resolveActiveField(contest, opts.roundId);
-  const { rows } = buildLeaderboard(players, course, opts.rankMode);
-  return flightStandings(rows, players, rule, { holeCount: course.holes.length, groups });
+  const { rows, mode } = buildLeaderboard(players, course, opts.rankMode);
+  const standings = flightStandings(rows, players, rule, { holeCount: course.holes.length, groups });
+  Object.defineProperty(standings, "effectiveRankMode", { value: mode, enumerable: false });
+  return standings as ContestFlightStandings;
 }

@@ -64,6 +64,7 @@ describe("contestFlightStandings", () => {
       ],
     };
     const result = contestFlightStandings(contest, rule, { rankMode: "gross" });
+    expect(result.effectiveRankMode).toBe("gross");
     expect(result.map((flight) => flight.name)).toEqual(["Low", "Mid", "High", "Empty"]);
     expect(result[0].standings).toEqual([
       expect.objectContaining({ playerId: "p1", rank: 1, tied: true, rankLabel: "T1" }),
@@ -134,8 +135,10 @@ describe("contestFlightStandings", () => {
     });
     const rule: FlightRule = { mode: "manual", assignments: {}, fallback: "All" };
     const gross = contestFlightStandings(contest, rule, { rankMode: "gross" });
+    expect(gross.effectiveRankMode).toBe("gross");
     expect(gross[0].standings.map((row: any) => row.playerId)).toEqual(["scratch", "bogey"]);
     const net = contestFlightStandings(contest, rule, { rankMode: "net" });
+    expect(net.effectiveRankMode).toBe("net");
     expect(net[0].standings.map((row: any) => row.playerId)).toEqual(["bogey", "scratch"]);
     expect(net[0].standings[0]).toEqual(expect.objectContaining({ playerId: "bogey", total: 54 }));
   });
@@ -152,6 +155,7 @@ describe("contestFlightStandings", () => {
     });
     const rule: FlightRule = { mode: "manual", assignments: {}, fallback: "All" };
     const net = contestFlightStandings(contest, rule, { rankMode: "net" });
+    expect(net.effectiveRankMode).toBe("gross");
     // Effective mode resolves to gross: gross order and gross total, not net.
     expect(net[0].standings.map((row: any) => row.playerId)).toEqual(["scratch", "bogey"]);
     expect(net[0].standings[0]).toEqual(expect.objectContaining({ playerId: "scratch", total: 36 }));
@@ -178,6 +182,7 @@ describe("contestFlightStandings", () => {
       { name: "A", standings: [] },
       { name: "B", standings: [] },
     ]);
+    expect(result.effectiveRankMode).toBe("gross");
   });
 
   it("propagates rule validation errors unchanged", () => {
