@@ -17,6 +17,12 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 permissions:
   contents: read
+env:
+  # AUG-817: the web-smoke journeys (e2e/journeys/runner.mjs, etc.) assert the Pro-enabled product
+  # contract (free paywall/settle gates). Build with the reversible pro_enabled flag ON so they
+  # reproduce pre-flag (main) behavior. Shipped flag-off behavior (Pro dormant / features free) is
+  # covered by the unit dual-run suite (tests/pro-enabled-flag.test.cjs) and device-evidence AUG-825.
+  EXPO_PUBLIC_PRO_ENABLED: 'true'
 jobs:
   build-standard:
     runs-on: ubuntu-latest
@@ -32,6 +38,15 @@ jobs:
           cache: npm
           cache-dependency-path: scoresnap/package-lock.json
       - run: npm ci
+      - name: Export Pro flag off and on with isolated Metro caches
+        run: |
+          mkdir -p "$RUNNER_TEMP/metro-cache-pro-off" "$RUNNER_TEMP/metro-cache-pro-on"
+          EXPO_PUBLIC_PRO_ENABLED=false TMPDIR="$RUNNER_TEMP/metro-cache-pro-off" \
+            npx expo export --platform web --output-dir dist-web-pro-off --clear
+          EXPO_PUBLIC_PRO_ENABLED=true TMPDIR="$RUNNER_TEMP/metro-cache-pro-on" \
+            npx expo export --platform web --output-dir dist-web-pro-on --clear
+      - name: Verify Pro flag is baked into both exports
+        run: node --test scripts/ci/pro-flag-web-export.cjs
       - run: node --test e2e/usability-gate.test.mjs scripts/ci/web-pipeline.test.mjs
       - run: npm test -- --runInBand
       - name: Build and identify standard offline app

@@ -5,6 +5,9 @@ const {calculateSettlement}=await import('./src/engine/settlement.ts').then(m=>m
 const {actualInputLedger}=await import('./src/engine/actual-inputs.ts').then(m=>m.default??m);
 const {calculateContestSettlement,scopeKey}=await import('./src/engine/contest-results.ts').then(m=>m.default??m);
 const validation=await import('./src/engine/contest-validation.ts').then(m=>m.default??m);
+// AUG-817: this suite asserts the Pro-enabled host gate (validateHostContest free -> /plan/). Pin
+// the reversible pro_enabled flag ON so it holds when the shipped default is OFF.
+const __ent=await import('./src/services/entitlements.ts').then(m=>m.default??m);__ent.setProEnabled(true);
 const c=await import('./src/engine/calculators/index.ts').then(m=>m.default??m);
 const course={name:'Rules',holes:Array.from({length:18},(_,i)=>({num:i+1,par:4,hcp:i+1,yards:100}))};
 const players=['A','B','C','D'].map((name,i)=>({id:name,name,team:i<2?'Red':'Blue',handicap:4,scores:Array(18).fill(4)}));

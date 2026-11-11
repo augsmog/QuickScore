@@ -4,6 +4,8 @@ import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 // Usage: BASE_URL=http://localhost:8089 node e2e/tournament-16-player.mjs
 
 import { chromium } from "playwright";
+import fs from "node:fs";
+import path from "node:path";
 
 const BASE = process.env.BASE_URL || "http://localhost:8089";
 const MIN_TAP_TARGET = 44; // px
@@ -92,6 +94,43 @@ const hasMultipleTabs = tabText.includes("SCORECARD") &&
                         tabText.includes("LEADERBOARD") &&
                         tabText.includes("GAMES");
 check(hasMultipleTabs, "Contest tabs rendered (Scorecard, Leaderboard, Games)");
+await orgPage.getByText(/^scorecard$/i).first().click();
+let screenshotScoresEntered = 0;
+for (const playerName of playerNames.slice(0, 3)) {
+  const scorePlus = orgPage.getByTestId(`score-plus-${playerName}`);
+  if (await scorePlus.isVisible().catch(() => false)) {
+    await scorePlus.click();
+    screenshotScoresEntered++;
+  }
+}
+check(screenshotScoresEntered === 3, "Score three players before leaderboard capture", `${screenshotScoresEntered} scores entered`);
+await orgPage.getByText(/^leaderboard$/i).first().click();
+await orgPage.getByTestId("leaderboard-search").waitFor({ state: "visible", timeout: 10000 });
+const grossButton = orgPage.getByTestId("leaderboard-rank-gross");
+const hasGrossToggle = (await grossButton.count()) > 0;
+const grossSelected = !hasGrossToggle || await grossButton.evaluate((element) => {
+  const background = getComputedStyle(element).backgroundColor;
+  return background !== "transparent" && background !== "rgba(0, 0, 0, 0)";
+});
+check(grossSelected, "Gross leaderboard selected", hasGrossToggle ? "Gross toggle is active" : "Gross is the only supported ranking");
+const leaderboardRows = orgPage.locator('[data-testid^="leaderboard-player-"]');
+await leaderboardRows.first().waitFor({ state: "visible", timeout: 10000 });
+const viewport = orgPage.viewportSize();
+const rowCount = await leaderboardRows.count();
+let rowsWithRankAndThru = 0;
+for (let index = 0; index < rowCount && rowsWithRankAndThru < 3; index++) {
+  const row = leaderboardRows.nth(index);
+  const box = await row.boundingBox();
+  if (!box || box.x >= viewport.width || box.x + box.width <= 0 || box.y >= viewport.height || box.y + box.height <= 0) continue;
+  const rank = row.locator('[data-testid^="leaderboard-rank-"]');
+  const thru = row.locator('[data-testid^="leaderboard-thru-"]');
+  if (await rank.isVisible() && await thru.isVisible()) rowsWithRankAndThru++;
+}
+check(rowsWithRankAndThru >= 3, "At least 3 visible rows show rank and THRU", `${rowsWithRankAndThru} rows`);
+const leaderboardScreenshot = process.env.AUG747_SCREENSHOT || "/tmp/aug747-16-player-gross.png";
+fs.mkdirSync(path.dirname(leaderboardScreenshot), { recursive: true });
+await orgPage.screenshot({ path: leaderboardScreenshot });
+console.log(`AUG-747 leaderboard screenshot: ${leaderboardScreenshot}`);
 const scorecardTab = orgPage.getByText(/^scorecard$/i).first();
 const scorecardVisible = await scorecardTab.waitFor({ state: "visible", timeout: 10000 }).then(() => true, () => false);
 check(
@@ -174,6 +213,74 @@ if (playerContexts.length > 0) {
 } else {
   check(true, "Skipped: no player contexts");
 }
+
+// ─── Settlement Gating (AUG-278b: TD readiness G4) ───
+// Asserts the settle GATE end-to-end on the real multi-group tournament. The
+// organizer is seeded on the paid "td" tier (seedPaidTier above), so opening
+// Settle up must BYPASS the free paywall and reach the real settlement screen.
+// A sibling page in the SAME browser context (which already holds this contest
+// in persisted storage) is then seeded to the FREE tier to prove the free gate
+// renders. The settle-ledger MATH for a multi-group field is asserted
+// deterministically in src/engine/__tests__/contest-settlement-16p.test.ts — a
+// live non-empty ledger here would need cross-device scoring (G1, out of scope).
+console.log("\n─── Settlement Gating (AUG-278b G4) ───");
+async function openSettlement(p) {
+  const tab = p.getByText(/^(settlement|settle up)$/i).first();
+  if (await tab.isVisible().catch(() => false)) {
+    await tab.click();
+    await p.waitForTimeout(800);
+    return true;
+  }
+  return false;
+}
+
+// Paid tier (td): the free gate must NOT show; the real settlement screen renders.
+const paidOpened = await openSettlement(orgPage);
+check(paidOpened, "Paid org: Settle up tab reachable");
+if (paidOpened) {
+  const settleFreeOnPaid = await orgPage.getByTestId("settle-free").isVisible().catch(() => false);
+  check(!settleFreeOnPaid, "Paid org (td): free paywall gate is bypassed", settleFreeOnPaid ? "settle-free shown" : "no settle-free");
+  // Some paid container must render: ready ledger, pending, all-even, or the
+  // "complete the round" empty state (no scores when cross-device is off).
+  const paidBody = await orgPage.innerText("body").catch(() => "");
+  const paidContainer =
+    (await orgPage.getByTestId("settlement-scroll").isVisible().catch(() => false)) ||
+    (await orgPage.getByTestId("settlement-pending").isVisible().catch(() => false)) ||
+    (await orgPage.getByTestId("settlement-all-even").isVisible().catch(() => false)) ||
+    paidBody.includes("Complete the round to see settlement");
+  check(paidContainer, "Paid org (td): real settlement screen renders (not the paywall)");
+}
+
+// Free tier: a FREE user (its own isolated context — no seedPaidTier) creates a
+// minimal single-group contest of its own and opens Settle up; `canSeeSettlement`
+// is false for the free tier, so the settle-free paywall gate must render. The
+// contest-shell layout (_layout.tsx) renders tabs from internal state starting on
+// Scorecard and ignores the URL, so we must CLICK the Settle up tab rather than
+// deep-link to /settlement, and the page must hold its own contest (contexts are
+// isolated, so a fresh context cannot see the organizer's contest).
+const freeCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const freePage = await freeCtx.newPage();
+freePage.on("pageerror", (e) => pageErrors.push(`free: ${e.message}`));
+await freePage.goto(BASE + "/", { waitUntil: "networkidle" });
+await freePage.getByText(/^new contest$/i).first().click();
+await freePage.getByPlaceholder("Your name").fill("Free Host");
+await freePage.getByPlaceholder("Player 2 name").fill("Free Guest");
+await freePage.getByText(/^continue$/i).last().click();
+await freePage.getByTestId("contest-step-gamemodes").waitFor({ state: "visible" });
+await freePage.getByText(/^continue$/i).last().click(); // Stroke Play is free + pre-selected
+await freePage.getByTestId("contest-step-round-settings").waitFor({ state: "visible" });
+await freePage.getByTestId("contest-start").click();
+await freePage.waitForURL(/\/contest\/[^/]+$/);
+await freePage.waitForTimeout(1500);
+const freeSettleOpened = await openSettlement(freePage);
+check(freeSettleOpened, "Free user: Settle up tab reachable");
+await freePage.getByTestId("settle-free").waitFor({ timeout: 10000 }).catch(() => {});
+const freeGateVisible = await freePage.getByTestId("settle-free").isVisible().catch(() => false);
+check(freeGateVisible, "Free tier: settle-free paywall gate renders");
+// settle-free-trial (the 7-day-trial CTA) only renders when a live StoreKit
+// annual trial offer resolves; that purchase view is unavailable in the offline
+// web build, so the trial CTA itself is exercised by the paywall tests, not here.
+await freeCtx.close();
 
 // Test usability: Back button from every screen
 console.log("\n─── Usability: Back Navigation ───");

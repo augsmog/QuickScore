@@ -327,12 +327,25 @@ export const useContestStore = create<ContestState>()(
           : { ...c, groups: updatedGroups }) }));
       },
 
-      completeContest: (id) =>
+      completeContest: (id) => {
+        let completed: Contest | undefined;
         set((state) => ({
           contests: state.contests.map((c) =>
-            c.id === id ? (()=>{if(c.gameConfig?.rulesVersion===1 && calculateContestSettlement(c).pending) throw new Error("Confirm every score and required side-game input before completing");return {...c,status:"completed" as const};})() : c
+            c.id === id ? (()=>{if(c.gameConfig?.rulesVersion===1 && calculateContestSettlement(c).pending) throw new Error("Confirm every score and required side-game input before completing");completed={...c,status:"completed" as const};return completed;})() : c
           ),
-        })),
+        }));
+        // Gap 2 (AUG-744): a finished round must reach Supabase so activation (first_round_finishes)
+        // counts it, even when Live Share was never toggled. Enqueue a one-shot completed snapshot for
+        // an authenticated, non-anonymous owner (same guard as the organize path above). The Live Share
+        // on-path already republishes via the subscribe below when liveShareEnabled, so fill only the
+        // off-path here to avoid a double publish. Offline/RPC failures are swallowed like that path;
+        // local scoring is unaffected.
+        if (!completed || completed.liveShareEnabled) return;
+        const auth = useAuthStore.getState();
+        if (!REAL_AUTH_CONFIGURED || !auth.session || auth.isAnonymous || !/^[0-9a-f-]{36}$/i.test(auth.user?.id || "")) return;
+        const expectedActorId = auth.user?.id ?? auth.remoteUserId ?? null;
+        void import('../services/live-share').then(m => m.publishSnapshot(completed!, expectedActorId)).catch(() => {});
+      },
 
       updateAuxiliaryData: (contestId, gameKey, hole, data, groupId) =>
         set((state) => ({

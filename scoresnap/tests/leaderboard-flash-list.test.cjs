@@ -46,6 +46,15 @@ function makeFixtures() {
   return { players, course, contest };
 }
 
+function displayRows(results, overrides = {}) {
+  return results.map((result, index) => ({
+    ...result,
+    rankLabel: `${index + 1}`,
+    thru: 'F',
+    ...overrides[result.playerId],
+  }));
+}
+
 // FlashList stand-in. `visibleCount` controls how many rows the list chooses to
 // materialize — real FlashList decides this from layout, so the component itself must
 // render NONE of the rows directly and hand everything to the list. The mock records the
@@ -87,7 +96,7 @@ const calc = load('src/engine/calculators/stroke-play.ts', { '../types': {} });
 
 test('individual leaderboard hands the full 72-row dataset + renderItem + keyExtractor to FlashList', async () => {
   const { players, course, contest } = makeFixtures();
-  const results = calc.calcStrokePlay(players, course);
+  const results = displayRows(calc.calcStrokePlay(players, course));
   const capture = {};
   const { LeaderboardResultsList } = load('src/components/LeaderboardResultsList.tsx', componentDeps(capture));
 
@@ -123,7 +132,7 @@ test('the component materializes no rows itself — row count is FlashList-contr
   // the component itself renders NO leaderboard rows: every row is materialized by the
   // list, not pre-rendered by the screen. An eager results.map would render all 72 here.
   const { players, course, contest } = makeFixtures();
-  const results = calc.calcStrokePlay(players, course);
+  const results = displayRows(calc.calcStrokePlay(players, course));
   const capture = {};
   const { LeaderboardResultsList } = load(
     'src/components/LeaderboardResultsList.tsx',
@@ -152,7 +161,7 @@ test('renderItem produces every row in calcStrokePlay order', async () => {
   // Drive renderItem for the whole dataset (pass-through list) and confirm each row is
   // correct and ordering matches calcStrokePlay output.
   const { players, course, contest } = makeFixtures();
-  const results = calc.calcStrokePlay(players, course);
+  const results = displayRows(calc.calcStrokePlay(players, course));
   const capture = {};
   const { LeaderboardResultsList } = load('src/components/LeaderboardResultsList.tsx', componentDeps(capture));
 
@@ -171,6 +180,36 @@ test('renderItem produces every row in calcStrokePlay order', async () => {
     expect(rows.map((node) => node.props.testID)).toEqual(
       results.map((r) => `leaderboard-player-${r.name}`),
     );
+  } finally {
+    if (tree) await act(async () => tree.unmount());
+  }
+});
+
+test('FlashList cells display the precomputed rank label and THRU values', async () => {
+  const { players, course, contest } = makeFixtures();
+  const calculated = calc.calcStrokePlay(players, course);
+  const results = displayRows(calculated, {
+    'player-1': { rankLabel: 'T1', thru: 'F' },
+    'player-2': { rankLabel: 'T1', thru: 9 },
+    'player-3': { rankLabel: '3', thru: null },
+  });
+  const capture = {};
+  const { LeaderboardResultsList } = load('src/components/LeaderboardResultsList.tsx', componentDeps(capture));
+  let tree;
+  try {
+    await act(async () => {
+      tree = create(React.createElement(LeaderboardResultsList, {
+        results, allPlayers: players, recentPlayers: players, contest,
+        ListHeaderComponent: null, ListFooterComponent: null,
+      }));
+    });
+    const textFor = (id) => tree.root.find((node) => node.props.testID === id).children.join('');
+    expect(textFor('leaderboard-rank-player-1')).toBe('T1');
+    expect(textFor('leaderboard-thru-player-1')).toBe('F');
+    expect(textFor('leaderboard-rank-player-2')).toBe('T1');
+    expect(textFor('leaderboard-thru-player-2')).toBe('9');
+    expect(textFor('leaderboard-rank-player-3')).toBe('3');
+    expect(textFor('leaderboard-thru-player-3')).toBe('—');
   } finally {
     if (tree) await act(async () => tree.unmount());
   }

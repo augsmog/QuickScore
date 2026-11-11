@@ -8,6 +8,7 @@ import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../..
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { buildLeaderboard } from "../../../src/engine/calculators/leaderboard-view";
 import { buildLeaderboardRows } from "../../../src/engine/leaderboard-rows";
+import { getFixtureYouPlayerId } from "../../../src/engine/you-fixture";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
@@ -69,7 +70,60 @@ export default function LeaderboardScreen() {
   // Gross/Net toggle (AUG-246c): gross is the default and identical to before.
   // Net ranks the individual leaderboard by net total using the handicap strokes
   // already entered for net games; it is only offered when the course supports it.
-  const { rows: individualResults, netAvailable } = buildLeaderboard(allPlayers, leaderboardCourse, rankMode);
+  const { rows: individualResults, netAvailable, mode: effectiveRankMode } = buildLeaderboard(allPlayers, leaderboardCourse, rankMode);
+
+  // R1 / Today are only meaningful for multi-round tournaments. Keep the
+  // single-round row model untouched; for tournaments, calculate each round
+  // with its own course and the active Gross/Net mode.
+  const roundView = contest.isTournament && (contest.rounds?.length ?? 0) > 1
+    ? (() => {
+        const rounds = contest.rounds ?? [];
+        const roundPlayers = (round: (typeof rounds)[number]) => {
+          const roundContest = { ...contest, rounds: [round], currentRound: round.number };
+          const usesTeamCards = contest.gameConfig?.rulesVersion === 1 &&
+            contest.games.some((game) => game === "alternate_shot" || game === "chapman");
+          return usesTeamCards
+            ? teamCardPlayers(roundContest, true)
+            : round.groups.flatMap((group) => group.players);
+        };
+        const resultsForRound = (number: number) => {
+          const round = rounds.find((item) => item.number === number);
+          return round
+            ? buildLeaderboard(roundPlayers(round), round.course ?? contest.course, effectiveRankMode).rows
+            : [];
+        };
+        // THRU must reflect progress in the CURRENT round only (AUG-253v). The
+        // cumulative `searchedRows.thru` below counts holes on the whole-event
+        // card, so R1 complete + 3 holes of R2 would wrongly read "F". Build the
+        // current round's own rows (its players over its own course + groups) so
+        // THRU is the current-round hole count, "F" only when the current round
+        // is complete, and the pre-start tee time / "—" when it has not started
+        // (AUG-760). r1/today score columns are unaffected.
+        const currentNumber = contest.currentRound ?? 1;
+        const currentRound = rounds.find((item) => item.number === currentNumber);
+        const currentThruById = new Map<string, { thru: "F" | number | null; teeTime: string | null }>();
+        if (currentRound) {
+          const players = roundPlayers(currentRound);
+          const course = currentRound.course ?? contest.course;
+          const currentRows = buildLeaderboardRows(
+            buildLeaderboard(players, course, effectiveRankMode).rows,
+            players,
+            { holeCount: course.holes.length, groups: currentRound.groups },
+          );
+          for (const row of currentRows) {
+            currentThruById.set(row.playerId, { thru: row.thru, teeTime: row.teeTime });
+          }
+        }
+        return {
+          roundInfo: {
+            r1: resultsForRound(1),
+            today: resultsForRound(currentNumber),
+          },
+          currentThruById,
+        };
+      })()
+    : undefined;
+  const roundInfo = roundView?.roundInfo;
 
 
   // Compute team stats if teams exist
@@ -234,15 +288,42 @@ export default function LeaderboardScreen() {
   // case-insensitive name filter, so a searched subset keeps real field ranks
   // (AUG-675 contract). Empty query returns every player, so the default view is
   // unchanged / pixel-identical.
+  // AUG-253j: pin the fixture/debug "You" row to the front. youPlayerId is a fixture id
+  // (no real user↔player link yet — AUG-254 is out of scope), so it is undefined in
+  // production and this is a no-op there: the default view stays pixel-identical.
+  const youPlayerId = getFixtureYouPlayerId();
   const searchedRows = buildLeaderboardRows(individualResults, allPlayers, {
     holeCount: leaderboardCourse.holes.length,
     query: playerQuery,
+    youPlayerId,
+    roundInfo,
   });
+  // AUG-253v: round-level data (r1/today) and the current round's THRU/tee time are
+  // keyed by playerId and passed through rankByPlayerId; single-round screens keep the
+  // cumulative row values and omit r1/today so the default card row renders unchanged.
   const rankByPlayerId = new Map(
-    searchedRows.map((r) => [r.playerId, { rankLabel: r.rankLabel, tied: r.tied }]),
+    searchedRows.map((r) => {
+      const currentThru = roundView?.currentThruById.get(r.playerId);
+      return [r.playerId, {
+        rankLabel: r.rankLabel,
+        tied: r.tied,
+        isYou: r.isYou === true,
+        thru: roundInfo ? (currentThru?.thru ?? null) : r.thru,
+        teeTime: roundInfo ? (currentThru?.teeTime ?? null) : r.teeTime,
+        ...(roundInfo ? { r1: r.r1, today: r.today } : {}),
+      }];
+    }),
   );
-  const visibleIds = new Set(searchedRows.map((r) => r.playerId));
-  const visibleResults = individualResults.filter((r) => visibleIds.has(r.playerId));
+  // Carry the complete display contract from the prepared model into FlashList.
+  // Filtering has already happened after full-field rank calculation, so a searched
+  // result keeps its real rank, pinned-You marker, THRU, and pre-start tee time.
+  const resultByPlayerId = new Map(individualResults.map((result) => [result.playerId, result]));
+  const visibleRows = searchedRows.flatMap((row) => {
+    const result = resultByPlayerId.get(row.playerId);
+    return result
+      ? [{ ...result, rankLabel: row.rankLabel, isYou: row.isYou === true, thru: row.thru, teeTime: row.teeTime }]
+      : [];
+  });
 
   // Search field for the individual leaderboard (Figma 15:2). Mirrors the shipped
   // CourseSearch "Search by course name..." affordance; placeholder is a functional
@@ -279,7 +360,7 @@ export default function LeaderboardScreen() {
   if (viewMode === "individual") {
     return (
       <LeaderboardResultsList
-        results={visibleResults}
+        results={visibleRows}
         rankByPlayerId={rankByPlayerId}
         allPlayers={allPlayers}
         recentPlayers={recentPlayers}

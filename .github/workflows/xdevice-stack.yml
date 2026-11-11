@@ -34,6 +34,10 @@ concurrency:
   cancel-in-progress: true
 env:
   SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+  # AUG-817: build the cross-device E2E app with the reversible pro_enabled flag ON so it reproduces
+  # pre-flag (main) behavior. Shipped flag-off behavior is covered by the unit dual-run suite and
+  # device-evidence AUG-825.
+  EXPO_PUBLIC_PRO_ENABLED: 'true'
 jobs:
   xdevice-four-identities:
     runs-on: ubuntu-latest
