@@ -134,7 +134,7 @@ jobs:
           EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web
       
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
       
       - name: Start web server
         run: |

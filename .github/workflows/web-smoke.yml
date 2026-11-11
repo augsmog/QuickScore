@@ -47,8 +47,12 @@ jobs:
             npx expo export --platform web --output-dir dist-web-pro-on --clear
       - name: Verify Pro flag is baked into both exports
         run: node --test scripts/ci/pro-flag-web-export.cjs
+      - run: node --test e2e/usability-gate.test.mjs scripts/ci/web-pipeline.test.mjs
+      - run: npm test -- --runInBand
+      - name: Exercise Chromium dependency retry path
+        run: bash scripts/ci/test-playwright-setup.sh
       - name: Install Chromium for Pro-off acceptance journey
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
       - name: Pro flag-off Playwright journey and flag-on negative proof
         run: |
           WEB_ROOT=dist-web-pro-off PORT=8093 node e2e/serve.mjs > /tmp/pro-off-server.log 2>&1 &
@@ -71,8 +75,6 @@ jobs:
           set -e
           if [ "$negative_status" -eq 0 ]; then echo 'Flag-on journey unexpectedly passed'; exit 1; fi
           grep -E 'FIRST_PRO_GATE (skins-create|settlement):' e2e/journey-screens/pro-on-negative/run.log
-      - run: node --test e2e/usability-gate.test.mjs scripts/ci/web-pipeline.test.mjs
-      - run: npm test -- --runInBand
       - name: Build and identify standard offline app
         env:
           EXPO_PUBLIC_OFFLINE_MODE: 'true'
@@ -128,7 +130,7 @@ jobs:
           path: scoresnap
       - name: Verify standard artifact before executing browsers
         run: node scripts/ci/web-artifact.mjs verify dist-web ci-standard-manifest.json
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright-chromium
       - name: Browser smoke
         run: |
           node e2e/serve.mjs > /tmp/web-smoke-server.log 2>&1 &
@@ -254,7 +256,7 @@ jobs:
           path: scoresnap
       - name: Verify standard artifact before executing browsers
         run: node scripts/ci/web-artifact.mjs verify dist-web ci-standard-manifest.json
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright-chromium
       - name: Browser matrix
         run: |
           node e2e/serve.mjs > /tmp/web-matrix-server.log 2>&1 &
