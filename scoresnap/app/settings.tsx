@@ -502,8 +502,8 @@ export default function SettingsScreen() {
         )}
 
         <SectionHeader title="Subscription" />
-        {/* AUG-826: Manage plan is the only route to the Pro paywall here; hidden while pro_enabled is off. Restore purchases below stays for returning buyers. */}
-        {proEnabled() && (
+        {/* Keep plan management for existing subscribers while the Pro upgrade path is dormant. */}
+        {(proEnabled() || tier === "pro" || tier === "td") && (
           <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[tier]} onPress={() => router.push("/paywall")} />
         )}
         <AnimatedPressable accessibilityRole="button" accessibilityLabel="Restore purchases" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
