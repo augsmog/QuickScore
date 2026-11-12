@@ -86,7 +86,7 @@ function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime, myGroup = fa
   }
   const { useOnlineStore } = load('src/stores/online-store.ts', { zustand: require('zustand') });
   if (membership) useOnlineStore.getState().repair(contest.id, membership, { revision: 1 });
-  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput' };
+  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput', Pressable: 'Pressable', Modal: 'Modal' };
   const theme = {
     COLORS: new Proxy({}, { get: (_, key) => String(key) }),
     FONTS: new Proxy({}, { get: (_, key) => String(key) }),
@@ -153,6 +153,9 @@ function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime, myGroup = fa
     '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
   });
   deps['../../../src/components/LeaderboardResultsList'] = { LeaderboardResultsList };
+  // AUG-705: scorecard modal deps (closed by default, so stubs are enough here).
+  deps['../../../src/components/PlayerScorecardView'] = { PlayerScorecardView: () => null };
+  deps['../../../src/engine/calculators/player-scorecard'] = { buildPlayerScorecard: () => null };
   const Screen = load('app/contest/[id]/index.tsx', deps).default;
   Screen.onlineStore = useOnlineStore;
   Screen.contest = contest;

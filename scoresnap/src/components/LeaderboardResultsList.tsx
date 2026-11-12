@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { COLORS, FONTS, RADII } from "../ui/theme";
 import { formatToPar } from "../utils/formatters";
@@ -38,6 +38,11 @@ type LeaderboardResultsListProps = {
   contest: Contest;
   ListHeaderComponent?: React.ReactElement | null;
   ListFooterComponent?: React.ReactElement | null;
+  /**
+   * AUG-705: tap a row to open that player's full-round scorecard. Optional so
+   * existing callers keep rendering the plain (non-pressable) row unchanged.
+   */
+  onPressPlayer?: (playerId: string) => void;
 };
 
 /**
@@ -57,6 +62,7 @@ export function LeaderboardResultsList({
   contest,
   ListHeaderComponent,
   ListFooterComponent,
+  onPressPlayer,
 }: LeaderboardResultsListProps) {
   const playerById = new Map(allPlayers.map((player) => [player.id, player]));
   const recentScoresByPlayerId = new Map(recentPlayers.map((player) => [player.id, player.scores]));
@@ -127,7 +133,7 @@ export function LeaderboardResultsList({
           // not the active-round course; chip pars stay stable regardless of tournament round.
           const lastHoles = lastThreePlayedHoleChips(recentScores, contest.course.holes);
 
-          return (
+          const row = (
             <View
               testID={`leaderboard-player-${r.name}`}
               style={rowHasRoundColumns ? {
@@ -271,6 +277,17 @@ export function LeaderboardResultsList({
                 </>
               )}
             </View>
+          );
+          if (!onPressPlayer) return row;
+          return (
+            <Pressable
+              testID={`leaderboard-open-scorecard-${r.playerId}`}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${r.name}'s scorecard`}
+              onPress={() => onPressPlayer(r.playerId)}
+            >
+              {row}
+            </Pressable>
           );
         }}
       />

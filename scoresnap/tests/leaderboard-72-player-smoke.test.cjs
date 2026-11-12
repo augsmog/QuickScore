@@ -46,7 +46,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
       holes: Array.from({ length: 18 }, (_, index) => ({ num: index + 1, par: 4 })),
     },
   };
-  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput' };
+  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput', Pressable: 'Pressable', Modal: 'Modal' };
   const theme = {
     COLORS: new Proxy({}, { get: (_, key) => String(key) }),
     FONTS: new Proxy({}, { get: (_, key) => String(key) }),
@@ -118,6 +118,9 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
   });
   deps['../../../src/components/LeaderboardResultsList'] = { LeaderboardResultsList };
+  // AUG-705: scorecard modal deps (closed by default, so stubs are enough here).
+  deps['../../../src/components/PlayerScorecardView'] = { PlayerScorecardView: () => null };
+  deps['../../../src/engine/calculators/player-scorecard'] = { buildPlayerScorecard: () => null };
   const Screen = load('app/contest/[id]/index.tsx', deps).default;
   let tree;
   try {

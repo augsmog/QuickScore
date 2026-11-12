@@ -1,7 +1,7 @@
 import { teamCardPlayers, liveRoundCourse } from "../../../src/engine/contest-results";
 import { Flag } from "lucide-react-native";
 import { useState } from "react";
-import { View, Text, ScrollView, TextInput } from "react-native";
+import { View, Text, ScrollView, TextInput, Modal } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
@@ -13,6 +13,8 @@ import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 import { useOnlineStore } from "../../../src/stores/online-store";
 import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
+import { PlayerScorecardView } from "../../../src/components/PlayerScorecardView";
+import { buildPlayerScorecard } from "../../../src/engine/calculators/player-scorecard";
 
 export default function LeaderboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,6 +28,9 @@ export default function LeaderboardScreen() {
   // AUG-735 (AUG-253g): case-insensitive name search over the individual field.
   const [playerQuery, setPlayerQuery] = useState("");
   const [myGroupOnly, setMyGroupOnly] = useState(false);
+  // AUG-705: player whose full-round scorecard is open. A modal over the same
+  // screen, so Gross/Net, search and My group state survive the round trip.
+  const [scorecardPlayerId, setScorecardPlayerId] = useState<string | null>(null);
   const membership = useOnlineStore((s) => s.events[id ?? ""]?.membership);
 
   if (!contest) return null;
@@ -399,7 +404,7 @@ export default function LeaderboardScreen() {
   // list only recycles the already-ranked rows, which stay pixel-identical to the prior
   // ScrollView when the search is empty.
   if (viewMode === "individual") {
-    return (
+    const list = (
       <LeaderboardResultsList
         results={visibleRows}
         rankByPlayerId={rankByPlayerId}
@@ -415,7 +420,29 @@ export default function LeaderboardScreen() {
           </>
         }
         ListFooterComponent={<View style={{ height: 16 }} />}
+        onPressPlayer={setScorecardPlayerId}
       />
+    );
+    const scorecardPlayer = scorecardPlayerId
+      ? allPlayers.find((p: { id: string }) => p.id === scorecardPlayerId)
+      : undefined;
+    return (
+      <>
+        {list}
+        <Modal
+          visible={!!scorecardPlayer}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setScorecardPlayerId(null)}
+        >
+          {scorecardPlayer && (
+            <PlayerScorecardView
+              card={buildPlayerScorecard(scorecardPlayer, contest.course)}
+              onClose={() => setScorecardPlayerId(null)}
+            />
+          )}
+        </Modal>
+      </>
     );
   }
 
