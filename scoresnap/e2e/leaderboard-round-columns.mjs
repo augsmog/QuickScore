@@ -88,7 +88,6 @@ try {
   await page.waitForURL(new RegExp(`/contest/${id}$`));
   await page.getByRole("tab", { name: /^leaderboard$/i }).click();
   await page.getByTestId("leaderboard-round-columns").waitFor({ state: "visible" });
-  await page.getByText("ROUND 2", { exact: true }).click();
   const rows = page.locator('[data-testid^="leaderboard-player-"]');
   assert.ok(await rows.count() >= Math.min(FIELD_SIZE, 16), `FlashList renders enough of the ${FIELD_SIZE}-player field to check visible rows`);
   for (const playerId of ["p3", "p1", "p2"]) {
@@ -114,6 +113,26 @@ try {
   for (const [index, cells] of (await cellsForVisibleRows()).entries()) {
     assertInBoundsAndOrdered(cells, `visible row ${index + 1}`);
   }
+  assert.equal(await page.getByTestId("leaderboard-topar-Player 03").innerText(), "+7", "Cumulative TO PAR reflects the aggregate event card");
+  assert.equal(await page.getByTestId("leaderboard-r1-p3").innerText(), "70", "Cumulative R1 shows round 1");
+  assert.equal(await page.getByTestId("leaderboard-today-p3").innerText(), "−3", "Cumulative Today shows round 2 to-par");
+  for (const playerId of ["p3", "p1", "p2"]) {
+    assert.equal(await page.getByTestId(`leaderboard-thru-${playerId}`).innerText(), String(R2_PLAYED), "Cumulative THRU is current-round holes, not an event-wide F");
+  }
+  const cumulativeScreenshot = path.join(OUT, "two-round-16-player-cumulative-390x844.png");
+  await page.screenshot({ path: cumulativeScreenshot });
+  console.log(`PASS cumulative screenshot=${cumulativeScreenshot} sha256=${crypto.createHash("sha256").update(fs.readFileSync(cumulativeScreenshot)).digest("hex")}`);
+
+  await page.getByText("ROUND 2", { exact: true }).click();
+  assert.equal(await page.getByTestId("leaderboard-topar-Player 03").innerText(), "−3", "Daily TO PAR reflects only round 2");
+  assert.equal(await page.getByTestId("leaderboard-r1-p3").innerText(), "70", "Daily R1 stays the completed first round");
+  assert.equal(await page.getByTestId("leaderboard-today-p3").innerText(), "−3", "Daily Today matches round 2 to-par");
+  for (const playerId of ["p3", "p1", "p2"]) {
+    assert.equal(await page.getByTestId(`leaderboard-thru-${playerId}`).innerText(), String(R2_PLAYED), "Daily THRU remains current-round holes, not F");
+  }
+  const dailyScreenshot = path.join(OUT, "two-round-16-player-daily-390x844.png");
+  await page.screenshot({ path: dailyScreenshot });
+  console.log(`PASS daily screenshot=${dailyScreenshot} sha256=${crypto.createHash("sha256").update(fs.readFileSync(dailyScreenshot)).digest("hex")}`);
   const lastId = `p${FIELD_SIZE}`;
   await page.getByTestId(`leaderboard-name-${lastId}`).scrollIntoViewIfNeeded();
   const longName = await page.getByTestId(`leaderboard-name-${lastId}`).innerText();
@@ -123,14 +142,6 @@ try {
   const lastRow = (await cellsForVisibleRows()).find((cells) => cells.some((cell) => cell.id === `leaderboard-name-${lastId}`));
   assert.ok(lastRow, "last field row is visible after scrolling");
   assertInBoundsAndOrdered(lastRow, `last row ${lastId}`);
-  assert.equal(await page.getByTestId("leaderboard-r1-p3").innerText(), "70");
-  // Today reflects the partial current round: 3 holes at −1 each → −3.
-  assert.equal(await page.getByTestId("leaderboard-today-p3").innerText(), "−3");
-  // AUG-253v regression evidence: THRU is the current round's hole count (3),
-  // not the cumulative "F" the whole-event card would produce.
-  for (const playerId of ["p3", "p1", "p2"]) {
-    assert.equal(await page.getByTestId(`leaderboard-thru-${playerId}`).innerText(), String(R2_PLAYED));
-  }
   assert.deepEqual(errors, [], "no page errors");
   const screenshot = path.join(OUT, `two-round-${FIELD_SIZE}-player-390x844.png`);
   await page.screenshot({ path: screenshot });
