@@ -32,7 +32,6 @@ export interface FieldPotResult {
   potCents: number; // after rake
   rakeCents: number;
   payouts: FieldPotPayout[];
-  /** Cents that could not be split evenly; goes to the first-ranked payee of the tie group (deterministic). */
   warnings: string[];
 }
 
