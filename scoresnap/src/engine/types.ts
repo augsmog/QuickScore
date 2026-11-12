@@ -1,4 +1,5 @@
 import { FREE_GAMES } from "../services/entitlements";
+import type { GameScope } from "./game-scope";
 // ═══════════════════════════════════════════════════════════════════
 // SCORING ENGINE TYPES
 // ═══════════════════════════════════════════════════════════════════
@@ -95,6 +96,8 @@ export interface GameTypeInfo {
 
 // Game configuration options — variation support from research
 export interface GameConfig {
+  /** Reserved scope metadata; settlement continues to use the current game defaults. */
+  gameScopes?: Partial<Record<GameType, GameScope>>;
   inputRulesVersion?: 1; // Explicit adoption of round-two event/declaration variants.
   rulesVersion?: 1; // Absent means legacy: stored variation toggles remain ignored.
   // Skins
@@ -594,6 +597,14 @@ export function validateVariationSetup(groups: {players: Player[]}[], games: Gam
   if (!Number.isFinite(betUnit) || betUnit < 0 || !Number.isSafeInteger(Math.round(betUnit * 100)) || Math.abs(betUnit * 100 - Math.round(betUnit * 100)) > 1e-7) return "Unit amount must be a nonnegative amount with at most two decimal places.";
   for(const v of GAME_VARIATIONS) {const value=config[v.configKey];if(value===undefined || value===false && v.configValue===true)continue;if(v.configKey==="nassauWeights" && JSON.stringify(value)==="[1,1,1]")continue;if(v.configKey==="skinsTier" && ["flat","tiered","progressive"].includes(String(value)))continue;if(JSON.stringify(value)!==JSON.stringify(v.configValue) && !GAME_VARIATIONS.some(other=>other.configKey===v.configKey && JSON.stringify(other.configValue)===JSON.stringify(value)))return `Invalid value for ${v.label}`;}
   if(config.skinsMode!==undefined && !["net","gross"].includes(config.skinsMode) || config.skinsScope!==undefined && !["field","group"].includes(config.skinsScope))return "Invalid Skins mode or scope";
+  if (config.gameScopes !== undefined) {
+    if (!config.gameScopes || typeof config.gameScopes !== "object" || Array.isArray(config.gameScopes)) return "This game is unavailable until scoring and settlement are complete.";
+    for (const [game, scope] of Object.entries(config.gameScopes)) {
+      const info = ALL_GAMES.find(g => g.id === game);
+      if (!info) return "This game is unavailable until scoring and settlement are complete.";
+      if (scope !== "event" && scope !== "group") return `Invalid value for ${info.name}`;
+    }
+  }
   if (games.some(g => !isGameImplemented(g))) return "This game is unavailable until scoring and settlement are complete.";
   const players = groups.flatMap(g => g.players);
   if (new Set(games).size !== games.length) return "Select each game only once.";
