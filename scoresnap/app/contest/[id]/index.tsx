@@ -127,6 +127,7 @@ export default function LeaderboardScreen() {
               >
                 {/* Rank */}
                 <View
+                  testID="rankLabel"
                   style={{
                     width: 32,
                     height: 32,
@@ -180,7 +181,10 @@ export default function LeaderboardScreen() {
                       {r.name}
                     </Text>
                   </View>
-                  <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
+                  <Text
+                    testID="thruLabel"
+                    style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}
+                  >
                     thru {holesPlayed}
                   </Text>
                 </View>
