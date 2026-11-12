@@ -19,6 +19,16 @@ def normalize(raw):
     for table in {c['table'] for c in x.get('columns', [])}:
         for pos, col in enumerate(sorted((c for c in x['columns'] if c['table']==table), key=lambda c:c['pos']), 1):
             col['pos'] = pos
+    # PG17.12 stores a cluster-local WAL LSN here for composite type safety.
+    # Match only the demonstrated uint64 token, never user/unknown options.
+    for column in x.get('column_definitions', []) or []:
+        options = column.get('options')
+        if isinstance(options, list):
+            semantic = [o for o in options if not (
+                isinstance(o, str) and re.fullmatch(r'pg_attver=[0-9]{1,20}', o)
+                and int(o.split('=', 1)[1]) <= 2**64 - 1)]
+            if len(semantic) != len(options):
+                column['options'] = semantic or None
     rules = load(HERE / 'allowlist.json')
     for k in rules['metadata_fields']:
         x.pop(k, None)
