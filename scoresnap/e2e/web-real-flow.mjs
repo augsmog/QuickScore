@@ -70,6 +70,15 @@ async function closeRoundStatus(p) {
 
 page.on("pageerror", (e) => pageErrors.push(e.message));
 
+// Cold-load a nested URL in its own browser context. This catches a server
+// that returns the shell only after an earlier client-side navigation.
+const coldContext = await browser.newContext({ viewport });
+const coldPage = await coldContext.newPage();
+const coldResponse = await coldPage.goto(`${BASE}/contest/aug70-cold-load`, { waitUntil: "domcontentloaded" });
+check(coldResponse?.status() === 200, "Cold nested contest URL serves the web app shell", String(coldResponse?.status()));
+check(await coldPage.locator("#root").count() === 1, "Cold nested contest URL contains the app mount point");
+await coldContext.close();
+
 const vis = (loc) => loc.locator("visible=true");
 const shot = async (name) => {
   await page.waitForTimeout(800);
@@ -200,11 +209,35 @@ for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "1
     check(/Nassau/.test(games) && /Front 9/.test(games) && /Back 9/.test(games) && /Overall/.test(games) && /\d+ up/.test(games), "Nassau leaderboard contains front, back and overall results");
   }
   if (file === "11-settlement.png") {
-    for (const name of ["Augie", "Sam", "Lee", "Pat"]) {
-      const row = page.getByTestId(`settlement-player-${name}`);
+    const lines = page.locator('[data-testid^="settlement-player-"], [data-testid^="settlement-game-"][data-testid*="-player-"]');
+    for (let i = 0; i < await lines.count(); i++) {
+      const row = lines.nth(i);
       await row.scrollIntoViewIfNeeded();
-      const box = await row.boundingBox();
-      check(box && box.y >= 0 && box.y + box.height <= viewport.height, `Settlement row fully reachable: ${name}`);
+      const detail = await row.evaluate((element) => {
+        const rowRect = element.getBoundingClientRect();
+        const fragments = [];
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          if (!walker.currentNode.textContent.trim()) continue;
+          const range = document.createRange();
+          range.selectNodeContents(walker.currentNode);
+          for (const rect of range.getClientRects()) fragments.push({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom });
+        }
+        const clipping = [];
+        for (let node = element; node; node = node.parentElement) {
+          const style = getComputedStyle(node);
+          const clipsX = ["hidden", "clip"].includes(style.overflowX);
+          const clipsY = ["hidden", "clip"].includes(style.overflowY);
+          if ((clipsX && node.scrollWidth > node.clientWidth + 1) || (clipsY && node.scrollHeight > node.clientHeight + 1)) {
+            clipping.push({ testId: node.getAttribute("data-testid"), overflowX: style.overflowX, overflowY: style.overflowY,
+              width: [node.scrollWidth, node.clientWidth], height: [node.scrollHeight, node.clientHeight] });
+          }
+        }
+        return { testId: element.getAttribute("data-testid"), row: { left: rowRect.left, right: rowRect.right, top: rowRect.top, bottom: rowRect.bottom }, fragments, clipping };
+      });
+      const rowFits = detail.row.left >= 0 && detail.row.right <= viewport.width && detail.row.top >= 0 && detail.row.bottom <= viewport.height;
+      const textFits = detail.fragments.length > 0 && detail.fragments.every((rect) => rect.left >= detail.row.left - 1 && rect.right <= detail.row.right + 1 && rect.top >= detail.row.top - 1 && rect.bottom <= detail.row.bottom + 1);
+      check(rowFits && textFits && detail.clipping.length === 0, `Settlement line fully visible without text clipping: ${detail.testId}`, JSON.stringify(detail));
     }
     await page.getByTestId("settlement-scroll").evaluate(el => { el.scrollTop = 0; });
   }
