@@ -17,44 +17,75 @@ if [ "$MODE" = native ] && [ "$(uname -s)" != Darwin ]; then
   echo "native mode needs macOS with Xcode and CocoaPods" >&2; exit 64
 fi
 PNPM_VERSION=10.34.6
-INODE_CAP="${AOS_PILOT_INODE_CAP:-0.78}"
+INODE_CAP="${AOS_PILOT_INODE_CAP:-0.76}"
 read -r -a PNPM <<<"${AOS_PNPM_CMD:-pnpm}"
 APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-RUN="$AOS_PILOT_OUTPUT/checkout"
-if [ -e "$RUN" ]; then echo "refusing to reuse $RUN; give each run its own output path" >&2; exit 65; fi
-
-inode_guard() {
-  python3 - "$1" "$INODE_CAP" <<'PY'
-import os, sys
-s = os.statvfs(sys.argv[1]); cap = float(sys.argv[2])
-used = 1 - s.f_ffree / s.f_files if s.f_files else 0.0
-if used >= cap:
-    sys.exit(f"inode use {used:.4f} >= cap {cap}; refusing")
-PY
-}
-
-mkdir -p "$AOS_PNPM_STORE" "$AOS_PILOT_OUTPUT"
-inode_guard "$AOS_PILOT_OUTPUT"
-python3 - "$AOS_PNPM_STORE" "$AOS_PILOT_OUTPUT" <<'PY'
-import os, sys
-a, b = (os.stat(p).st_dev for p in sys.argv[1:3])
-if a != b:
-    sys.exit("hardlinks require the store and the output on one filesystem")
-PY
-[ "$("${PNPM[@]}" --version)" = "$PNPM_VERSION" ] || { echo "pnpm $PNPM_VERSION required" >&2; exit 65; }
-
 REPO_DIR="$(git -C "$APP_DIR" rev-parse --show-toplevel)"
 APP_REL="${APP_DIR#"$REPO_DIR"/}"
 SOURCE_SHA="$(git -C "$REPO_DIR" rev-parse HEAD)"
+# HEAD provenance is valid only for a clean tracked source; untracked files are not copied.
+RUN="$AOS_PILOT_OUTPUT/checkout"
 
-# Disposable copy of tracked files only (working-tree content, no node_modules, no .git).
-mkdir "$RUN"
+inode_guard() {
+  python3 - "$1" "$INODE_CAP" <<'PYGUARD'
+import math, os, sys
+from pathlib import Path
+cap = float(sys.argv[2])
+if not math.isfinite(cap) or not 0 < cap <= .76:
+    sys.exit("inode cap must be finite and 0 < cap <= 0.76")
+p = Path(sys.argv[1])
+while not p.exists(): p = p.parent
+s = os.statvfs(p)
+if s.f_files <= 0 or not 0 <= s.f_ffree <= s.f_files:
+    sys.exit("invalid inode counters; refusing")
+used = 1 - s.f_ffree / s.f_files
+if used >= cap:
+    sys.exit(f"inode use {used:.4f} >= cap {cap}; refusing")
+PYGUARD
+}
+
+# Validate before mkdir, clone or package commands. Canonicalize every ancestor too.
+python3 - "$REPO_DIR" "$AOS_PNPM_STORE" "$AOS_PILOT_OUTPUT" <<'PYPATH'
+import os, sys
+from pathlib import Path
+source, store, output = map(Path, sys.argv[1:])
+if os.path.lexists(output):
+    sys.exit("refusing to reuse output path")
+for p in (store, output):
+    if any(q.is_symlink() for q in (p, *p.parents)):
+        sys.exit("symlink destination or ancestor; refusing")
+paths = [p.resolve() for p in (source, store, output)]
+for i, a in enumerate(paths):
+    for b in paths[i + 1:]:
+        if a == b or a in b.parents or b in a.parents:
+            sys.exit("source, store and output must not overlap")
+if store.exists() and not store.is_dir():
+    sys.exit("store must be a directory")
+PYPATH
+inode_guard "$AOS_PILOT_OUTPUT"
+inode_guard "$AOS_PNPM_STORE"
+mkdir -p "$AOS_PNPM_STORE" "$(dirname "$AOS_PILOT_OUTPUT")"
+mkdir "$AOS_PILOT_OUTPUT"
+python3 - "$AOS_PNPM_STORE" "$AOS_PILOT_OUTPUT" <<'PYDEV'
+import os, sys
+if os.stat(sys.argv[1]).st_dev != os.stat(sys.argv[2]).st_dev:
+    sys.exit("hardlinks require the store and the output on one filesystem")
+PYDEV
+[ "$("${PNPM[@]}" --version)" = "$PNPM_VERSION" ] || { echo "pnpm $PNPM_VERSION required" >&2; exit 65; }
+git -C "$REPO_DIR" diff --quiet HEAD -- || { echo "tracked source must be clean" >&2; exit 65; }
+inode_guard "$AOS_PILOT_OUTPUT"
+# Preserve history for SHA-dependent tests without sharing source object files.
+git clone --quiet --no-hardlinks --no-checkout "$REPO_DIR" "$RUN"
+git -C "$RUN" reset --mixed --quiet "$SOURCE_SHA"
 (cd "$REPO_DIR" && git ls-files -z | tar --null -T - -cf -) | tar -xf - -C "$RUN"
+git -C "$RUN" diff --quiet HEAD -- || { echo "copy differs from source SHA" >&2; exit 65; }
 cd "$RUN/$APP_REL"
 test ! -e node_modules && test ! -e pnpm-lock.yaml
+inode_guard "$AOS_PILOT_OUTPUT"
 
 PNPM_CFG=(--config.node-linker=hoisted --config.package-import-method=hardlink)
 "${PNPM[@]}" import >"$AOS_PILOT_OUTPUT/pnpm-import.log" 2>&1
+inode_guard "$AOS_PILOT_OUTPUT"
 "${PNPM[@]}" install --frozen-lockfile --store-dir="$AOS_PNPM_STORE" "${PNPM_CFG[@]}" \
   >"$AOS_PILOT_OUTPUT/pnpm-install.log" 2>&1
 
@@ -83,10 +114,8 @@ JS
 
 AOS_PILOT_COPY=1 JEST_CACHE_DIR="$AOS_PILOT_OUTPUT/jest-cache" "${PNPM[@]}" exec jest --runInBand \
   >"$AOS_PILOT_OUTPUT/jest.log" 2>&1 || {
-    grep -E '^(FAIL|Tests:)' "$AOS_PILOT_OUTPUT/jest.log" | sort -u >&2
-    # Host-only failures (for example macOS bash 3.2) may be waived explicitly; never by default.
-    [ "${AOS_PILOT_ALLOW_JEST_FAIL:-0}" = 1 ] || exit 1
-    echo "PILOT_JEST_FAILURES_WAIVED" >&2
+    grep -E '^(FAIL|Tests:)' "$AOS_PILOT_OUTPUT/jest.log" | sort -u >&2 || true
+    exit 1
   }
 inode_guard "$AOS_PILOT_OUTPUT"
 "${PNPM[@]}" exec expo export --platform ios --no-bytecode --output-dir="$AOS_PILOT_OUTPUT/ios-js" \
@@ -96,6 +125,7 @@ echo "PILOT_JS_OK $(grep -E '^Tests:' "$AOS_PILOT_OUTPUT/jest.log" | tail -1)"
 if [ "$MODE" = native ]; then
   # Same steps as .github/workflows/e2e-ios-sim.yml "Build simulator app from source".
   export CI=1 SENTRY_DISABLE_AUTO_UPLOAD=true EXPO_PUBLIC_SIMULATOR_NO_MLKIT=1 EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true
+  inode_guard "$AOS_PILOT_OUTPUT"
   "${PNPM[@]}" exec expo prebuild --platform ios --clean --no-install >"$AOS_PILOT_OUTPUT/prebuild.log" 2>&1 \
     || { tail -40 "$AOS_PILOT_OUTPUT/prebuild.log" >&2; exit 1; }
   cd ios
