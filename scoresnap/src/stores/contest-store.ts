@@ -1,3 +1,4 @@
+import type { FlightRule } from "../engine/flights";
 import { useOnlineStore } from './online-store';
 import { completeScores } from "../services/ocr-review";
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
@@ -51,6 +52,7 @@ export interface TeamInfo {
 }
 
 export interface Contest {
+  flightRule?: FlightRule;
   remoteRestored?: boolean;
   id: string;
   name: string;
