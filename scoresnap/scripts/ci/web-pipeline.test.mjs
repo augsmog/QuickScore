@@ -145,16 +145,43 @@ test('standard producer runs original unit gates and exact flag-specific export'
 });
 test('consumers verify same-attempt artifact before any browser runs', () => {
   for (const job of ['browser-flows', 'browser-matrix']) {
-    assert.equal(workflow.jobs[job].needs, 'build-standard');
-    const all = steps(job); const download = all.findIndex(step => step.uses === 'actions/download-artifact@v4');
-    const verify = all.findIndex(step => step.run?.includes('web-artifact.mjs verify'));
-    const browser = all.findIndex(step => step.run?.includes('playwright install'));
-    assert.ok(download >= 0 && verify > download && browser > verify);
-    assert.equal(all[download].with.name, 'standard-web-${{ github.run_id }}-${{ github.run_attempt }}');
-    assert.equal(all[download].with['run-id'], undefined);
-    assert.equal(all[download].with['github-token'], undefined);
-    assert.ok(all.some(step => step.run === 'npm ci'));
-    assert.ok(all.some(step => step.run === 'npx playwright install --with-deps chromium'));
+    assertBrowserSetupContract(workflow, job);
+  }
+});
+
+function assertBrowserSetupContract(value, job) {
+  assert.equal(value.jobs[job].needs, 'build-standard');
+  const all = value.jobs[job].steps;
+  const download = all.findIndex(step => step.uses === 'actions/download-artifact@v4');
+  const verify = all.findIndex(step => step.run?.includes('web-artifact.mjs verify'));
+  const setup = all.findIndex(step => step.uses === './.github/actions/playwright-chromium');
+  const browser = all.findIndex(step => /^Browser (smoke|matrix)$/.test(step.name ?? ''));
+  assert.ok(download >= 0 && verify > download && setup > verify && browser > setup,
+    `${job} must download and verify the same-attempt artifact, install Chromium, then run browsers`);
+  assert.equal(all[download].with.name, 'standard-web-${{ github.run_id }}-${{ github.run_attempt }}');
+  assert.equal(all[download].with['run-id'], undefined);
+  assert.equal(all[download].with['github-token'], undefined);
+  assert.ok(all.some(step => step.run === 'npm ci'));
+  assert.equal(all.filter(step => step.uses === './.github/actions/playwright-chromium').length, 1);
+  assert.ok(!all.some(step => step.run?.includes('playwright install --with-deps chromium')),
+    `${job} must use the shared Chromium action rather than the inline apt install`);
+}
+
+test('browser setup contract rejects a missing or misplaced shared Chromium action', () => {
+  for (const mutate of [
+    steps => { steps.splice(steps.findIndex(step => step.uses === './.github/actions/playwright-chromium'), 1); },
+    steps => {
+      const index = steps.findIndex(step => step.uses === './.github/actions/playwright-chromium');
+      [steps[index], steps[index - 1]] = [steps[index - 1], steps[index]];
+    },
+    steps => {
+      const index = steps.findIndex(step => step.uses === './.github/actions/playwright-chromium');
+      [steps[index], steps[index + 1]] = [steps[index + 1], steps[index]];
+    },
+  ]) {
+    const copy = structuredClone(workflow);
+    mutate(copy.jobs['browser-flows'].steps);
+    assert.throws(() => assertBrowserSetupContract(copy, 'browser-flows'));
   }
 });
 test('all original browser coverage and flag-distinct builds remain', () => {

@@ -36,7 +36,7 @@ function registered(m,w){
  assert(exports,'AUG-852 requires the isolated Pro flag exports');
  assert.match(exports.run,/EXPO_PUBLIC_PRO_ENABLED=false EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="\$RUNNER_TEMP\/metro-cache-pro-off"[\s\S]*?--output-dir dist-web-pro-off --clear/);
  assert.match(exports.run,/EXPO_PUBLIC_PRO_ENABLED=true EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="\$RUNNER_TEMP\/metro-cache-pro-on"[\s\S]*?--output-dir dist-web-pro-on --clear/);
- assert(w.jobs['build-standard'].steps.some(s=>s.name==='Install Chromium for Pro-off acceptance journey'&&s.run==='npx playwright install --with-deps chromium'));
+ assert(w.jobs['build-standard'].steps.some(s=>s.name==='Install Chromium for Pro-off acceptance journey'&&s.uses==='./.github/actions/playwright-chromium'));
  const proJourney=w.jobs['build-standard'].steps.find(s=>s.name==='Pro flag-off Playwright journey and flag-on negative proof');
  assert(proJourney,'AUG-852 Pro-off browser journey must run in build-standard');
  assert.match(proJourney.run,/BASE_URL=http:\/\/127\.0\.0\.1:8093 OUT_DIR=e2e\/journey-screens\/pro-off-free node e2e\/journeys\/pro-off-free\.mjs/);
@@ -47,6 +47,8 @@ function registered(m,w){
  const exportIndex=w.jobs['build-standard'].steps.indexOf(exports);
  const journeyIndex=w.jobs['build-standard'].steps.indexOf(proJourney);
  assert(journeyIndex>exportIndex,'journey must run after both isolated exports');
+ const chromiumIndex=w.jobs['build-standard'].steps.findIndex(s=>s.uses==='./.github/actions/playwright-chromium');
+ assert(chromiumIndex>-1&&chromiumIndex<journeyIndex,'shared Chromium setup must run before the Pro-off browser journey');
  for(const [name,directory] of [['pro-off-free-journey-','scoresnap/e2e/journey-screens/pro-off-free'],['pro-on-negative-journey-','scoresnap/e2e/journey-screens/pro-on-negative']]){
   const artifact=w.jobs['build-standard'].steps.find(s=>s.uses==='actions/upload-artifact@v4'&&s.with.name.startsWith(name));
   assert(artifact,'missing artifact '+name);
@@ -58,7 +60,7 @@ function registered(m,w){
 test('all accepted bugs run unfiltered on every device profile in separately bounded CI steps',()=>registered(manifest,workflow));
 test('missing registration, capture, control or filtered execution fails integration contract',()=>{
  for(const mutate of [m=>m.journeys.splice(m.journeys.findIndex(j=>j.id==='J-trial-preview-unloaded'),1),m=>m.journeys.find(j=>j.id==='J-by-game-pending').requiredSteps=[],m=>m.journeys.find(j=>j.id==='J-delete-account').status='deferred']){const m=structuredClone(manifest);mutate(m);assert.throws(()=>registered(m,workflow));}
- for(const mutate of [w=>{const s=w.jobs['build-standard'].steps.find(s=>s.name?.startsWith('Export Pro flag'));s.run=s.run.replace('EXPO_PUBLIC_PRO_ENABLED=false','EXPO_PUBLIC_PRO_ENABLED=true');},w=>{const s=w.jobs['build-standard'].steps.find(s=>s.name?.startsWith('Pro flag-off'));s.run=s.run.replace('BASE_URL=http://127.0.0.1:8094 OUT_DIR=e2e/journey-screens/pro-on-negative node e2e/journeys/pro-off-free.mjs','echo no-op');},w=>{for(const s of w.jobs['build-standard'].steps.filter(s=>s.with?.name?.startsWith('pro-'))){s.if='false';s.with.path='scoresnap/missing';}}]){const w=structuredClone(workflow);mutate(w);assert.throws(()=>registered(manifest,w));}
+ for(const mutate of [w=>{const s=w.jobs['build-standard'].steps.find(s=>s.name?.startsWith('Export Pro flag'));s.run=s.run.replace('EXPO_PUBLIC_PRO_ENABLED=false','EXPO_PUBLIC_PRO_ENABLED=true');},w=>{const s=w.jobs['build-standard'].steps.find(s=>s.name?.startsWith('Pro flag-off'));s.run=s.run.replace('BASE_URL=http://127.0.0.1:8094 OUT_DIR=e2e/journey-screens/pro-on-negative node e2e/journeys/pro-off-free.mjs','echo no-op');},w=>{for(const s of w.jobs['build-standard'].steps.filter(s=>s.with?.name?.startsWith('pro-'))){s.if='false';s.with.path='scoresnap/missing';}},w=>{const steps=w.jobs['build-standard'].steps;const i=steps.findIndex(s=>s.uses==='./.github/actions/playwright-chromium');const [setup]=steps.splice(i,1);steps.push(setup);}]){const w=structuredClone(workflow);mutate(w);assert.throws(()=>registered(manifest,w));}
  for(const [name,transform] of [
   ['Journey contract tests',s=>s.replace('settled-timestamp.browser.test.mjs','omitted-control.mjs')],
   ['Journey runner + negative proof',s=>'JOURNEYS=J-delete-account '+s],
