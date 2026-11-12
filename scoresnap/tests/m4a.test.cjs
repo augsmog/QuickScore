@@ -40,9 +40,23 @@ await box.enqueue(draft,0);await box.enqueue({...draft,strokes:5},0);await box.e
 `));
 test('revision hints discard duplicates and foreground poll stops on cleanup',()=>run(`
 const {foregroundSync}=await load('./src/services/online-client.ts');let calls=0;
-const sync=foregroundSync(async()=>{calls++;return {revision:5,rounds:[]}},()=>assert.fail(),10);
-await new Promise(r=>setTimeout(r,2));sync.hint(4);sync.hint({revision:6,private:'ignored'});assert.equal(calls,1);sync.hint(6);await new Promise(r=>setTimeout(r,2));assert.equal(calls,2);
-await new Promise(r=>setTimeout(r,20));assert(calls>=3);sync.stop();const before=calls;await new Promise(r=>setTimeout(r,20));assert.equal(calls,before);
+// Advance only the poll clock: real 2ms waits can overrun the 10ms interval under load.
+const realSetInterval=globalThis.setInterval,realClearInterval=globalThis.clearInterval;
+const scheduled=new Map();let nextId=0,sync;
+globalThis.setInterval=(fn,delay)=>{assert.equal(delay,10);const id=++nextId;scheduled.set(id,fn);return id;};
+globalThis.clearInterval=id=>scheduled.delete(id);
+try {
+ sync=foregroundSync(async()=>{calls++;return {revision:5,rounds:[]}},()=>assert.fail(),10);
+ await Promise.resolve();assert.equal(calls,1);assert.equal(scheduled.size,1);
+ sync.hint(4);sync.hint({revision:6,private:'ignored'});assert.equal(calls,1);
+ sync.hint(6);await Promise.resolve();assert.equal(calls,2);
+ const poll=[...scheduled.values()][0];poll();await Promise.resolve();assert.equal(calls,3);
+ sync.stop();assert.equal(scheduled.size,0);
+ // A callback already queued before cleanup must also be harmless.
+ poll();sync.hint(6);await Promise.resolve();assert.equal(calls,3);
+} finally {
+ sync?.stop();globalThis.setInterval=realSetInterval;globalThis.clearInterval=realClearInterval;
+}
 `));
 test('owner rejoin requires host-only authorization before repairing organizer state',()=>run(`
 const {onlineClient}=await load('./src/services/online-client.ts');let allowed=false;const calls=[],repairs=[];
