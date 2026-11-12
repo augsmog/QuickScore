@@ -4,6 +4,7 @@ import {
   LeaderboardRow,
   BuildLeaderboardRowsOptions,
 } from "../leaderboard-rows";
+import { buildLeaderboard } from "../calculators/leaderboard-view";
 import { calcStrokePlay } from "../calculators/stroke-play";
 import { calcNetStrokePlay, NetBreakdown } from "../calculators/net-stroke-play";
 import type { Course, Player, StrokePlayResult } from "../types";
@@ -137,13 +138,54 @@ describe("buildLeaderboardRows", () => {
     expect(rows.every((r) => r.rank === 1 && r.tied)).toBe(true);
   });
 
-  test("no scores → thru is null; distinct totals are not tied", () => {
+  test("no-score players have null rank and never tie", () => {
     const players = [player("a", "A", Array(18).fill(0)), player("b", "B", Array(18).fill(0))];
     const results = calcStrokePlay(players, COURSE); // both total 0
     const rows = buildLeaderboardRows(results, players, { holeCount: 18 });
     expect(rows.map((r) => r.thru)).toEqual([null, null]);
-    // both total 0 → tied T1
-    expect(rows.map((r) => r.rankLabel)).toEqual(["T1", "T1"]);
+    expect(rows.map((r) => r.rank)).toEqual([null, null]);
+    expect(rows.map((r) => r.rankLabel)).toEqual(["—", "—"]);
+    expect(rows.every((r) => !r.tied)).toBe(true);
+  });
+
+  test("mixed tournament ranks started players first and puts unstarted last without a rank", () => {
+    const noScore = player("no-score", "No score", Array(18).fill(0));
+    const first = player("first", "First", roundTo(72));
+    const second = player("second", "Second", roundTo(74));
+    const players = [noScore, first, second];
+    const results = calcStrokePlay(players, COURSE);
+    const rows = buildLeaderboardRows(results, players, { holeCount: 18 });
+
+    expect(rows.map((row) => row.playerId)).toEqual(["first", "second", "no-score"]);
+    expect(rows.map((row) => [row.rank, row.rankLabel, row.tied])).toEqual([
+      [1, "1", false],
+      [2, "2", false],
+      [null, "—", false],
+    ]);
+
+    const filtered = buildLeaderboardRows(results, players, { holeCount: 18, query: "Second" });
+    expect(filtered).toMatchObject([{ playerId: "second", rank: 2, rankLabel: "2" }]);
+    const pinned = buildLeaderboardRows(results, players, { holeCount: 18, youPlayerId: "no-score" });
+    expect(pinned[0]).toMatchObject({ playerId: "no-score", rank: null, rankLabel: "—", isYou: true });
+    expect(pinned.find((row) => row.playerId === "first")).toMatchObject({ rank: 1, rankLabel: "1" });
+  });
+
+  test("unstarted rows use tee-time order, then roster order when tee time is unknown", () => {
+    const roster = [
+      player("late", "Late", Array(18).fill(0)),
+      player("early", "Early", Array(18).fill(0)),
+      player("unknown", "Unknown", Array(18).fill(0)),
+      player("started", "Started", roundTo(72)),
+    ];
+    const results = calcStrokePlay(roster, COURSE);
+    const rows = buildLeaderboardRows(results, roster, {
+      holeCount: 18,
+      groups: [
+        { id: "late-group", players: [{ id: "late" }], teeTime: "9:00 AM" },
+        { id: "early-group", players: [{ id: "early" }], teeTime: "8:30 AM" },
+      ],
+    });
+    expect(rows.map((row) => row.playerId)).toEqual(["started", "early", "late", "unknown"]);
   });
 
   test("THRU: F for a full round, the count for a partial round, null for none", () => {
@@ -923,8 +965,15 @@ describe("buildLeaderboardRows seeded rank/tie/label invariants (AUG-253t)", () 
         const row = rows[i];
         // rows preserve the sorted input order, so rows[i].total === results[i].total.
         // Ranks are non-decreasing down the board.
-        if (i > 0 && row.rank < rows[i - 1].rank) {
-          fail(seed, `rank decreased at row ${i}: ${rows[i - 1].rank} -> ${row.rank}`);
+        if (i > 0) {
+          const currentRank = row.rank;
+          const previousRank = rows[i - 1].rank;
+          if (currentRank === null || previousRank === null) {
+            fail(seed, `started-only seeded field produced null rank at row ${i - 1} or ${i}`);
+          }
+          if (currentRank < previousRank) {
+            fail(seed, `rank decreased at row ${i}: ${previousRank} -> ${currentRank}`);
+          }
         }
         // Competition rank: 1 + the number of players with a strictly lower total.
         const strictlyLower = results.reduce((acc, r) => acc + (r.total < row.total ? 1 : 0), 0);
@@ -1121,4 +1170,78 @@ describe("buildLeaderboardRows compose-filter matrix (AUG-253o)", () => {
     expect(out).toEqual(filtered);
     expect(out.some((r) => r.isYou)).toBe(false);
   });
+});
+
+// This tests the row-model boundary only: authenticated membership is supplied
+// by the caller. No host/name inference or UI identity behavior is introduced.
+describe("group/search mode regression", () => {
+  const players: Player[] = [
+    { ...player("ada", "Ada Match", roundTo(72)), handicap: 0 },
+    { ...player("ben", "Ben North", roundTo(75)), handicap: 9 },
+    { ...player("cora", "Cora Match", roundTo(74)), handicap: 3 },
+    { ...player("dan", "Dan Match", roundTo(78)), handicap: 12 },
+  ];
+  const groups: LeaderboardGroup[] = [
+    { id: "north", players: [{ id: "ada" }, { id: "ben" }] },
+    { id: "south", players: [{ id: "cora" }, { id: "dan" }] },
+  ];
+  const expected = {
+    gross: {
+      field: [["ada", 72, 1, "1"], ["cora", 74, 2, "2"], ["ben", 75, 3, "3"], ["dan", 78, 4, "4"]],
+      group: [["ada", 72, 1, "1"], ["ben", 75, 3, "3"]],
+      search: [["ada", 72, 1, "1"], ["cora", 74, 2, "2"], ["dan", 78, 4, "4"]],
+      both: [["ada", 72, 1, "1"]],
+    },
+    net: {
+      field: [["ben", 66, 1, "T1"], ["dan", 66, 1, "T1"], ["cora", 71, 3, "3"], ["ada", 72, 4, "4"]],
+      group: [["ben", 66, 1, "T1"], ["ada", 72, 4, "4"]],
+      search: [["dan", 66, 1, "T1"], ["cora", 71, 3, "3"], ["ada", 72, 4, "4"]],
+      both: [["ada", 72, 4, "4"]],
+    },
+  };
+  const summarize = (rows: LeaderboardRow[]) => rows.map((r) => [r.playerId, r.total, r.rank, r.rankLabel]);
+
+  for (const mode of ["gross", "net"] as const) {
+    test(`${mode}: group on/off and search compose without losing full-field ranks or rows`, () => {
+      const view = buildLeaderboard(players, COURSE, mode);
+      expect(view.mode).toBe(mode);
+      expect(view.netAvailable).toBe(true);
+      const inputBefore = JSON.stringify({ players, groups, results: view.rows });
+      // Explicit fixture viewer membership supplied at the boundary, not inferred
+      // by production identity code. Ben belongs to north, not the whole field.
+      const viewerGroup = groups.find((g) => g.players.some((p) => p.id === "ben"))!.id;
+      const opts: BuildLeaderboardRowsOptions = { holeCount: 18, groups };
+      const render = () => buildLeaderboardRows(view.rows, players, opts);
+      expect(summarize(render())).toEqual(expected[mode].field);
+      opts.groupId = viewerGroup;
+      expect(summarize(render())).toEqual(expected[mode].group);
+      opts.query = " mAtCh ";
+      expect(summarize(render())).toEqual(expected[mode].both);
+      opts.groupId = undefined; // OFF must restore the other group's matches.
+      expect(summarize(render())).toEqual(expected[mode].search);
+      opts.query = ""; // Clearing search must restore the entire field.
+      expect(summarize(render())).toEqual(expected[mode].field);
+      opts.groupId = viewerGroup;
+      const secondOn = render();
+      expect(summarize(secondOn)).toEqual(expected[mode].group);
+      expect(new Set(secondOn.map((r) => r.playerId)).size).toBe(secondOn.length);
+      opts.groupId = undefined;
+      expect(summarize(render())).toEqual(expected[mode].field);
+      expect(JSON.stringify({ players, groups, results: view.rows })).toBe(inputBefore);
+    });
+
+    test(`${mode}: omitted viewer membership never invents a group filter`, () => {
+      const view = buildLeaderboard(players, COURSE, mode);
+      for (const youPlayerId of [undefined, "unknown-viewer"]) {
+        const rows = buildLeaderboardRows(view.rows, players, {
+          holeCount: 18, groups, youPlayerId, groupId: undefined,
+        });
+        expect(summarize(rows)).toEqual(expected[mode].field);
+        expect(rows.some((r) => r.isYou)).toBe(false);
+      }
+      // Missing group metadata with an absent filter is likewise a no-op.
+      expect(summarize(buildLeaderboardRows(view.rows, players, { holeCount: 18 })))
+        .toEqual(expected[mode].field);
+    });
+  }
 });

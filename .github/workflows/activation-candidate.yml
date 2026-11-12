@@ -6,13 +6,17 @@ on:
       - 'scoresnap/supabase/proposed/20261103170000_first_round_finished.sql'
       - 'scoresnap/supabase/proposed/20261104090000_activation_retention.sql'
       - 'scoresnap/supabase/proposed/20261104110000_activation_share_rate.sql'
+      - 'scoresnap/supabase/proposed/20261111120000_joined_round_finishes.sql'
       - 'scoresnap/supabase/proposed/README-first-round-finished.md'
       - 'scoresnap/supabase/rollbacks/20261103170000_first_round_finished.sql'
       - 'scoresnap/supabase/rollbacks/20261104090000_activation_retention.sql'
       - 'scoresnap/supabase/rollbacks/20261104110000_activation_share_rate.sql'
+      - 'scoresnap/supabase/rollbacks/20261111120000_joined_round_finishes.sql'
       - 'scoresnap/scripts/ci/test-first-round-finished.sql'
       - 'scoresnap/scripts/ci/test-activation-retention.sql'
       - 'scoresnap/scripts/ci/test-activation-share-rate.sql'
+      - 'scoresnap/scripts/ci/test-joined-round-finishes.sql'
+      - 'scoresnap/scripts/ci/test-joined-round-finishes-rollback.sql'
       - 'scoresnap/scripts/ci/test-day14-report.sql'
       - 'scoresnap/scripts/ci/test-day14-report.py'
       - 'scoresnap/scripts/analytics/day14-report.sql'
@@ -56,18 +60,26 @@ jobs:
         run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f scripts/ci/test-activation-retention.sql
       - name: Verify activation share-rate behavior
         run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f scripts/ci/test-activation-share-rate.sql
+      - name: Verify joined-round finish signal
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f scripts/ci/test-joined-round-finishes.sql
+      - name: Apply joined-round finish view for the Day 14 worksheet
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261111120000_joined_round_finishes.sql
       - name: Verify Day 14 report worksheet
         run: python3 scripts/ci/test-day14-report.py postgresql://postgres:postgres@127.0.0.1:54322/postgres
       - name: Roll back proposed activation migration
         run: |
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/rollbacks/20261111120000_joined_round_finishes.sql
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/rollbacks/20261104110000_activation_share_rate.sql
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/rollbacks/20261104090000_activation_retention.sql
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/rollbacks/20261103170000_first_round_finished.sql
+      - name: Verify joined-round rollback cleanup
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f scripts/ci/test-joined-round-finishes-rollback.sql
       - name: Re-apply proposed activation migration
         run: |
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261103170000_first_round_finished.sql
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261104090000_activation_retention.sql
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261104110000_activation_share_rate.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261111120000_joined_round_finishes.sql
       - name: Stop disposable stack
         if: always()
         run: supabase stop --no-backup

@@ -8,6 +8,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CONTEST_STORAGE_KEY, createGatedStorage } from "./persisted-keys";
 import { GameType, GameConfig, Player, Course, HoleInfo, AuxiliaryData } from "../engine/types";
+import type { StartSlot, StartType } from "../engine/group-status";
 import { syncRound, syncRoundGroups, syncContestTournamentMeta, syncScore } from "../services/tournament-sync";
 import type { PartialImportCell } from "../services/partial-import";
 
@@ -28,6 +29,7 @@ export interface ContestGroup {
   id: string;
   name: string;
   players: Player[];
+  startSlot?: StartSlot;
   teeTime?: string; // "10:03" or "10:03 AM"
   externalId?: string; // External group ID (e.g. from GolfGenius)
 }
@@ -38,6 +40,7 @@ export interface RoundInfo {
   name: string;
   date?: string;
   course?: Course; // Each round can have a different course
+  startType?: StartType;
   groups: ContestGroup[];
 }
 
@@ -71,6 +74,7 @@ export interface Contest {
   onlineEdits?: Record<string, { token: string; strokes: number }>;
   // Multi-round tournament support
   rounds?: RoundInfo[];
+  startType?: StartType;
   currentRound?: number; // 1-indexed
   isTournament?: boolean;
 }

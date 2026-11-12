@@ -13,8 +13,8 @@ export interface LeaderboardRow {
   name: string;
   /** Effective total from the input results (gross strokes, or net total when the caller passes net rows). */
   total: number;
-  /** 1-based competition rank: ties share the rank of the first position, the next distinct total skips (1, 2, 2, 4). */
-  rank: number;
+  /** 1-based competition rank; null when the player has not started. */
+  rank: number | null;
   /** True when more than one player shares this total. */
   tied: boolean;
   /** `T<rank>` when tied, else `<rank>` — identical to today's index.tsx `tied ? `T${rank}` : rank`. */
@@ -115,9 +115,9 @@ export interface BuildLeaderboardRowsOptions {
 }
 
 /**
- * Build leaderboard rows from `calcStrokePlay(...)` output. Callers must pass
- * results sorted by `total` ascending: ranks use adjacent totals while tie
- * flags count globally, so unsorted input can produce inconsistent labels.
+ * Build leaderboard rows from `calcStrokePlay(...)` output. Callers pass
+ * results sorted by total ascending; started rows retain that order, while
+ * unstarted players are placed after them and do not receive a field rank.
  * Ranks and tie flags are computed in a single linear pass
  * over the full result set BEFORE any filtering, so a searched or group-scoped
  * view still shows each player's real field rank. Pass net rows (total/toPar
@@ -156,27 +156,59 @@ export function buildLeaderboardRows(
     }
   }
 
+  const rosterIndex = new Map(players.map((p, index) => [p.id, index]));
+  const teeTimeMinutes = (value: string | undefined): number | null => {
+    if (!value) return null;
+    const match = /^\s*(\d{1,2}):(\d{2})\s*(AM|PM)\s*$/i.exec(value);
+    if (!match) return null;
+    let hour = Number(match[1]) % 12;
+    if (match[3].toUpperCase() === "PM") hour += 12;
+    return hour * 60 + Number(match[2]);
+  };
+
+  const ordered = results.map((result, index) => {
+    const player = playerById.get(result.playerId);
+    const thru = computeThru(player, holeCount);
+    // Missing player metadata is unknown, not proof of an unstarted player.
+    const unstarted = player !== undefined && thru === null;
+    return { result, index, thru, unstarted };
+  }).sort((a, b) => {
+    if (a.unstarted !== b.unstarted) return a.unstarted ? 1 : -1;
+    if (!a.unstarted) return a.index - b.index;
+    const aTime = teeTimeMinutes(teeTimeByPlayer.get(a.result.playerId));
+    const bTime = teeTimeMinutes(teeTimeByPlayer.get(b.result.playerId));
+    if (aTime !== null && bTime !== null && aTime !== bTime) return aTime - bTime;
+    if (aTime !== null && bTime === null) return -1;
+    if (aTime === null && bTime !== null) return 1;
+    return (rosterIndex.get(a.result.playerId) ?? a.index) - (rosterIndex.get(b.result.playerId) ?? b.index);
+  });
+
   // Tie counts in one pass, so `tied` matches today's
   // `results.filter((x) => x.total === total).length > 1`.
   const countByTotal = new Map<number, number>();
-  for (const r of results) {
-    countByTotal.set(r.total, (countByTotal.get(r.total) ?? 0) + 1);
+  for (const entry of ordered) {
+    if (!entry.unstarted) {
+      countByTotal.set(entry.result.total, (countByTotal.get(entry.result.total) ?? 0) + 1);
+    }
   }
 
   const rows: LeaderboardRow[] = [];
   let prevTotal: number | undefined;
   let prevRank = 0;
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
-    // Competition rank: first row of a tie group takes its 1-based position
-    // (= today's `findIndex((x) => x.total === total) + 1`); the rest repeat it.
-    const rank = i > 0 && r.total === prevTotal ? prevRank : i + 1;
-    prevTotal = r.total;
-    prevRank = rank;
+  let startedCount = 0;
+  for (const entry of ordered) {
+    const { result: r, thru, unstarted } = entry;
+    // Competition ranks count only started players, so a tie among them still
+    // uses 1, 2, 2, 4 and an unstarted row never consumes a position.
+    const rank = unstarted ? null : (startedCount > 0 && r.total === prevTotal ? prevRank : startedCount + 1);
+    if (!unstarted) {
+      startedCount++;
+      prevTotal = r.total;
+      prevRank = rank!;
+    }
 
-    const tied = (countByTotal.get(r.total) ?? 0) > 1;
+    const tied = !unstarted && (countByTotal.get(r.total) ?? 0) > 1;
     const player = playerById.get(r.playerId);
-    const thru = computeThru(player, holeCount);
 
     const row: LeaderboardRow = {
       playerId: r.playerId,
@@ -184,7 +216,7 @@ export function buildLeaderboardRows(
       total: r.total,
       rank,
       tied,
-      rankLabel: tied ? `T${rank}` : `${rank}`,
+      rankLabel: rank === null ? "—" : (tied ? `T${rank}` : `${rank}`),
       thru,
       // Tee time only when the player has not started (thru === null); a known
       // score (number or "F") always clears it.
