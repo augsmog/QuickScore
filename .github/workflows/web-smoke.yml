@@ -252,6 +252,10 @@ jobs:
           curl --fail --silent http://127.0.0.1:8090/ > /dev/null
           BASE_URL=http://127.0.0.1:8090 node scripts/render-scorecard.mjs e2e/screens/scorecard-390x844.png
           kill "$SCREENSHOT_SERVER_PID" || true
+      - name: Render My-group off/on screenshots (390x844)
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/render-my-group.mjs e2e/screens/my-group
       - name: Stop web server
         if: always()
         run: |

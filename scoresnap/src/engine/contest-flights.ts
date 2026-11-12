@@ -6,10 +6,9 @@ import { flightStandings, type FlightRule, type FlightStanding } from "./flights
 export type ContestFlightStandings = FlightStanding[] & { effectiveRankMode: RankMode };
 
 // AUG-256d: flights counterpart of contest-teams.ts (AUG-877). Turns a real
-// Contest plus a caller-supplied FlightRule into per-flight standings, built the
+// Contest plus a stored or caller-supplied FlightRule into per-flight standings, built the
 // same way the contest screen builds the individual leaderboard. Pure and
-// UI-free. The flight rule is not persisted (the store has no flight field), so
-// the caller supplies it; adding a store field is out of scope.
+// UI-free. An explicit rule overrides the optional saved contest rule.
 
 /**
  * Resolve the active round's course, groups and de-duplicated players using the
@@ -62,11 +61,15 @@ function resolveActiveField(
  * propagate unchanged. A contest with zero active players returns flights with
  * empty standings and does not throw.
  */
+type FlightOptions = { rankMode: RankMode; roundId?: string };
+export function contestFlightStandings(contest: Contest, rule: FlightRule, opts: FlightOptions): ContestFlightStandings;
+export function contestFlightStandings(contest: Contest, rule?: FlightRule, opts?: FlightOptions): ContestFlightStandings | "no_flights";
 export function contestFlightStandings(
   contest: Contest,
-  rule: FlightRule,
-  opts: { rankMode: RankMode; roundId?: string },
-): ContestFlightStandings {
+  rule: FlightRule | undefined = contest.flightRule,
+  opts: FlightOptions = { rankMode: "gross" },
+): ContestFlightStandings | "no_flights" {
+  if (rule === undefined) return "no_flights";
   const { players, course, groups } = resolveActiveField(contest, opts.roundId);
   const { rows, mode } = buildLeaderboard(players, course, opts.rankMode);
   const standings = flightStandings(rows, players, rule, { holeCount: course.holes.length, groups });
