@@ -1,4 +1,5 @@
 import {assignFlights} from './flights';
+import {applyCut} from './cut-line';
 import type {Contest} from '../stores/contest-store';
 import {AuxiliaryData,GameType,validateVariationSetup} from './types';
 import {canHostTournament,canUseGame,Tier} from '../services/entitlements';
@@ -27,8 +28,18 @@ export function validateFlightRule(contest:Contest):void {
  assignFlights([],contest.flightRule);
  if(contest.flightRule.mode === 'manual' && contest.flightRule.fallback !== undefined && !contest.flightRule.fallback.trim())throw new RangeError('Fallback flight name must not be empty');
 }
+/** Validate optional saved cut configuration without needing completed scores. */
+export function validateCutRule(contest:Contest):void {
+ if(contest.cutRule === undefined && contest.cutAfterRound === undefined)return;
+ if(contest.cutRule === undefined || contest.cutAfterRound === undefined)throw new RangeError('Cut rule and round must be configured together');
+ if(!contest.isTournament || !contest.rounds || contest.rounds.length < 2)throw new RangeError('Contest must be a multi-round tournament');
+ applyCut([],contest.cutRule);
+ if(!contest.rounds.some(round=>round.number === contest.cutAfterRound))throw new RangeError('afterRound must match a contest round');
+ if(!contest.rounds.some(round=>round.number > contest.cutAfterRound!))throw new RangeError('A later round must remain after the cut');
+}
 export function validateHostContest(contest:Contest,tier:Tier) {
  validateFlightRule(contest);
+ validateCutRule(contest);
  validateStartSlots(contest);
  if(!canHostTournament(contest,tier) || contest.games.some(g=>!canUseGame(g,tier))) throw new Error('Your plan does not include this hosting configuration');
  if(contest.gameConfig?.rulesVersion===1){
