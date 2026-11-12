@@ -32,7 +32,7 @@ function load(file, deps) {
 //
 // Deterministic 5-player field with a tied lead and 18-hole hcp map so net is available
 // and the Gross/Net toggle renders in the header.
-function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime } = {}) {
+function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime, myGroup = false, membership } = {}) {
   const roster = [
     { id: 'p1', name: 'Amy Adams', per: 3 },
     { id: 'p2', name: 'Bob Brown', per: 3 },
@@ -46,7 +46,14 @@ function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime } = {}) {
     handicap: 0,
     scores: Array(18).fill(r.per),
   }));
-  const groups = [{ id: 'group-1', name: 'Field', players }];
+  if (myGroup) {
+    players[2].handicap = 18;
+    players[4].handicap = 108;
+  }
+  const groups = myGroup ? [
+    { id: 'group-1', name: 'Host group', players: [players[0], players[1], players[3]] },
+    { id: 'group-2', name: 'Viewer group', players: [players[2], players[4]] },
+  ] : [{ id: 'group-1', name: 'Field', players }];
   const contest = {
     id: 'synthetic-search',
     isTournament: true,
@@ -77,6 +84,8 @@ function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime } = {}) {
       { number: 2, course: contest.course, groups: [round2Group] },
     ];
   }
+  const { useOnlineStore } = load('src/stores/online-store.ts', { zustand: require('zustand') });
+  if (membership) useOnlineStore.getState().repair(contest.id, membership, { revision: 1 });
   const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput' };
   const theme = {
     COLORS: new Proxy({}, { get: (_, key) => String(key) }),
@@ -92,6 +101,7 @@ function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime } = {}) {
     'expo-router': { useLocalSearchParams: () => ({ id: contest.id }) },
     'lucide-react-native': { Flag: 'Flag' },
     '../../../src/ui/theme': theme,
+    '../../../src/stores/online-store': { useOnlineStore },
     '../../../src/stores/contest-store': {
       useContestStore: (selector) => selector({ contests: [contest] }),
       getTournamentPlayers: () => players,
@@ -143,7 +153,10 @@ function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime } = {}) {
     '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
   });
   deps['../../../src/components/LeaderboardResultsList'] = { LeaderboardResultsList };
-  return load('app/contest/[id]/index.tsx', deps).default;
+  const Screen = load('app/contest/[id]/index.tsx', deps).default;
+  Screen.onlineStore = useOnlineStore;
+  Screen.contest = contest;
+  return Screen;
 }
 
 function rowTestIds(tree) {
@@ -165,6 +178,8 @@ async function mount(options) {
   await act(async () => {
     tree = create(React.createElement(Screen));
   });
+  tree.onlineStore = Screen.onlineStore;
+  tree.Screen = Screen;
   return tree;
 }
 
@@ -307,4 +322,103 @@ test('multi-round THRU shows an em dash when the current round has not started a
   } finally {
     await act(async () => tree.unmount());
   }
+});
+
+// AUG-975: the real screen + row engine + online store exercise approved membership.
+const approved = { status: 'approved', player_id: 'p3', role: 'player' };
+function groupControl(tree) {
+  return tree.root.find((n) => n.props.testID === 'leaderboard-my-group');
+}
+async function pressGroup(tree) {
+  await act(async () => groupControl(tree).props.onPress());
+}
+function rank(tree, playerId) {
+  return tree.root.find((n) => n.props.testID === `leaderboard-rank-${playerId}`).children.join('');
+}
+
+test('My group on/off filters approved viewer in the second group and preserves field ranks', async () => {
+  const tree = await mount({ myGroup: true, membership: approved });
+  try {
+    expect(groupControl(tree).props.accessibilityState).toEqual({ checked: false, disabled: false });
+    expect(rowTestIds(tree)).toHaveLength(5);
+    await pressGroup(tree);
+    expect(groupControl(tree).props.accessibilityState.checked).toBe(true);
+    expect(rowTestIds(tree)).toEqual(['leaderboard-player-Cara Cole', 'leaderboard-player-Eve Evans']);
+    expect(rank(tree, 'p3')).toBe('3');
+    expect(rank(tree, 'p5')).toBe('5');
+    await pressGroup(tree);
+    expect(groupControl(tree).props.accessibilityState.checked).toBe(false);
+    expect(rowTestIds(tree)).toHaveLength(5);
+  } finally { await act(async () => tree.unmount()); }
+});
+
+test('My group composes with real Net ranks and case-insensitive search', async () => {
+  const tree = await mount({ myGroup: true, membership: approved });
+  try {
+    await pressGroup(tree);
+    await act(async () => tree.root.find((n) => n.props.testID === 'leaderboard-rank-net').props.onPress());
+    expect(rowTestIds(tree)).toEqual(['leaderboard-player-Eve Evans', 'leaderboard-player-Cara Cole']);
+    expect(rank(tree, 'p5')).toBe('1');
+    expect(rank(tree, 'p3')).toBe('4');
+    search(tree, 'COLE');
+    expect(rowTestIds(tree)).toEqual(['leaderboard-player-Cara Cole']);
+    expect(rank(tree, 'p3')).toBe('4');
+    search(tree, 'amy');
+    expect(rowTestIds(tree)).toEqual([]);
+    await pressGroup(tree);
+    expect(rowTestIds(tree)).toEqual(['leaderboard-player-Amy Adams']);
+    expect(rank(tree, 'p1')).toBe('T2');
+  } finally { await act(async () => tree.unmount()); }
+});
+
+test.each([
+  undefined,
+  { ...approved, status: 'pending' },
+  { ...approved, status: 'revoked' },
+  { ...approved, player_id: null, role: 'host' },
+  { ...approved, player_id: 'not-in-contest' },
+])('My group disabled without approved grouped player: %j', async (membership) => {
+  const tree = await mount({ myGroup: true, membership });
+  try {
+    expect(groupControl(tree).props.disabled).toBe(true);
+    expect(groupControl(tree).props.accessibilityState).toEqual({ checked: false, disabled: true });
+    expect(tree.root.find((n) => n.props.testID === 'leaderboard-my-group-empty').children.join('')).toBe('No group assigned');
+    await pressGroup(tree);
+    expect(rowTestIds(tree)).toHaveLength(5);
+  } finally { await act(async () => tree.unmount()); }
+});
+
+test('membership revocation while on immediately restores field and disables My group', async () => {
+  const tree = await mount({ myGroup: true, membership: approved });
+  try {
+    await pressGroup(tree);
+    expect(rowTestIds(tree)).toHaveLength(2);
+    await act(async () => tree.onlineStore.getState().reset());
+    expect(groupControl(tree).props.accessibilityState).toEqual({ checked: false, disabled: true });
+    expect(rowTestIds(tree)).toHaveLength(5);
+  } finally { await act(async () => tree.unmount()); }
+});
+
+
+test('removal from contest groups while on cannot leave an invented group filter', async () => {
+  const tree = await mount({ myGroup: true, membership: approved });
+  try {
+    await pressGroup(tree);
+    tree.Screen.contest.groups = tree.Screen.contest.groups.map(group => ({
+      ...group, players: group.players.filter(player => player.id !== 'p3'),
+    }));
+    await act(async () => tree.update(React.createElement(tree.Screen)));
+    expect(groupControl(tree).props.accessibilityState).toEqual({ checked: false, disabled: true });
+    expect(rowTestIds(tree)).toHaveLength(5);
+  } finally { await act(async () => tree.unmount()); }
+});
+
+test('approved membership belonging to another contest cannot enable My group', async () => {
+  const tree = await mount({ myGroup: true });
+  try {
+    await act(async () => tree.onlineStore.getState().repair('another-contest', approved, { revision: 1 }));
+    expect(groupControl(tree).props.disabled).toBe(true);
+    await pressGroup(tree);
+    expect(rowTestIds(tree)).toHaveLength(5);
+  } finally { await act(async () => tree.unmount()); }
 });

@@ -60,6 +60,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     'expo-router': { useLocalSearchParams: () => ({ id: contest.id }) },
     'lucide-react-native': { Flag: 'Flag' },
     '../../../src/ui/theme': theme,
+    '../../../src/stores/online-store': { useOnlineStore: (select) => select({ events: {} }) },
     '../../../src/stores/contest-store': {
       useContestStore: (selector) => selector({ contests: [contest] }),
       getTournamentPlayers: () => players,
