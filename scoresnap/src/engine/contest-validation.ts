@@ -1,3 +1,4 @@
+import {assignFlights} from './flights';
 import type {Contest} from '../stores/contest-store';
 import {AuxiliaryData,GameType,validateVariationSetup} from './types';
 import {canHostTournament,canUseGame,Tier} from '../services/entitlements';
@@ -20,7 +21,14 @@ export function validateStartSlots(contest:Contest) {
  }
 }
 
+/** Validate saved flight configuration independently of the active roster. */
+export function validateFlightRule(contest:Contest):void {
+ if(contest.flightRule === undefined)return;
+ assignFlights([],contest.flightRule);
+ if(contest.flightRule.mode === 'manual' && contest.flightRule.fallback !== undefined && !contest.flightRule.fallback.trim())throw new RangeError('Fallback flight name must not be empty');
+}
 export function validateHostContest(contest:Contest,tier:Tier) {
+ validateFlightRule(contest);
  validateStartSlots(contest);
  if(!canHostTournament(contest,tier) || contest.games.some(g=>!canUseGame(g,tier))) throw new Error('Your plan does not include this hosting configuration');
  if(contest.gameConfig?.rulesVersion===1){
