@@ -343,11 +343,13 @@ test('My group on/off filters approved viewer in the second group and preserves 
     expect(rowTestIds(tree)).toHaveLength(5);
     await pressGroup(tree);
     expect(groupControl(tree).props.accessibilityState.checked).toBe(true);
+    expect(groupControl(tree).props['aria-checked']).toBe(true);
     expect(rowTestIds(tree)).toEqual(['leaderboard-player-Cara Cole', 'leaderboard-player-Eve Evans']);
     expect(rank(tree, 'p3')).toBe('3');
     expect(rank(tree, 'p5')).toBe('5');
     await pressGroup(tree);
     expect(groupControl(tree).props.accessibilityState.checked).toBe(false);
+    expect(groupControl(tree).props['aria-checked']).toBe(false);
     expect(rowTestIds(tree)).toHaveLength(5);
   } finally { await act(async () => tree.unmount()); }
 });
@@ -382,6 +384,7 @@ test.each([
   try {
     expect(groupControl(tree).props.disabled).toBe(true);
     expect(groupControl(tree).props.accessibilityState).toEqual({ checked: false, disabled: true });
+    expect(groupControl(tree).props['aria-checked']).toBe(false);
     expect(tree.root.find((n) => n.props.testID === 'leaderboard-my-group-empty').children.join('')).toBe('No group assigned');
     await pressGroup(tree);
     expect(rowTestIds(tree)).toHaveLength(5);
@@ -395,6 +398,7 @@ test('membership revocation while on immediately restores field and disables My 
     expect(rowTestIds(tree)).toHaveLength(2);
     await act(async () => tree.onlineStore.getState().reset());
     expect(groupControl(tree).props.accessibilityState).toEqual({ checked: false, disabled: true });
+    expect(groupControl(tree).props['aria-checked']).toBe(false);
     expect(rowTestIds(tree)).toHaveLength(5);
   } finally { await act(async () => tree.unmount()); }
 });
@@ -409,6 +413,7 @@ test('removal from contest groups while on cannot leave an invented group filter
     }));
     await act(async () => tree.update(React.createElement(tree.Screen)));
     expect(groupControl(tree).props.accessibilityState).toEqual({ checked: false, disabled: true });
+    expect(groupControl(tree).props['aria-checked']).toBe(false);
     expect(rowTestIds(tree)).toHaveLength(5);
   } finally { await act(async () => tree.unmount()); }
 });

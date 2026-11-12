@@ -30,6 +30,8 @@ try {
   const modules = await realpath(path.join(root, 'node_modules'));
   await symlink(modules, path.join(scratch, 'node_modules'), 'dir');
   await writeFile(path.join(scratch, 'metro.config.cjs'), `const {getDefaultConfig}=require('expo/metro-config'); const c=getDefaultConfig(__dirname); c.watchFolders=[${JSON.stringify(modules)}]; c.resolver.nodeModulesPaths=[${JSON.stringify(modules)}]; module.exports=c;`);
+  // Match the shipping Babel transform required by Zustand's web import.meta.
+  await writeFile(path.join(scratch, 'babel.config.js'), `module.exports={presets:[['babel-preset-expo',{web:{unstable_transformImportMeta:true}}]]};`);
   await writeFile(path.join(scratch, 'package.json'), JSON.stringify({ name: 'my-group-preview', version: '1.0.0', main: 'expo-router/entry' }));
   await writeFile(path.join(scratch, 'app.json'), JSON.stringify({ expo: { name: 'My Group Preview', slug: 'my-group-preview', web: { output: 'single' }, plugins: ['expo-router'] } }));
   await writeFile(path.join(scratch, 'app/_layout.tsx'), `
@@ -107,7 +109,13 @@ export default function Layout() {
     await page.waitForFunction(({checked,count}) =>
       document.querySelector('[data-testid="leaderboard-my-group"]')?.getAttribute('aria-checked') === String(checked)
       && document.querySelectorAll('[data-testid^="leaderboard-player-"]').length === count,
-    { checked: state === 'on', count: expected.length });
+    { checked: state === 'on', count: expected.length }).catch(async error => {
+      await page.screenshot({ path: path.join(output, 'failure.png'), fullPage: false });
+      console.error('Failed state', state, await control.evaluate(node => node.outerHTML));
+      console.error('Rendered rows', await page.locator('[data-testid^="leaderboard-player-"]').evaluateAll(nodes => nodes.map(node => ({id:node.dataset.testid,rect:node.getBoundingClientRect().toJSON()}))));
+      console.error('Capture DOM:', await page.locator('body').innerText());
+      throw error;
+    });
     assert.equal(await control.isEnabled(), true);
     assert.deepEqual(await page.locator('[data-testid^="leaderboard-player-"]').evaluateAll(nodes => nodes.map(n => n.dataset.testid)),
       expected.map(([,name]) => `leaderboard-player-${name}`));

@@ -372,6 +372,7 @@ export default function LeaderboardScreen() {
         accessibilityRole="switch"
         accessibilityLabel="My group"
         accessibilityState={{ checked: groupFilterActive, disabled: viewerGroupId === undefined }}
+        aria-checked={groupFilterActive}
         disabled={viewerGroupId === undefined}
         onPress={() => { if (viewerGroupId !== undefined) setMyGroupOnly((active) => !active); }}
         style={{
