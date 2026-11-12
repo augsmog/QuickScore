@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Lock, DollarSign, CheckCircle, Share2, FileText } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { calculateContestSettlement } from "../../../src/engine/contest-results";
+import { calculateGroupSettlements } from "../../../src/engine/group-settlement";
 import { skinsLabel } from "../../../src/engine/calculators/skins";
 import { useAuthStore } from "../../../src/stores/auth-store";
 import { useScanStore } from "../../../src/stores/scan-store";
@@ -161,6 +162,8 @@ function SettlementScreenContent() {
     );
   }
   const settlement = calculateContestSettlement(contest);
+  const groupSettlements = calculateGroupSettlements(contest);
+  const multiGroup = groupSettlements.groups.length > 1;
   const revision = settlementRevision(contest);
   const transactionKeys = settlementTransactionKeys(settlement.transactions);
   if (settlement.pending) return (
@@ -262,8 +265,44 @@ function SettlementScreenContent() {
         <Text testID="settlement-session-total" style={{ fontFamily: FONTS.score, fontSize: 24, color: COLORS.primary }}>{formatMoney(sessionTotal)}</Text>
       </View>
 
+      {multiGroup && (
+        <View style={{ marginBottom: 24 }}>
+          <Text style={sectionLabel}>BY GROUP</Text>
+          {groupSettlements.groups.map(({ groupId, summary }) => {
+            const label = contest.groups.find(g => g.id === groupId)?.name || "Group";
+            return (
+              <View key={groupId} testID={`settlement-group-${groupId}`} style={{ backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 10, gap: 8 }}>
+                <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold }}>{label}</Text>
+                {summary.pending ? (
+                  <Text style={{ color: COLORS.textDim, fontSize: 13 }}>Pending</Text>
+                ) : summary.transactions.length === 0 ? (
+                  <Text style={{ color: COLORS.textDim, fontSize: 13 }}>Even</Text>
+                ) : summary.transactions.map((t, i) => (
+                  <View key={`${groupId}-${i}`} style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
+                    <Text style={{ flex: 1, color: COLORS.text, fontSize: 14 }}>{t.from} → {t.to}</Text>
+                    <Text style={{ color: COLORS.text, fontFamily: FONTS.score, fontSize: 14 }}>{formatMoney(t.amount)}</Text>
+                  </View>
+                ))}
+              </View>
+            );
+          })}
+          {groupSettlements.field && groupSettlements.field.transactions.length > 0 && (
+            <View testID="settlement-group-field" style={{ backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 10, gap: 8 }}>
+              <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold }}>Field (all groups)</Text>
+              {groupSettlements.field.transactions.map((t, i) => (
+                <View key={`field-${i}`} style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
+                  <Text style={{ flex: 1, color: COLORS.text, fontSize: 14 }}>{t.from} → {t.to}</Text>
+                  <Text style={{ color: COLORS.text, fontFamily: FONTS.score, fontSize: 14 }}>{formatMoney(t.amount)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Groups settle independently — no netting across groups.</Text>
+        </View>
+      )}
+
       <View style={{ marginBottom: 24 }}>
-        <Text style={sectionLabel}>WHO OWES WHAT</Text>
+        <Text style={sectionLabel} testID="settlement-all-groups-label">{multiGroup ? "ALL GROUPS · WHO OWES WHAT" : "WHO OWES WHAT"}</Text>
         {settlement.transactions.map((t, i) => {
           const transactionKey = transactionKeys[i];
           const timestamp = ledger?.revision === revision ? ledger.marks[transactionKey] : undefined;

@@ -14,13 +14,14 @@ function load(file, dependencies) {
   return m.exports;
 }
 const engine = load('src/engine/contest-results.ts');
+const groupSettlement = load('src/engine/group-settlement.ts');
 const jsx = (type,props) => typeof type === 'function' ? type(props) : ({type,props});
 const nodes = n => !n || typeof n !== 'object' ? [] : Array.isArray(n) ? n.flatMap(nodes) : [n,...nodes(n.props?.children)];
 const text = n => n == null ? '' : typeof n !== 'object' ? String(n) : Array.isArray(n) ? n.map(text).join('') : text(n.props?.children);
 const find = (tree,id) => nodes(tree).find(n=>n.props?.testID===id);
 function render(contest,tier='pro') {
   const deps = {react:{useState:v=>[v,()=>{}],useRef:v=>({current:v}),useEffect:()=>{}},'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{View:'View',Text:'Text',ScrollView:'ScrollView',Pressable:'Pressable',Share:{}},'expo-router':{useRouter:()=>({}),useLocalSearchParams:()=>({id:'c'})},'lucide-react-native':{},'expo-haptics':{}};
-  const extras = {'services/purchases':{},'services/paywall-plans':{},'services/scorecard-pdf-font':{},'services/scorecard-pdf':{},'services/share-scorecard-pdf':{}, 'services/live-share-url-state': { liveShareScope: (actor, id) => JSON.stringify([actor, id]), useLiveShareUrl: () => undefined },'services/analytics':{webAnalytics:{capture:jest.fn(async()=>undefined)}},'engine/contest-results':engine,'engine/calculators/skins':load('src/engine/calculators/skins.ts'),'stores/scan-store':{useScanStore:f=>f({tier})},'stores/contest-store':{useContestStore:f=>f({contests:[contest]})},'services/entitlements':{canSeeSettlement:t=>t!=='free'},'ui/recap/RecapCard':{},'ui/recap/model':{buildRecapModel:()=>({})},'ui/LiveShare':{},'ui/copy':{settlementLeader:n=>n},'ui/paywall-copy':{PAYWALL_COPY:{}},'ui/theme':{COLORS:{},FONTS:{},TYPOGRAPHY:{},RADII:{}}};
+  const extras = {'services/purchases':{},'services/paywall-plans':{},'services/scorecard-pdf-font':{},'services/scorecard-pdf':{},'services/share-scorecard-pdf':{}, 'services/live-share-url-state': { liveShareScope: (actor, id) => JSON.stringify([actor, id]), useLiveShareUrl: () => undefined },'services/analytics':{webAnalytics:{capture:jest.fn(async()=>undefined)}},'engine/contest-results':engine,'engine/group-settlement':groupSettlement,'engine/calculators/skins':load('src/engine/calculators/skins.ts'),'stores/scan-store':{useScanStore:f=>f({tier})},'stores/contest-store':{useContestStore:f=>f({contests:[contest]})},'services/entitlements':{canSeeSettlement:t=>t!=='free'},'ui/recap/RecapCard':{},'ui/recap/model':{buildRecapModel:()=>({})},'ui/LiveShare':{},'ui/copy':{settlementLeader:n=>n},'ui/paywall-copy':{PAYWALL_COPY:{}},'ui/theme':{COLORS:{},FONTS:{},TYPOGRAPHY:{},RADII:{}}};
   for (const [key,value] of Object.entries(extras)) deps['../../../src/'+key]=value;
   deps['../../../src/stores/auth-store'] = { useAuthStore: f => f({ user: { id: 'account-a' }, isAnonymous: false, isInitialized: true, isLoading: false }) };
   deps.zustand = { useStore: (store, selector) => selector(store.getState()) };
@@ -119,6 +120,25 @@ test.each([undefined,1])('three-player tiny-stake game totals reconcile in cents
  }
 });
 
+test('multi-group contest renders per-group settlement without cross-group netting, plus an all-groups rollup',()=>{
+ const c=fixture();c.games=['match_play'];
+ c.groups=[group(Array(9).fill(3),Array(9).fill(4)),group(Array(9).fill(4),Array(9).fill(3),'x')];
+ const tree=render(c);
+ const expected=groupSettlement.calculateGroupSettlements(c);
+ expect(expected.groups.length).toBe(2);
+ for(const {groupId,summary} of expected.groups){
+   const node=find(tree,`settlement-group-${groupId}`);
+   expect(node).toBeDefined();
+   for(const t of summary.transactions) expect(text(node)).toContain(`${t.from} → ${t.to}`);
+ }
+ expect(text(find(tree,'settlement-all-groups-label'))).toBe('ALL GROUPS · WHO OWES WHAT');
+});
+test('single-group contest has no BY GROUP section and keeps the plain WHO OWES WHAT label',()=>{
+ const c=fixture();
+ const tree=render(c);
+ expect(find(tree,'settlement-group-g')).toBeUndefined();
+ expect(text(find(tree,'settlement-all-groups-label'))).toBe('WHO OWES WHAT');
+});
 test('constituent-only tied/pending players remain visible; legacy does not import round rosters',()=>{
  const c=fixture();c.isTournament=true;c.games=['match_play'];c.groups=[group(Array(9).fill(4),Array(9).fill(4))];
  c.rounds=[{id:'r1',number:1,groups:[group(Array(9).fill(4),Array(9).fill(4),'x')]},{id:'r2',number:2,groups:c.groups}];
