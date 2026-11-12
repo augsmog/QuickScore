@@ -1,4 +1,5 @@
 import type { FlightRule } from "../engine/flights";
+import type { CutRule } from "../engine/cut-line";
 import { useOnlineStore } from './online-store';
 import { completeScores } from "../services/ocr-review";
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
@@ -53,6 +54,8 @@ export interface TeamInfo {
 
 export interface Contest {
   flightRule?: FlightRule;
+  cutRule?: CutRule;
+  cutAfterRound?: number;
   remoteRestored?: boolean;
   id: string;
   name: string;

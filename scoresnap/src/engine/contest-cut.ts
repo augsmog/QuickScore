@@ -36,21 +36,30 @@ function hasCompleteCard(player: Player, holeCount: number): boolean {
  * Calculate a pure cumulative cut after round K. A player is eligible only
  * after completing every included round; withdrawn and no-show players miss.
  */
+type CutOptions = { afterRound?: number; rankMode?: RankMode };
+// Preserve the existing explicit-call result type for callers narrowing "unsupported".
+export function contestCutAfterRound(contest: Contest, rule: CutRule, opts: { afterRound: number; rankMode: RankMode }): ContestCutResult | "unsupported";
+export function contestCutAfterRound(contest: Contest, rule?: CutRule, opts?: CutOptions): ContestCutResult | "unsupported" | "no_cut";
 export function contestCutAfterRound(
   contest: Contest,
-  rule: CutRule,
-  opts: { afterRound: number; rankMode: RankMode },
-): ContestCutResult | "unsupported" {
+  rule: CutRule | undefined = contest.cutRule,
+  opts: CutOptions = {},
+): ContestCutResult | "unsupported" | "no_cut" {
+  if (rule === undefined) return "no_cut";
+  const afterRound = opts.afterRound ?? contest.cutAfterRound;
   const rounds = contest.rounds ?? [];
   if (!contest.isTournament || !rounds.length) {
     throw new RangeError("Contest must be a multi-round tournament");
   }
-  const selected = rounds.filter((round) => round.number <= opts.afterRound).sort((a, b) => a.number - b.number);
-  if (!selected.some((round) => round.number === opts.afterRound)) {
+  if (afterRound === undefined) {
+    throw new RangeError("afterRound must match a contest round");
+  }
+  const selected = rounds.filter((round) => round.number <= afterRound).sort((a, b) => a.number - b.number);
+  if (!selected.some((round) => round.number === afterRound)) {
     throw new RangeError("afterRound must match a contest round");
   }
   const lastRound = Math.max(...rounds.map((round) => round.number));
-  if (opts.afterRound >= lastRound) {
+  if (afterRound >= lastRound) {
     throw new RangeError("A later round must remain after the cut");
   }
   if (contest.gameConfig?.rulesVersion === 1 &&
@@ -68,7 +77,7 @@ export function contestCutAfterRound(
     }
   }
 
-  let mode: RankMode = opts.rankMode;
+  let mode: RankMode = opts.rankMode ?? "gross";
   if (mode === "net") {
     for (const round of selected) {
       const course = round.course ?? contest.course;
