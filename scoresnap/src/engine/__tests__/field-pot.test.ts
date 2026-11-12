@@ -50,6 +50,21 @@ describe("computeFieldPot", () => {
     const r = computeFieldPot({ game: "stroke_play", config: cfg(10), eligiblePlayerIds: ["p2", "p3"], standings: ranks([1, 2, 3]) });
     expect(r).toEqual({ total: 2000, winners: ["p2"], perWinner: 2000, remainderCents: 0 });
   });
+  it("isolates no-pot winners arrays across calls and return paths", () => {
+    const input = { game: "stroke_play" as const, config: cfg(0), eligiblePlayerIds: ids(2), standings: ranks([1, 2]) };
+    const first = computeFieldPot(input);
+    first.winners.push("injected");
+    const later = [
+      computeFieldPot(input),
+      computeFieldPot({ ...input, config: undefined }),
+      computeFieldPot({ ...input, game: "nassau", config: cfg(10) }),
+      computeFieldPot({ ...input, config: cfg(10), eligiblePlayerIds: [] }),
+    ];
+    for (const result of later) {
+      expect(result).toEqual(NONE);
+      expect(result.winners).not.toBe(first.winners);
+    }
+  });
   it("no ranked eligible standings keeps the pot as remainder", () => {
     const r = computeFieldPot({ game: "stroke_play", config: cfg(10), eligiblePlayerIds: ids(2), standings: [] });
     expect(r).toEqual({ total: 2000, winners: [], perWinner: 0, remainderCents: 2000 });

@@ -27,7 +27,7 @@ export interface FieldPotResult {
   remainderCents: number;
 }
 
-const NO_POT: FieldPotResult = { total: 0, winners: [], perWinner: 0, remainderCents: 0 };
+const noPot = (): FieldPotResult => ({ total: 0, winners: [], perWinner: 0, remainderCents: 0 });
 
 /**
  * Pure field-pot calculation. Event-scope games only; fee x eligible players,
@@ -36,11 +36,11 @@ const NO_POT: FieldPotResult = { total: 0, winners: [], perWinner: 0, remainderC
 export function computeFieldPot(input: FieldPotInput): FieldPotResult {
   const { game, config, standings } = input;
   const fee = config?.potEntryFee;
-  if (fee === undefined || !Number.isFinite(fee) || fee <= 0) return { ...NO_POT };
-  if (resolveGameScope(game, config) !== 'event') return { ...NO_POT };
+  if (fee === undefined || !Number.isFinite(fee) || fee <= 0) return noPot();
+  if (resolveGameScope(game, config) !== 'event') return noPot();
 
   const eligible = new Set(input.eligiblePlayerIds);
-  if (eligible.size === 0) return { ...NO_POT };
+  if (eligible.size === 0) return noPot();
 
   const total = Math.round(fee * 100) * eligible.size;
 
