@@ -87,15 +87,18 @@ try {
     throw new Error('Flag-on journey stopped at the first Pro gate on Settlement');
   }
   await page.getByTestId('settlement-scroll').waitFor({ state: 'visible' });
+  assert.notEqual(new URL(page.url()).pathname, '/paywall', 'Settlement must not redirect to the paywall route');
   const settlementText = (await page.getByTestId('settlement-scroll').innerText()).replace(/\s+/g, ' ').trim();
   assert.match(settlementText, /\$\d+\.\d{2}/, 'Settle up must render an amount');
-  assert.doesNotMatch(settlementText, /PaywallTeaser|Upgrade|Try Pro|See all plans|part of SnapScore Pro/i);
+  assert.doesNotMatch(settlementText, /PaywallTeaser|Upgrade|Try Pro|See all plans|part of SnapScore Pro|free cloud scans this month/i);
   await page.screenshot({ path: path.join(out, 'settlement.png'), fullPage: true });
   trace.push({ type: 'settlement', text: settlementText });
 
   await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
   await page.getByTestId('home-new-contest').waitFor({ state: 'visible' });
   await page.getByRole('tab', { name: 'Profile', exact: true }).click();
+  assert.notEqual(new URL(page.url()).pathname, '/paywall', 'Profile tab must not redirect to the paywall route');
+  assert.equal(await page.getByTestId('profile-plan-badge').count(), 0, 'Profile must not render a Pro/Free plan badge while pro_enabled is off');
   const statistics = page.getByText('Statistics', { exact: true });
   await statistics.first().waitFor({ state: 'visible' });
   await statistics.first().click();
