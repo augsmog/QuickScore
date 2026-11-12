@@ -1,0 +1,20 @@
+{
+  "schema": "snapscore-asc-metadata/1",
+  "status": "STAGED-NOT-APPLIED",
+  "locale": "en-US",
+  "versionLocalization": {
+    "description": "SnapScore Golf is the fastest way to track golf bets and settle up after your round. Snap a photo of your scorecard, verify the scores, and get instant settlement calculations for every game your group is playing.\n\nSCORECARD SCANNING\nPoint your camera at a printed scorecard. Our OCR engine reads the scores, then lets you verify before anything is locked in.\n\n29 GAME MODES\nWhether your group plays Skins, Nassau, Wolf, Hammer, Stableford, Best Ball, or something more creative, it is covered. Run multiple games at once and get a separate settlement breakdown for each one.\n\nIndividual games: Stroke Play, Match Play, Stableford, Modified Stableford, Skins, Nassau, Nassau with Presses, Quota, Chicago, Aces & Deuces, Dots, Rabbit, Defender, Greenies, Banker, Snake, Bingo Bango Bongo\n\nHead-to-head games: Hammer, Closeout, Wolf\n\nTeam games: Best Ball, Scramble, Shamble, Four-Ball, Alternate Shot, Chapman, Vegas, Nines, Sixes\n\nINSTANT SETTLEMENT\nWhen the round is done, SnapScore calculates who owes what. Every transaction is broken down by game so you can see where the money moved. SnapScore is a scorekeeping and calculation tool only. It does not process or hold any money.\n\nSMART SCORING\n- Full 18-hole digital scorecard with par and handicap per hole\n- Color-coded scores (eagle, birdie, par, bogey, and worse)\n- Real-time round progress\n- Up to 40 players per contest\n- Multiple groups within a single contest\n\nBUILT FOR YOUR SATURDAY FOURSOME\nSet your bet unit, pick your games, and start scoring. Wolf partner picks, Hammer drops, Snake tracking, and Greenie calls are built in.\n\nCOURSE SEARCH\nSearch by name or location to load course data with par and handicap for every hole.\n\nDETAILED STATISTICS\nTrack scoring trends, par-specific averages, score distributions, hardest and easiest holes, and streaks across your rounds.\n\nTRY IT FREE FOR 7 DAYS\nStart a 7-day free trial for full access, including unlimited scorecard scanning. After the trial, SnapScore Pro is $19.99 per year, billed annually. Cancel any time in your Apple ID settings at least 24 hours before the trial ends. Contest creation keeps working without a subscription.\n\n---\n\nSnapScore Golf is built by golfers who got tired of bad math ruining good bets.",
+    "keywords": "scorecard,betting,skins,nassau,wolf,settlement,scoring,handicap,OCR,scan,side bets,stableford",
+    "promotionalText": "29 game modes, OCR scorecard scanning, and instant bet settlement. Turn a photo of your scorecard into a settled round in seconds. Try it free for 7 days.",
+    "whatsNew": "Welcome to SnapScore Golf!\n- OCR scorecard scanning\n- 29 scored and settled game modes\n- Wolf, Hammer, Snake, and Greenies input built in\n- Course search with par and handicap\n- Statistics dashboard\n- 7-day free trial, then SnapScore Pro"
+  },
+  "appInfoLocalization": {
+    "name": "SnapScore Golf",
+    "subtitle": "Scan Scores. Settle Bets."
+  },
+  "notes": [
+    "Differs from docs/APP_STORE_LISTING.md: dropped 'golf' keyword (already in app name; validator-caught), added stableford, dropped wagering (100-char limit); free-trial copy updated from '3 free scans' to the 7-day trial (commit c09f8a9); removed unverified superlatives ('first in golf apps', 'more than any competitor', 'No other golf betting app') that carry App Review risk; '30,000+ courses' dropped until verified; added no-money-handling and auto-renew disclosure.",
+    "Pricing ($19.99/yr, 7-day trial) taken from src/services/purchases.ts; confirm against live ASC before applying.",
+    "Nothing here has been sent to App Store Connect."
+  ]
+}
