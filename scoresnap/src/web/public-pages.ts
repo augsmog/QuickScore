@@ -114,8 +114,8 @@ function contactLink() {
 }
 
 export function renderHomePage() {
-  return shell("/", "SnapScore", `<h1>SnapScore</h1>
-<p class="lede">Score your round, run your games, and see who owes what. Got a paper card? Scan it.</p>
+  return shell("/", "SnapScore", `<h1>Your golf group. Your games. Who owes what.</h1>
+<p class="lede">For golf friends, league rounds, trips, bachelor parties and golf events big or small. Keep score, run your side games and see who owes what.</p>
 <p>Help, account deletion, and how a round works are on the <a href="${SUPPORT_PATH}">support page</a>. How SnapScore handles information is in the <a href="${PRIVACY_PATH}">privacy policy</a>.</p>
 <p>Email ${contactLink()}.</p>`);
 }
