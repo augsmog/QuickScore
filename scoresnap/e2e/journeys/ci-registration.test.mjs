@@ -22,7 +22,7 @@ function registered(m,w){
  assert(exports,'AUG-852 requires the isolated Pro flag exports');
  assert.match(exports.run,/EXPO_PUBLIC_PRO_ENABLED=false EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="\$RUNNER_TEMP\/metro-cache-pro-off"[\s\S]*?--output-dir dist-web-pro-off --clear/);
  assert.match(exports.run,/EXPO_PUBLIC_PRO_ENABLED=true EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="\$RUNNER_TEMP\/metro-cache-pro-on"[\s\S]*?--output-dir dist-web-pro-on --clear/);
- assert(w.jobs['build-standard'].steps.some(s=>s.name==='Install Chromium for Pro-off acceptance journey'&&s.run==='npx playwright install --with-deps chromium'));
+ assert(w.jobs['build-standard'].steps.some(s=>s.name==='Install Chromium for Pro-off acceptance journey'&&s.uses==='./.github/actions/playwright-chromium'));
  const proJourney=w.jobs['build-standard'].steps.find(s=>s.name==='Pro flag-off Playwright journey and flag-on negative proof');
  assert(proJourney,'AUG-852 Pro-off browser journey must run in build-standard');
  assert.match(proJourney.run,/BASE_URL=http:\/\/127\.0\.0\.1:8093 OUT_DIR=e2e\/journey-screens\/pro-off-free node e2e\/journeys\/pro-off-free\.mjs/);
