@@ -54,9 +54,9 @@ if FORCE_DEPS_FAILURE=1 FORCE_PROBE_FAILURE=1 bash "$repo_root/scripts/ci/instal
   echo "Expected persistent dependency failures to exit non-zero." >&2
   exit 1
 fi
-[[ "$(cat "$INSTALL_DEPS_COUNT_FILE")" == 4 ]]
+[[ "$(cat "$INSTALL_DEPS_COUNT_FILE")" == 3 ]]
 grep -qx 'sleep 20' "$LOG_FILE"
 grep -qx 'sleep 60' "$LOG_FILE"
-grep -qx 'sleep 120' "$LOG_FILE"
+! grep -qx 'sleep 120' "$LOG_FILE"
 grep -qx 'INFRA: chromium deps unavailable (apt)' "$failure_output"
 echo "PASS: failed probe retries install-deps and passes on retry."

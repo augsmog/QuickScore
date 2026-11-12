@@ -33,6 +33,8 @@ function registered(m,w){
  const exportIndex=w.jobs['build-standard'].steps.indexOf(exports);
  const journeyIndex=w.jobs['build-standard'].steps.indexOf(proJourney);
  assert(journeyIndex>exportIndex,'journey must run after both isolated exports');
+ const chromiumIndex=w.jobs['build-standard'].steps.findIndex(s=>s.uses==='./.github/actions/playwright-chromium');
+ assert(chromiumIndex>-1&&chromiumIndex<journeyIndex,'shared Chromium setup must run before the Pro-off browser journey');
  for(const [name,directory] of [['pro-off-free-journey-','scoresnap/e2e/journey-screens/pro-off-free'],['pro-on-negative-journey-','scoresnap/e2e/journey-screens/pro-on-negative']]){
   const artifact=w.jobs['build-standard'].steps.find(s=>s.uses==='actions/upload-artifact@v4'&&s.with.name.startsWith(name));
   assert(artifact,'missing artifact '+name);
@@ -44,6 +46,6 @@ function registered(m,w){
 test('all accepted bugs run unfiltered on every device profile in existing two-minute CI step',()=>registered(manifest,workflow));
 test('missing registration, capture, control or filtered execution fails integration contract',()=>{
  for(const mutate of [m=>m.journeys.splice(m.journeys.findIndex(j=>j.id==='J-trial-preview-unloaded'),1),m=>m.journeys.find(j=>j.id==='J-by-game-pending').requiredSteps=[],m=>m.journeys.find(j=>j.id==='J-delete-account').status='deferred']){const m=structuredClone(manifest);mutate(m);assert.throws(()=>registered(m,workflow));}
- for(const mutate of [w=>{const s=w.jobs['build-standard'].steps.find(s=>s.name?.startsWith('Export Pro flag'));s.run=s.run.replace('EXPO_PUBLIC_PRO_ENABLED=false','EXPO_PUBLIC_PRO_ENABLED=true');},w=>{const s=w.jobs['build-standard'].steps.find(s=>s.name?.startsWith('Pro flag-off'));s.run=s.run.replace('BASE_URL=http://127.0.0.1:8094 OUT_DIR=e2e/journey-screens/pro-on-negative node e2e/journeys/pro-off-free.mjs','echo no-op');},w=>{for(const s of w.jobs['build-standard'].steps.filter(s=>s.with?.name?.startsWith('pro-'))){s.if='false';s.with.path='scoresnap/missing';}}]){const w=structuredClone(workflow);mutate(w);assert.throws(()=>registered(manifest,w));}
+ for(const mutate of [w=>{const s=w.jobs['build-standard'].steps.find(s=>s.name?.startsWith('Export Pro flag'));s.run=s.run.replace('EXPO_PUBLIC_PRO_ENABLED=false','EXPO_PUBLIC_PRO_ENABLED=true');},w=>{const s=w.jobs['build-standard'].steps.find(s=>s.name?.startsWith('Pro flag-off'));s.run=s.run.replace('BASE_URL=http://127.0.0.1:8094 OUT_DIR=e2e/journey-screens/pro-on-negative node e2e/journeys/pro-off-free.mjs','echo no-op');},w=>{for(const s of w.jobs['build-standard'].steps.filter(s=>s.with?.name?.startsWith('pro-'))){s.if='false';s.with.path='scoresnap/missing';}},w=>{const steps=w.jobs['build-standard'].steps;const i=steps.findIndex(s=>s.uses==='./.github/actions/playwright-chromium');const [setup]=steps.splice(i,1);steps.push(setup);}]){const w=structuredClone(workflow);mutate(w);assert.throws(()=>registered(manifest,w));}
  for(const transform of [s=>s.replace('settled-timestamp.browser.test.mjs','omitted-control.mjs'),s=>'JOURNEYS=J-delete-account '+s,s=>s.replace('iphone-pro-max','missing-profile')]){const w=structuredClone(workflow);const step=w.jobs['browser-flows'].steps.find(s=>s.name==='Journey budgets and reachability');step.run=transform(step.run);assert.throws(()=>registered(manifest,w));}
 });

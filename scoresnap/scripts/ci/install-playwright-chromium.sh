@@ -13,13 +13,13 @@ if probe_chromium; then
 fi
 
 echo "Chromium launch probe failed; installing system dependencies."
-delays=(20 60 120)
-for attempt in 1 2 3 4; do
+delays=(20 60)
+for attempt in 1 2 3; do
   if npx playwright install-deps chromium && probe_chromium; then
     echo "Chromium launch probe passed after install-deps attempt $attempt."
     exit 0
   fi
-  if (( attempt <= 3 )); then
+  if (( attempt < 3 )); then
     delay="${delays[$((attempt - 1))]}"
     echo "Chromium dependency attempt $attempt failed; retrying in ${delay}s."
     sleep "$delay"
