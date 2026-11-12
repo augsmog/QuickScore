@@ -3,12 +3,12 @@
   "status": "STAGED-NOT-APPLIED",
   "locale": "en-US",
   "sourceBinding": {
-    "sourceSha": "807e3453c9294c802b21bf4b0a85966fca2d75f8",
+    "sourceSha": "1d48b92ce787978ab7b89ca4f90bfbbf4bdedcb7",
     "sources": {
       "docs/APP_STORE_LISTING.md": "0bd03eccda0a88bfa9dfdd7d3a55de7a47b1ec728cbcdec0596268bc51185ffe",
       "src/config/support.ts": "7351e35ec1a5f431a24a30a973f66e2c231522550d4cd75b048f684da5cc195c",
       "src/engine/game-mode-library.ts": "50a22fa2c658a8f3321a8035ab5f722dc348eb0058e142e76b3f9eaa8fbe9149",
-      "src/engine/types.ts": "7bbd9ead030387925cd0781f7cab9c11044a5537926bdf9c56866c369de182fb"
+      "src/engine/types.ts": "ed4c31e31ddbbacc518df68d3e96c6f36f5badebc898c8121109a66dcdbf2a3d"
     },
     "shippedModeCount": 56,
     "promoApproval": "AUG-403:2026-11-03T16:39:18Z"
