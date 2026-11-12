@@ -17,6 +17,12 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 permissions:
   contents: read
+env:
+  # AUG-817: the web-smoke journeys (e2e/journeys/runner.mjs, etc.) assert the Pro-enabled product
+  # contract (free paywall/settle gates). Build with the reversible pro_enabled flag ON so they
+  # reproduce pre-flag (main) behavior. Shipped flag-off behavior (Pro dormant / features free) is
+  # covered by the unit dual-run suite (tests/pro-enabled-flag.test.cjs) and device-evidence AUG-825.
+  EXPO_PUBLIC_PRO_ENABLED: 'true'
 jobs:
   build-standard:
     runs-on: ubuntu-latest
@@ -26,14 +32,54 @@ jobs:
         working-directory: scoresnap
     steps:
       - uses: actions/checkout@v4
+        with:
+          # ASC acceptance verifies pinned approved source and rejected historical payloads.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: scoresnap/package-lock.json
       - run: npm ci
+      - name: Enforce Pro-disabled shipping configuration
+        run: node --test scripts/ci/pro-enabled-shipping-config.node.cjs
+      - name: Export Pro flag off and on with isolated Metro caches
+        run: |
+          mkdir -p "$RUNNER_TEMP/metro-cache-pro-off" "$RUNNER_TEMP/metro-cache-pro-on"
+          EXPO_PUBLIC_PRO_ENABLED=false EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="$RUNNER_TEMP/metro-cache-pro-off" \
+            npx expo export --platform web --output-dir dist-web-pro-off --clear
+          EXPO_PUBLIC_PRO_ENABLED=true EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="$RUNNER_TEMP/metro-cache-pro-on" \
+            npx expo export --platform web --output-dir dist-web-pro-on --clear
+      - name: Verify Pro flag is baked into both exports
+        run: node --test scripts/ci/pro-flag-web-export.cjs
       - run: node --test e2e/usability-gate.test.mjs scripts/ci/web-pipeline.test.mjs
       - run: npm test -- --runInBand
+      - name: Exercise Chromium dependency retry path
+        run: bash scripts/ci/test-playwright-setup.sh
+      - name: Install Chromium for Pro-off acceptance journey
+        uses: ./.github/actions/playwright-chromium
+      - name: Pro flag-off Playwright journey and flag-on negative proof
+        run: |
+          WEB_ROOT=dist-web-pro-off PORT=8093 node e2e/serve.mjs > /tmp/pro-off-server.log 2>&1 &
+          PRO_OFF_PID=$!
+          WEB_ROOT=dist-web-pro-on PORT=8094 node e2e/serve.mjs > /tmp/pro-on-server.log 2>&1 &
+          PRO_ON_PID=$!
+          trap 'kill "$PRO_OFF_PID" "$PRO_ON_PID" 2>/dev/null || true' EXIT
+          for port in 8093 8094; do
+            for attempt in {1..30}; do
+              if curl --fail --silent "http://127.0.0.1:$port/" > /dev/null; then break; fi
+              sleep 1
+            done
+            curl --fail --silent "http://127.0.0.1:$port/" > /dev/null
+          done
+          BASE_URL=http://127.0.0.1:8093 OUT_DIR=e2e/journey-screens/pro-off-free node e2e/journeys/pro-off-free.mjs
+          mkdir -p e2e/journey-screens/pro-on-negative
+          set +e
+          BASE_URL=http://127.0.0.1:8094 OUT_DIR=e2e/journey-screens/pro-on-negative node e2e/journeys/pro-off-free.mjs > e2e/journey-screens/pro-on-negative/run.log 2>&1
+          negative_status=$?
+          set -e
+          if [ "$negative_status" -eq 0 ]; then echo 'Flag-on journey unexpectedly passed'; exit 1; fi
+          grep -E 'FIRST_PRO_GATE (skins-create|settlement):' e2e/journey-screens/pro-on-negative/run.log
       - name: Build and identify standard offline app
         env:
           EXPO_PUBLIC_OFFLINE_MODE: 'true'
@@ -52,6 +98,22 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
+      - name: Upload Pro-off journey proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pro-off-free-journey-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap/e2e/journey-screens/pro-off-free
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload flag-on negative proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pro-on-negative-journey-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap/e2e/journey-screens/pro-on-negative
+          if-no-files-found: error
+          retention-days: 7
   browser-flows:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -73,7 +135,7 @@ jobs:
           path: scoresnap
       - name: Verify standard artifact before executing browsers
         run: node scripts/ci/web-artifact.mjs verify dist-web ci-standard-manifest.json
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright-chromium
       - name: Browser smoke
         run: |
           node e2e/serve.mjs > /tmp/web-smoke-server.log 2>&1 &
@@ -122,22 +184,33 @@ jobs:
           done
       - name: Missing-dismiss regression proof
         run: BASE_URL=http://127.0.0.1:8092 node e2e/usability-regression.mjs
-      - name: Journey budgets and reachability
-        timeout-minutes: 2
+      - name: Journey contract tests
+        timeout-minutes: 3
         run: |
-          node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs e2e/journeys/reach-report.test.mjs
-          OUT_DIR=e2e/journey-screens/td-badge-controls node --test e2e/journeys/paywall-badge.browser.test.mjs
-          node --test e2e/journeys/acceptance-fixtures.test.mjs e2e/journeys/offline-containment.test.mjs e2e/journeys/punctuation-reference.test.mjs e2e/journeys/probe-target.test.mjs e2e/journeys/settlement-row-contract.test.mjs e2e/journeys/text-fragments.test.mjs e2e/journeys/focused-fixtures.test.mjs e2e/journeys/fixture-origin.test.mjs e2e/journeys/game-rules.test.mjs e2e/journeys/ci-registration.test.mjs
-          OUT_DIR=e2e/journey-screens/fixture-controls node --test e2e/journeys/punctuation-reference.browser.test.mjs e2e/journeys/review-negative.browser.test.mjs e2e/journeys/value-dom-regressions.browser.test.mjs e2e/journeys/settled-timestamp.browser.test.mjs
+          TIMEFORMAT='JOURNEY_TIMING contract-metrics %3R seconds'
+          time node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs e2e/journeys/reach-report.test.mjs
+          TIMEFORMAT='JOURNEY_TIMING contract-badge %3R seconds'
+          time OUT_DIR=e2e/journey-screens/td-badge-controls node --test e2e/journeys/paywall-badge.browser.test.mjs
+          TIMEFORMAT='JOURNEY_TIMING contract-fixtures %3R seconds'
+          time node --test e2e/journeys/acceptance-fixtures.test.mjs e2e/journeys/offline-containment.test.mjs e2e/journeys/punctuation-reference.test.mjs e2e/journeys/probe-target.test.mjs e2e/journeys/settlement-row-contract.test.mjs e2e/journeys/text-fragments.test.mjs e2e/journeys/focused-fixtures.test.mjs e2e/journeys/fixture-origin.test.mjs e2e/journeys/game-rules.test.mjs e2e/journeys/ci-registration.test.mjs
+          TIMEFORMAT='JOURNEY_TIMING contract-browser %3R seconds'
+          time OUT_DIR=e2e/journey-screens/fixture-controls node --test e2e/journeys/punctuation-reference.browser.test.mjs e2e/journeys/review-negative.browser.test.mjs e2e/journeys/value-dom-regressions.browser.test.mjs e2e/journeys/settled-timestamp.browser.test.mjs
+      - name: Journey runner + negative proof
+        timeout-minutes: 3
+        run: |
           pids=()
           for profile in iphone-se iphone-15-pro iphone-pro-max; do
-            DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8092 OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs > "e2e/journey-screens/$profile-run.log" 2>&1 &
+            (
+              TIMEFORMAT="JOURNEY_TIMING runner-$profile %3R seconds"
+              time DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8092 OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs
+            ) > "e2e/journey-screens/$profile-run.log" 2>&1 &
             pids+=("$!")
           done
           status=0
           for pid in "${pids[@]}"; do wait "$pid" || status=1; done
           if [ "$status" -ne 0 ]; then exit "$status"; fi
-          BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens/negative-proof node e2e/journeys/negative-proof.mjs
+          TIMEFORMAT='JOURNEY_TIMING negative-proof %3R seconds'
+          time BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens/negative-proof node e2e/journeys/negative-proof.mjs
       - name: Upload journey screenshots
         uses: actions/upload-artifact@v4
         if: always()
@@ -199,7 +272,7 @@ jobs:
           path: scoresnap
       - name: Verify standard artifact before executing browsers
         run: node scripts/ci/web-artifact.mjs verify dist-web ci-standard-manifest.json
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright-chromium
       - name: Browser matrix
         run: |
           node e2e/serve.mjs > /tmp/web-matrix-server.log 2>&1 &

@@ -34,6 +34,10 @@ concurrency:
   cancel-in-progress: true
 env:
   SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+  # AUG-817: build the cross-device E2E app with the reversible pro_enabled flag ON so it reproduces
+  # pre-flag (main) behavior. Shipped flag-off behavior is covered by the unit dual-run suite and
+  # device-evidence AUG-825.
+  EXPO_PUBLIC_PRO_ENABLED: 'true'
 jobs:
   xdevice-four-identities:
     runs-on: ubuntu-latest
@@ -152,8 +156,7 @@ jobs:
           node e2e/xdevice-browser-setup.mjs
           source "$RUNNER_TEMP/xdevice-browser.env"
           EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true EXPO_PUBLIC_OFFLINE_MODE=false npx expo export --platform web --output-dir dist-web
-      - run: npx playwright install --with-deps chromium
-        working-directory: scoresnap
+      - uses: ./.github/actions/playwright-chromium
       - name: Full two-user then four-user browser acceptance (no sign-in-only mode)
         working-directory: scoresnap
         run: |

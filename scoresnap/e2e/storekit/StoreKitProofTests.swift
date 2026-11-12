@@ -7,9 +7,8 @@ import XCTest
 
 @available(iOS 17.0, *)
 final class StoreKitProofTests: XCTestCase {
-    static let ids = ["snapscore.pro.annual", "snapscore.pro.monthly", "snapscore.td.annual", "snapscore.td.monthly"]
-    static let prices: [String: String] = ["snapscore.pro.annual": "24.99", "snapscore.pro.monthly": "3.99",
-                                           "snapscore.td.annual": "79.99", "snapscore.td.monthly": "12.99"]
+    static let ids = ["snapscore.td.annual", "snapscore.td.monthly"]
+    static let prices: [String: String] = ["snapscore.td.annual": "79.99", "snapscore.td.monthly": "12.99"]
     var session: SKTestSession!
 
     override func setUpWithError() throws {
@@ -24,7 +23,7 @@ final class StoreKitProofTests: XCTestCase {
         super.tearDown()
     }
 
-    func testFourProductsLoadWithCatalogPrices() async throws {
+    func testTwoShippingProductsLoadWithCatalogPrices() async throws {
         let products = try await Product.products(for: Self.ids)
         XCTAssertEqual(Set(products.map(\.id)), Set(Self.ids))
         for p in products {
@@ -51,7 +50,7 @@ final class StoreKitProofTests: XCTestCase {
 
     // Deterministic eligible -> ineligible -> eligible fixture (identity switch analogue: clearing history).
     func testTrialEligibilityFlipsAfterPurchaseAndResetsOnClear() async throws {
-        let loaded = try await Product.products(for: ["snapscore.pro.annual"])
+        let loaded = try await Product.products(for: ["snapscore.td.annual"])
         let annual = try XCTUnwrap(loaded.first)
         let group = try XCTUnwrap(annual.subscription?.subscriptionGroupID)
         let before = await Product.SubscriptionInfo.isEligibleForIntroOffer(for: group)
@@ -61,7 +60,7 @@ final class StoreKitProofTests: XCTestCase {
         guard case .success(let verification) = result, case .verified(let txn) = verification else {
             return XCTFail("purchase did not return a verified transaction: \(result)")
         }
-        XCTAssertEqual(txn.productID, "snapscore.pro.annual")
+        XCTAssertEqual(txn.productID, "snapscore.td.annual")
         XCTAssertEqual(txn.offerType, .introductory, "first annual purchase used the 1-week intro offer")
         await txn.finish()
         // Eligibility is recomputed by the StoreKit test daemon; poll briefly instead of racing it.
@@ -82,6 +81,26 @@ final class StoreKitProofTests: XCTestCase {
         }
         XCTAssertTrue(cleared, "cleared history must not reuse stale ineligibility")
         print("STOREKIT_PROOF eligibility before=\(before) after=\(after) cleared=\(cleared)")
+    }
+
+    func testRestoreUsesTDAnnualEntitlement() async throws {
+        let products = try await Product.products(for: ["snapscore.td.annual"])
+        let annual = try XCTUnwrap(products.first)
+        let result = try await annual.purchase()
+        guard case .success(let verification) = result, case .verified(let transaction) = verification else {
+            return XCTFail("TD annual purchase did not return a verified transaction: \(result)")
+        }
+        XCTAssertEqual(transaction.productID, "snapscore.td.annual")
+        await transaction.finish()
+
+        try await AppStore.sync()
+        var restored = Set<String>()
+        for await entitlement in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = entitlement else { continue }
+            restored.insert(transaction.productID)
+        }
+        XCTAssertTrue(restored.contains("snapscore.td.annual"), "restore must retain the TD annual entitlement")
+        XCTAssertFalse(restored.contains("snapscore.pro.annual"), "the flag-off fixture must not restore a Pro product")
     }
 
     // Unknown IDs return nothing (no phantom product, so no phantom trial promise).

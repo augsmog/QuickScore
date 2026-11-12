@@ -1,13 +1,17 @@
 import { teamCardPlayers, liveRoundCourse } from "../../../src/engine/contest-results";
 import { Flag } from "lucide-react-native";
 import { useState } from "react";
-import { View, Text, ScrollView } from "react-native";
+import { View, Text, ScrollView, TextInput } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
+import { buildLeaderboard } from "../../../src/engine/calculators/leaderboard-view";
+import { buildLeaderboardRows } from "../../../src/engine/leaderboard-rows";
+import { getFixtureYouPlayerId } from "../../../src/engine/you-fixture";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
+import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
 
 export default function LeaderboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,6 +21,9 @@ export default function LeaderboardScreen() {
 
   const [viewMode, setViewMode] = useState<"individual" | "groups">("individual");
   const [scoreView, setScoreView] = useState<"cumulative" | "daily">("cumulative");
+  const [rankMode, setRankMode] = useState<"gross" | "net">("gross");
+  // AUG-735 (AUG-253g): case-insensitive name search over the individual field.
+  const [playerQuery, setPlayerQuery] = useState("");
 
   if (!contest) return null;
 
@@ -58,7 +65,65 @@ export default function LeaderboardScreen() {
     );
   }
 
-  const results = calcStrokePlay(allPlayers, scoreView === "daily" ? liveRoundCourse(contest) : contest.course);
+  const leaderboardCourse = scoreView === "daily" ? liveRoundCourse(contest) : contest.course;
+  const results = calcStrokePlay(allPlayers, leaderboardCourse);
+  // Gross/Net toggle (AUG-246c): gross is the default and identical to before.
+  // Net ranks the individual leaderboard by net total using the handicap strokes
+  // already entered for net games; it is only offered when the course supports it.
+  const { rows: individualResults, netAvailable, mode: effectiveRankMode } = buildLeaderboard(allPlayers, leaderboardCourse, rankMode);
+
+  // R1 / Today are only meaningful for multi-round tournaments. Keep the
+  // single-round row model untouched; for tournaments, calculate each round
+  // with its own course and the active Gross/Net mode.
+  const roundView = contest.isTournament && (contest.rounds?.length ?? 0) > 1
+    ? (() => {
+        const rounds = contest.rounds ?? [];
+        const roundPlayers = (round: (typeof rounds)[number]) => {
+          const roundContest = { ...contest, rounds: [round], currentRound: round.number };
+          const usesTeamCards = contest.gameConfig?.rulesVersion === 1 &&
+            contest.games.some((game) => game === "alternate_shot" || game === "chapman");
+          return usesTeamCards
+            ? teamCardPlayers(roundContest, true)
+            : round.groups.flatMap((group) => group.players);
+        };
+        const resultsForRound = (number: number) => {
+          const round = rounds.find((item) => item.number === number);
+          return round
+            ? buildLeaderboard(roundPlayers(round), round.course ?? contest.course, effectiveRankMode).rows
+            : [];
+        };
+        // THRU must reflect progress in the CURRENT round only (AUG-253v). The
+        // cumulative `searchedRows.thru` below counts holes on the whole-event
+        // card, so R1 complete + 3 holes of R2 would wrongly read "F". Build the
+        // current round's own rows (its players over its own course + groups) so
+        // THRU is the current-round hole count, "F" only when the current round
+        // is complete, and the pre-start tee time / "—" when it has not started
+        // (AUG-760). r1/today score columns are unaffected.
+        const currentNumber = contest.currentRound ?? 1;
+        const currentRound = rounds.find((item) => item.number === currentNumber);
+        const currentThruById = new Map<string, { thru: "F" | number | null; teeTime: string | null }>();
+        if (currentRound) {
+          const players = roundPlayers(currentRound);
+          const course = currentRound.course ?? contest.course;
+          const currentRows = buildLeaderboardRows(
+            buildLeaderboard(players, course, effectiveRankMode).rows,
+            players,
+            { holeCount: course.holes.length, groups: currentRound.groups },
+          );
+          for (const row of currentRows) {
+            currentThruById.set(row.playerId, { thru: row.thru, teeTime: row.teeTime });
+          }
+        }
+        return {
+          roundInfo: {
+            r1: resultsForRound(1),
+            today: resultsForRound(currentNumber),
+          },
+          currentThruById,
+        };
+      })()
+    : undefined;
+  const roundInfo = roundView?.roundInfo;
 
 
   // Compute team stats if teams exist
@@ -68,12 +133,11 @@ export default function LeaderboardScreen() {
   const teamATotal = teamAPlayers.reduce((sum, p) => sum + p.scores.reduce((a, b) => a + b, 0), 0);
   const teamBTotal = teamBPlayers.reduce((sum, p) => sum + p.scores.reduce((a, b) => a + b, 0), 0);
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: COLORS.bg }}
-      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
-      showsVerticalScrollIndicator={false}
-    >
+  // Shared header (course note + round/view toggles). Reused as the FlashList
+  // ListHeaderComponent in individual view and inside the ScrollView in groups view
+  // so both views render the same chrome above the list (AUG-253b re-cut).
+  const header = (
+    <>
       {/* Round name and course live in the shared header; tournaments note the day's course here. */}
       {contest.isTournament && (
         <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, marginBottom: 12 }}>
@@ -157,112 +221,170 @@ export default function LeaderboardScreen() {
         </View>
       )}
 
-      {/* Individual Leaderboard */}
-      {viewMode === "individual" && (
-        <>
-          {results.map((r, i) => {
-            const player = allPlayers.find((p) => p.id === r.playerId);
-            const holesPlayed = player
-              ? player.scores.filter((s) => s > 0).length
-              : 0;
+    </>
+  );
 
-            const rank = results.findIndex((result) => result.total === r.total) + 1;
-            const tied = results.filter((result) => result.total === r.total).length > 1;
-            const lastHoles = (recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [])
-              .map((score, index) => ({ score, index }))
-              .filter(({ score }) => score > 0)
-              .slice(-3);
+  // Gross / Net toggle (Direction A, Figma 11:43) — rendered at the top of the virtualized
+  // individual list. Hidden when the course cannot be ranked net, so Gross always shows for
+  // unsupported courses. Pressing it flips rankMode, which re-ranks via buildLeaderboard.
+  const grossNetToggle = netAvailable ? (
+    <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 16 }}>
+      <View
+        testID="leaderboard-rank-toggle"
+        style={{ flexDirection: "row", width: 150, height: 36, backgroundColor: COLORS.surfaceMid, borderRadius: RADII.full, padding: 2, gap: 2 }}
+      >
+        <AnimatedPressable
+          testID="leaderboard-rank-gross"
+          onPress={() => setRankMode("gross")}
+          hitSlop={{ top: 6, bottom: 6 }}
+          style={{
+            width: 72,
+            height: 32,
+            justifyContent: "center",
+            alignItems: "center",
+            borderRadius: RADII.full,
+            backgroundColor: rankMode === "gross" ? COLORS.primary : "transparent",
+          }}
+        >
+          <Text
+            style={
+              rankMode === "gross"
+                ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
+                : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
+            }
+          >
+            Gross
+          </Text>
+        </AnimatedPressable>
+        <AnimatedPressable
+          testID="leaderboard-rank-net"
+          onPress={() => setRankMode("net")}
+          hitSlop={{ top: 6, bottom: 6 }}
+          style={{
+            width: 72,
+            height: 32,
+            justifyContent: "center",
+            alignItems: "center",
+            borderRadius: RADII.full,
+            backgroundColor: rankMode === "net" ? COLORS.primary : "transparent",
+          }}
+        >
+          <Text
+            style={
+              rankMode === "net"
+                ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
+                : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
+            }
+          >
+            Net
+          </Text>
+        </AnimatedPressable>
+      </View>
+    </View>
+  ) : null;
 
-            return (
-              <View
-                key={r.playerId}
-                testID={`leaderboard-player-${r.name}`}
-                style={{
-                  backgroundColor: i === 0 ? COLORS.surfaceHigh : COLORS.surfaceMid,
-                  borderRadius: RADII.lg,
-                  padding: 14,
-                  marginBottom: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
-                <Text style={{ width: 28, fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
-                  {tied ? `T${rank}` : rank}
-                </Text>
+  // Search over the full individual field (AUG-735 / AUG-253g). buildLeaderboardRows
+  // fixes each player's competition rank over the WHOLE field before applying the
+  // case-insensitive name filter, so a searched subset keeps real field ranks
+  // (AUG-675 contract). Empty query returns every player, so the default view is
+  // unchanged / pixel-identical.
+  // AUG-253j: pin the fixture/debug "You" row to the front. youPlayerId is a fixture id
+  // (no real user↔player link yet — AUG-254 is out of scope), so it is undefined in
+  // production and this is a no-op there: the default view stays pixel-identical.
+  const youPlayerId = getFixtureYouPlayerId();
+  const searchedRows = buildLeaderboardRows(individualResults, allPlayers, {
+    holeCount: leaderboardCourse.holes.length,
+    query: playerQuery,
+    youPlayerId,
+    roundInfo,
+  });
+  // AUG-253v: round-level data (r1/today) and the current round's THRU/tee time are
+  // keyed by playerId and passed through rankByPlayerId; single-round screens keep the
+  // cumulative row values and omit r1/today so the default card row renders unchanged.
+  const rankByPlayerId = new Map(
+    searchedRows.map((r) => {
+      const currentThru = roundView?.currentThruById.get(r.playerId);
+      return [r.playerId, {
+        rankLabel: r.rankLabel,
+        tied: r.tied,
+        isYou: r.isYou === true,
+        thru: roundInfo ? (currentThru?.thru ?? null) : r.thru,
+        teeTime: roundInfo ? (currentThru?.teeTime ?? null) : r.teeTime,
+        ...(roundInfo ? { r1: r.r1, today: r.today } : {}),
+      }];
+    }),
+  );
+  // Carry the complete display contract from the prepared model into FlashList.
+  // Filtering has already happened after full-field rank calculation, so a searched
+  // result keeps its real rank, pinned-You marker, THRU, and pre-start tee time.
+  const resultByPlayerId = new Map(individualResults.map((result) => [result.playerId, result]));
+  const visibleRows = searchedRows.flatMap((row) => {
+    const result = resultByPlayerId.get(row.playerId);
+    return result
+      ? [{ ...result, rankLabel: row.rankLabel, isYou: row.isYou === true, thru: row.thru, teeTime: row.teeTime }]
+      : [];
+  });
 
-                {/* Avatar initial */}
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: COLORS.surfaceHighest,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ fontFamily: FONTS.bold, fontSize: 14, color: COLORS.text }}>
-                    {r.name[0]?.toUpperCase() || "?"}
-                  </Text>
-                </View>
+  // Search field for the individual leaderboard (Figma 15:2). Mirrors the shipped
+  // CourseSearch "Search by course name..." affordance; placeholder is a functional
+  // filter label, not a copy change (AUG-735 scope).
+  const playerSearch = (
+    <View style={{ marginBottom: 12 }}>
+      <TextInput
+        testID="leaderboard-search"
+        accessibilityLabel="Search players"
+        placeholder="Search players"
+        placeholderTextColor={COLORS.textDim}
+        value={playerQuery}
+        onChangeText={setPlayerQuery}
+        autoCapitalize="none"
+        autoCorrect={false}
+        style={{
+          fontFamily: FONTS.regular,
+          fontSize: 15,
+          color: COLORS.text,
+          backgroundColor: COLORS.surfaceMid,
+          borderRadius: RADII.md,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          minHeight: 44,
+        }}
+      />
+    </View>
+  );
 
-                {/* Player Info */}
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    {player?.team && contest.hasTeams && (
-                      <View
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: player.team === "A" ? COLORS.primary : COLORS.secondary,
-                        }}
-                      />
-                    )}
-                    <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text }}>
-                      {r.name}
-                    </Text>
-                  </View>
-                  <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>
-                    Total <Text testID={`leaderboard-total-${r.name}`}>{r.total}</Text> · thru {holesPlayed}
-                  </Text>
-                </View>
+  // Individual view: virtualize the ranked rows with FlashList (72+ player fields, AUG-253).
+  // The screen owns ranking (buildLeaderboard), the Gross/Net toggle and the search; the
+  // list only recycles the already-ranked rows, which stay pixel-identical to the prior
+  // ScrollView when the search is empty.
+  if (viewMode === "individual") {
+    return (
+      <LeaderboardResultsList
+        results={visibleRows}
+        rankByPlayerId={rankByPlayerId}
+        allPlayers={allPlayers}
+        recentPlayers={recentPlayers}
+        contest={contest}
+        ListHeaderComponent={
+          <>
+            {header}
+            {grossNetToggle}
+            {playerSearch}
+          </>
+        }
+        ListFooterComponent={<View style={{ height: 16 }} />}
+      />
+    );
+  }
 
-                <View style={{ alignItems: "flex-end", gap: 6 }}>
-                  <Text testID={`leaderboard-topar-${r.name}`}
-                    style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28,
-                      color: r.toPar < 0 ? COLORS.primary : r.toPar > 0 ? COLORS.error : COLORS.text }}>
-                    {formatToPar(r.toPar).replace("-", "−")}
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: 4 }}>
-                    {lastHoles.map(({ score, index }) => {
-                      const par = liveRoundCourse(contest).holes[index]?.par;
-                      if (par === undefined) return null;
-                      const difference = score - par;
-                      const filled = difference < 0 || difference >= 2;
-                      const color = difference >= 2 ? COLORS.error : COLORS.primary;
-                      return (
-                        <View key={index} accessibilityLabel={`Hole ${index + 1}: ${score} strokes`}
-                          style={{ width: 20, height: 20, borderRadius: difference <= 0 ? 10 : 0,
-                            borderWidth: 1, borderColor: color,
-                            backgroundColor: filled ? color : "transparent",
-                            alignItems: "center", justifyContent: "center" }}>
-                          <Text style={{ fontFamily: FONTS.score, fontSize: 11,
-                            color: filled ? COLORS.onPrimary : COLORS.text }}>{score}</Text>
-                        </View>
-                      );
-                    })}
-                    {Array.from({ length: 3 - lastHoles.length }, (_, index) => (
-                      <View key={`empty-${index}`} style={{ width: 20, height: 20 }} />
-                    ))}
-                  </View>
-                </View>
-              </View>
-            );
-          })}
-        </>
-      )}
+  // Groups view: a handful of team/group cards, no 72+ scaling concern, stays a ScrollView.
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: COLORS.bg }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {header}
 
       {/* Group Performance (team view) */}
       {viewMode === "groups" && hasTeams && (

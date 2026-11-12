@@ -2,7 +2,26 @@ import type {Contest} from '../stores/contest-store';
 import {AuxiliaryData,GameType,validateVariationSetup} from './types';
 import {canHostTournament,canUseGame,Tier} from '../services/entitlements';
 import {scopeKey,scopedAuxiliary} from './contest-results';
+import type { StartSlot } from './group-status';
+
+export function validateStartSlots(contest:Contest) {
+ const validateGroups=(groups:Contest['groups'],course:Contest['course'])=>{
+  for(const group of groups){
+   const slot:StartSlot|undefined=group.startSlot;
+   if(!slot)continue;
+   if(!Number.isInteger(slot.hole)||slot.hole<1||slot.hole>course.holes.length)throw new RangeError(`Invalid start hole for group ${group.id}`);
+   if(slot.wave!==undefined && slot.wave!=="A" && slot.wave!=="B")throw new RangeError(`Invalid start wave for group ${group.id}`);
+  }
+ };
+ if(contest.isTournament && contest.rounds?.length){
+  for(const round of contest.rounds)validateGroups(round.groups,round.course??contest.course);
+ }else{
+  validateGroups(contest.groups,contest.course);
+ }
+}
+
 export function validateHostContest(contest:Contest,tier:Tier) {
+ validateStartSlots(contest);
  if(!canHostTournament(contest,tier) || contest.games.some(g=>!canUseGame(g,tier))) throw new Error('Your plan does not include this hosting configuration');
  if(contest.gameConfig?.rulesVersion===1){
   const identities=new Map<string,string>();const names=new Map<string,string>();

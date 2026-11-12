@@ -343,6 +343,9 @@ export default function NewContestScreen() {
     return (
       <AnimatedPressable
         key={game.id}
+        testID={`game-mode-${game.id}`}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected, disabled: isComingSoon }}
         onPress={() => toggleGame(game.id)}
         style={{
           backgroundColor: isSelected ? COLORS.surfaceHigh : COLORS.surfaceMid,

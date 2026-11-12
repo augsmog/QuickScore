@@ -29,7 +29,7 @@ Settle up — SnapScore works out who owes what, game by game. It never touches 
 
 Got a paper card? — Scanning sends a photo of your card to a cloud service to read it. We ask first, and you review the scores before they're saved. No scorecard? Enter scores by hand instead.
 
-Free includes core games and 3 scans a month. SnapScore Pro adds 50+ game modes, settle-up, stats and unlimited scans.
+Everything for your round is free — 50+ game modes, settle-up, stats and scorecard scanning are all included. Hosting a multi-round, multi-group tournament uses the Tournament Director plan.
 
 Privacy Policy: https://snapscore.autumn8.me/privacy
 Terms of Use: https://snapscore.autumn8.me/terms

@@ -24,6 +24,16 @@ If you turn on live scoreboard sharing, the app sends a scoreboard snapshot to S
 
 SnapScore uses Sentry to report errors, logs, performance traces and session replays so we can find and fix problems. Sentry may receive device and app details, the screens and actions leading up to an error, network request information, and identifiers associated with your use of the app. Performance traces are collected for a sample of sessions (about 20%), session replays for a sample of sessions (about 10%), and a replay may be captured when an error occurs. Session replays mask on-screen text and images by default. Sentry is turned off on public shared-scoreboard pages.
 
+## Analytics
+
+SnapScore uses PostHog to understand how the app is used so we can improve it. PostHog analytics are anonymous: SnapScore sends only a randomly generated identifier and never links analytics to your account, name or email address. The information sent is limited to counts, yes/no flags and the choices you make in the app. It never includes player names, scores, scorecard photos, chat messages, email addresses or the contents of any error.
+
+On the mobile app, PostHog records standard app-lifecycle events (such as the app being installed, updated, opened, or moved to the foreground or background) and a small set of named product events: creating a contest, finalizing a round, completing a subscription purchase, processing a scanned scorecard, importing scores, and creating a quick settlement. Each of those events carries only values such as the number of players or groups, the game modes selected, whether a round is part of a tournament, the subscription tier and billing period chosen, and how many scanned items were low-confidence. SnapScore also sends a few structured app logs to PostHog that record the same kinds of counts and flags. Automatic crash and exception capture in PostHog is turned off; error and crash reporting is handled by Sentry as described above.
+
+On the web app, PostHog is configured to be personless and anonymous: it does not record your IP address, does not automatically capture clicks or page views, and session recording is disabled. It sends a short, fixed list of events (opening the app, viewing a screen from a set list of screen names, starting and completing a scorecard scan with its duration and success flag, tapping share, and showing an error with a short error code). Web address and referrer details are dropped before the event is sent.
+
+When a scorecard photo is read in the cloud, the processing function sends PostHog only anonymous processing metrics (whether it succeeded, how long it took, and how many players and scores were read). The scorecard image and any text read from it never enter analytics.
+
 ## Purchases and other services
 
 If you buy or restore a subscription, RevenueCat processes purchase and entitlement information so the app can determine your subscription access and restore purchases; Apple or Google processes the payment itself. SnapScore does not read your card number. Where these backend services are active, SnapScore can also keep profile and referral records, sign-up analytics and automation logs linked to your account, send welcome or referral emails through Resend, and record Stripe subscription and payment events for web billing.
@@ -39,6 +49,7 @@ We use information to provide your account, read scorecards, store and sync roun
 - Supabase: account data and the data used by cloud features (rounds, sharing, chat, course search).
 - Anthropic: scorecard images sent for cloud recognition.
 - Sentry: diagnostics described above.
+- PostHog: anonymous product and usage analytics described above.
 - RevenueCat, Apple and Google: purchase and subscription information.
 - Resend and Stripe: account emails and web billing events, where used.
 - GolfCore: course search queries.

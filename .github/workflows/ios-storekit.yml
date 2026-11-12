@@ -45,6 +45,8 @@ jobs:
       - run: npm ci
       - name: Catalog matches purchases.ts and paywall-plans.ts
         run: node e2e/storekit/check_catalog.js
+      - name: Test shipping catalog rejects Pro products and preserves flag-on fixture
+        run: node --test e2e/storekit/check_catalog.test.cjs
       - name: Clean prebuild (iOS)
         run: npx expo prebuild --platform ios --clean --no-install
       - name: Inject StoreKit test target

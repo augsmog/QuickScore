@@ -1,12 +1,13 @@
 name: E2E iOS simulator
-# Runs .maestro flows (aos-e2e/v1) against an EAS iOS simulator build on a GitHub-hosted macOS runner.
+# Runs .maestro flows (aos-e2e/v1) against a source-built or supplied EAS iOS simulator app.
 # Manual only. No secrets used. Evidence: artifact e2e-<product>-<run_id> (manifest.json + screenshots).
 on:
   workflow_dispatch:
     inputs:
       app_url:
-        description: "EAS simulator build artifact URL (.tar.gz)"
-        required: true
+        description: "Optional EAS simulator build artifact URL (.tar.gz); blank builds from this commit"
+        required: false
+        default: ""
       build:
         description: "Build key from .maestro/e2e.config.json (online | offline)"
         required: true
@@ -35,21 +36,68 @@ jobs:
       EAS_BUILD_ID: ${{ inputs.eas_build_id }}
     steps:
       - uses: actions/checkout@v4
+      - name: Validate inputs
+        run: |
+          case "$BUILD_KEY" in online|offline) ;; *) echo "bad build key"; exit 1;; esac
+          echo "$FLOWS" | grep -Eq '^(all|[a-z0-9,-]+)$' || { echo "bad flows"; exit 1; }
+          if [ -n "$APP_URL" ]; then
+            case "$APP_URL" in https://expo.dev/artifacts/eas/*|https://*.expo.dev/*) ;; *) echo "app_url must be an EAS artifact URL"; exit 1;; esac
+          fi
+      - uses: actions/setup-node@v4
+        if: ${{ inputs.app_url == '' }}
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - name: Install app dependencies
+        if: ${{ inputs.app_url == '' }}
+        run: npm ci --prefix scoresnap
+      - name: Build simulator app from source
+        if: ${{ inputs.app_url == '' }}
+        run: |
+          SOURCE_SHA="$(git -C scoresnap rev-parse HEAD)"
+          test "$SOURCE_SHA" = "$GITHUB_SHA"
+          echo "Building QuickScore at source SHA $SOURCE_SHA"
+          export SENTRY_DISABLE_AUTO_UPLOAD=true
+          if [ "$BUILD_KEY" = offline ]; then
+            export EXPO_PUBLIC_SIMULATOR_NO_MLKIT=1
+            export EXPO_PUBLIC_OFFLINE_MODE=true
+            export EXPO_PUBLIC_DEMO_MODE=false
+            export EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=false
+            export EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true
+            export EXPO_PUBLIC_E2E_COURSE_FIXTURE=true
+          else
+            export EXPO_PUBLIC_SIMULATOR_NO_MLKIT=1
+            export EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true
+          fi
+          cd scoresnap
+          npx expo prebuild --platform ios --clean --no-install
+          cd ios
+          pod install
+          xcodebuild -version
+          xcodebuild -workspace SnapScore.xcworkspace -scheme SnapScore -configuration Release \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/QuickScoreDerivedData" \
+            CODE_SIGNING_ALLOWED=NO build
+          APP_PATH="$(find "$RUNNER_TEMP/QuickScoreDerivedData/Build/Products/Release-iphonesimulator" -maxdepth 2 -type d -name 'SnapScore.app' -print -quit)"
+          test -n "$APP_PATH" && test -d "$APP_PATH"
+          printf '%s\n' "$SOURCE_SHA" > "$APP_PATH/SourceCommit.txt"
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+          echo "Source-built app from $SOURCE_SHA: $APP_PATH"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-      - name: Validate inputs
-        run: |
-          case "$APP_URL" in https://expo.dev/artifacts/eas/*|https://*.expo.dev/*) ;; *) echo "app_url must be an EAS artifact URL"; exit 1;; esac
-          case "$BUILD_KEY" in online|offline) ;; *) echo "bad build key"; exit 1;; esac
-          echo "$FLOWS" | grep -Eq '^(all|[a-z0-9,-]+)$' || { echo "bad flows"; exit 1; }
       - name: Install Maestro
         run: |
           curl -fsSL "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Run flows
-        run: .maestro/scripts/run-ios-sim.sh --app-url "$APP_URL" --build "$BUILD_KEY" --flows "$FLOWS" --build-id "$EAS_BUILD_ID" --out e2e-out
+        run: |
+          if [ -n "$APP_URL" ]; then
+            .maestro/scripts/run-ios-sim.sh --app-url "$APP_URL" --build "$BUILD_KEY" --flows "$FLOWS" --build-id "$EAS_BUILD_ID" --out e2e-out
+          else
+            .maestro/scripts/run-ios-sim.sh --app-path "$APP_PATH" --build "$BUILD_KEY" --flows "$FLOWS" --out e2e-out
+          fi
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4

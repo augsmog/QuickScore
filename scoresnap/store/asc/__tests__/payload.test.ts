@@ -1,0 +1,10 @@
+import * as assert from 'assert';
+import * as fs from 'fs';
+import * as path from 'path';
+import { validate, diff, flatten } from '../validate-and-diff';
+const p=JSON.parse(fs.readFileSync(path.join(__dirname,'../en-US.payload.json'),'utf8'));
+assert.deepStrictEqual(validate(p),[]);
+assert.deepStrictEqual(diff(flatten(p),flatten(p)),[]);
+assert.strictEqual(diff(flatten(p),{...flatten(p),subtitle:'Old'}).length,1);
+assert.strictEqual(flatten(p).promotionalText,'Pick your players and games. SnapScore keeps score and works out who owes what across Skins, Nassau and Wolf. Got a paper card? Scan it, check it, done.');
+console.log('4 payload checks passed');

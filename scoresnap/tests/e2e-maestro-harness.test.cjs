@@ -94,7 +94,8 @@ test("selectors used by flows exist in the app source", () => {
   }
   for (const id of ids) {
     const literal = src.includes(`testID="${id}"`) || (["course-tee-last", "course-tee-row"].includes(id) && src.includes('testID={ti === selectedCourse.teeBoxes.length - 1 ? "course-tee-last"'));
-    const templ = /^score-(minus|par|plus)-/.test(id) && src.includes(`testID={\`score-${id.split("-")[1]}-\${player.name}\`}`);
+    const templ = (/^score-(minus|par|plus)-/.test(id) && src.includes(`testID={\`score-${id.split("-")[1]}-\${player.name}\`}`))
+      || (/^game-mode-/.test(id) && src.includes("testID={`game-mode-${game.id}`}"));
     expect([id, literal || templ]).toEqual([id, true]);
   }
 });
@@ -107,6 +108,22 @@ test("workflow is manual-only, secret-free, and passes inputs through env", () =
   expect(parsed.permissions).toEqual({ contents: "read" });
   for (const step of parsed.jobs.maestro.steps) if (step.run) expect(step.run).not.toMatch(/\$\{\{/);
   expect(read(".maestro/scripts/run-ios-sim.sh")).toMatch(/lipo -archs/);
+  expect(parsed.on.workflow_dispatch.inputs.app_url.required).toBe(false);
+  const sourceBuild = parsed.jobs.maestro.steps.find((step) => step.name === "Build simulator app from source");
+  expect(sourceBuild).toBeDefined();
+  expect(sourceBuild.run).toMatch(/npx expo prebuild --platform ios --clean --no-install/);
+  expect(sourceBuild.run).toMatch(/pod install/);
+  expect(sourceBuild.run).toMatch(/xcodebuild .* -scheme SnapScore -configuration Release .* build/s);
+  expect(sourceBuild.run).toMatch(/CODE_SIGNING_ALLOWED=NO/);
+  expect(sourceBuild.run).toMatch(/git -C scoresnap rev-parse HEAD/);
+  expect(sourceBuild.run).toMatch(/export SENTRY_DISABLE_AUTO_UPLOAD=true/);
+  expect(sourceBuild.run).toMatch(/SourceCommit\.txt/);
+  expect(sourceBuild.run).toMatch(/Release-iphonesimulator/);
+  const runner = read(".maestro/scripts/run-ios-sim.sh");
+  expect(runner).toMatch(/--app-path/);
+  expect(runner).toMatch(/sourceCommit/);
+  expect(runner).toMatch(/APP_SOURCE_SHA=.*tr -d .*SourceCommit\.txt/s);
+  expect(runner).toMatch(/APP_SOURCE_SHA.*GITHUB_SHA/s);
 });
 
 
