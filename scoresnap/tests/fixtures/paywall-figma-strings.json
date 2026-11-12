@@ -19,7 +19,7 @@
     "1:175": {
       "id": "1:175",
       "path": "Content > Header",
-      "characters": "Run the game. We settle it.",
+      "characters": "Run the game. We do the math.",
       "font": "Bold",
       "size": 28,
       "fill": "#14201a"
@@ -27,7 +27,7 @@
     "1:185": {
       "id": "1:185",
       "path": "Content > Value rows > Value / Easiest contest setup > Copy",
-      "characters": "Easiest contest setup",
+      "characters": "Set up your group's games",
       "font": "Semi Bold",
       "size": 15,
       "fill": "#14201a"
@@ -35,7 +35,7 @@
     "1:186": {
       "id": "1:186",
       "path": "Content > Value rows > Value / Easiest contest setup > Copy",
-      "characters": "Build any contest in a few taps. Settlement is automatic.",
+      "characters": "Pick players and games. SnapScore works out who owes what.",
       "font": "Regular",
       "size": 13,
       "fill": "#5b665f"
@@ -43,7 +43,7 @@
     "1:192": {
       "id": "1:192",
       "path": "Content > Value rows > Value / Deep game library > Copy",
-      "characters": "Deep game library",
+      "characters": "The games you actually play",
       "font": "Semi Bold",
       "size": 15,
       "fill": "#14201a"
@@ -51,7 +51,7 @@
     "1:199": {
       "id": "1:199",
       "path": "Content > Value rows > Value / Live tracking anywhere > Copy",
-      "characters": "Live tracking anywhere",
+      "characters": "Your stats, round by round",
       "font": "Semi Bold",
       "size": 15,
       "fill": "#14201a"
@@ -59,7 +59,7 @@
     "1:200": {
       "id": "1:200",
       "path": "Content > Value rows > Value / Live tracking anywhere > Copy",
-      "characters": "Follow every score live, on or off the course.",
+      "characters": "See your scoring stats across your rounds.",
       "font": "Regular",
       "size": 13,
       "fill": "#5b665f"
@@ -91,7 +91,7 @@
     "1:210": {
       "id": "1:210",
       "path": "Content > Plans > Plan / Free > Text",
-      "characters": "Basic modes \u00b7 3 scans a month",
+      "characters": "Core games \u00b7 3 scans a month",
       "font": "Regular",
       "size": 13,
       "fill": "#5b665f"
@@ -231,6 +231,9 @@
       "font": "Medium",
       "size": 12,
       "fill": "#14532d"
+    },
+    "gtm-library-body": {
+      "characters": "50+ game modes, from Skins and Nassau to Wolf and Vegas."
     }
   },
   "1:247": {
@@ -253,7 +256,7 @@
     "1:258": {
       "id": "1:258",
       "path": "Content > Header",
-      "characters": "Run the game. We settle it.",
+      "characters": "Run the game. We do the math.",
       "font": "Bold",
       "size": 28,
       "fill": "#14201a"
@@ -261,7 +264,7 @@
     "1:268": {
       "id": "1:268",
       "path": "Content > Value rows > Value / Easiest contest setup > Copy",
-      "characters": "Easiest contest setup",
+      "characters": "Set up your group's games",
       "font": "Semi Bold",
       "size": 15,
       "fill": "#14201a"
@@ -269,7 +272,7 @@
     "1:269": {
       "id": "1:269",
       "path": "Content > Value rows > Value / Easiest contest setup > Copy",
-      "characters": "Build any contest in a few taps. Settlement is automatic.",
+      "characters": "Pick players and games. SnapScore works out who owes what.",
       "font": "Regular",
       "size": 13,
       "fill": "#5b665f"
@@ -277,7 +280,7 @@
     "1:275": {
       "id": "1:275",
       "path": "Content > Value rows > Value / Deep game library > Copy",
-      "characters": "Deep game library",
+      "characters": "The games you actually play",
       "font": "Semi Bold",
       "size": 15,
       "fill": "#14201a"
@@ -285,7 +288,7 @@
     "1:282": {
       "id": "1:282",
       "path": "Content > Value rows > Value / Live tracking anywhere > Copy",
-      "characters": "Live tracking anywhere",
+      "characters": "Your stats, round by round",
       "font": "Semi Bold",
       "size": 15,
       "fill": "#14201a"
@@ -293,7 +296,7 @@
     "1:283": {
       "id": "1:283",
       "path": "Content > Value rows > Value / Live tracking anywhere > Copy",
-      "characters": "Follow every score live, on or off the course.",
+      "characters": "See your scoring stats across your rounds.",
       "font": "Regular",
       "size": 13,
       "fill": "#5b665f"
@@ -325,7 +328,7 @@
     "1:293": {
       "id": "1:293",
       "path": "Content > Plans > Plan / Free > Text",
-      "characters": "Basic modes \u00b7 3 scans a month",
+      "characters": "Core games \u00b7 3 scans a month",
       "font": "Regular",
       "size": 13,
       "fill": "#5b665f"
@@ -449,6 +452,9 @@
       "font": "Medium",
       "size": 12,
       "fill": "#14532d"
+    },
+    "gtm-library-body": {
+      "characters": "50+ game modes, from Skins and Nassau to Wolf and Vegas."
     }
   }
 }

@@ -23,6 +23,17 @@ function requestContest(r) {
   try { return r.request().postDataJSON()?.contest_id; } catch { return undefined; }
 }
 const text = (p, value) => p.getByText(value, { exact: true }).filter({ visible: true }).first();
+// Round status sheet (direction A): sharing, join code and Online sync sit behind the header status chip.
+async function openStatus(p) {
+  if (await p.getByTestId('round-status-sheet').isVisible().catch(() => false)) return;
+  await p.getByTestId('round-status-chip').filter({ visible: true }).first().click();
+  await p.getByTestId('round-status-sheet').waitFor();
+}
+async function closeStatus(p) {
+  if (!await p.getByTestId('round-status-sheet').isVisible().catch(() => false)) return;
+  await p.getByTestId('round-status-done').click();
+  await p.getByTestId('round-status-sheet').waitFor({ state: 'hidden' });
+}
 function configure(p) {
   p.setDefaultTimeout(20000);
   p.on('dialog', d => d.accept());
@@ -87,6 +98,7 @@ async function save(i, hole, value) {
   await text(p, `Save hole ${hole}`).click();
 }
 async function retry(i) {
+  if (i === 0) await openStatus(pages[0]);
   await text(scope(i), i === 0 ? 'Retry sync' : 'Retry queued scores').click();
 }
 async function freshResponse(i, rpc, marker, trigger) {
@@ -149,6 +161,7 @@ async function converge(indices) {
     const go = async target => {
       while (await current() !== target) {
         const before = await current();
+        await closeStatus(pages[0]);
         await text(pages[0], before < target ? 'NEXT' : 'PREV').click();
         await text(pages[0], `HOLE ${String(before + (before < target ? 1 : -1)).padStart(2, '0')}`).waitFor();
       }
@@ -183,9 +196,11 @@ try {
       await a.getByPlaceholder('Your name').fill(names[0]);
       await a.getByPlaceholder('Player 2 name').fill(names[1]);
       for (let i = 2; i < 4; i++) { await text(a, '+ ADD PLAYER').click(); await a.getByPlaceholder(`Player ${i + 1} name`).fill(names[i]); }
-      await a.getByText(/^Next/i).filter({ visible: true }).last().click();
-      await a.getByText(/^Next/i).filter({ visible: true }).last().click();
-      await text(a, /^START CONTEST/i).click();
+      await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
+      await a.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
+      await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
+      await a.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
+      await text(a, /^START$/i).click();
       await a.waitForURL(/\/contest\/[^/]+$/);
       contestUrl = a.url(); contestId = new URL(contestUrl).pathname.split('/').pop();
       await text(a, 'Enable online sharing').click();
@@ -193,6 +208,7 @@ try {
       code = label.match(/Join code: ([A-Z0-9]{6})/)?.[1];
       assert(code, 'Organizer join code available');
       await text(a, 'Online sharing enabled. Share this invite with signed-in players.').waitFor();
+      await openStatus(a);
       await text(a, 'Online sync').click();
     });
     for (let i = 1; i < 4; i++) await step(`request and approve ${'ABCD'[i]} into distinct slot`, async () => {
@@ -215,6 +231,7 @@ try {
     });
     await step('host opens synchronized scoring screen', async () => {
       await pages[0].goto(`${contestUrl}/scorecard`);
+      await openStatus(pages[0]);
       await text(pages[0], 'Online sync').click();
       await retry(0);
       await text(pages[0], 'Current online snapshot').waitFor();
@@ -233,6 +250,7 @@ try {
       await contexts[1].setOffline(true);
       await save(1, 2, 9);
       await guest(1).getByText(/^Hole 2 · current clear · queued 9 · par/).first().waitFor();
+      await closeStatus(pages[0]);
       await text(pages[0], 'NEXT').click();
       await text(pages[0], 'HOLE 02').waitFor();
       await pages[0].getByTestId(`score-par-${names[1]}`).click();
@@ -258,9 +276,33 @@ try {
       await contexts[0].setOffline(false);
       pages[0] = await contexts[0].newPage(); configure(pages[0]);
       await pages[0].goto(`${contestUrl}/scorecard`);
+      await openStatus(pages[0]);
       await text(pages[0], 'Online sync').click();
       await converge([0, 1, 2, 3]);
       for (const i of [1, 2, 3]) assert.equal((await queueEntries(pages[i])).length, 0, 'No duplicated or pending player operations');
+    });
+    await step('owner fresh context discovers scored contest and own-code restores without request', async () => {
+      const fresh = await browser.newContext();
+      try {
+        const page = await fresh.newPage(); configure(page);
+        let joins = 0;
+        page.on('request', r => { if (r.url().endsWith('/rpc/request_join')) joins++; });
+        assert.equal(await signIn(page, 'A'), true);
+        await page.goto(`${base}/contests`);
+        await poll('owner snapshot contains every accepted score', () => {
+          const s = snapshot(page);
+          return !!s && expected.every(cell => s.rounds[0]?.players
+            .find(p => p.displayName === names[cell.i])?.cells
+            .find(c => c.hole === cell.hole)?.strokes === cell.value);
+        });
+        await text(page, snapshot(page).name).waitFor();
+        await page.screenshot({ path: path.join(out, 'owner-fresh-contests.png'), fullPage: true });
+        await page.goto(`${base}/join/${code}`);
+        await page.getByLabel('Join code').fill(code);
+        await page.getByText('Find contest', { exact: true }).click();
+        await page.waitForURL(u => u.pathname === `/contest/${contestId}`);
+        assert.equal(joins, 0, 'Owner creates no pending self-request');
+      } finally { await fresh.close(); }
     });
     await step('host RPC revocation denies queued write and removes roster across reloads', async () => {
       // Freeze D's stale authorized screen, revoke while it is disconnected, then enqueue AFTER revocation.
@@ -314,7 +356,7 @@ try {
               || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
           });
         }
-        if (hole < 4) await text(pages[0], 'NEXT').click();
+        if (hole < 4) { await closeStatus(pages[0]); await text(pages[0], 'NEXT').click(); }
       }
       const status = await freshResponse(3, 'my_sync_status', sequence, async () => {
         // Reload first: a focus response from the old document can be discarded

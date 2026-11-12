@@ -1,3 +1,5 @@
+import { showAlert } from "@/services/platform-alert";
+import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { useScanStore } from "../../../src/stores/scan-store";
 import { canUseGame, canHostTournament } from "../../../src/services/entitlements";
 import { useState, useMemo } from "react";
@@ -11,7 +13,6 @@ import {
   Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, Minus, X, Check } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, RADII } from "../../../src/ui/theme";
@@ -55,7 +56,7 @@ export default function EditContestScreen() {
 
   if (!contest) {
     return (
-      <SafeAreaView
+      <SafeScreen
         style={{ flex: 1, backgroundColor: COLORS.bg }}
         edges={["top"]}
       >
@@ -70,7 +71,7 @@ export default function EditContestScreen() {
             Contest not found.
           </Text>
         </View>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
@@ -148,7 +149,7 @@ export default function EditContestScreen() {
       groups: updatedGroups,
       games: enabledGames,
       betUnit,
-    }); } catch(error){Alert.alert("Review contest changes",String(error));return;}
+    }); } catch(error){showAlert("Review contest changes",String(error));return;}
 
     router.back();
   };
@@ -157,7 +158,7 @@ export default function EditContestScreen() {
   const contestGameInfos = ALL_GAMES.filter(g => isGameImplemented(g.id) || contest.games.includes(g.id));
 
   return (
-    <SafeAreaView
+    <SafeScreen
       style={{ flex: 1, backgroundColor: COLORS.bg }}
       edges={["top", "bottom"]}
     >
@@ -506,6 +507,6 @@ export default function EditContestScreen() {
           </AnimatedPressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }

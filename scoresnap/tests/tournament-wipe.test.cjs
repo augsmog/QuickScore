@@ -26,6 +26,7 @@ test.each(['loaded', 'read', 'write', 'rpc'])('wipe clears tournament disk/memor
       setItem: async (k, v) => { await wait('write'); disk.set(k, v); },
     },
     '../stores/online-store': { useOnlineStore: { getState: () => ({ events: {} }) } },
+    '../stores/contest-store': { useContestStore: { getState: () => ({ contests: [] }) } },
     '../config/features': { CROSS_DEVICE_SHARING_ENABLED: true },
     './cross-device': { remoteIdentity: async () => 'actor', requireSyncCapability: async () => {}, replayOnlineScores: async () => {}, resetOnlineQueues: async () => {} },
     'expo-crypto': { randomUUID: () => 'new-op' }, '../config/auth': { REAL_AUTH_CONFIGURED: true },
@@ -33,6 +34,7 @@ test.each(['loaded', 'read', 'write', 'rpc'])('wipe clears tournament disk/memor
     '../stores/persisted-keys': keys, './tournament-sync-plan': plan,
   });
   const wipe = load('src/stores/wipe-local-account.ts', {
+    './settlement-store': { settlementMarks: { getState: () => ({ reset() {} }), flush: async () => {} } },
     '../services/purchases': { logOutPurchases: async () => {} },
     '@react-native-async-storage/async-storage': { getAllKeys: async () => [...disk.keys()], multiRemove: async list => list.forEach(k => disk.delete(k)) },
     '../config/auth': { REAL_AUTH_CONFIGURED: false }, '../db/supabase': {},
@@ -45,6 +47,8 @@ test.each(['loaded', 'read', 'write', 'rpc'])('wipe clears tournament disk/memor
   const round = { id: 'round', number: 1, groups: [] };
   if (kind === 'loaded') await sync.syncRound('contest', round);
   else { active = sync.syncRound('contest', round); await tick(); }
+  expect(pending).toHaveLength(kind === 'loaded' ? 0 : 1);
+  if (kind === 'loaded') expect(rpc).toHaveBeenCalledTimes(1);
   const wiping = wipe();
   await tick();
   paused = '';

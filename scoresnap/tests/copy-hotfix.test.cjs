@@ -24,7 +24,7 @@ test('screens render approved copy and shared tested formatters',()=>{
  const profile=read('app/(tabs)/profile.tsx');
  expect(profile).toContain('ROUND RESULTS');expect(profile).toContain('Finish a round to see your results here.');expect(profile).toContain('signedRoundAmount(item.amount)');
  expect(profile).not.toContain('item.isWin ? "+"');
- const onboarding=read('app/onboarding.tsx');expect(onboarding).toContain('See Who Owes What');expect(onboarding).toContain('No more bar napkin math.');
+ const onboarding=read('app/onboarding.tsx');expect(onboarding).toContain('See Who Owes What');expect(onboarding).toContain('This example has 12 players.');
  expect(read('src/ui/PaywallTeaser.tsx')).toContain('Try Pro free for 7 days');
  const settlement=read('app/contest/[id]/settlement.tsx');expect(settlement).toContain('settlementLeader(topWinner[0], contest.status === "completed")');expect(settlement).not.toContain('ChipStack');
  const recap=read('src/ui/recap/RecapCard.tsx');expect(recap).toContain('roundProgressNotice(model.completed)');expect(recap).not.toContain('🏆');

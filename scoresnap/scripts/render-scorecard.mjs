@@ -114,6 +114,9 @@ try {
   await page.getByTestId("contest-header").getByText("Sample Round", { exact: true }).waitFor({ state: "visible", timeout: 10000 });
   
   // 4. Ensure we're on the Scorecard tab (should be default)
+  // Select it explicitly: restoring a contest can preserve the previously
+  // active tab, so seeing the tab label alone does not mean the scorecard is open.
+  await page.getByRole("tab", { name: "Scorecard" }).click();
   // Wait for the scorecard to render
   console.log("Waiting for scorecard to render...");
   await page.locator('text="Scorecard"').first().waitFor({ state: "visible", timeout: 5000 });

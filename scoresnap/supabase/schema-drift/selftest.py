@@ -198,8 +198,57 @@ Would push these migrations:
  • 20261028223000_account_purge.sql
  • 20261029180000_sync_api.sql
  • 20261031180000_chat_report_block.sql
+ • 20261101003300_signup_processing.sql
+ • 20261101003400_signup_webhook_trigger.sql
+ • 20261103010000_signup_webhook_vault_url.sql
 Finished supabase db push.
 """
 rehearsal(actual_ci_dry_run, False)
 rehearsal(actual_ci_dry_run.replace(' • 20261027000000_live_baseline.sql\n',''), True)
-print('PASS: reviewed seven-pending dry run; six pending after baseline adoption')
+print('PASS: reviewed ten-pending dry run; nine pending after baseline adoption')
+
+# PG17.12 carries physical attribute versions in attoptions. Preserve every
+# semantic option and every other field while ignoring this exact internal value.
+versioned = copy.deepcopy(snapshot)
+for i, column in enumerate(versioned['column_definitions']):
+    column['options'] = ['pg_attver=' + str(22981032 + i)]
+assert not differences(snapshot, versioned), 'physical pg_attver escaped normalization'
+assert all(c['options'] is None for c in snapshot['column_definitions'])
+assert versioned['column_definitions'][0]['options'] == ['pg_attver=22981032'], 'input mutated'
+versioned_again = copy.deepcopy(versioned)
+for c in versioned_again['column_definitions']:
+    c['options'] = ['pg_attver=24383376']
+assert not differences(versioned, versioned_again), 'cluster LSN changed semantic schema'
+semantic = copy.deepcopy(snapshot)
+semantic['column_definitions'][0]['options'] = ['n_distinct=0.5']
+mixed = copy.deepcopy(semantic)
+mixed['column_definitions'][0]['options'].append('pg_attver=24383376')
+assert not differences(semantic, mixed), 'semantic option lost beside physical version'
+for option in ['n_distinct=0.5', 'n_distinct_inherited=0.5', 'pg_attver=bad',
+               'pg_attver=-1', 'pg_attver=1.0', 'pg_attver=18446744073709551616',
+               'pg_attver_extra=123', 'pg_future=123', 'PG_ATTVER=123']:
+    check('column option ' + option, lambda x, o=option:x['column_definitions'][0].update(options=[o]))
+for field, value in [('type','integer'), ('default','42'), ('notnull',False),
+                     ('storage','p'), ('statistics_target',200)]:
+    changed = copy.deepcopy(versioned)
+    changed['column_definitions'][0][field] = value
+    assert differences(snapshot, changed), 'pg_attver hid column drift: ' + field
+changed = copy.deepcopy(versioned)
+changed['functions'][0]['acl'] = '{anon=X/postgres}'
+assert differences(snapshot, changed), 'pg_attver hid ACL drift'
+for option in [123, {'pg_attver':123}, 'pg_attver= 123', 'pg_attver=+123', 'pg_attver=１２３']:
+    changed = copy.deepcopy(snapshot)
+    changed['column_definitions'][0]['options'] = [option]
+    assert differences(snapshot, changed), 'unexpected option ignored: ' + repr(option)
+for options in ['pg_attver=123', {'pg_attver':123}, []]:
+    changed = copy.deepcopy(snapshot)
+    changed['column_definitions'][0]['options'] = options
+    assert differences(snapshot, changed), 'unexpected options shape ignored: ' + repr(options)
+for field in ['fdw_options', 'options_elsewhere']:
+    changed = copy.deepcopy(snapshot)
+    changed['column_definitions'][0][field] = ['pg_attver=123']
+    assert differences(snapshot, changed), 'pg_attver filtered outside attoptions: ' + field
+changed = copy.deepcopy(snapshot)
+changed['reloptions'] = [{'name':'contests','options':['pg_attver=123']}]
+assert differences(snapshot, changed), 'pg_attver filtered from table options'
+print('PASS physical attribute versions only; semantic options and column drift retained')

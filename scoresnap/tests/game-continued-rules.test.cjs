@@ -5,6 +5,9 @@ const {calculateSettlement}=await import('./src/engine/settlement.ts').then(m=>m
 const {actualInputLedger}=await import('./src/engine/actual-inputs.ts').then(m=>m.default??m);
 const {calculateContestSettlement,scopeKey}=await import('./src/engine/contest-results.ts').then(m=>m.default??m);
 const validation=await import('./src/engine/contest-validation.ts').then(m=>m.default??m);
+// AUG-817: this suite asserts the Pro-enabled host gate (validateHostContest free -> /plan/). Pin
+// the reversible pro_enabled flag ON so it holds when the shipped default is OFF.
+const __ent=await import('./src/services/entitlements.ts').then(m=>m.default??m);__ent.setProEnabled(true);
 const c=await import('./src/engine/calculators/index.ts').then(m=>m.default??m);
 const course={name:'Rules',holes:Array.from({length:18},(_,i)=>({num:i+1,par:4,hcp:i+1,yards:100}))};
 const players=['A','B','C','D'].map((name,i)=>({id:name,name,team:i<2?'Red':'Blue',handicap:4,scores:Array(18).fill(4)}));
@@ -46,6 +49,27 @@ test('BBB categories support no award, birdie bonus is category-specific and nev
  assert.equal(base.totals.A,.5);assert.equal(bonus.totals.A,1.25);assert.equal(bonus.totals.B,.25);
  balanced(calculateSettlement(players,course,['bingo_bango_bongo'],.03,aux,{...config,bbbBirdieDouble:true}));
  aux.bbb[1].bongo=undefined;assert.equal(actualInputLedger('bingo_bango_bongo',players,course,aux,config).pending,true);
+`));
+test('BBB full set amount is collected from each opponent only for explicitly versioned new rounds',()=>check(`
+ const aux={bbb:holes({bingo:null,bango:null,bongo:null})};aux.bbb[1]={bingo:'A',bango:null,bongo:null};
+ assert.equal(actualInputLedger('bingo_bango_bongo',players,course,aux,config).totals.A,.75);
+ const next={...config,bbbAmountPerOpponent:true};
+ assert.deepEqual(actualInputLedger('bingo_bango_bongo',players,course,aux,next).totals,{A:3,B:-1,C:-1,D:-1});
+ assert.deepEqual(calculateSettlement(players,course,['bingo_bango_bongo'],.03,aux,next).netByPlayer,{A:.09,B:-.03,C:-.03,D:-.03});
+ assert.deepEqual(calculateSettlement(players,course,['bingo_bango_bongo'],1,aux,config).netByPlayer,{A:.75,B:-.25,C:-.25,D:-.25});
+ const {configForGame}=await import('./src/engine/types.ts').then(m=>m.default??m);
+ assert.equal(configForGame(next,'bingo_bango_bongo').bbbAmountPerOpponent,true);
+`));
+test('Double Rabbit has fixed holder-pays direction on new rounds and preserves old saved math',()=>check(`
+ players.forEach(p=>p.scores.fill(5));players[0].scores.fill(3);
+ assert.equal(c.calcRabbit(players,course,{...config,doubleRabbit:true}).totals.A,9);
+ const next={...config,rabbitHolderPays:true};
+ assert.equal(c.calcRabbit(players,course,next).totals.A,3);
+ assert.deepEqual(calculateSettlement(players,course,['rabbit'],1,undefined,next).netByPlayer,{A:3,B:-1,C:-1,D:-1});
+ assert.deepEqual(calculateSettlement(players,course,['rabbit'],1,undefined,{...config,doubleRabbit:true}).netByPlayer,{A:9,B:-3,C:-3,D:-3});
+ const {GAME_VARIATIONS,configForGame}=await import('./src/engine/types.ts').then(m=>m.default??m);
+ assert.equal(GAME_VARIATIONS.some(v=>v.id==='rabbit_double'),false);
+ assert.equal(configForGame(next,'rabbit').rabbitHolderPays,true);
 `));
 for(const game of ['alternate_shot','chapman'])test(game+': canonical team card, three teams, ties, missing, reorder and balanced split',()=>check(`
  const game='${game}',aux={teamCards:holes({Red:4,Blue:5})};players.forEach(p=>p.scores.fill(0));

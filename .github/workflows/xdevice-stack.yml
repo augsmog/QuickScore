@@ -34,6 +34,10 @@ concurrency:
   cancel-in-progress: true
 env:
   SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+  # AUG-817: build the cross-device E2E app with the reversible pro_enabled flag ON so it reproduces
+  # pre-flag (main) behavior. Shipped flag-off behavior is covered by the unit dual-run suite and
+  # device-evidence AUG-825.
+  EXPO_PUBLIC_PRO_ENABLED: 'true'
 jobs:
   xdevice-four-identities:
     runs-on: ubuntu-latest
@@ -77,6 +81,8 @@ jobs:
             exit 1
           fi
           supabase db reset
+          # This proposed-only migration is installed only into the disposable CI database.
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261103071000_account_handoff.sql
       - name: Four identities against integrated M4a and M4b
         working-directory: scoresnap
         env:
@@ -130,7 +136,19 @@ jobs:
             exit 1
           fi
           supabase db reset
-          test "$(docker exec supabase_db_snapscore psql -U postgres -d postgres -Atc 'select count(*) from supabase_migrations.schema_migrations')" = 14
+          # This proposed-only migration is installed only into the disposable CI database.
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261103071000_account_handoff.sql
+          test "$(docker exec supabase_db_snapscore psql -U postgres -d postgres -Atc 'select count(*) from supabase_migrations.schema_migrations')" = "$(find supabase/migrations -maxdepth 1 -name '*.sql' -type f | wc -l | tr -d ' ')"
+      - name: Exercise owner discovery proposal on disposable stack only (requires live approval)
+        working-directory: scoresnap
+        run: |
+          # This proposal is NOT in the migration chain and is NOT deployed.
+          # Prove apply, rollback and reapply before the browser acceptance.
+          docker exec -i supabase_db_snapscore psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/proposed/20261101020000_owner_discovery.sql
+          docker exec -i supabase_db_snapscore psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/ci/test-owner-discovery.sql
+          docker exec -i supabase_db_snapscore psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/rollbacks/20261101020000_owner_discovery.sql
+          docker exec -i supabase_db_snapscore psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/proposed/20261101020000_owner_discovery.sql
+          docker exec -i supabase_db_snapscore psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/ci/test-owner-discovery.sql
       - name: Create ordinary users and export browser app
         working-directory: scoresnap
         run: |
@@ -138,8 +156,7 @@ jobs:
           node e2e/xdevice-browser-setup.mjs
           source "$RUNNER_TEMP/xdevice-browser.env"
           EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true EXPO_PUBLIC_OFFLINE_MODE=false npx expo export --platform web --output-dir dist-web
-      - run: npx playwright install --with-deps chromium
-        working-directory: scoresnap
+      - uses: ./.github/actions/playwright-chromium
       - name: Full two-user then four-user browser acceptance (no sign-in-only mode)
         working-directory: scoresnap
         run: |

@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - 'scoresnap/**'
+      - '.maestro/**'
       - 'GAMES_STATUS.md'
       - 'docs/xdevice/**'
       - '.github/workflows/web-smoke.yml'
@@ -16,13 +17,110 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 permissions:
   contents: read
+env:
+  # AUG-817: the web-smoke journeys (e2e/journeys/runner.mjs, etc.) assert the Pro-enabled product
+  # contract (free paywall/settle gates). Build with the reversible pro_enabled flag ON so they
+  # reproduce pre-flag (main) behavior. Shipped flag-off behavior (Pro dormant / features free) is
+  # covered by the unit dual-run suite (tests/pro-enabled-flag.test.cjs) and device-evidence AUG-825.
+  EXPO_PUBLIC_PRO_ENABLED: 'true'
 jobs:
-  web-smoke:
+  build-standard:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     defaults:
       run:
         working-directory: scoresnap
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # ASC acceptance verifies pinned approved source and rejected historical payloads.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - run: npm ci
+      - name: Enforce Pro-disabled shipping configuration
+        run: node --test scripts/ci/pro-enabled-shipping-config.node.cjs
+      - name: Export Pro flag off and on with isolated Metro caches
+        run: |
+          mkdir -p "$RUNNER_TEMP/metro-cache-pro-off" "$RUNNER_TEMP/metro-cache-pro-on"
+          EXPO_PUBLIC_PRO_ENABLED=false EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="$RUNNER_TEMP/metro-cache-pro-off" \
+            npx expo export --platform web --output-dir dist-web-pro-off --clear
+          EXPO_PUBLIC_PRO_ENABLED=true EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="$RUNNER_TEMP/metro-cache-pro-on" \
+            npx expo export --platform web --output-dir dist-web-pro-on --clear
+      - name: Verify Pro flag is baked into both exports
+        run: node --test scripts/ci/pro-flag-web-export.cjs
+      - run: node --test e2e/usability-gate.test.mjs scripts/ci/web-pipeline.test.mjs
+      - run: npm test -- --runInBand
+      - name: Exercise Chromium dependency retry path
+        run: bash scripts/ci/test-playwright-setup.sh
+      - name: Install Chromium for Pro-off acceptance journey
+        uses: ./.github/actions/playwright-chromium
+      - name: Pro flag-off Playwright journey and flag-on negative proof
+        run: |
+          WEB_ROOT=dist-web-pro-off PORT=8093 node e2e/serve.mjs > /tmp/pro-off-server.log 2>&1 &
+          PRO_OFF_PID=$!
+          WEB_ROOT=dist-web-pro-on PORT=8094 node e2e/serve.mjs > /tmp/pro-on-server.log 2>&1 &
+          PRO_ON_PID=$!
+          trap 'kill "$PRO_OFF_PID" "$PRO_ON_PID" 2>/dev/null || true' EXIT
+          for port in 8093 8094; do
+            for attempt in {1..30}; do
+              if curl --fail --silent "http://127.0.0.1:$port/" > /dev/null; then break; fi
+              sleep 1
+            done
+            curl --fail --silent "http://127.0.0.1:$port/" > /dev/null
+          done
+          BASE_URL=http://127.0.0.1:8093 OUT_DIR=e2e/journey-screens/pro-off-free node e2e/journeys/pro-off-free.mjs
+          mkdir -p e2e/journey-screens/pro-on-negative
+          set +e
+          BASE_URL=http://127.0.0.1:8094 OUT_DIR=e2e/journey-screens/pro-on-negative node e2e/journeys/pro-off-free.mjs > e2e/journey-screens/pro-on-negative/run.log 2>&1
+          negative_status=$?
+          set -e
+          if [ "$negative_status" -eq 0 ]; then echo 'Flag-on journey unexpectedly passed'; exit 1; fi
+          grep -E 'FIRST_PRO_GATE (skins-create|settlement):' e2e/journey-screens/pro-on-negative/run.log
+      - name: Build and identify standard offline app
+        env:
+          EXPO_PUBLIC_OFFLINE_MODE: 'true'
+          EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: 'false'
+          EXPO_PUBLIC_DEMO_MODE: 'false'
+        run: |
+          npx expo export --platform web --output-dir dist-web
+          node scripts/ci/web-artifact.mjs create dist-web ci-standard-manifest.json
+      - name: Share verified standard build within this attempt
+        uses: actions/upload-artifact@v4
+        with:
+          name: standard-web-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            scoresnap/dist-web
+            scoresnap/ci-standard-manifest.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload Pro-off journey proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pro-off-free-journey-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap/e2e/journey-screens/pro-off-free
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload flag-on negative proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pro-on-negative-journey-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap/e2e/journey-screens/pro-on-negative
+          if-no-files-found: error
+          retention-days: 7
+  browser-flows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: scoresnap
+    needs: build-standard
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,10 +129,13 @@ jobs:
           cache: npm
           cache-dependency-path: scoresnap/package-lock.json
       - run: npm ci
-      - run: node --test e2e/usability-gate.test.mjs
-      - run: npm test -- --runInBand
-      - run: EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web
-      - run: npx playwright install --with-deps chromium
+      - uses: actions/download-artifact@v4
+        with:
+          name: standard-web-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap
+      - name: Verify standard artifact before executing browsers
+        run: node scripts/ci/web-artifact.mjs verify dist-web ci-standard-manifest.json
+      - uses: ./.github/actions/playwright-chromium
       - name: Browser smoke
         run: |
           node e2e/serve.mjs > /tmp/web-smoke-server.log 2>&1 &
@@ -47,7 +148,26 @@ jobs:
           kill -0 "$SERVER_PID"
           curl --fail --silent http://127.0.0.1:8089/ > /dev/null
           EXPECT_CROSS_DEVICE_SHARING=false BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens node e2e/web-real-flow.mjs
+          for profile in iphone-se iphone-15-pro iphone-pro-max; do
+            case "$profile" in
+              iphone-se) width=375; height=667 ;;
+              iphone-15-pro) width=393; height=852 ;;
+              iphone-pro-max) width=430; height=932 ;;
+            esac
+            VIEWPORT_WIDTH="$width" VIEWPORT_HEIGHT="$height" EXPECT_CROSS_DEVICE_SHARING=false BASE_URL=http://127.0.0.1:8089 OUT_DIR="e2e/screens/group4/$profile" node e2e/web-real-flow.mjs
+          done
           BASE_URL=http://127.0.0.1:8089 node e2e/live-share.mjs
+      - name: Daily and cumulative leaderboard round columns
+        run: BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens/leaderboard-round-columns node e2e/leaderboard-round-columns.mjs
+      - name: Upload daily and cumulative leaderboard screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 1
+        with:
+          name: leaderboard-round-columns-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap/e2e/screens/leaderboard-round-columns
+          if-no-files-found: error
+          retention-days: 7
       - name: Join gate (sharing off and game sheet)
         run: EXPECT_CROSS_DEVICE_SHARING=false BASE_URL=http://127.0.0.1:8089 node e2e/join-gate.mjs
       - name: Browser smoke (cross-device sharing flag on, guest join flow)
@@ -67,11 +187,41 @@ jobs:
         run: EXPECT_CROSS_DEVICE_SHARING=true BASE_URL=http://127.0.0.1:8092 node e2e/join-gate.mjs
       - name: Usability (required cases, no skips)
         run: BASE_URL=http://127.0.0.1:8092 node e2e/usability.mjs
+      - name: Safe-area sheets (iPhone Dynamic Island, 59px top / 34px bottom)
+        run: |
+          node --test e2e/safe-area-profiles.test.mjs
+          for profile in iphone-se iphone-15-pro iphone-pro-max; do
+            DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8089 OUT_DIR="e2e/screens/safe-area/$profile" node e2e/safe-area-sheets.mjs
+          done
       - name: Missing-dismiss regression proof
         run: BASE_URL=http://127.0.0.1:8092 node e2e/usability-regression.mjs
-      - name: Journey budgets and reachability
-        timeout-minutes: 2
-        run: node --test e2e/journeys/metrics.test.mjs && BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs
+      - name: Journey contract tests
+        timeout-minutes: 3
+        run: |
+          TIMEFORMAT='JOURNEY_TIMING contract-metrics %3R seconds'
+          time node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs e2e/journeys/reach-report.test.mjs
+          TIMEFORMAT='JOURNEY_TIMING contract-badge %3R seconds'
+          time OUT_DIR=e2e/journey-screens/td-badge-controls node --test e2e/journeys/paywall-badge.browser.test.mjs
+          TIMEFORMAT='JOURNEY_TIMING contract-fixtures %3R seconds'
+          time node --test e2e/journeys/acceptance-fixtures.test.mjs e2e/journeys/offline-containment.test.mjs e2e/journeys/punctuation-reference.test.mjs e2e/journeys/probe-target.test.mjs e2e/journeys/settlement-row-contract.test.mjs e2e/journeys/text-fragments.test.mjs e2e/journeys/focused-fixtures.test.mjs e2e/journeys/fixture-origin.test.mjs e2e/journeys/game-rules.test.mjs e2e/journeys/ci-registration.test.mjs
+          TIMEFORMAT='JOURNEY_TIMING contract-browser %3R seconds'
+          time OUT_DIR=e2e/journey-screens/fixture-controls node --test e2e/journeys/punctuation-reference.browser.test.mjs e2e/journeys/review-negative.browser.test.mjs e2e/journeys/value-dom-regressions.browser.test.mjs e2e/journeys/settled-timestamp.browser.test.mjs
+      - name: Journey runner + negative proof
+        timeout-minutes: 3
+        run: |
+          pids=()
+          for profile in iphone-se iphone-15-pro iphone-pro-max; do
+            (
+              TIMEFORMAT="JOURNEY_TIMING runner-$profile %3R seconds"
+              time DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8092 OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs
+            ) > "e2e/journey-screens/$profile-run.log" 2>&1 &
+            pids+=("$!")
+          done
+          status=0
+          for pid in "${pids[@]}"; do wait "$pid" || status=1; done
+          if [ "$status" -ne 0 ]; then exit "$status"; fi
+          TIMEFORMAT='JOURNEY_TIMING negative-proof %3R seconds'
+          time BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens/negative-proof node e2e/journeys/negative-proof.mjs
       - name: Upload journey screenshots
         uses: actions/upload-artifact@v4
         if: always()
@@ -80,8 +230,6 @@ jobs:
           name: journey-screens
           path: scoresnap/e2e/journey-screens
           retention-days: 7
-      - name: Browser matrix
-        run: BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens/matrix npm run e2e:matrix -- --retries=1
       - name: Render scorecard screenshot
         run: |
           EXPO_PUBLIC_DEMO_MODE=true EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web-scorecard --clear
@@ -104,6 +252,10 @@ jobs:
           curl --fail --silent http://127.0.0.1:8090/ > /dev/null
           BASE_URL=http://127.0.0.1:8090 node scripts/render-scorecard.mjs e2e/screens/scorecard-390x844.png
           kill "$SCREENSHOT_SERVER_PID" || true
+      - name: Render My-group off/on screenshots (390x844)
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/render-my-group.mjs e2e/screens/my-group
       - name: Stop web server
         if: always()
         run: |
@@ -114,3 +266,58 @@ jobs:
         with:
           name: web-smoke-screens
           path: scoresnap/e2e/screens
+  browser-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: scoresnap
+    needs: build-standard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: standard-web-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scoresnap
+      - name: Verify standard artifact before executing browsers
+        run: node scripts/ci/web-artifact.mjs verify dist-web ci-standard-manifest.json
+      - uses: ./.github/actions/playwright-chromium
+      - name: Browser matrix
+        run: |
+          node e2e/serve.mjs > /tmp/web-matrix-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8089/ > /dev/null; then break; fi
+            sleep 1
+          done
+          kill -0 "$SERVER_PID"
+          curl --fail --silent http://127.0.0.1:8089/ > /dev/null
+          BASE_URL=http://127.0.0.1:8089 OUT_DIR=e2e/screens/matrix npm run e2e:matrix -- --retries=1
+      - name: Upload matrix screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-smoke-matrix-screens
+          path: scoresnap/e2e/screens/matrix
+  # Keep the established required check name. Never accept skipped/cancelled dependencies.
+  web-smoke:
+    needs: [build-standard, browser-flows, browser-matrix]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Require every Web smoke lane
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scoresnap/scripts/ci/web-gate.mjs

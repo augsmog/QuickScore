@@ -1,0 +1,35 @@
+# AUG-271: paywall copy: "Run the game. We do the math.", "Set up your group's games", "The games you actually play",
+# "50+ game modes, from Skins and Nassau to Wolf and Vegas.", "Your stats, round by round", "Core games · 3 scans a month".
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: false
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+# The first link after onboarding can be swallowed while the router settles (run 41691421066); retry the open (same link, no writes).
+- retry:
+    maxRetries: 3
+    commands:
+      - openLink: "snapscore://paywall"
+      - tapOn:
+          text: "Open"  # iOS asks 'Open in "SnapScore"?' for a custom-scheme link
+          optional: true
+      - extendedWaitUntil:
+          visible: ".*Run the game\\. We do the math\\..*"
+          timeout: 20000
+- takeScreenshot: aug-271-01-paywall-top
+- assertVisible: ".*Set up your group.s games.*"
+- scrollUntilVisible:
+    element: ".*The games you actually play.*"
+    direction: DOWN
+- assertVisible: ".*50\\+ game modes, from Skins and Nassau to Wolf and Vegas\\..*"
+- takeScreenshot: aug-271-02-paywall-games
+- scrollUntilVisible:
+    element: ".*Your stats, round by round.*"
+    direction: DOWN
+- takeScreenshot: aug-271-03-paywall-stats-row
+- scrollUntilVisible:
+    element: ".*Core games · 3 scans a month.*"
+    direction: DOWN
+- takeScreenshot: aug-271-04-paywall-free-tier
+- assertNotVisible: ".*\\b([Bb]et|[Ww]ager|[Gg]amble|[Pp]ayout|[Uu]nlock).*"

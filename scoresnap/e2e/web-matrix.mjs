@@ -58,10 +58,12 @@ try {
           await page.getByTestId('team-mode').click();
           for (const [i,name] of names.entries()) await page.getByTestId(`player-team-${name}-${i<flow.count/2?'A':'B'}`).click();
         }
-        await visible(page.getByText(/^next/i)).click();
+        await visible(page.getByText(/^continue$/i)).click();
+        await page.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
         for (const game of flow.games) await visible(page.getByText(game,{exact:true})).click();
-        await visible(page.getByText(/^next/i)).click();
-        await visible(page.getByText(/start contest/i)).click();
+        await visible(page.getByText(/^continue$/i)).click();
+        await page.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
+        await visible(page.getByText(/^start$/i)).click();
         await page.waitForURL(/\/contest\/[^/]+$/);
         const contestUrl = page.url(), id = new URL(contestUrl).pathname.split('/')[2];
         const readContest = () => page.evaluate(id => JSON.parse(localStorage.getItem('snapscore-contests')).state.contests.find(c=>c.id===id),id);
@@ -170,9 +172,16 @@ try {
         await page.getByTestId(`leaderboard-total-${names[0]}`).waitFor({state:'visible'});
         contest = await readContest();
         assert.deepEqual(contest.groups.flatMap(g=>g.players).map(p=>p.scores),scores);
+        const playerIdByName = new Map(contest.groups.flatMap(g=>g.players).map(p=>[p.name,p.id]));
+        // AUG-758: THRU is now a labeled cell keyed by playerId (`leaderboard-thru-<id>`):
+        // the holes-played count while partial, `F` once every hole of the course is played,
+        // `—` when none. Every matrix flow plays flow.holes of a full-length course, so the
+        // expected value is `F` when flow.holes covers the whole course else the played count.
+        // (Was: obsolete `thru <holes>` substring on `leaderboard-player-<name>`.)
+        const expectedThru = flow.holes >= contest.course.holes.length ? 'F' : String(flow.holes);
         for (const [i,name] of names.entries()) {
           assert.equal(await page.getByTestId(`leaderboard-total-${name}`).innerText(),String(scores[i].reduce((a,b)=>a+b,0)));
-          assert.match(await page.getByTestId(`leaderboard-player-${name}`).innerText(),new RegExp(`thru ${flow.holes}\\b`));
+          assert.equal(await page.getByTestId(`leaderboard-thru-${playerIdByName.get(name)}`).innerText(),expectedThru);
         }
         await page.screenshot({path:path.join(OUT,`${flow.id}-leaderboard.png`)});
         stage = 'settlement';
@@ -180,7 +189,7 @@ try {
         const expected = calculateSettlement(players,contest.course,contest.games,contest.betUnit,contest.auxiliaryData,contest.gameConfig,contest.groups);
         const cents = n => { assert.ok(Number.isFinite(n)); return Math.round(n*100); };
         assert.equal(Object.values(expected.netByPlayer).reduce((a,b)=>a+cents(b),0),0);
-        await visible(page.getByText(/^settlement$/i)).click();
+        await visible(page.getByText(/^(settlement|settle up)$/i)).click();
         if (flow.holes < contest.course.holes.length) {
           // Nine played on an eighteen-hole card is an unfinished round, never
           // a shortened contest with silently pro-rated final cash.
@@ -201,8 +210,8 @@ try {
           const row = page.getByTestId(`settlement-player-${name}`);
           await row.scrollIntoViewIfNeeded();
           const text = await row.innerText();
-          const money = text.match(/([+-]?)\$(\d+\.\d{2})/);
-          const displayed = /Even/.test(text) ? 0 : (money?.[1]==='-'?-1:1)*cents(Number(money?.[2]));
+          const money = text.match(/([+\-\u2212]?)\$(\d+\.\d{2})/);
+          const displayed = /Even/.test(text) ? 0 : (money?.[1]==='-'||money?.[1]==='\u2212'?-1:1)*cents(Number(money?.[2]));
           assert.equal(displayed,cents(net),`${name} displayed settlement`);
           displayedBalance+=displayed; if(displayed>0) winners+=displayed;
           const ledger = expected.transactions.reduce((sum,t)=>sum+(t.to===name?cents(t.amount):0)-(t.from===name?cents(t.amount):0),0);

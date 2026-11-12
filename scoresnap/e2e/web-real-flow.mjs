@@ -9,25 +9,65 @@ import { execFileSync } from "node:child_process";
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
+import { extractPdfText } from "./shared/pdf-text-extraction.mjs";
+import { recordCheck, failedCheckCount } from "./shared/check-results.mjs";
 
 const BASE = process.env.BASE_URL || "http://localhost:8089";
 const OUT = process.env.OUT_DIR || "e2e/screens";
+const viewport = {
+  width: Number(process.env.VIEWPORT_WIDTH || 390),
+  height: Number(process.env.VIEWPORT_HEIGHT || 844),
+};
+if (!Number.isInteger(viewport.width) || !Number.isInteger(viewport.height) || viewport.width < 320 || viewport.height < 480) {
+  throw new Error(`Invalid viewport ${viewport.width}x${viewport.height}`);
+}
 fs.mkdirSync(OUT, { recursive: true });
 
 const results = [];
 const check = (ok, name, detail = "") => {
-  results.push({ ok: !!ok, name, detail });
+  recordCheck(results, ok ? "pass" : "fail", name, detail);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
 };
+const checkUnknown = (name, detail) => {
+  recordCheck(results, "unknown", name, detail);
+  console.log(`UNKNOWN: ${name} — ${detail}`);
+};
 
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+const browser = await chromium.launch({
+  executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined,
+});
+const page = await browser.newPage({ viewport });
+console.log(`viewport: ${viewport.width}x${viewport.height}`);
+// Capture the native share request without opening a system sheet or sending
+// anything outside this test run.
+await page.addInitScript(() => {
+  Object.defineProperty(navigator, "share", {
+    configurable: true,
+    value: async payload => { window.__snapscoreSharePayload = payload; },
+  });
+});
 await seedPaidTier(page, "td");
 // This focused smoke uses only the local offline export.
 if (process.argv.includes('--home-library-only')) {
   await page.route('**/*', route => new URL(route.request().url()).origin === new URL(BASE).origin ? route.continue() : route.abort());
 }
 const pageErrors = [];
+// Round status sheet (direction A): sharing, join code and sync live behind the header status chip.
+async function openRoundStatus(p) {
+  const chip = p.getByTestId("round-status-chip").filter({ visible: true }).first();
+  await chip.waitFor({ timeout: 10000 }).catch(() => {});
+  if (await chip.count() && !(await p.getByTestId("round-status-sheet").isVisible().catch(() => false))) {
+    await chip.click();
+    await p.getByTestId("round-status-sheet").waitFor();
+  }
+}
+async function closeRoundStatus(p) {
+  if (await p.getByTestId("round-status-sheet").isVisible().catch(() => false)) {
+    await p.getByTestId("round-status-done").click();
+    await p.getByTestId("round-status-sheet").waitFor({ state: "hidden" });
+  }
+}
+
 page.on("pageerror", (e) => pageErrors.push(e.message));
 
 const vis = (loc) => loc.locator("visible=true");
@@ -68,7 +108,8 @@ await page.getByPlaceholder("Your name").click();
 await page.getByTestId("add-group").click();
 for (const name of ["Lee", "Pat"]) await page.getByTestId(`player-group-${name}`).click();
 await shot("02-new-contest-players.png");
-await vis(page.getByText(/^next/i)).last().click();
+await vis(page.getByText(/^continue$/i)).last().click();
+await page.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
 for (const g of ["Skins", "Nassau"]) await vis(page.getByText(g, { exact: true })).first().click();
 check(await page.getByTestId("skins-mode-net").getAttribute("aria-checked") === "true", "Skins mode defaults to Net");
 await page.getByTestId("skins-mode-gross").click();
@@ -83,8 +124,9 @@ await page.getByTestId("skins-scope-field").click();
 await page.getByTestId("skins-mode-net").scrollIntoViewIfNeeded();
 await shot("03c-skins-scope-toggle.png");
 await shot("03-new-contest-games.png");
-await vis(page.getByText(/^next/i)).last().click();
-await vis(page.getByText(/start contest/i)).click();
+await vis(page.getByText(/^continue$/i)).last().click();
+await page.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
+await vis(page.getByText(/^start$/i)).click();
 await page.waitForURL(/\/contest\/[^/]+$/);
 const contestUrl = page.url();
 const contestId = contestUrl.split("/contest/")[1];
@@ -107,8 +149,8 @@ const scorecard = [
   "Lee,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5",
   "Pat,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6",
 ].join("\n");
-await page.goto(`${BASE}/scan?contestId=${contestId}`, { waitUntil: "networkidle" });
-await page.getByTestId("scorecard-text-input").waitFor();
+await page.goto(`${BASE}/scan?contestId=${contestId}`, { waitUntil: "domcontentloaded" });
+await page.getByTestId("scorecard-text-input").waitFor({ state: "visible", timeout: 10000 });
 // Empty input must not navigate or invent data
 await page.getByTestId("parse-scorecard-button").click();
 await page.waitForTimeout(500);
@@ -149,7 +191,7 @@ await page.waitForTimeout(500);
 await shot("08-contest-leaderboard.png");
 const lb = await bodyText();
 check(["81", "72", "90", "108"].every(total => lb.includes(total)), "Leaderboard shows all four real totals (81, 72, 90, 108)");
-for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "10-games.png"], [/^settlement$/i, "11-settlement.png"]]) {
+for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "10-games.png"], [/^(settlement|settle up)$/i, "11-settlement.png"]]) {
   await vis(page.getByText(tab)).first().click();
   await page.waitForTimeout(1500);
   if (file === "10-games.png") {
@@ -162,13 +204,87 @@ for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "1
       const row = page.getByTestId(`settlement-player-${name}`);
       await row.scrollIntoViewIfNeeded();
       const box = await row.boundingBox();
-      check(box && box.y >= 0 && box.y + box.height <= 844, `Settlement row fully reachable: ${name}`);
+      check(box && box.y >= 0 && box.y + box.height <= viewport.height, `Settlement row fully reachable: ${name}`);
     }
     await page.getByTestId("settlement-scroll").evaluate(el => { el.scrollTop = 0; });
   }
   await shot(file);
 }
 check(/\$/.test(await bodyText()), "Settlement screen shows money results");
+await vis(page.getByText(/^share results$/i)).first().click();
+await page.waitForFunction(() => !!window.__snapscoreSharePayload);
+const sharePayload = await page.evaluate(() => window.__snapscoreSharePayload);
+const sharedText = sharePayload.message ?? sharePayload.text;
+check(
+  typeof sharedText === "string" &&
+    ["Augie", "Sam", "Lee", "Pat"].every(name => sharedText.includes(name)),
+  "Group-of-four Share opens with all four players in results",
+  JSON.stringify({ title: sharePayload.title, text: sharedText })
+);
+await shot("11d-group4-share-payload.png");
+
+// AUG-680: exercise the visible settlement marker on the real exported web app.
+// Keep this on the UI-created contest so score preservation is checked against
+// the actual scorecard saved by the flow above.
+await page.keyboard.press("Escape");
+await vis(page.getByText(/^settlement$/i)).first().click();
+const settlementScoresBefore = await page.evaluate((id) => {
+  const data = JSON.parse(localStorage.getItem("snapscore-contests"));
+  const contest = data.state.contests.find((item) => item.id === id);
+  return contest.groups.map((group) => group.players.map((player) => ({ name: player.name, scores: [...player.scores] })));
+}, contestId);
+for (const [width, height] of [[390, 844], [375, 667]]) {
+  await page.setViewportSize({ width, height });
+  await page.getByTestId("settlement-scroll").evaluate((el) => { el.scrollTop = 0; });
+  for (const name of ["Augie", "Sam", "Lee", "Pat"]) {
+    const row = page.getByTestId(`settlement-player-${name}`);
+    await row.scrollIntoViewIfNeeded();
+    const box = await row.boundingBox();
+    check(!!box && box.x >= 0 && box.y >= 0 && box.x + box.width <= width && box.y + box.height <= height,
+      `Settlement row fits ${width}x${height}: ${name}`, JSON.stringify(box));
+  }
+  await page.getByTestId("settlement-scroll").evaluate((el) => { el.scrollTop = 0; });
+  await shot(`11e-settlement-${width}x${height}.png`);
+}
+await page.setViewportSize({ width: 390, height: 844 });
+const markSettled = page.getByRole("button", { name: /mark settled Augie to Sam/i }).first();
+check(await markSettled.isVisible(), "Mark Settled is visible in settlement ledger");
+const markBox = await markSettled.boundingBox();
+check(!!markBox && markBox.width >= 44 && markBox.height >= 44, "Mark Settled target is at least 44px", JSON.stringify(markBox));
+await markSettled.click();
+const undoSettled = page.getByRole("button", { name: /unsettle Augie to Sam/i }).first();
+await undoSettled.waitFor({ state: "visible" });
+check(/^Settled\s/.test((await undoSettled.innerText()).trim()), "Mark Settled changes the visible state");
+await vis(page.getByText(/^games$/i)).first().click();
+await vis(page.getByText(/^settlement$/i)).first().click();
+const returnedUndo = page.getByRole("button", { name: /unsettle Augie to Sam/i }).first();
+check(await returnedUndo.isVisible(), "Mark Settled persists after navigating away and back");
+await returnedUndo.click();
+check(await page.getByRole("button", { name: /mark settled Augie to Sam/i }).first().isVisible(), "Unsettle returns the row to its unsettled state");
+const settlementScoresAfter = await page.evaluate((id) => {
+  const data = JSON.parse(localStorage.getItem("snapscore-contests"));
+  const contest = data.state.contests.find((item) => item.id === id);
+  return contest.groups.map((group) => group.players.map((player) => ({ name: player.name, scores: [...player.scores] })));
+}, contestId);
+check(JSON.stringify(settlementScoresAfter) === JSON.stringify(settlementScoresBefore), "Settlement mark and undo do not alter scores");
+await shot("11a-settlement-mark-undo.png");
+const pdfDownloadPromise = page.waitForEvent("download");
+await page.getByText("Export scorecard (PDF)", { exact: true }).click();
+const pdfDownload = await pdfDownloadPromise;
+const pdfPath = path.join(OUT, "settlement-scorecard.pdf");
+await pdfDownload.saveAs(pdfPath);
+const pdfResult = extractPdfText(pdfPath);
+if (pdfResult.status === "unknown") {
+  checkUnknown("Export PDF includes all player names and signed ledger totals", pdfResult.detail);
+} else {
+  const pdfMatchesShare = [
+    /Sam:\s*\+\$26\.25/,
+    /Augie:\s*\+\$11\.25/,
+    /Lee:\s*[−-]\$3\.75/,
+    /Pat:\s*[−-]\$33\.75/,
+  ].every((pattern) => pattern.test(pdfResult.text));
+  check(pdfMatchesShare, "Export PDF includes all player names and signed ledger totals", pdfResult.text.replace(/\s+/g, " ").slice(-500));
+}
 
 // Verify both screens against the same persisted contest and calculator results.
 // The first pass tests creation + persistence of Net; the second tests persisted Gross.
@@ -209,7 +325,7 @@ for (const variant of ["net", "gross", "group"]) {
   }
   if (variant === "gross") await shot("10b-games-gross.png");
   if (variant === "group") await shot("10c-games-group.png");
-  await vis(page.getByText(/^settlement$/i)).first().click();
+  await vis(page.getByText(/^(settlement|settle up)$/i)).first().click();
   await page.getByTestId("settlement-skins-mode").waitFor();
   check(await page.getByTestId("settlement-skins-mode").innerText() === label, `Settlement shows ${label}`);
   for (const [name,amount] of Object.entries(expected.settlement.netByPlayer)) {
@@ -231,7 +347,7 @@ for (const variant of ["net", "gross", "group"]) {
   }
   const displayedTotal = cents(Number((await page.getByTestId("settlement-session-total").innerText()).replace("$","")));
   check(displayedTotal === winnerTotal, `${label}: session total equals displayed winners`);
-  for (const [width,height,suffix] of [[390,844,""],[1280,800,"-desktop"]]) {
+  for (const [width,height,suffix] of [[viewport.width,viewport.height,""],[1280,800,"-desktop"]]) {
     await page.setViewportSize({width,height});
     await page.getByTestId("settlement-scroll").evaluate(el=>{el.scrollTop=0;});
     await page.waitForTimeout(2000);
@@ -239,7 +355,7 @@ for (const variant of ["net", "gross", "group"]) {
     check(await page.getByTestId("settlement-hero-amount").isVisible(), `${label}: signed amount visible at ${width}x${height}`);
     await shot(`${variant === "group" ? "11c-settlement-group" : mode === "net" ? "11-settlement" : "11b-settlement-gross"}${suffix}.png`);
   }
-  await page.setViewportSize({width:390,height:844});
+  await page.setViewportSize(viewport);
 }
 check(JSON.stringify(modeTotals.net) !== JSON.stringify(modeTotals.group), "Scopes produce different skins with two UI-created groups");
 check(JSON.stringify(modeTotals.net) !== JSON.stringify(modeTotals.gross), "Handicaps produce different Net and Gross skins");
@@ -263,6 +379,8 @@ await shot("14-gs1-empty-scan-data.png");
 // but join through a distinct persisted guest UUID, without changing organizer auth.
 // Skip if cross-device sharing is disabled (feature flag)
 await page.goto(contestUrl, { waitUntil: "networkidle" });
+// The organizer invite control is available in the round layout; reading it
+// must not open the status sheet and hide the control from the viewport.
 const joinCodeElement = page.getByTestId("organizer-join-code");
 const hasJoinCode = await joinCodeElement.count() > 0;
 // The build's flag state must match what CI expects, so a missing join UI can never silently skip the guest flow
@@ -276,7 +394,7 @@ if (hasJoinCode) {
   const joinCode = joinText.match(/[A-HJ-NP-Z2-9]{6}$/)?.[0];
   check(!!joinCode, "Organizer sees a six-character join code");
   await shot("15-organizer-join-code.png");
-  const isolated = await browser.newContext({viewport:{width:390,height:844}});
+  const isolated = await browser.newContext({viewport});
   const isolatedPage = await isolated.newPage();
   await isolatedPage.goto(`${BASE}/join/${joinCode}`, {waitUntil:"networkidle"});
   await isolatedPage.getByPlaceholder("Display name").fill("Sam guest");
@@ -314,6 +432,7 @@ if (hasJoinCode) {
   check(true, "Cross-device sharing disabled (feature flag); skipping join code tests");
   // Verify no share/join UI strings render when flag is off
   await page.goto(contestUrl, { waitUntil: "networkidle" });
+  await openRoundStatus(page);
   const bodyContent = await page.innerText("body");
   const forbiddenStrings = [
     "Share live scoreboard",
@@ -329,8 +448,9 @@ if (hasJoinCode) {
     "No share/join UI strings visible when flag off",
     foundStrings.length > 0 ? `Found: ${foundStrings.join(", ")}` : "clean"
   );
+  await closeRoundStatus(page);
   // Settlement recap must not advertise live sharing when the flag is off
-  await vis(page.getByText(/^settlement$/i)).first().click();
+  await vis(page.getByText(/^(settlement|settle up)$/i)).first().click();
   await page.getByTestId("recap-card").waitFor({ state: "attached" });
   const recapText = await page.getByTestId("recap-card").innerText();
   const recapForbidden = ["FOLLOW THE ROUND", "add a live link", "Share live scoreboard"].filter(s => recapText.toUpperCase().includes(s.toUpperCase()));
@@ -340,6 +460,7 @@ if (hasJoinCode) {
 check(pageErrors.length === 0, "No uncaught page errors", pageErrors.join(" | "));
 await browser.close();
 fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ base: BASE, results, pageErrors }, null, 2));
-const failed = results.filter((r) => !r.ok).length;
-console.log(`\n${results.length - failed}/${results.length} checks passed`);
+const failed = failedCheckCount(results);
+const unknown = results.filter((r) => r.status === "unknown").length;
+console.log(`\n${results.length - failed - unknown} passed, ${unknown} unknown, ${failed} failed`);
 process.exit(failed ? 1 : 0);

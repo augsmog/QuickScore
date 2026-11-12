@@ -1,0 +1,46 @@
+name: Lightweight leagues candidate
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/league-candidate.yml'
+      - 'scoresnap/app/(tabs)/leagues.tsx'
+      - 'scoresnap/src/services/leagues.ts'
+      - 'scoresnap/supabase/proposed/20261103150000_lightweight_leagues.sql'
+      - 'scoresnap/scripts/ci/test-league-candidate.sql'
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: read
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+jobs:
+  league-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: scoresnap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Type-check SnapScore
+        run: npx tsc --noEmit
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - name: Start disposable stack and apply proposed league migration
+        run: |
+          bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit
+          supabase db reset
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261103150000_lightweight_leagues.sql
+      - name: Verify two-event isolation and event-scoped authorization
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f scripts/ci/test-league-candidate.sql
+      - name: Stop disposable stack
+        if: always()
+        run: supabase stop --no-backup

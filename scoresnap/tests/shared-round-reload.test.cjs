@@ -13,17 +13,18 @@ function mount({ online = true, actor = 'review-actor', failure } = {}) {
     async discover() {},
   };
   const deps = {
-    '../services/online-enrollment': {}, '../db/supabase': {},
+    '../services/owner-invite': require('./helpers/load-ts.cjs')()('src/services/owner-invite.ts'), '../services/online-enrollment': {}, '../db/supabase': {},
     '../services/cross-device': { onlineEnabled: online, client },
     '../services/online-client': { hostOrDiscover: (api, id) => api.rejoinHost(id) },
     '../stores/auth-store': { useAuthStore: f => f({ remoteUserId: actor }) },
-    '../stores/online-store': { useOnlineStore: f => f({ events }) },
-    react: { useState: x => [x, () => {}], useEffect: f => effects.push(f) },
+    '../stores/online-store': { useOnlineStore: Object.assign(f => f({ events }), { getState: () => ({ events }) }) },
+    react: { useRef: x => ({ current: x }), useState: x => [x, () => {}], useEffect: f => effects.push(f) },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable', Platform: { OS: 'web' } },
     '../stores/contest-store': {}, '../services/guest-join': {}, './theme': { COLORS: {} },
     './LocalJoinLimitationBanner': {}, '../services/local-join-limitation': {},
     '../config/features': { CROSS_DEVICE_SHARING_ENABLED: true },
+    './compact-viewport': { isCompactViewport: () => true },
   };
   const mod = { exports: {} };
   new Function('require', 'module', 'exports', ts.transpileModule(fs.readFileSync('src/ui/ContestJoinCode.tsx', 'utf8'), {

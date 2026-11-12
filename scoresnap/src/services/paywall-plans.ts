@@ -45,7 +45,7 @@ export function buildPaywallView(packages: Record<string, PurchasesPackage | nul
     C.then.replace('{price}/year', selected.price) : period === 'year' ? C.yearlyRenew : C.monthlyRenew;
   const values = [
     { icon: 'contest' as const, title: C.contestTitle, body: C.contestBody },
-    { icon: 'library' as const, title: C.libraryTitle, body: '' },
+    { icon: 'library' as const, title: C.libraryTitle, body: C.libraryBody },
     { icon: 'live' as const, title: C.liveTitle, body: C.liveBody },
   ];
   return { restore: C.restore, eyebrow: C.eyebrow, headline: C.headline, values, scans: C.scans, rows, cta, billed,

@@ -1,6 +1,6 @@
 const fs=require('fs'),ts=require('typescript');
 const read=p=>fs.readFileSync(p,'utf8');
-function load(p,deps={}){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(read(p),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(id in deps)return deps[id];throw Error(id)},m,m.exports);return m.exports;}
+function load(p,deps={}){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(read(p),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(id==='@/services/platform-alert')return {showAlert:(...args)=>deps['react-native']?.Alert?.alert?.(...args)};if(id.endsWith('/ui/SafeScreen'))return {SafeScreen:'SafeAreaView',SheetSurface:'View',FullScreenSheet:'Modal'};if(id in deps)return deps[id];throw Error(id)},m,m.exports);return m.exports;}
 const {PAYWALL_COPY:C}=load('src/ui/paywall-copy.ts');
 const check=jest.fn();
 const plans=load('src/services/paywall-plans.ts',{'../ui/paywall-copy':{PAYWALL_COPY:C},'react-native-purchases':{__esModule:true,default:{checkTrialOrIntroductoryPriceEligibility:check},INTRO_ELIGIBILITY_STATUS:{INTRO_ELIGIBILITY_STATUS_ELIGIBLE:2}}});
@@ -9,7 +9,7 @@ const packages={annual:pkg('pro-y','$24.99'),monthly:pkg('pro-m','$3.99'),td_ann
 const eligible={'pro-y':true,'td-y':true};
 const view=(period='year',tier='pro',owner='free',p=packages,e=eligible)=>plans.buildPaywallView(p,e,owner,{tier,period});
 const strings=v=>[v.restore,v.eyebrow,v.headline,...v.values.flatMap(r=>[r.title,r.body]),v.scans,...v.rows.flatMap(r=>[r.name,r.tag,r.body,r.alternate,r.price,r.trial].filter(Boolean)),v.cta,v.billed,v.oneTrial,v.legal,v.terms,v.dot,v.privacy].filter(Boolean);
-test('AC-PW1 byte-exact Figma strings in both periods',()=>{
+test('AC-PW1 byte-exact staged launch strings in both periods',()=>{
  const fixture=require('./fixtures/paywall-figma-strings.json');
  for(const [period,id] of [['year','1:164'],['month','1:247']])
  expect(strings(view(period)).sort()).toEqual(Object.values(fixture[id]).map(n=>n.characters).sort());
@@ -41,7 +41,7 @@ function screen({restore=async()=>true,owner='free',target}={}){
  '@expo-google-fonts/inter':{useFonts:()=>[true]},
  '../src/services/purchases':{getPackages:async()=>packages,purchasePackage:async()=>true,restorePurchases:restore,syncProStatus:async()=>{}},
  '../src/services/paywall-plans':plans,'../src/stores/scan-store':{useScanStore:f=>f({tier:owner})},
- '../src/config/support':load('src/config/support.ts'),'../src/ui/paywall-copy':{PAYWALL_COPY:C},
+ '../src/config/support':load('src/config/support.ts'),'../src/config/posthog':{posthog:null},'../src/ui/paywall-copy':{PAYWALL_COPY:C},
  '../src/ui/paywall-tokens':load('src/ui/paywall-tokens.ts'),'../src/ui/paywall-icons':{PaywallIcon:'Icon',PaywallRadio:'Radio'},
  }).default;
  return {render:()=>{cursor=0;return Screen()},states,effects,alert,openURL,back};
@@ -80,20 +80,21 @@ test('AC-PW5 legal strings and actual Linking handlers',()=>{
  const h=screen(),tree=h.render();button(tree,C.terms).props.onPress();button(tree,C.privacy).props.onPress();
  expect(h.openURL.mock.calls).toEqual([[TERMS_URL],[PRIVACY_URL]]);
 });
-test('AC-PW6 both tiers and periods remain count-free without approved placements',()=>{
+test('AC-PW6 both tiers and periods use the staged game count',()=>{
  const countClaim=/\d+\s*\+?\s*(game|games|mode|modes|ways to play|ways)/i;
  for(const period of ['year','month'])for(const tier of ['pro','td']){
   const v=view(period,tier);
   expect(v.values.map(v=>v.icon)).toEqual(['contest','library','live']);
-  expect(v.values.find(v=>v.icon==='library').body).toBeFalsy();
+  expect(v.values.find(v=>v.icon==='library').body).toBe(C.libraryBody);
   expect(v.values.every(v=>!/scan/i.test(v.body))).toBe(true);
   for(const value of strings(v)){
-   expect(value).not.toMatch(countClaim);
+   expect(value.replaceAll('50+ game modes','')).not.toMatch(countClaim);
    expect(value).not.toMatch(/ways to play/i);
   }
   const h=screen();h.render();h.states[0]={tier,period};
   const rendered=text(h.render());
-  expect(rendered).not.toMatch(countClaim);
+  expect(rendered).toContain(C.libraryBody);
+  expect(rendered.replaceAll('50+ game modes','')).not.toMatch(countClaim);
   expect(rendered).not.toMatch(/ways to play/i);
  }
 });
@@ -104,4 +105,35 @@ test('actual selection, alternate period switching, TD route, Close and missing 
  tree=h.render();expect(h.states[0]).toEqual({tier:'td',period:'month'});
  expect(nodes(tree).filter(n=>n.type==='Text').map(text)).not.toContain(C.trial);
  expect(nodes(tree).find(n=>n.props?.accessibilityState?.disabled===true)).toBeDefined();
+});
+
+// AUG-293: exercise the actual screen props through the installed web renderer.
+test('AC-PW10 selected plan exposes checked semantics; missing/wrong/multiple checked states fail',()=>{
+ const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
+ const Pressable=require('react-native-web/dist/cjs/exports/Pressable');
+ const Text=require('react-native-web/dist/cjs/exports/Text');
+ const radios=tree=>nodes(tree).filter(n=>n.type==='Pressable'&&n.props.accessibilityRole==='radio');
+ function verify(rows,expected){
+  expect(rows).toHaveLength(3);
+  const checked=[];
+  rows.forEach((row,index)=>{
+   const name=text(row),props={...row.props,children:React.createElement(Text,null,name)};
+   const html=renderToStaticMarkup(React.createElement(Pressable,props));
+   expect(html).toContain('role="radio"');
+   expect(typeof props['aria-checked']).toBe('boolean');
+   expect(props['aria-checked']).toBe(props.accessibilityState.checked);
+   expect(props['aria-checked']).toBe(nodes(row).find(n=>n.type==='Radio').props.selected);
+   expect(html).toContain(`aria-checked="${props['aria-checked']}"`);
+   if(props['aria-checked'])checked.push(index);
+  });
+  expect(checked).toEqual([expected]);
+ }
+ for(const target of ['pro','td']){
+  const h=screen({target});let rows=radios(h.render());verify(rows,target==='td'?2:1);
+  for(const selected of [0,1,2]){rows[selected].props.onPress();rows=radios(h.render());verify(rows,selected);}
+ }
+ const rows=radios(screen({target:'td'}).render());
+ for(const mutate of [r=>r.forEach(n=>delete n.props['aria-checked']),r=>r[2].props['aria-checked']=false,r=>r[1].props['aria-checked']=true,r=>{r[2].props['aria-checked']=false;r[2].props.accessibilityState={checked:false};r[1].props['aria-checked']=true;r[1].props.accessibilityState={checked:true};}]){
+  const copy=rows.map(n=>({...n,props:{...n.props,accessibilityState:{...n.props.accessibilityState}}}));mutate(copy);expect(()=>verify(copy,2)).toThrow();
+ }
 });

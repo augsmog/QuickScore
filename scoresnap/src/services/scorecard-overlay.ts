@@ -6,7 +6,7 @@ export function overlayScorecard(contest: Contest, snapshot?: SyncSnapshotV1): C
   if (!snapshot || snapshot.contest_id !== contest.id || snapshot.protocol !== 1) return contest;
   const mapped = (kind: 'round' | 'player', id: string) => snapshot.id_map.find(m => m.kind === kind && m.local_id === id)?.server_id ?? id;
   const groups = (local: ContestGroup[], localRound: string) => {
-    const remote = snapshot.rounds.find(r => r.id === mapped('round', localRound));
+    const remote = snapshot.rounds.find(r => r.id === mapped('round', localRound)) ?? (contest.remoteRestored && localRound === contest.id ? snapshot.rounds[0] : undefined);
     if (!remote) return local;
     return local.map(g => ({ ...g, players: g.players.map(p => {
       const player = remote.players.find(r => r.id === mapped('player', p.id));

@@ -1,3 +1,6 @@
+import { showAlert } from "@/services/platform-alert";
+import { SafeScreen } from "../../../src/ui/SafeScreen";
+import { isCompactViewport } from "../../../src/ui/compact-viewport";
 import { onlineEnabled } from '../../../src/services/cross-device';
 import { useOnlineStore } from '../../../src/stores/online-store';
 import { overlayScorecard } from '../../../src/services/scorecard-overlay';
@@ -35,7 +38,6 @@ import {
   scoreName,
 } from "../../../src/ui/theme";
 import { useContestStore, getActiveGroups } from "../../../src/stores/contest-store";
-import { SafeAreaView } from "react-native-safe-area-context";
 import AuxiliaryPrompt, {
   needsAuxiliaryPrompt,
   AuxPromptResult,
@@ -43,6 +45,8 @@ import AuxiliaryPrompt, {
 import { HoleInfo, Player } from "../../../src/engine/types";
 import { calcNassauPress } from "../../../src/engine/calculators/nassau-press";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
+import { HOLE_NAV_TARGET, SCORE_STEPPER_TARGET } from "../../../src/ui/score-entry-metrics";
+import { posthog } from "../../../src/config/posthog";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -79,6 +83,8 @@ export default function ScorecardScreen() {
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
   const isCompleted = contest.status === "completed";
+  const compactViewport = isCompactViewport(Dimensions.get("window"));
+  const tightSpacing = Dimensions.get("window").height < 950;
 
   // Build current-hole scores map for AuxiliaryPrompt (Tier 2 games)
   const currentPlayerScores = useMemo(() => {
@@ -253,7 +259,7 @@ export default function ScorecardScreen() {
         updateAuxiliaryData(contest.id, "greenies", currentHole, results.greenies, group.id);
       }
       setShowAuxPrompt(false);advanceToNextHole();
-      } catch(error){Alert.alert("Confirm inputs",String(error));}
+      } catch(error){showAlert("Confirm inputs",String(error));}
     },
     [contest.id, group.id, currentHole, updateAuxiliaryData, advanceToNextHole]
   );
@@ -268,7 +274,7 @@ export default function ScorecardScreen() {
       const result=calculateContestSettlement(contest);
       if(result.pending){
         if((contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games,currentHoleInfo,currentPlayerScores))) setShowAuxPrompt(true);
-        Alert.alert("Confirmation required","Enter every score and confirm side-game inputs on every hole before finalizing. Skip leaves that hole pending.");
+        showAlert("Confirmation required","Enter every score and confirm side-game inputs on every hole before finalizing. Skip leaves that hole pending.");
         return;
       }
     }
@@ -281,7 +287,7 @@ export default function ScorecardScreen() {
     const percentComplete = Math.round((totalScores / totalExpected) * 100);
 
     if (percentComplete < 50) {
-      Alert.alert(
+      showAlert(
         "Incomplete Scorecard",
         `Only ${percentComplete}% of scores have been entered. Are you sure you want to finalize?`,
         [
@@ -294,7 +300,7 @@ export default function ScorecardScreen() {
         ]
       );
     } else if (percentComplete < 100) {
-      Alert.alert(
+      showAlert(
         "Finalize Round?",
         `${percentComplete}% of scores entered. Missing scores will be counted as 0. This locks the scorecard.`,
         [
@@ -303,7 +309,7 @@ export default function ScorecardScreen() {
         ]
       );
     } else {
-      Alert.alert(
+      showAlert(
         "Finalize Round?",
         "This will lock scores and calculate final settlements. You can still view results after.",
         [
@@ -316,7 +322,14 @@ export default function ScorecardScreen() {
 
   const doFinalize = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    try {completeContest(contest.id);} catch(error){Alert.alert("Confirmation required",String(error));}
+    try {
+      completeContest(contest.id);
+      posthog?.capture("round_finalized", {
+        game_ids: contest.games,
+        group_count: activeGroups.length,
+        is_tournament: Boolean(contest.isTournament),
+      });
+    } catch(error){showAlert("Confirmation required",String(error));}
   };
 
   // Calculate completion
@@ -336,7 +349,7 @@ export default function ScorecardScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
+      <SafeScreen edges={[]} style={{ flex: 1 }}>
         {/* Completed Banner */}
         {isCompleted && (
           <View
@@ -367,8 +380,8 @@ export default function ScorecardScreen() {
         <View
           style={{
             paddingHorizontal: 20,
-            paddingTop: 12,
-            paddingBottom: 8,
+            paddingTop: tightSpacing ? 8 : 12,
+            paddingBottom: tightSpacing ? 4 : 8,
             flexDirection: "row",
             alignItems: "flex-end",
             justifyContent: "space-between",
@@ -385,7 +398,7 @@ export default function ScorecardScreen() {
             </Text>
             <Text
               style={{
-                fontSize: 40,
+                fontSize: compactViewport ? 30 : 40,
                 fontFamily: FONTS.headline,
                 color: COLORS.text,
                 marginTop: 2,
@@ -455,11 +468,11 @@ export default function ScorecardScreen() {
         </View>
 
         {contest.gameConfig?.rulesVersion===1 && <View style={{paddingHorizontal:20}}>
-          {contest.games.includes("wolf") && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("wolf")}><Text style={{color:COLORS.primary,padding:12}}>Record Wolf decision before play {auxiliary.wolf?.[currentHole]?"✓":"— required"}</Text></Pressable>}
+          {contest.games.includes("wolf") && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("wolf")} style={{minHeight:44,justifyContent:"center"}}><Text style={{color:COLORS.primary,padding:12}}>Record Wolf decision before play {auxiliary.wolf?.[currentHole]?"✓":"— required"}</Text></Pressable>}
           {contest.gameConfig.bisqueHandicap && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("bisque")}><Text style={{color:COLORS.primary,padding:12}}>Declare 0–2 Bisque strokes before this hole {auxiliary.bisque?.[currentHole]?"✓":"— required"}</Text></Pressable>}
           {contest.gameConfig.jokerEnabled && <Pressable disabled={group.players.some(p=>p.scores.some(n=>n>0))} onPress={()=>setDeclaration("jokerDeclarations")}><Text style={{color:COLORS.primary,padding:12}}>Record two public Joker holes per player before round {auxiliary.jokerDeclarations?.[0]?"✓":"— required"}</Text></Pressable>}
         </View>}
-        {declaration && <PrePlayDeclarations kind={declaration} players={group.players} course={course} hole={currentHole} config={contest.gameConfig??{}} onClose={()=>setDeclaration(null)} onSave={(key,h,value)=>{try{updateAuxiliaryData(contest.id,key,h,value,group.id);}catch(error){Alert.alert("Invalid declaration",String(error));}}}/>}
+        {declaration && <PrePlayDeclarations kind={declaration} players={group.players} course={course} hole={currentHole} config={contest.gameConfig??{}} onClose={()=>setDeclaration(null)} onSave={(key,h,value)=>{try{updateAuxiliaryData(contest.id,key,h,value,group.id);}catch(error){showAlert("Invalid declaration",String(error));}}}/>}
         {contest.gameConfig?.progressiveSnake && <Text style={{color:COLORS.textDim,paddingHorizontal:20}}>Progressive Snake exposure: after N changes of holder, each opponent receives {contest.betUnit} × 2^N from the final holder. Maximum with this group: {group.players.length*course.holes.length-1} changes. Unsafe numeric amounts cannot settle.</Text>}
         {/* Live Game Status Banners */}
         {liveGameStatus.length > 0 && (
@@ -544,8 +557,8 @@ export default function ScorecardScreen() {
 
         {/* ── Player Score Steppers ── */}
         <ScrollView
-          style={{ flex: 1, marginTop: 8 }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12, gap: 8 }}
+          style={{ flex: 1, minHeight: 0, marginTop: tightSpacing ? 4 : 8 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: tightSpacing ? 4 : 12, gap: tightSpacing ? 4 : 8 }}
           showsVerticalScrollIndicator={false}
         >
           {displayPlayers.map((player, idx) => {
@@ -566,7 +579,7 @@ export default function ScorecardScreen() {
                 style={{
                   backgroundColor: COLORS.surfaceHigh,
                   borderRadius: RADII.lg,
-                  padding: 14,
+                  padding: compactViewport ? 4 : tightSpacing ? 10 : 14,
                   borderLeftWidth: 3,
                   borderLeftColor: hasScore ? color : COLORS.surfaceHighest,
                   opacity: isCompleted ? 0.7 : 1,
@@ -578,7 +591,7 @@ export default function ScorecardScreen() {
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: 10,
+                    marginBottom: tightSpacing ? 2 : 10,
                   }}
                 >
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
@@ -595,7 +608,7 @@ export default function ScorecardScreen() {
                         }}
                       />
                     )}
-                    <View>
+                    <View style={{ flexDirection: compactViewport && holesPlayed > 0 ? "row" : "column", alignItems: "baseline", gap: compactViewport ? 8 : 0 }}>
                       <Text
                         style={{
                           fontSize: 15,
@@ -643,11 +656,14 @@ export default function ScorecardScreen() {
                 >
                   {/* Minus button */}
                   <Pressable
+                    testID={`score-minus-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Decrease ${player.name} score`}
                     onPress={() => adjustScore(player.id, -1)}
                     disabled={isCompleted || displayScore <= 1}
                     style={({ pressed }) => ({
-                      width: 52,
-                      height: 52,
+                      width: compactViewport ? 44 : SCORE_STEPPER_TARGET,
+                      height: compactViewport ? 44 : SCORE_STEPPER_TARGET,
                       borderRadius: RADII.lg,
                       backgroundColor: COLORS.surfaceMid,
                       alignItems: "center",
@@ -663,6 +679,9 @@ export default function ScorecardScreen() {
                   {/* Score display — tap sets to par, long press clears */}
                   <Pressable
                     testID={`score-par-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set ${player.name} score to par`}
+                    accessibilityState={{ disabled: isCompleted }}
                     onPress={() => {
                       if (!hasScore) setToPar(player.id);
                     }}
@@ -709,11 +728,13 @@ export default function ScorecardScreen() {
                   {/* Plus button */}
                   <Pressable
                     testID={`score-plus-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Increase ${player.name} score`}
                     onPress={() => adjustScore(player.id, 1)}
                     disabled={isCompleted || displayScore >= 15}
                     style={({ pressed }) => ({
-                      width: 52,
-                      height: 52,
+                      width: compactViewport ? 44 : SCORE_STEPPER_TARGET,
+                      height: compactViewport ? 44 : SCORE_STEPPER_TARGET,
                       borderRadius: RADII.lg,
                       backgroundColor: COLORS.surfaceMid,
                       alignItems: "center",
@@ -746,11 +767,14 @@ export default function ScorecardScreen() {
           <View
             style={{
               flexDirection: "row",
-              gap: 12,
-              marginBottom: 4,
+              gap: tightSpacing ? 8 : 12,
+              marginBottom: tightSpacing ? 2 : 4,
             }}
           >
             <Pressable
+              testID="score-prev-hole"
+              accessibilityRole="button"
+              accessibilityLabel="Previous hole"
               onPress={handlePrevHole}
               disabled={currentHole <= 1}
               style={{
@@ -761,7 +785,7 @@ export default function ScorecardScreen() {
                 gap: 4,
                 backgroundColor: COLORS.surfaceMid,
                 borderRadius: RADII.md,
-                paddingVertical: 12,
+                minHeight: compactViewport ? 44 : HOLE_NAV_TARGET,
                 opacity: currentHole <= 1 ? 0.3 : 1,
               }}
             >
@@ -777,6 +801,8 @@ export default function ScorecardScreen() {
             </Pressable>
             <Pressable
               testID="score-next-hole"
+              accessibilityRole="button"
+              accessibilityLabel="Next hole"
               onPress={handleNextHole}
               disabled={isCompleted}
               style={{
@@ -789,7 +815,7 @@ export default function ScorecardScreen() {
                   ? COLORS.primary + "22"
                   : COLORS.surfaceMid,
                 borderRadius: RADII.md,
-                paddingVertical: 12,
+                minHeight: compactViewport ? 44 : HOLE_NAV_TARGET,
                 borderWidth: allScoredOnHole ? 1 : 0,
                 borderColor: COLORS.primary + "44",
                 opacity: currentHole >= 18 ? 0.3 : 1,
@@ -808,18 +834,40 @@ export default function ScorecardScreen() {
                 color={allScoredOnHole ? COLORS.primary : COLORS.textDim}
               />
             </Pressable>
+            {!isCompleted && compactViewport && (
+              <Pressable
+                onPress={handleFinalizeRound}
+                style={{
+                  flex: 1.5,
+                  backgroundColor: percentComplete === 100 ? COLORS.primary : COLORS.surfaceMid,
+                  borderRadius: RADII.lg,
+                  minHeight: 44,
+                  paddingHorizontal: 4,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  ...(percentComplete === 100 ? GLOW.primary : {}),
+                }}
+              >
+                <CheckCircle size={18} color={percentComplete === 100 ? COLORS.onPrimary : COLORS.warn} />
+                <Text style={{ color: percentComplete === 100 ? COLORS.onPrimary : COLORS.warn, fontFamily: FONTS.bold, fontSize: 12 }}>
+                  Finalize Round
+                </Text>
+              </Pressable>
+            )}
           </View>
 
           {/* Finalize Round */}
           {!isCompleted && (
-            <View style={{ marginTop: 4 }}>
+            <View style={{ marginTop: tightSpacing ? 0 : 4 }}>
               {/* Progress bar */}
               <View
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  marginBottom: 6,
+                  marginBottom: tightSpacing ? 3 : 6,
                 }}
               >
                 <Text
@@ -848,7 +896,7 @@ export default function ScorecardScreen() {
                   height: 4,
                   borderRadius: 2,
                   backgroundColor: COLORS.surfaceHighest,
-                  marginBottom: 10,
+                  marginBottom: tightSpacing ? 6 : 10,
                   overflow: "hidden",
                 }}
               >
@@ -865,7 +913,7 @@ export default function ScorecardScreen() {
                 />
               </View>
 
-              <Pressable
+              {!compactViewport && <Pressable
                 onPress={handleFinalizeRound}
                 style={{
                   backgroundColor:
@@ -873,7 +921,8 @@ export default function ScorecardScreen() {
                       ? COLORS.primary
                       : COLORS.surfaceMid,
                   borderRadius: RADII.lg,
-                  paddingVertical: 14,
+                  minHeight: 44,
+                  paddingVertical: tightSpacing ? 6 : 14,
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
@@ -901,11 +950,11 @@ export default function ScorecardScreen() {
                 >
                   Finalize Round
                 </Text>
-              </Pressable>
+              </Pressable>}
             </View>
           )}
         </View>
-      </SafeAreaView>
+      </SafeScreen>
 
       {/* Tier 2 Game Auxiliary Prompts */}
       <AuxiliaryPrompt

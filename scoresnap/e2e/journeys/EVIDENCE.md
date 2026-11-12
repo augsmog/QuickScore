@@ -132,3 +132,78 @@ Main SHA: bce5673993b90720657af6a400a385c27cdf574c; harness source included the 
 ```
 
 The copied verifier r2 script at `fix-r2-evidence/visibility-probes.py` produced three `visible-text-missing` results (all runner exits 1). Copied verifier r1 probes were run from the same evidence directory; all 14 primary and follow-up probes matched the expected behavior. The first probe attempt caught and corrected a `page` binding error before final runs. `fix-r2-evidence/` is outside the repository at `/workspace/aos-state/reports/test-program-20261031/fix-r2-evidence/`.
+
+## AUG-330 local repair candidate — 2026-11-01 (browser acceptance blocked)
+
+This is an **unpublished, not browser-verified candidate**, based directly on PR #84
+head `6504d358e9b46bc907b1fa6f39c05f11731d7921`, branch
+`testprog/snapscore-journeys-20261031`. PR base/merge-base is
+`bce5673993b90720657af6a400a385c27cdf574c`; fetched main is
+`7d3b66fae81d529dcb08f21032666c7d2facbc5c`. No application, dependency,
+lockfile, baseline, semantic exception, or production-data changes are included.
+The earlier results above do **not** validate this candidate.
+
+The helper now requires a glyph-specific differential, not merely texture:
+normal → text-only wrapped visible → glyph fill/stroke/shadow suppressed →
+original node restored. Ancestor color and generated/sibling covers remain
+untouched. Visible captures and text/target geometry must match; unstable paint
+fails closed. A significant whole-crop difference and per-grapheme paint are
+required. Original nodes are restored in `finally`. Completed phase PNGs and
+matched-node/clip/delta metadata are retained; fresh directories prevent stale
+artifacts from standing in for current captures.
+
+This combines **paint provenance with a bounded spatial-coverage guard**, not
+OCR or a universal readability guarantee. Every grapheme needs significant
+changed pixels spanning at least 25% of its Range height (minimum 2px), so the
+reviewer's two-pixel horizontal slit cannot pass just by touching every letter.
+Current core labels (including PAR and the invite slash), combining accents and
+font variants are in the pending browser matrix. Short standalone punctuation
+is not in the current inventory and would need explicit threshold review.
+Rendering compatibility still needs the actual-browser matrix below. Existing
+geometric/opacity/fill checks remain.
+
+Executed locally from `scoresnap/`:
+
+```sh
+npm ci --cache /tmp/aug330-npm-cache --ignore-scripts --no-audit --no-fund
+node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/usability-gate.test.mjs
+# 53 tests: 36 existing journey metric + 8 synthetic PNG/pixel + 9 usability gate.
+# 53 passed, 0 failed, 0 skipped. These are not rendered-browser tests.
+node --check e2e/journeys/runner.mjs
+node --check e2e/journeys/glyph-evidence.browser.test.mjs
+bash -n e2e/journeys/nightly.sh
+git diff --check
+CI=1 EXPO_OFFLINE=1 EXPO_NO_TELEMETRY=1 EXPO_PUBLIC_OFFLINE_MODE=true EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true node node_modules/expo/bin/cli export --platform web --output-dir dist-web-aug330 --clear
+# Export succeeded (exit 0); output retained outside the repository.
+```
+
+Setup corrections retained in external logs: the first npm attempt used an
+unwritable default `/home/agent/.npm`; a workspace-owned cache succeeded. The
+first export was invoked from repository root rather than `scoresnap/` and
+failed for missing package.json; the correct working directory succeeded.
+
+A direct Chromium launch using the installed Playwright and `/usr/bin/chromium`
+failed before any page with `socket() failed: Operation not permitted`. Independent
+review encountered the same restriction, and its escalation failed before
+execution on the runtime's protected sessions path. No permission/security
+workaround was attempted by this repair. Consequently these stages are **not
+run/passed** for this candidate:
+
+```sh
+CHROMIUM_PATH=/usr/bin/chromium node --test e2e/journeys/glyph-evidence.browser.test.mjs
+CHROMIUM_PATH=/usr/bin/chromium BASE_URL=http://127.0.0.1:8092 OUT_DIR=/tmp/aug330-fresh node e2e/journeys/runner.mjs
+CHROMIUM_PATH=/usr/bin/chromium BASE_URL=http://127.0.0.1:8092 OUT_DIR=/tmp/aug330-negative-fresh node e2e/journeys/negative-proof.mjs
+```
+
+The pending browser fixture matrix includes plain/patterned-background positives,
+inherited font/shadow, multiline, DPR 2, combining accent, flat/striped/currentColor
+pseudo covers, partial cover, a two-pixel sliver, transparent glyphs on texture, ancestor-selector
+perturbation, striped sibling, and screenshot-failure restoration. The full-runner
+negative inventory expands from eight to fifteen, including the specific
+patterned sibling and `::after` regressions from PR #86. Each must produce exit 1
+with its exact expected signature; clean journeys must retain four passes and one
+strict expected failure. The existing CI journey step now includes the new
+synthetic and rendered helper tests plus all fifteen negative proofs, with its
+original timeout, artifact paths/retention and permissions unchanged. Its
+updated duration, full app runner, negative proofs, nightly and remote CI remain
+unverified. No push, PR comment, remote dispatch, merge or deployment occurred.

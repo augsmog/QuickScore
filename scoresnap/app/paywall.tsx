@@ -1,6 +1,7 @@
+import { showAlert } from "@/services/platform-alert";
+import { SafeScreen } from "../src/ui/SafeScreen";
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, Linking, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { getPackages, purchasePackage, restorePurchases, syncProStatus } from '../src/services/purchases';
@@ -10,6 +11,7 @@ import { PRIVACY_URL, TERMS_URL } from '../src/config/support';
 import { PAYWALL as P } from '../src/ui/paywall-tokens';
 import { PAYWALL_COPY as C } from '../src/ui/paywall-copy';
 import { PaywallIcon, PaywallRadio } from '../src/ui/paywall-icons';
+import { posthog } from '../src/config/posthog';
 
 export default function PaywallScreen() {
   const router = useRouter();
@@ -36,18 +38,18 @@ export default function PaywallScreen() {
     if (busy) return;
     setBusy(true);
     try { await work(); }
-    catch (e: unknown) { Alert.alert(C.subscription, e instanceof Error ? e.message || C.retry : C.retry); }
+    catch (e: unknown) { showAlert(C.subscription, e instanceof Error ? e.message || C.retry : C.retry); }
     finally { setBusy(false); }
   }
   const v = buildPaywallView(packages, eligible, tier, selection);
   const tag = (label: string) => <Text style={[s.tag, label === C.current && s.current]}>{label}</Text>;
-  return <SafeAreaView style={s.safe}>
+  return <SafeScreen style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>
       <View style={s.top}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()}><PaywallIcon name="close" /></Pressable>
-        <Pressable accessibilityRole="button" disabled={busy} onPress={() => act(async () => {
+        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
+        <Pressable accessibilityRole="button" disabled={busy} style={s.topLink} onPress={() => act(async () => {
           const restored = await restorePurchases();
-          Alert.alert(C.restore, restored ? C.restored : C.nothing);
+          showAlert(C.restore, restored ? C.restored : C.nothing);
         })}><Text style={[s.link, { fontSize: 14 }]}>{v.restore}</Text></Pressable>
       </View>
       <View style={{ gap: 4 }}><Text style={s.eyebrow}>{v.eyebrow}</Text><Text style={s.headline}>{v.headline}</Text></View>
@@ -55,35 +57,39 @@ export default function PaywallScreen() {
         <PaywallIcon name={value.icon} /><View style={{ flex: 1, gap: 2 }}><Text style={s.valueTitle}>{value.title}</Text>{!!value.body && <Text style={s.body}>{value.body}</Text>}</View>
       </View>)}</View>
       <Text style={s.body}>{v.scans}</Text>
-      <View style={{ gap: 8 }}>{v.rows.map(row => <Pressable key={row.tier} accessibilityRole="radio" accessibilityState={{ checked: row.selected }}
+      <View style={{ gap: 8 }}>{v.rows.map(row => <Pressable key={row.tier} accessibilityRole="radio" accessibilityState={{ checked: row.selected }} aria-checked={row.selected}
         onPress={() => setSelection({ ...selection, tier: row.tier })} style={[s.plan, row.selected && s.selected]}>
         <PaywallRadio selected={row.selected} />
         <View style={{ flex: 1, gap: 2 }}>
           <View style={s.titleRow}><Text style={s.planTitle}>{row.name}</Text>{!!row.tag && tag(row.tag)}</View>
           {!!row.body && <Text style={s.body}>{row.body}</Text>}
-          {!!row.alternate && <Pressable accessibilityRole="button" onPress={event => { event.stopPropagation(); setSelection({ tier: row.tier, period: selection.period === 'year' ? 'month' : 'year' }); }}><Text style={s.body}>{row.alternate}</Text></Pressable>}
+          {!!row.alternate && <Pressable accessibilityRole="button" style={s.alternateLink} onPress={event => { event.stopPropagation(); setSelection({ tier: row.tier, period: selection.period === 'year' ? 'month' : 'year' }); }}><Text style={s.body}>{row.alternate}</Text></Pressable>}
         </View>
         {!!row.price && <View style={{ alignItems: 'flex-end', gap: 4 }}><Text style={s.price}>{row.price}</Text>{!!row.trial && tag(row.trial)}</View>}
       </Pressable>)}</View>
       <View style={{ gap: 6, alignItems: 'center' }}>
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || v.disabled }} disabled={busy || v.disabled} style={[s.cta, (busy || v.disabled) && { opacity: 0.55 }]}
-          onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); router.back(); } })}><Text style={s.ctaText}>{v.cta}</Text></Pressable>
+          onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); posthog?.capture('subscription_purchase_completed', { selected_tier: selection.tier, billing_period: selection.period }); router.back(); } })}><Text style={s.ctaText}>{v.cta}</Text></Pressable>
         {!!v.billed && <Text style={s.billed}>{v.billed}</Text>}
         <Text style={s.small}>{v.oneTrial}</Text>
       </View>
       <Text style={[s.small, { lineHeight: 15 }]}>{v.legal}</Text>
       <View style={s.footer}>
-        <Pressable accessibilityRole="link" onPress={() => Linking.openURL(TERMS_URL)}><Text style={s.link}>{v.terms}</Text></Pressable>
+        <Pressable accessibilityRole="link" style={s.footerLink} onPress={() => Linking.openURL(TERMS_URL)}><Text style={s.link}>{v.terms}</Text></Pressable>
         <Text style={{ color: P.dot, fontSize: 12 }}>{v.dot}</Text>
-        <Pressable accessibilityRole="link" onPress={() => Linking.openURL(PRIVACY_URL)}><Text style={s.link}>{v.privacy}</Text></Pressable>
+        <Pressable accessibilityRole="link" style={s.footerLink} onPress={() => Linking.openURL(PRIVACY_URL)}><Text style={s.link}>{v.privacy}</Text></Pressable>
       </View>
     </ScrollView>
-  </SafeAreaView>;
+  </SafeScreen>;
 }
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: P.paper },
   content: { paddingHorizontal: P.padding, paddingBottom: 10, gap: P.gap },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 32 },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44, marginTop: 2 },
+  closeButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  topLink: { minHeight: 44, justifyContent: 'center' },
+  footerLink: { minHeight: 44, justifyContent: 'center' },
+  alternateLink: { minHeight: 44, justifyContent: 'center' },
   link: { fontFamily: P.medium, fontSize: 12, color: P.green, textDecorationLine: 'underline' },
   eyebrow: { fontFamily: P.semibold, fontSize: 12, letterSpacing: 1.2, color: P.muted },
   headline: { fontFamily: P.bold, fontSize: 28, lineHeight: 32, letterSpacing: -0.6, color: P.ink },

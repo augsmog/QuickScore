@@ -1,3 +1,5 @@
+import { showAlert } from "@/services/platform-alert";
+import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { useScanStore } from "../../../src/stores/scan-store";
 import { canUseGame, canHostTournament } from "../../../src/services/entitlements";
 import { useState } from "react";
@@ -10,7 +12,6 @@ import {
   Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, X, Users, Shuffle, Copy, ChevronRight } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, RADII, FONTS } from "../../../src/ui/theme";
@@ -80,7 +81,7 @@ export default function TournamentRoundsScreen() {
   const handleCopyPreviousRound = () => {
     if (selectedRound <= 1) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
+    showAlert(
       "Copy Previous Round",
       `Copy player pairings from Round ${selectedRound - 1}?`,
       [
@@ -157,7 +158,7 @@ export default function TournamentRoundsScreen() {
     const otherGroups = currentRound.groups.filter((g) => g.id !== fromGroupId);
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
+    showAlert(
       player.name,
       `HCP ${player.handicap} · ${player.status || 'Active'}`,
       [
@@ -166,7 +167,7 @@ export default function TournamentRoundsScreen() {
         ...(otherGroups.length > 0 ? [{
           text: "Move to another group",
           onPress: () => {
-            Alert.alert(
+            showAlert(
               `Move ${player.name}`,
               "Select destination group:",
               [
@@ -230,7 +231,7 @@ export default function TournamentRoundsScreen() {
   };
 
   return (
-    <SafeAreaView
+    <SafeScreen
       style={{ flex: 1, backgroundColor: COLORS.bg }}
       edges={["top", "bottom"]}
     >
@@ -619,6 +620,6 @@ export default function TournamentRoundsScreen() {
           </AnimatedPressable>
         </View>
       )}
-    </SafeAreaView>
+    </SafeScreen>
   );
 }

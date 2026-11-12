@@ -11,11 +11,11 @@ function check(source){runNode(['--import','tsx','--input-type=module','-e',`
  `]);}
 test('registry derives count without aliases or hidden rules',()=>check(`
  assert.equal(t.PLAYABLE_BASE_GAME_IDS.length,30);
- assert.equal(t.PLAYABLE_OPTION_IDS.length,26);
+ assert.equal(t.PLAYABLE_OPTION_IDS.length,25);
  assert.equal(t.PLAYABLE_FORMAT_IDS.length,1);
- assert.equal(t.PLAYABLE_GAME_COUNT,57);
+ assert.equal(t.PLAYABLE_GAME_COUNT,56);
  assert.equal(new Set(t.PLAYABLE_OPTION_IDS).size,t.PLAYABLE_OPTION_IDS.length);
- assert.equal(t.GAME_VARIATIONS.length,25);
+ assert.equal(t.GAME_VARIATIONS.length,24);
  assert.equal(t.HIDDEN_VARIATIONS.length,2);
  for(const id of ['bbb_chip_in_triple','nassau_auto_press']) assert.ok(t.HIDDEN_VARIATIONS.some(v=>v.id===id));
  for(const id of ['wolf','hammer','snake','greenies','bingo_bango_bongo','alternate_shot','chapman']) assert.ok(t.isGameImplemented(id));
@@ -118,10 +118,11 @@ test('two groups settle independent Nassau bets without payments crossing groups
  for(const tr of s.transactions) assert.equal(tr.from.slice(-1),tr.to.slice(-1));
  assert.deepEqual(s,calculateSettlement(all,course,['nassau_press'],.01,undefined,{...rules,alohaPressOn18:true},groups));
 `));
-test('published draft has no game-count claims; internal inventory retains exported count',()=>check(`
+test('staged listing uses only final copy count; internal inventory retains exported count',()=>check(`
  const fs=await import('node:fs');
  assert.ok(fs.readFileSync('../GAMES_STATUS.md','utf8').includes(t.PLAYABLE_GAME_COUNT+' ways to play'));
  const draft=fs.readFileSync('docs/APP_STORE_LISTING.md','utf8');
  assert.doesNotMatch(draft,/ways to play/i);
- assert.doesNotMatch(draft,/\\d+\\s*\\+?\\s*(game|games|mode|modes|ways to play|ways)/i);
+ assert.ok(draft.includes('50+ game modes'));
+ assert.doesNotMatch(draft.replaceAll('50+ game modes',''),/\\d+\\s*\\+?\\s*(game|games|mode|modes|ways to play|ways)/i);
 `));

@@ -1,10 +1,10 @@
+import { SafeScreen } from "../src/ui/SafeScreen";
 import { useScanStore } from "../src/stores/scan-store";
 import { canSeeStats } from "../src/services/entitlements";
 import { PaywallTeaser } from "../src/ui/PaywallTeaser";
 import { useMemo, useState, useRef } from "react";
 import { View, Text, ScrollView, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ChevronLeft,
   TrendingUp,
@@ -575,7 +575,7 @@ function StatisticsScreenContent() {
   const hasData = stats.totalRounds > 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* Header */}
       <View
         style={{
@@ -673,7 +673,7 @@ function StatisticsScreenContent() {
           <HolesTab stats={stats} />
         )}
       </ScrollView>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }
 

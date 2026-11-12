@@ -1,0 +1,96 @@
+name: iOS StoreKit proof
+# Tier 2 ($0, public repo, GitHub-hosted macOS). Cut: AugieOS cuts/2026-11-03-e2e-tiered-cost.md.
+# Clean expo prebuild -> inject StoreKit unit-test target (scoresnap/e2e/storekit) -> xcodebuild test on a simulator.
+# No secrets. Local StoreKit only: not RevenueCat offerings, server eligibility or a live sandbox price.
+on:
+  pull_request:
+    paths:
+      - 'scoresnap/e2e/storekit/**'
+      - 'scoresnap/src/services/purchases.ts'
+      - 'scoresnap/src/services/paywall-plans.ts'
+      - '.github/workflows/ios-storekit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scoresnap/e2e/storekit/**'
+      - 'scoresnap/src/services/purchases.ts'
+      - 'scoresnap/src/services/paywall-plans.ts'
+      - '.github/workflows/ios-storekit.yml'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+permissions:
+  contents: read
+jobs:
+  storekit-proof:
+    runs-on: macos-15
+    timeout-minutes: 75
+    defaults:
+      run:
+        working-directory: scoresnap
+    env:
+      # Same switches as the eas.json `simulator` profile: drop ML Kit so the sim build is arm64; never upload to Sentry.
+      EXPO_PUBLIC_SIMULATOR_NO_MLKIT: "1"
+      EXPO_PUBLIC_OFFLINE_MODE: "true"
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - run: npm ci
+      - name: Catalog matches purchases.ts and paywall-plans.ts
+        run: node e2e/storekit/check_catalog.js
+      - name: Test shipping catalog rejects Pro products and preserves flag-on fixture
+        run: node --test e2e/storekit/check_catalog.test.cjs
+      - name: Clean prebuild (iOS)
+        run: npx expo prebuild --platform ios --clean --no-install
+      - name: Inject StoreKit test target
+        run: |
+          gem list -i xcodeproj >/dev/null || gem install xcodeproj --no-document --user-install
+          ruby e2e/storekit/add_test_target.rb ios/SnapScore.xcodeproj SnapScore
+      - name: Pods
+        working-directory: scoresnap/ios
+        run: pod install
+      - name: Pick simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)["devices"]
+          c=[(r,x) for r,xs in d.items() if "iOS" in r for x in xs if x["name"].startswith("iPhone")]
+          c.sort(key=lambda t:t[0]); print(c[-1][1]["udid"])')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl list devices | grep "$UDID"
+      - name: xcodebuild test
+        working-directory: scoresnap/ios
+        run: |
+          set -o pipefail
+          xcodebuild -version
+          xcodebuild test -workspace SnapScore.xcworkspace -scheme SnapScoreStoreKitTests -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" -resultBundlePath "$RUNNER_TEMP/storekit.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log" | grep -E "Test Case|STOREKIT_PROOF|error:|\*\* TEST|Executed" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" "$RUNNER_TEMP/xcodebuild.log"
+      - name: Proof summary
+        if: always()
+        run: |
+          {
+            echo "### StoreKit proof"
+            echo "- SHA: ${{ github.sha }}"
+            echo "- Runner: macos-15, $(xcodebuild -version | head -1)"
+            echo '```'
+            grep -E "Test Case .* (passed|failed)|STOREKIT_PROOF|\*\* TEST" "$RUNNER_TEMP/xcodebuild.log" 2>/dev/null | tail -40 || echo "no log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storekit-proof-${{ github.run_id }}
+          path: ${{ runner.temp }}/xcodebuild.log
+          retention-days: 7
+          if-no-files-found: ignore

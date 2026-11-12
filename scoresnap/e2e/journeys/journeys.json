@@ -139,13 +139,7 @@
           "maxActivations": 2,
           "maxScrolls": 0,
           "testId": "score-par-Augie",
-          "start": "round",
-          "reachability": {
-            "status": "known_issue",
-            "linear": "AUG-306",
-            "signature": "no-accessible-name",
-            "date": "2026-10-31"
-          }
+          "start": "round"
         },
         {
           "name": "score-Sam",
@@ -156,47 +150,29 @@
           "maxActivations": 2,
           "maxScrolls": 0,
           "testId": "score-par-Sam",
-          "start": "round",
-          "reachability": {
-            "status": "known_issue",
-            "linear": "AUG-306",
-            "signature": "no-accessible-name",
-            "date": "2026-10-31"
-          }
+          "start": "round"
         },
         {
           "name": "settle",
-          "role": "button",
+          "role": "tab",
           "accessibleName": "Settlement",
           "visibleText": "SETTLEMENT",
           "class": "core",
           "maxActivations": 2,
           "maxScrolls": 0,
           "testId": "journey-settlement",
-          "start": "round",
-          "reachability": {
-            "status": "known_issue",
-            "linear": "AUG-306",
-            "signature": "no-accessible-name",
-            "date": "2026-10-31"
-          }
+          "start": "round"
         },
         {
           "name": "leaderboard",
-          "role": "button",
+          "role": "tab",
           "accessibleName": "Leaderboard",
           "visibleText": "LEADERBOARD",
           "class": "core",
           "maxActivations": 2,
           "maxScrolls": 0,
           "testId": "journey-leaderboard",
-          "start": "round",
-          "reachability": {
-            "status": "known_issue",
-            "linear": "AUG-306",
-            "signature": "no-accessible-name",
-            "date": "2026-10-31"
-          }
+          "start": "round"
         }
       ],
       "budget": {
@@ -249,19 +225,13 @@
         {
           "name": "invite",
           "role": "button",
-          "accessibleName": "Copy / share local invite",
+          "accessibleName": "Invite players",
           "visibleText": "Copy / share local invite",
           "class": "core",
           "maxActivations": 2,
           "maxScrolls": 0,
           "testId": "journey-invite",
-          "start": "round",
-          "reachability": {
-            "status": "known_issue",
-            "linear": "AUG-306",
-            "signature": "no-accessible-name",
-            "date": "2026-10-31"
-          }
+          "start": "round"
         }
       ],
       "budget": {
@@ -313,12 +283,12 @@
         "timeoutMs": 20000
       },
       "baseline": {
-        "activations": 1,
+        "activations": 2,
         "timeSamples": [
-          1589
+          267
         ],
-        "measuredAt": "2026-11-01T02:08:59.466Z",
-        "sha": "bce5673993b90720657af6a400a385c27cdf574c",
+        "measuredAt": "2026-11-03T04:59:12.089Z",
+        "sha": "c9e60c8fed50d6032892e7af7d5ac421b00fd7da",
         "platform": "web-offline",
         "flags": {
           "EXPO_PUBLIC_OFFLINE_MODE": true,
@@ -326,23 +296,20 @@
         },
         "fixtureVersion": "two-player-empty-v1"
       },
-      "status": "known_issue",
+      "status": "gated",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
         "activation",
-        "finalize confirm dialog not rendered",
-        "outcome"
+        "confirmation shown",
+        "outcome",
+        "confirmation dismissed"
       ],
-      "knownIssue": {
-        "linear": "AUG-289",
-        "signature": "finalize confirm dialog not rendered",
-        "date": "2026-10-31"
-      },
       "requiredSteps": [
         "entry",
         "finalize-requested",
-        "failed"
+        "confirmation-visible",
+        "cancelled"
       ]
     },
     {
@@ -375,59 +342,80 @@
     },
     {
       "id": "J-delete-account",
-      "persona": "New golfer",
-      "goal": "Reach and cancel Delete account",
+      "persona": "Synthetic offline account",
+      "goal": "delete-account",
       "platform": [
         "web-offline"
       ],
       "start": "home",
-      "fixture": "fresh-context-v1",
-      "features": [],
+      "fixture": "focused-acceptance-v1",
+      "features": [
+        {
+          "name": "delete-account",
+          "role": "button",
+          "accessibleName": "Delete Account",
+          "visibleText": "Delete Account",
+          "class": "secondary",
+          "maxActivations": 3,
+          "maxScrolls": 1,
+          "start": "home",
+          "testId": null
+        }
+      ],
       "budget": {
-        "activations": 6,
-        "screens": 4,
+        "activations": 3,
+        "screens": 3,
         "timeoutMs": 20000
       },
-      "baseline": null,
-      "status": "deferred",
-      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-292",
       "assertions": [
-        "entry",
-        "activation",
-        "destination",
-        "outcome"
+        "settings-reachable",
+        "confirmation-three-taps"
       ],
-      "deferredReason": "AUG-292: Settings below fold and unnamed rows; account deletion adapter deferred",
-      "linear": "AUG-292",
-      "requiredSteps": []
+      "requiredSteps": [
+        "entry",
+        "settings-two-taps",
+        "confirmation-stop"
+      ]
     },
     {
       "id": "J-free-paywall-recover",
-      "persona": "New golfer",
-      "goal": "Recover form intact after selecting a paid option",
+      "persona": "Free golfer with an unsubmitted draft",
+      "goal": "Free modes and inline settings remain selected across both setup steps; returning preserves the unsaved player and course draft",
       "platform": [
         "web-offline"
       ],
       "start": "home",
-      "fixture": "fresh-context-v1",
+      "fixture": "paywall-recovery-v1",
       "features": [],
       "budget": {
-        "activations": 6,
+        "activations": 11,
         "screens": 4,
         "timeoutMs": 20000
       },
       "baseline": null,
-      "status": "deferred",
-      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "status": "gated",
+      "origin": "AUG-429 D1/D2 supersedes New Contest paywall recovery; legacy journey IDs retained",
       "assertions": [
         "entry",
-        "activation",
-        "destination",
+        "draft-entered",
+        "two-step-modes",
+        "free-modes-inline",
+        "settings-only",
+        "selection-preserved",
+        "draft-preserved",
         "outcome"
       ],
-      "deferredReason": "AUG-293: double paywall; form/paywall adapter deferred",
-      "linear": "AUG-293",
-      "requiredSteps": []
+      "requiredSteps": [
+        "draft",
+        "modes",
+        "inline",
+        "settings",
+        "modes-return",
+        "draft-return",
+        "outcome"
+      ]
     },
     {
       "id": "J-create-8p-multiday",
@@ -546,23 +534,264 @@
       ],
       "start": "home",
       "fixture": "fresh-context-v1",
+      "features": [
+        {
+          "name": "game-library",
+          "role": "button",
+          "accessibleName": "See all game modes",
+          "visibleText": "See All",
+          "class": "core",
+          "maxActivations": 1,
+          "maxScrolls": 0,
+          "testId": "home-see-all-modes",
+          "start": "home"
+        },
+        {
+          "name": "skins-rules",
+          "role": "button",
+          "accessibleName": "Skins",
+          "visibleText": "Skins",
+          "class": "supporting",
+          "maxActivations": 2,
+          "maxScrolls": 1,
+          "testId": "game-mode-row-skins",
+          "start": "home"
+        }
+      ],
+      "budget": {
+        "activations": 3,
+        "screens": 5,
+        "timeoutMs": 20000
+      },
+      "baseline": null,
+      "status": "gated",
+      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "assertions": [
+        "entry",
+        "library",
+        "rule",
+        "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "game-library",
+        "game-modes-scroll",
+        "skins-rules",
+        "home-restored"
+      ]
+    },
+    {
+      "id": "J-settlement-mark-lifecycle",
+      "persona": "Synthetic offline account",
+      "goal": "Settlement markers reload undo isolation and per-game amounts",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "render-acceptance-v1",
       "features": [],
       "budget": {
-        "activations": 6,
+        "activations": 18,
+        "screens": 3,
+        "timeoutMs": 45000
+      },
+      "status": "gated",
+      "origin": "Mac rendered gap follow-up 2026-11-02 / AUG-319 AUG-317",
+      "assertions": [
+        "entry",
+        "unmarked",
+        "marked",
+        "reload-persists",
+        "other-contest-unmarked",
+        "other-contest-independent",
+        "undo",
+        "undo-persists",
+        "by-game-values",
+        "outcome"
+      ],
+      "requiredSteps": [
+        "entry",
+        "unmarked",
+        "marked",
+        "reloaded-mark",
+        "other-unmarked",
+        "other-marked",
+        "undone",
+        "undo-reloaded",
+        "by-game-0",
+        "by-game-1",
+        "other-still-marked"
+      ]
+    },
+    {
+      "id": "J-settings-control-inventory",
+      "persona": "Synthetic offline account",
+      "goal": "settings-control-inventory",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "focused-acceptance-v1",
+      "features": [],
+      "budget": {
+        "activations": 2,
+        "screens": 3,
+        "timeoutMs": 45000
+      },
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-292",
+      "assertions": [
+        "complete-role-name-inventory"
+      ],
+      "requiredSteps": [
+        "entry",
+        "inventory-complete"
+      ]
+    },
+    {
+      "id": "J-by-game-nine",
+      "persona": "Synthetic offline account",
+      "goal": "by-game-nine",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "focused-acceptance-v1",
+      "features": [],
+      "budget": {
+        "activations": 2,
+        "screens": 3,
+        "timeoutMs": 20000
+      },
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-317",
+      "assertions": [
+        "nine-hole-signed-rows",
+        "aggregate-separate"
+      ],
+      "requiredSteps": [
+        "entry",
+        "nine-hole-rows",
+        "aggregate"
+      ]
+    },
+    {
+      "id": "J-by-game-pending",
+      "persona": "Synthetic offline account",
+      "goal": "by-game-pending",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "focused-acceptance-v1",
+      "features": [],
+      "budget": {
+        "activations": 2,
+        "screens": 3,
+        "timeoutMs": 20000
+      },
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-317",
+      "assertions": [
+        "pending-no-fabricated-money"
+      ],
+      "requiredSteps": [
+        "entry",
+        "pending-rows"
+      ]
+    },
+    {
+      "id": "J-settlement-tab-runtime-recalc",
+      "persona": "Synthetic offline account",
+      "goal": "settlement-tab-runtime-recalc",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "focused-acceptance-v1",
+      "features": [],
+      "budget": {
+        "activations": 11,
+        "screens": 3,
+        "timeoutMs": 45000
+      },
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-319",
+      "assertions": [
+        "same-contest-tab-retains",
+        "runtime-restart-retains",
+        "recalculation-invalidates"
+      ],
+      "requiredSteps": [
+        "entry",
+        "marked",
+        "tab-return",
+        "runtime-restarted",
+        "recalculated-unmarked"
+      ]
+    },
+    {
+      "id": "J-trial-preview-unloaded",
+      "persona": "Synthetic offline account",
+      "goal": "trial-preview-unloaded",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "focused-acceptance-v1",
+      "features": [],
+      "budget": {
+        "activations": 2,
+        "screens": 3,
+        "timeoutMs": 20000
+      },
+      "status": "gated",
+      "origin": "Remaining acceptance criteria 2026-11-02 / AUG-316",
+      "assertions": [
+        "unloaded-no-trial-promise"
+      ],
+      "requiredSteps": [
+        "entry",
+        "trial-preview-unloaded"
+      ]
+    },
+    {
+      "id": "J-free-paywall-group-first",
+      "persona": "Free golfer with an unsubmitted draft",
+      "goal": "Free modes and inline settings remain selected across both setup steps; returning preserves the unsaved player and course draft",
+      "platform": [
+        "web-offline"
+      ],
+      "start": "home",
+      "fixture": "paywall-recovery-v1",
+      "features": [],
+      "budget": {
+        "activations": 11,
         "screens": 4,
         "timeoutMs": 20000
       },
       "baseline": null,
-      "status": "deferred",
-      "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
+      "status": "gated",
+      "origin": "AUG-429 D1/D2 supersedes New Contest paywall recovery; legacy journey IDs retained",
       "assertions": [
         "entry",
-        "activation",
-        "destination",
+        "draft-entered",
+        "two-step-modes",
+        "free-modes-inline",
+        "settings-only",
+        "selection-preserved",
+        "draft-preserved",
         "outcome"
       ],
-      "deferredReason": "Rules discovery adapter deferred to next phase",
-      "requiredSteps": []
+      "requiredSteps": [
+        "draft",
+        "modes",
+        "inline",
+        "settings",
+        "modes-return",
+        "draft-return",
+        "outcome"
+      ]
     }
   ]
 }
