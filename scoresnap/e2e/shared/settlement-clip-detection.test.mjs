@@ -12,13 +12,16 @@ import { detectClipping, oldDimensionOnlyHasClipping } from "./settlement-clip-d
 async function withFixture(html, fn) {
   const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined,
-    // Restricted exec sandboxes (e.g. the verifier's codex workspace-write
-    // sandbox) deny the syscalls Chrome's own internal sandbox needs,
-    // failing with "sandbox_host_linux.cc: Check failed: . shutdown:
-    // Operation not permitted" even with a valid executablePath. We're
-    // already confined to this process's own sandbox, so Chrome's extra
-    // layer is redundant here -- same tradeoff CI runners make.
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // --no-sandbox/--disable-setuid-sandbox drop Chrome's own sandbox
+    // layer; --disable-crashpad-for-testing (a real, recognized Chromium
+    // switch) skips the crash handler's own IPC socket setup, which some
+    // restricted container/exec environments deny with EPERM. Same
+    // tradeoff CI runners make.
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-crashpad-for-testing",
+    ],
   });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await page.setContent(html);

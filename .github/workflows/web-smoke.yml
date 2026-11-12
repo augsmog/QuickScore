@@ -136,6 +136,8 @@ jobs:
       - name: Verify standard artifact before executing browsers
         run: node scripts/ci/web-artifact.mjs verify dist-web ci-standard-manifest.json
       - uses: ./.github/actions/playwright-chromium
+      - name: Gate 2 clip-detection fixtures
+        run: node --test e2e/shared/settlement-clip-detection.test.mjs
       - name: Browser smoke
         run: |
           node e2e/serve.mjs > /tmp/web-smoke-server.log 2>&1 &
