@@ -1,6 +1,6 @@
 /**
  * Comprehensive SnapScore Calculator Test Suite
- * 200+ tests covering all 29 game types, edge cases, settlement, and OCR parsing.
+ * Legacy base-game calculator tests, edge cases, settlement, and OCR parsing.
  * Run with: npx tsx src/engine/__tests__/all-calculators.test.ts
  */
 
@@ -41,6 +41,7 @@ import {
   isPlayerName,
   nameConfidence,
   parseScoreGrid,
+  textToGrid,
 } from "../../services/score-parser";
 
 // ─── TEST HELPERS ───────────────────────────────────────────────────
@@ -330,9 +331,9 @@ const skins2p = calcSkins([alex, ben], COURSE, false);
 assert(skins2p.skins.length === 18, "2-player: 18 holes");
 
 // Blowout skins
-const skinsBlowout = calcSkins([scratch, duffer], COURSE, false);
+const skinsBlowout = calcSkins([scratch, duffer], COURSE, false, "gross");
 const scratchSkins = skinsBlowout.totals["Scratch"];
-assert(scratchSkins >= 15, "Scratch dominates skins", `got ${scratchSkins}`);
+assert(scratchSkins >= 15, "Scratch dominates gross skins", `got ${scratchSkins}`);
 
 // Real card skins
 const skinsReal = calcSkins(realCard1, COURSE_PAR71, true);
@@ -780,12 +781,12 @@ section("📸 OCR Score Parser");
 // normalizeScore
 assert(normalizeScore("4").value === 4, "Parses '4'");
 assert(normalizeScore("4").confidence >= 0.9, "'4' high confidence");
-assert(normalizeScore("O").value === 0, "OCR fix: O → 0");
-assert(normalizeScore("O").confidence < 0.7, "O → 0 low confidence");
-assert(normalizeScore("l").value === 1, "OCR fix: l → 1");
-assert(normalizeScore("S").value === 5, "OCR fix: S → 5");
-assert(normalizeScore("").value === 0, "Empty → 0");
-assert(normalizeScore("-").value === 0, "Dash → 0");
+assert(normalizeScore("O").value === null, "OCR fix: O → blank");
+assert(normalizeScore("O").confidence < 0.7, "O → blank low confidence");
+assert(normalizeScore("l").value === null, "OCR fix: l → blank");
+assert(normalizeScore("S").value === null, "OCR fix: S → blank");
+assert(normalizeScore("").value === null, "Empty → blank");
+assert(normalizeScore("-").value === null, "Dash → blank");
 assert(normalizeScore("12").value === 12, "Double digit: 12");
 assert(normalizeScore("abc").confidence < 0.5, "Garbage low confidence");
 
@@ -822,6 +823,54 @@ assert(parsed.players.length === 2, "Grid: 2 players detected");
 assert(parsed.players[0].name === "Bob Yates", "Grid: first player name");
 assert(parsed.players[0].scores[0] === 4, "Grid: first score = 4");
 assert(parsed.parRow.length >= 9, "Grid: par row detected");
+
+// ═══════════════════════════════════════════════════════════════════
+// REGRESSION TESTS FOR GS-1 & GS-2
+// ═══════════════════════════════════════════════════════════════════
+section("🐛 Regression Tests — GS-1 & GS-2");
+
+// GS-2: A row of all 4s should NOT be detected as par
+const allFoursGrid = [
+  ["Hole", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18"],
+  ["Player A", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4"],
+  ["Par", "4", "5", "4", "3", "4", "3", "4", "5", "4", "4", "4", "3", "5", "4", "5", "3", "4", "4"],
+];
+const parsedAllFours = parseScoreGrid(allFoursGrid);
+assert(parsedAllFours.players.length === 1, "GS-2: All 4s row detected as player");
+assert(parsedAllFours.players[0].name === "Player A", "GS-2: Player name correct");
+assert(parsedAllFours.players[0].scores[0] === 4, "GS-2: Player score is 4");
+assert(parsedAllFours.parRow[0] === 4 && parsedAllFours.parRow[1] === 5, "GS-2: Par row detected correctly");
+assert(!parsedAllFours.parRow.every(p => p === 4), "GS-2: Par row is not all 4s");
+
+// GS-2: A row of all 5s should also NOT be detected as par
+const allFivesGrid = [
+  ["Par", "4", "5", "4", "3", "4", "3", "4", "5", "4", "4", "4", "3", "5", "4", "5", "3", "4", "4"],
+  ["Player B", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5"],
+];
+const parsedAllFives = parseScoreGrid(allFivesGrid);
+assert(parsedAllFives.players.length === 1, "GS-2: All 5s row detected as player");
+assert(parsedAllFives.players[0].name === "Player B", "GS-2: Player name correct (all 5s)");
+assert(parsedAllFives.players[0].scores.every(s => s === 5), "GS-2: All scores are 5");
+assert(parsedAllFives.parRow[0] === 4 && parsedAllFives.parRow[1] === 5, "GS-2: Par detected correctly (not all 5s)");
+
+// GS-2: Test isParRow directly
+assert(isParRow(["4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4"]) === false, "GS-2: isParRow rejects all 4s");
+assert(isParRow(["5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5", "5"]) === false, "GS-2: isParRow rejects all 5s");
+assert(isParRow(["4", "5", "4", "3", "4", "3", "4", "5", "4", "4", "4", "3", "5", "4", "5", "3", "4", "4"]) === true, "GS-2: isParRow accepts valid par");
+assert(isParRow(["3", "4", "5", "4", "3", "4", "3", "4", "5"]) === true, "GS-2: isParRow accepts 9-hole par");
+assert(isParRow(["2", "3", "4"]) === false, "GS-2: isParRow rejects too few values");
+assert(isParRow(["7", "8", "9", "7", "8", "9", "7", "8", "9", "7", "8", "9", "7", "8", "9", "7", "8", "9"]) === false, "GS-2: isParRow rejects non-par values");
+
+// GS-2: Test par detection with typical course totals
+const validParGrid = [
+  ["Par", "4", "5", "4", "3", "4", "3", "4", "5", "4", "4", "4", "3", "5", "4", "5", "3", "4", "4"],
+];
+const parsedValidPar = parseScoreGrid(validParGrid);
+assert(parsedValidPar.parRow.reduce((a, b) => a + b, 0) === 72, "GS-2: Valid par total is 72");
+
+// GS-1: Test that parseError is set for missing scanData (tested in UI component, not here)
+// Note: The review screen component now properly validates scanData and shows error UI
+// This is a UI-level fix that prevents SAMPLE fallback
 
 // ═══════════════════════════════════════════════════════════════════
 // MULTI-GROUP & LARGE FIELD TESTS (up to 40 players)
@@ -1011,7 +1060,7 @@ section("🐰 Large Field Rabbit (8-20 Players)");
   const rabbit8 = calcRabbit(field8, COURSE);
   // Holder is a player name or empty string if no outright winner
   assert(
-    !rabbit8.holder || field8.some((p) => p.name === rabbit8.holder),
+    !rabbit8.back9Holder || field8.some((p) => p.name === rabbit8.back9Holder),
     "8-player rabbit: holder is valid player or unset"
   );
 }
@@ -1065,7 +1114,7 @@ section("🐍 Large Field Snake (8-20 Players)");
   const field8 = generatePlayers(8);
   const snake8 = calcSnake(field8, COURSE);
   assert(
-    !snake8.holder || field8.some((p) => p.name === snake8.holder),
+    !snake8.snakeHolder || field8.some((p) => p.name === snake8.snakeHolder),
     "8-player snake: holder is valid player or unset"
   );
 }
@@ -1345,6 +1394,26 @@ section("🕳️ Edge Cases — Incomplete Round (zeros)");
     typeof partialSkins.totals === "object",
     "Partial skins: valid totals object"
   );
+}
+
+section("Text scorecard entry");
+{
+  assert(textToGrid("  \r\n\n").length === 0, "Blank text has no rows");
+  assert(JSON.stringify(textToGrid("Sam,  4,  5")) === JSON.stringify([["Sam", "4", "5"]]), "Spaces after commas do not create extra holes");
+  const rows = textToGrid("Hole,1,2,3\r\nPar\t4\t5\t3\nAugie Smith  4  4  4");
+  assert(JSON.stringify(rows) === JSON.stringify([["Hole", "1", "2", "3"], ["Par", "4", "5", "3"], ["Augie Smith", "4", "4", "4"]]), "Comma, tab, space separators and CRLF preserve names");
+  assert(JSON.stringify(textToGrid("Augie,4,,5\nSam\t4\t\t5")) === JSON.stringify([["Augie", "4", "", "5"], ["Sam", "4", "", "5"]]), "Empty cells keep their hole positions");
+  assert(JSON.stringify(textToGrid("\t4\t\t5\t")) === JSON.stringify([["", "4", "", "5", ""]]), "Leading and trailing empty tab cells are preserved");
+  const namedPlayers = parseScoreGrid(textToGrid("Sam,4,5,4,3,4,3,4,5,4\nAugie,5,5,4,4,5,4,4,6,5"));
+  assert(JSON.stringify(namedPlayers.players.map((player) => player.name)) === JSON.stringify(["Sam", "Augie"]), "Nine-hole rows with par-like scores retain both named players");
+  assert(JSON.stringify(namedPlayers.players[0]?.scores.slice(0, 9)) === JSON.stringify([4, 5, 4, 3, 4, 3, 4, 5, 4]), "Named player's par-like scores are preserved");
+  const unlabeledPar = parseScoreGrid(textToGrid("\t3\t4\t5\t4\t3\t4\t3\t4\t5\nSam,4,5,4,3,4,3,4,5,4"));
+  assert(JSON.stringify(unlabeledPar.parRow) === JSON.stringify([3, 4, 5, 4, 3, 4, 3, 4, 5]) && unlabeledPar.holeCount === 18, "Unlabeled par retained without inferring required holes from length");
+  assert(unlabeledPar.players.length === 1 && unlabeledPar.players[0].name === "Sam", "Player following unlabeled par is retained");
+  const parsed = parseScoreGrid(textToGrid("Augie,4,4,4,4,4,4,4,4,4"));
+  assert(parsed.players.length === 1 && parsed.players[0].name === "Augie", "All-4s text row is a player, not par");
+  assert(parsed.players[0].scores.slice(0, 9).every((score) => score === 4), "Text player scores reach real parser");
+  assert(parseScoreGrid(textToGrid("Hole,1,2,3")).players.length === 0, "Header-only text finds no players");
 }
 
 // ─── SUMMARY ────────────────────────────────────────────────────────

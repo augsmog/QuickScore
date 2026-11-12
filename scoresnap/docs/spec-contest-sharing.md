@@ -1,5 +1,39 @@
 # Feature Spec: Contest Sharing & Real-Time Sync
 
+> **Superseded in part by GS-5 (Augie, Oct 21, 2026):** the organizer needs an account; players join by code as guests with no account and can claim their history later. Where the sections below make anonymous users view-only, GS-5 wins.
+
+## GS-5 decision and current implementation (Oct 21, 2026)
+
+The organizer needs an account. Players join by code as guests, without an account, and enter their own scores in the browser. They can later create an account to claim round history. This owner decision supersedes the previous anonymous view-only rule.
+
+### Implemented
+
+- Every new local contest receives a unique six-character code, excluding 0, 1, I, O. Existing contests receive a code when opened. Organizer screen offers copy/share of the join URL.
+- Home offers Join with code; `/join/[code]` bypasses sign-in and onboarding. Guests supply a display name, then choose an existing player slot. Adding oneself is not allowed; the organizer must add missing players.
+- A separate random UUID and contest/player bindings persist in `snapscore-guest`. A guest cannot switch their binding to another slot. Guest UI edits only their own strokes and shows gross totals. Existing organizer scoring and game calculations remain unchanged.
+- `ContestJoinService` isolates lookup; `localContestJoinService` reads the persisted local contest store. Codes work only in the same browser storage, not another browser, device, or isolated context. Copy/share does not imply cloud sharing.
+- Configured Supabase credentials activate real email/provider authentication and session initialization. Contest creation requires an account in that mode. `EXPO_PUBLIC_OFFLINE_MODE=true` explicitly bypasses real auth: the local user acts as organizer so offline use and e2e continue working. Without credentials auth retains the existing local prototype behavior.
+- `claimGuestHistory()` returns the clearly marked “Claim your rounds — coming soon” placeholder explaining that rounds remain on this device. Clearing browser storage loses local rounds.
+
+### Backend status and Deferred
+
+The checked-in schema has profiles, scans and settlements, but no contest sharing tables. No Supabase contest adapter is enabled. No migration was applied.
+
+- Review and apply the draft `supabase/migrations/002_contest_sharing_draft.sql` in a separately authorized backend rollout.
+- Build server RPCs for code lookup, atomic slot reservations and score writes using server-issued guest capabilities. Local UUIDs and codes are not authorization credentials. The local prototype cannot prevent two devices claiming a slot; do not expose tables directly to unauthenticated clients.
+- Add secure claim RPC verifying guest capabilities and authenticated account ownership, preserving round history transactionally; then implement it behind `claimGuestHistory()`.
+- Implement Supabase adapter, realtime sync, conflict handling, offline queue and cross-device recovery.
+- QR codes, player presence, organizer guest removal and optional self-add policy remain deferred.
+- Verify real auth against a configured project (including email confirmation and provider setup). Automated verification uses explicit offline mode and creates no accounts.
+
+### Verification
+
+Unit tests cover codes, collision handling, binding validation/idempotency and local lookup. Browser e2e tests an isolated context's explicit local lookup error, then joins using a distinct guest identity in the organizer's browser, enters scores, checks totals and persisted state, and captures screenshots 15–19 at 390×844.
+
+---
+
+## Original spec (kept for the backend phases)
+
 ## Overview
 
 Allow contest creators to invite other players to join a contest on their own devices. All participants see live score updates, leaderboard changes, and game results in real time. Sharing is initiated via QR code or text/iMessage invite link.

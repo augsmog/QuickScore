@@ -5,7 +5,10 @@
 
 export interface ScannedPlayer {
   name: string;
-  scores: number[];
+  source?: "paste" | "ocr";
+  scores: (number | null)[];
+  requiredHoles?: number[];
+  alignmentError?: string;
   confidence: number[];
   nameConfidence: number;
   matchedPlayerId: string | null;
@@ -17,61 +20,71 @@ export interface ParsedGrid {
   holeCount: number;
 }
 
+/** Split pasted rows, preserving empty comma/tab cells and single spaces in names. */
+export function textToGrid(text: string): string[][] {
+  return text
+    .split(/\r\n|\n|\r/)
+    .filter((line) => line.trim().length > 0)
+    .map((line) => {
+      const delimiter = line.includes(",") ? "," : line.includes("\t") ? "\t" : / {2,}/;
+      const row = typeof delimiter === "string" ? line : line.trim();
+      return row.split(delimiter).map((cell) => cell.trim());
+    });
+}
+
 /**
  * Normalize a raw string score value to a number.
- * Handles common OCR misreads: O→0, l→1, S→5, etc.
+ * Non-numeric readings need explicit human correction.
  */
-export function normalizeScore(raw: string): { value: number; confidence: number } {
-  const cleaned = raw.trim();
+export function normalizeScore(raw: string): { value: number | null; confidence: number } {
+  const cleaned = typeof raw === "string" ? raw.trim() : "";
 
   // Empty or dash = no score
   if (!cleaned || cleaned === "-" || cleaned === "—" || cleaned === "–") {
-    return { value: 0, confidence: 0.9 };
+    return { value: null, confidence: 0 };
   }
 
   // Direct number
-  const num = parseInt(cleaned, 10);
-  if (!isNaN(num) && num >= 1 && num <= 15) {
+  const num = /^\d+$/.test(cleaned) ? Number(cleaned) : NaN;
+  if (Number.isSafeInteger(num) && num > 0) {
     return { value: num, confidence: 0.95 };
   }
 
-  // Common OCR misreads
-  const ocrFixes: Record<string, number> = {
-    O: 0, o: 0, D: 0,
-    l: 1, I: 1, "|": 1,
-    Z: 2, z: 2,
-    E: 3,
-    A: 4, h: 4,
-    S: 5, s: 5,
-    G: 6, b: 6,
-    T: 7,
-    B: 8,
-    g: 9, q: 9,
-  };
-
-  if (cleaned.length === 1 && ocrFixes[cleaned] !== undefined) {
-    return { value: ocrFixes[cleaned], confidence: 0.55 };
-  }
-
-  // Try removing non-numeric chars
-  const digitsOnly = cleaned.replace(/\D/g, "");
-  if (digitsOnly.length > 0) {
-    const parsed = parseInt(digitsOnly, 10);
-    if (parsed >= 1 && parsed <= 15) {
-      return { value: parsed, confidence: 0.65 };
-    }
-  }
-
-  return { value: 0, confidence: 0.2 };
+  return { value: null, confidence: 0 };
 }
 
 /**
  * Detect if a row of text looks like a par row (values 3-5, consistent).
+ * Par rows must:
+ * - Have 9 or 18 valid values
+ * - All values be in range 3-6 (allowing par 6 occasionally)
+ * - Sum to typical course total (60-78 for 18, 30-39 for 9)
+ * - Not be all the same value (player row of all 4s is not par)
  */
 export function isParRow(values: string[]): boolean {
-  const nums = values.map((v) => parseInt(v.trim(), 10)).filter((n) => !isNaN(n));
-  if (nums.length < 6) return false;
-  return nums.every((n) => n >= 3 && n <= 5);
+  const nums = values.map((v) => /^\d+$/.test(v.trim()) ? Number(v.trim()) : NaN);
+
+  // Must have at least 9 values for a full 9 holes
+  if (nums.length !== 9 && nums.length !== 18) return false;
+
+  // All values must be in typical par range (3-6)
+  if (!nums.every((n) => n >= 3 && n <= 6)) return false;
+
+  // Reject rows that are all the same value (e.g., all 4s is a player row, not par)
+  const allSame = nums.every((n) => n === nums[0]);
+  if (allSame) return false;
+
+  // Check total is in typical course par range
+  const total = nums.reduce((a, b) => a + b, 0);
+  if (nums.length >= 18) {
+    // 18 holes: typical par 70-74, allow 60-78
+    if (total < 60 || total > 78) return false;
+  } else if (nums.length >= 9) {
+    // 9 holes: typical par 35-37, allow 30-39
+    if (total < 30 || total > 39) return false;
+  }
+
+  return true;
 }
 
 /**
@@ -115,48 +128,99 @@ export function nameConfidence(name: string): number {
  */
 export function parseScoreGrid(
   rows: string[][],
-  parValues?: number[]
+  parValues?: number[],
+  source: "paste" | "ocr" = "ocr"
 ): ParsedGrid {
   const players: ScannedPlayer[] = [];
   let parRow: number[] = [];
   let holeCount = 18;
 
+  // A numbered Hole header is authoritative; summary columns never become holes.
+  const header = rows.find((row) => /^holes?:?$/i.test(row[0]?.trim() ?? ""));
+  const columns = header?.flatMap((cell, index) =>
+    index > 0 && /^\d+$/.test(cell.trim()) && Number(cell) >= 1 && Number(cell) <= 18
+      ? [{ index, hole: Number(cell) }] : []);
+  const hasHeader = columns && (columns.length === 9 || columns.length === 18)
+    && columns.every((column, index) => column.hole === index + columns[0].hole);
+  if (hasHeader) holeCount = columns.length;
+
+  function cellsFor(row: string[]): string[] {
+    if (hasHeader) return columns!.map(({ index }) => row[index] ?? "");
+    const cells = row.slice(1);
+    // Without a header, only remove an embedded OUT when it equals the
+    // preceding nine scores. Trailing IN/total cells are outside the 18 holes.
+    if (cells.length >= 19 && cells.length <= 21) {
+      const front = cells.slice(0, 9).map(normalizeScore);
+      const subtotal = cells[9].trim();
+      if (/^\d+$/.test(subtotal) && front.every((score) => score.confidence >= 0.55)
+        && Number(subtotal) === front.reduce((sum, score) => sum + (score.value ?? 0), 0)) {
+        return [...cells.slice(0, 9), ...cells.slice(10, 19)];
+      }
+    }
+    return cells.slice(0, holeCount);
+  }
+
   for (const row of rows) {
-    if (row.length < 3) continue;
+    if (row.length < 3 || row === header) continue;
 
-    const firstCell = row[0];
+    const firstCell = row[0].trim();
+    const scoreCells = cellsFor(row);
 
-    // Check if this is a par row
-    const scoreCells = row.slice(1);
-    if (isParRow(scoreCells) && (
-      firstCell.toLowerCase().includes("par") || isParRow(scoreCells)
-    )) {
+    // Check if this is a par row by looking at label first, then values
+    const hasParLabel = /^par\s*:?$/i.test(firstCell);
+    const valuesLookLikePar = isParRow(scoreCells);
+
+    if (hasParLabel && valuesLookLikePar) {
+      // Strong match: labeled "Par" and values look like par
       parRow = scoreCells
         .map((v) => parseInt(v.trim(), 10))
         .filter((n) => !isNaN(n));
-      holeCount = parRow.length;
+
       continue;
+    } else if (hasParLabel && !valuesLookLikePar) {
+      // Labeled "Par" but values don't match - skip this row (likely malformed)
+      continue;
+    } else if (!hasParLabel && !isPlayerName(firstCell) && valuesLookLikePar && parRow.length === 0) {
+      // No player name or par label, but values look like par and we haven't found par yet
+      // Only accept this if it's in the first few rows (typical scorecard layout)
+      const rowIndex = rows.indexOf(row);
+      if (rowIndex < 5) {
+        parRow = scoreCells
+          .map((v) => parseInt(v.trim(), 10))
+          .filter((n) => !isNaN(n));
+
+        continue;
+      }
     }
 
     // Check if first cell is a player name
     if (isPlayerName(firstCell)) {
-      const scores: number[] = [];
+      const scores: (number | null)[] = [];
       const confidence: number[] = [];
 
-      for (let i = 1; i < Math.min(row.length, holeCount + 1); i++) {
-        const parsed = normalizeScore(row[i]);
+      for (let i = 0; i < Math.min(scoreCells.length, holeCount); i++) {
+        const cell = scoreCells[i];
+        const trailingUnplayed = source === "paste" && cell.trim() === "0"
+          && scoreCells.length === holeCount && scoreCells.slice(i).every(c => c.trim() === "0")
+          && scoreCells.slice(0, i).some(c => normalizeScore(c).value !== null);
+        const parsed = trailingUnplayed ? { value: 0, confidence: 0.95 } : normalizeScore(cell);
         scores.push(parsed.value);
         confidence.push(parsed.confidence);
       }
 
       // Pad to 18 holes
-      while (scores.length < 18) {
-        scores.push(0);
+      while (scores.length < holeCount) {
+        scores.push(null);
         confidence.push(0);
       }
 
       players.push({
-        name: firstCell.trim(),
+        name: firstCell,
+        source,
+        ...(!hasHeader && row.length > 19 && cellsFor(row)[9] === row[10] ? {
+          alignmentError: "Unnumbered summary columns have ambiguous alignment. Retain these readings and enter scores manually."
+        } : {}),
+        requiredHoles: hasHeader ? columns!.map(c => c.hole) : Array.from({ length: holeCount }, (_, i) => i + 1),
         scores,
         confidence,
         nameConfidence: nameConfidence(firstCell),
@@ -165,9 +229,13 @@ export function parseScoreGrid(
     }
   }
 
-  // Default par if not found
+  // Use provided par values if given, otherwise use default
   if (parRow.length === 0) {
-    parRow = [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4];
+    if (parValues && parValues.length > 0) {
+      parRow = parValues;
+    } else {
+      parRow = [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4];
+    }
   }
 
   return { players, parRow, holeCount };

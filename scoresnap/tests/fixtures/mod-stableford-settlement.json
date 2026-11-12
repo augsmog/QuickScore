@@ -1,0 +1,351 @@
+[
+  {
+    "id": "mod_stableford",
+    "players": [
+      {
+        "id": "alex",
+        "name": "Alex",
+        "handicap": 0,
+        "team": "Blue",
+        "scores": [
+          1,
+          1,
+          5,
+          4,
+          4,
+          3,
+          5,
+          4,
+          4,
+          4,
+          5,
+          3,
+          4,
+          4,
+          5,
+          3,
+          4,
+          4
+        ]
+      },
+      {
+        "id": "casey",
+        "name": "Casey",
+        "handicap": 0,
+        "team": "Blue",
+        "scores": [
+          2,
+          2,
+          3,
+          4,
+          4,
+          3,
+          5,
+          4,
+          4,
+          4,
+          5,
+          3,
+          4,
+          4,
+          5,
+          3,
+          4,
+          4
+        ]
+      },
+      {
+        "id": "jordan",
+        "name": "Jordan",
+        "handicap": 0,
+        "team": "Gold",
+        "scores": [
+          5,
+          2,
+          5,
+          4,
+          4,
+          3,
+          5,
+          4,
+          4,
+          4,
+          5,
+          3,
+          4,
+          4,
+          5,
+          3,
+          4,
+          4
+        ]
+      },
+      {
+        "id": "sam",
+        "name": "Sam",
+        "handicap": 0,
+        "team": "Gold",
+        "scores": [
+          4,
+          3,
+          6,
+          4,
+          4,
+          3,
+          5,
+          4,
+          4,
+          4,
+          5,
+          3,
+          4,
+          4,
+          5,
+          3,
+          4,
+          4
+        ]
+      }
+    ],
+    "course": {
+      "name": "Ledger Park \u2014 Demo",
+      "holes": [
+        {
+          "num": 1,
+          "par": 4,
+          "hcp": 1,
+          "yards": 300
+        },
+        {
+          "num": 2,
+          "par": 3,
+          "hcp": 2,
+          "yards": 300
+        },
+        {
+          "num": 3,
+          "par": 5,
+          "hcp": 3,
+          "yards": 300
+        },
+        {
+          "num": 4,
+          "par": 4,
+          "hcp": 4,
+          "yards": 300
+        },
+        {
+          "num": 5,
+          "par": 4,
+          "hcp": 5,
+          "yards": 300
+        },
+        {
+          "num": 6,
+          "par": 3,
+          "hcp": 6,
+          "yards": 300
+        },
+        {
+          "num": 7,
+          "par": 5,
+          "hcp": 7,
+          "yards": 300
+        },
+        {
+          "num": 8,
+          "par": 4,
+          "hcp": 8,
+          "yards": 300
+        },
+        {
+          "num": 9,
+          "par": 4,
+          "hcp": 9,
+          "yards": 300
+        },
+        {
+          "num": 10,
+          "par": 4,
+          "hcp": 10,
+          "yards": 300
+        },
+        {
+          "num": 11,
+          "par": 5,
+          "hcp": 11,
+          "yards": 300
+        },
+        {
+          "num": 12,
+          "par": 3,
+          "hcp": 12,
+          "yards": 300
+        },
+        {
+          "num": 13,
+          "par": 4,
+          "hcp": 13,
+          "yards": 300
+        },
+        {
+          "num": 14,
+          "par": 4,
+          "hcp": 14,
+          "yards": 300
+        },
+        {
+          "num": 15,
+          "par": 5,
+          "hcp": 15,
+          "yards": 300
+        },
+        {
+          "num": 16,
+          "par": 3,
+          "hcp": 16,
+          "yards": 300
+        },
+        {
+          "num": 17,
+          "par": 4,
+          "hcp": 17,
+          "yards": 300
+        },
+        {
+          "num": 18,
+          "par": 4,
+          "hcp": 18,
+          "yards": 300
+        }
+      ]
+    },
+    "betUnit": 1,
+    "gameConfig": {
+      "skinsMode": "gross",
+      "skinsScope": "field"
+    },
+    "auxiliaryData": {},
+    "shownHoles": [
+      1,
+      2,
+      3
+    ],
+    "expected": {
+      "result": [
+        {
+          "name": "Casey",
+          "playerId": "casey",
+          "points": 51,
+          "holePoints": [
+            8,
+            5,
+            8,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "name": "Alex",
+          "playerId": "alex",
+          "points": 48,
+          "holePoints": [
+            8,
+            8,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "name": "Jordan",
+          "playerId": "jordan",
+          "points": 36,
+          "holePoints": [
+            -1,
+            5,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "name": "Sam",
+          "playerId": "sam",
+          "points": 33,
+          "holePoints": [
+            2,
+            2,
+            -1,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        }
+      ],
+      "netByPlayer": {
+        "Alex": -1,
+        "Casey": 3,
+        "Jordan": -1,
+        "Sam": -1
+      }
+    },
+    "statedResult": {
+      "Casey": 51,
+      "Alex": 48,
+      "Jordan": 36,
+      "Sam": 33
+    }
+  }
+]

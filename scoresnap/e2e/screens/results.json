@@ -1,0 +1,476 @@
+{
+  "base": "http://127.0.0.1:8089",
+  "results": [
+    {
+      "ok": true,
+      "name": "Home screen renders from real web build",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Home has no implicit demo round",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Skins mode defaults to Net",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins toggle can be selected",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Skins scope defaults to Whole field",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Each group scope can be selected",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "New contest starts with no scores (no sample data)",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Empty scorecard text shows error and stays on scan screen",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Parser found exactly 4 players",
+      "detail": "[\"Augie\",\"Sam\",\"Lee\",\"Pat\"]"
+    },
+    {
+      "ok": true,
+      "name": "GS-2: all-4s row is parsed as player Sam (18 x 4), not as par",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Augie's real scores parsed (total 81)",
+      "detail": "5,6,4,3,5,4,4,6,5,4,5,3,6,4,5,3,5,4"
+    },
+    {
+      "ok": true,
+      "name": "All four players have 18 scored holes",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Review screen shows parsed players",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "GS-1: review shows no old sample players",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Confirm returns to the contest",
+      "detail": "http://127.0.0.1:8089/contest/1792642892057-vy45a4k"
+    },
+    {
+      "ok": true,
+      "name": "Leaderboard shows all four real totals (81, 72, 90, 108)",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Skins leaderboard contains calculated results",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Nassau leaderboard contains front, back and overall results",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement row fully reachable: Augie",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement row fully reachable: Sam",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement row fully reachable: Lee",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement row fully reachable: Pat",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement screen shows money results",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net mode persisted with contest",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Player handicap persists through scorecard import",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Whole field scope persisted",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Creation UI persists two groups",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Games shows Net skins · Whole field",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: Games skin count agrees for Augie",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: Games skin count agrees for Sam",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: Games skin count agrees for Lee",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: Games skin count agrees for Pat",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement shows Net skins · Whole field",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: Settlement amount agrees for Augie",
+      "detail": "+$11.25"
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: Settlement amount agrees for Sam",
+      "detail": "+$26.25"
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: Settlement amount agrees for Lee",
+      "detail": "$18.75"
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: Settlement amount agrees for Pat",
+      "detail": "$18.75"
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: player nets sum to zero",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: ledger reconciles for Augie",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: ledger reconciles for Sam",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: ledger reconciles for Lee",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: ledger reconciles for Pat",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: session total equals displayed winners",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: chip and amount do not overlap at 390x844",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Whole field: chip and amount do not overlap at 1280x800",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Games shows Gross skins · Whole field",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: Games skin count agrees for Augie",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: Games skin count agrees for Sam",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: Games skin count agrees for Lee",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: Games skin count agrees for Pat",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement shows Gross skins · Whole field",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: Settlement amount agrees for Augie",
+      "detail": "$20.00"
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: Settlement amount agrees for Sam",
+      "detail": "+$60.00"
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: Settlement amount agrees for Lee",
+      "detail": "$20.00"
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: Settlement amount agrees for Pat",
+      "detail": "$20.00"
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: player nets sum to zero",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: ledger reconciles for Augie",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: ledger reconciles for Sam",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: ledger reconciles for Lee",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: ledger reconciles for Pat",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: session total equals displayed winners",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: chip and amount do not overlap at 390x844",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Gross skins · Whole field: chip and amount do not overlap at 1280x800",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Games shows Net skins · Each group",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: Games skin count agrees for Augie",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: Games skin count agrees for Sam",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: Games skin count agrees for Lee",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: Games skin count agrees for Pat",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Settlement shows Net skins · Each group",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: Settlement amount agrees for Augie",
+      "detail": "$5.00"
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: Settlement amount agrees for Sam",
+      "detail": "+$15.00"
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: Settlement amount agrees for Lee",
+      "detail": "+$40.00"
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: Settlement amount agrees for Pat",
+      "detail": "$50.00"
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: player nets sum to zero",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: ledger reconciles for Augie",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: ledger reconciles for Sam",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: ledger reconciles for Lee",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: ledger reconciles for Pat",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: session total equals displayed winners",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: chip and amount do not overlap at 390x844",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Net skins · Each group: chip and amount do not overlap at 1280x800",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Scopes produce different skins with two UI-created groups",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Handicaps produce different Net and Gross skins",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "GS-1: no scanData shows error, no sample players",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "GS-1: malformed scanData shows error",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "GS-1: empty player list shows error",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Organizer sees a six-character join code",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "New browser context explicitly reports offline lookup limitation",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Guest score updates leaderboard total",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Guest uses a separate persisted identity",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Guest leaves other player scores intact",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Claim placeholder explains local round retention",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "Guest score and slot binding survive reload",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "name": "No uncaught page errors",
+      "detail": ""
+    }
+  ],
+  "pageErrors": []
+}

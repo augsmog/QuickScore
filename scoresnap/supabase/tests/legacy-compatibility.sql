@@ -1,0 +1,28 @@
+BEGIN;
+CREATE FUNCTION pg_temp.assert(ok boolean,label text) RETURNS void LANGUAGE plpgsql AS $$ BEGIN IF ok IS DISTINCT FROM true THEN RAISE EXCEPTION 'ASSERT %',label; END IF; END $$;
+GRANT EXECUTE ON FUNCTION pg_temp.assert(boolean,text) TO anon,authenticated;
+INSERT INTO auth.users(id) VALUES('10000000-0000-0000-0000-000000000001');
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims='{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated","is_anonymous":false}';
+SELECT public.publish_shared_round('m2-legacy','{"completed":false,"players":[{"displayName":"Owner","scores":[4],"total":4,"toPar":0}],"games":[]}');
+SELECT set_config('m2.watch_token',public.create_share_link('m2-legacy'),true);
+SELECT public.publish_shared_round('m2-legacy','{"completed":false,"players":[{"displayName":"Owner","scores":[5],"total":5,"toPar":1}],"games":[]}');
+SELECT pg_temp.assert(public.get_shared_round(current_setting('m2.watch_token'))->'players'->0->>'total'='5','owner publish/read');
+SET LOCAL ROLE anon;
+SET LOCAL request.jwt.claims='{"role":"anon"}';
+SELECT pg_temp.assert(public.get_shared_round(current_setting('m2.watch_token'))->'players'->0->>'displayName'='Owner','watch read');
+SELECT public.post_message(current_setting('m2.watch_token'),repeat('a',64),'Watcher','hello');
+SELECT pg_temp.assert((SELECT count(*)=1 FROM public.list_messages(current_setting('m2.watch_token'))),'watch chat');
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims='{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated","is_anonymous":false}';
+SELECT pg_temp.assert((SELECT count(*)=1 FROM public.list_host_messages('m2-legacy')),'host moderation');
+RESET ROLE;
+UPDATE public.contests SET protocol=1,sync_enabled=true WHERE id=(SELECT contest_id FROM public.published_rounds WHERE local_id='m2-legacy');
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN BEGIN
+ PERFORM public.publish_shared_round('m2-legacy','{"completed":false,"players":[],"games":[]}');
+ RAISE EXCEPTION 'legacy protocol 1 accepted';
+ EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+END $$;
+SELECT pg_temp.assert(public.get_shared_round(current_setting('m2.watch_token'))->'players'->0->>'total'='5','protocol-1 watch retained');
+ROLLBACK;

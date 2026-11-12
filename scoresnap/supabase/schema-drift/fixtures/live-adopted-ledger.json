@@ -1,0 +1,34 @@
+[
+  {
+    "name": "create_revenue_events_and_marketing_tables",
+    "version": "20260320041248"
+  },
+  {
+    "name": "create_profiles_automation_log_and_rpc",
+    "version": "20260320042219"
+  },
+  {
+    "name": "create_feedback_and_funnel_tables",
+    "version": "20260320043052"
+  },
+  {
+    "name": "create_contest_sharing_tables",
+    "version": "20260326032639"
+  },
+  {
+    "name": "live_share_slice1",
+    "version": "20261022080416"
+  },
+  {
+    "name": "fix_contest_rls_recursion",
+    "version": "20261022090456"
+  },
+  {
+    "name": "live_chat_slice2",
+    "version": "20261022090542"
+  },
+  {
+    "version": "20261027000000",
+    "name": "live_baseline"
+  }
+]

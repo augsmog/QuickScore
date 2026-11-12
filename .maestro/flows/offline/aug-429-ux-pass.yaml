@@ -1,0 +1,94 @@
+# AUG-429: two setup steps, inline variations, unit and pot only, and scorecard cards above bottom controls.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+- tapOn:
+    id: "home-new-contest"
+- extendedWaitUntil:
+    visible: "Your name"
+    timeout: 15000
+- tapOn:
+    text: "Your name|Golfer.*"
+    index: 0
+- eraseText: 30
+- inputText: "Ava"
+- tapOn: "PLAYERS"
+- tapOn: "Player 2 name"
+- inputText: "Ben"
+- tapOn: "PLAYERS"
+- scrollUntilVisible:
+    element: "Search courses..."
+    direction: UP
+    visibilityPercentage: 100
+    centerElement: true
+- tapOn: "Search courses..."
+- extendedWaitUntil:
+    visible: "Search by course name..."
+    timeout: 10000
+- tapOn: "Search by course name..."
+- inputText: "E2E Tee Course"
+- extendedWaitUntil:
+    visible:
+      id: "course-search-result"
+    timeout: 10000
+- tapOn:
+    id: "course-search-result"
+- assertVisible: "Select Tee Box"
+- takeScreenshot: aug-429-11-tee-sheet
+- tapOn: "Tee 01"
+- assertVisible: "Confirm tees"
+- takeScreenshot: aug-429-12-tee-confirm-before-scroll
+- scrollUntilVisible:
+    element: "Tee 16"
+    direction: DOWN
+- assertVisible: "Tee 16"
+- takeScreenshot: aug-429-13-last-tee-row
+- tapOn: "Tee 16"
+- assertVisible:
+    id: "confirm-tees"
+- takeScreenshot: aug-429-14-pinned-confirm-last-row
+- tapOn:
+    id: "confirm-tees"
+- assertVisible: "E2E Tee Course (Tee 16)"
+- takeScreenshot: aug-429-15-confirmed-course
+- tapOn: "Continue"
+- assertVisible: "Step 1/2"
+- takeScreenshot: aug-429-01-game-modes
+# iOS flattens the a11y tree: the chip is a sibling of id "contest-step-gamemodes", not a
+# descendant, so `childOf` matched nothing (AUG-612). Match Play is a POPULAR FORMATS chip
+# (scoresnap/app/contest/new.tsx), so scope by that section label and anchor the text.
+- tapOn:
+    text: "^Match Play$"
+    below:
+      text: "POPULAR FORMATS"
+- scrollUntilVisible:
+    element: "Bisque Handicap"
+    direction: DOWN
+- assertVisible: "Bisque Handicap"
+- takeScreenshot: aug-429-02-inline-variants
+- tapOn: "Continue"
+- assertVisible: "Step 2/2"
+- takeScreenshot: aug-429-03-two-steps
+- assertVisible: "UNIT AMOUNT"
+- takeScreenshot: aug-429-04-unit
+- assertVisible: "ESTIMATED TOTAL POT"
+- takeScreenshot: aug-429-05-pot
+- assertNotVisible: "GAME VARIATIONS|ENTRY FEE|Upgrade"
+- takeScreenshot: aug-429-06-settings-only
+- tapOn: "Start"
+- extendedWaitUntil:
+    visible: "Settlement"
+    timeout: 20000
+- assertVisible:
+    id: "score-plus-Ava"
+- takeScreenshot: aug-429-07-first-player
+- assertVisible:
+    id: "score-plus-Ben"
+- takeScreenshot: aug-429-08-second-player
+- assertVisible: "ROUND PROGRESS"
+- takeScreenshot: aug-429-09-progress
+- assertVisible: "Finalize Round"
+- takeScreenshot: aug-429-10-bottom-bar

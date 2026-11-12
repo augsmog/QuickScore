@@ -1,11 +1,16 @@
+import { executionGameConfig } from "../../../src/engine/types";
+import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actual-inputs";
+import { scopedAuxiliary, calculateContestSettlement, teamCardPlayers, contestStableford, contestMatchPlay, contestPrimaryRounds } from "../../../src/engine/contest-results";
+import { Link } from "expo-router";
 import { View, Text, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { COLORS, FONTS, RADII, TYPOGRAPHY, scoreColor } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 import { ALL_GAMES, GameType } from "../../../src/engine/types";
-import { calcSkins } from "../../../src/engine/calculators/skins";
-import { calcNassau } from "../../../src/engine/calculators/nassau";
+import { calcScopedSkins, skinsLabel } from "../../../src/engine/calculators/skins";
+import { calcNassau, calcNassauRules } from "../../../src/engine/calculators/nassau";
 import { calcStableford } from "../../../src/engine/calculators/stableford";
+import { calcModStableford } from "../../../src/engine/calculators/mod-stableford";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { calcWolf } from "../../../src/engine/calculators/wolf";
 import { calcSnake } from "../../../src/engine/calculators/snake";
@@ -99,14 +104,16 @@ function RankList({
 
 export default function GamesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const contest = useContestStore((s) =>
+  const savedContest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
+
+  const contest=savedContest?{...savedContest,gameConfig:executionGameConfig(savedContest.games,savedContest.gameConfig)}:undefined;
 
   if (!contest) return null;
 
   const allPlayers = contest.groups.flatMap((g) => g.players);
-  const hasScores = allPlayers.some((p) => p.scores.some((s) => s > 0));
+  const hasScores = contest.rounds?.some(r=>r.groups.some(g=>g.players.some(p=>p.scores.some(n=>n>0)))) || (contest.games.some(g=>g==="alternate_shot"||g==="chapman")?teamCardPlayers(contest):allPlayers).some((p) => p.scores.some((s) => s > 0));
 
   if (!hasScores) {
     return (
@@ -138,13 +145,16 @@ export default function GamesScreen() {
       style={{ flex: 1, paddingHorizontal: 20, paddingTop: 12 }}
       showsVerticalScrollIndicator={false}
     >
-      {contest.games.map((gameId) => {
+      <Link href={`/contest/${id}/edit`} style={{color: COLORS.primary, padding: 16}}>Add games</Link>
+      {contestPrimaryRounds(contest).flatMap(({key:roundKey,roundName,contest}) => {
+        const allPlayers = contest.groups.flatMap((g) => g.players);
+        return contest.games.map((gameId) => {
         const game = ALL_GAMES.find((g) => g.id === gameId);
         if (!game) return null;
 
         return (
           <View
-            key={gameId}
+            key={`${roundKey}/${gameId}`}
             style={{
               backgroundColor: COLORS.card,
               borderColor: COLORS.border,
@@ -154,6 +164,7 @@ export default function GamesScreen() {
               marginBottom: 12,
             }}
           >
+            {roundName && <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.textDim, marginBottom: 8 }}>{roundName}</Text>}
             {/* Game Header */}
             <View
               style={{
@@ -171,7 +182,7 @@ export default function GamesScreen() {
                     fontSize: 16,
                   }}
                 >
-                  {game.name}
+                  {gameId === "skins" || gameId === "skins_carry" ? skinsLabel(contest.gameConfig) + (gameId === "skins_carry" ? " (Carryover)" : "") : game.name}
                 </Text>
                 <Text
                   style={{
@@ -187,12 +198,8 @@ export default function GamesScreen() {
 
             {/* ── Skins ── */}
             {(gameId === "skins" || gameId === "skins_carry") &&
-              contest.groups.map((group, gi) => {
-                const result = calcSkins(
-                  group.players,
-                  contest.course,
-                  gameId === "skins_carry"
-                );
+              calcScopedSkins(contest.groups, contest.course, gameId === "skins_carry", contest.gameConfig).map((group, gi) => {
+                const result = group.result;
                 return (
                   <View key={gi} style={gi > 0 ? { marginTop: 12 } : undefined}>
                     {contest.groups.length > 1 && (
@@ -205,6 +212,7 @@ export default function GamesScreen() {
                       .map(([name, count]) => (
                         <View
                           key={name}
+                          testID={`skins-result-${gameId}-${name}`}
                           style={{
                             flexDirection: "row",
                             justifyContent: "space-between",
@@ -263,7 +271,7 @@ export default function GamesScreen() {
             {(gameId === "nassau" || gameId === "nassau_press") &&
               contest.groups.map((group, gi) => {
                 if (group.players.length < 2) return null;
-                const result = calcNassau(group.players[0], group.players[1]);
+                const result = contest.gameConfig?.rulesVersion === 1 ? calcNassauRules(group.players, contest.course, gameId === "nassau_press", contest.gameConfig) : calcNassau(group.players[0], group.players[1]);
                 return (
                   <View key={gi} style={gi > 0 ? { marginTop: 12 } : undefined}>
                     {contest.groups.length > 1 && (
@@ -271,6 +279,7 @@ export default function GamesScreen() {
                         {group.name}: {result.p1} vs {result.p2}
                       </Text>
                     )}
+                    {"bets" in result && (result as ReturnType<typeof calcNassauRules>).bets.map(b => <Text key={b.id} style={{color:COLORS.textDim}}>{b.id}: holes {b.start}–{b.end}, {b.stake} units · {b.complete ? b.status === 0 ? "Push" : b.status > 0 ? result.p1 : result.p2 : "Pending"}</Text>)}
                     <View style={{ flexDirection: "row", gap: 8 }}>
                       {(
                         [
@@ -295,7 +304,7 @@ export default function GamesScreen() {
                           <Text
                             style={{
                               fontSize: 18,
-                              fontFamily: FONTS.headline,
+                              fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                               color:
                                 val > 0
                                   ? COLORS.primary
@@ -321,7 +330,7 @@ export default function GamesScreen() {
             {/* ── Stableford / Mod Stableford ── */}
             {(gameId === "stableford" || gameId === "mod_stableford") && (
               <View>
-                {calcStableford(allPlayers, contest.course).map((r, i) => (
+                {(contest.gameConfig?.rulesVersion === 1 && gameId === "stableford" ? contestStableford(contest) : (gameId === "mod_stableford" ? calcModStableford : calcStableford)(allPlayers, contest.course)).map((r, i) => (
                   <View
                     key={r.playerId}
                     style={{
@@ -411,26 +420,17 @@ export default function GamesScreen() {
 
             {/* ── Match Play ── */}
             {gameId === "match_play" &&
-              contest.groups.map((group, gi) => {
-                if (group.players.length < 2) return null;
-                const p1 = group.players[0];
-                const p2 = group.players[1];
-                let status = 0;
-                for (let i = 0; i < 18; i++) {
-                  if (p1.scores[i] > 0 && p2.scores[i] > 0) {
-                    if (p1.scores[i] < p2.scores[i]) status++;
-                    else if (p2.scores[i] < p1.scores[i]) status--;
-                  }
-                }
+              contestMatchPlay(contest).map(({key,roundName,p1,p2,status}) => {
                 return (
-                  <View key={gi} style={{ alignItems: "center", paddingVertical: 8 }}>
+                  <View key={key} style={{ alignItems: "center", paddingVertical: 8 }}>
+                    {roundName && <Text style={{ color: COLORS.textDim, fontSize: 12 }}>{roundName}</Text>}
                     <Text style={{ color: COLORS.textDim, fontSize: 12, fontFamily: FONTS.medium, marginBottom: 8 }}>
                       {p1.name} vs {p2.name}
                     </Text>
                     <Text
                       style={{
                         fontSize: 24,
-                        fontFamily: FONTS.headline,
+                        fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                         color:
                           status > 0 ? COLORS.primary : status < 0 ? COLORS.error : COLORS.textDim,
                       }}
@@ -478,8 +478,15 @@ export default function GamesScreen() {
               </View>
             )}
 
+            {contest.gameConfig?.rulesVersion===1 && ACTUAL_INPUT_GAMES.includes(gameId) && (contest.isTournament?contest.rounds?.flatMap(r=>r.groups.map(g=>({group:g,round:r}))):contest.groups.map(g=>({group:g,round:undefined})))?.map(({group,round})=>{
+              const result=actualInputLedger(gameId,group.players,round?.course??contest.course,scopedAuxiliary(contest,group.id,round?.id),contest.gameConfig);
+              return <View key={`${round?.id}/${group.id}`}><Text style={{color:COLORS.textDim}}>{round?.name} {group.name}{result.pending?` — pending after hole ${result.holes}`:" — confirmed"}</Text><RankList totals={result.totals} betUnit={contest.betUnit}/></View>;
+            })}
+            {contest.gameConfig?.rulesVersion===1 && (gameId==="alternate_shot" || gameId==="chapman") && (()=>{const result=calculateContestSettlement(contest,[gameId],1);return <View><Text style={{color:COLORS.textDim}}>{result.pending?"Team cards pending — enter one score per team per hole":"Confirmed team-card settlement"}</Text><RankList totals={result.netByPlayer} betUnit={contest.betUnit}/></View>;})()}
+            {contest.gameConfig?.junkNassau && (gameId==="nassau" || gameId==="nassau_press") && <View><Text style={{color:COLORS.textDim}}>Nassau including confirmed junk (pending until all inputs)</Text><RankList totals={calculateContestSettlement(contest,[gameId],1).netByPlayer} betUnit={contest.betUnit}/></View>}
+            {contest.gameConfig?.rulesVersion===1 && !ACTUAL_INPUT_GAMES.includes(gameId) && gameId!=="alternate_shot" && gameId!=="chapman" && (()=>{const settled=calculateContestSettlement(contest,[gameId],1);return <View><Text style={{color:COLORS.textDim}}>{settled.pending?"Final settlement pending — confirm all round scores and inputs":roundName?"Round settlement units":"All-round settlement units"}</Text><RankList totals={settled.netByPlayer} betUnit={contest.betUnit}/></View>;})()}
             {/* ── Wolf ── */}
-            {gameId === "wolf" &&
+            {gameId === "wolf" && contest.gameConfig?.rulesVersion !== 1 &&
               contest.groups.map((group, gi) => {
                 if (group.players.length !== 4) return null;
                 const result = calcWolf(group.players, contest.course);
@@ -496,7 +503,7 @@ export default function GamesScreen() {
               })}
 
             {/* ── Snake ── */}
-            {gameId === "snake" &&
+            {gameId === "snake" && contest.gameConfig?.rulesVersion !== 1 &&
               contest.groups.map((group, gi) => {
                 const result = calcSnake(group.players, contest.course);
                 return (
@@ -552,7 +559,9 @@ export default function GamesScreen() {
             {gameId === "vegas" &&
               contest.groups.map((group, gi) => {
                 if (group.players.length !== 4) return null;
-                const result = calcVegas(group.players, contest.course);
+                const ids = [...new Set(group.players.map(p => p.team))];
+                if (ids.length !== 2 || ids.some(t => !t) || ids.some(t => group.players.filter(p => p.team === t).length !== 2)) return <Text key={gi}>Vegas requires two assigned pairs.</Text>;
+                const result = calcVegas(group.players.filter(p => p.team === ids[0]), group.players.filter(p => p.team === ids[1]), contest.course, contest.gameConfig);
                 return (
                   <View key={gi}>
                     {contest.groups.length > 1 && (
@@ -563,13 +572,13 @@ export default function GamesScreen() {
                     <View style={{ flexDirection: "row", gap: 8 }}>
                       <View style={{ flex: 1, borderRadius: RADII.md, padding: 12, alignItems: "center", backgroundColor: COLORS.bg }}>
                         <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.textDim, marginBottom: 4 }}>Team 1</Text>
-                        <Text style={{ fontSize: 22, fontFamily: FONTS.headline, color: result.team1Won > result.team2Won ? COLORS.primary : COLORS.textDim }}>
+                        <Text style={{ fontSize: 22, fontFamily: FONTS.score, fontVariant: ['tabular-nums'], color: result.team1Won > result.team2Won ? COLORS.primary : COLORS.textDim }}>
                           {result.team1Won}
                         </Text>
                       </View>
                       <View style={{ flex: 1, borderRadius: RADII.md, padding: 12, alignItems: "center", backgroundColor: COLORS.bg }}>
                         <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.textDim, marginBottom: 4 }}>Team 2</Text>
-                        <Text style={{ fontSize: 22, fontFamily: FONTS.headline, color: result.team2Won > result.team1Won ? COLORS.primary : COLORS.textDim }}>
+                        <Text style={{ fontSize: 22, fontFamily: FONTS.score, fontVariant: ['tabular-nums'], color: result.team2Won > result.team1Won ? COLORS.primary : COLORS.textDim }}>
                           {result.team2Won}
                         </Text>
                       </View>
@@ -671,7 +680,7 @@ export default function GamesScreen() {
             {/* ── Rabbit ── */}
             {gameId === "rabbit" &&
               contest.groups.map((group, gi) => {
-                const result = calcRabbit(group.players, contest.course);
+                const result = calcRabbit(group.players, contest.course, contest.gameConfig);
                 return (
                   <View key={gi}>
                     {contest.groups.length > 1 && (
@@ -730,7 +739,7 @@ export default function GamesScreen() {
             {gameId === "sixes" &&
               contest.groups.map((group, gi) => {
                 if (group.players.length !== 4) return null;
-                const result = calcSixes(group.players, contest.course);
+                const result = calcSixes(group.players, contest.course, contest.gameConfig);
                 return (
                   <View key={gi}>
                     {contest.groups.length > 1 && (
@@ -789,11 +798,16 @@ export default function GamesScreen() {
                   fontStyle: "italic",
                 }}
               >
-                {game.name} results calculated at settlement
+                {gameId === "skins" || gameId === "skins_carry" ? skinsLabel(contest.gameConfig) + (gameId === "skins_carry" ? " (Carryover)" : "") : game.name} results calculated at settlement
               </Text>
             )}
           </View>
         );
+        });
+      })}
+      {contest.gameConfig?.rulesVersion === 1 && contest.isTournament && contest.games.map(gameId => {
+        const settled = calculateContestSettlement(contest,[gameId],1);
+        return <View key={`combined/${gameId}`} style={{padding:16}}><Text style={{color:COLORS.textDim}}>{ALL_GAMES.find(g=>g.id===gameId)?.name}: {settled.pending ? "All-round settlement pending" : "All-round settlement units"}</Text><RankList totals={settled.netByPlayer} betUnit={contest.betUnit}/></View>;
       })}
       <View style={{ height: 16 }} />
     </ScrollView>

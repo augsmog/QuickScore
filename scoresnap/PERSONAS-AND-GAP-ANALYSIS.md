@@ -154,9 +154,9 @@ Scoring avg 82.4, GIR 44%, wagering history, course history — all hardcoded. A
 **Fix:** Replace mock stats with real calculations from contest-store data. Even if the stats are basic (number of rounds, average score from completed contests), real data is better than fake data.
 
 **3. OCR scanning is mocked**
-The ML Kit implementation returns fake data. Claude Vision is wired but depends on the API key being set. If scanning is your headline feature and it doesn't work, that's a problem.
+The ML Kit implementation returns fake data. Claude Vision is wired through a Supabase Edge Function that requires the API key to be set server-side. If scanning is your headline feature and it doesn't work, that's a problem.
 
-**Fix:** Verify Claude OCR works in the TestFlight build with a real EXPO_PUBLIC_ANTHROPIC_API_KEY. If ML Kit isn't implemented, that's okay — Claude alone is fine for v1. But test it.
+**Fix:** Verify Claude OCR works in the TestFlight build with a real `ANTHROPIC_API_KEY` set on Supabase (`supabase secrets set ANTHROPIC_API_KEY=...` and `supabase functions deploy ocr-scorecard`). If ML Kit isn't implemented, that's okay — Claude alone is fine for v1. But test it.
 
 ### 🟡 Should Fix (Won't block approval but hurts retention)
 

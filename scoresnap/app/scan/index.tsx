@@ -1,7 +1,11 @@
+import { SafeScreen } from "../../src/ui/SafeScreen";
+import { requestOCRConsent } from "../../src/services/ocr-consent";
+import { applyCourseHoles } from "../../src/services/ocr-review";
+import { useContestStore } from "../../src/stores/contest-store";
 import { useState, useRef, useCallback } from "react";
-import { View, Text, Pressable, Image, Dimensions } from "react-native";
+import { View, Text, Pressable, Image, Dimensions, Platform, TextInput, ScrollView } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions, FlashMode } from "expo-camera";
 import {
   X,
@@ -17,7 +21,15 @@ import {
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import { useScanStore } from "../../src/stores/scan-store";
+import { proEnabled } from "../../src/services/entitlements";
 import { scanScorecard } from "../../src/services/ocr-service";
+import { webAnalytics } from "../../src/services/analytics";
+
+import { OFFLINE_MODE } from "../../src/config/offline";
+import { NATIVE_OCR_DISABLED, NATIVE_OCR_DISABLED_MESSAGE } from "../../src/config/native-ocr";
+import { parseScoreGrid, textToGrid } from "../../src/services/score-parser";
+import { posthog } from "../../src/config/posthog";
+import { posthogAppLogger } from "../../src/services/posthog-log";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const FRAME_WIDTH = SCREEN_WIDTH - 80;
@@ -26,6 +38,7 @@ const CORNER_SIZE = 32;
 const CORNER_THICKNESS = 3;
 
 type ScanPhase =
+  | "text-entry"
   | "ready"
   | "capturing"
   | "preview"
@@ -39,8 +52,13 @@ type FlashOption = "off" | "on" | "auto";
 export default function ScanScreen() {
   const router = useRouter();
   const { contestId } = useLocalSearchParams<{ contestId?: string }>();
+  const selectedContest = useContestStore(s => s.contests.find(c => c.id === contestId));
+  const selectedRound = selectedContest?.rounds?.find(r => r.number === selectedContest.currentRound);
+  const requiredHoles = (selectedRound?.course ?? selectedContest?.course)?.holes.map(h => h.num);
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<ScanPhase>("ready");
+  const [scorecardText, setScorecardText] = useState("");
+  const [textError, setTextError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -48,14 +66,17 @@ export default function ScanScreen() {
   const [facing, setFacing] = useState<"back" | "front">("back");
   const cameraRef = useRef<CameraView>(null);
   const insets = useSafeAreaInsets();
-  const { canScan, useScan, getRemainingFreeScans, isPro } =
+  const { canScan, getRemainingFreeScans, isPro } =
     useScanStore();
 
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current) return;
 
     if (!canScan()) {
-      setPhase("paywall");
+      // AUG-826: never route to the Pro paywall while pro_enabled is off. Scans are
+      // unlimited then (scanAllowance resolves to td), so canScan() is always true and
+      // this branch is unreachable; the guard keeps it provably unreachable for Pro.
+      if (proEnabled()) setPhase("paywall");
       return;
     }
 
@@ -83,6 +104,7 @@ export default function ScanScreen() {
 
   const handleConfirmPhoto = useCallback(async () => {
     if (!photoUri) return;
+    if (!(await requestOCRConsent())) { setPhase("text-entry"); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPhase("processing");
     setProgress(0);
@@ -90,19 +112,21 @@ export default function ScanScreen() {
     try {
       const result = await scanScorecard(photoUri, (p, msg) => {
         setProgress(p);
-      });
+      }, requiredHoles);
 
       if (result.players.length === 0) {
         throw new Error("No players detected in this scorecard.");
       }
 
-      const consumed = useScan();
-      if (!consumed) {
-        setPhase("paywall");
-        return;
-      }
-
       setProgress(100);
+      posthog?.capture("scorecard_scan_processed", {
+        player_count: result.players.length,
+        has_contest_context: Boolean(contestId),
+      });
+      posthogAppLogger.scorecardScanCompleted({
+        playerCount: result.players.length,
+        hasContestContext: Boolean(contestId),
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => {
         router.push({
@@ -121,7 +145,7 @@ export default function ScanScreen() {
       );
       setPhase("error");
     }
-  }, [contestId, router, photoUri, useScan]);
+  }, [contestId, router, photoUri, requiredHoles]);
 
   const handleRetake = useCallback(() => {
     setPhotoUri(null);
@@ -139,11 +163,66 @@ export default function ScanScreen() {
     setFacing((f) => (f === "back" ? "front" : "back"));
   }, []);
 
+  // Text entry does not use OCR or consume scan credits.
+  if (phase === "text-entry" || OFFLINE_MODE || NATIVE_OCR_DISABLED || Platform.OS === "web") {
+    return (
+      <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
+        <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }} keyboardShouldPersistTaps="handled">
+          <Pressable onPress={() => router.back()} accessibilityRole="button" style={{ minHeight: 44, alignSelf: "flex-start", justifyContent: "center" }}>
+            <Text style={{ color: COLORS.primary }}>Go Back</Text>
+          </Pressable>
+          <Text style={{ ...TYPOGRAPHY.title, color: COLORS.text }}>Enter scorecard as text</Text>
+          {NATIVE_OCR_DISABLED && (
+            <Text testID="scan-unavailable-simulator" accessibilityRole="alert" style={{ color: COLORS.textDim }}>
+              {NATIVE_OCR_DISABLED_MESSAGE}
+            </Text>
+          )}
+          <Text style={{ color: COLORS.textDim }}>
+            Paste one row per line, with a player name followed by scores. Separate cells with commas, tabs, or two or more spaces. Hole and Par rows are optional.
+          </Text>
+          <TextInput
+            testID="scorecard-text-input"
+            accessibilityLabel="Scorecard text"
+            multiline
+            value={scorecardText}
+            onChangeText={(text) => { setScorecardText(text); setTextError(null); }}
+            style={{ minHeight: 220, padding: 16, borderWidth: 1, borderColor: COLORS.textDim, borderRadius: RADII.lg, color: COLORS.text, textAlignVertical: "top" }}
+          />
+          {textError && <Text accessibilityRole="alert" style={{ color: COLORS.error }}>{textError}</Text>}
+          <Pressable
+            testID="parse-scorecard-button"
+            accessibilityRole="button"
+            onPress={() => {
+              const startedAt = Date.now();
+              void webAnalytics.capture("score_snap_started");
+              const result = parseScoreGrid(textToGrid(scorecardText), undefined, "paste");
+              if (result.players.length === 0) {
+                setTextError("No players found. Enter a player name followed by scores on each row.");
+                void webAnalytics.capture("score_snap_completed", { duration_ms: Date.now() - startedAt, success: false });
+                void webAnalytics.capture("error_shown", { code: "scorecard_parse_failed" });
+                return;
+              }
+              setTextError(null);
+              void webAnalytics.capture("score_snap_completed", { duration_ms: Date.now() - startedAt, success: true });
+              router.push({
+                pathname: "/scan/review",
+                params: { contestId: contestId || "", photoUri: "", scanData: JSON.stringify(applyCourseHoles(result.players, requiredHoles)) },
+              });
+            }}
+            style={{ backgroundColor: COLORS.primary, borderRadius: RADII.lg, padding: 16, alignItems: "center" }}
+          >
+            <Text style={{ fontFamily: FONTS.bold, color: COLORS.onPrimary }}>Parse Scorecard</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeScreen>
+    );
+  }
+
   if (!permission) return <View style={{ flex: 1, backgroundColor: COLORS.bg }} />;
 
   if (!permission.granted) {
     return (
-      <SafeAreaView
+      <SafeScreen
         style={{
           flex: 1,
           backgroundColor: COLORS.bg,
@@ -196,7 +275,7 @@ export default function ScanScreen() {
           </Text>
         </Pressable>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
           style={{ marginTop: 16, padding: 8 }}
         >
           <Text
@@ -209,7 +288,7 @@ export default function ScanScreen() {
             Go Back
           </Text>
         </Pressable>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
@@ -444,8 +523,8 @@ export default function ScanScreen() {
               harsh glare.
             </Text>
 
-            {/* Free scan badge */}
-            {!isPro && (
+            {/* Free scan badge — AUG-826: hidden while pro_enabled is off (scans are unlimited then). */}
+            {proEnabled() && !isPro && (
               <View
                 style={{
                   backgroundColor:
@@ -469,15 +548,15 @@ export default function ScanScreen() {
                   }}
                 >
                   {getRemainingFreeScans() > 0
-                    ? "First scan free"
-                    : "Subscribe for unlimited scans"}
+                    ? `${getRemainingFreeScans()} of 3 free scans left this month`
+                    : "0 of 3 free scans left this month"}
                 </Text>
               </View>
             )}
           </View>
 
           {/* Bottom Controls */}
-          <SafeAreaView
+          <SafeScreen
             edges={["bottom"]}
             style={{
               position: "absolute",
@@ -550,7 +629,7 @@ export default function ScanScreen() {
                 <SwitchCamera size={20} color={COLORS.textDim} />
               </Pressable>
             </View>
-          </SafeAreaView>
+          </SafeScreen>
         </CameraView>
       )}
 
@@ -603,7 +682,7 @@ export default function ScanScreen() {
       {/* Photo Preview */}
       {phase === "preview" && photoUri && (
         <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-          <SafeAreaView edges={["top"]}>
+          <SafeScreen edges={["top"]}>
             <View
               style={{
                 paddingHorizontal: 20,
@@ -631,7 +710,7 @@ export default function ScanScreen() {
                 Make sure all scores are visible and in focus
               </Text>
             </View>
-          </SafeAreaView>
+          </SafeScreen>
 
           <View
             style={{
@@ -648,7 +727,7 @@ export default function ScanScreen() {
             />
           </View>
 
-          <SafeAreaView edges={["bottom"]}>
+          <SafeScreen edges={["bottom"]}>
             <View
               style={{
                 flexDirection: "row",
@@ -708,7 +787,7 @@ export default function ScanScreen() {
                 </Text>
               </Pressable>
             </View>
-          </SafeAreaView>
+          </SafeScreen>
         </View>
       )}
 
@@ -844,7 +923,7 @@ export default function ScanScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => setPhase("text-entry")}
             style={{ marginTop: 16, padding: 8 }}
           >
             <Text
@@ -893,7 +972,7 @@ export default function ScanScreen() {
               marginBottom: 8,
             }}
           >
-            Unlock Unlimited Scans
+            Try Pro free for 7 days
           </Text>
           <Text
             style={{
@@ -906,7 +985,7 @@ export default function ScanScreen() {
               paddingHorizontal: 12,
             }}
           >
-            You've used your free scorecard scan. Upgrade to SnapScore Pro for
+            You've used your 3 free cloud scans this month. Upgrade to SnapScore Pro for
             unlimited AI-powered scanning plus all game modes.
           </Text>
 
@@ -942,12 +1021,12 @@ export default function ScanScreen() {
                 marginTop: 2,
               }}
             >
-              $2.99/mo or $19.99/yr
+              $3.99/mo or $24.99/yr
             </Text>
           </Pressable>
 
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => setPhase("text-entry")}
             style={{ padding: 12 }}
           >
             <Text

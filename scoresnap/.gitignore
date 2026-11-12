@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+.jest-cache/
 
 # Expo
 .expo/
@@ -33,11 +34,6 @@ yarn-error.*
 # local env files
 .env*.local
 
-# Playwright
-/test-results/
-/playwright-report/
-/blob-report/
-
 # typescript
 *.tsbuildinfo
 
@@ -46,3 +42,18 @@ yarn-error.*
 /android
 
 .env.local
+
+# Web export
+dist-web*/
+
+# Local browser QA artifacts
+e2e/screens/
+
+# iOS production JS smoke export
+dist-ios/
+
+# Linked offline dependencies and scorecard export
+/node_modules
+/dist-web-scorecard/
+/dist-web-sharing/
+.env

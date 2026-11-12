@@ -1,0 +1,484 @@
+{
+  "slug": "torrey-pines-south-course",
+  "name": "Torrey Pines South Course",
+  "url": "https://www.golfcore.org/courses/torrey-pines-south-course/",
+  "city": "La Jolla",
+  "region": "California",
+  "country": "us",
+  "lat": 32.896703,
+  "lng": -117.246921,
+  "hole_count": 18,
+  "layouts": [
+    {
+      "name": "Torrey Pines South Course",
+      "par": 72,
+      "yards": 7750,
+      "holes": [
+        {
+          "position": 1,
+          "par": 4,
+          "stroke_index": 5,
+          "yards": 448
+        },
+        {
+          "position": 2,
+          "par": 4,
+          "stroke_index": 15,
+          "yards": 389
+        },
+        {
+          "position": 3,
+          "par": 3,
+          "stroke_index": 13,
+          "yards": 199
+        },
+        {
+          "position": 4,
+          "par": 4,
+          "stroke_index": 3,
+          "yards": 485
+        },
+        {
+          "position": 5,
+          "par": 4,
+          "stroke_index": 11,
+          "yards": 451
+        },
+        {
+          "position": 6,
+          "par": 5,
+          "stroke_index": 9,
+          "yards": 589
+        },
+        {
+          "position": 7,
+          "par": 4,
+          "stroke_index": 1,
+          "yards": 462
+        },
+        {
+          "position": 8,
+          "par": 3,
+          "stroke_index": 17,
+          "yards": 175
+        },
+        {
+          "position": 9,
+          "par": 5,
+          "stroke_index": 7,
+          "yards": 613
+        },
+        {
+          "position": 10,
+          "par": 4,
+          "stroke_index": 16,
+          "yards": 416
+        },
+        {
+          "position": 11,
+          "par": 3,
+          "stroke_index": 14,
+          "yards": 223
+        },
+        {
+          "position": 12,
+          "par": 4,
+          "stroke_index": 2,
+          "yards": 502
+        },
+        {
+          "position": 13,
+          "par": 5,
+          "stroke_index": 6,
+          "yards": 623
+        },
+        {
+          "position": 14,
+          "par": 4,
+          "stroke_index": 8,
+          "yards": 433
+        },
+        {
+          "position": 15,
+          "par": 4,
+          "stroke_index": 12,
+          "yards": 513
+        },
+        {
+          "position": 16,
+          "par": 3,
+          "stroke_index": 18,
+          "yards": 225
+        },
+        {
+          "position": 17,
+          "par": 4,
+          "stroke_index": 4,
+          "yards": 436
+        },
+        {
+          "position": 18,
+          "par": 5,
+          "stroke_index": 10,
+          "yards": 568
+        }
+      ],
+      "tees": [
+        {
+          "name": "Black",
+          "gender": "M",
+          "yards": 7802,
+          "par": 72,
+          "rating": 78.8,
+          "slope": 148,
+          "holes": [
+            {
+              "position": 1,
+              "par": 4,
+              "stroke_index": 5,
+              "yards": 451
+            },
+            {
+              "position": 2,
+              "par": 4,
+              "stroke_index": 15,
+              "yards": 389
+            },
+            {
+              "position": 3,
+              "par": 3,
+              "stroke_index": 13,
+              "yards": 201
+            },
+            {
+              "position": 4,
+              "par": 4,
+              "stroke_index": 3,
+              "yards": 490
+            },
+            {
+              "position": 5,
+              "par": 4,
+              "stroke_index": 11,
+              "yards": 454
+            },
+            {
+              "position": 6,
+              "par": 5,
+              "stroke_index": 9,
+              "yards": 564
+            },
+            {
+              "position": 7,
+              "par": 4,
+              "stroke_index": 1,
+              "yards": 462
+            },
+            {
+              "position": 8,
+              "par": 3,
+              "stroke_index": 17,
+              "yards": 177
+            },
+            {
+              "position": 9,
+              "par": 5,
+              "stroke_index": 7,
+              "yards": 615
+            },
+            {
+              "position": 10,
+              "par": 4,
+              "stroke_index": 16,
+              "yards": 454
+            },
+            {
+              "position": 11,
+              "par": 3,
+              "stroke_index": 14,
+              "yards": 225
+            },
+            {
+              "position": 12,
+              "par": 4,
+              "stroke_index": 2,
+              "yards": 505
+            },
+            {
+              "position": 13,
+              "par": 5,
+              "stroke_index": 6,
+              "yards": 621
+            },
+            {
+              "position": 14,
+              "par": 4,
+              "stroke_index": 8,
+              "yards": 437
+            },
+            {
+              "position": 15,
+              "par": 4,
+              "stroke_index": 12,
+              "yards": 517
+            },
+            {
+              "position": 16,
+              "par": 3,
+              "stroke_index": 18,
+              "yards": 227
+            },
+            {
+              "position": 17,
+              "par": 4,
+              "stroke_index": 4,
+              "yards": 443
+            },
+            {
+              "position": 18,
+              "par": 5,
+              "stroke_index": 10,
+              "yards": 570
+            }
+          ]
+        },
+        {
+          "name": "White",
+          "gender": "M",
+          "yards": 6145,
+          "par": 72,
+          "rating": 70.9,
+          "slope": 128,
+          "holes": [
+            {
+              "position": 1,
+              "par": 4,
+              "stroke_index": 5,
+              "yards": 409
+            },
+            {
+              "position": 2,
+              "par": 4,
+              "stroke_index": 15,
+              "yards": 323
+            },
+            {
+              "position": 3,
+              "par": 3,
+              "stroke_index": 13,
+              "yards": 142
+            },
+            {
+              "position": 4,
+              "par": 4,
+              "stroke_index": 3,
+              "yards": 384
+            },
+            {
+              "position": 5,
+              "par": 4,
+              "stroke_index": 11,
+              "yards": 382
+            },
+            {
+              "position": 6,
+              "par": 5,
+              "stroke_index": 9,
+              "yards": 449
+            },
+            {
+              "position": 7,
+              "par": 4,
+              "stroke_index": 1,
+              "yards": 387
+            },
+            {
+              "position": 8,
+              "par": 3,
+              "stroke_index": 17,
+              "yards": 139
+            },
+            {
+              "position": 9,
+              "par": 5,
+              "stroke_index": 7,
+              "yards": 457
+            },
+            {
+              "position": 10,
+              "par": 4,
+              "stroke_index": 16,
+              "yards": 308
+            },
+            {
+              "position": 11,
+              "par": 3,
+              "stroke_index": 14,
+              "yards": 171
+            },
+            {
+              "position": 12,
+              "par": 4,
+              "stroke_index": 2,
+              "yards": 411
+            },
+            {
+              "position": 13,
+              "par": 5,
+              "stroke_index": 6,
+              "yards": 486
+            },
+            {
+              "position": 14,
+              "par": 4,
+              "stroke_index": 8,
+              "yards": 359
+            },
+            {
+              "position": 15,
+              "par": 4,
+              "stroke_index": 12,
+              "yards": 339
+            },
+            {
+              "position": 16,
+              "par": 3,
+              "stroke_index": 18,
+              "yards": 151
+            },
+            {
+              "position": 17,
+              "par": 4,
+              "stroke_index": 4,
+              "yards": 375
+            },
+            {
+              "position": 18,
+              "par": 5,
+              "stroke_index": 10,
+              "yards": 473
+            }
+          ]
+        },
+        {
+          "name": "White",
+          "gender": "F",
+          "yards": 6145,
+          "par": 72,
+          "rating": 77.6,
+          "slope": 140,
+          "holes": [
+            {
+              "position": 1,
+              "par": 4,
+              "stroke_index": 7,
+              "yards": 409
+            },
+            {
+              "position": 2,
+              "par": 4,
+              "stroke_index": 13,
+              "yards": 323
+            },
+            {
+              "position": 3,
+              "par": 3,
+              "stroke_index": 15,
+              "yards": 142
+            },
+            {
+              "position": 4,
+              "par": 4,
+              "stroke_index": 9,
+              "yards": 384
+            },
+            {
+              "position": 5,
+              "par": 4,
+              "stroke_index": 11,
+              "yards": 382
+            },
+            {
+              "position": 6,
+              "par": 5,
+              "stroke_index": 1,
+              "yards": 449
+            },
+            {
+              "position": 7,
+              "par": 4,
+              "stroke_index": 5,
+              "yards": 387
+            },
+            {
+              "position": 8,
+              "par": 3,
+              "stroke_index": 17,
+              "yards": 139
+            },
+            {
+              "position": 9,
+              "par": 5,
+              "stroke_index": 3,
+              "yards": 457
+            },
+            {
+              "position": 10,
+              "par": 4,
+              "stroke_index": 10,
+              "yards": 308
+            },
+            {
+              "position": 11,
+              "par": 3,
+              "stroke_index": 18,
+              "yards": 171
+            },
+            {
+              "position": 12,
+              "par": 4,
+              "stroke_index": 2,
+              "yards": 411
+            },
+            {
+              "position": 13,
+              "par": 5,
+              "stroke_index": 6,
+              "yards": 486
+            },
+            {
+              "position": 14,
+              "par": 4,
+              "stroke_index": 14,
+              "yards": 359
+            },
+            {
+              "position": 15,
+              "par": 4,
+              "stroke_index": 16,
+              "yards": 339
+            },
+            {
+              "position": 16,
+              "par": 3,
+              "stroke_index": 12,
+              "yards": 151
+            },
+            {
+              "position": 17,
+              "par": 4,
+              "stroke_index": 8,
+              "yards": 375
+            },
+            {
+              "position": 18,
+              "par": 5,
+              "stroke_index": 4,
+              "yards": 473
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

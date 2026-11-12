@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SETTINGS_STORAGE_KEY, createGatedStorage } from "./persisted-keys";
 
 export type ScoreFormat = "to_par" | "gross" | "both";
 export type DistanceUnit = "yards" | "meters";
@@ -30,6 +31,7 @@ export interface SettingsState {
   darkScorecard: boolean; // alternate scorecard theme
 
   // OCR / Scan
+  ocrConsent: boolean | null; // null = not yet asked
   autoClaude: boolean; // auto-use Claude Vision when ML Kit fails
   confirmBeforeImport: boolean;
 
@@ -62,6 +64,7 @@ const DEFAULT_SETTINGS = {
   showYardage: true,
   compactLeaderboard: false,
   darkScorecard: true,
+  ocrConsent: null as boolean | null,
   autoClaude: true,
   confirmBeforeImport: true,
   roundReminders: true,
@@ -80,8 +83,8 @@ export const useSettingsStore = create<SettingsState>()(
       resetToDefaults: () => set(DEFAULT_SETTINGS),
     }),
     {
-      name: "snapscore-settings",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: SETTINGS_STORAGE_KEY,
+      storage: createJSONStorage(() => createGatedStorage(AsyncStorage)),
       partialize: (state) => {
         // Exclude functions from persistence
         const { updateSetting, resetToDefaults, ...data } = state;

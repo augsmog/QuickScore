@@ -1,6 +1,6 @@
+import { SafeScreen } from "../../src/ui/SafeScreen";
 import { View, Text, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Trophy, Plus } from "lucide-react-native";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import { useContestStore } from "../../src/stores/contest-store";
@@ -21,7 +21,7 @@ export default function ContestsScreen() {
   const featured = activeContests[0];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <Text style={{ fontFamily: FONTS.headline, fontSize: 28, color: COLORS.text, letterSpacing: -0.5 }}>
@@ -254,6 +254,6 @@ export default function ContestsScreen() {
         )}
         <View style={{ height: 16 }} />
       </ScrollView>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }

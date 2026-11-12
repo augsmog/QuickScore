@@ -1,0 +1,48 @@
+# Shared: create a two-player Skins contest "E2E Round" (Ava, Ben) through the real New Contest form.
+appId: com.scoresnap.app
+---
+- tapOn:
+    id: "home-new-contest"
+- extendedWaitUntil:
+    visible: "Your name"
+    timeout: 15000
+# Player 1 may be prefilled with the local profile name (offline build shows "Golfer"); replace it.
+- tapOn:
+    text: "Your name|Golfer.*"
+    index: 0
+- eraseText: 30
+- inputText: "Ava"
+# iOS hideKeyboard is unreliable here; the form uses keyboardShouldPersistTaps="handled", so tapping a label dismisses it.
+- tapOn: "PLAYERS"
+- tapOn: "Player 2 name"
+- inputText: "Ben"
+- tapOn: "PLAYERS"
+- assertVisible: "Ava"
+- assertVisible: "Ben"
+- tapOn:
+    text: "Continue"
+    index: 0
+# Mode cards expose stable IDs and selected accessibility state.
+- extendedWaitUntil:
+    visible: "Skins"
+    timeout: 15000
+- tapOn:
+    id: "game-mode-skins"
+- assertVisible:
+    id: "game-mode-skins"
+    selected: true
+- scrollUntilVisible:
+    element: "Continue"
+    direction: DOWN
+    optional: true
+- tapOn:
+    text: "Continue"
+    index: 0
+- scrollUntilVisible:
+    element: "Start"
+    direction: DOWN
+    optional: true
+- tapOn: "Start"
+- extendedWaitUntil:
+    visible: "Settlement"
+    timeout: 20000

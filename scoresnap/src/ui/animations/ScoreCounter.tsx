@@ -1,3 +1,4 @@
+import { COLORS, FONTS } from "../theme";
 import { useEffect } from "react";
 import { TextInput, TextStyle } from "react-native";
 import Animated, {
@@ -49,9 +50,10 @@ export function ScoreCounter({
       editable={false}
       style={[
         {
-          color: "#fff",
+          color: COLORS.text,
           fontSize: 32,
-          fontWeight: "800",
+          fontFamily: FONTS.score,
+          fontVariant: ['tabular-nums'],
           textAlign: "center",
         },
         style,

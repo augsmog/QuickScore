@@ -1,0 +1,47 @@
+PASS: auth stubs and hosted platform emulation
+PASS: baseline
+PASS: extract catalog
+PASS: baseline prefix equals historical baseline.json
+backend> 2026-10-29 10:47:58.734 PDT [2565474] ERROR:  DEFAULT_TABLE_PRIVILEGE: anon SELECT
+EXPECTED RED: baseline default privilege fixture
+PASS: foundation apply
+PASS: extract catalog
+PASS: guest guard apply
+PASS: probe helper aggregates unexpected SQLSTATE and success across rollback
+PASS: profile entitlement ACL
+PASS: full local ledger seed
+PASS: extract catalog
+PASS: M2b adds no permissive policies or client grants except profile presentation UPDATE
+PASS: ten-entry local ledger (live expectation is applied eleven)
+PASS: extract catalog
+PASS: M2b catalog equals expected-m2b.json
+PASS: M3 apply
+PASS: extract catalog
+PASS: extract catalog
+PASS: M3 catalog equals expected-m3.json
+PASS: future defaults closed
+PASS: foundation role/join/CAS fixtures on M3
+SKIP: raw RLS row filtering and event-trigger firing in single-user mode; mandatory in CI
+PASS: legacy publish/watch/chat flags-off gate on M3
+PASS: M3 ACL, two-client sync and offline replay
+2026-10-29 10:47:59.597 PDT [2565513] ERROR:  M3_DOWN_UNSAFE
+EXPECTED RED: M3 rollback refuses a tournament
+PASS: M3 reapply
+PASS: extract catalog
+PASS: M3 reapply exact catalog
+PASS: M3 rollback
+PASS: extract catalog
+PASS: M3 down exact M2b catalog
+PASS: guest guard rollback
+PASS: extract catalog
+PASS: M2b down exact M2 catalog
+2026-10-29 10:48:00.182 PDT [2565531] ERROR:  M2_DOWN_UNSAFE
+EXPECTED RED: rollback refuses enrolled data
+PASS: rollback
+PASS: extract catalog
+PASS: rollback exact baseline catalog
+PASS: reapply
+PASS: guest guard reapply
+PASS: M3 reapply after foundation
+PASS: extract catalog
+PASS: reapply exact M3 catalog

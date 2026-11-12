@@ -36,14 +36,22 @@ export async function recognizeWithMLKit(
   const rawText = result.text;
 
   // Extract text blocks and organize into a grid
-  const grid = extractGrid(result.blocks);
+  const ambiguous = new Map<string, string[]>();
+  const grid = extractGrid(result.blocks, ambiguous);
 
   // Parse the grid into structured player data
   const parsed = parseScoreGrid(grid);
+  for (const player of parsed.players) {
+    const readings = ambiguous.get(player.name);
+    if (readings) {
+      player.alignmentError = `Ambiguous score alignment for ${player.name}. Readings: ${readings.join(", ")}. Enter scores manually on matching holes.`;
+      player.confidence = player.scores.map(() => 0);
+    }
+  }
 
   // Calculate average confidence
   const allConfidences = parsed.players.flatMap((p) => [
-    ...p.confidence.filter((c) => c > 0),
+    ...p.confidence,
     p.nameConfidence,
   ]);
   const averageConfidence =
@@ -64,7 +72,7 @@ export async function recognizeWithMLKit(
  * Groups text elements by vertical position (y-coordinate) to form rows,
  * then sorts each row left-to-right.
  */
-function extractGrid(blocks: TextBlock[]): string[][] {
+function extractGrid(blocks: TextBlock[], ambiguous: Map<string, string[]>): string[][] {
   // Collect all text elements with their positions
   const elements: { text: string; x: number; y: number; height: number }[] = [];
 
@@ -108,16 +116,39 @@ function extractGrid(blocks: TextBlock[]): string[][] {
   }
   if (currentRow.length > 0) rows.push(currentRow);
 
-  // Sort each row left-to-right and extract text
-  return rows.map((row) =>
-    row.sort((a, b) => a.x - b.x).map((el) => el.text)
-  );
+  rows.forEach(row => row.sort((a, b) => a.x - b.x));
+  const header = rows.find(row => /^holes?:?$/i.test(row[0]?.text ?? ""));
+  const columns = header?.slice(1);
+  if (!columns || ![9,18].includes(columns.filter(c => /^\d+$/.test(c.text)).length)) {
+    // Candidate cells are editable, but their hole identities are unverified.
+    return rows.filter(row => isPlayerName(row[0]?.text ?? "")).map(row => {
+      ambiguous.set(row[0].text, row.slice(1).map(e => e.text));
+      return [row[0].text, ...row.slice(1).map(e => e.text), "", ""];
+    });
+  }
+  return rows.map(row => {
+    if (row === header) return row.map(e => e.text);
+    const cells = columns.map(() => "");
+    for (const el of row.slice(1)) {
+      const distances = columns.map(c => Math.abs(c.x - el.x));
+      const i = distances.indexOf(Math.min(...distances));
+      const spacing = Math.min(...columns.filter((_, j) => j !== i).map(c => Math.abs(c.x - columns[i].x)));
+      if (distances[i] > spacing * 0.4 || cells[i]) {
+        ambiguous.set(row[0].text, row.slice(1).map(e => e.text));
+        return [row[0].text, "", ""];
+      }
+      cells[i] = el.text;
+    }
+    return [row[0].text, ...cells];
+  });
 }
 
 /**
  * Quick check if ML Kit is available on this device.
  */
 export async function isMLKitAvailable(): Promise<boolean> {
+  // Simulator builds compile ML Kit out (EXPO_PUBLIC_SIMULATOR_NO_MLKIT=1); calling it would throw.
+  if (process.env.EXPO_PUBLIC_SIMULATOR_NO_MLKIT === "1") return false;
   try {
     // ML Kit is always available on native via the module
     return typeof TextRecognition.recognize === "function";

@@ -1,3 +1,5 @@
+> Historical planning/sprint document. Current selectable and settled capabilities are recorded in [GAMES_STATUS.md](../../GAMES_STATUS.md) and the derived engine registry; historical completion statements below are not release evidence.
+
 # PRD: AI Contest Configuration ("QuickSetup")
 
 ## Overview
@@ -165,8 +167,8 @@ The AI cannot create a contest without ALL of the following resolved:
 ```
 User prompt
     ↓
-AI (Claude API) — system prompt includes:
-  - All 30 game types with descriptions and config options
+AI (Claude API via Edge Function) — system prompt includes:
+  - historical game inventory with descriptions and config options
   - Custom game schema
   - Contest creation schema
   - Clarification question templates
@@ -191,7 +193,7 @@ The AI system prompt should include:
 
 ### API Integration
 
-Uses Claude API (already have `EXPO_PUBLIC_ANTHROPIC_API_KEY` in env) with:
+Uses Claude API through Supabase Edge Functions with:
 - **Streaming** for responsive feel during multi-turn setup
 - **Tool use** for course search, player lookup (future), template recall
 - **Structured output** for the final contest config JSON

@@ -13,7 +13,7 @@ import Animated, {
   SharedValue,
 } from "react-native-reanimated";
 import { Zap } from "lucide-react-native";
-import { COLORS } from "../theme";
+import { COLORS, FONTS } from "../theme";
 
 interface ScanBeamSceneProps {
   scrollX: SharedValue<number>;
@@ -235,7 +235,7 @@ function ScoreNumber({
       <Animated.Text
         style={{
           fontSize: 11,
-          fontWeight: "700",
+          fontFamily: FONTS.bold,
           color: isGood ? COLORS.accent : COLORS.text,
         }}
       >

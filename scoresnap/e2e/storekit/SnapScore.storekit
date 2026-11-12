@@ -1,0 +1,75 @@
+{
+  "identifier": "5A0E7C11",
+  "nonRenewingSubscriptions": [],
+  "products": [],
+  "settings": {
+    "_applicationInternalID": "6700000000",
+    "_developerTeamID": "TESTTEAM00",
+    "_failTransactionsEnabled": false,
+    "_locale": "en_US",
+    "_storefront": "USA",
+    "_storeKitErrors": []
+  },
+  "subscriptionGroups": [
+    {
+      "id": "21500001",
+      "localizations": [],
+      "name": "SnapScore",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "79.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "6700000010",
+          "introductoryOffer": {
+            "internalID": "67000000101",
+            "numberOfPeriods": 1,
+            "paymentMode": "free",
+            "subscriptionPeriod": "P1W"
+          },
+          "localizations": [
+            {
+              "description": "SnapScore Tournament Director (annual)",
+              "displayName": "SnapScore Tournament Director (annual)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "snapscore.td.annual",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "TD Annual",
+          "subscriptionGroupID": "21500001",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "12.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "6700000020",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "SnapScore Tournament Director (monthly)",
+              "displayName": "SnapScore Tournament Director (monthly)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "snapscore.td.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "TD Monthly",
+          "subscriptionGroupID": "21500001",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        }
+      ]
+    }
+  ],
+  "version": {
+    "major": 3,
+    "minor": 0
+  }
+}

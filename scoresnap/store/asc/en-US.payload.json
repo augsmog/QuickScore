@@ -3,27 +3,26 @@
   "status": "STAGED-NOT-APPLIED",
   "locale": "en-US",
   "sourceBinding": {
-    "listingDoc": "docs/APP_STORE_LISTING.md",
-    "listingDocSha256": "ff9fda7c52952333f55e5a642b0a7695c379d3821a01ee6a2ee46e330b07485d",
-    "declaredDeviations": {
-      "keywords": "Dropped 'golf' (already in app name) and 'wagering' (100-char limit); added 'stableford'.",
-      "promotionalText": "Removed unverified superlative 'only golf app'; 7-day trial CTA added.",
-      "description": "Removed unverified superlatives and '30,000+ courses'; 3-free-rounds copy replaced by 7-day trial (purchases.ts); added no-money-handling and auto-renew disclosure."
-    }
+    "sourceSha": "807e3453c9294c802b21bf4b0a85966fca2d75f8",
+    "sources": {
+      "docs/APP_STORE_LISTING.md": "0bd03eccda0a88bfa9dfdd7d3a55de7a47b1ec728cbcdec0596268bc51185ffe",
+      "src/config/support.ts": "7351e35ec1a5f431a24a30a973f66e2c231522550d4cd75b048f684da5cc195c",
+      "src/engine/game-mode-library.ts": "50a22fa2c658a8f3321a8035ab5f722dc348eb0058e142e76b3f9eaa8fbe9149",
+      "src/engine/types.ts": "7bbd9ead030387925cd0781f7cab9c11044a5537926bdf9c56866c369de182fb"
+    },
+    "shippedModeCount": 56,
+    "promoApproval": "AUG-403:2026-11-03T16:39:18Z"
   },
   "versionLocalization": {
-    "description": "SnapScore Golf is the fastest way to track golf bets and settle up after your round. Snap a photo of your scorecard, verify the scores, and get instant settlement calculations for every game your group is playing.\n\nSCORECARD SCANNING\nPoint your camera at a printed scorecard. Our OCR engine reads the scores, then lets you verify before anything is locked in.\n\n29 GAME MODES\nWhether your group plays Skins, Nassau, Wolf, Hammer, Stableford, Best Ball, or something more creative, it is covered. Run multiple games at once and get a separate settlement breakdown for each one.\n\nIndividual games: Stroke Play, Match Play, Stableford, Modified Stableford, Skins, Nassau, Nassau with Presses, Quota, Chicago, Aces & Deuces, Dots, Rabbit, Defender, Greenies, Banker, Snake, Bingo Bango Bongo\n\nHead-to-head games: Hammer, Closeout, Wolf\n\nTeam games: Best Ball, Scramble, Shamble, Four-Ball, Alternate Shot, Chapman, Vegas, Nines, Sixes\n\nINSTANT SETTLEMENT\nWhen the round is done, SnapScore calculates who owes what. Every transaction is broken down by game so you can see where the money moved. SnapScore is a scorekeeping and calculation tool only. It does not process or hold any money.\n\nSMART SCORING\n- Full 18-hole digital scorecard with par and handicap per hole\n- Color-coded scores (eagle, birdie, par, bogey, and worse)\n- Real-time round progress\n- Up to 40 players per contest\n- Multiple groups within a single contest\n\nBUILT FOR YOUR SATURDAY FOURSOME\nSet your bet unit, pick your games, and start scoring. Wolf partner picks, Hammer drops, Snake tracking, and Greenie calls are built in.\n\nCOURSE SEARCH\nSearch by name or location to load course data with par and handicap for every hole.\n\nDETAILED STATISTICS\nTrack scoring trends, par-specific averages, score distributions, hardest and easiest holes, and streaks across your rounds.\n\nTRY IT FREE FOR 7 DAYS\nStart a 7-day free trial for full access, including unlimited scorecard scanning. After the trial, SnapScore Pro is $19.99 per year, billed annually. Cancel any time in your Apple ID settings at least 24 hours before the trial ends. Contest creation keeps working without a subscription.\n\n---\n\nSnapScore Golf is built by golfers who got tired of bad math ruining good bets.",
-    "keywords": "scorecard,betting,skins,nassau,wolf,settlement,scoring,handicap,OCR,scan,side bets,stableford",
-    "promotionalText": "29 game modes, OCR scorecard scanning, and instant bet settlement. Turn a photo of your scorecard into a settled round in seconds. Try it free for 7 days.",
-    "whatsNew": "Welcome to SnapScore Golf!\n- OCR scorecard scanning\n- 29 scored and settled game modes\n- Wolf, Hammer, Snake, and Greenies input built in\n- Course search with par and handicap\n- Statistics dashboard\n- 7-day free trial, then SnapScore Pro"
+    "keywords": "scorecard,skins,nassau,wolf,stableford,settlement,scoring,tournament,handicap,trip,matchplay,outing",
+    "description": "A round. Your games. Who owes what. Sorted.\n\nSnapScore is a scoring app for golf groups of 2 to 40 players. Keep score for your round, run the side games you already play, and see who owes what when you're done.\n\nScore your round — Enter scores hole by hole as you play, or scan your scorecard and review the scores before they're saved.\n\nYour games — Choose from 50+ game modes, including Skins, Nassau, Wolf and Stableford. Set skins to Net or Gross for each round, with Net selected by default. Play skins across the whole field or within each group. Skins, Stroke Play and Stableford support 2 to 40 players. Nassau is for 2 or 4; Wolf needs 4; Match Play and Hammer are for 2.\n\nRun a tournament — Run a multi-round, multi-group tournament for a trip, a member-guest or an outing. Players join and score for free; the Tournament Director plan runs the event.\n\nSettle up — SnapScore works out who owes what, game by game. It never touches the money; your group settles up among themselves.\n\nGot a paper card? — Scanning sends a photo of your card to a cloud service to read it. We ask first, and you review the scores before they're saved. No scorecard? Enter scores by hand instead.\n\nEverything for your round is free — 50+ game modes, settle-up, stats and scorecard scanning are all included. Hosting a multi-round, multi-group tournament uses the Tournament Director plan.\n\nPrivacy Policy: https://snapscore.autumn8.me/privacy\nTerms of Use: https://snapscore.autumn8.me/terms",
+    "promotionalText": "Pick your players and games. SnapScore keeps score and works out who owes what across Skins, Nassau and Wolf. Got a paper card? Scan it, check it, done.",
+    "supportUrl": "https://snapscore.autumn8.me/support",
+    "marketingUrl": "https://snapscore.autumn8.me"
   },
   "appInfoLocalization": {
     "name": "SnapScore Golf",
-    "subtitle": "Scan Scores. Settle Bets."
-  },
-  "notes": [
-    "Differs from docs/APP_STORE_LISTING.md: dropped 'golf' keyword (already in app name; validator-caught), added stableford, dropped wagering (100-char limit); free-trial copy updated from '3 free scans' to the 7-day trial (commit c09f8a9); removed unverified superlatives ('first in golf apps', 'more than any competitor', 'No other golf betting app') that carry App Review risk; '30,000+ courses' dropped until verified; added no-money-handling and auto-renew disclosure.",
-    "Pricing ($19.99/yr, 7-day trial) taken from src/services/purchases.ts; confirm against live ASC before applying.",
-    "Nothing here has been sent to App Store Connect."
-  ]
+    "subtitle": "Score, games and who owes what",
+    "privacyPolicyUrl": "https://snapscore.autumn8.me/privacy"
+  }
 }

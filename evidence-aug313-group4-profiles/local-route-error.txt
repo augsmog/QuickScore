@@ -1,0 +1,7 @@
+AUG-313 viewport reproduction attempt on merged main 7a72b96f3abad7e3a48c08fbbd714082e24a8dfb.
+
+The shared node_modules tree matched scoresnap/package-lock.json SHA256 6a8ed6466bc8c9c10ca09bbc017ed7dcbb9ab98388ecd89bcf154cff2d1656ed. Offline Expo web export succeeded with the default command and with EXPO_ROUTER_APP_ROOT set to the absolute app path and to ./app. Playwright loaded the exported app shell at 375x667, then reported PAGEERROR: No routes found; the New Contest smoke locator timed out. Group-of-four scenario assertions did not execute, so no viewport pass is claimed.
+
+This is an export/runtime harness gate. Existing exact-head CI proof for PR #122 remains the only successful group-of-four render proof (390x844); three required iPhone profile evidence remains open.
+
+The prescribed SNAPSCORE_NIGHTLY_NODE_MODULES realpath resolver/watch-folder option also left the production browser at PAGEERROR: No routes found; the route-root diagnosis remains unresolved locally.

@@ -1,59 +1,37 @@
-/**
- * AUG-677: validate the staged ASC payload against Apple field limits and
- * (optionally) print a read-only diff against a JSON export of the live listing.
- * No network, no credentials. Usage:
- *   npx tsx store/asc/validate-and-diff.ts [payload.json] [live.json]
- * live.json shape: same keys as the payload's versionLocalization/appInfoLocalization.
- */
-import * as fs from "fs";
-import * as path from "path";
-
-export const LIMITS: Record<string, number> = {
-  name: 30,
-  subtitle: 30,
-  keywords: 100,
-  promotionalText: 170,
-  description: 4000,
-  whatsNew: 4000,
-};
-
-export function flatten(p: any): Record<string, string> {
-  return { ...(p.appInfoLocalization ?? {}), ...(p.versionLocalization ?? {}) };
+/** Offline ASC lint and field diff. No credentials or network. */
+import * as fs from 'fs';
+import * as path from 'path';
+export const LIMITS:Record<string,number>={name:30,subtitle:30,keywords:100,promotionalText:170,description:4000};
+export const URL_FIELDS=['supportUrl','marketingUrl','privacyPolicyUrl'];
+export function flatten(p:any):Record<string,string> {return {...(p.appInfoLocalization??{}),...(p.versionLocalization??{})};}
+export function validate(p:any):string[] {
+ const errors:string[]=[],fields=flatten(p);
+ for(const key of Object.keys(p.appInfoLocalization??{})) if(Object.hasOwn(p.versionLocalization??{},key)) errors.push(key+': duplicate field');
+ if(p.locale!=='en-US') errors.push('locale: en-US required');
+ for(const [key,max] of Object.entries(LIMITS)) {
+  const value=fields[key];
+  if(typeof value!=='string'||!value.length) errors.push(key+': missing');
+  else if(Array.from(value).length>max) errors.push(key+': exceeds '+max);
+ }
+ for(const key of URL_FIELDS) {
+  try {const u=new URL(fields[key]);if(u.protocol!=='https:'||u.hostname!=='snapscore.autumn8.me'||u.port||u.username||u.password||u.search||u.hash) throw new Error();}
+  catch {errors.push(key+': canonical HTTPS URL required');}
+ }
+ for(const [key,value] of Object.entries(fields)) {
+  if(![...Object.keys(LIMITS),...URL_FIELDS].includes(key)) errors.push(key+': unapproved field');
+  if(typeof value!=='string') {errors.push(key+': must be text');continue;}
+  if(/\b(?:bets?|betting|wagers?|wagering|gambl\w*|payouts?|unlock\w*|leagues?)\b/i.test(value)) errors.push(key+': banned or unshipped term');
+  if(/scoresnap\.app/i.test(value)) errors.push(key+': retired host');
+  for(const claim of value.matchAll(/\b\d+\+?\s+game modes\b/gi)) if(claim[0]!=='50+ game modes') errors.push(key+': noncanonical mode claim');
+ }
+ if(!fields.description?.includes('50+ game modes')) errors.push('description: exact 50+ game modes phrase required');
+ return errors;
 }
-
-export function validate(p: any): string[] {
-  const errs: string[] = [];
-  const f = flatten(p);
-  for (const [k, max] of Object.entries(LIMITS)) {
-    const v = f[k];
-    if (typeof v !== "string" || !v.length) errs.push(`${k}: missing`);
-    else if (v.length > max) errs.push(`${k}: ${v.length} > ${max}`);
-  }
-  if (/,\s|\s,/.test(f.keywords ?? "")) errs.push("keywords: no spaces around commas");
-  const words = (f.keywords ?? "").toLowerCase().split(",");
-  if (new Set(words).size !== words.length) errs.push("keywords: duplicates");
-  for (const w of ["snapscore", "golf"]) {
-    if (words.includes(w)) errs.push(`keywords: '${w}' already in app name`);
-  }
-  if (/3 free|three (free )?rounds/i.test(f.description ?? "")) errs.push("description: stale 3-free-scans copy");
-  return errs;
+export function diff(staged:Record<string,string>,live:Record<string,string>):string[] {
+ return Object.keys(staged).filter(k=>staged[k]!==live[k]).map(k=>`${k}: live=${JSON.stringify(live[k]??null)} -> staged=${JSON.stringify(staged[k])}`);
 }
-
-export function diff(staged: Record<string, string>, live: Record<string, string>): string[] {
-  return Object.keys(LIMITS)
-    .filter((k) => staged[k] !== live[k])
-    .map((k) => `${k}: live=${JSON.stringify(live[k] ?? null)} -> staged=${JSON.stringify(staged[k])}`);
-}
-
-if (require.main === module) {
-  const payloadPath = process.argv[2] ?? path.join(__dirname, "en-US.payload.json");
-  const payload = JSON.parse(fs.readFileSync(payloadPath, "utf8"));
-  const errs = validate(payload);
-  if (errs.length) { console.error("INVALID:\n" + errs.join("\n")); process.exit(1); }
-  console.log("payload valid");
-  if (process.argv[3]) {
-    const live = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
-    const d = diff(flatten(payload), flatten(live));
-    console.log(d.length ? d.join("\n") : "no differences");
-  }
+if(require.main===module) {
+ const p=JSON.parse(fs.readFileSync(process.argv[2]??path.join(__dirname,'en-US.payload.json'),'utf8'));
+ const errors=validate(p);console.log(JSON.stringify({ok:!errors.length,errors},null,2));if(errors.length)process.exit(1);
+ if(process.argv[3]) console.log(diff(flatten(p),flatten(JSON.parse(fs.readFileSync(process.argv[3],'utf8')))).join('\n'));
 }

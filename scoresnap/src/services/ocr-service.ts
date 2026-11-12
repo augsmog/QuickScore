@@ -1,3 +1,4 @@
+import { useSettingsStore } from "../stores/settings-store";
 /**
  * OCR Service — orchestrates scorecard scanning.
  *
@@ -7,6 +8,7 @@
  * 3. Return ScannedPlayer[] for the review screen
  */
 
+import { applyCourseHoles } from "./ocr-review";
 import { ScannedPlayer } from "./score-parser";
 import {
   recognizeWithMLKit,
@@ -34,8 +36,11 @@ export type ScanProgressCallback = (progress: number, message: string) => void;
  */
 export async function scanScorecard(
   photoUri: string,
-  onProgress?: ScanProgressCallback
+  onProgress?: ScanProgressCallback,
+  requiredHoles?: number[]
 ): Promise<ScanResult> {
+  const cloudEnabled = () => useSettingsStore.getState().ocrConsent === true && useSettingsStore.getState().autoClaude;
+  const normalize = (players: ScannedPlayer[]) => applyCourseHoles(players, requiredHoles);
   onProgress?.(5, "Preparing image...");
 
   // Step 1: Try ML Kit on-device
@@ -56,7 +61,7 @@ export async function scanScorecard(
         onProgress?.(90, "Validating results...");
         onProgress?.(100, "Done");
         return {
-          players: mlResult.players,
+          players: normalize(mlResult.players),
           source: "ml-kit",
           averageConfidence: mlResult.averageConfidence,
           parRow: mlResult.parRow,
@@ -67,6 +72,7 @@ export async function scanScorecard(
       if (mlResult.players.length > 0) {
         onProgress?.(55, "Enhancing with AI...");
         try {
+          if (!cloudEnabled()) throw new Error("Cloud OCR disabled; use manual entry.");
           const claudeResult = await recognizeWithClaude(photoUri);
           onProgress?.(90, "Validating results...");
 
@@ -74,7 +80,7 @@ export async function scanScorecard(
           if (claudeResult.averageConfidence > mlResult.averageConfidence) {
             onProgress?.(100, "Done");
             return {
-              players: claudeResult.players,
+              players: normalize(claudeResult.players),
               source: "ml-kit+claude",
               averageConfidence: claudeResult.averageConfidence,
               parRow: mlResult.parRow,
@@ -83,7 +89,7 @@ export async function scanScorecard(
 
           onProgress?.(100, "Done");
           return {
-            players: mlResult.players,
+            players: normalize(mlResult.players),
             source: "ml-kit",
             averageConfidence: mlResult.averageConfidence,
             parRow: mlResult.parRow,
@@ -93,7 +99,7 @@ export async function scanScorecard(
           console.warn("Claude fallback failed:", claudeError);
           onProgress?.(100, "Done");
           return {
-            players: mlResult.players,
+            players: normalize(mlResult.players),
             source: "ml-kit",
             averageConfidence: mlResult.averageConfidence,
             parRow: mlResult.parRow,
@@ -109,14 +115,7 @@ export async function scanScorecard(
   // Step 2: Claude Vision as primary (ML Kit unavailable or failed)
   onProgress?.(20, "Reading scores with AI...");
 
-  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "OCR requires either on-device ML Kit or a Claude API key. " +
-        "Set EXPO_PUBLIC_ANTHROPIC_API_KEY in your .env file."
-    );
-  }
-
+  if (!cloudEnabled()) throw new Error("Cloud OCR disabled; use manual entry.");
   const claudeResult = await recognizeWithClaude(photoUri);
   onProgress?.(85, "Validating data...");
 
@@ -129,7 +128,7 @@ export async function scanScorecard(
 
   onProgress?.(100, "Done");
   return {
-    players: claudeResult.players,
+    players: normalize(claudeResult.players),
     source: "claude",
     averageConfidence: claudeResult.averageConfidence,
     parRow: [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4],

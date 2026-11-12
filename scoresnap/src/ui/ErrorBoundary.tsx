@@ -1,3 +1,4 @@
+import { SafeScreen } from "./SafeScreen";
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { AlertTriangle, RotateCcw } from "lucide-react-native";
@@ -37,7 +38,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <View
+        <SafeScreen
           style={{
             flex: 1,
             backgroundColor: COLORS.bg,
@@ -122,12 +123,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
               paddingHorizontal: 24,
             }}
           >
-            <RotateCcw size={18} color="#000" />
-            <Text style={{ color: "#000", fontWeight: "700", fontSize: 15 }}>
+            <RotateCcw size={18} color={COLORS.onPrimary} />
+            <Text style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 15 }}>
               Try Again
             </Text>
           </Pressable>
-        </View>
+        </SafeScreen>
       );
     }
 

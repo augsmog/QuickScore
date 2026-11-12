@@ -1,3 +1,5 @@
+import { actualInputLedger } from "../actual-inputs";
+import { AuxiliaryData, GameConfig } from "../types";
 import { Player, Course } from "../types";
 
 export interface SnakeResult {
@@ -15,7 +17,9 @@ export interface SnakeResult {
  * Since we track strokes but not putts separately in basic mode,
  * we approximate: a 3-putt is when score >= par + 2 (double bogey or worse).
  */
-export function calcSnake(players: Player[], course: Course): SnakeResult {
+export function calcSnake(players: Player[], course: Course, auxiliary?: AuxiliaryData, config?: GameConfig): SnakeResult {
+  if(config?.rulesVersion===1) return {...actualInputLedger("snake",players,course,auxiliary,config),};
+
   const totals: Record<string, number> = {};
   players.forEach((p) => (totals[p.name] = 0));
   const events: { hole: number; playerName: string }[] = [];

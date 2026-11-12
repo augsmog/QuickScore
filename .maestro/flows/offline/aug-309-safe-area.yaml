@@ -1,0 +1,73 @@
+# AUG-309/AUG-380: native safe-area captures for Home, sheets, player matching and CourseSearch.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+# Home -> See All: first frame of the full-screen game library includes its title and close button.
+- tapOn:
+    id: "home-see-all-modes"
+- assertVisible: "50+ game modes"
+- assertVisible: "Close game mode library"
+- takeScreenshot: aug-309-01-home-see-all-first-frame
+- tapOn: "Close game mode library"
+# The game info sheet is opened from a Home mode chip and stays open for the rotation captures.
+- scrollUntilVisible:
+    element:
+      text: "^Skins$"
+      below:
+        text: "^GAME MODES$"
+    direction: RIGHT
+    visibilityPercentage: 100
+- tapOn:
+    text: "^Skins$"
+    below:
+      text: "^GAME MODES$"
+- assertVisible:
+    id: "game-info-sheet"
+- assertVisible:
+    id: "game-info-close"
+- takeScreenshot: aug-309-02-game-info-portrait
+- setOrientation: LANDSCAPE_LEFT
+- takeScreenshot: aug-309-03-game-info-landscape
+- setOrientation: PORTRAIT
+- takeScreenshot: aug-309-04-game-info-portrait-restored
+- tapOn:
+    id: "game-info-close"
+# Match two player names on the Players & Course step; capture with the keyboard open.
+- scrollUntilVisible:
+    element:
+      id: "home-new-contest"
+    direction: UP
+    centerElement: true
+- tapOn:
+    id: "home-new-contest"
+- extendedWaitUntil:
+    visible: "Your name"
+    timeout: 15000
+- tapOn:
+    text: "Your name|Golfer.*"
+    index: 0
+- eraseText: 30
+- inputText: "Ava"
+- tapOn: "PLAYERS"
+- tapOn: "Player 2 name"
+- inputText: "Ben"
+- assertVisible: "Ava"
+- assertVisible: "Ben"
+- takeScreenshot: aug-309-05-player-matching-keyboard
+- tapOn: "PLAYERS"
+# CourseSearch opens and focuses its input. A query keeps the keyboard visible during the bottom-inset capture.
+- scrollUntilVisible:
+    element: "Search courses..."
+    direction: UP
+    visibilityPercentage: 100
+    centerElement: true
+- tapOn: "Search courses..."
+- extendedWaitUntil:
+    visible: "Search by course name..."
+    timeout: 10000
+- inputText: "E2E Tee Course"
+- assertVisible: "Find Your Course"
+- takeScreenshot: aug-309-06-course-search-keyboard

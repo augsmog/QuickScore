@@ -230,13 +230,13 @@ export function validateOCRResult(
           field: `player[${i}].scores[${h + 1}]`,
           expected: expected.scores[h],
           actual: ocr.scores[h],
-          severity: Math.abs(expected.scores[h] - ocr.scores[h]) > 1 ? "error" : "warning",
+          severity: (ocr.scores[h] === null || Math.abs(expected.scores[h] - ocr.scores[h]!) > 1) ? "error" : "warning",
         });
       }
     }
 
     // Total check
-    const ocrTotal = ocr.scores.reduce((a, b) => a + b, 0);
+    const ocrTotal = ocr.scores.reduce<number>((a, b) => a + (b ?? 0), 0);
     if (ocrTotal !== expected.total) {
       issues.push({
         field: `player[${i}].total`,

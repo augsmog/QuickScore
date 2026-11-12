@@ -29,7 +29,7 @@ export function calcQuota(players: Player[], course: Course): QuotaResult[] {
   return players
     .map((p) => {
       const points = p.scores.reduce(
-        (sum, s, i) => sum + stablefordPts(s, course.holes[i].par),
+        (sum, s, i) => sum + (s > 0 ? stablefordPts(s, course.holes[i].par) : 0),
         0
       );
       const quota = 36 - Math.round(p.handicap);

@@ -1,8 +1,13 @@
-import { Transaction, SettlementSummary, Player, Course, GameType, AuxiliaryData } from "./types";
+import { validBisque, validJokers } from "./declarations";
+import { calcAlternateShot } from "./calculators/alternate-shot";
+import { calcChapman } from "./calculators/chapman";
+import { ACTUAL_INPUT_GAMES, actualInputLedger } from "./actual-inputs";
+import { Transaction, SettlementSummary, Player, Course, GameType, GameConfig, AuxiliaryData, validateVariationSetup, configForGame } from "./types";
 import { calcStrokePlay } from "./calculators/stroke-play";
-import { calcSkins } from "./calculators/skins";
-import { calcNassau } from "./calculators/nassau";
+import { calcSkins, skinsGroups } from "./calculators/skins";
+import { calcNassau, calcNassauRules } from "./calculators/nassau";
 import { calcStableford } from "./calculators/stableford";
+import { calcModStableford } from "./calculators/mod-stableford";
 import { calcMatchPlay } from "./calculators/match-play";
 import { calcBestBall } from "./calculators/best-ball";
 import { calcNassauPress } from "./calculators/nassau-press";
@@ -47,17 +52,65 @@ export function calculateSettlement(
   course: Course,
   gameTypes: GameType[],
   betUnit: number,
-  auxiliaryData?: AuxiliaryData
+  auxiliaryData?: AuxiliaryData,
+  gameConfig?: GameConfig,
+  groups?: { name: string; players: Player[] }[]
 ): SettlementSummary {
   const transactions: Transaction[] = [];
 
+  if (gameConfig?.rulesVersion === 1) {
+    const stored = gameConfig;
+    const normalized: GameConfig = Object.assign({rulesVersion:1,inputRulesVersion:gameConfig.inputRulesVersion}, ...gameTypes.map(g => configForGame(stored,g)));
+    gameConfig = normalized;
+    const error = validateVariationSetup(groups ?? [{players}], gameTypes, normalized, betUnit);
+    if (error) throw new Error(error);
+  if(gameConfig?.rulesVersion===1 && ((gameTypes.includes("stableford") && gameConfig.jokerEnabled && !validJokers(players,course,auxiliaryData)) || (gameTypes.includes("match_play") && gameConfig.bisqueHandicap && !validBisque(players,course,auxiliaryData)) || (gameConfig.junkNassau && gameTypes.some(g=>g==="nassau"||g==="nassau_press") && actualInputLedger("nassau",players,course,auxiliaryData,gameConfig).pending))) return {transactions:[],netByPlayer:Object.fromEntries(players.map(p=>[p.name,0])),pending:true};
+    if (!gameTypes.some(g=>g==="alternate_shot" || g==="chapman") && players.some(p => course.holes.some((_,i) => !Number.isFinite(p.scores[i]) || p.scores[i] <= 0))) {
+      return {transactions:[],netByPlayer:Object.fromEntries(players.map(p => [p.name,0])),pending:true};
+    }
+  }
+
+  if (gameConfig?.rulesVersion === 1 && gameTypes.some(g => ACTUAL_INPUT_GAMES.includes(g) && actualInputLedger(g, players, course, auxiliaryData, gameConfig).pending)) {
+    return {transactions:[],netByPlayer:Object.fromEntries(players.map(p=>[p.name,0])),pending:true};
+  }
   for (const gameType of gameTypes) {
+    if(gameConfig?.rulesVersion===1 && (gameType==="alternate_shot" || gameType==="chapman")) {
+      const teams=[...new Set(players.map(p=>p.team!))].map(name=>({name,score:course.holes.map((_,i)=>auxiliaryData?.teamCards?.[i+1]?.[name]??0)}));
+      if(teams.some(t=>t.score.some(n=>!Number.isInteger(n)||n<=0))) return {transactions:[],netByPlayer:Object.fromEntries(players.map(p=>[p.name,0])),pending:true};
+      const ranks=(gameType==="chapman"?calcChapman:calcAlternateShot)(teams,course);
+      if(ranks[0].total!==ranks[1].total){const winners=players.filter(p=>p.team===ranks[0].name);for(const loser of players.filter(p=>p.team!==ranks[0].name)) for(const winner of winners) transactions.push({from:loser.name,to:winner.name,amount:betUnit/winners.length,gameType});}
+      continue;
+    }
+    if (gameConfig?.rulesVersion === 1 && ACTUAL_INPUT_GAMES.includes(gameType)) {
+      const result=actualInputLedger(gameType,players,course,auxiliaryData,configForGame(gameConfig,gameType));
+      const winners=players.filter(p=>result.totals[p.name]>0), losers=players.filter(p=>result.totals[p.name]<0);
+      const total=winners.reduce((sum,p)=>sum+result.totals[p.name],0);
+      for (const winner of winners) for (const loser of losers) transactions.push({from:loser.name,to:winner.name,amount:result.totals[winner.name]*-result.totals[loser.name]/total*betUnit,gameType});
+      continue;
+    }
+    if (gameConfig?.rulesVersion === 1 && groups && ["nassau","nassau_press","match_play","vegas","sixes","rabbit"].includes(gameType)) {
+      for (const group of groups) transactions.push(...calculateSettlement(group.players,course,[gameType],betUnit,auxiliaryData,configForGame(gameConfig,gameType)).transactions);
+      continue;
+    }
+    if (gameConfig?.rulesVersion === 1 && (gameType === "nassau" || gameType === "nassau_press")) {
+      for (const scope of groups ?? [{players}]) {
+      const players = scope.players;
+      const result = calcNassauRules(players, course, gameType === "nassau_press", gameConfig);
+      if(gameConfig.junkNassau){const junk=actualInputLedger(gameType,players,course,auxiliaryData,gameConfig);for(const p of players) result.totals[p.name]+=junk.totals[p.name];}
+      const winners = players.filter(p => result.totals[p.name] > 0);
+      const losers = players.filter(p => result.totals[p.name] < 0);
+      const total = winners.reduce((s,p) => s + result.totals[p.name],0);
+      for (const winner of winners) for (const loser of losers) transactions.push({from:loser.name,to:winner.name,amount:-result.totals[loser.name] * result.totals[winner.name] / total * betUnit,gameType});
+      }
+      continue;
+    }
     switch (gameType) {
       case "stroke_play": {
         // Winner takes betUnit from each other player
         const results = calcStrokePlay(players, course);
         if (results.length >= 2) {
           const winner = results[0];
+          if (gameConfig?.rulesVersion === 1 && tiedRank(winner, results[1])) break;
           for (let i = 1; i < results.length; i++) {
             transactions.push({
               from: results[i].name,
@@ -73,28 +126,32 @@ export function calculateSettlement(
       case "skins":
       case "skins_carry": {
         const carryover = gameType === "skins_carry";
-        const result = calcSkins(players, course, carryover);
-        // Each skin is worth betUnit; distribute from losers to winners
-        const totalSkins = Object.values(result.totals).reduce((a, b) => a + b, 0);
-        if (totalSkins > 0) {
-          const avg = totalSkins / players.length;
-          for (const player of players) {
-            const won = result.totals[player.name] || 0;
-            const diff = won - avg;
-            if (diff > 0) {
-              // This player is a net winner — collect from net losers proportionally
-              for (const other of players) {
-                const otherWon = result.totals[other.name] || 0;
-                const otherDiff = otherWon - avg;
-                if (otherDiff < 0 && diff > 0) {
-                  const amount = Math.min(Math.abs(otherDiff), diff) * betUnit;
-                  if (amount > 0) {
-                    transactions.push({
-                      from: other.name,
-                      to: player.name,
-                      amount: Math.round(amount * 100) / 100,
-                      gameType,
-                    });
+        for (const { players: scopedPlayers } of skinsGroups(groups ?? [{ name: "Whole field", players }], gameConfig)) {
+          const players = scopedPlayers;
+          const result = calcSkins(players, course, carryover, gameConfig?.skinsMode, gameConfig);
+          // Each skin is worth betUnit; distribute from losers to winners
+          const totalSkins = Object.values(result.totals).reduce((a, b) => a + b, 0);
+          if (totalSkins > 0) {
+            const avg = totalSkins / players.length;
+            const totalWinnings = Object.values(result.totals).reduce((sum, won) => sum + Math.max(0, won - avg), 0);
+            for (const player of players) {
+              const won = result.totals[player.name] || 0;
+              const diff = won - avg;
+              if (diff > 0) {
+                // This player is a net winner — collect from net losers proportionally
+                for (const other of players) {
+                  const otherWon = result.totals[other.name] || 0;
+                  const otherDiff = otherWon - avg;
+                  if (otherDiff < 0 && diff > 0) {
+                    const amount = Math.abs(otherDiff) * (diff / totalWinnings) * betUnit;
+                    if (amount > 0) {
+                      transactions.push({
+                        from: other.name,
+                        to: player.name,
+                        amount: amount,
+                        gameType,
+                      });
+                    }
                   }
                 }
               }
@@ -119,11 +176,30 @@ export function calculateSettlement(
         break;
       }
 
-      case "stableford":
-      case "mod_stableford": {
-        const results = calcStableford(players, course);
+      case "stableford": {
+        if (!players.some(p => p.scores.some(score => score > 0))) break;
+        const results = calcStableford(players, course, gameConfig, auxiliaryData);
         if (results.length >= 2) {
           const winner = results[0];
+          if (gameConfig?.rulesVersion === 1 && tiedRank(winner, results[1])) break;
+          for (let i = 1; i < results.length; i++) {
+            transactions.push({
+              from: results[i].name,
+              to: winner.name,
+              amount: betUnit,
+              gameType,
+            });
+          }
+        }
+        break;
+      }
+
+      case "mod_stableford": {
+        if (!players.some(p => p.scores.some(score => score > 0))) break;
+        const results = calcModStableford(players, course);
+        if (results.length >= 2) {
+          const winner = results[0];
+          if (gameConfig?.rulesVersion === 1 && tiedRank(winner, results[1])) break;
           for (let i = 1; i < results.length; i++) {
             transactions.push({
               from: results[i].name,
@@ -143,7 +219,7 @@ export function calculateSettlement(
         // MatchPlayResult: { p1, p2, results, finalStatus }
         // finalStatus > 0 means p1 won more holes
         if (players.length >= 2) {
-          const result = calcMatchPlay(players[0], players[1], course);
+          const result = calcMatchPlay(players[0], players[1], course, gameConfig, auxiliaryData);
           if (result.finalStatus > 0) {
             transactions.push({
               from: result.p2,
@@ -262,7 +338,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -282,7 +358,7 @@ export function calculateSettlement(
           const team1 = teams.get(teamIds[0])!;
           const team2 = teams.get(teamIds[1])!;
           if (team1.length === 2 && team2.length === 2) {
-            const result = calcVegas(team1, team2, course);
+            const result = calcVegas(team1, team2, course, gameConfig);
             const net = result.team1Won - result.team2Won;
             if (net > 0) {
               // Team 1 won overall — Team 2 pays
@@ -292,7 +368,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(perPlayer * 100) / 100,
+                    amount: perPlayer,
                     gameType,
                   });
                 }
@@ -305,7 +381,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(perPlayer * 100) / 100,
+                    amount: perPlayer,
                     gameType,
                   });
                 }
@@ -320,7 +396,7 @@ export function calculateSettlement(
         // SixesResult: { rounds[], totals: Record<string, number> }
         // totals has net points per player (positive = won, negative = lost)
         if (players.length === 4) {
-          const result = calcSixes(players, course);
+          const result = calcSixes(players, course, gameConfig);
           const nets = players.map((p) => ({
             name: p.name,
             net: result.totals[p.name] * betUnit,
@@ -339,7 +415,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -380,9 +456,11 @@ export function calculateSettlement(
       case "quota": {
         // QuotaResult[]: { name, playerId, handicap, quota, points, overUnder }
         // Sorted by overUnder descending. Highest surplus wins, collects betUnit from each.
+        if (!players.some(p => p.scores.some(score => score > 0))) break;
         const results = calcQuota(players, course);
         if (results.length >= 2) {
           const winner = results[0];
+          if (gameConfig?.rulesVersion === 1 && tiedRank(winner, results[1])) break;
           for (let i = 1; i < results.length; i++) {
             transactions.push({
               from: results[i].name,
@@ -398,9 +476,11 @@ export function calculateSettlement(
       case "chicago": {
         // ChicagoResult[]: { name, playerId, handicap, quota, grossPoints, netScore }
         // Sorted by netScore descending. Highest net wins, collects betUnit from each.
+        if (!players.some(p => p.scores.some(score => score > 0))) break;
         const results = calcChicago(players, course);
         if (results.length >= 2) {
           const winner = results[0];
+          if (gameConfig?.rulesVersion === 1 && tiedRank(winner, results[1])) break;
           for (let i = 1; i < results.length; i++) {
             transactions.push({
               from: results[i].name,
@@ -436,7 +516,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -470,7 +550,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -484,7 +564,7 @@ export function calculateSettlement(
         // RabbitResult: { front9Holder, back9Holder, events[], totals }
         // totals already has net units (holder wins n-1, others lose 1 each per rabbit).
         // Multiply by betUnit.
-        const result = calcRabbit(players, course);
+        const result = calcRabbit(players, course, gameConfig);
         const nets = players.map((p) => ({
           name: p.name,
           net: result.totals[p.name] * betUnit,
@@ -503,7 +583,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -535,7 +615,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -678,7 +758,7 @@ export function calculateSettlement(
                 transactions.push({
                   from: loser.name,
                   to: winner.name,
-                  amount: Math.round(amount * 100) / 100,
+                  amount: amount,
                   gameType,
                 });
               }
@@ -774,7 +854,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -800,7 +880,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: loser.name,
                     to: winner.name,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -913,7 +993,8 @@ export function calculateSettlement(
         } else {
           // Fallback: use calculator's approximation
           const snakeResult = calcSnake(players, course);
-          const snakeHolder = snakeResult.holder;
+          // Preserve the pre-version-one fallback result for saved contests; this game is hidden for new contests.
+          const snakeHolder = (snakeResult as typeof snakeResult & {holder?: string}).holder;
           if (snakeHolder) {
             for (const p of players) {
               if (p.name !== snakeHolder) {
@@ -957,7 +1038,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: p.name,
                     to: winnerName,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -978,7 +1059,7 @@ export function calculateSettlement(
                   transactions.push({
                     from: p.name,
                     to: winnerName,
-                    amount: Math.round(amount * 100) / 100,
+                    amount: amount,
                     gameType,
                   });
                 }
@@ -1000,14 +1081,65 @@ export function calculateSettlement(
     }
   }
 
-  // Net transactions per player
-  const netByPlayer: Record<string, number> = {};
-  players.forEach((p) => (netByPlayer[p.name] = 0));
+  if (transactions.some(t => !Number.isFinite(t.amount) || t.amount < 0 || !Number.isSafeInteger(Math.round(t.amount * 100)))) throw new Error("Unsafe settlement amount");
 
-  for (const t of transactions) {
-    netByPlayer[t.to] = (netByPlayer[t.to] || 0) + t.amount;
-    netByPlayer[t.from] = (netByPlayer[t.from] || 0) - t.amount;
+  // Round player entitlements, rather than independently rounding every edge.
+  // Each game's two sides receive the same cent budget, with stable input-order
+  // tie breaking for equal remainders. All ledger arithmetic below is integer.
+  const ledger: Transaction[] = [];
+  const netCents: Record<string, number> = {};
+  players.forEach(p => { netCents[p.name] = 0; });
+  for (const gameType of new Set(transactions.map(t => t.gameType))) {
+    const partitions = (gameType === "skins" || gameType === "skins_carry")
+      ? skinsGroups(groups ?? [{ name: "Whole field", players }], gameConfig)
+      : gameConfig?.rulesVersion === 1 && groups && ["nassau","nassau_press","match_play","vegas","sixes","rabbit"].includes(gameType) ? groups : [{ name: "Whole field", players }];
+    for (const partition of partitions) {
+      const members = new Set(partition.players.map(p => p.name));
+      const raw: Record<string, number> = {};
+      players.forEach(p => { raw[p.name] = 0; });
+      for (const t of transactions.filter(t => t.gameType === gameType && members.has(t.from) && members.has(t.to))) {
+        raw[t.to] = (raw[t.to] || 0) + t.amount * 100;
+        raw[t.from] = (raw[t.from] || 0) - t.amount * 100;
+      }
+      const winners = Object.entries(raw).filter(([, n]) => n > 1e-8);
+      const losers = Object.entries(raw).filter(([, n]) => n < -1e-8).map(([name, n]) => [name, -n] as [string, number]);
+      const budget = Math.round(winners.reduce((sum, [, n]) => sum + n, 0));
+      if (!Number.isSafeInteger(budget)) throw new Error("Unsafe settlement total");
+      const credits = allocateCents(winners, budget);
+      const debts = allocateCents(losers, budget);
+      for (const credit of credits) {
+        for (const debt of debts) {
+          const cents = Math.min(credit.cents, debt.cents);
+          if (!cents) continue;
+          ledger.push({ from: debt.name, to: credit.name, amount: cents / 100, gameType });
+          netCents[credit.name] += cents;
+          netCents[debt.name] -= cents;
+          credit.cents -= cents;
+          debt.cents -= cents;
+        }
+      }
+    }
   }
+  const netByPlayer = Object.fromEntries(Object.entries(netCents).map(([name, cents]) => [name, cents / 100]));
+  return { transactions: ledger, netByPlayer };
+}
 
-  return { transactions, netByPlayer };
+/** Largest-remainder allocation; amounts and the total are in cents. */
+function allocateCents(entries: [string, number][], total: number) {
+  const sum = entries.reduce((s, [, amount]) => s + amount, 0);
+  const shares = entries.map(([name, amount], index) => {
+    const exact = sum ? amount / sum * total : 0;
+    const cents = Math.floor(exact);
+    return { name, cents, remainder: exact - cents, index };
+  });
+  const ranked = [...shares].sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+  const remaining = total - shares.reduce((s, share) => s + share.cents, 0);
+  for (let i = 0; i < remaining; i++) ranked[i].cents++;
+  return shares;
+}
+
+/** A tied top rank pushes a winner bet in version-one rules. */
+function tiedRank(a: object, b: object): boolean {
+  const first = a as Record<string, unknown>, second = b as Record<string, unknown>;
+  return ["total","points","overUnder","netScore"].some(key => key in first && first[key] === second[key]);
 }

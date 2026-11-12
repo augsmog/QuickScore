@@ -11,7 +11,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { COLORS } from "../theme";
+import { COLORS, FONTS } from "../theme";
 
 interface GameTokenProps {
   icon: string;
@@ -138,7 +138,7 @@ export function GameToken({
             style={{
               color: isSelected ? accentColor : COLORS.text,
               fontSize: 11,
-              fontWeight: "700",
+              fontFamily: FONTS.bold,
               textAlign: "center",
             }}
             numberOfLines={1}
@@ -150,7 +150,7 @@ export function GameToken({
               style={{
                 color: COLORS.textDim,
                 fontSize: 9,
-                fontWeight: "500",
+                fontFamily: FONTS.medium,
               }}
             >
               {playerCount}

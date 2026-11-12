@@ -1,3 +1,7 @@
+import { showAlert } from "@/services/platform-alert";
+import { SafeScreen } from "../../src/ui/SafeScreen";
+import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
+import { SUPPORT_BASE_URL } from "../../src/config/support";
 import { useState } from "react";
 import {
   View,
@@ -12,7 +16,6 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import * as AuthSession from "expo-auth-session";
@@ -99,7 +102,7 @@ export default function SignInScreen() {
       setError(null);
 
       if (!GOOGLE_CLIENT_ID) {
-        Alert.alert(
+        showAlert(
           "Google Sign-In",
           "Google Sign-In is not yet configured. Please use Apple Sign-In or create an account with email."
         );
@@ -156,7 +159,7 @@ export default function SignInScreen() {
       );
       router.replace("/(tabs)");
     } catch (e: any) {
-      setError(e.message || "Sign up failed. Please try again.");
+      setError(e?.message || "Sign up failed. Please try again.");
     }
   };
 
@@ -175,14 +178,14 @@ export default function SignInScreen() {
       await signInWithEmail(email.trim(), password);
       router.replace("/(tabs)");
     } catch (e: any) {
-      setError(e.message || "Sign in failed. Please try again.");
+      setError(e?.message || "Sign in failed. Please try again.");
     }
   };
 
 
   // ─── Render ───
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -195,6 +198,7 @@ export default function SignInScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
+          {CROSS_DEVICE_SHARING_ENABLED && (<Pressable onPress={() => router.push("/join/enter")} style={{ paddingVertical: 16 }}><Text style={{ color: COLORS.primary, textAlign: "center" }}>Join with code</Text></Pressable>)}
           {/* Logo */}
           <View style={{ alignItems: "center", marginBottom: 40 }}>
             <Text
@@ -207,7 +211,7 @@ export default function SignInScreen() {
                 marginBottom: 8,
               }}
             >
-              SCORESNAP
+              SNAPSCORE
             </Text>
             <Text
               style={{
@@ -605,15 +609,15 @@ export default function SignInScreen() {
           {/* Legal — tappable links (App Store requirement) */}
           <Text style={{ color: COLORS.textDim, fontSize: 11, fontFamily: FONTS.regular, textAlign: "center", marginTop: 28, lineHeight: 16, paddingHorizontal: 20 }}>
             By continuing, you agree to our{" "}
-            <Text onPress={() => Linking.openURL("https://august-industries.com/snapscore/terms")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
+            <Text onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/terms")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
               Terms of Service
             </Text>{" "}and{" "}
-            <Text onPress={() => Linking.openURL("https://august-industries.com/snapscore/privacy")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
+            <Text onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/privacy")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
               Privacy Policy
             </Text>
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }

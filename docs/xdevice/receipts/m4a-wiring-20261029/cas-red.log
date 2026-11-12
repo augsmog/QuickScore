@@ -1,0 +1,32 @@
+
+> snapscore@1.0.0 test
+> jest --runInBand tests/m4a-wiring.test.cjs
+
+file:///workspace/aos-work/snapscore-m4a-20261029/code/scoresnap/[eval1]:1
+import assert from 'node:assert/strict';const m=await import('./src/services/sync-v1.ts');const {syncV1,canSync,revisionChannel}=m.default??m;const cap={api_version:1,contract:'snapscore-sync-v1',protocol:1,enabled:true,revision:7,channel:{topic:'snapscore:c',private:true,event:'revision'}};const snapshot={contest_id:'c',revision:7,protocol:1,capabilities:cap,course:{name:'Course',holes:[]},id_map:[],rounds:[{id:'r',course:{name:'Asymmetric',holes:[]},players:[{id:'p',cells:[{hole:1,version:9,strokes:null}]}]}]};const {snapshotScore}=m.default??m;snapshot.rounds.push({id:'r2',players:[{id:'p',cells:[{hole:1,version:20,strokes:6}]}]});assert.deepEqual(snapshotScore(true,snapshot,'r','p',1,null),{draft:{contest_id:'c',round_id:'r',player_id:'p',hole:1,action:'clear',strokes:null},version:9});assert.equal(snapshotScore(true,snapshot,'r2','p',1,5).version,20);assert.throws(()=>snapshotScore(false,snapshot,'r','p',1,5));assert.throws(()=>snapshotScore(true,snapshot,'missing','p',1,5));
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ^
+
+TypeError: snapshotScore is not a function
+    at file:///workspace/aos-work/snapscore-m4a-20261029/code/scoresnap/[eval1]:1:660
+
+Node.js v20.19.2
+FAIL tests/m4a-wiring.test.cjs
+  ● scorecard builds CAS edit from the selected round tombstone, never from another round
+
+    Command failed: /usr/bin/node --import tsx --input-type=module -e import assert from 'node:assert/strict';const m=await import('./src/services/sync-v1.ts');const {syncV1,canSync,revisionChannel}=m.default??m;const cap={api_version:1,contract:'snapscore-sync-v1',protocol:1,enabled:true,revision:7,channel:{topic:'snapscore:c',private:true,event:'revision'}};const snapshot={contest_id:'c',revision:7,protocol:1,capabilities:cap,course:{name:'Course',holes:[]},id_map:[],rounds:[{id:'r',course:{name:'Asymmetric',holes:[]},players:[{id:'p',cells:[{hole:1,version:9,strokes:null}]}]}]};const {snapshotScore}=m.default??m;snapshot.rounds.push({id:'r2',players:[{id:'p',cells:[{hole:1,version:20,strokes:6}]}]});assert.deepEqual(snapshotScore(true,snapshot,'r','p',1,null),{draft:{contest_id:'c',round_id:'r',player_id:'p',hole:1,action:'clear',strokes:null},version:9});assert.equal(snapshotScore(true,snapshot,'r2','p',1,5).version,20);assert.throws(()=>snapshotScore(false,snapshot,'r','p',1,5));assert.throws(()=>snapshotScore(true,snapshot,'missing','p',1,5));
+    file:///workspace/aos-work/snapscore-m4a-20261029/code/scoresnap/[eval1]:1
+    import assert from 'node:assert/strict';const m=await import('./src/services/sync-v1.ts');const {syncV1,canSync,revisionChannel}=m.default??m;const cap={api_version:1,contract:'snapscore-sync-v1',protocol:1,enabled:true,revision:7,channel:{topic:'snapscore:c',private:true,event:'revision'}};const snapshot={contest_id:'c',revision:7,protocol:1,capabilities:cap,course:{name:'Course',holes:[]},id_map:[],rounds:[{id:'r',course:{name:'Asymmetric',holes:[]},players:[{id:'p',cells:[{hole:1,version:9,strokes:null}]}]}]};const {snapshotScore}=m.default??m;snapshot.rounds.push({id:'r2',players:[{id:'p',cells:[{hole:1,version:20,strokes:6}]}]});assert.deepEqual(snapshotScore(true,snapshot,'r','p',1,null),{draft:{contest_id:'c',round_id:'r',player_id:'p',hole:1,action:'clear',strokes:null},version:9});assert.equal(snapshotScore(true,snapshot,'r2','p',1,5).version,20);assert.throws(()=>snapshotScore(false,snapshot,'r','p',1,5));assert.throws(()=>snapshotScore(true,snapshot,'missing','p',1,5));
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ^
+
+    TypeError: snapshotScore is not a function
+
+      at file:/workspace/aos-work/snapscore-m4a-20261029/code/scoresnap/[eval1]:1:660
+      Node.js v20.19.2
+      at run (tests/m4a-wiring.test.cjs:2:22)
+      at Object.<anonymous> (tests/m4a-wiring.test.cjs:8:98)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 4 passed, 5 total
+Snapshots:   0 total
+Time:        1.744 s, estimated 2 s
+Ran all test suites matching tests/m4a-wiring.test.cjs.

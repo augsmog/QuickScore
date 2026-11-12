@@ -1,5 +1,10 @@
+import { showAlert } from "@/services/platform-alert";
+import { SafeScreen } from "../../../src/ui/SafeScreen";
+import { useScanStore } from "../../../src/stores/scan-store";
+import { canUseGame, canHostTournament } from "../../../src/services/entitlements";
 import { useState, useMemo } from "react";
 import {
+  Alert,
   View,
   Text,
   ScrollView,
@@ -8,7 +13,6 @@ import {
   Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, Minus, X, Check } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, RADII } from "../../../src/ui/theme";
@@ -17,13 +21,14 @@ import {
   useContestStore,
   generateId,
 } from "../../../src/stores/contest-store";
-import { ALL_GAMES, GameType } from "../../../src/engine/types";
+import { ALL_GAMES, GameType, isGameImplemented } from "../../../src/engine/types";
 
 const BET_UNITS = [1, 2, 5, 10, 20];
 
 export default function EditContestScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const tier = useScanStore(s => s.tier);
   const contest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
@@ -43,6 +48,7 @@ export default function EditContestScreen() {
   }, [contest?.id]);
 
   const [players, setPlayers] = useState(initialPlayers);
+  const [groups, setGroups] = useState(contest?.groups ?? []);
   const [enabledGames, setEnabledGames] = useState<GameType[]>(
     contest?.games ?? []
   );
@@ -50,7 +56,7 @@ export default function EditContestScreen() {
 
   if (!contest) {
     return (
-      <SafeAreaView
+      <SafeScreen
         style={{ flex: 1, backgroundColor: COLORS.bg }}
         edges={["top"]}
       >
@@ -65,7 +71,7 @@ export default function EditContestScreen() {
             Contest not found.
           </Text>
         </View>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
@@ -98,6 +104,8 @@ export default function EditContestScreen() {
   // --- Game toggle ---
 
   const toggleGame = (gameId: GameType) => {
+    if (!contest.games.includes(gameId) && !isGameImplemented(gameId)) return;
+    if (!enabledGames.includes(gameId) && !canUseGame(gameId, tier)) { router.push("/paywall"); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEnabledGames((prev) =>
       prev.includes(gameId)
@@ -106,13 +114,20 @@ export default function EditContestScreen() {
     );
   };
 
+  const addGroup = () => {
+    if (!canHostTournament({numGroups: groups.length + 1}, tier)) { router.push("/paywall?tier=td"); return; }
+    const groupId = generateId();
+    setGroups([...groups, {id: groupId, name: `Group ${groups.length + 1}`, players: []}]);
+    setPlayers(prev => [...prev, ...[1,2].map(() => ({id: generateId(), name: "", handicap: "0", groupId}))]);
+  };
+
   // --- Save ---
 
   const handleSave = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // Rebuild groups with updated players
-    const updatedGroups = contest.groups.map((group) => ({
+    const updatedGroups = groups.map((group) => ({
       ...group,
       players: players
         .filter((p) => p.groupId === group.id)
@@ -128,27 +143,22 @@ export default function EditContestScreen() {
         }),
     }));
 
-    updateContest(id!, {
+    if (groups.length > contest.groups.length && !canHostTournament({...contest, groups: updatedGroups}, tier)) { router.push("/paywall?tier=td"); return; }
+    if (enabledGames.some(g => !contest.games.includes(g) && !canUseGame(g, tier))) { router.push("/paywall"); return; }
+    try { updateContest(id!, {
       groups: updatedGroups,
       games: enabledGames,
       betUnit,
-    });
+    }); } catch(error){showAlert("Review contest changes",String(error));return;}
 
     router.back();
   };
 
-  // Resolve game info for the contest's current game list
-  const contestGameInfos = useMemo(
-    () =>
-      ALL_GAMES.filter(
-        (g) =>
-          contest.games.includes(g.id) || enabledGames.includes(g.id)
-      ),
-    [contest.games, enabledGames]
-  );
+  // Saved premium games remain readable; only adding a game requires Pro.
+  const contestGameInfos = ALL_GAMES.filter(g => isGameImplemented(g.id) || contest.games.includes(g.id));
 
   return (
-    <SafeAreaView
+    <SafeScreen
       style={{ flex: 1, backgroundColor: COLORS.bg }}
       edges={["top", "bottom"]}
     >
@@ -230,7 +240,8 @@ export default function EditContestScreen() {
             >
               <View style={{ flex: 1 }}>
                 <TextInput
-                  value={player.name}
+                  accessibilityLabel={`Player name, ${groups.find(g => g.id === player.groupId)?.name ?? "Group"}`}
+                value={player.name}
                   onChangeText={(t) => updatePlayer(player.id, "name", t)}
                   placeholder={`Player ${idx + 1}`}
                   placeholderTextColor={COLORS.textDim}
@@ -322,6 +333,9 @@ export default function EditContestScreen() {
             </Text>
           </AnimatedPressable>
 
+          <AnimatedPressable onPress={addGroup} style={{paddingVertical:12}}>
+            <Text style={{color:COLORS.accent}}>{tier !== "td" ? "🔒 " : ""}Add Group (Tournament Director)</Text>
+          </AnimatedPressable>
           {/* ── Games Section ── */}
           <Text
             style={{
@@ -364,7 +378,7 @@ export default function EditContestScreen() {
                       fontWeight: "600",
                     }}
                   >
-                    {game.name}
+                    {!canUseGame(game.id, tier) ? "🔒 " : ""}{game.name}
                   </Text>
                   <Text
                     style={{
@@ -393,13 +407,13 @@ export default function EditContestScreen() {
                     borderWidth: 1.5,
                   }}
                 >
-                  {isEnabled && <Check size={14} color="#000" strokeWidth={3} />}
+                  {isEnabled && <Check size={14} color={COLORS.onPrimary} strokeWidth={3} />}
                 </View>
               </AnimatedPressable>
             );
           })}
 
-          {/* ── Bet Unit Section ── */}
+          {/* ── Unit Amount Section ── */}
           <Text
             style={{
               color: COLORS.accent,
@@ -411,7 +425,7 @@ export default function EditContestScreen() {
               marginBottom: 12,
             }}
           >
-            Bet Unit
+            Unit Amount
           </Text>
 
           <View
@@ -483,7 +497,7 @@ export default function EditContestScreen() {
           >
             <Text
               style={{
-                color: "#000",
+                color: COLORS.onPrimary,
                 fontSize: 16,
                 fontWeight: "800",
               }}
@@ -493,6 +507,6 @@ export default function EditContestScreen() {
           </AnimatedPressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }

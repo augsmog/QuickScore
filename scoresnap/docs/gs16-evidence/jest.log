@@ -1,0 +1,874 @@
+
+> snapscore@1.0.0 test
+> jest --runInBand
+
+FAIL tests/skins-mode.test.cjs
+  ● Games calculator and Settlement agree: net
+
+    spawnSync /usr/bin/node EPERM
+
+      3 | for (const mode of ['net', 'gross', 'default']) {
+      4 |   test(`Games calculator and Settlement agree: ${mode}`, () => {
+    > 5 |     execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', `
+        |     ^
+      6 |       import assert from 'node:assert/strict';
+      7 |       const { calcSkins, skinsModeLabel } = await import('./src/engine/calculators/skins.ts').then(m => m.default ?? m);
+      8 |       const { calculateSettlement } = await import('./src/engine/settlement.ts').then(m => m.default ?? m);
+
+      at Object.<anonymous> (tests/skins-mode.test.cjs:5:5)
+
+  ● Games calculator and Settlement agree: gross
+
+    spawnSync /usr/bin/node EPERM
+
+      3 | for (const mode of ['net', 'gross', 'default']) {
+      4 |   test(`Games calculator and Settlement agree: ${mode}`, () => {
+    > 5 |     execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', `
+        |     ^
+      6 |       import assert from 'node:assert/strict';
+      7 |       const { calcSkins, skinsModeLabel } = await import('./src/engine/calculators/skins.ts').then(m => m.default ?? m);
+      8 |       const { calculateSettlement } = await import('./src/engine/settlement.ts').then(m => m.default ?? m);
+
+      at Object.<anonymous> (tests/skins-mode.test.cjs:5:5)
+
+  ● Games calculator and Settlement agree: default
+
+    spawnSync /usr/bin/node EPERM
+
+      3 | for (const mode of ['net', 'gross', 'default']) {
+      4 |   test(`Games calculator and Settlement agree: ${mode}`, () => {
+    > 5 |     execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', `
+        |     ^
+      6 |       import assert from 'node:assert/strict';
+      7 |       const { calcSkins, skinsModeLabel } = await import('./src/engine/calculators/skins.ts').then(m => m.default ?? m);
+      8 |       const { calculateSettlement } = await import('./src/engine/settlement.ts').then(m => m.default ?? m);
+
+      at Object.<anonymous> (tests/skins-mode.test.cjs:5:5)
+
+  ● multiple skins winners receive only their calculated winnings
+
+    spawnSync /usr/bin/node EPERM
+
+      36 |
+      37 | test('multiple skins winners receive only their calculated winnings', () => {
+    > 38 |   execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', `
+         |   ^
+      39 |     import assert from 'node:assert/strict';
+      40 |     const { calcSkins } = await import('./src/engine/calculators/skins.ts').then(m => m.default ?? m);
+      41 |     const { calculateSettlement } = await import('./src/engine/settlement.ts').then(m => m.default ?? m);
+
+      at Object.<anonymous> (tests/skins-mode.test.cjs:38:3)
+
+FAIL tests/skins-scope.test.cjs
+  ● scope defaults and isolated cents: net skins
+
+    spawnSync /usr/bin/node EPERM
+
+      2 | for (const mode of ['net','gross']) for (const game of ['skins','skins_carry']) {
+      3 |  test(`scope defaults and isolated cents: ${mode} ${game}`,()=> {
+    > 4 |  execFileSync(process.execPath,['--import','tsx','--input-type=module','-e',`
+        |  ^
+      5 |  import assert from 'node:assert/strict';
+      6 |  const {calcScopedSkins,skinsLabel}=await import('./src/engine/calculators/skins.ts').then(m=>m.default??m);
+      7 |  const {calculateSettlement}=await import('./src/engine/settlement.ts').then(m=>m.default??m);
+
+      at Object.<anonymous> (tests/skins-scope.test.cjs:4:2)
+
+  ● scope defaults and isolated cents: net skins_carry
+
+    spawnSync /usr/bin/node EPERM
+
+      2 | for (const mode of ['net','gross']) for (const game of ['skins','skins_carry']) {
+      3 |  test(`scope defaults and isolated cents: ${mode} ${game}`,()=> {
+    > 4 |  execFileSync(process.execPath,['--import','tsx','--input-type=module','-e',`
+        |  ^
+      5 |  import assert from 'node:assert/strict';
+      6 |  const {calcScopedSkins,skinsLabel}=await import('./src/engine/calculators/skins.ts').then(m=>m.default??m);
+      7 |  const {calculateSettlement}=await import('./src/engine/settlement.ts').then(m=>m.default??m);
+
+      at Object.<anonymous> (tests/skins-scope.test.cjs:4:2)
+
+  ● scope defaults and isolated cents: gross skins
+
+    spawnSync /usr/bin/node EPERM
+
+      2 | for (const mode of ['net','gross']) for (const game of ['skins','skins_carry']) {
+      3 |  test(`scope defaults and isolated cents: ${mode} ${game}`,()=> {
+    > 4 |  execFileSync(process.execPath,['--import','tsx','--input-type=module','-e',`
+        |  ^
+      5 |  import assert from 'node:assert/strict';
+      6 |  const {calcScopedSkins,skinsLabel}=await import('./src/engine/calculators/skins.ts').then(m=>m.default??m);
+      7 |  const {calculateSettlement}=await import('./src/engine/settlement.ts').then(m=>m.default??m);
+
+      at Object.<anonymous> (tests/skins-scope.test.cjs:4:2)
+
+  ● scope defaults and isolated cents: gross skins_carry
+
+    spawnSync /usr/bin/node EPERM
+
+      2 | for (const mode of ['net','gross']) for (const game of ['skins','skins_carry']) {
+      3 |  test(`scope defaults and isolated cents: ${mode} ${game}`,()=> {
+    > 4 |  execFileSync(process.execPath,['--import','tsx','--input-type=module','-e',`
+        |  ^
+      5 |  import assert from 'node:assert/strict';
+      6 |  const {calcScopedSkins,skinsLabel}=await import('./src/engine/calculators/skins.ts').then(m=>m.default??m);
+      7 |  const {calculateSettlement}=await import('./src/engine/settlement.ts').then(m=>m.default??m);
+
+      at Object.<anonymous> (tests/skins-scope.test.cjs:4:2)
+
+FAIL tests/live-share.test.cjs
+  ● snapshot allowlist removes private fields and raw contest JSON
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/live-share-snapshot.ts');
+      5 | const { buildSnapshot, validShareToken, linkExpired } = mod.default ?? mod;
+
+      at run (tests/live-share.test.cjs:2:26)
+      at Object.<anonymous> (tests/live-share.test.cjs:8:75)
+
+  ● snapshot normalizes invalid scores before totals
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/live-share-snapshot.ts');
+      5 | const { buildSnapshot, validShareToken, linkExpired } = mod.default ?? mod;
+
+      at run (tests/live-share.test.cjs:2:26)
+      at Object.<anonymous> (tests/live-share.test.cjs:15:61)
+
+  ● tokens require exactly 64 lowercase hexadecimal characters
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/live-share-snapshot.ts');
+      5 | const { buildSnapshot, validShareToken, linkExpired } = mod.default ?? mod;
+
+      at run (tests/live-share.test.cjs:2:26)
+      at Object.<anonymous> (tests/live-share.test.cjs:18:71)
+
+  ● expiry denies at the boundary and rejects invalid timestamps
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/live-share-snapshot.ts');
+      5 | const { buildSnapshot, validShareToken, linkExpired } = mod.default ?? mod;
+
+      at run (tests/live-share.test.cjs:2:26)
+      at Object.<anonymous> (tests/live-share.test.cjs:21:73)
+
+FAIL tests/guest-join.test.cjs
+  ● codes have six unambiguous characters and normalized validation
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/guest-join.ts');
+      5 | const {generateJoinCode,validJoinCode,normalizeJoinCode,bindGuest,localContestJoinService,claimGuestHistory} = mod.default ?? mod;
+
+      at run (tests/guest-join.test.cjs:2:26)
+      at Object.<anonymous> (tests/guest-join.test.cjs:8:76)
+
+  ● code allocation avoids collisions and fails boundedly
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/guest-join.ts');
+      5 | const {generateJoinCode,validJoinCode,normalizeJoinCode,bindGuest,localContestJoinService,claimGuestHistory} = mod.default ?? mod;
+
+      at run (tests/guest-join.test.cjs:2:26)
+      at Object.<anonymous> (tests/guest-join.test.cjs:12:66)
+
+  ● guest binding persists identity, trims name and is idempotent
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/guest-join.ts');
+      5 | const {generateJoinCode,validJoinCode,normalizeJoinCode,bindGuest,localContestJoinService,claimGuestHistory} = mod.default ?? mod;
+
+      at run (tests/guest-join.test.cjs:2:26)
+      at Object.<anonymous> (tests/guest-join.test.cjs:15:74)
+
+  ● guest rejects missing names, nonexistent slots and completed rounds
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/guest-join.ts');
+      5 | const {generateJoinCode,validJoinCode,normalizeJoinCode,bindGuest,localContestJoinService,claimGuestHistory} = mod.default ?? mod;
+
+      at run (tests/guest-join.test.cjs:2:26)
+      at Object.<anonymous> (tests/guest-join.test.cjs:21:80)
+
+  ● local lookup is normalized, has no cross-device fallback; claim explains retention
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/guest-join.ts');
+      5 | const {generateJoinCode,validJoinCode,normalizeJoinCode,bindGuest,localContestJoinService,claimGuestHistory} = mod.default ?? mod;
+
+      at run (tests/guest-join.test.cjs:2:26)
+      at Object.<anonymous> (tests/guest-join.test.cjs:27:95)
+
+FAIL tests/live-chat.test.cjs
+  ● chat trims names and bodies and accepts boundary lengths
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/live-chat-model.ts');
+      5 | const {validateMessage, chatError, sanitizeMessages, CHAT_POLL_MS} = mod.default ?? mod;
+
+      at run (tests/live-chat.test.cjs:2:26)
+      at Object.<anonymous> (tests/live-chat.test.cjs:7:69)
+
+  ● chat rejects empty and overlong names and messages
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/live-chat-model.ts');
+      5 | const {validateMessage, chatError, sanitizeMessages, CHAT_POLL_MS} = mod.default ?? mod;
+
+      at run (tests/live-chat.test.cjs:2:26)
+      at Object.<anonymous> (tests/live-chat.test.cjs:12:63)
+
+  ● rate limits have a safe retry message and server details are never reflected
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/live-chat-model.ts');
+      5 | const {validateMessage, chatError, sanitizeMessages, CHAT_POLL_MS} = mod.default ?? mod;
+
+      at run (tests/live-chat.test.cjs:2:26)
+      at Object.<anonymous> (tests/live-chat.test.cjs:15:89)
+
+  ● public chat allowlist drops IDs and session hashes and preserves literal markup
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/live-chat-model.ts');
+      5 | const {validateMessage, chatError, sanitizeMessages, CHAT_POLL_MS} = mod.default ?? mod;
+
+      at run (tests/live-chat.test.cjs:2:26)
+      at Object.<anonymous> (tests/live-chat.test.cjs:21:92)
+
+  ● chat fails closed on malformed network responses
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const { execFileSync } = require('node:child_process');
+    > 2 | const run = body => void execFileSync(process.execPath, ['--import','tsx','--input-type=module','-e', `
+        |                          ^
+      3 | import assert from 'node:assert/strict';
+      4 | const mod = await import('./src/services/live-chat-model.ts');
+      5 | const {validateMessage, chatError, sanitizeMessages, CHAT_POLL_MS} = mod.default ?? mod;
+
+      at run (tests/live-chat.test.cjs:2:26)
+      at Object.<anonymous> (tests/live-chat.test.cjs:26:61)
+
+FAIL tests/settlement-cents.test.cjs
+  ● uneven three-way splits reconcile cents and ledger in Net and Gross
+
+    spawnSync /usr/bin/node EPERM
+
+      1 | const {execFileSync}=require('node:child_process');
+      2 | test('uneven three-way splits reconcile cents and ledger in Net and Gross',()=>{
+    > 3 | execFileSync(process.execPath,['--import','tsx','--input-type=module','-e',`
+        | ^
+      4 | import assert from 'node:assert/strict';
+      5 | const {calculateSettlement}=await import('./src/engine/settlement.ts').then(m=>m.default??m);
+      6 | const course={name:'Test',holes:Array.from({length:18},(_,i)=>({num:i+1,par:4,hcp:i+1}))};
+
+      at Object.<anonymous> (tests/settlement-cents.test.cjs:3:1)
+
+FAIL tests/scoring-properties.test.cjs (10.904 s)
+  ● seeded scoring invariants: stroke_play (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: match_play (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: stableford (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: mod_stableford (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: skins (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: skins_carry (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: nassau (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: nassau_press (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: wolf (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: banker (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: hammer (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: snake (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: bingo_bango_bongo (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: dots (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: rabbit (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: defender (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: nines (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: vegas (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: sixes (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: closeout (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: quota (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: chicago (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: greenies (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: aces_deuces (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: best_ball (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: scramble (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: shamble (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: alternate_shot (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: chapman (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+  ● seeded scoring invariants: fourball (60 configurations)
+
+    spawnSync /usr/bin/node EPERM
+
+       8 | const games = [...types.split('export type GameType =')[1].split(';')[0].matchAll(/"([a-z_]+)"/g)].map(m => m[1]);
+       9 | for (const game of games) test(`seeded scoring invariants: ${game} (60 configurations)`, () => {
+    > 10 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/scoring-properties.ts', game], {
+         |                  ^
+      11 |     cwd: root, encoding: 'utf8', timeout: 25000,
+      12 |   });
+      13 |   const report = JSON.parse(output.trim());
+
+      at Object.<anonymous> (tests/scoring-properties.test.cjs:10:18)
+
+FAIL tests/engine.test.cjs
+  ● all-calculators.test.ts
+
+    spawnSync /usr/bin/node EPERM
+
+      3 | for (const file of ['all-calculators.test.ts', 'per-hole-progressive.test.ts', 'comprehensive-scorecard-tests.ts']) {
+      4 |   test(file, () => {
+    > 5 |     const output = execFileSync(process.execPath, ['--import', 'tsx', `src/engine/__tests__/${file}`], {
+        |                    ^
+      6 |       cwd: path.resolve(__dirname, '..'), encoding: 'utf8', timeout: 25000,
+      7 |     });
+      8 |     const summary = output.match(/(?:Results|RESULTS): (\d+) passed, (\d+) failed/)
+
+      at Object.<anonymous> (tests/engine.test.cjs:5:20)
+
+  ● per-hole-progressive.test.ts
+
+    spawnSync /usr/bin/node EPERM
+
+      3 | for (const file of ['all-calculators.test.ts', 'per-hole-progressive.test.ts', 'comprehensive-scorecard-tests.ts']) {
+      4 |   test(file, () => {
+    > 5 |     const output = execFileSync(process.execPath, ['--import', 'tsx', `src/engine/__tests__/${file}`], {
+        |                    ^
+      6 |       cwd: path.resolve(__dirname, '..'), encoding: 'utf8', timeout: 25000,
+      7 |     });
+      8 |     const summary = output.match(/(?:Results|RESULTS): (\d+) passed, (\d+) failed/)
+
+      at Object.<anonymous> (tests/engine.test.cjs:5:20)
+
+  ● comprehensive-scorecard-tests.ts
+
+    spawnSync /usr/bin/node EPERM
+
+      3 | for (const file of ['all-calculators.test.ts', 'per-hole-progressive.test.ts', 'comprehensive-scorecard-tests.ts']) {
+      4 |   test(file, () => {
+    > 5 |     const output = execFileSync(process.execPath, ['--import', 'tsx', `src/engine/__tests__/${file}`], {
+        |                    ^
+      6 |       cwd: path.resolve(__dirname, '..'), encoding: 'utf8', timeout: 25000,
+      7 |     });
+      8 |     const summary = output.match(/(?:Results|RESULTS): (\d+) passed, (\d+) failed/)
+
+      at Object.<anonymous> (tests/engine.test.cjs:5:20)
+
+FAIL tests/local-date.test.cjs
+  ● local calendar date in America/Los_Angeles for 2026-10-22T01:30:00Z
+
+    spawnSync /usr/bin/node EPERM
+
+       5 |   ['America/Los_Angeles', '2026-01-01T01:30:00Z', '2025-12-31'],
+       6 | ])('local calendar date in %s for %s', (timezone, instant, expected) => {
+    >  7 |   const result = execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e',
+         |                  ^
+       8 |     `const m = await import('./src/utils/local-date.ts'); const localDate = m.localDate ?? m.default.localDate; console.log(localDate('${instant}'));`],
+       9 |     { encoding: 'utf8', env: { ...process.env, TZ: timezone } });
+      10 |   expect(result.trim()).toBe(expected);
+
+      at tests/local-date.test.cjs:7:18
+
+  ● local calendar date in Asia/Tokyo for 2026-10-21T18:30:00Z
+
+    spawnSync /usr/bin/node EPERM
+
+       5 |   ['America/Los_Angeles', '2026-01-01T01:30:00Z', '2025-12-31'],
+       6 | ])('local calendar date in %s for %s', (timezone, instant, expected) => {
+    >  7 |   const result = execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e',
+         |                  ^
+       8 |     `const m = await import('./src/utils/local-date.ts'); const localDate = m.localDate ?? m.default.localDate; console.log(localDate('${instant}'));`],
+       9 |     { encoding: 'utf8', env: { ...process.env, TZ: timezone } });
+      10 |   expect(result.trim()).toBe(expected);
+
+      at tests/local-date.test.cjs:7:18
+
+  ● local calendar date in America/Los_Angeles for 2026-01-01T01:30:00Z
+
+    spawnSync /usr/bin/node EPERM
+
+       5 |   ['America/Los_Angeles', '2026-01-01T01:30:00Z', '2025-12-31'],
+       6 | ])('local calendar date in %s for %s', (timezone, instant, expected) => {
+    >  7 |   const result = execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e',
+         |                  ^
+       8 |     `const m = await import('./src/utils/local-date.ts'); const localDate = m.localDate ?? m.default.localDate; console.log(localDate('${instant}'));`],
+       9 |     { encoding: 'utf8', env: { ...process.env, TZ: timezone } });
+      10 |   expect(result.trim()).toBe(expected);
+
+      at tests/local-date.test.cjs:7:18
+
+FAIL tests/skins-midround.test.cjs
+  ● skins: unplayed holes are not ties (net/gross, carryover on/off)
+
+    spawnSync /usr/bin/node EPERM
+
+      2 | const path = require('node:path');
+      3 | test('skins: unplayed holes are not ties (net/gross, carryover on/off)', () => {
+    > 4 |   const output = execFileSync(process.execPath, ['--import', 'tsx', 'tests/helpers/skins-midround.ts'], {
+        |                  ^
+      5 |     cwd: path.resolve(__dirname, '..'), encoding: 'utf8', timeout: 25000,
+      6 |   });
+      7 |   expect(output).toContain('skins mid-round regressions passed');
+
+      at Object.<anonymous> (tests/skins-midround.test.cjs:4:18)
+
+FAIL tests/unplayed-holes.test.cjs
+  ● unplayed holes: all-zero, nine played, mid-round, and missing scores
+
+    spawnSync /usr/bin/node EPERM
+
+      2 | const path = require('node:path');
+      3 | test('unplayed holes: all-zero, nine played, mid-round, and missing scores', () => {
+    > 4 |   const output = execFileSync(process.execPath, ['--import','tsx','tests/helpers/unplayed-holes.ts'], {
+        |                  ^
+      5 |     cwd:path.resolve(__dirname,'..'), encoding:'utf8', timeout:25000,
+      6 |   });
+      7 |   expect(output).toContain('unplayed-hole regressions passed');
+
+      at Object.<anonymous> (tests/unplayed-holes.test.cjs:4:18)
+
+Test Suites: 11 failed, 5 passed, 16 total
+Tests:       61 failed, 186 passed, 247 total
+Snapshots:   0 total
+Time:        27.858 s
+Ran all test suites.

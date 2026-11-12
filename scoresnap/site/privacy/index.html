@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Privacy policy · SnapScore</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #FAF4E8;
+    color: #17251E;
+    font-family: "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 17px;
+    line-height: 1.5;
+  }
+  a { color: #175C3A; }
+  a:focus-visible, .skip:focus { outline: 3px solid #175C3A; outline-offset: 3px; }
+  .skip {
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    transform: translateY(-160%);
+    background: #175C3A;
+    color: #FFFFFF;
+    border-radius: 12px;
+    padding: 10px 14px;
+    text-decoration: none;
+  }
+  .skip:focus { transform: none; }
+  header, main { width: 100%; max-width: 40rem; margin: 0 auto; padding-left: 20px; padding-right: 20px; }
+  header { padding-top: 28px; }
+  .brand { margin: 0; font-family: Georgia, "Iowan Old Style", Palatino, serif; font-size: 1.25rem; letter-spacing: -0.02em; }
+  nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid #E3D9C6;
+    border-radius: 12px;
+    background: #FFFFFF;
+    text-decoration: none;
+  }
+  nav a[aria-current="page"] { border-color: #175C3A; }
+  main { padding-top: 8px; padding-bottom: 64px; }
+  h1 { margin: 20px 0 8px; font-family: Georgia, "Iowan Old Style", Palatino, serif; font-size: 2rem; font-weight: 400; letter-spacing: -0.03em; line-height: 1.2; }
+  h2 { margin: 32px 0 8px; font-family: Georgia, "Iowan Old Style", Palatino, serif; font-size: 1.35rem; font-weight: 400; }
+  h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  p, li { margin: 0 0 12px; }
+  p, li, td, th, code { overflow-wrap: anywhere; }
+  code { font-size: 0.92em; }
+  .policy-table { max-width: 100%; overflow-x: auto; margin: 0 0 16px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #E3D9C6; padding: 8px 10px; text-align: left; vertical-align: top; background: #FFFFFF; }
+  th { font-weight: 600; }
+  ol, ul { padding-left: 1.25rem; }
+  .lede, .note { color: #3E463C; }
+  .contact { display: inline-block; padding: 8px 0; overflow-wrap: anywhere; }
+  article {
+    background: #FFFFFF;
+    border: 1px solid #E3D9C6;
+    border-radius: 16px;
+    padding: 16px;
+    margin: 0 0 12px;
+  }
+  @media (max-width: 390px) {
+    header, main { padding-left: 16px; padding-right: 16px; }
+    h1 { font-size: 1.75rem; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header>
+<p class="brand">SnapScore</p>
+<nav aria-label="SnapScore pages">
+<a href="/support">Support</a>
+<a href="/privacy" aria-current="page">Privacy policy</a>
+<a href="/terms">Terms</a>
+</nav>
+</header>
+<main id="content">
+<h1 id="snapscore-privacy-policy">SnapScore Privacy Policy</h1>
+<p>Effective date: October 30, 2026</p>
+<p>SnapScore is operated by John August Jones (&quot;we&quot;, &quot;us&quot;). For privacy questions or requests, email <a href="mailto:augie@autumn8.me">augie@autumn8.me</a>. This policy is published at <a href="https://snapscore.autumn8.me/privacy">https://snapscore.autumn8.me/privacy</a> and the support page is <a href="https://snapscore.autumn8.me/support">https://snapscore.autumn8.me/support</a>.</p>
+<h2 id="information-you-provide">Information you provide</h2>
+<p>SnapScore handles the account information you supply, such as your name and email address. When you create an account or sign in, Supabase processes account sign-up and sign-in, including email/password credentials or identity-provider tokens (for example Sign in with Apple or Google). On iOS and Android the sign-in session is stored with the device's secure storage; on the web it is stored in the browser's localStorage. The app also keeps a copy of your session, a user profile and a few app flags in the app's local storage on your device. Builds that run offline, or without accounts, keep a local profile on the device instead.</p>
+<p>SnapScore stores golf-round information such as player names, scores, courses, groups, selected games and game settings on your device. When you use tournament features, round and player information and score updates are sent to Supabase. This information is used for scoring and settlement calculations. Only enter other people's information when you have their permission to do so.</p>
+<h2 id="scorecard-photos-and-ai-processing">Scorecard photos and AI processing</h2>
+<p>You can photograph a scorecard so SnapScore can read it. SnapScore first tries to read the card on your device using on-device text recognition when it is available. If that is unavailable, fails, or is not confident enough, the app can send the scorecard image for cloud recognition: the image is sent to a Supabase Edge Function, which forwards it to Anthropic's API to extract player names and scores. Cloud processing therefore includes any other information visible in the photo. Cloud reading only happens when you take a scorecard photo; if you would rather not send a photo, you can enter scores by hand instead. Review the extracted results before saving them.</p>
+<p>The scorecard image is sent in the request for recognition; SnapScore does not save it to a SnapScore storage bucket. Supabase and Anthropic handle data they receive under their own terms, which may include logs.</p>
+<h2 id="sharing-and-chat">Sharing and chat</h2>
+<p>If you turn on live scoreboard sharing, the app sends a scoreboard snapshot to Supabase containing player display names, hole scores, totals and game standings. Anyone who has a valid link can view that scoreboard without signing in. You can revoke shared links in the app. Chat sends a display name, the message and a randomly generated session identifier to Supabase, and hosts can remove messages. Do not include private information in shared names or messages. Revoking a link stops new viewing through that link; it does not erase information someone has already seen or copied.</p>
+<h2 id="diagnostics">Diagnostics</h2>
+<p>SnapScore uses Sentry to report errors, logs, performance traces and session replays so we can find and fix problems. Sentry may receive device and app details, the screens and actions leading up to an error, network request information, and identifiers associated with your use of the app. Performance traces are collected for a sample of sessions (about 20%), session replays for a sample of sessions (about 10%), and a replay may be captured when an error occurs. Session replays mask on-screen text and images by default. Sentry is turned off on public shared-scoreboard pages.</p>
+<h2 id="analytics">Analytics</h2>
+<p>SnapScore uses PostHog to understand how the app is used so we can improve it. PostHog analytics are anonymous: SnapScore sends only a randomly generated identifier and never links analytics to your account, name or email address. The information sent is limited to counts, yes/no flags and the choices you make in the app. It never includes player names, scores, scorecard photos, chat messages, email addresses or the contents of any error.</p>
+<p>On the mobile app, PostHog records standard app-lifecycle events (such as the app being installed, updated, opened, or moved to the foreground or background) and a small set of named product events: creating a contest, finalizing a round, completing a subscription purchase, processing a scanned scorecard, importing scores, and creating a quick settlement. Each of those events carries only values such as the number of players or groups, the game modes selected, whether a round is part of a tournament, the subscription tier and billing period chosen, and how many scanned items were low-confidence. SnapScore also sends a few structured app logs to PostHog that record the same kinds of counts and flags. Automatic crash and exception capture in PostHog is turned off; error and crash reporting is handled by Sentry as described above.</p>
+<p>On the web app, PostHog is configured to be personless and anonymous: it does not record your IP address, does not automatically capture clicks or page views, and session recording is disabled. It sends a short, fixed list of events (opening the app, viewing a screen from a set list of screen names, starting and completing a scorecard scan with its duration and success flag, tapping share, and showing an error with a short error code). Web address and referrer details are dropped before the event is sent.</p>
+<p>When a scorecard photo is read in the cloud, the processing function sends PostHog only anonymous processing metrics (whether it succeeded, how long it took, and how many players and scores were read). The scorecard image and any text read from it never enter analytics.</p>
+<h2 id="purchases-and-other-services">Purchases and other services</h2>
+<p>If you buy or restore a subscription, RevenueCat processes purchase and entitlement information so the app can determine your subscription access and restore purchases; Apple or Google processes the payment itself. SnapScore does not read your card number. Where these backend services are active, SnapScore can also keep profile and referral records, sign-up analytics and automation logs linked to your account, send welcome or referral emails through Resend, and record Stripe subscription and payment events for web billing.</p>
+<h2 id="course-search">Course search</h2>
+<p>If you search for a golf course, your search text is sent to a Supabase function, which can forward it to GolfCore and cache the query and results. Where optional location support is available and you allow location access, your location is used on your device to sort nearby courses. The app's course search sends your search text and course identifiers, not your coordinates, although the backend also supports coordinate-based searches.</p>
+<h2 id="how-information-is-used-and-who-receives-it">How information is used and who receives it</h2>
+<p>We use information to provide your account, read scorecards, store and sync rounds, calculate results, provide the sharing and chat features you choose to use, manage subscriptions, send account emails, and diagnose problems with the app. The services that receive information are:</p>
+<ul><li>Supabase: account data and the data used by cloud features (rounds, sharing, chat, course search).</li><li>Anthropic: scorecard images sent for cloud recognition.</li><li>Sentry: diagnostics described above.</li><li>PostHog: anonymous product and usage analytics described above.</li><li>RevenueCat, Apple and Google: purchase and subscription information.</li><li>Resend and Stripe: account emails and web billing events, where used.</li><li>GolfCore: course search queries.</li><li>Cloudflare: a security check (Turnstile) on sign-in and sign-up, where enabled.</li></ul>
+<p>SnapScore does not show ads and does not include advertising SDKs.</p>
+<h2 id="retention-and-deletion">Retention and deletion</h2>
+<p>Round and account records stored on your device stay there until the app's storage is cleared or you remove them in the app. Deleting a contest removes it from your device. The Delete Account control in Settings currently clears your contests, sign-in details, settings and onboarding status on that device, then signs you out. It does not delete your account or data on SnapScore's servers, and it does not clear every local item, such as your scan count, queued tournament updates and saved chat identifiers. Signing out does not delete server data either.</p>
+<p>SnapScore does not have a set retention or deletion schedule for server records, service-provider request data or logs, image caches, or backups. This policy does not promise complete deletion, a deletion deadline, or automatic expiry of images.</p>
+<p>To ask us to delete your account and the data stored on SnapScore's servers (such as synced rounds and scores, shared scoreboards and chat messages), email <a href="mailto:augie@autumn8.me">augie@autumn8.me</a> from the email address on your account. Information already sent to the service providers listed above is handled under their terms.</p>
+<h2 id="your-choices">Your choices</h2>
+<p>SnapScore asks for camera access to photograph scorecards. You can decline camera access and enter scores by hand instead. You can choose not to use cloud features such as live sharing, chat and course search. You can ask us questions about your information, or ask us to delete it, by emailing <a href="mailto:augie@autumn8.me">augie@autumn8.me</a>.</p>
+<h2 id="children">Children</h2>
+<p>SnapScore is not directed to children under 13, and we do not knowingly collect personal information from children under 13. If you believe a child has given us personal information, email <a href="mailto:augie@autumn8.me">augie@autumn8.me</a> so we can address it.</p>
+<h2 id="changes-to-this-policy">Changes to this policy</h2>
+<p>If we change this policy, we will post the updated version at <a href="https://snapscore.autumn8.me/privacy">https://snapscore.autumn8.me/privacy</a> with a new effective date.</p>
+<h2 id="contact">Contact</h2>
+<p>John August Jones, operator of SnapScore. Email: <a href="mailto:augie@autumn8.me">augie@autumn8.me</a></p>
+</main>
+</body>
+</html>

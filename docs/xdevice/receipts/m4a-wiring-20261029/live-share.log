@@ -1,0 +1,6 @@
+PASS: public scoreboard without onboarding/login
+PASS: anonymous posting renders markup as literal text
+PASS: persisted display name and removed message disappears on poll
+PASS: rate limit preserves draft and session and pauses sending
+PASS: polling removes scoreboard on expiry
+PASS: revoked state clears chat and composer

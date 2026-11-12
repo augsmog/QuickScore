@@ -12,7 +12,7 @@ import Animated, {
   Easing,
   SharedValue,
 } from "react-native-reanimated";
-import { COLORS } from "../theme";
+import { COLORS, FONTS } from "../theme";
 
 interface LeaderboardSceneProps {
   scrollX: SharedValue<number>;
@@ -22,8 +22,8 @@ interface LeaderboardSceneProps {
 
 const PODIUM = [
   { label: "1st", width: 120, color: COLORS.gold, delay: 300 },
-  { label: "2nd", width: 95, color: "#c0c0c0", delay: 450 },
-  { label: "3rd", width: 70, color: "#cd7f32", delay: 600 },
+  { label: "2nd", width: 95, color: COLORS.silver, delay: 450 },
+  { label: "3rd", width: 70, color: COLORS.bronze, delay: 600 },
 ];
 
 const SPARKLES = [
@@ -101,7 +101,7 @@ export function LeaderboardScene({ scrollX, pageIndex, pageWidth }: LeaderboardS
               borderRadius: 10,
               backgroundColor: COLORS.gold,
               borderWidth: 2,
-              borderColor: "#b8960c",
+              borderColor: COLORS.gold,
             }}
           />
         </View>
@@ -207,7 +207,7 @@ function PodiumBar({
       <Animated.Text
         style={{
           fontSize: 10,
-          fontWeight: "800",
+          fontFamily: FONTS.extrabold,
           color,
           letterSpacing: 0.5,
         }}
