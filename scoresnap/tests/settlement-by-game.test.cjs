@@ -147,3 +147,44 @@ test('constituent-only tied/pending players remain visible; legacy does not impo
  c.rounds[0].groups[0].players[0].scores[0]=0;tree=verifyRows(c);expect(row(tree,0,'xA')).toBe('xAPending');expect(row(tree,0,'A')).toBe('APending');
  c.gameConfig={};tree=verifyRows(c);expect(find(tree,'settlement-game-0-player-xA')).toBeUndefined();
 });
+
+test('ready group remains visible when another group is pending, without aggregate amounts',()=>{
+ const c=fixture();c.games=['match_play'];
+ c.groups=[group(Array(9).fill(3),Array(9).fill(4)),group([0,...Array(8).fill(4)],Array(9).fill(3),'x')];
+ const tree=render(c);
+ expect(find(tree,'settlement-pending')).toBeDefined();
+ expect(text(find(tree,'settlement-group-g'))).toBe('gB → A$2.00');
+ expect(text(find(tree,'settlement-group-x'))).toBe('xPending');
+ expect(find(tree,'settlement-session-total')).toBeUndefined();
+ expect(find(tree,'settlement-all-groups-label')).toBeUndefined();
+});
+test('tied field game renders an explicit Even ledger',()=>{
+ const c=fixture();c.games=['skins'];
+ c.groups=[group(Array(9).fill(4),Array(9).fill(4)),group(Array(9).fill(4),Array(9).fill(4),'x')];
+ expect(text(find(render(c),'settlement-group-field'))).toBe('Field (all groups)Even');
+});
+test('pending field game renders Pending while ready group amounts remain visible',()=>{
+ const c=fixture();c.games=['match_play','skins'];
+ c.groups=[group(Array(9).fill(3),Array(9).fill(4)),group([0,...Array(8).fill(4)],Array(9).fill(3),'x')];
+ const tree=render(c);
+ expect(text(find(tree,'settlement-group-field'))).toBe('Field (all groups)Pending');
+ expect(text(find(tree,'settlement-group-g'))).toBe('gB → A$2.00');
+ expect(text(find(tree,'settlement-group-x'))).toBe('xPending');
+});
+test('mixed scopes render exact isolated group rows and combined transaction amounts',()=>{
+ const c=fixture();c.games=['match_play','skins'];
+ c.groups=[group(Array(9).fill(3),Array(9).fill(4)),group(Array(9).fill(4),Array(9).fill(3),'x')];
+ c.groups[0].players[0].scores[0]=2;
+ const tree=render(c);
+ expect(text(find(tree,'settlement-group-g'))).toBe('gB → A$2.00');
+ expect(text(find(tree,'settlement-group-x'))).toBe('xxA → xB$2.00');
+ const scoped=groupSettlement.calculateGroupSettlements(c);
+ expect(scoped.field.transactions.length).toBeGreaterThan(0);
+ expect(text(find(tree,'settlement-group-field'))).toBe('Field (all groups)'+scoped.field.transactions.map(t=>`${t.from} → ${t.to}$${t.amount.toFixed(2)}`).join(''));
+ const combined=text(find(tree,'settlement-all-groups'));
+ const aggregate=engine.calculateContestSettlement(c);
+ expect(aggregate.transactions.length).toBeGreaterThan(0);
+ for(const t of aggregate.transactions) expect(combined).toContain(`${t.from} → ${t.to}$${t.amount.toFixed(2)}`);
+ expect(text(find(tree,'settlement-group-g'))).not.toContain('xA');
+ expect(text(find(tree,'settlement-group-x'))).not.toContain('B → A');
+});

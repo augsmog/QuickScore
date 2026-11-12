@@ -166,9 +166,49 @@ function SettlementScreenContent() {
   const multiGroup = groupSettlements.groups.length > 1;
   const revision = settlementRevision(contest);
   const transactionKeys = settlementTransactionKeys(settlement.transactions);
+  const groupLedgers = multiGroup ? (
+        <View style={{ marginBottom: 24 }}>
+          <Text style={sectionLabel}>BY GROUP</Text>
+          {groupSettlements.groups.map(({ groupId, summary }) => {
+            const label = contest.groups.find(g => g.id === groupId)?.name || "Group";
+            return (
+              <View key={groupId} testID={`settlement-group-${groupId}`} style={{ backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 10, gap: 8 }}>
+                <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold }}>{label}</Text>
+                {summary.pending ? (
+                  <Text style={{ color: COLORS.textDim, fontSize: 13 }}>Pending</Text>
+                ) : summary.transactions.length === 0 ? (
+                  <Text style={{ color: COLORS.textDim, fontSize: 13 }}>Even</Text>
+                ) : summary.transactions.map((t, i) => (
+                  <View key={`${groupId}-${i}`} style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
+                    <Text style={{ flex: 1, color: COLORS.text, fontSize: 14 }}>{t.from} → {t.to}</Text>
+                    <Text style={{ color: COLORS.text, fontFamily: FONTS.score, fontSize: 14 }}>{formatMoney(t.amount)}</Text>
+                  </View>
+                ))}
+              </View>
+            );
+          })}
+          {groupSettlements.field && (
+            <View testID="settlement-group-field" style={{ backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 10, gap: 8 }}>
+              <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold }}>Field (all groups)</Text>
+              {groupSettlements.field.pending ? (
+                <Text style={{ color: COLORS.textDim, fontSize: 13 }}>Pending</Text>
+              ) : groupSettlements.field.transactions.length === 0 ? (
+                <Text style={{ color: COLORS.textDim, fontSize: 13 }}>Even</Text>
+              ) : groupSettlements.field.transactions.map((t, i) => (
+                <View key={`field-${i}`} style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
+                  <Text style={{ flex: 1, color: COLORS.text, fontSize: 14 }}>{t.from} → {t.to}</Text>
+                  <Text style={{ color: COLORS.text, fontFamily: FONTS.score, fontSize: 14 }}>{formatMoney(t.amount)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Groups settle independently — no netting across groups.</Text>
+        </View>
+  ) : null;
   if (settlement.pending) return (
     <ScrollView testID="settlement-pending" style={{ flex: 1, backgroundColor: COLORS.bg }} contentContainerStyle={{ padding: 24, gap: 24 }}>
       <Text style={{color:COLORS.text}}>Settlement pending. Confirm every score and required side-game event on every hole before settling. Skip leaves inputs pending.</Text>
+      {groupLedgers}
       <SettlementByGame contest={contest} />
     </ScrollView>
   );
@@ -265,43 +305,9 @@ function SettlementScreenContent() {
         <Text testID="settlement-session-total" style={{ fontFamily: FONTS.score, fontSize: 24, color: COLORS.primary }}>{formatMoney(sessionTotal)}</Text>
       </View>
 
-      {multiGroup && (
-        <View style={{ marginBottom: 24 }}>
-          <Text style={sectionLabel}>BY GROUP</Text>
-          {groupSettlements.groups.map(({ groupId, summary }) => {
-            const label = contest.groups.find(g => g.id === groupId)?.name || "Group";
-            return (
-              <View key={groupId} testID={`settlement-group-${groupId}`} style={{ backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 10, gap: 8 }}>
-                <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold }}>{label}</Text>
-                {summary.pending ? (
-                  <Text style={{ color: COLORS.textDim, fontSize: 13 }}>Pending</Text>
-                ) : summary.transactions.length === 0 ? (
-                  <Text style={{ color: COLORS.textDim, fontSize: 13 }}>Even</Text>
-                ) : summary.transactions.map((t, i) => (
-                  <View key={`${groupId}-${i}`} style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-                    <Text style={{ flex: 1, color: COLORS.text, fontSize: 14 }}>{t.from} → {t.to}</Text>
-                    <Text style={{ color: COLORS.text, fontFamily: FONTS.score, fontSize: 14 }}>{formatMoney(t.amount)}</Text>
-                  </View>
-                ))}
-              </View>
-            );
-          })}
-          {groupSettlements.field && groupSettlements.field.transactions.length > 0 && (
-            <View testID="settlement-group-field" style={{ backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 10, gap: 8 }}>
-              <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold }}>Field (all groups)</Text>
-              {groupSettlements.field.transactions.map((t, i) => (
-                <View key={`field-${i}`} style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-                  <Text style={{ flex: 1, color: COLORS.text, fontSize: 14 }}>{t.from} → {t.to}</Text>
-                  <Text style={{ color: COLORS.text, fontFamily: FONTS.score, fontSize: 14 }}>{formatMoney(t.amount)}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-          <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Groups settle independently — no netting across groups.</Text>
-        </View>
-      )}
+      {groupLedgers}
 
-      <View style={{ marginBottom: 24 }}>
+      <View testID="settlement-all-groups" style={{ marginBottom: 24 }}>
         <Text style={sectionLabel} testID="settlement-all-groups-label">{multiGroup ? "ALL GROUPS · WHO OWES WHAT" : "WHO OWES WHAT"}</Text>
         {settlement.transactions.map((t, i) => {
           const transactionKey = transactionKeys[i];
