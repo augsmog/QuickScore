@@ -112,7 +112,8 @@ test("approved home and support copy stays in sync across both public-page rende
   expect(supportHtml).toBe(renderedSupport.endsWith("\n") ? renderedSupport : `${renderedSupport}\n`);
   expect(homeHtml).toBe(renderedHome.endsWith("\n") ? renderedHome : `${renderedHome}\n`);
   expect(privacyHtml).toBe(renderedPrivacy.endsWith("\n") ? renderedPrivacy : `${renderedPrivacy}\n`);
-  expect(homeHtml).toContain("Score your round, run your games, and see who owes what. Got a paper card? Scan it.");
+  expect(homeHtml).toContain("<h1>Your golf group. Your games. Who owes what.</h1>");
+  expect(homeHtml).toContain("For golf friends, league rounds, trips, bachelor parties and golf events big or small. Keep score, run your side games and see who owes what.");
   expect(supportHtml).toContain("SnapScore helps golf groups record rounds, run side games and see who owes what. Enter scores by hand or choose to scan a paper scorecard and review the results before saving.");
   expect(supportHtml).toContain("How do I record a round?");
   expect(supportHtml.indexOf("How do I record a round?")).toBeLessThan(supportHtml.indexOf("How does scorecard scanning work?"));
