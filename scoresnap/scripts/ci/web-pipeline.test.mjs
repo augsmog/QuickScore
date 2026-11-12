@@ -205,3 +205,9 @@ test('AUG-293 and per-profile reach reports run in the existing CI step',()=>{
   const copy=structuredClone(workflow);mutate(copy.jobs['browser-flows'].steps.find(s=>s.name==='Journey budgets and reachability'));assert.throws(()=>assertRecoveryWiring(copy));
  }
 });
+
+// ASC acceptance checks pinned approved source and rejected historical payloads.
+test('build checkout retains history for ASC source provenance regressions', () => {
+  const checkout = steps('build-standard').find(step => step.uses === 'actions/checkout@v4');
+  assert.equal(checkout?.with?.['fetch-depth'], 0, 'ASC git-show acceptance requires complete history');
+});

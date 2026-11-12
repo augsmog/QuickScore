@@ -32,6 +32,9 @@ jobs:
         working-directory: scoresnap
     steps:
       - uses: actions/checkout@v4
+        with:
+          # ASC acceptance verifies pinned approved source and rejected historical payloads.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
