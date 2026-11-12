@@ -183,15 +183,19 @@ test('all original browser coverage and flag-distinct builds remain', () => {
 // AUG-293: exercise the workflow's actual explicit discovery, not filename assumptions.
 function assertRecoveryWiring(value) {
   const steps=value.jobs['browser-flows'].steps;
-  const step=steps.find(s=>s.name==='Journey budgets and reachability');
-  assert.equal(step['timeout-minutes'],2);
-  assert.equal(step.if,undefined);assert.equal(step['continue-on-error'],undefined);
-  assert.equal(step.env?.JOURNEYS,undefined);
-  const lines=step.run.trim().split('\n').map(s=>s.trim());
+  const contracts=steps.find(s=>s.name==='Journey contract tests');
+  const step=steps.find(s=>s.name==='Journey runner + negative proof');
+  for(const gate of [contracts,step]){
+   assert.equal(gate['timeout-minutes'],3);
+   assert.equal(gate.if,undefined);assert.equal(gate['continue-on-error'],undefined);
+   assert.equal(gate.env?.JOURNEYS,undefined);
+  }
+  const lines=(contracts.run+'\n'+step.run).trim().split('\n').map(s=>s.trim().replace(/^time /,''));
   assert.ok(lines.includes('node --test e2e/journeys/metrics.test.mjs e2e/journeys/glyph-evidence.test.mjs e2e/journeys/glyph-evidence.browser.test.mjs e2e/journeys/paywall-recovery.test.mjs e2e/journeys/reach-report.test.mjs'));
   assert.ok(lines.includes('OUT_DIR=e2e/journey-screens/td-badge-controls node --test e2e/journeys/paywall-badge.browser.test.mjs'));
   assert.ok(lines.includes('for profile in iphone-se iphone-15-pro iphone-pro-max; do'));
-  assert.ok(lines.includes('DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8092 OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs > "e2e/journey-screens/$profile-run.log" 2>&1 &'));
+  assert.ok(lines.includes('DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8092 OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs'));
+  assert.ok(lines.includes(') > "e2e/journey-screens/$profile-run.log" 2>&1 &'));
   assert.ok(lines.includes('for pid in "${pids[@]}"; do wait "$pid" || status=1; done'));
   assert.ok(lines.includes('if [ "$status" -ne 0 ]; then exit "$status"; fi'));
   assert.ok(lines.includes('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens/negative-proof node e2e/journeys/negative-proof.mjs'));
@@ -199,10 +203,12 @@ function assertRecoveryWiring(value) {
   assert.equal(upload.name,'Upload journey screenshots');assert.equal(upload.if,'always()');
   assert.equal(upload.with.path,'scoresnap/e2e/journey-screens');
 }
-test('AUG-293 and per-profile reach reports run in the existing CI step',()=>{
+test('AUG-293 and per-profile reach reports run in the split CI steps',()=>{
  assertRecoveryWiring(workflow);
- for(const mutate of [s=>s.run=s.run.replace(' e2e/journeys/paywall-recovery.test.mjs',''),s=>s.run=s.run.split('\n').filter(l=>!l.includes('paywall-badge.browser')).join('\n'),s=>s.run=s.run.replace('for profile in iphone-se iphone-15-pro iphone-pro-max; do','for profile in iphone-se iphone-15-pro; do'),s=>s.run=s.run.replace('OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs','JOURNEYS=J-other OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs'),s=>s.if='false',s=>s['continue-on-error']=true,s=>s['timeout-minutes']=3]){
-  const copy=structuredClone(workflow);mutate(copy.jobs['browser-flows'].steps.find(s=>s.name==='Journey budgets and reachability'));assert.throws(()=>assertRecoveryWiring(copy));
+ for(const mutate of [s=>s.run=s.run.replace(' e2e/journeys/paywall-recovery.test.mjs',''),s=>s.run=s.run.split('\n').filter(l=>!l.includes('paywall-badge.browser')).join('\n'),s=>s.run=s.run.replace('for profile in iphone-se iphone-15-pro iphone-pro-max; do','for profile in iphone-se iphone-15-pro; do'),s=>s.run=s.run.replace('OUT_DIR="e2e/journey-screens/$profile" node e2e/journeys/runner.mjs','JOURNEYS=J-other OUT_DIR=e2e/journey-screens node e2e/journeys/runner.mjs'),s=>s.if='false',s=>s['continue-on-error']=true,s=>s['timeout-minutes']=2]){
+  const copy=structuredClone(workflow);
+  for(const step of copy.jobs['browser-flows'].steps.filter(s=>['Journey contract tests','Journey runner + negative proof'].includes(s.name)))mutate(step);
+  assert.throws(()=>assertRecoveryWiring(copy));
  }
 });
 
