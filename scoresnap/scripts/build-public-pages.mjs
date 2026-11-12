@@ -39,3 +39,8 @@ write("index.html", pages.renderHomePage());
 write("support/index.html", pages.renderSupportPage());
 write("privacy/index.html", pages.renderPrivacyPage(privacyMarkdown));
 write("terms/index.html", pages.renderTermsPage(termsMarkdown));
+
+const { SUPPORT_BASE_URL, SUPPORT_PATH, PRIVACY_PATH, TERMS_PATH } = load("src/config/support.ts");
+write("robots.txt", `User-agent: *\nAllow: /\nSitemap: ${SUPPORT_BASE_URL}/sitemap.xml\n`);
+const urls = ["/", SUPPORT_PATH, PRIVACY_PATH, TERMS_PATH].map(route => `${SUPPORT_BASE_URL}${route}`);
+write("sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(url => `  <url><loc>${url}</loc></url>`).join("\n")}\n</urlset>\n`);
