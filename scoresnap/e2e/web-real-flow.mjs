@@ -11,6 +11,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { extractPdfText } from "./shared/pdf-text-extraction.mjs";
 import { recordCheck, failedCheckCount } from "./shared/check-results.mjs";
+import { detectClipping } from "./shared/settlement-clip-detection.mjs";
+
+// getBoundingClientRect/getClientRects sub-pixel rounding tolerance.
+const CLIP_TOLERANCE_PX = 1;
 
 const BASE = process.env.BASE_URL || "http://localhost:8089";
 const OUT = process.env.OUT_DIR || "e2e/screens";
@@ -200,11 +204,16 @@ for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "1
     check(/Nassau/.test(games) && /Front 9/.test(games) && /Back 9/.test(games) && /Overall/.test(games) && /\d+ up/.test(games), "Nassau leaderboard contains front, back and overall results");
   }
   if (file === "11-settlement.png") {
-    for (const name of ["Augie", "Sam", "Lee", "Pat"]) {
-      const row = page.getByTestId(`settlement-player-${name}`);
+    const lines = page.locator('[data-testid^="settlement-player-"], [data-testid^="settlement-game-"][data-testid*="-player-"]');
+    for (let i = 0; i < await lines.count(); i++) {
+      const row = lines.nth(i);
       await row.scrollIntoViewIfNeeded();
-      const box = await row.boundingBox();
-      check(box && box.y >= 0 && box.y + box.height <= viewport.height, `Settlement row fully reachable: ${name}`);
+      const detail = await row.evaluate(detectClipping, CLIP_TOLERANCE_PX);
+      check(
+        detail.fragmentCount > 0 && detail.violations.length === 0,
+        `Settlement line fully visible without ancestor clipping: ${detail.testId}`,
+        JSON.stringify(detail),
+      );
     }
     await page.getByTestId("settlement-scroll").evaluate(el => { el.scrollTop = 0; });
   }
