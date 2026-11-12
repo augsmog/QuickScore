@@ -11,6 +11,7 @@ import { buildLeaderboardRows } from "../../../src/engine/leaderboard-rows";
 import { getFixtureYouPlayerId } from "../../../src/engine/you-fixture";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
+import { useOnlineStore } from "../../../src/stores/online-store";
 import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
 
 export default function LeaderboardScreen() {
@@ -24,6 +25,8 @@ export default function LeaderboardScreen() {
   const [rankMode, setRankMode] = useState<"gross" | "net">("gross");
   // AUG-735 (AUG-253g): case-insensitive name search over the individual field.
   const [playerQuery, setPlayerQuery] = useState("");
+  const [myGroupOnly, setMyGroupOnly] = useState(false);
+  const membership = useOnlineStore((s) => s.events[id ?? ""]?.membership);
 
   if (!contest) return null;
 
@@ -292,11 +295,20 @@ export default function LeaderboardScreen() {
   // (no real user↔player link yet — AUG-254 is out of scope), so it is undefined in
   // production and this is a no-op there: the default view stays pixel-identical.
   const youPlayerId = getFixtureYouPlayerId();
+  // Only approved membership identifies the viewer; hosts and fixture You rows
+  // cannot supply a group. Re-evaluate every render so revocation clears filtering.
+  const viewerPlayerId = membership?.status === "approved" ? membership.player_id : null;
+  const viewerGroupId = viewerPlayerId
+    ? contest.groups.find((group) => group.players.some((player) => player.id === viewerPlayerId))?.id
+    : undefined;
+  const groupFilterActive = myGroupOnly && viewerGroupId !== undefined;
   const searchedRows = buildLeaderboardRows(individualResults, allPlayers, {
     holeCount: leaderboardCourse.holes.length,
     query: playerQuery,
     youPlayerId,
     roundInfo,
+    groupId: groupFilterActive ? viewerGroupId : undefined,
+    groups: contest.groups,
   });
   // AUG-253v: round-level data (r1/today) and the current round's THRU/tee time are
   // keyed by playerId and passed through rankByPlayerId; single-round screens keep the
@@ -353,6 +365,35 @@ export default function LeaderboardScreen() {
     </View>
   );
 
+  const myGroupControl = (
+    <View style={{ marginBottom: 12, gap: 6 }}>
+      <AnimatedPressable
+        testID="leaderboard-my-group"
+        accessibilityRole="switch"
+        accessibilityLabel="My group"
+        accessibilityState={{ checked: groupFilterActive, disabled: viewerGroupId === undefined }}
+        aria-checked={groupFilterActive}
+        disabled={viewerGroupId === undefined}
+        onPress={() => { if (viewerGroupId !== undefined) setMyGroupOnly((active) => !active); }}
+        style={{
+          alignSelf: "flex-start", minHeight: 44, justifyContent: "center",
+          paddingHorizontal: 16, borderRadius: RADII.full,
+          backgroundColor: groupFilterActive ? COLORS.primary : COLORS.surfaceMid,
+          opacity: viewerGroupId === undefined ? 0.5 : 1,
+        }}
+      >
+        <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: groupFilterActive ? COLORS.onPrimary : COLORS.text }}>
+          My group
+        </Text>
+      </AnimatedPressable>
+      {viewerGroupId === undefined && (
+        <Text testID="leaderboard-my-group-empty" style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
+          No group assigned
+        </Text>
+      )}
+    </View>
+  );
+
   // Individual view: virtualize the ranked rows with FlashList (72+ player fields, AUG-253).
   // The screen owns ranking (buildLeaderboard), the Gross/Net toggle and the search; the
   // list only recycles the already-ranked rows, which stay pixel-identical to the prior
@@ -370,6 +411,7 @@ export default function LeaderboardScreen() {
             {header}
             {grossNetToggle}
             {playerSearch}
+            {myGroupControl}
           </>
         }
         ListFooterComponent={<View style={{ height: 16 }} />}
