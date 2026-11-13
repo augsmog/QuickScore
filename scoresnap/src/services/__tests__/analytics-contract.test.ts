@@ -18,6 +18,13 @@ describe('analytics contract',()=>{
       expect(Object.isFrozen(entry.allowedProps)).toBe(true);
     }
   });
+  it('tracks round finalization at its routed screen and rejects the old emitter path',()=>{
+    const event = {round_finalized: ANALYTICS_CONTRACT.round_finalized};
+    const call = 'posthog?.capture("round_finalized", {})';
+    expect(validate(event,scan(call,'app/contest/[id]/index.tsx'))).toEqual([]);
+    expect(validate(event,scan(call,'app/contest/[id]/scorecard.tsx')))
+      .toContain('file:round_finalized:app/contest/[id]/scorecard.tsx');
+  });
   it('rejects missing, removed, renamed and unknown-property events in negative controls',()=>{
     const fixture = {known:{files:['fixture.tsx'],allowedProps:['count']}};
     expect(validate(fixture,scan('posthog?.capture("known", { count: 1 })','fixture.tsx'))).toEqual([]);
