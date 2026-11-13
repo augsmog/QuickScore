@@ -198,3 +198,18 @@ test("AUG-309 safe-area flow captures the first frame, sheets, player matching, 
   expect(steps).toContainEqual({ inputText: "E2E Tee Course" });
   expect(steps).toContainEqual({ assertVisible: { id: "game-info-sheet" } });
 });
+
+test("Skins card tap waits for its own mounted ID rather than generic text", () => {
+  const [, steps] = docs(".maestro/subflows/create-two-player-skins.yaml");
+  const tap = steps.findIndex(s => s.tapOn && s.tapOn.id === "game-mode-skins");
+  expect(tap).toBeGreaterThan(0);
+  expect(steps[tap - 1].extendedWaitUntil).toEqual({
+    visible: { id: "game-mode-skins" }, timeout: 15000,
+  });
+  // A generic text match cannot establish that a more specific tap target is ready.
+  for (let i = 1; i < steps.length; i++) {
+    if (steps[i].tapOn?.id && steps[i - 1].extendedWaitUntil) {
+      expect(steps[i - 1].extendedWaitUntil.visible).toEqual({ id: steps[i].tapOn.id });
+    }
+  }
+});

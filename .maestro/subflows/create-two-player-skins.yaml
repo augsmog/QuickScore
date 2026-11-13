@@ -24,7 +24,8 @@ appId: com.scoresnap.app
     index: 0
 # Mode cards expose stable IDs and selected accessibility state.
 - extendedWaitUntil:
-    visible: "Skins"
+    visible:
+      id: "game-mode-skins"
     timeout: 15000
 - tapOn:
     id: "game-mode-skins"
