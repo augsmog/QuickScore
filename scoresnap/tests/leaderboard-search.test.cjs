@@ -153,7 +153,7 @@ function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime, myGroup = fa
     '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
   });
   deps['../../../src/components/LeaderboardResultsList'] = { LeaderboardResultsList };
-  const Screen = load('app/contest/[id]/index.tsx', deps).default;
+  const Screen = load('app/contest/[id]/leaderboard.tsx', deps).default;
   Screen.onlineStore = useOnlineStore;
   Screen.contest = contest;
   return Screen;

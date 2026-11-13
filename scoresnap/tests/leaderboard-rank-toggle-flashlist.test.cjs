@@ -128,7 +128,7 @@ test('Gross/Net toggle inside the FlashList header still re-ranks the virtualize
     '../../../src/components/LeaderboardResultsList': { LeaderboardResultsList },
   };
 
-  const Screen = load('app/contest/[id]/index.tsx', deps).default;
+  const Screen = load('app/contest/[id]/leaderboard.tsx', deps).default;
   let tree;
   try {
     await act(async () => {

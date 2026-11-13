@@ -1,570 +1,975 @@
-import { teamCardPlayers, liveRoundCourse } from "../../../src/engine/contest-results";
-import { Flag } from "lucide-react-native";
-import { useState } from "react";
-import { View, Text, ScrollView, TextInput } from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
-import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
+import { showAlert } from "@/services/platform-alert";
+import { SafeScreen } from "../../../src/ui/SafeScreen";
+import { isCompactViewport } from "../../../src/ui/compact-viewport";
+import { onlineEnabled } from '../../../src/services/cross-device';
+import { useOnlineStore } from '../../../src/stores/online-store';
+import { overlayScorecard } from '../../../src/services/scorecard-overlay';
+import { executionGameConfig } from "../../../src/engine/types";
+import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actual-inputs";
+import { PrePlayDeclarations } from "../../../src/ui/PrePlayDeclarations";
+import { scopedAuxiliary, calculateContestSettlement, liveRoundCourse, liveSkinsStatus, liveNassauLabels } from "../../../src/engine/contest-results";
+import { calcNassauRules } from "../../../src/engine/calculators/nassau";
+import { useState, useCallback, useMemo } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  Alert,
+  Dimensions,
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle,
+  Minus,
+  Plus,
+} from "lucide-react-native";
+import Animated, { FadeIn, SlideInUp } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import {
+  COLORS,
+  FONTS,
+  TYPOGRAPHY,
+  RADII,
+  GLOW,
+  scoreColor,
+  scoreName,
+} from "../../../src/ui/theme";
+import { useContestStore, getActiveGroups } from "../../../src/stores/contest-store";
+import AuxiliaryPrompt, {
+  needsAuxiliaryPrompt,
+  AuxPromptResult,
+} from "../../../src/ui/AuxiliaryPrompt";
+import { HoleInfo, Player } from "../../../src/engine/types";
+import { calcNassauPress } from "../../../src/engine/calculators/nassau-press";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
-import { buildLeaderboard } from "../../../src/engine/calculators/leaderboard-view";
-import { buildLeaderboardRows } from "../../../src/engine/leaderboard-rows";
-import { getFixtureYouPlayerId } from "../../../src/engine/you-fixture";
-import { formatToPar } from "../../../src/utils/formatters";
-import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
-import { useOnlineStore } from "../../../src/stores/online-store";
-import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
+import { HOLE_NAV_TARGET, SCORE_STEPPER_TARGET } from "../../../src/ui/score-entry-metrics";
+import { posthog } from "../../../src/config/posthog";
 
-export default function LeaderboardScreen() {
+export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const contest = useContestStore((s) =>
+  const router = useRouter();
+  const savedContest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
 
-  const [viewMode, setViewMode] = useState<"individual" | "groups">("individual");
-  const [scoreView, setScoreView] = useState<"cumulative" | "daily">("cumulative");
-  const [rankMode, setRankMode] = useState<"gross" | "net">("gross");
-  // AUG-735 (AUG-253g): case-insensitive name search over the individual field.
-  const [playerQuery, setPlayerQuery] = useState("");
-  const [myGroupOnly, setMyGroupOnly] = useState(false);
-  const membership = useOnlineStore((s) => s.events[id ?? ""]?.membership);
+  const snapshot = useOnlineStore(s => s.events[id]?.snapshot);
+  const displayContest = savedContest && onlineEnabled ? overlayScorecard(savedContest, snapshot) : savedContest;
+  const contest=displayContest?{...displayContest,gameConfig:executionGameConfig(displayContest.games,displayContest.gameConfig)}:undefined;
+  const updateScore = useContestStore((s) => s.updateScore);
+  const completeContest = useContestStore((s) => s.completeContest);
+  const updateAuxiliaryData = useContestStore((s) => s.updateAuxiliaryData);
+
+  const [currentHole, setCurrentHole] = useState(1);
+  const [selectedGroup, setSelectedGroup] = useState(0);
+  const [showAuxPrompt, setShowAuxPrompt] = useState(false);
+  const [declaration,setDeclaration]=useState<"wolf"|"bisque"|"jokerDeclarations"|null>(null);
 
   if (!contest) return null;
 
-  // For tournaments, aggregate scores based on view mode
-  let allPlayers;
-  if (contest.isTournament && scoreView === "daily" && contest.rounds && contest.currentRound) {
-    // Daily view: show only current round scores
-    const currentRound = contest.rounds.find((r) => r.number === contest.currentRound);
-    allPlayers = currentRound?.groups.flatMap((g) => g.players) || [];
-  } else if (contest.isTournament) {
-    // Cumulative view: aggregate across all rounds
-    allPlayers = getTournamentPlayers(contest);
-  } else {
-    // Legacy: use groups directly
-    allPlayers = contest.groups.flatMap((g) => g.players);
-  }
+  // For tournaments, use current round's groups; for legacy, use contest groups
+  const activeGroups = getActiveGroups(contest);
+  const group = activeGroups[selectedGroup];
+  if (!group) return null;
 
-  if(contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot"||g==="chapman"))allPlayers=teamCardPlayers(contest,scoreView === "daily");
-  // Recent form always uses actual current-round strokes, never aggregated holes.
-  const recentPlayers = contest.gameConfig?.rulesVersion === 1 &&
-    contest.games.some((game) => game === "alternate_shot" || game === "chapman")
-    ? teamCardPlayers(contest, true)
-    : getActiveGroups(contest).flatMap((group) => group.players);
-  const hasScores = allPlayers.some((p) =>
-    p.scores.some((s) => s > 0)
+  const activeRound=contest.isTournament?contest.rounds?.find(r=>r.number===contest.currentRound):undefined;
+  const course = liveRoundCourse(contest);
+  const sharedCard=contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot" || g==="chapman");
+  const auxiliary=scopedAuxiliary(contest,group.id,activeRound?.id);
+  const displayPlayers=sharedCard?group.players.filter((p,i,all)=>all.findIndex(q=>q.team===p.team)===i).map(p=>({...p,name:`Team ${p.team}`,scores:course.holes.map((_,i)=>auxiliary.teamCards?.[i+1]?.[p.team!]??0)})):group.players;
+  const holeData = course.holes[currentHole - 1];
+  const par = holeData?.par || 4;
+  const hcp = holeData?.hcp || 0;
+  const isCompleted = contest.status === "completed";
+  const compactViewport = isCompactViewport(Dimensions.get("window"));
+  const tightSpacing = Dimensions.get("window").height < 950;
+
+  // Build current-hole scores map for AuxiliaryPrompt (Tier 2 games)
+  const currentPlayerScores = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of group.players) {
+      map.set(p.id, p.scores[currentHole - 1] || 0);
+    }
+    return map;
+  }, [group.players, currentHole]);
+
+  // Wolf rotation order
+  const wolfOrder = useMemo(
+    () => group.players.map((p) => p.id),
+    [group.players]
   );
 
-  if (!hasScores) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, backgroundColor: COLORS.bg }}>
-        <Flag size={40} color={COLORS.textDim} style={{ marginBottom: 16 }} />
-        <Text style={{ fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.textDim, textAlign: "center" }}>
-          No scores yet
-        </Text>
-        <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, textAlign: "center", marginTop: 8 }}>
-          Enter scores on the Scorecard tab or scan a scorecard to get started.
-        </Text>
-      </View>
+  const currentHoleInfo: HoleInfo = holeData || {
+    num: currentHole,
+    par: 4,
+    hcp: 0,
+    yards: 0,
+  };
+
+  // ── Live game status (Nassau press, skins carryover, etc.) ──
+  const liveGameStatus = useMemo(() => {
+    const statuses: { label: string; detail: string; color: string }[] = [];
+    const players = group.players;
+
+    // Nassau / Nassau Press status
+    if (
+      (contest.games.includes("nassau") || contest.games.includes("nassau_press")) &&
+      players.length >= 2
+    ) {
+      const ledger = contest.gameConfig?.rulesVersion === 1 ? calcNassauRules(players, course, contest.games.includes("nassau_press"), contest.gameConfig) : undefined;
+      const result = ledger ? {...ledger,presses:ledger.bets.filter(b => b.parent).map(b => ({startHole:b.start}))} : calcNassauPress(players[0], players[1]);
+      const isBack9 = currentHole > 9;
+      const nineStatus = isBack9 ? result.back : result.front;
+      const nineName = isBack9 ? "Back 9" : "Front 9";
+      const { leader, down: downPlayer } = liveNassauLabels(result, nineStatus);
+
+      if (Math.abs(nineStatus) >= 1) {
+        statuses.push({
+          label: `${nineName}: ${leader} ${Math.abs(nineStatus)} UP`,
+          detail: "",
+          color: COLORS.primary,
+        });
+      }
+
+      if (result.presses.length > 0) {
+        statuses.push({
+          label: `PRESS! (${result.presses.length} active)`,
+          detail: `Started hole ${result.presses[result.presses.length - 1].startHole}`,
+          color: COLORS.warn,
+        });
+      }
+
+      // Detect if press is about to trigger (someone is exactly 2 down)
+      if (!ledger && Math.abs(nineStatus) === 2 && result.presses.length === 0) {
+        statuses.push({
+          label: `${downPlayer} is 2-DOWN`,
+          detail: "Auto-press triggered!",
+          color: COLORS.error,
+        });
+      }
+    }
+
+    if(contest.gameConfig?.rulesVersion===1)for(const game of contest.games.filter(g=>ACTUAL_INPUT_GAMES.includes(g))){const result=actualInputLedger(game,players,course,auxiliary,contest.gameConfig);statuses.push({label:`${game.replace(/_/g," ")}: ${result.pending?"pending":"confirmed"}`,detail:`${result.holes} confirmed holes · ${players.map(p=>`${p.name} ${result.totals[p.name]}u`).join(", ")}`,color:result.pending?COLORS.warn:COLORS.primary});}
+    // Skins carryover status
+    if (
+      (contest.games.includes("skins") || contest.games.includes("skins_carry"))
+    ) {
+      const result = liveSkinsStatus(contest, group.id);
+      const carriedSkins = result?.remaining ?? 0;
+      if (carriedSkins > 0) {
+        statuses.push({
+          label: `${carriedSkins} skin${carriedSkins > 1 ? "s" : ""} carrying`,
+          detail: "Unawarded units in this scope",
+          color: COLORS.gold,
+        });
+      }
+    }
+
+    return statuses;
+  }, [group.players, currentHole, contest.games, course, contest.gameConfig, auxiliary, activeGroups, group.id]);
+
+  // ── Score adjustment via +/- buttons ──
+  const adjustScore = useCallback(
+    (playerId: string, delta: number) => {
+      if (isCompleted) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      const player = displayPlayers.find((p) => p.id === playerId);
+      if (!player) return;
+
+      const currentScore = player.scores[currentHole - 1] || 0;
+      // If no score entered yet, start from par
+      const baseScore = currentScore > 0 ? currentScore : par;
+      const newScore = Math.max(1, Math.min(15, baseScore + delta));
+
+      if(contest.gameConfig?.bisqueHandicap && !auxiliary.bisque?.[currentHole]) {setDeclaration("bisque");return;}
+      if(contest.gameConfig?.jokerEnabled && !auxiliary.jokerDeclarations?.[0]) {setDeclaration("jokerDeclarations");return;}
+      if(contest.gameConfig?.rulesVersion===1 && contest.games.includes("wolf") && !auxiliary.wolf?.[currentHole]) {setDeclaration("wolf");return;}
+      updateScore(contest.id, group.id, playerId, currentHole, newScore);
+    },
+    [contest, auxiliary, group, displayPlayers, currentHole, par, updateScore, isCompleted]
+  );
+
+  // Set a player to exactly par (tap the score display)
+  const setToPar = useCallback(
+    (playerId: string) => {
+      if (isCompleted) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if(contest.gameConfig?.bisqueHandicap && !auxiliary.bisque?.[currentHole]) {setDeclaration("bisque");return;}
+      if(contest.gameConfig?.jokerEnabled && !auxiliary.jokerDeclarations?.[0]) {setDeclaration("jokerDeclarations");return;}
+      if(contest.gameConfig?.rulesVersion===1 && contest.games.includes("wolf") && !auxiliary.wolf?.[currentHole]) {setDeclaration("wolf");return;}
+      updateScore(contest.id, group.id, playerId, currentHole, par);
+    },
+    [contest, auxiliary, group.id, currentHole, par, updateScore, isCompleted]
+  );
+
+  // Clear a player's score (long press the score)
+  const clearScore = useCallback(
+    (playerId: string) => {
+      if (isCompleted) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      updateScore(contest.id, group.id, playerId, currentHole, 0);
+    },
+    [contest.id, group.id, currentHole, updateScore, isCompleted]
+  );
+
+  // ── Hole Navigation ──
+  const advanceToNextHole = useCallback(() => {
+    if (currentHole < 18) {
+      setCurrentHole(currentHole + 1);
+    }
+  }, [currentHole]);
+
+  const handleNextHole = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Check if Tier 2 games need aux input before advancing
+    if (contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games.filter(g=>g!=="wolf" || !auxiliary.wolf?.[currentHole]), currentHoleInfo, currentPlayerScores)) {
+      setShowAuxPrompt(true);
+    } else {
+      advanceToNextHole();
+    }
+  }, [contest.games, contest.gameConfig, auxiliary, currentHole, currentHoleInfo, currentPlayerScores, advanceToNextHole]);
+
+  const handlePrevHole = useCallback(() => {
+    if (currentHole > 1) {
+      setCurrentHole(currentHole - 1);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, [currentHole]);
+
+  // Handle Tier 2 aux prompt results
+  const handleAuxComplete = useCallback(
+    (results: AuxPromptResult) => {
+      try {
+      if (results.junk) updateAuxiliaryData(contest.id,"junk",currentHole,results.junk,group.id);
+      if (results.bbb) updateAuxiliaryData(contest.id, "bbb", currentHole, results.bbb, group.id);
+      if (results.wolf) {
+        updateAuxiliaryData(contest.id, "wolf", currentHole, results.wolf, group.id);
+      }
+      if (results.hammer) {
+        updateAuxiliaryData(contest.id, "hammer", currentHole, results.hammer, group.id);
+      }
+      if (results.snake) {
+        updateAuxiliaryData(contest.id, "snake", currentHole, results.snake, group.id);
+      }
+      if (results.greenies !== undefined) {
+        updateAuxiliaryData(contest.id, "greenies", currentHole, results.greenies, group.id);
+      }
+      setShowAuxPrompt(false);advanceToNextHole();
+      } catch(error){showAlert("Confirm inputs",String(error));}
+    },
+    [contest.id, group.id, currentHole, updateAuxiliaryData, advanceToNextHole]
+  );
+
+  const handleAuxSkip = useCallback(() => {
+    setShowAuxPrompt(false);
+    advanceToNextHole();
+  }, [advanceToNextHole]);
+
+  const handleFinalizeRound = useCallback(() => {
+    if(contest.gameConfig?.rulesVersion===1){
+      const result=calculateContestSettlement(contest);
+      if(result.pending){
+        if((contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games,currentHoleInfo,currentPlayerScores))) setShowAuxPrompt(true);
+        showAlert("Confirmation required","Enter every score and confirm side-game inputs on every hole before finalizing. Skip leaves that hole pending.");
+        return;
+      }
+    }
+    const allPlayers = activeGroups.flatMap((g) => g.players);
+    const totalScores = allPlayers.reduce(
+      (sum, p) => sum + p.scores.filter((s) => s > 0).length,
+      0
     );
-  }
+    const totalExpected = allPlayers.length * 18;
+    const percentComplete = Math.round((totalScores / totalExpected) * 100);
 
-  const leaderboardCourse = scoreView === "daily" ? liveRoundCourse(contest) : contest.course;
-  const results = calcStrokePlay(allPlayers, leaderboardCourse);
-  // Gross/Net toggle (AUG-246c): gross is the default and identical to before.
-  // Net ranks the individual leaderboard by net total using the handicap strokes
-  // already entered for net games; it is only offered when the course supports it.
-  const { rows: individualResults, netAvailable, mode: effectiveRankMode } = buildLeaderboard(allPlayers, leaderboardCourse, rankMode);
-
-  // R1 / Today are only meaningful for multi-round tournaments. Keep the
-  // single-round row model untouched; for tournaments, calculate each round
-  // with its own course and the active Gross/Net mode.
-  const roundView = contest.isTournament && (contest.rounds?.length ?? 0) > 1
-    ? (() => {
-        const rounds = contest.rounds ?? [];
-        const roundPlayers = (round: (typeof rounds)[number]) => {
-          const roundContest = { ...contest, rounds: [round], currentRound: round.number };
-          const usesTeamCards = contest.gameConfig?.rulesVersion === 1 &&
-            contest.games.some((game) => game === "alternate_shot" || game === "chapman");
-          return usesTeamCards
-            ? teamCardPlayers(roundContest, true)
-            : round.groups.flatMap((group) => group.players);
-        };
-        const resultsForRound = (number: number) => {
-          const round = rounds.find((item) => item.number === number);
-          return round
-            ? buildLeaderboard(roundPlayers(round), round.course ?? contest.course, effectiveRankMode).rows
-            : [];
-        };
-        // THRU must reflect progress in the CURRENT round only (AUG-253v). The
-        // cumulative `searchedRows.thru` below counts holes on the whole-event
-        // card, so R1 complete + 3 holes of R2 would wrongly read "F". Build the
-        // current round's own rows (its players over its own course + groups) so
-        // THRU is the current-round hole count, "F" only when the current round
-        // is complete, and the pre-start tee time / "—" when it has not started
-        // (AUG-760). r1/today score columns are unaffected.
-        const currentNumber = contest.currentRound ?? 1;
-        const currentRound = rounds.find((item) => item.number === currentNumber);
-        const currentThruById = new Map<string, { thru: "F" | number | null; teeTime: string | null }>();
-        if (currentRound) {
-          const players = roundPlayers(currentRound);
-          const course = currentRound.course ?? contest.course;
-          const currentRows = buildLeaderboardRows(
-            buildLeaderboard(players, course, effectiveRankMode).rows,
-            players,
-            { holeCount: course.holes.length, groups: currentRound.groups },
-          );
-          for (const row of currentRows) {
-            currentThruById.set(row.playerId, { thru: row.thru, teeTime: row.teeTime });
-          }
-        }
-        return {
-          roundInfo: {
-            r1: resultsForRound(1),
-            today: resultsForRound(currentNumber),
+    if (percentComplete < 50) {
+      showAlert(
+        "Incomplete Scorecard",
+        `Only ${percentComplete}% of scores have been entered. Are you sure you want to finalize?`,
+        [
+          { text: "Keep Scoring", style: "cancel" },
+          {
+            text: "Finalize Anyway",
+            style: "destructive",
+            onPress: () => doFinalize(),
           },
-          currentThruById,
-        };
-      })()
-    : undefined;
-  const roundInfo = roundView?.roundInfo;
+        ]
+      );
+    } else if (percentComplete < 100) {
+      showAlert(
+        "Finalize Round?",
+        `${percentComplete}% of scores entered. Missing scores will be counted as 0. This locks the scorecard.`,
+        [
+          { text: "Keep Scoring", style: "cancel" },
+          { text: "Finalize", onPress: () => doFinalize() },
+        ]
+      );
+    } else {
+      showAlert(
+        "Finalize Round?",
+        "This will lock scores and calculate final settlements. You can still view results after.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Finalize", onPress: () => doFinalize() },
+        ]
+      );
+    }
+  }, [contest]);
 
+  const doFinalize = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      completeContest(contest.id);
+      posthog?.capture("round_finalized", {
+        game_ids: contest.games,
+        group_count: activeGroups.length,
+        is_tournament: Boolean(contest.isTournament),
+      });
+    } catch(error){showAlert("Confirmation required",String(error));}
+  };
 
-  // Compute team stats if teams exist
-  const hasTeams = contest.hasTeams && contest.teamAName && contest.teamBName;
-  const teamAPlayers = hasTeams ? allPlayers.filter((p) => p.team === "A") : [];
-  const teamBPlayers = hasTeams ? allPlayers.filter((p) => p.team === "B") : [];
-  const teamATotal = teamAPlayers.reduce((sum, p) => sum + p.scores.reduce((a, b) => a + b, 0), 0);
-  const teamBTotal = teamBPlayers.reduce((sum, p) => sum + p.scores.reduce((a, b) => a + b, 0), 0);
+  // Calculate completion
+  const allPlayers = sharedCard?activeGroups.flatMap(g=>{const aux=scopedAuxiliary(contest,g.id,activeRound?.id);return [...new Set(g.players.map(p=>p.team!))].map(team=>({scores:course.holes.map((_,i)=>aux.teamCards?.[i+1]?.[team]??0)}));}):activeGroups.flatMap((g) => g.players);
+  const totalScores = allPlayers.reduce(
+    (sum, p) => sum + p.scores.filter((s) => s > 0).length,
+    0
+  );
+  const totalExpected = allPlayers.length * 18;
+  const percentComplete =
+    totalExpected > 0 ? Math.round((totalScores / totalExpected) * 100) : 0;
 
-  // Shared header (course note + round/view toggles). Reused as the FlashList
-  // ListHeaderComponent in individual view and inside the ScrollView in groups view
-  // so both views render the same chrome above the list (AUG-253b re-cut).
-  const header = (
-    <>
-      {/* Round name and course live in the shared header; tournaments note the day's course here. */}
-      {contest.isTournament && (
-        <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textDim, marginBottom: 12 }}>
-          {(scoreView === "daily" ? liveRoundCourse(contest) : contest.course).name}
-        </Text>
-      )}
-
-      {/* Tournament: Cumulative / Daily toggle */}
-      {contest.isTournament && contest.rounds && contest.rounds.length > 1 && (
-        <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
-          <AnimatedPressable
-            onPress={() => setScoreView("cumulative")}
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              minHeight: 44,
-              justifyContent: "center",
-              borderRadius: RADII.md - 2,
-              alignItems: "center",
-              backgroundColor: scoreView === "cumulative" ? COLORS.surfaceHigh : "transparent",
-            }}
-          >
-            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: scoreView === "cumulative" ? COLORS.text : COLORS.textDim }}>
-              CUMULATIVE
-            </Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            onPress={() => setScoreView("daily")}
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              minHeight: 44,
-              justifyContent: "center",
-              borderRadius: RADII.md - 2,
-              alignItems: "center",
-              backgroundColor: scoreView === "daily" ? COLORS.surfaceHigh : "transparent",
-            }}
-          >
-            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: scoreView === "daily" ? COLORS.text : COLORS.textDim }}>
-              ROUND {contest.currentRound || 1}
-            </Text>
-          </AnimatedPressable>
-        </View>
-      )}
-
-      {/* Individual / Groups toggle */}
-      {(contest.groups.length > 1 || hasTeams) && (
-        <View style={{ flexDirection: "row", backgroundColor: COLORS.surfaceLow, borderRadius: RADII.md, padding: 3, marginBottom: 16 }}>
-          <AnimatedPressable
-            onPress={() => setViewMode("individual")}
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              minHeight: 44,
-              justifyContent: "center",
-              borderRadius: RADII.md - 2,
-              alignItems: "center",
-              backgroundColor: viewMode === "individual" ? COLORS.surfaceHigh : "transparent",
-            }}
-          >
-            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: viewMode === "individual" ? COLORS.text : COLORS.textDim }}>
-              INDIVIDUAL
-            </Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            onPress={() => setViewMode("groups")}
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              minHeight: 44,
-              justifyContent: "center",
-              borderRadius: RADII.md - 2,
-              alignItems: "center",
-              backgroundColor: viewMode === "groups" ? COLORS.surfaceHigh : "transparent",
-            }}
-          >
-            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: viewMode === "groups" ? COLORS.text : COLORS.textDim }}>
-              GROUPS
-            </Text>
-          </AnimatedPressable>
-        </View>
-      )}
-
-    </>
+  // Check if all players on current hole have scores
+  const allScoredOnHole = displayPlayers.every(
+    (p) => (p.scores[currentHole - 1] || 0) > 0
   );
 
-  // Gross / Net toggle (Direction A, Figma 11:43) — rendered at the top of the virtualized
-  // individual list. Hidden when the course cannot be ranked net, so Gross always shows for
-  // unsupported courses. Pressing it flips rankMode, which re-ranks via buildLeaderboard.
-  const grossNetToggle = netAvailable ? (
-    <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 16 }}>
-      <View
-        testID="leaderboard-rank-toggle"
-        style={{ flexDirection: "row", width: 150, height: 36, backgroundColor: COLORS.surfaceMid, borderRadius: RADII.full, padding: 2, gap: 2 }}
-      >
-        <AnimatedPressable
-          testID="leaderboard-rank-gross"
-          onPress={() => setRankMode("gross")}
-          hitSlop={{ top: 6, bottom: 6 }}
-          style={{
-            width: 72,
-            height: 32,
-            justifyContent: "center",
-            alignItems: "center",
-            borderRadius: RADII.full,
-            backgroundColor: rankMode === "gross" ? COLORS.primary : "transparent",
-          }}
-        >
-          <Text
-            style={
-              rankMode === "gross"
-                ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
-                : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
-            }
-          >
-            Gross
-          </Text>
-        </AnimatedPressable>
-        <AnimatedPressable
-          testID="leaderboard-rank-net"
-          onPress={() => setRankMode("net")}
-          hitSlop={{ top: 6, bottom: 6 }}
-          style={{
-            width: 72,
-            height: 32,
-            justifyContent: "center",
-            alignItems: "center",
-            borderRadius: RADII.full,
-            backgroundColor: rankMode === "net" ? COLORS.primary : "transparent",
-          }}
-        >
-          <Text
-            style={
-              rankMode === "net"
-                ? { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onPrimary }
-                : { ...TYPOGRAPHY.caption, color: COLORS.textDim }
-            }
-          >
-            Net
-          </Text>
-        </AnimatedPressable>
-      </View>
-    </View>
-  ) : null;
-
-  // Search over the full individual field (AUG-735 / AUG-253g). buildLeaderboardRows
-  // fixes each player's competition rank over the WHOLE field before applying the
-  // case-insensitive name filter, so a searched subset keeps real field ranks
-  // (AUG-675 contract). Empty query returns every player, so the default view is
-  // unchanged / pixel-identical.
-  // AUG-253j: pin the fixture/debug "You" row to the front. youPlayerId is a fixture id
-  // (no real user↔player link yet — AUG-254 is out of scope), so it is undefined in
-  // production and this is a no-op there: the default view stays pixel-identical.
-  const youPlayerId = getFixtureYouPlayerId();
-  // Only approved membership identifies the viewer; hosts and fixture You rows
-  // cannot supply a group. Re-evaluate every render so revocation clears filtering.
-  const viewerPlayerId = membership?.status === "approved" ? membership.player_id : null;
-  const viewerGroupId = viewerPlayerId
-    ? contest.groups.find((group) => group.players.some((player) => player.id === viewerPlayerId))?.id
-    : undefined;
-  const groupFilterActive = myGroupOnly && viewerGroupId !== undefined;
-  const searchedRows = buildLeaderboardRows(individualResults, allPlayers, {
-    holeCount: leaderboardCourse.holes.length,
-    query: playerQuery,
-    youPlayerId,
-    roundInfo,
-    groupId: groupFilterActive ? viewerGroupId : undefined,
-    groups: contest.groups,
-  });
-  // AUG-253v: round-level data (r1/today) and the current round's THRU/tee time are
-  // keyed by playerId and passed through rankByPlayerId; single-round screens keep the
-  // cumulative row values and omit r1/today so the default card row renders unchanged.
-  const rankByPlayerId = new Map(
-    searchedRows.map((r) => {
-      const currentThru = roundView?.currentThruById.get(r.playerId);
-      return [r.playerId, {
-        rankLabel: r.rankLabel,
-        tied: r.tied,
-        isYou: r.isYou === true,
-        thru: roundInfo ? (currentThru?.thru ?? null) : r.thru,
-        teeTime: roundInfo ? (currentThru?.teeTime ?? null) : r.teeTime,
-        ...(roundInfo ? { r1: r.r1, today: r.today } : {}),
-      }];
-    }),
-  );
-  // Carry the complete display contract from the prepared model into FlashList.
-  // Filtering has already happened after full-field rank calculation, so a searched
-  // result keeps its real rank, pinned-You marker, THRU, and pre-start tee time.
-  const resultByPlayerId = new Map(individualResults.map((result) => [result.playerId, result]));
-  const visibleRows = searchedRows.flatMap((row) => {
-    const result = resultByPlayerId.get(row.playerId);
-    return result
-      ? [{ ...result, rankLabel: row.rankLabel, isYou: row.isYou === true, thru: row.thru, teeTime: row.teeTime }]
-      : [];
-  });
-
-  // Search field for the individual leaderboard (Figma 15:2). Mirrors the shipped
-  // CourseSearch "Search by course name..." affordance; placeholder is a functional
-  // filter label, not a copy change (AUG-735 scope).
-  const playerSearch = (
-    <View style={{ marginBottom: 12 }}>
-      <TextInput
-        testID="leaderboard-search"
-        accessibilityLabel="Search players"
-        placeholder="Search players"
-        placeholderTextColor={COLORS.textDim}
-        value={playerQuery}
-        onChangeText={setPlayerQuery}
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={{
-          fontFamily: FONTS.regular,
-          fontSize: 15,
-          color: COLORS.text,
-          backgroundColor: COLORS.surfaceMid,
-          borderRadius: RADII.md,
-          paddingHorizontal: 14,
-          paddingVertical: 10,
-          minHeight: 44,
-        }}
-      />
-    </View>
-  );
-
-  const myGroupControl = (
-    <View style={{ marginBottom: 12, gap: 6 }}>
-      <AnimatedPressable
-        testID="leaderboard-my-group"
-        accessibilityRole="switch"
-        accessibilityLabel="My group"
-        accessibilityState={{ checked: groupFilterActive, disabled: viewerGroupId === undefined }}
-        aria-checked={groupFilterActive}
-        disabled={viewerGroupId === undefined}
-        onPress={() => { if (viewerGroupId !== undefined) setMyGroupOnly((active) => !active); }}
-        style={{
-          alignSelf: "flex-start", minHeight: 44, justifyContent: "center",
-          paddingHorizontal: 16, borderRadius: RADII.full,
-          backgroundColor: groupFilterActive ? COLORS.primary : COLORS.surfaceMid,
-          opacity: viewerGroupId === undefined ? 0.5 : 1,
-        }}
-      >
-        <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: groupFilterActive ? COLORS.onPrimary : COLORS.text }}>
-          My group
-        </Text>
-      </AnimatedPressable>
-      {viewerGroupId === undefined && (
-        <Text testID="leaderboard-my-group-empty" style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
-          No group assigned
-        </Text>
-      )}
-    </View>
-  );
-
-  // Individual view: virtualize the ranked rows with FlashList (72+ player fields, AUG-253).
-  // The screen owns ranking (buildLeaderboard), the Gross/Net toggle and the search; the
-  // list only recycles the already-ranked rows, which stay pixel-identical to the prior
-  // ScrollView when the search is empty.
-  if (viewMode === "individual") {
-    return (
-      <LeaderboardResultsList
-        results={visibleRows}
-        rankByPlayerId={rankByPlayerId}
-        allPlayers={allPlayers}
-        recentPlayers={recentPlayers}
-        contest={contest}
-        ListHeaderComponent={
-          <>
-            {header}
-            {grossNetToggle}
-            {playerSearch}
-            {myGroupControl}
-          </>
-        }
-        ListFooterComponent={<View style={{ height: 16 }} />}
-      />
-    );
-  }
-
-  // Groups view: a handful of team/group cards, no 72+ scaling concern, stays a ScrollView.
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: COLORS.bg }}
-      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
-      showsVerticalScrollIndicator={false}
-    >
-      {header}
-
-      {/* Group Performance (team view) */}
-      {viewMode === "groups" && hasTeams && (
-        <>
-          <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 12 }}>
-            GROUP PERFORMANCE
-          </Text>
-
-          {/* Team A Card */}
+    <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      <SafeScreen edges={[]} style={{ flex: 1 }}>
+        {/* Completed Banner */}
+        {isCompleted && (
           <View
             style={{
-              backgroundColor: COLORS.surfaceHigh,
-              borderRadius: RADII.lg,
-              padding: 16,
-              marginBottom: 10,
+              backgroundColor: COLORS.primary + "15",
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
             }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary }} />
-              <Text style={{ fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text }}>
-                {contest.teamAName}
-              </Text>
-              <View style={{ flex: 1 }} />
-              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 24, color: COLORS.primary }}>
-                {teamATotal}
-              </Text>
-            </View>
-            {teamAPlayers.map((p) => {
-              const pResult = results.find((r) => r.playerId === p.id);
-              return (
-                <View key={p.id} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 }}>
-                  <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.text }}>
-                    {p.name}
-                  </Text>
-                  <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 14, color: COLORS.textDim }}>
-                    {pResult?.total || 0} ({pResult ? formatToPar(pResult.toPar).replace("-", "−") : "E"})
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-
-          {/* Team B Card */}
-          <View
-            style={{
-              backgroundColor: COLORS.surfaceHigh,
-              borderRadius: RADII.lg,
-              padding: 16,
-              marginBottom: 10,
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.secondary }} />
-              <Text style={{ fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text }}>
-                {contest.teamBName}
-              </Text>
-              <View style={{ flex: 1 }} />
-              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 24, color: COLORS.secondary }}>
-                {teamBTotal}
-              </Text>
-            </View>
-            {teamBPlayers.map((p) => {
-              const pResult = results.find((r) => r.playerId === p.id);
-              return (
-                <View key={p.id} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 }}>
-                  <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.text }}>
-                    {p.name}
-                  </Text>
-                  <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 14, color: COLORS.textDim }}>
-                    {pResult?.total || 0} ({pResult ? formatToPar(pResult.toPar).replace("-", "−") : "E"})
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        </>
-      )}
-
-      {/* Group Performance for non-team contests in groups view */}
-      {viewMode === "groups" && !hasTeams && (
-        <>
-          <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 12 }}>
-            GROUP PERFORMANCE
-          </Text>
-          {(scoreView === "daily" ? getActiveGroups(contest) : contest.groups).map((group) => (
-            <View
-              key={group.id}
+            <CheckCircle size={14} color={COLORS.primary} />
+            <Text
               style={{
-                backgroundColor: COLORS.surfaceHigh,
-                borderRadius: RADII.lg,
-                padding: 16,
-                marginBottom: 10,
+                color: COLORS.primary,
+                fontSize: 12,
+                fontFamily: FONTS.bold,
               }}
             >
-              <Text style={{ fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text, marginBottom: 10 }}>
-                {group.name}
+              Round Finalized — Scores Locked
+            </Text>
+          </View>
+        )}
+
+        {/* Top Section: Hole Info */}
+        <View
+          style={{
+            paddingHorizontal: 20,
+            paddingTop: tightSpacing ? 8 : 12,
+            paddingBottom: tightSpacing ? 4 : 8,
+            flexDirection: "row",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+          }}
+        >
+          <View>
+            <Text
+              style={{
+                ...TYPOGRAPHY.labelSm,
+                color: COLORS.textDim,
+              }}
+            >
+              CURRENT ROUND
+            </Text>
+            <Text
+              style={{
+                fontSize: compactViewport ? 30 : 40,
+                fontFamily: FONTS.headline,
+                color: COLORS.text,
+                marginTop: 2,
+              }}
+            >
+              HOLE {String(currentHole).padStart(2, "0")}
+            </Text>
+          </View>
+
+          {/* Par + HCP badges */}
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+            <View
+              style={{
+                backgroundColor: COLORS.surfaceHigh,
+                borderRadius: RADII.md,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  ...TYPOGRAPHY.labelSm,
+                  color: COLORS.textDim,
+                }}
+              >
+                PAR
               </Text>
-              {group.players.map((p) => {
-                const pResult = results.find((r) => r.playerId === p.id);
-                const holesPlayed = p.scores.filter((s) => s > 0).length;
-                return (
-                  <View key={p.id} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
+                  color: COLORS.text,
+                }}
+              >
+                {par}
+              </Text>
+            </View>
+            <View
+              style={{
+                backgroundColor: COLORS.surfaceHigh,
+                borderRadius: RADII.md,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  ...TYPOGRAPHY.labelSm,
+                  color: COLORS.textDim,
+                }}
+              >
+                HCP
+              </Text>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
+                  color: COLORS.text,
+                }}
+              >
+                {hcp}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {contest.gameConfig?.rulesVersion===1 && <View style={{paddingHorizontal:20}}>
+          {contest.games.includes("wolf") && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("wolf")} style={{minHeight:44,justifyContent:"center"}}><Text style={{color:COLORS.primary,padding:12}}>Record Wolf decision before play {auxiliary.wolf?.[currentHole]?"✓":"— required"}</Text></Pressable>}
+          {contest.gameConfig.bisqueHandicap && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("bisque")}><Text style={{color:COLORS.primary,padding:12}}>Declare 0–2 Bisque strokes before this hole {auxiliary.bisque?.[currentHole]?"✓":"— required"}</Text></Pressable>}
+          {contest.gameConfig.jokerEnabled && <Pressable disabled={group.players.some(p=>p.scores.some(n=>n>0))} onPress={()=>setDeclaration("jokerDeclarations")}><Text style={{color:COLORS.primary,padding:12}}>Record two public Joker holes per player before round {auxiliary.jokerDeclarations?.[0]?"✓":"— required"}</Text></Pressable>}
+        </View>}
+        {declaration && <PrePlayDeclarations kind={declaration} players={group.players} course={course} hole={currentHole} config={contest.gameConfig??{}} onClose={()=>setDeclaration(null)} onSave={(key,h,value)=>{try{updateAuxiliaryData(contest.id,key,h,value,group.id);}catch(error){showAlert("Invalid declaration",String(error));}}}/>}
+        {contest.gameConfig?.progressiveSnake && <Text style={{color:COLORS.textDim,paddingHorizontal:20}}>Progressive Snake exposure: after N changes of holder, each opponent receives {contest.betUnit} × 2^N from the final holder. Maximum with this group: {group.players.length*course.holes.length-1} changes. Unsafe numeric amounts cannot settle.</Text>}
+        {/* Live Game Status Banners */}
+        {liveGameStatus.length > 0 && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 8, gap: 6 }}>
+            {liveGameStatus.map((status, i) => (
+              <Animated.View
+                key={`${status.label}-${i}`}
+                entering={FadeIn.duration(300)}
+                style={{
+                  backgroundColor: status.color + "18",
+                  borderRadius: RADII.md,
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: FONTS.bold,
+                    fontSize: 12,
+                    color: status.color,
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {status.label}
+                </Text>
+                {status.detail ? (
+                  <Text
+                    style={{
+                      fontFamily: FONTS.medium,
+                      fontSize: 11,
+                      color: status.color,
+                      opacity: 0.8,
+                    }}
+                  >
+                    {status.detail}
+                  </Text>
+                ) : null}
+              </Animated.View>
+            ))}
+          </View>
+        )}
+
+        {/* Group Selector (if multiple groups) */}
+        {activeGroups.length > 1 && (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 20, marginBottom: 4, gap: 8 }}>
+            {activeGroups.map((g, gi) => (
+              <Pressable
+                key={g.id}
+                onPress={() => {
+                  setSelectedGroup(gi);
+                }}
+                style={{
+                  backgroundColor:
+                    gi === selectedGroup
+                      ? COLORS.primary
+                      : COLORS.surfaceMid,
+                  borderRadius: RADII.md,
+                  paddingHorizontal: 14,
+                  paddingVertical: 6,
+                  alignSelf: "flex-start",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: FONTS.semibold,
+                    color:
+                      gi === selectedGroup
+                        ? COLORS.onPrimary
+                        : COLORS.textDim,
+                  }}
+                >
+                  {g.name}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {/* ── Player Score Steppers ── */}
+        <ScrollView
+          style={{ flex: 1, minHeight: 0, marginTop: tightSpacing ? 4 : 8 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: tightSpacing ? 4 : 12, gap: tightSpacing ? 4 : 8 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {displayPlayers.map((player, idx) => {
+            const score = player.scores[currentHole - 1] || 0;
+            const hasScore = score > 0;
+            const displayScore = hasScore ? score : par;
+            const diff = hasScore ? score - par : 0;
+            const color = hasScore ? scoreColor(score, par) : COLORS.textDim;
+            const label = hasScore ? scoreName(score, par) : "par";
+            const total = player.scores.reduce((a, b) => a + b, 0);
+            const holesPlayed = player.scores.filter((s) => s > 0).length;
+            const totalToPar = calcStrokePlay([player], course)[0].toPar;
+
+            return (
+              <Animated.View
+                key={player.id}
+                entering={FadeIn.delay(idx * 50).duration(200)}
+                style={{
+                  backgroundColor: COLORS.surfaceHigh,
+                  borderRadius: RADII.lg,
+                  padding: compactViewport ? 4 : tightSpacing ? 10 : 14,
+                  borderLeftWidth: 3,
+                  borderLeftColor: hasScore ? color : COLORS.surfaceHighest,
+                  opacity: isCompleted ? 0.7 : 1,
+                }}
+              >
+                {/* Player info row */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: tightSpacing ? 2 : 10,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                    {player.team && contest.hasTeams && (
                       <View
                         style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 14,
-                          backgroundColor: COLORS.surfaceHighest,
-                          alignItems: "center",
-                          justifyContent: "center",
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor:
+                            player.team === "A"
+                              ? COLORS.primary
+                              : COLORS.secondary,
+                        }}
+                      />
+                    )}
+                    <View style={{ flexDirection: compactViewport && holesPlayed > 0 ? "row" : "column", alignItems: "baseline", gap: compactViewport ? 8 : 0 }}>
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontFamily: FONTS.bold,
+                          color: COLORS.text,
                         }}
                       >
-                        <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.text }}>
-                          {p.name[0]?.toUpperCase() || "?"}
+                        {player.name}
+                      </Text>
+                      {holesPlayed > 0 && (
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontFamily: FONTS.medium,
+                            color: COLORS.textDim,
+                            marginTop: 1,
+                          }}
+                        >
+                          Thru {holesPlayed} — {total} (
+                          {totalToPar > 0 ? "+" : ""}
+                          {totalToPar === 0 ? "E" : totalToPar})
                         </Text>
-                      </View>
-                      <Text style={{ fontFamily: FONTS.regular, fontSize: 14, color: COLORS.text }}>
-                        {p.name}
-                      </Text>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
-                      <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 16, color: COLORS.text }}>
-                        {pResult?.total || 0}
-                      </Text>
-                      <Text style={{ fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textDim }}>
-                        thru {holesPlayed}
-                      </Text>
+                      )}
                     </View>
                   </View>
-                );
-              })}
-            </View>
-          ))}
-        </>
-      )}
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontFamily: FONTS.regular,
+                      color: COLORS.textDim,
+                    }}
+                  >
+                    {player.handicap} hcp
+                  </Text>
+                </View>
 
-      <View style={{ height: 16 }} />
-    </ScrollView>
+                {/* Score stepper row */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 12,
+                  }}
+                >
+                  {/* Minus button */}
+                  <Pressable
+                    testID={`score-minus-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Decrease ${player.name} score`}
+                    onPress={() => adjustScore(player.id, -1)}
+                    disabled={isCompleted || displayScore <= 1}
+                    style={({ pressed }) => ({
+                      width: compactViewport ? 44 : SCORE_STEPPER_TARGET,
+                      height: compactViewport ? 44 : SCORE_STEPPER_TARGET,
+                      borderRadius: RADII.lg,
+                      backgroundColor: COLORS.surfaceMid,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity:
+                        isCompleted || displayScore <= 1 ? 0.3 : pressed ? 0.7 : 1,
+                      transform: [{ scale: pressed ? 0.92 : 1 }],
+                    })}
+                  >
+                    <Minus size={24} color={COLORS.text} strokeWidth={2.5} />
+                  </Pressable>
+
+                  {/* Score display — tap sets to par, long press clears */}
+                  <Pressable
+                    testID={`score-par-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set ${player.name} score to par`}
+                    accessibilityState={{ disabled: isCompleted }}
+                    onPress={() => {
+                      if (!hasScore) setToPar(player.id);
+                    }}
+                    onLongPress={() => clearScore(player.id)}
+                    disabled={isCompleted}
+                    style={{
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 90,
+                    }}
+                  >
+                    <Animated.Text
+                      key={`score-${player.id}-${currentHole}-${score}`}
+                      entering={SlideInUp.duration(150).springify()}
+                      // The entering number crosses other players' controls.
+                      // Keep taps on the stationary Pressable underneath it.
+                      pointerEvents="none"
+                      style={{
+                        fontSize: 40,
+                        fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
+                        color: hasScore ? color : COLORS.textDim + "60",
+                        lineHeight: 46,
+                      }}
+                    >
+                      {hasScore ? score : par}
+                    </Animated.Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontFamily: FONTS.semibold,
+                        color: hasScore ? color : COLORS.textDim + "88",
+                        textTransform: "uppercase",
+                        marginTop: 2,
+                      }}
+                    >
+                      {hasScore
+                        ? diff === 0
+                          ? label
+                          : `${diff > 0 ? "+" : ""}${diff} (${label})`
+                        : label}
+                    </Text>
+                  </Pressable>
+
+                  {/* Plus button */}
+                  <Pressable
+                    testID={`score-plus-${player.name}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Increase ${player.name} score`}
+                    onPress={() => adjustScore(player.id, 1)}
+                    disabled={isCompleted || displayScore >= 15}
+                    style={({ pressed }) => ({
+                      width: compactViewport ? 44 : SCORE_STEPPER_TARGET,
+                      height: compactViewport ? 44 : SCORE_STEPPER_TARGET,
+                      borderRadius: RADII.lg,
+                      backgroundColor: COLORS.surfaceMid,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity:
+                        isCompleted || displayScore >= 15
+                          ? 0.3
+                          : pressed
+                          ? 0.7
+                          : 1,
+                      transform: [{ scale: pressed ? 0.92 : 1 }],
+                    })}
+                  >
+                    <Plus size={24} color={COLORS.text} strokeWidth={2.5} />
+                  </Pressable>
+                </View>
+              </Animated.View>
+            );
+          })}
+        </ScrollView>
+
+        {/* ── Bottom Controls ── */}
+        <View
+          style={{
+            paddingHorizontal: 20,
+            paddingBottom: 8,
+          }}
+        >
+          {/* Hole Navigation */}
+          <View
+            style={{
+              flexDirection: "row",
+              gap: tightSpacing ? 8 : 12,
+              marginBottom: tightSpacing ? 2 : 4,
+            }}
+          >
+            <Pressable
+              testID="score-prev-hole"
+              accessibilityRole="button"
+              accessibilityLabel="Previous hole"
+              onPress={handlePrevHole}
+              disabled={currentHole <= 1}
+              style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                backgroundColor: COLORS.surfaceMid,
+                borderRadius: RADII.md,
+                minHeight: compactViewport ? 44 : HOLE_NAV_TARGET,
+                opacity: currentHole <= 1 ? 0.3 : 1,
+              }}
+            >
+              <ChevronLeft size={16} color={COLORS.textDim} />
+              <Text
+                style={{
+                  ...TYPOGRAPHY.labelSm,
+                  color: COLORS.textDim,
+                }}
+              >
+                PREV
+              </Text>
+            </Pressable>
+            <Pressable
+              testID="score-next-hole"
+              accessibilityRole="button"
+              accessibilityLabel="Next hole"
+              onPress={handleNextHole}
+              disabled={isCompleted}
+              style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                backgroundColor: allScoredOnHole
+                  ? COLORS.primary + "22"
+                  : COLORS.surfaceMid,
+                borderRadius: RADII.md,
+                minHeight: compactViewport ? 44 : HOLE_NAV_TARGET,
+                borderWidth: allScoredOnHole ? 1 : 0,
+                borderColor: COLORS.primary + "44",
+                opacity: currentHole >= 18 ? 0.3 : 1,
+              }}
+            >
+              <Text
+                style={{
+                  ...TYPOGRAPHY.labelSm,
+                  color: allScoredOnHole ? COLORS.primary : COLORS.textDim,
+                }}
+              >
+                NEXT
+              </Text>
+              <ChevronRight
+                size={16}
+                color={allScoredOnHole ? COLORS.primary : COLORS.textDim}
+              />
+            </Pressable>
+            {!isCompleted && compactViewport && (
+              <Pressable
+                onPress={handleFinalizeRound}
+                style={{
+                  flex: 1.5,
+                  backgroundColor: percentComplete === 100 ? COLORS.primary : COLORS.surfaceMid,
+                  borderRadius: RADII.lg,
+                  minHeight: 44,
+                  paddingHorizontal: 4,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  ...(percentComplete === 100 ? GLOW.primary : {}),
+                }}
+              >
+                <CheckCircle size={18} color={percentComplete === 100 ? COLORS.onPrimary : COLORS.warn} />
+                <Text style={{ color: percentComplete === 100 ? COLORS.onPrimary : COLORS.warn, fontFamily: FONTS.bold, fontSize: 12 }}>
+                  Finalize Round
+                </Text>
+              </Pressable>
+            )}
+          </View>
+
+          {/* Finalize Round */}
+          {!isCompleted && (
+            <View style={{ marginTop: tightSpacing ? 0 : 4 }}>
+              {/* Progress bar */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: tightSpacing ? 3 : 6,
+                }}
+              >
+                <Text
+                  style={{
+                    ...TYPOGRAPHY.labelSm,
+                    color: COLORS.textDim,
+                  }}
+                >
+                  ROUND PROGRESS
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontFamily: FONTS.bold,
+                    color:
+                      percentComplete === 100
+                        ? COLORS.primary
+                        : COLORS.textDim,
+                  }}
+                >
+                  {percentComplete}%
+                </Text>
+              </View>
+              <View
+                style={{
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: COLORS.surfaceHighest,
+                  marginBottom: tightSpacing ? 6 : 10,
+                  overflow: "hidden",
+                }}
+              >
+                <View
+                  style={{
+                    height: "100%",
+                    width: `${percentComplete}%`,
+                    borderRadius: 2,
+                    backgroundColor:
+                      percentComplete === 100
+                        ? COLORS.primary
+                        : COLORS.primaryContainer,
+                  }}
+                />
+              </View>
+
+              {!compactViewport && <Pressable
+                onPress={handleFinalizeRound}
+                style={{
+                  backgroundColor:
+                    percentComplete === 100
+                      ? COLORS.primary
+                      : COLORS.surfaceMid,
+                  borderRadius: RADII.lg,
+                  minHeight: 44,
+                  paddingVertical: tightSpacing ? 6 : 14,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  ...(percentComplete === 100 ? GLOW.primary : {}),
+                }}
+              >
+                <CheckCircle
+                  size={18}
+                  color={
+                    percentComplete === 100
+                      ? COLORS.onPrimary
+                      : COLORS.warn
+                  }
+                />
+                <Text
+                  style={{
+                    color:
+                      percentComplete === 100
+                        ? COLORS.onPrimary
+                        : COLORS.warn,
+                    fontFamily: FONTS.bold,
+                    fontSize: 15,
+                  }}
+                >
+                  Finalize Round
+                </Text>
+              </Pressable>}
+            </View>
+          )}
+        </View>
+      </SafeScreen>
+
+      {/* Tier 2 Game Auxiliary Prompts */}
+      <AuxiliaryPrompt
+        visible={showAuxPrompt}
+        holeNumber={currentHole}
+        holeInfo={currentHoleInfo}
+        players={group.players}
+        gameConfig={contest.gameConfig}
+        wolfConfirmed={!!auxiliary.wolf?.[currentHole]}
+        activeGames={contest.games}
+        currentPlayerScores={currentPlayerScores}
+        wolfOrder={wolfOrder}
+        onComplete={handleAuxComplete}
+        onSkip={handleAuxSkip}
+      />
+    </View>
   );
 }

@@ -5,7 +5,7 @@ const assert = require('node:assert');
 // AUG-253b moved the individual rows into the virtualized LeaderboardResultsList, so the
 // toggle markup now ends where the screen hands off to <LeaderboardResultsList> (the old
 // `{individualResults.map` row loop no longer lives in this file); slice to that boundary.
-const src = fs.readFileSync('app/contest/[id]/index.tsx', 'utf8');
+const src = fs.readFileSync('app/contest/[id]/leaderboard.tsx', 'utf8');
 const start = src.indexOf('testID="leaderboard-rank-toggle"');
 // Slice exactly the `grossNetToggle` const (ends at its `) : null;` ternary tail),
 // not everything up to <LeaderboardResultsList — the individual header now also

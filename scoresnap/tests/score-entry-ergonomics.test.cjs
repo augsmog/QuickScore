@@ -4,7 +4,7 @@ test('in-round score stepper and hole navigation targets meet selected 56pt desi
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const {SCORE_STEPPER_TARGET,HOLE_NAV_TARGET}=await import('./src/ui/score-entry-metrics.ts').then(m=>m.default??m);
-const screen=fs.readFileSync('app/contest/[id]/scorecard.tsx','utf8');
+const screen=fs.readFileSync('app/contest/[id]/index.tsx','utf8');
 assert.equal(SCORE_STEPPER_TARGET,56);
 assert.equal(HOLE_NAV_TARGET,56);
 assert.ok(SCORE_STEPPER_TARGET>=44 && HOLE_NAV_TARGET>=44);

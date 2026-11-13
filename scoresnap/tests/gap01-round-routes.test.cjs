@@ -59,11 +59,11 @@ test('tab selection follows the URL (/games selects Games)',()=>{
  expect(selected(render('/contest/c/games'))).toEqual(['Games']);
 });
 
-test.each(['', '/scorecard', '/games', '/settlement', '/leaderboard'])('tab route %s renders one screen without a nested outlet',suffix=>{
- const tree=render('/contest/c'+suffix);
- const key=suffix.slice(1)||'scorecard';
- expect(types(tree).filter(t=>['scorecard','games','settlement','leaderboard'].includes(t))).toEqual([key]);
- expect(types(tree)).not.toContain('Slot');
+test.each(['', '/scorecard', '/games', '/settlement', '/leaderboard'])('tab route %s renders the tab chrome around exactly one Slot outlet',suffix=>{
+ const t=types(render('/contest/c'+suffix));
+ expect(t.filter(x=>x==='Slot')).toHaveLength(1);
+ expect(t).toContain('Pressable');
+ expect(t.filter(x=>['scorecard','games','settlement','leaderboard'].includes(x))).toEqual([]);
 });
 test.each(['scorecard','games','settlement','leaderboard'])('selecting %s updates the URL and renders that tab',key=>{
  const router={replace:jest.fn()};

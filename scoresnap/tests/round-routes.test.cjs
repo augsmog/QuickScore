@@ -28,10 +28,10 @@ function render({canGoBack=false,hasContest=true}={}){
  return {tree:m.exports.default(),back,replace,statusOpen:()=>stateValues[0]()};
 }
 const nodes=n=>!n||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];
-test('contest layout renders its current tab directly without a nested Slot',()=>{
+test('contest layout renders its current tab through the Slot outlet (AUG-1125: navigator stays mounted)',()=>{
  const {tree}=render();
- expect(nodes(tree).some(n=>n.type==='Slot')).toBe(false);
- expect(nodes(tree).some(n=>n.type==='scorecard')).toBe(true);
+ expect(nodes(tree).filter(n=>n.type==='Slot')).toHaveLength(1);
+ expect(nodes(tree).some(n=>n.type==='scorecard')).toBe(false);
 });
 test.each([['scorecard','Scorecard'],['leaderboard','Leaderboard'],['games','Games'],['settlement','Settlement']])('tab %s is present in the shared round header',(tab,label)=>{
  const {tree}=render();
@@ -51,7 +51,7 @@ test('organizer invite stays in the visible shared round layout outside the hidd
  expect(invite).toBeDefined();
  expect(nodes(header)).not.toContain(invite);
  expect(nodes(tree).filter(n=>n.type==='ContestJoinCode')).toHaveLength(1);
- expect(nodes(tree).indexOf(invite)).toBeLessThan(nodes(tree).findIndex(n=>n.type==='scorecard'));
+ expect(nodes(tree).indexOf(invite)).toBeLessThan(nodes(tree).findIndex(n=>n.type==='Slot'));
 });
 test.each([true,false])('round Back delegates to router history (%s)',canGoBack=>{
  const {tree,back,replace}=render({canGoBack});
