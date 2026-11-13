@@ -154,6 +154,9 @@ jobs:
           EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true EXPO_PUBLIC_OFFLINE_MODE=false npx expo export --platform web --output-dir dist-web
       - run: npx playwright install --with-deps chromium
         working-directory: scoresnap
+      - name: Host group selection and sheet-dismissal regression
+        working-directory: scoresnap
+        run: node --test tests/xdevice-host-player.test.mjs
       - name: Full two-user then four-user browser acceptance (no sign-in-only mode)
         working-directory: scoresnap
         run: |

@@ -2,6 +2,7 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { selectHostPlayer } from './xdevice-host-player.mjs';
 import { isSavedContestPath } from './xdevice-route.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -165,19 +166,6 @@ async function converge(indices) {
       }
       if (i === 0) {
         if (!await text(panel(), 'Current online snapshot').isVisible()) return 'context 0: host UI missing Current online snapshot';
-        for (const owner of [1, 2, 3]) {
-          const cells = expected.filter(c => c.i === owner);
-          const sum = cells.reduce((n, c) => n + c.value, 0);
-          const info = pages[i].getByText(names[owner], { exact: true }).locator('..');
-          if (sum && !await info.getByText(new RegExp(`^Thru ${cells.length} — ${sum} \\(`)).isVisible()) return `context 0: host total missing for player ${owner}, expected ${sum}`;
-        }
-        const heading = await pages[i].getByText(/^HOLE \d{2}$/).first().allTextContents();
-        const hole = Number(heading.join('').match(/\d+/)?.[0]);
-        if (!hole) return 'context 0: host UI missing hole heading';
-        for (const cell of expected.filter(c => c.hole === hole)) {
-          const displayed = (await pages[i].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
-          if (Number(displayed.trim().split(/\s/)[0]) !== cell.value) return `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
-        }
       }
       // Guests expose confirmed totals for every player, even though only their own cells are editable.
       if (i !== 0) for (const owner of [1, 2, 3]) {
@@ -188,6 +176,18 @@ async function converge(indices) {
     return true;
   });
   if (indices.includes(0)) {
+    // The status assertion above must run while its sheet is open. Scorecard
+    // assertions run after dismissal and select each player's actual group.
+    for (const owner of [1, 2, 3]) {
+      const cells = expected.filter(c => c.i === owner);
+      const sum = cells.reduce((n, c) => n + c.value, 0);
+      await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[owner]);
+      if (sum) await poll(`host total visible for player ${owner}`, async () => {
+        const info = pages[0].getByText(names[owner], { exact: true }).locator('..');
+        return await info.getByText(new RegExp(`^Thru ${cells.length} — ${sum} \\(`)).isVisible()
+          || `context 0: host total missing for player ${owner}, expected ${sum}`;
+      });
+    }
     const current = async () => Number((await pages[0].getByText(/^HOLE \d{2}$/).first().textContent()).match(/\d+/)[0]);
     const original = await current();
     const go = async target => {
@@ -200,11 +200,14 @@ async function converge(indices) {
     };
     for (const hole of [...new Set(expected.map(c => c.hole))].sort((a, b) => a - b)) {
       await go(hole);
-      for (const cell of expected.filter(c => c.hole === hole)) await poll('host synchronized cell visible', async () => {
-        const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
-        return Number(displayed.trim().split(/\s/)[0]) === cell.value
-          || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
-      });
+      for (const cell of expected.filter(c => c.hole === hole)) {
+        await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[cell.i]);
+        await poll('host synchronized cell visible', async () => {
+          const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
+          return Number(displayed.trim().split(/\s/)[0]) === cell.value
+            || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
+        });
+      }
     }
     await go(original);
   }
@@ -311,7 +314,7 @@ try {
       await closeStatus(pages[0]);
       await text(pages[0], 'NEXT').click();
       await text(pages[0], 'HOLE 02').waitFor();
-      await pages[0].getByTestId(`score-par-${names[1]}`).click();
+      await (await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[1])).click();
       await poll('host hole two accepted before B reconnects', async () => {
         const cell = snapshot(pages[0])?.rounds[0].players.find(p => p.displayName === names[1])?.cells.find(c => c.hole === 2);
         return cell?.strokes != null || 'context 0: snapshot player 1 hole 2 expected accepted score, actual clear/missing';
@@ -408,6 +411,7 @@ try {
       for (let hole = 1; hole <= 4; hole++) {
         await text(pages[0], `HOLE ${String(hole).padStart(2, '0')}`).waitFor();
         for (const cell of expected.filter(c => c.hole === hole)) {
+          await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[cell.i]);
           await poll('host preserved cell visible', async () => {
             const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
             return Number(displayed.trim().split(/\s/)[0]) === cell.value
