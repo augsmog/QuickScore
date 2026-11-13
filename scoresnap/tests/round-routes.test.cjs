@@ -8,7 +8,7 @@ function render({canGoBack=false,hasContest=true}={}){
   react:{useState:v=>{let value=v;stateValues.push(()=>value);return [v,next=>{value=typeof next==='function'?next(value):next}]},useCallback:f=>f},
   'react/jsx-runtime':{jsx,jsxs:jsx},
   'react-native':{View:'View',Text:'Text',Pressable:'Pressable',Dimensions:{get:()=>({width:390,height:844})}},
-  'expo-router':{useLocalSearchParams:()=>({id:'c'}),useRouter:()=>({back,replace,canGoBack:()=>canGoBack})},
+  'expo-router':{Slot:'Slot',usePathname:()=>'/contest/c',useLocalSearchParams:()=>({id:'c'}),useRouter:()=>({back,replace,canGoBack:()=>canGoBack})},
   'lucide-react-native':{},'expo-haptics':{},
   './index':{default:'leaderboard'},'./scorecard':{default:'scorecard'},'./games':{default:'games'},'./settlement':{default:'settlement'},
   '../../../src/ui/OnlineSyncPanel':{OnlineSyncPanel:'OnlineSyncPanel'},
