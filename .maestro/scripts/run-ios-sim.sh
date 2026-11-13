@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Product-agnostic Maestro runner for an iOS simulator .app built by EAS (aos-e2e/v1).
-# Usage: run-ios-sim.sh --app-url URL --build <build-key> [--flows all|id,id] [--build-id ID] [--out DIR] [--config PATH]
+# Product-agnostic Maestro runner for an iOS simulator .app built from source or supplied by EAS (aos-e2e/v1).
+# Usage: run-ios-sim.sh (--app-path PATH | --app-url URL) --build <build-key> [--flows all|id,id] [--build-id ID] [--out DIR] [--config PATH]
 # Writes DIR/manifest.json and DIR/flows/<flow-id>/{*.png,maestro.log,junit.xml,hierarchy.json}.
 # Needs: macOS with Xcode simulators, python3, maestro on PATH. Uses no credentials.
 set -euo pipefail
 
-CONFIG=".maestro/e2e.config.json"; FLOWS="all"; BUILD_ID=""; OUT="e2e-out"; APP_URL=""; BUILD=""
+CONFIG=".maestro/e2e.config.json"; FLOWS="all"; BUILD_ID=""; OUT="e2e-out"; APP_URL=""; APP_PATH=""; BUILD=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --config) CONFIG="$2"; shift 2;;
     --app-url) APP_URL="$2"; shift 2;;
+    --app-path) APP_PATH="$2"; shift 2;;
     --build) BUILD="$2"; shift 2;;
     --flows) FLOWS="$2"; shift 2;;
     --build-id) BUILD_ID="$2"; shift 2;;
@@ -17,18 +18,33 @@ while [ $# -gt 0 ]; do
     *) echo "unknown arg $1" >&2; exit 2;;
   esac
 done
-[ -n "$APP_URL" ] && [ -n "$BUILD" ] || { echo "--app-url and --build are required" >&2; exit 2; }
+[ -n "$BUILD" ] && { [ -n "$APP_URL" ] || [ -n "$APP_PATH" ]; } || { echo "--build and one of --app-url or --app-path are required" >&2; exit 2; }
+if [ -n "$APP_URL" ] && [ -n "$APP_PATH" ]; then echo "use only one of --app-url or --app-path" >&2; exit 2; fi
 ROOT="$(pwd)"; CONFIG="$ROOT/$CONFIG"; mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)"
 cfg() { python3 -c "import json,sys;c=json.load(open('$CONFIG'));print(eval(sys.argv[1]))" "$1"; }
 APP_ID="$(cfg "c['appId']")"; PRODUCT="$(cfg "c['product']")"
 DEVICE_TYPE="$(cfg "c['device']['type']")"
 
-# 1. Fetch the build and prove its architecture.
-WORK="$(mktemp -d)"; curl -fsSL -o "$WORK/app.tar.gz" "$APP_URL"
-SHA="$(shasum -a 256 "$WORK/app.tar.gz" | awk '{print $1}')"
-mkdir -p "$WORK/x"; tar -xzf "$WORK/app.tar.gz" -C "$WORK/x"
-APP="$(find "$WORK/x" -maxdepth 3 -name '*.app' -type d | head -1)"
-[ -n "$APP" ] || { echo "no .app in artifact" >&2; exit 1; }
+# 1. Select a source-built app or fetch the supplied build, then prove its architecture.
+WORK="$(mktemp -d)"; APP_SOURCE="eas-artifact"; APP_SOURCE_SHA=""
+if [ -n "$APP_PATH" ]; then
+  APP="$APP_PATH"; APP_SOURCE="github-hosted-xcodebuild"
+  [ -d "$APP" ] || { echo "app path is not a .app directory: $APP" >&2; exit 1; }
+  [ -f "$APP/SourceCommit.txt" ] || { echo "source-built app is missing SourceCommit.txt" >&2; exit 1; }
+  APP_SOURCE_SHA="$(tr -d '\r\n' < "$APP/SourceCommit.txt")"
+  [ -n "$APP_SOURCE_SHA" ] || { echo "source-built app has an empty source commit" >&2; exit 1; }
+  if [ -n "${GITHUB_SHA:-}" ] && [ "$APP_SOURCE_SHA" != "$GITHUB_SHA" ]; then
+    echo "source-built app commit does not match the workflow commit" >&2; exit 1
+  fi
+  ditto -c -k --sequesterRsrc --keepParent "$APP" "$WORK/app.zip"
+  SHA="$(shasum -a 256 "$WORK/app.zip" | awk '{print $1}')"
+else
+  curl -fsSL -o "$WORK/app.tar.gz" "$APP_URL"
+  SHA="$(shasum -a 256 "$WORK/app.tar.gz" | awk '{print $1}')"
+  mkdir -p "$WORK/x"; tar -xzf "$WORK/app.tar.gz" -C "$WORK/x"
+  APP="$(find "$WORK/x" -maxdepth 3 -name '*.app' -type d | head -1)"
+fi
+[ -n "$APP" ] && [ -d "$APP" ] || { echo "no .app found" >&2; exit 1; }
 EXE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")"
 ARCHS="$(lipo -archs "$APP/$EXE")"; FILE_OUT="$(file -b "$APP/$EXE")"
 echo "binary $EXE archs: $ARCHS"
@@ -92,7 +108,7 @@ for line in open(res):
       "hierarchy":os.path.exists(os.path.join(d,"hierarchy.json"))})
 json.dump({"schema":"aos-e2e/v1","product":c["product"],"repo":c["repo"],"appId":c["appId"],
   "gitSha":os.environ.get("GITHUB_SHA",""),"ghRunId":os.environ.get("GITHUB_RUN_ID",""),
-  "build":{"key":"$BUILD","easProfile":c["builds"]["$BUILD"]["easProfile"],"easBuildId":"$BUILD_ID","url":"$APP_URL","sha256":"$SHA",
+  "build":{"key":"$BUILD","source":"$APP_SOURCE","sourceCommit":"$APP_SOURCE_SHA","easProfile":c["builds"]["$BUILD"]["easProfile"],"easBuildId":"$BUILD_ID","url":"$APP_URL","sha256":"$SHA",
            "executable":"$EXE","lipoArchs":"$ARCHS","file":"""$FILE_OUT"""},
   "device":{"type":"$DEVICE_TYPE","runtime":"$RUNTIME","iosVersion":"$OS_VERSION","udid":"$UDID"},
   "maestroVersion":"""$MAESTRO_VERSION""","flows":flows},open(os.path.join(out,"manifest.json"),"w"),indent=2)

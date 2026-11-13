@@ -1,5 +1,11 @@
 const fs=require('fs'),ts=require('typescript');
-function load(deps){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync('src/services/purchases.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText)(n=>{if(n in deps)return deps[n];throw Error(n)},m,m.exports);return m.exports;}
+function load(deps){const m={exports:{}},all={
+ '@react-native-async-storage/async-storage':{getItem:async()=>null,setItem:async()=>{}},
+ '../stores/persisted-keys':{TD_CONVERSION_SEEN_KEY:'td-seen'},
+ './posthog-log':{posthogAppLogger:{tournamentDirectorEntitlementStarted:jest.fn()}},
+ './td-conversion':{tdConversionEvent:()=>null},
+ ...deps,
+};new Function('require','module','exports',ts.transpileModule(fs.readFileSync('src/services/purchases.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText)(n=>{if(n in all)return all[n];throw Error(n)},m,m.exports);return m.exports;}
 test('startup identity waits for configure, deduplicates restores, switches accounts and skips anonymous logout',async()=>{
  const original=process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY;process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY='test-only';global.__DEV__=false;
  let configured=false,anonymous=true,tier='free';const order=[];const info=()=>({tier});

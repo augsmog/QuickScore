@@ -12,6 +12,16 @@ test('final listing and settlement omit superseded launch copy', () => {
   expect(read(file)).not.toMatch(/Money Games|Team Money|Net Winners|SESSION TOTAL|Enter every score|multi-day|Choose from 50\+ game modes —/);
  }
 });
+test('approved Pro-dormant listing and Terms copy match the generated Terms page', () => {
+ const listing = 'Everything for your round is free — 50+ game modes, settle-up, stats and scorecard scanning are all included. Hosting a multi-round, multi-group tournament uses the Tournament Director plan.';
+ const terms = 'The App is free to use, including the in-app games and scorecard scanning. The App offers a paid subscription ("SnapScore Tournament Director") that lets a host run multi-round, multi-group tournaments; players join and score for free.';
+ expect(read('docs/APP_STORE_LISTING.md')).toContain(listing);
+ expect(read('docs/APP_STORE_LISTING.md')).not.toContain('Free includes core games and 3 scans a month.');
+ expect(read('docs/terms-of-service.md')).toContain(terms);
+ const renderedTerms = read('site/terms/index.html');
+ expect(renderedTerms).toContain(terms.replaceAll('"', '&quot;'));
+ expect(renderedTerms).not.toContain('SnapScore Pro');
+});
 test('categories merge into Classic and Team without changing playable count', () => {
  const ts = require('typescript');
  const mod = {exports:{}};

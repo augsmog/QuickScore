@@ -1,0 +1,24 @@
+name: Pro shipping config guard
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'scoresnap/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - 'scoresnap/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pro-shipping-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforce Pro-disabled shipping configuration
+        run: node --test scoresnap/scripts/ci/pro-enabled-shipping-config.node.cjs
+      - name: Verify workflow trigger contract
+        run: node --test scoresnap/scripts/ci/pro-enabled-workflow-trigger.node.cjs

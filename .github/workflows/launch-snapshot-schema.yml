@@ -1,0 +1,23 @@
+name: Launch snapshot schema
+on:
+  pull_request:
+    paths:
+      - 'docs/launch/**'
+      - 'scoresnap/scripts/ci/launch-snapshot-schema.node.cjs'
+      - '.github/workflows/launch-snapshot-schema.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/launch/**'
+      - 'scoresnap/scripts/ci/launch-snapshot-schema.node.cjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  launch-snapshot-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate launch-readiness snapshot docs
+        run: node --test scoresnap/scripts/ci/launch-snapshot-schema.node.cjs

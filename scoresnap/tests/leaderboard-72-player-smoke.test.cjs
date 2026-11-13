@@ -46,7 +46,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
       holes: Array.from({ length: 18 }, (_, index) => ({ num: index + 1, par: 4 })),
     },
   };
-  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView' };
+  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput' };
   const theme = {
     COLORS: new Proxy({}, { get: (_, key) => String(key) }),
     FONTS: new Proxy({}, { get: (_, key) => String(key) }),
@@ -60,6 +60,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     'expo-router': { useLocalSearchParams: () => ({ id: contest.id }) },
     'lucide-react-native': { Flag: 'Flag' },
     '../../../src/ui/theme': theme,
+    '../../../src/stores/online-store': { useOnlineStore: (select) => select({ events: {} }) },
     '../../../src/stores/contest-store': {
       useContestStore: (selector) => selector({ contests: [contest] }),
       getTournamentPlayers: () => players,
@@ -81,10 +82,42 @@ test('72-player leaderboard mounts every results row without throwing', async ()
         './stroke-play': load('src/engine/calculators/stroke-play.ts', { '../types': {} }),
       }),
     }),
+    '../../../src/engine/leaderboard-rows': load('src/engine/leaderboard-rows.ts', { './types': {} }),
+    '../../../src/engine/you-fixture': load('src/engine/you-fixture.ts', {}),
     '../../../src/ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
     '../../../src/utils/formatters': { formatToPar: (value) => (value === 0 ? 'E' : String(value)) },
     '../../../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
   };
+  // Smoke intent: every one of the 72 rows renders without throwing. The individual view
+  // now virtualizes via FlashList (AUG-253b), so we load the real LeaderboardResultsList
+  // with a pass-through FlashList mock (renders header + every row via renderItem + footer)
+  // and inject it into the screen's dependency map.
+  const passthroughFlashList = (props) => {
+    const { data, renderItem, keyExtractor, ListHeaderComponent, ListFooterComponent } = props;
+    return React.createElement(
+      'FlashListMock',
+      null,
+      ListHeaderComponent || null,
+      ...data.map((item, index) =>
+        React.createElement(
+          React.Fragment,
+          { key: keyExtractor ? keyExtractor(item, index) : index },
+          renderItem({ item, index }),
+        ),
+      ),
+      ListFooterComponent || null,
+    );
+  };
+  const { LeaderboardResultsList } = load('src/components/LeaderboardResultsList.tsx', {
+    react: React,
+    'react/jsx-runtime': require('react/jsx-runtime'),
+    '@shopify/flash-list': { FlashList: passthroughFlashList },
+    'react-native': rn,
+    '../ui/theme': theme,
+    '../utils/formatters': { formatToPar: (value) => (value === 0 ? 'E' : String(value)) },
+    '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
+  });
+  deps['../../../src/components/LeaderboardResultsList'] = { LeaderboardResultsList };
   const Screen = load('app/contest/[id]/index.tsx', deps).default;
   let tree;
   try {
@@ -94,6 +127,8 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     const rows = tree.root.findAll((node) => /^leaderboard-player-Player \d{2}$/.test(node.props.testID || ''));
     expect(rows).toHaveLength(72);
     expect(rows.map((node) => node.props.testID)).toContain('leaderboard-player-Player 72');
+    // Search affordance (AUG-735) renders in the individual list header.
+    expect(tree.root.findAll((node) => (node.props.testID || '') === 'leaderboard-search')).toHaveLength(1);
   } finally {
     if (tree) await act(async () => tree.unmount());
   }

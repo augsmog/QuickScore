@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run the rollback-only Day 14 SQL fixture and assert its actual CSV report rows."""
 import csv
+import hashlib
 from decimal import Decimal, InvalidOperation
 import io
 import subprocess
@@ -17,6 +18,16 @@ def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit("usage: python3 scripts/ci/test-day14-report.py <disposable-postgres-url>")
     root = Path(__file__).resolve().parents[2]
+    report_sql = (root / "scripts/analytics/day14-report.sql").read_text()
+    activation_start = report_sql.index("  SELECT 'activation'::text AS section,")
+    activation_end = report_sql.index("\n  UNION ALL", activation_start)
+    activation_branch = report_sql[activation_start:activation_end]
+    require(hashlib.sha256(activation_branch.encode()).hexdigest() ==
+            "4448a50a51ea65c6a9fb5b451c87528e24872fa960d30280cbf2d39de18b21dd",
+            "existing activation worksheet rows changed")
+    require(report_sql.count("SELECT 'joined finish'") == 1 and
+            "Not part of activation; activation definition unchanged." in report_sql,
+            "joined-finish signal must be a separate section and state activation is unchanged")
     result = subprocess.run(
         ["psql", "--csv", "-q", "-X", "-v", "ON_ERROR_STOP=1",
          "-f", "scripts/ci/test-day14-report.sql", sys.argv[1]],
@@ -55,7 +66,11 @@ def main() -> None:
          and "invitations: not measured" in r["notes"])
     find("sharing", "confirmed share rate",
          lambda r: number(r, "numerator") == 1 and number(r, "denominator") == 1 and number(r, "rate") == 1)
-    print("PASS: report output has activation 1/1, mature D7 1/1, immature D7 NULL, roster 3/1, confirmed share 1/1")
+    find("joined finish", "joined-round first finishes (registered / anonymous)",
+         lambda r: number(r, "numerator") == 1 and number(r, "denominator") == 0
+         and number(r, "rate") is None
+         and r["notes"] == "Not part of activation; activation definition unchanged.")
+    print("PASS: report output has activation 1/1, mature D7 1/1, immature D7 NULL, roster 3/1, confirmed share 1/1, joined finishes 1/0")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-import { PRIVACY_PATH, SUPPORT_EMAIL, SUPPORT_PATH, TERMS_PATH } from "../config/support";
+import { PRIVACY_PATH, SUPPORT_BASE_URL, SUPPORT_EMAIL, SUPPORT_PATH, TERMS_PATH } from "../config/support";
 import { markdownToHtml } from "./markdown";
 
 const MAILTO = `mailto:${SUPPORT_EMAIL}`;
@@ -89,6 +89,12 @@ function shell(path: string, title: string, main: string) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>${escapeHtml(title)}</title>
+<link rel="canonical" href="${SUPPORT_BASE_URL}${path}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="${SUPPORT_BASE_URL}${path}">
+<meta property="og:site_name" content="SnapScore">
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta name="twitter:card" content="summary">
 <style>${CSS}</style>
 </head>
 <body>

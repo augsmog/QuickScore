@@ -360,3 +360,34 @@ the final pending-chain comparison. This test-only teardown drops the disposable
 signup ledger; it must never be used as an operator rollback. The operator rollback
 in ../rollback/signup_reliability.sql continues to preserve ledger/profile data,
 RPCs, vault entries and the optional extension.
+
+### PG17.12 physical attribute versions (AUG-1023)
+
+The Oct 27 approved catalogs predate PostgreSQL's attribute-version safety
+backpatch. The Nov 12 native CI failure (run 43259375304, PGDG
+17.12-1.pgdg24.04+1) adds `pg_attver=<decimal>` to column `attoptions`.
+This is a durable, cluster-local WAL LSN used to reject incompatible composite
+values, not a user-set schema option. Independent disposable clusters naturally
+have different values even with identical DDL. Keep collecting the raw values;
+never update the approved baseline just to absorb them.
+
+Evidence: PostgreSQL [attribute-version design](https://github.com/postgres/postgres/blob/179f22f256ab50bdd0a4351a8b9def13876e4c43/src/backend/catalog/README.attver.md)
+and [pg_dump implementation](https://github.com/postgres/postgres/blob/179f22f256ab50bdd0a4351a8b9def13876e4c43/src/bin/pg_dump/pg_dump.c)
+(`Read attoptions and attversion`): pg_dump separates this internal version
+from ordinary options, reads it as uint64, and handles it separately for binary
+upgrade. The [PG17 catalog docs](https://www.postgresql.org/docs/17/catalog-pg-attribute.html)
+identify `pg_attver` as an internal option that cannot be set via DDL.
+
+`drift.normalize` excludes only whole ASCII `pg_attver=[0-9]{1,20}`
+tokens within uint64 range, and only in `column_definitions[*].options`.
+If that removal empties a list, it becomes null like the older catalogs.
+Every remaining option, malformed/unknown value, foreign-data-wrapper option,
+table option, type, default, storage, statistics setting, and ACL still compares.
+Unexpected option shapes remain visible. Both inputs receive the same
+normalization; raw captures are copied, never mutated. This exclusion has no
+bearing on PostgreSQL runtime protections or application data validation.
+
+`selftest.py` reproduces the new metadata mismatch, checks independent versions
+and mixed semantic options, and rejects meaningful drift even alongside the
+physical versions. The complete hosted native PG17 chain must pass on the final
+commit before merge; local JSON fixtures alone do not establish native parity.

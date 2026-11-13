@@ -30,6 +30,17 @@ CI runs the same flow in `.github/workflows/web-smoke.yml` and uploads screensho
 Demo data is a separate opt-in: `EXPO_PUBLIC_DEMO_MODE=true`; offline mode alone
 never enables it. Skins scoring rules are unchanged pending the owner's decision.
 
+For the original pilot's non-demo Home gate, export with
+`EXPO_PUBLIC_OFFLINE_MODE=false EXPO_PUBLIC_DEMO_MODE=false` and run
+`node e2e/web-real-flow.mjs --pilot-user` against that local build. This mode
+blocks external HTTP/WebSocket traffic except Expo Camera's pinned public jsQR
+decoder asset (the same exception as the web matrix), starts with empty browser storage,
+proves signed-out routing requires sign-in (so an offline build cannot pass),
+then creates a unique local synthetic identity without a backend account.
+It runs the full scoring flow and records the Home screenshot and cold contest
+HTTP/navigation assertions in the same results artifact. It does not verify
+remote authentication. The normal offline smoke remains available without the flag.
+
 ## Web matrix (local and CI)
 
 Build and serve as above, then from `scoresnap/`:

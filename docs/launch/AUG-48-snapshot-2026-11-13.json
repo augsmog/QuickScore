@@ -1,0 +1,360 @@
+{
+  "captured_at": "2026-11-13T12:21:37.553892+00:00",
+  "main_sha": "176fea35dd38b996bc7b5211cfc5bcc31ad1cf67",
+  "visibility": "PUBLIC",
+  "ci": [
+    {
+      "conclusion": "success",
+      "databaseId": 43408876269,
+      "headSha": "176fea35dd38b996bc7b5211cfc5bcc31ad1cf67",
+      "name": "Schema drift",
+      "status": "completed",
+      "url": "https://github.com/augsmog/QuickScore/actions/runs/43408876269"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 43408876371,
+      "headSha": "176fea35dd38b996bc7b5211cfc5bcc31ad1cf67",
+      "name": "Pro shipping config guard",
+      "status": "completed",
+      "url": "https://github.com/augsmog/QuickScore/actions/runs/43408876371"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 43408876391,
+      "headSha": "176fea35dd38b996bc7b5211cfc5bcc31ad1cf67",
+      "name": "iOS boot smoke",
+      "status": "completed",
+      "url": "https://github.com/augsmog/QuickScore/actions/runs/43408876391"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 43408876337,
+      "headSha": "176fea35dd38b996bc7b5211cfc5bcc31ad1cf67",
+      "name": "Tournament E2E",
+      "status": "completed",
+      "url": "https://github.com/augsmog/QuickScore/actions/runs/43408876337"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 43408876308,
+      "headSha": "176fea35dd38b996bc7b5211cfc5bcc31ad1cf67",
+      "name": "Web smoke",
+      "status": "completed",
+      "url": "https://github.com/augsmog/QuickScore/actions/runs/43408876308"
+    }
+  ],
+  "rows": [
+    {
+      "id": "AUG-49",
+      "state": "Done",
+      "labels": [
+        "SS-CL-BUILD27-YES",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": "2026-11-03T14:40:12.357Z"
+    },
+    {
+      "id": "AUG-50",
+      "state": "Todo",
+      "labels": [
+        "SS-CL-PHONE",
+        "checklist",
+        "needs-augie",
+        "waiting-on-augie-later"
+      ],
+      "class": "HELD",
+      "latest_comment_at": "2026-11-01T02:57:26.972Z"
+    },
+    {
+      "id": "AUG-51",
+      "state": "Todo",
+      "labels": [
+        "SS-CL-BOARD78",
+        "checklist",
+        "paused",
+        "blocked"
+      ],
+      "class": "HELD",
+      "latest_comment_at": "2026-11-13T09:50:08.792Z"
+    },
+    {
+      "id": "AUG-52",
+      "state": "Done",
+      "labels": [
+        "SS-CL-DONE-LISTING",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-53",
+      "state": "Done",
+      "labels": [
+        "SS-CL-DONE-NAME",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-54",
+      "state": "Done",
+      "labels": [
+        "SS-CL-DONE-50PLUS",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-55",
+      "state": "Done",
+      "labels": [
+        "SS-CL-DONE-CATEGORIES",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-56",
+      "state": "Done",
+      "labels": [
+        "SS-CL-DONE-AGE",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-57",
+      "state": "Done",
+      "labels": [
+        "SS-CL-DONE-EXPORT",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-58",
+      "state": "Done",
+      "labels": [
+        "SS-CL-DONE-PRICE",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-59",
+      "state": "Done",
+      "labels": [
+        "SS-CL-DONE-STOREFRONTS",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-60",
+      "state": "Done",
+      "labels": [
+        "SS-CL-DONE-BUILD26",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-61",
+      "state": "Done",
+      "labels": [
+        "SS-CL-DONE-RELEASE",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-62",
+      "state": "Done",
+      "labels": [
+        "SS-CL-DONE-SUBS",
+        "checklist"
+      ],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-64",
+      "state": "Done",
+      "labels": [
+        "GS-AS2",
+        "vault-tasks"
+      ],
+      "class": "Done",
+      "latest_comment_at": "2026-11-01T04:09:59.751Z"
+    },
+    {
+      "id": "AUG-65",
+      "state": "Todo",
+      "labels": [
+        "GS-AS3",
+        "vault-tasks",
+        "needs-augie",
+        "waiting-on-augie-later"
+      ],
+      "class": "HELD",
+      "latest_comment_at": "2026-10-31T23:34:55.638Z"
+    },
+    {
+      "id": "AUG-66",
+      "state": "Done",
+      "labels": [
+        "GS-AS5",
+        "vault-tasks"
+      ],
+      "class": "Done",
+      "latest_comment_at": "2026-11-03T18:10:42.075Z"
+    },
+    {
+      "id": "AUG-67",
+      "state": "Todo",
+      "labels": [
+        "GS-AS6",
+        "vault-tasks",
+        "blocked"
+      ],
+      "class": "HELD",
+      "latest_comment_at": "2026-11-10T05:54:51.281Z"
+    },
+    {
+      "id": "AUG-68",
+      "state": "Todo",
+      "labels": [
+        "GS-AS7",
+        "vault-tasks",
+        "blocked"
+      ],
+      "class": "HELD",
+      "latest_comment_at": "2026-11-12T20:13:13.415Z"
+    },
+    {
+      "id": "AUG-76",
+      "state": "Todo",
+      "labels": [
+        "GS-SUB-PAIDAPPS",
+        "vault-tasks",
+        "blocked"
+      ],
+      "class": "HELD",
+      "latest_comment_at": "2026-11-12T21:23:17.865Z"
+    },
+    {
+      "id": "AUG-77",
+      "state": "Done",
+      "labels": [
+        "GS-SUB-CHAT",
+        "vault-tasks"
+      ],
+      "class": "Done",
+      "latest_comment_at": "2026-11-01T03:05:14.167Z"
+    },
+    {
+      "id": "AUG-78",
+      "state": "Todo",
+      "labels": [
+        "GS-SUB-DEMO",
+        "vault-tasks",
+        "blocked"
+      ],
+      "class": "HELD",
+      "latest_comment_at": "2026-11-12T19:25:33.609Z"
+    },
+    {
+      "id": "AUG-79",
+      "state": "Done",
+      "labels": [
+        "GS-SUB-RIGHTS",
+        "vault-tasks"
+      ],
+      "class": "Done",
+      "latest_comment_at": "2026-11-01T03:43:59.350Z"
+    },
+    {
+      "id": "AUG-81",
+      "state": "Todo",
+      "labels": [
+        "promises",
+        "P-20261026-snapscore-4device-test",
+        "blocked"
+      ],
+      "class": "HELD",
+      "latest_comment_at": "2026-11-11T18:17:23.049Z"
+    },
+    {
+      "id": "AUG-242",
+      "state": "Done",
+      "labels": [],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-259",
+      "state": "Todo",
+      "labels": [
+        "blocked"
+      ],
+      "class": "HELD",
+      "latest_comment_at": "2026-11-12T15:16:13.741Z"
+    },
+    {
+      "id": "AUG-263",
+      "state": "Done",
+      "labels": [],
+      "class": "Done",
+      "latest_comment_at": null
+    },
+    {
+      "id": "AUG-349",
+      "state": "Done",
+      "labels": [
+        "blocked"
+      ],
+      "class": "HELD",
+      "latest_comment_at": "2026-11-05T18:10:22.427Z"
+    },
+    {
+      "id": "AUG-576",
+      "state": "Done",
+      "labels": [],
+      "class": "Done",
+      "latest_comment_at": "2026-11-05T21:49:49.519Z"
+    },
+    {
+      "id": "AUG-623",
+      "state": "Done",
+      "labels": [],
+      "class": "Done",
+      "latest_comment_at": "2026-11-05T08:37:25.925Z"
+    },
+    {
+      "id": "AUG-627",
+      "state": "Done",
+      "labels": [],
+      "class": "Done",
+      "latest_comment_at": "2026-11-05T07:15:44.198Z"
+    },
+    {
+      "id": "AUG-664",
+      "state": "Done",
+      "labels": [],
+      "class": "Done",
+      "latest_comment_at": "2026-11-05T12:48:47.610Z"
+    }
+  ]
+}

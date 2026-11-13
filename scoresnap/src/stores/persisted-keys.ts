@@ -10,6 +10,7 @@ export const CHAT_MODERATION_KEY = "snapscore.chat.moderation.v1";
 export const CHAT_NAME_KEY = "snapscore.chat.name.v1";
 
 export const TOURNAMENT_OUTBOX_KEY = "snapscore.tournament.outbox";
+export const TD_CONVERSION_SEEN_KEY = "snapscore.td-conversion-seen.v1";
 
 /** Every AsyncStorage key this app persists for an account. */
 export const PERSISTED_ACCOUNT_KEYS = [
@@ -24,6 +25,7 @@ export const PERSISTED_ACCOUNT_KEYS = [
   CHAT_NAME_KEY,
   CHAT_MODERATION_KEY,
   TOURNAMENT_OUTBOX_KEY,
+  TD_CONVERSION_SEEN_KEY,
   "snapscore.account-handoff.v1",
   "snapscore.guest-history-handoff.v1",
 ] as const;

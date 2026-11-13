@@ -68,11 +68,11 @@ export function verifyManifest(root, identity, manifest) {
 export function currentIdentity(cwd = process.cwd(), env = process.env) {
   const required = ['GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA', 'ImageOS', 'ImageVersion'];
   for (const key of required) if (!env[key]) throw new Error(`Missing CI identity: ${key}`);
-  const git = (...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+  const git = (...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   const commit = git('rev-parse', 'HEAD');
   if (commit !== env.GITHUB_SHA) throw new Error('Checkout does not match the workflow commit');
   const repo = git('rev-parse', '--show-toplevel');
-  execFileSync('git', ['diff', '--exit-code', 'HEAD', '--', '.'], { cwd: repo, stdio: 'pipe' });
+  execFileSync('git', ['diff', '--exit-code', 'HEAD', '--', '.'], { cwd: repo, stdio: ['ignore', 'pipe', 'pipe'] });
   const lockBytes = fs.readFileSync(path.join(cwd, 'package-lock.json'));
   const lock = JSON.parse(lockBytes);
   return {

@@ -45,4 +45,20 @@ export const posthogAppLogger = {
       low_confidence_item_count: lowConfidenceItemCount,
     });
   },
+
+  tournamentDirectorEntitlementStarted({
+    period_type,
+    product_id,
+    store,
+  }: {
+    period_type: "normal" | "trial" | "intro";
+    product_id: string;
+    store: string;
+  }) {
+    posthog?.logger.info("tournament director entitlement started", {
+      period_type,
+      product_id,
+      store,
+    });
+  },
 };

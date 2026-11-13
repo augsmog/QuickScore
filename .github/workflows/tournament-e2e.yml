@@ -37,6 +37,11 @@ permissions:
 # Avoid public.ecr.aws anonymous pull throttling on shared GitHub runners.
 env:
   SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+  # AUG-817: this E2E asserts the Pro-enabled product contract (the free settle paywall gate).
+  # Build with the reversible pro_enabled flag ON so it reproduces pre-flag (main) behavior. The
+  # shipped flag-off behavior (Pro dormant / features free) is covered by the unit dual-run suite
+  # (tests/pro-enabled-flag.test.cjs) and device-evidence AUG-825.
+  EXPO_PUBLIC_PRO_ENABLED: 'true'
 jobs:
   tournament-e2e:
     runs-on: ubuntu-latest
@@ -129,7 +134,7 @@ jobs:
           EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web
       
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
       
       - name: Start web server
         run: |

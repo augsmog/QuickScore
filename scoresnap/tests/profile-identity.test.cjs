@@ -35,6 +35,8 @@ function screen(user, isAnonymous = false) {
     '../../src/stores/scan-store': { useScanStore: () => ({ scansUsed: 0, isPro: false, getRemainingFreeScans: () => 3 }) },
     '../../src/stores/auth-store': { useAuthStore: select => select(state) },
     '../../src/services/purchases': {},
+    // AUG-826: Pro affordances now gate on proEnabled(); this harness asserts the flag-ON rendering.
+    '../../src/services/entitlements': { proEnabled: () => true },
     '../../src/config/support-links': { openSupport: support },
   }).default;
   return { render: Profile, state, push, support };

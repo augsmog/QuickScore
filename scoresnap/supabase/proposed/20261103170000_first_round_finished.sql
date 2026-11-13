@@ -2,13 +2,60 @@
 CREATE TABLE public.first_round_finishes (
   user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   finished_at timestamptz NOT NULL,
-  source text NOT NULL CHECK (source IN ('contest_completed','published_round_ended')),
+  source text NOT NULL CHECK (source IN ('contest_completed','published_round_ended','quick_settle')),
   contest_id uuid NOT NULL
 );
 
 ALTER TABLE public.first_round_finishes ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.first_round_finishes FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT ON TABLE public.first_round_finishes TO service_role;
+
+-- A local Quick Settle contest is not published/shared, so its authenticated owner
+-- reports completion through this narrow, idempotent operation RPC instead.
+CREATE TABLE public.quick_settle_completion_operations (
+  operation_id uuid PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  contest_id uuid NOT NULL,
+  acknowledged_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.quick_settle_completion_operations ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.quick_settle_completion_operations FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE FUNCTION public.record_quick_settle_completion(p_operation_id uuid, p_owner_id uuid, p_contest_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+DECLARE
+  request_owner uuid := auth.uid();
+  existing_owner uuid;
+  existing_contest uuid;
+BEGIN
+  IF request_owner IS NULL OR p_owner_id IS DISTINCT FROM request_owner OR p_operation_id IS NULL OR p_contest_id IS NULL THEN
+    RAISE EXCEPTION 'Quick Settle completion owner or operation is invalid' USING ERRCODE = '42501';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id=request_owner AND NOT coalesce(u.is_anonymous,false)) THEN
+    RAISE EXCEPTION 'Quick Settle completion requires a registered account' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT owner_id, contest_id INTO existing_owner, existing_contest
+    FROM public.quick_settle_completion_operations WHERE operation_id=p_operation_id FOR UPDATE;
+  IF FOUND AND (existing_owner IS DISTINCT FROM request_owner OR existing_contest IS DISTINCT FROM p_contest_id) THEN
+    RAISE EXCEPTION 'Quick Settle operation ID was already used for another owner or contest' USING ERRCODE = '23505';
+  END IF;
+  IF NOT FOUND THEN
+    INSERT INTO public.quick_settle_completion_operations(operation_id,owner_id,contest_id)
+      VALUES (p_operation_id,request_owner,p_contest_id);
+  END IF;
+
+  INSERT INTO public.first_round_finishes(user_id,finished_at,source,contest_id)
+    VALUES (request_owner,now(),'quick_settle',p_contest_id)
+    ON CONFLICT (user_id) DO NOTHING;
+  RETURN jsonb_build_object('operationId',p_operation_id,'ownerId',request_owner);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.record_quick_settle_completion(uuid,uuid,uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_quick_settle_completion(uuid,uuid,uuid) TO authenticated;
 
 CREATE FUNCTION public.record_first_round_finish() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER

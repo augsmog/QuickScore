@@ -1,0 +1,24 @@
+name: Install Playwright Chromium
+description: Install cached Chromium and repair missing Ubuntu browser dependencies only when needed.
+outputs:
+  cache-hit:
+    description: Whether the Playwright browser cache was restored.
+    value: ${{ steps.browser-cache.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - id: playwright-version
+      shell: bash
+      working-directory: ${{ github.workspace }}/scoresnap
+      run: |
+        version="$(node -e 'const lock=require("./package-lock.json"); const p=lock.packages?.["node_modules/@playwright/test"] ?? lock.packages?.["node_modules/playwright"]; if (!p?.version) process.exit(1); process.stdout.write(p.version)')"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+    - id: browser-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+    - name: Install and verify Chromium
+      shell: bash
+      working-directory: ${{ github.workspace }}/scoresnap
+      run: bash scripts/ci/install-playwright-chromium.sh

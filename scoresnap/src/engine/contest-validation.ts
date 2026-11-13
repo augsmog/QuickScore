@@ -1,8 +1,46 @@
+import {assignFlights} from './flights';
+import {applyCut} from './cut-line';
 import type {Contest} from '../stores/contest-store';
 import {AuxiliaryData,GameType,validateVariationSetup} from './types';
 import {canHostTournament,canUseGame,Tier} from '../services/entitlements';
 import {scopeKey,scopedAuxiliary} from './contest-results';
+import type { StartSlot } from './group-status';
+
+export function validateStartSlots(contest:Contest) {
+ const validateGroups=(groups:Contest['groups'],course:Contest['course'])=>{
+  for(const group of groups){
+   const slot:StartSlot|undefined=group.startSlot;
+   if(!slot)continue;
+   if(!Number.isInteger(slot.hole)||slot.hole<1||slot.hole>course.holes.length)throw new RangeError(`Invalid start hole for group ${group.id}`);
+   if(slot.wave!==undefined && slot.wave!=="A" && slot.wave!=="B")throw new RangeError(`Invalid start wave for group ${group.id}`);
+  }
+ };
+ if(contest.isTournament && contest.rounds?.length){
+  for(const round of contest.rounds)validateGroups(round.groups,round.course??contest.course);
+ }else{
+  validateGroups(contest.groups,contest.course);
+ }
+}
+
+/** Validate saved flight configuration independently of the active roster. */
+export function validateFlightRule(contest:Contest):void {
+ if(contest.flightRule === undefined)return;
+ assignFlights([],contest.flightRule);
+ if(contest.flightRule.mode === 'manual' && contest.flightRule.fallback !== undefined && !contest.flightRule.fallback.trim())throw new RangeError('Fallback flight name must not be empty');
+}
+/** Validate optional saved cut configuration without needing completed scores. */
+export function validateCutRule(contest:Contest):void {
+ if(contest.cutRule === undefined && contest.cutAfterRound === undefined)return;
+ if(contest.cutRule === undefined || contest.cutAfterRound === undefined)throw new RangeError('Cut rule and round must be configured together');
+ if(!contest.isTournament || !contest.rounds || contest.rounds.length < 2)throw new RangeError('Contest must be a multi-round tournament');
+ applyCut([],contest.cutRule);
+ if(!contest.rounds.some(round=>round.number === contest.cutAfterRound))throw new RangeError('afterRound must match a contest round');
+ if(!contest.rounds.some(round=>round.number > contest.cutAfterRound!))throw new RangeError('A later round must remain after the cut');
+}
 export function validateHostContest(contest:Contest,tier:Tier) {
+ validateFlightRule(contest);
+ validateCutRule(contest);
+ validateStartSlots(contest);
  if(!canHostTournament(contest,tier) || contest.games.some(g=>!canUseGame(g,tier))) throw new Error('Your plan does not include this hosting configuration');
  if(contest.gameConfig?.rulesVersion===1){
   const identities=new Map<string,string>();const names=new Map<string,string>();

@@ -12,6 +12,7 @@
  */
 
 import { Platform, NativeModules } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Sentry from "@sentry/react-native";
 import Purchases, {
   PurchasesPackage,
@@ -24,6 +25,9 @@ import { useScanStore } from "../stores/scan-store";
 
 // Entitlement ID configured in RevenueCat dashboard
 import { tierFromCustomerInfo } from "./entitlements";
+import { TD_CONVERSION_SEEN_KEY } from "../stores/persisted-keys";
+import { posthogAppLogger } from "./posthog-log";
+import { tdConversionEvent } from "./td-conversion";
 
 let isConfigured = false;
 
@@ -89,7 +93,7 @@ async function configurePurchases(userId?: string): Promise<void> {
 
     // Check current entitlement status
     const info = await Purchases.getCustomerInfo();
-    handleCustomerInfoUpdate(info);
+    await handleCustomerInfoUpdate(info);
   } catch (e) {
     console.warn("RevenueCat init failed:", e);
   }
@@ -98,8 +102,20 @@ async function configurePurchases(userId?: string): Promise<void> {
 /**
  * Sync Pro status whenever customer info changes.
  */
-function handleCustomerInfoUpdate(info: CustomerInfo): void {
+let customerInfoUpdateQueue: Promise<void> = Promise.resolve();
+function handleCustomerInfoUpdate(info: CustomerInfo): Promise<void> {
   useScanStore.getState().setTier(tierFromCustomerInfo(info));
+  const update = customerInfoUpdateQueue.then(async () => {
+    const previousSeenKey = await AsyncStorage.getItem(TD_CONVERSION_SEEN_KEY);
+    const conversion = tdConversionEvent(previousSeenKey, info);
+    if (!conversion) return;
+    await AsyncStorage.setItem(TD_CONVERSION_SEEN_KEY, conversion.key);
+    posthogAppLogger.tournamentDirectorEntitlementStarted(conversion.event);
+  });
+  customerInfoUpdateQueue = update.catch((error) => {
+    console.warn("Could not record Tournament Director entitlement start:", error);
+  });
+  return customerInfoUpdateQueue;
 }
 
 /**
@@ -130,7 +146,7 @@ export async function getPackages() {
 
 export async function syncProStatus(): Promise<void> {
   const info = await getCustomerInfo();
-  if (info) handleCustomerInfoUpdate(info);
+  if (info) await handleCustomerInfoUpdate(info);
 }
 
 /**
@@ -146,7 +162,7 @@ export async function purchasePackage(
   }
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    handleCustomerInfoUpdate(customerInfo);
+    await handleCustomerInfoUpdate(customerInfo);
     return tierFromCustomerInfo(customerInfo) !== "free";
   } catch (e: any) {
     if (e.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
@@ -169,7 +185,7 @@ export async function restorePurchases(): Promise<boolean> {
   }
   try {
     const info = await Purchases.restorePurchases();
-    handleCustomerInfoUpdate(info);
+    await handleCustomerInfoUpdate(info);
     return tierFromCustomerInfo(info) !== "free";
   } catch (e) {
     console.error("Restore failed:", e);
@@ -185,7 +201,7 @@ export async function checkProStatus(): Promise<boolean> {
   if (!isConfigured) return false;
   try {
     const info = await Purchases.getCustomerInfo();
-    handleCustomerInfoUpdate(info);
+    await handleCustomerInfoUpdate(info);
     return tierFromCustomerInfo(info) !== "free";
   } catch {
     return false;
@@ -230,12 +246,12 @@ function changeIdentity(userId: string | null): Promise<void> {
       if (identified === userId) return;
       const { customerInfo } = await Purchases.logIn(userId);
       identified = userId;
-      handleCustomerInfoUpdate(customerInfo);
+      await handleCustomerInfoUpdate(customerInfo);
     } else {
       // RevenueCat rejects logging out an already anonymous SDK identity.
       if (!await Purchases.isAnonymous()) {
         const info = await Purchases.logOut();
-        handleCustomerInfoUpdate(info);
+        await handleCustomerInfoUpdate(info);
       }
       identified = null;
     }

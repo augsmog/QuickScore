@@ -25,6 +25,7 @@ import { useContestStore, Contest } from "../../src/stores/contest-store";
 import { useScanStore } from "../../src/stores/scan-store";
 import { useAuthStore } from "../../src/stores/auth-store";
 import { restorePurchases, getCustomerInfo } from "../../src/services/purchases";
+import { proEnabled } from "../../src/services/entitlements";
 import { openSupport } from "../../src/config/support-links";
 
 /** Compute real stats from contest data */
@@ -172,9 +173,12 @@ export default function ProfileScreen() {
               <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text }}>{displayName}</Text>
             )}
             <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>Member since {memberYear}</Text>
-            <View testID="profile-plan-badge" accessibilityLabel={`Plan: ${isPro ? "Pro" : "Free"}`} style={{ alignSelf: "flex-start", borderRadius: RADII.full, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: isPro ? COLORS.primary : COLORS.outline, backgroundColor: COLORS.surface }}>
-              <Text style={{ fontFamily: FONTS.semibold, fontSize: 12, color: isPro ? COLORS.primary : COLORS.textDim }}>{isPro ? "Pro" : "Free"}</Text>
-            </View>
+            {/* AUG-826: Pro/Free plan badge is a Pro-membership affordance; hidden while pro_enabled is off. */}
+            {proEnabled() && (
+              <View testID="profile-plan-badge" accessibilityLabel={`Plan: ${isPro ? "Pro" : "Free"}`} style={{ alignSelf: "flex-start", borderRadius: RADII.full, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: isPro ? COLORS.primary : COLORS.outline, backgroundColor: COLORS.surface }}>
+                <Text style={{ fontFamily: FONTS.semibold, fontSize: 12, color: isPro ? COLORS.primary : COLORS.textDim }}>{isPro ? "Pro" : "Free"}</Text>
+              </View>
+            )}
           </View>
           <AnimatedPressable
             onPress={() => router.push("/settings")}
@@ -235,7 +239,8 @@ export default function ProfileScreen() {
           </AnimatedPressable>
         </View>
 
-        {/* ========== SCAN USAGE ========== */}
+        {/* ========== SCAN USAGE (AUG-826: free-scan-limit + Pro upsell; hidden while pro_enabled is off, scans are unlimited then) ========== */}
+        {proEnabled() && (
         <View
           style={{
             backgroundColor: COLORS.surfaceLow,
@@ -285,6 +290,7 @@ export default function ProfileScreen() {
             </AnimatedPressable>
           )}
         </View>
+        )}
 
         {/* ========== THE BAG ========== */}
         <View style={{ marginBottom: 24 }}>
@@ -485,8 +491,8 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* ========== PRO UPGRADE / MANAGE SUBSCRIPTION ========== */}
-        {isPro ? (
+        {/* ========== PRO UPGRADE / MANAGE SUBSCRIPTION (AUG-826: Pro subscription affordance; hidden while pro_enabled is off) ========== */}
+        {(proEnabled() || isPro) && (isPro ? (
           <AnimatedPressable
             onPress={handleManageSubscription}
             style={{
@@ -558,7 +564,7 @@ export default function ProfileScreen() {
               ))}
             </View>
           </AnimatedPressable>
-        )}
+        ))}
 
         {/* ========== SETTINGS LINKS ========== */}
         {[
