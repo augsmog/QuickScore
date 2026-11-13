@@ -126,6 +126,24 @@ export default function GamesScreen() {
   const allPlayers = contest.groups.flatMap((g) => g.players);
   const hasScores = contest.rounds?.some(r=>r.groups.some(g=>g.players.some(p=>p.scores.some(n=>n>0)))) || (contest.games.some(g=>g==="alternate_shot"||g==="chapman")?teamCardPlayers(contest):allPlayers).some((p) => p.scores.some((s) => s > 0));
 
+  const renderAddGame = () => (
+    <>
+      <Pressable
+        testID="games-add-game"
+        accessibilityRole="button"
+        accessibilityLabel="Add a game"
+        onPress={() => router.push(`/contest/${id}/edit`)}
+        style={{ minHeight: 52, alignSelf: "stretch", borderRadius: RADII.md, backgroundColor: COLORS.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12 }}
+      >
+        <Plus size={20} color={COLORS.onPrimary} />
+        <Text style={{ fontFamily: FONTS.bold, fontSize: 15, color: COLORS.onPrimary }}>Add a game</Text>
+      </Pressable>
+      <Text style={{ fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textDim, textAlign: "center", marginTop: 12 }}>
+        Choose from 50+ game modes.
+      </Text>
+    </>
+  );
+
   if (!hasScores) {
     return (
       <View
@@ -147,6 +165,7 @@ export default function GamesScreen() {
         >
           Enter scores to see game results
         </Text>
+        {renderAddGame()}
       </View>
     );
   }
@@ -834,19 +853,7 @@ export default function GamesScreen() {
         const settled = calculateContestSettlement(contest,[gameId],1);
         return <View key={`combined/${gameId}`} style={{padding:16}}><Text style={{color:COLORS.textDim}}>{ALL_GAMES.find(g=>g.id===gameId)?.name}: {settled.pending ? "All-round settlement pending" : "All-round settlement units"}</Text><RankList totals={settled.netByPlayer} betUnit={contest.betUnit}/></View>;
       })}
-      <Pressable
-        testID="games-add-game"
-        accessibilityRole="button"
-        accessibilityLabel="Add a game"
-        onPress={() => router.push(`/contest/${id}/edit`)}
-        style={{ minHeight: 52, alignSelf: "stretch", borderRadius: RADII.md, backgroundColor: COLORS.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12 }}
-      >
-        <Plus size={20} color={COLORS.onPrimary} />
-        <Text style={{ fontFamily: FONTS.bold, fontSize: 15, color: COLORS.onPrimary }}>Add a game</Text>
-      </Pressable>
-      <Text style={{ fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textDim, textAlign: "center", marginTop: 12 }}>
-        Choose from 50+ game modes.
-      </Text>
+      {renderAddGame()}
     </ScrollView>
   );
 }
