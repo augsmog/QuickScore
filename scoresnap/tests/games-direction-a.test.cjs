@@ -80,6 +80,27 @@ test('Games add button keeps approved copy, touch size and edit destination', as
 test('Games without scores keeps the honest empty state and no ranking rows', async () => {
   await render(fixture('active', [0, 0]), root => {
     expect(root.findAllByType('Flag')).toHaveLength(1);
-    expect(root.findAllByType('Text').map(text)).toEqual(['Enter scores to see game results']);
+    const labels = root.findAllByType('Text').map(text);
+    expect(labels).toContain('Enter scores to see game results');
+    expect(labels).not.toContain('T1');
+    expect(root.findAllByProps({ testID: 'games-status-stroke_play' })).toHaveLength(0);
   });
 });
+
+// GAP-06: the early empty-state return must preserve the same reachable editor action.
+test.each([['configured game', ['stroke_play']], ['no configured games', []]])(
+  'Games before any scores has an actionable Add a game CTA (%s)', async (_, games) => {
+    await render({ ...fixture('active', [0, 0]), games }, async (root, push) => {
+      const button = root.findByProps({ testID: 'games-add-game' });
+      expect(button.props.accessibilityRole).toBe('button');
+      expect(button.props.accessibilityLabel).toBe('Add a game');
+      expect(button.props.disabled).not.toBe(true);
+      expect(button.props.style.minHeight).toBeGreaterThanOrEqual(44);
+      expect(text(button)).toBe('Add a game');
+      expect(root.findAllByType('Text').map(text)).toContain('Choose from 50+ game modes.');
+      await act(async () => button.props.onPress());
+      expect(push).toHaveBeenCalledTimes(1);
+      expect(push).toHaveBeenCalledWith('/contest/round-a/edit');
+    });
+  }
+);
