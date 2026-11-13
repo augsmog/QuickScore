@@ -172,9 +172,16 @@ try {
         await page.getByTestId(`leaderboard-total-${names[0]}`).waitFor({state:'visible'});
         contest = await readContest();
         assert.deepEqual(contest.groups.flatMap(g=>g.players).map(p=>p.scores),scores);
+        const playerIdByName = new Map(contest.groups.flatMap(g=>g.players).map(p=>[p.name,p.id]));
+        // AUG-758: THRU is now a labeled cell keyed by playerId (`leaderboard-thru-<id>`):
+        // the holes-played count while partial, `F` once every hole of the course is played,
+        // `—` when none. Every matrix flow plays flow.holes of a full-length course, so the
+        // expected value is `F` when flow.holes covers the whole course else the played count.
+        // (Was: obsolete `thru <holes>` substring on `leaderboard-player-<name>`.)
+        const expectedThru = flow.holes >= contest.course.holes.length ? 'F' : String(flow.holes);
         for (const [i,name] of names.entries()) {
           assert.equal(await page.getByTestId(`leaderboard-total-${name}`).innerText(),String(scores[i].reduce((a,b)=>a+b,0)));
-          assert.match(await page.getByTestId(`leaderboard-player-${name}`).innerText(),new RegExp(`thru ${flow.holes}\\b`));
+          assert.equal(await page.getByTestId(`leaderboard-thru-${playerIdByName.get(name)}`).innerText(),expectedThru);
         }
         await page.screenshot({path:path.join(OUT,`${flow.id}-leaderboard.png`)});
         stage = 'settlement';

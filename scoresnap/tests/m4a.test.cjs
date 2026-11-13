@@ -39,10 +39,29 @@ const box=scoreOutbox(storage,'actor',ids,async a=>{calls.push(a);if(a.round_id=
 await box.enqueue(draft,0);await box.enqueue({...draft,strokes:5},0);await box.enqueue({...draft,round_id:'r2'},0);await box.replay();assert.equal(calls.length,2);assert.equal((await box.inspect()).entries[0].state,'denied');await box.replay();assert.equal(calls.length,2);
 `));
 test('revision hints discard duplicates and foreground poll stops on cleanup',()=>run(`
-const {foregroundSync}=await load('./src/services/online-client.ts');let calls=0;
-const sync=foregroundSync(async()=>{calls++;return {revision:5,rounds:[]}},()=>assert.fail(),10);
-await new Promise(r=>setTimeout(r,2));sync.hint(4);sync.hint({revision:6,private:'ignored'});assert.equal(calls,1);sync.hint(6);await new Promise(r=>setTimeout(r,2));assert.equal(calls,2);
-await new Promise(r=>setTimeout(r,20));assert(calls>=3);sync.stop();const before=calls;await new Promise(r=>setTimeout(r,20));assert.equal(calls,before);
+const {setImmediate:flushFetch}=await import('node:timers/promises');
+const {foregroundSync}=await load('./src/services/online-client.ts');
+// This runs in its own Node subprocess: control the poll scheduler, not wall time.
+const realSetInterval=globalThis.setInterval,realClearInterval=globalThis.clearInterval;
+const intervals=new Map();let handle=0,calls=0,sync;
+globalThis.setInterval=(callback,delay)=>{assert.equal(delay,10);const id=++handle;intervals.set(id,callback);return id};
+globalThis.clearInterval=id=>{assert(intervals.has(id));intervals.delete(id)};
+const tick=async()=>{for(const callback of [...intervals.values()])callback();await flushFetch()};
+try {
+  sync=foregroundSync(async()=>{calls++;return {revision:calls===1?5:6,rounds:[]}},()=>assert.fail(),10);
+  await flushFetch();assert.equal(calls,1);assert.equal(intervals.size,1);
+  sync.hint(4);sync.hint(5);sync.hint({revision:6,private:'ignored'});
+  await flushFetch();assert.equal(calls,1);
+  sync.hint(6);await flushFetch();assert.equal(calls,2);
+  sync.hint(6);await flushFetch();assert.equal(calls,2);
+  await tick();assert.equal(calls,3);
+  sync.stop();assert.equal(intervals.size,0);
+  await tick();assert.equal(calls,3);
+  sync.hint(7);await flushFetch();assert.equal(calls,3);
+} finally {
+  if(intervals.size&&sync)sync.stop();
+  globalThis.setInterval=realSetInterval;globalThis.clearInterval=realClearInterval;
+}
 `));
 test('owner rejoin requires host-only authorization before repairing organizer state',()=>run(`
 const {onlineClient}=await load('./src/services/online-client.ts');let allowed=false;const calls=[],repairs=[];

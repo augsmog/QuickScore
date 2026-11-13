@@ -1,3 +1,5 @@
+import type { FlightRule } from "../engine/flights";
+import type { CutRule } from "../engine/cut-line";
 import { useOnlineStore } from './online-store';
 import { completeScores } from "../services/ocr-review";
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
@@ -8,6 +10,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CONTEST_STORAGE_KEY, createGatedStorage } from "./persisted-keys";
 import { GameType, GameConfig, Player, Course, HoleInfo, AuxiliaryData } from "../engine/types";
+import type { StartSlot, StartType } from "../engine/group-status";
 import { syncRound, syncRoundGroups, syncContestTournamentMeta, syncScore } from "../services/tournament-sync";
 import type { PartialImportCell } from "../services/partial-import";
 
@@ -28,6 +31,7 @@ export interface ContestGroup {
   id: string;
   name: string;
   players: Player[];
+  startSlot?: StartSlot;
   teeTime?: string; // "10:03" or "10:03 AM"
   externalId?: string; // External group ID (e.g. from GolfGenius)
 }
@@ -38,6 +42,7 @@ export interface RoundInfo {
   name: string;
   date?: string;
   course?: Course; // Each round can have a different course
+  startType?: StartType;
   groups: ContestGroup[];
 }
 
@@ -48,6 +53,9 @@ export interface TeamInfo {
 }
 
 export interface Contest {
+  flightRule?: FlightRule;
+  cutRule?: CutRule;
+  cutAfterRound?: number;
   remoteRestored?: boolean;
   id: string;
   name: string;
@@ -71,6 +79,7 @@ export interface Contest {
   onlineEdits?: Record<string, { token: string; strokes: number }>;
   // Multi-round tournament support
   rounds?: RoundInfo[];
+  startType?: StartType;
   currentRound?: number; // 1-indexed
   isTournament?: boolean;
 }
@@ -327,12 +336,25 @@ export const useContestStore = create<ContestState>()(
           : { ...c, groups: updatedGroups }) }));
       },
 
-      completeContest: (id) =>
+      completeContest: (id) => {
+        let completed: Contest | undefined;
         set((state) => ({
           contests: state.contests.map((c) =>
-            c.id === id ? (()=>{if(c.gameConfig?.rulesVersion===1 && calculateContestSettlement(c).pending) throw new Error("Confirm every score and required side-game input before completing");return {...c,status:"completed" as const};})() : c
+            c.id === id ? (()=>{if(c.gameConfig?.rulesVersion===1 && calculateContestSettlement(c).pending) throw new Error("Confirm every score and required side-game input before completing");completed={...c,status:"completed" as const};return completed;})() : c
           ),
-        })),
+        }));
+        // Gap 2 (AUG-744): a finished round must reach Supabase so activation (first_round_finishes)
+        // counts it, even when Live Share was never toggled. Enqueue a one-shot completed snapshot for
+        // an authenticated, non-anonymous owner (same guard as the organize path above). The Live Share
+        // on-path already republishes via the subscribe below when liveShareEnabled, so fill only the
+        // off-path here to avoid a double publish. Offline/RPC failures are swallowed like that path;
+        // local scoring is unaffected.
+        if (!completed || completed.liveShareEnabled) return;
+        const auth = useAuthStore.getState();
+        if (!REAL_AUTH_CONFIGURED || !auth.session || auth.isAnonymous || !/^[0-9a-f-]{36}$/i.test(auth.user?.id || "")) return;
+        const expectedActorId = auth.user?.id ?? auth.remoteUserId ?? null;
+        void import('../services/live-share').then(m => m.publishSnapshot(completed!, expectedActorId)).catch(() => {});
+      },
 
       updateAuxiliaryData: (contestId, gameKey, hole, data, groupId) =>
         set((state) => ({

@@ -9,6 +9,14 @@ import { execFileSync } from "node:child_process";
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
+import { extractPdfText } from "./shared/pdf-text-extraction.mjs";
+import { recordCheck, failedCheckCount } from "./shared/check-results.mjs";
+import { detectClipping } from "./shared/settlement-clip-detection.mjs";
+import { containOffline } from "./journeys/offline-containment.mjs";
+import { randomUUID } from "node:crypto";
+
+// getBoundingClientRect/getClientRects sub-pixel rounding tolerance.
+const CLIP_TOLERANCE_PX = 1;
 
 const BASE = process.env.BASE_URL || "http://localhost:8089";
 const OUT = process.env.OUT_DIR || "e2e/screens";
@@ -23,12 +31,48 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const results = [];
 const check = (ok, name, detail = "") => {
-  results.push({ ok: !!ok, name, detail });
+  recordCheck(results, ok ? "pass" : "fail", name, detail);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
 };
+const checkUnknown = (name, detail) => {
+  recordCheck(results, "unknown", name, detail);
+  console.log(`UNKNOWN: ${name} — ${detail}`);
+};
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined,
+});
 const page = await browser.newPage({ viewport });
+const pilotUser = process.argv.includes('--pilot-user');
+let syntheticUser;
+if (pilotUser) {
+  // This is a local persisted identity, not a backend account or an auth test.
+  // Check the real build's signed-out routing first: offline exports auto-create
+  // anonymous sessions and must fail this gate rather than supply false proof.
+  await containOffline(page.context(), BASE);
+  // Expo Camera loads this pinned public decoder even during pasted-score
+  // journeys. Match web-matrix's asset exception; keep backend traffic denied.
+  await page.context().route('https://cdn.jsdelivr.net/npm/jsqr@1.2.0/dist/jsQR.min.js', route => route.continue());
+  const freshStorage = await page.context().storageState();
+  check(freshStorage.cookies.length === 0 && freshStorage.origins.length === 0,
+    'Pilot starts in a fresh browser context without cookies or stored identities');
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  check(await page.evaluate(() => {
+    const auth = JSON.parse(localStorage.getItem('snapscore-auth') || '{}').state;
+    return !auth?.user && !auth?.session;
+  }), 'Pilot starts without a provisioned account');
+  await page.evaluate(() => localStorage.setItem('snapscore-onboarding', JSON.stringify({
+    version: 0, state: { hasCompletedOnboarding: true, hasSeenDemo: false },
+  })));
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.waitForURL('**/auth/sign-in');
+  check(true, 'Offline mode is off: completed onboarding requires sign-in');
+  syntheticUser = { id: `pilot-${randomUUID()}`, name: 'Pilot Golfer',
+    email: `pilot-${randomUUID()}@example.invalid`, provider: 'email' };
+  await page.evaluate(user => localStorage.setItem('snapscore-auth', JSON.stringify({
+    version: 0, state: { user, session: { user }, isAnonymous: false, isInitialized: true },
+  })), syntheticUser);
+}
 console.log(`viewport: ${viewport.width}x${viewport.height}`);
 // Capture the native share request without opening a system sheet or sending
 // anything outside this test run.
@@ -76,6 +120,13 @@ await page.goto(BASE + "/", { waitUntil: "networkidle" });
 await vis(page.getByText(/^new contest$/i)).first().waitFor();
 check(/Build contests\. Settle up\./i.test(await bodyText()), "Home screen renders from real web build");
 check(!/Sample Round/.test(await bodyText()), "Home has no implicit demo round");
+if (pilotUser) {
+  const auth = await page.evaluate(() => JSON.parse(localStorage.getItem('snapscore-auth')).state);
+  check(auth.user?.id === syntheticUser.id && auth.session?.user?.id === syntheticUser.id && !auth.isAnonymous,
+    'Home uses this run\'s synthetic non-demo identity');
+  check((await page.evaluate(() => JSON.parse(localStorage.getItem('snapscore-contests'))?.state.contests ?? [])).length === 0,
+    'Fresh synthetic Home has no seeded contests');
+}
 await shot("01-home.png");
 
 await checkHomeGameLibrary(page, path.join(OUT, 'seeall-open.png'));
@@ -122,6 +173,14 @@ await vis(page.getByText(/^start$/i)).click();
 await page.waitForURL(/\/contest\/[^/]+$/);
 const contestUrl = page.url();
 const contestId = contestUrl.split("/contest/")[1];
+// New document navigation (not client-side routing) exercises the SPA fallback
+// for a real persisted contest, including HTTP status and rendered route content.
+const coldResponse = await page.goto(contestUrl, { waitUntil: 'networkidle' });
+check(coldResponse?.status() === 200, 'Cold contest route serves HTTP 200', contestUrl);
+await page.getByTestId('contest-screen').waitFor({ state: 'visible' });
+check(new URL(page.url()).pathname === `/contest/${contestId}`,
+  'Cold contest route renders the app without redirect or 404');
+await shot('04-cold-contest-route.png');
 // Contest now defaults to Scorecard tab (changed from Leaderboard)
 check(/Scorecard/i.test(await bodyText()), "New contest defaults to Scorecard tab (no sample data)");
 await shot("04-contest-created-empty.png");
@@ -141,8 +200,8 @@ const scorecard = [
   "Lee,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5",
   "Pat,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6",
 ].join("\n");
-await page.goto(`${BASE}/scan?contestId=${contestId}`, { waitUntil: "networkidle" });
-await page.getByTestId("scorecard-text-input").waitFor();
+await page.goto(`${BASE}/scan?contestId=${contestId}`, { waitUntil: "domcontentloaded" });
+await page.getByTestId("scorecard-text-input").waitFor({ state: "visible", timeout: 10000 });
 // Empty input must not navigate or invent data
 await page.getByTestId("parse-scorecard-button").click();
 await page.waitForTimeout(500);
@@ -192,11 +251,16 @@ for (const [tab, file] of [[/^scorecard$/i, "09-scorecard.png"], [/^games$/i, "1
     check(/Nassau/.test(games) && /Front 9/.test(games) && /Back 9/.test(games) && /Overall/.test(games) && /\d+ up/.test(games), "Nassau leaderboard contains front, back and overall results");
   }
   if (file === "11-settlement.png") {
-    for (const name of ["Augie", "Sam", "Lee", "Pat"]) {
-      const row = page.getByTestId(`settlement-player-${name}`);
+    const lines = page.locator('[data-testid^="settlement-player-"], [data-testid^="settlement-game-"][data-testid*="-player-"]');
+    for (let i = 0; i < await lines.count(); i++) {
+      const row = lines.nth(i);
       await row.scrollIntoViewIfNeeded();
-      const box = await row.boundingBox();
-      check(box && box.y >= 0 && box.y + box.height <= viewport.height, `Settlement row fully reachable: ${name}`);
+      const detail = await row.evaluate(detectClipping, CLIP_TOLERANCE_PX);
+      check(
+        detail.fragmentCount > 0 && detail.violations.length === 0,
+        `Settlement line fully visible without ancestor clipping: ${detail.testId}`,
+        JSON.stringify(detail),
+      );
     }
     await page.getByTestId("settlement-scroll").evaluate(el => { el.scrollTop = 0; });
   }
@@ -214,6 +278,69 @@ check(
   JSON.stringify({ title: sharePayload.title, text: sharedText })
 );
 await shot("11d-group4-share-payload.png");
+
+// AUG-680: exercise the visible settlement marker on the real exported web app.
+// Keep this on the UI-created contest so score preservation is checked against
+// the actual scorecard saved by the flow above.
+await page.keyboard.press("Escape");
+await vis(page.getByText(/^settlement$/i)).first().click();
+const settlementScoresBefore = await page.evaluate((id) => {
+  const data = JSON.parse(localStorage.getItem("snapscore-contests"));
+  const contest = data.state.contests.find((item) => item.id === id);
+  return contest.groups.map((group) => group.players.map((player) => ({ name: player.name, scores: [...player.scores] })));
+}, contestId);
+for (const [width, height] of [[390, 844], [375, 667]]) {
+  await page.setViewportSize({ width, height });
+  await page.getByTestId("settlement-scroll").evaluate((el) => { el.scrollTop = 0; });
+  for (const name of ["Augie", "Sam", "Lee", "Pat"]) {
+    const row = page.getByTestId(`settlement-player-${name}`);
+    await row.scrollIntoViewIfNeeded();
+    const box = await row.boundingBox();
+    check(!!box && box.x >= 0 && box.y >= 0 && box.x + box.width <= width && box.y + box.height <= height,
+      `Settlement row fits ${width}x${height}: ${name}`, JSON.stringify(box));
+  }
+  await page.getByTestId("settlement-scroll").evaluate((el) => { el.scrollTop = 0; });
+  await shot(`11e-settlement-${width}x${height}.png`);
+}
+await page.setViewportSize({ width: 390, height: 844 });
+const markSettled = page.getByRole("button", { name: /mark settled Augie to Sam/i }).first();
+check(await markSettled.isVisible(), "Mark Settled is visible in settlement ledger");
+const markBox = await markSettled.boundingBox();
+check(!!markBox && markBox.width >= 44 && markBox.height >= 44, "Mark Settled target is at least 44px", JSON.stringify(markBox));
+await markSettled.click();
+const undoSettled = page.getByRole("button", { name: /unsettle Augie to Sam/i }).first();
+await undoSettled.waitFor({ state: "visible" });
+check(/^Settled\s/.test((await undoSettled.innerText()).trim()), "Mark Settled changes the visible state");
+await vis(page.getByText(/^games$/i)).first().click();
+await vis(page.getByText(/^settlement$/i)).first().click();
+const returnedUndo = page.getByRole("button", { name: /unsettle Augie to Sam/i }).first();
+check(await returnedUndo.isVisible(), "Mark Settled persists after navigating away and back");
+await returnedUndo.click();
+check(await page.getByRole("button", { name: /mark settled Augie to Sam/i }).first().isVisible(), "Unsettle returns the row to its unsettled state");
+const settlementScoresAfter = await page.evaluate((id) => {
+  const data = JSON.parse(localStorage.getItem("snapscore-contests"));
+  const contest = data.state.contests.find((item) => item.id === id);
+  return contest.groups.map((group) => group.players.map((player) => ({ name: player.name, scores: [...player.scores] })));
+}, contestId);
+check(JSON.stringify(settlementScoresAfter) === JSON.stringify(settlementScoresBefore), "Settlement mark and undo do not alter scores");
+await shot("11a-settlement-mark-undo.png");
+const pdfDownloadPromise = page.waitForEvent("download");
+await page.getByText("Export scorecard (PDF)", { exact: true }).click();
+const pdfDownload = await pdfDownloadPromise;
+const pdfPath = path.join(OUT, "settlement-scorecard.pdf");
+await pdfDownload.saveAs(pdfPath);
+const pdfResult = extractPdfText(pdfPath);
+if (pdfResult.status === "unknown") {
+  checkUnknown("Export PDF includes all player names and signed ledger totals", pdfResult.detail);
+} else {
+  const pdfMatchesShare = [
+    /Sam:\s*\+\$26\.25/,
+    /Augie:\s*\+\$11\.25/,
+    /Lee:\s*[−-]\$3\.75/,
+    /Pat:\s*[−-]\$33\.75/,
+  ].every((pattern) => pattern.test(pdfResult.text));
+  check(pdfMatchesShare, "Export PDF includes all player names and signed ledger totals", pdfResult.text.replace(/\s+/g, " ").slice(-500));
+}
 
 // Verify both screens against the same persisted contest and calculator results.
 // The first pass tests creation + persistence of Net; the second tests persisted Gross.
@@ -389,6 +516,7 @@ if (hasJoinCode) {
 check(pageErrors.length === 0, "No uncaught page errors", pageErrors.join(" | "));
 await browser.close();
 fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ base: BASE, results, pageErrors }, null, 2));
-const failed = results.filter((r) => !r.ok).length;
-console.log(`\n${results.length - failed}/${results.length} checks passed`);
+const failed = failedCheckCount(results);
+const unknown = results.filter((r) => r.status === "unknown").length;
+console.log(`\n${results.length - failed - unknown} passed, ${unknown} unknown, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -44,6 +44,7 @@ import {
 import { useAuthStore } from "../src/stores/auth-store";
 import { restorePurchases } from "../src/services/purchases";
 import { useScanStore } from "../src/stores/scan-store";
+import { proEnabled } from "../src/services/entitlements";
 import { openSupport } from "../src/config/support-links";
 import { PAYWALL_COPY as C } from "../src/ui/paywall-copy";
 import { SUPPORT_BASE_URL } from "../src/config/support";
@@ -501,7 +502,10 @@ export default function SettingsScreen() {
         )}
 
         <SectionHeader title="Subscription" />
-        <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[tier]} onPress={() => router.push("/paywall")} />
+        {/* Keep plan management for existing subscribers while the Pro upgrade path is dormant. */}
+        {(proEnabled() || tier === "pro" || tier === "td") && (
+          <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[tier]} onPress={() => router.push("/paywall")} />
+        )}
         <AnimatedPressable accessibilityRole="button" accessibilityLabel="Restore purchases" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
           style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
           <RotateCcw size={18} color={COLORS.textDim} />
