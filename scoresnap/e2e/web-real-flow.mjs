@@ -12,6 +12,8 @@ import path from "node:path";
 import { extractPdfText } from "./shared/pdf-text-extraction.mjs";
 import { recordCheck, failedCheckCount } from "./shared/check-results.mjs";
 import { detectClipping } from "./shared/settlement-clip-detection.mjs";
+import { containOffline } from "./journeys/offline-containment.mjs";
+import { randomUUID } from "node:crypto";
 
 // getBoundingClientRect/getClientRects sub-pixel rounding tolerance.
 const CLIP_TOLERANCE_PX = 1;
@@ -41,6 +43,36 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined,
 });
 const page = await browser.newPage({ viewport });
+const pilotUser = process.argv.includes('--pilot-user');
+let syntheticUser;
+if (pilotUser) {
+  // This is a local persisted identity, not a backend account or an auth test.
+  // Check the real build's signed-out routing first: offline exports auto-create
+  // anonymous sessions and must fail this gate rather than supply false proof.
+  await containOffline(page.context(), BASE);
+  // Expo Camera loads this pinned public decoder even during pasted-score
+  // journeys. Match web-matrix's asset exception; keep backend traffic denied.
+  await page.context().route('https://cdn.jsdelivr.net/npm/jsqr@1.2.0/dist/jsQR.min.js', route => route.continue());
+  const freshStorage = await page.context().storageState();
+  check(freshStorage.cookies.length === 0 && freshStorage.origins.length === 0,
+    'Pilot starts in a fresh browser context without cookies or stored identities');
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  check(await page.evaluate(() => {
+    const auth = JSON.parse(localStorage.getItem('snapscore-auth') || '{}').state;
+    return !auth?.user && !auth?.session;
+  }), 'Pilot starts without a provisioned account');
+  await page.evaluate(() => localStorage.setItem('snapscore-onboarding', JSON.stringify({
+    version: 0, state: { hasCompletedOnboarding: true, hasSeenDemo: false },
+  })));
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.waitForURL('**/auth/sign-in');
+  check(true, 'Offline mode is off: completed onboarding requires sign-in');
+  syntheticUser = { id: `pilot-${randomUUID()}`, name: 'Pilot Golfer',
+    email: `pilot-${randomUUID()}@example.invalid`, provider: 'email' };
+  await page.evaluate(user => localStorage.setItem('snapscore-auth', JSON.stringify({
+    version: 0, state: { user, session: { user }, isAnonymous: false, isInitialized: true },
+  })), syntheticUser);
+}
 console.log(`viewport: ${viewport.width}x${viewport.height}`);
 // Capture the native share request without opening a system sheet or sending
 // anything outside this test run.
@@ -88,6 +120,13 @@ await page.goto(BASE + "/", { waitUntil: "networkidle" });
 await vis(page.getByText(/^new contest$/i)).first().waitFor();
 check(/Build contests\. Settle up\./i.test(await bodyText()), "Home screen renders from real web build");
 check(!/Sample Round/.test(await bodyText()), "Home has no implicit demo round");
+if (pilotUser) {
+  const auth = await page.evaluate(() => JSON.parse(localStorage.getItem('snapscore-auth')).state);
+  check(auth.user?.id === syntheticUser.id && auth.session?.user?.id === syntheticUser.id && !auth.isAnonymous,
+    'Home uses this run\'s synthetic non-demo identity');
+  check((await page.evaluate(() => JSON.parse(localStorage.getItem('snapscore-contests'))?.state.contests ?? [])).length === 0,
+    'Fresh synthetic Home has no seeded contests');
+}
 await shot("01-home.png");
 
 await checkHomeGameLibrary(page, path.join(OUT, 'seeall-open.png'));
@@ -134,6 +173,14 @@ await vis(page.getByText(/^start$/i)).click();
 await page.waitForURL(/\/contest\/[^/]+$/);
 const contestUrl = page.url();
 const contestId = contestUrl.split("/contest/")[1];
+// New document navigation (not client-side routing) exercises the SPA fallback
+// for a real persisted contest, including HTTP status and rendered route content.
+const coldResponse = await page.goto(contestUrl, { waitUntil: 'networkidle' });
+check(coldResponse?.status() === 200, 'Cold contest route serves HTTP 200', contestUrl);
+await page.getByTestId('contest-screen').waitFor({ state: 'visible' });
+check(new URL(page.url()).pathname === `/contest/${contestId}`,
+  'Cold contest route renders the app without redirect or 404');
+await shot('04-cold-contest-route.png');
 // Contest now defaults to Scorecard tab (changed from Leaderboard)
 check(/Scorecard/i.test(await bodyText()), "New contest defaults to Scorecard tab (no sample data)");
 await shot("04-contest-created-empty.png");
