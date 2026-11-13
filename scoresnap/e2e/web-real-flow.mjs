@@ -50,6 +50,9 @@ if (pilotUser) {
   // Check the real build's signed-out routing first: offline exports auto-create
   // anonymous sessions and must fail this gate rather than supply false proof.
   await containOffline(page.context(), BASE);
+  // Expo Camera loads this pinned public decoder even during pasted-score
+  // journeys. Match web-matrix's asset exception; keep backend traffic denied.
+  await page.context().route('https://cdn.jsdelivr.net/npm/jsqr@1.2.0/dist/jsQR.min.js', route => route.continue());
   const freshStorage = await page.context().storageState();
   check(freshStorage.cookies.length === 0 && freshStorage.origins.length === 0,
     'Pilot starts in a fresh browser context without cookies or stored identities');

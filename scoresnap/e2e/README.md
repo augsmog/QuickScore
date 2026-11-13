@@ -33,7 +33,8 @@ never enables it. Skins scoring rules are unchanged pending the owner's decision
 For the original pilot's non-demo Home gate, export with
 `EXPO_PUBLIC_OFFLINE_MODE=false EXPO_PUBLIC_DEMO_MODE=false` and run
 `node e2e/web-real-flow.mjs --pilot-user` against that local build. This mode
-blocks external HTTP/WebSocket traffic, starts with empty browser storage,
+blocks external HTTP/WebSocket traffic except Expo Camera's pinned public jsQR
+decoder asset (the same exception as the web matrix), starts with empty browser storage,
 proves signed-out routing requires sign-in (so an offline build cannot pass),
 then creates a unique local synthetic identity without a backend account.
 It runs the full scoring flow and records the Home screenshot and cold contest
