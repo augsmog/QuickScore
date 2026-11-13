@@ -44,7 +44,7 @@ Classes: **Done** / **OPEN-BOT** (bot-doable, still open) / **HELD** (migration 
 
 ## Summary
 
-- Done: 22 rows (counting the AUG-576/664 pair as one and the AUG-623/627 pair as one). Open-bot-doable: **0** with an existing unblocked ticket.
+- Done: 22 tickets (AUG-349 counted separately as a discrepancy). Open-bot-doable: **0** with an existing unblocked ticket.
 - Every remaining open row is blocked, paused, needs-augie, or tied to the Apple migration. None was unheld.
 - One discrepancy for a checker/owner: repo visibility (AUG-349 Done vs PUBLIC today).
 - No bot-doable row lacks a ticket. No new ticket is proposed (and this lane cannot create one).
