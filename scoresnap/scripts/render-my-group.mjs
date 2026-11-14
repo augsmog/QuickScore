@@ -25,8 +25,11 @@ try {
   await mkdir(path.join(scratch, '.metro-tmp'));
   await cp(path.join(root, 'assets/fonts'), path.join(scratch, 'assets/fonts'), { recursive: true });
   await cp(path.join(root, 'src'), path.join(scratch, 'src'), { recursive: true });
+  await cp(path.join(root, 'tsconfig.json'), path.join(scratch, 'tsconfig.json'));
   await mkdir(path.join(scratch, 'app/contest/[id]'), { recursive: true });
-  await cp(path.join(root, 'app/contest/[id]/index.tsx'), path.join(scratch, 'app/contest/[id]/index.tsx'));
+  // AUG-1125 moved the tab content previously at index.tsx (this fixture's target) to
+  // leaderboard.tsx, reachable at /contest/<id>/leaderboard; index.tsx is now Scorecard.
+  await cp(path.join(root, 'app/contest/[id]/leaderboard.tsx'), path.join(scratch, 'app/contest/[id]/leaderboard.tsx'));
   const modules = await realpath(path.join(root, 'node_modules'));
   await symlink(modules, path.join(scratch, 'node_modules'), 'dir');
   await writeFile(path.join(scratch, 'metro.config.cjs'), `const {getDefaultConfig}=require('expo/metro-config'); const c=getDefaultConfig(__dirname); c.watchFolders=[${JSON.stringify(modules)}]; c.resolver.nodeModulesPaths=[${JSON.stringify(modules)}]; module.exports=c;`);
@@ -92,7 +95,7 @@ export default function Layout() {
   const errors = [];
   page.on('pageerror', error => { errors.push(error.message); console.error('Page error:', error.message); });
   await page.route('**/*', route => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
-  await page.goto(`${base}/contest/my-group`);
+  await page.goto(`${base}/contest/my-group/leaderboard`);
   const control = page.getByRole('switch', { name: 'My group' });
   await control.waitFor().catch(async error => {
     await page.screenshot({ path: path.join(output, 'failure.png'), fullPage: false });
@@ -129,7 +132,7 @@ export default function Layout() {
   }
   assert.deepEqual(errors, []);
   const sources = {};
-  for (const file of ['app/contest/[id]/index.tsx', 'src/stores/online-store.ts', 'src/stores/contest-store.ts',
+  for (const file of ['app/contest/[id]/leaderboard.tsx', 'src/stores/online-store.ts', 'src/stores/contest-store.ts',
     'src/components/LeaderboardResultsList.tsx', 'src/engine/leaderboard-rows.ts']) {
     sources[file] = createHash('sha256').update(await readFile(path.join(root, file))).digest('hex');
   }
