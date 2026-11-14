@@ -22,6 +22,7 @@ function render({canGoBack=false,hasContest=true}={}){
   '../../../src/ui/theme':{COLORS:{},FONTS:{},RADII:{}},
   '../../../src/stores/contest-store':{useContestStore:f=>f({contests:contest?[contest]:[]})},
   '../../../src/ui/AnimatedPressable':{AnimatedPressable:'Pressable'},
+  '../../../src/ui/contest-back':{contestChildHref:(id,c,f)=>'/contest/'+id+'/'+c+'?from='+f},
  };
  const m={exports:{}};
  new Function('require','module','exports',ts.transpileModule(fs.readFileSync('app/contest/[id]/_layout.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(!(id in deps))throw Error(id);return deps[id]},m,m.exports);
