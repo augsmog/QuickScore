@@ -172,6 +172,54 @@ describe("PartialImportSession", () => {
     expect(resurrect).toBeNull();
   });
 
+  it("does not resurrect a confirmed state if apply itself clears the session via setAccount", () => {
+    const session = new PartialImportSession();
+    session.setAccount("acct-1");
+    const token = session.beginReview("acct-1", ctx());
+    session.completeReview(token, ctx(), input(4));
+    const state = session.confirm("acct-1", ctx(), () => {
+      session.setAccount("acct-2");
+    });
+    expect(state).toEqual({ status: "empty" });
+    expect(session.getState()).toEqual({ status: "empty" });
+
+    // Same for a sign-out (setAccount(null)) triggered from inside apply.
+    session.setAccount("acct-1");
+    const token2 = session.beginReview("acct-1", ctx());
+    session.completeReview(token2, ctx(), input(4));
+    const state2 = session.confirm("acct-1", ctx(), () => {
+      session.setAccount(null);
+    });
+    expect(state2).toEqual({ status: "empty" });
+  });
+
+  it("rejects confirm if the caller mutates their context object after review", () => {
+    const session = new PartialImportSession();
+    session.setAccount("acct-1");
+    const token = session.beginReview("acct-1", ctx());
+    const reviewed = ctx();
+    session.completeReview(token, reviewed, input(4));
+    const applied: unknown[] = [];
+
+    reviewed.groupId = "changed";
+    expect(() => session.confirm("acct-1", reviewed, (patch) => applied.push(patch))).toThrow(/stale/);
+    expect(applied).toHaveLength(0);
+    reviewed.groupId = "group-1";
+
+    reviewed.roundId = "changed";
+    expect(() => session.confirm("acct-1", reviewed, (patch) => applied.push(patch))).toThrow(/stale/);
+    reviewed.roundId = null;
+
+    reviewed.contestId = "changed";
+    expect(() => session.confirm("acct-1", reviewed, (patch) => applied.push(patch))).toThrow(/stale/);
+    reviewed.contestId = "contest-1";
+
+    // With the context restored to the originally-reviewed values, confirm succeeds.
+    const state = session.confirm("acct-1", reviewed, (patch) => applied.push(patch));
+    expect(applied).toEqual([[{ playerId: "a", hole: 1, strokes: 4 }]]);
+    expect(state).toMatchObject({ status: "confirmed" });
+  });
+
   it("rejects beginReview for a mismatched account or context", () => {
     const session = new PartialImportSession();
     session.setAccount("acct-1");
