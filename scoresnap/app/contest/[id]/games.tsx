@@ -132,7 +132,7 @@ export default function GamesScreen() {
         testID="games-add-game"
         accessibilityRole="button"
         accessibilityLabel="Add a game"
-        onPress={() => router.push(`/contest/${id}/edit`)}
+        onPress={() => router.push(`/contest/${id}/edit?from=games`)}
         style={{ minHeight: 52, alignSelf: "stretch", borderRadius: RADII.md, backgroundColor: COLORS.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12 }}
       >
         <Plus size={20} color={COLORS.onPrimary} />

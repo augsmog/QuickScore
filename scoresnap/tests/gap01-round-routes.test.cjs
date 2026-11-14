@@ -23,6 +23,7 @@ function render(pathname, router={back:jest.fn(),replace:jest.fn(),push:jest.fn(
   '../../../src/ui/theme':{COLORS:{},FONTS:{},RADII:{}},
   '../../../src/stores/contest-store':{useContestStore:f=>f({contests:[{id:'c',name:'Round',course:{name:'Course'},groups:[],status:'completed'}]})},
   '../../../src/ui/AnimatedPressable':{AnimatedPressable:'Pressable'},
+  '../../../src/ui/contest-back':{contestChildHref:(id,c,f)=>'/contest/'+id+'/'+c+'?from='+f},
  };
  const m={exports:{}};
  new Function('require','module','exports',ts.transpileModule(fs.readFileSync(LAYOUT,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(!(id in deps))throw Error(id);return deps[id]},m,m.exports);
@@ -38,7 +39,7 @@ test('route files for edit and tournament-rounds exist',()=>{
  expect(fs.existsSync('app/contest/[id]/tournament-rounds.tsx')).toBe(true);
 });
 test('"Add a game" in Games navigates to the round edit route',()=>{
- expect(fs.readFileSync('app/contest/[id]/games.tsx','utf8')).toMatch(/router\.push\(`\/contest\/\$\{id\}\/edit`\)/);
+ expect(fs.readFileSync('app/contest/[id]/games.tsx','utf8')).toMatch(/router\.push\(`\/contest\/\$\{id\}\/edit\?from=games`\)/);
 });
 test('round tab URL contract: scorecard is the default tab',()=>{
  expect(selected(render('/contest/c/scorecard'))).toEqual(['Scorecard']);

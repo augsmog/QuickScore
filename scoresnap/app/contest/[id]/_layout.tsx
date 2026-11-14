@@ -10,6 +10,7 @@ import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
+import { contestChildHref } from "../../../src/ui/contest-back";
 
 const TABS = [
   { key: "scorecard", label: "Scorecard" },
@@ -108,7 +109,7 @@ export default function ContestLayout() {
           {contest.status === "active" && contest.isTournament && (
             <AnimatedPressable
               testID="round-tournament-rounds"
-              onPress={() => router.push(`/contest/${id}/tournament-rounds` as any)}
+              onPress={() => router.push(contestChildHref(id, "tournament-rounds", activeTab) as any)}
               style={{
                 borderRadius: RADII.sm,
                 padding: 8,
@@ -127,7 +128,7 @@ export default function ContestLayout() {
           {contest.status === "active" && (
             <AnimatedPressable
               testID="round-edit"
-              onPress={() => router.push(`/contest/${id}/edit` as any)}
+              onPress={() => router.push(contestChildHref(id, "edit", activeTab) as any)}
               style={{
                 borderRadius: RADII.sm,
                 padding: 8,
