@@ -20,6 +20,7 @@ module.exports = {
     '<rootDir>/src/engine/__tests__/stored-flight-rule.test.ts',
     '<rootDir>/src/engine/__tests__/stored-cut-rule.test.ts',
     '<rootDir>/src/engine/__tests__/field-pot.test.ts',
+    '<rootDir>/src/engine/__tests__/game-leaders.test.ts',
   ],
   cacheDirectory: process.env.JEST_CACHE_DIR || '<rootDir>/.jest-cache',
 };

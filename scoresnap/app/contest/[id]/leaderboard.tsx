@@ -1,4 +1,4 @@
-import { teamCardPlayers, liveRoundCourse } from "../../../src/engine/contest-results";
+import { teamCardPlayers, liveRoundCourse, calculateContestSettlement } from "../../../src/engine/contest-results";
 import { Flag } from "lucide-react-native";
 import { useState } from "react";
 import { View, Text, ScrollView, TextInput } from "react-native";
@@ -13,6 +13,8 @@ import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 import { useOnlineStore } from "../../../src/stores/online-store";
 import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
+import { buildGameLeaderRows, gameLeaderText } from "../../../src/engine/calculators/game-leaders";
+import { ALL_GAMES } from "../../../src/engine/types";
 
 export default function LeaderboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -286,6 +288,28 @@ export default function LeaderboardScreen() {
     </View>
   ) : null;
 
+  // Per-game leader rows (AUG-246 acceptance 4). Reuses the settlement engine for
+  // who is ahead in each side game; names only, no amounts (Settle up owns money).
+  // Stroke play is the list itself, so it never gets a row.
+  const gameLeaderRows = buildGameLeaderRows(
+    contest.games,
+    (game) => calculateContestSettlement(contest, [game]),
+    (game) => ALL_GAMES.find((g) => g.id === game)?.name ?? game,
+  );
+  const gameLeaders = gameLeaderRows.length > 0 ? (
+    <View testID="leaderboard-game-leaders" accessibilityRole="summary" style={{ marginBottom: 16, gap: 6 }}>
+      {gameLeaderRows.map((row) => (
+        <Text
+          key={row.game}
+          testID={`leaderboard-game-leader-${row.game}`}
+          style={{ ...TYPOGRAPHY.caption, color: row.status === "pending" || row.status === "all_square" ? COLORS.textDim : COLORS.text }}
+        >
+          {gameLeaderText(row)}
+        </Text>
+      ))}
+    </View>
+  ) : null;
+
   // Search over the full individual field (AUG-735 / AUG-253g). buildLeaderboardRows
   // fixes each player's competition rank over the WHOLE field before applying the
   // case-insensitive name filter, so a searched subset keeps real field ranks
@@ -410,6 +434,7 @@ export default function LeaderboardScreen() {
           <>
             {header}
             {grossNetToggle}
+            {gameLeaders}
             {playerSearch}
             {myGroupControl}
           </>
