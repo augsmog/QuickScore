@@ -4,22 +4,18 @@ import { ContestJoinCode } from "../../../src/ui/ContestJoinCode";
 import { isCompactViewport } from "../../../src/ui/compact-viewport";
 import { useState, useCallback } from "react";
 import { Dimensions, View, Text, Pressable } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Slot, useLocalSearchParams, usePathname, useRouter } from "expo-router";
 import { ChevronLeft, ChevronRight, Camera, Edit3, Calendar } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
-import LeaderboardScreen from "./index";
-import ScorecardScreen from "./scorecard";
-import GamesScreen from "./games";
-import SettlementScreen from "./settlement";
 
 const TABS = [
-  { key: "scorecard", label: "Scorecard", Screen: ScorecardScreen },
-  { key: "leaderboard", label: "Leaderboard", Screen: LeaderboardScreen },
-  { key: "games", label: "Games", Screen: GamesScreen },
-  { key: "settlement", label: "Settlement", Screen: SettlementScreen },
+  { key: "scorecard", label: "Scorecard" },
+  { key: "leaderboard", label: "Leaderboard" },
+  { key: "games", label: "Games" },
+  { key: "settlement", label: "Settlement" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -27,20 +23,23 @@ type TabKey = (typeof TABS)[number]["key"];
 export default function ContestLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const pathname = usePathname();
   const contest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
   );
   const [statusOpen, setStatusOpen] = useState(false);
   const closeStatus = useCallback(() => setStatusOpen(false), []);
-  const [activeTab, setActiveTab] = useState<TabKey>("scorecard");
+  const route = pathname.replace(/\/$/, "").split("/").slice(3).join("/");
+  const activeTab: TabKey = TABS.find((tab) => tab.key === route)?.key ?? "scorecard";
+  const isTabRoute = route === "" || TABS.some((tab) => tab.key === route);
 
   const handleTabPress = useCallback(
     (tabKey: TabKey) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (tabKey === activeTab) return;
-      setActiveTab(tabKey);
+      router.replace(`/contest/${id}/${tabKey}` as any);
     },
-    [activeTab]
+    [activeTab, id, router]
   );
 
   if (!contest) {
@@ -72,12 +71,14 @@ export default function ContestLayout() {
 
   const allPlayers = contest.groups.flatMap((g) => g.players);
   const compactViewport = isCompactViewport(Dimensions.get("window"));
-  const ActiveScreen = TABS.find((t) => t.key === activeTab)!.Screen;
 
   return (
-    <SafeScreen testID="contest-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top", "bottom"]}>
+    // One stable tree for every child route: the Slot navigator must stay mounted so Expo Router
+    // keeps real history for tab routes (otherwise Back after reload+push falls to the default route).
+    // Nested screens (edit, tournament-rounds) own their header, so chrome renders only on tab routes.
+    <SafeScreen testID={isTabRoute ? "contest-screen" : undefined} style={{ flex: 1, backgroundColor: COLORS.bg }} edges={isTabRoute ? ["top", "bottom"] : []}>
       {/* Header */}
-      <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: compactViewport ? 4 : 8, paddingBottom: compactViewport ? 4 : 12 }}>
+      {isTabRoute ? <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: compactViewport ? 4 : 8, paddingBottom: compactViewport ? 4 : 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: compactViewport ? 6 : 12 }}>
           <AnimatedPressable
             onPress={() => router.back()}
@@ -106,6 +107,7 @@ export default function ContestLayout() {
           </View>
           {contest.status === "active" && contest.isTournament && (
             <AnimatedPressable
+              testID="round-tournament-rounds"
               onPress={() => router.push(`/contest/${id}/tournament-rounds` as any)}
               style={{
                 borderRadius: RADII.sm,
@@ -124,6 +126,7 @@ export default function ContestLayout() {
           )}
           {contest.status === "active" && (
             <AnimatedPressable
+              testID="round-edit"
               onPress={() => router.push(`/contest/${id}/edit` as any)}
               style={{
                 borderRadius: RADII.sm,
@@ -209,7 +212,7 @@ export default function ContestLayout() {
           </View>
         )}
 
-        {/* Tabs — local state, tonal layering */}
+        {/* Tabs — URL selection, tonal layering */}
         <View
           style={{
             flexDirection: "row",
@@ -255,14 +258,13 @@ export default function ContestLayout() {
             </Pressable>
           ))}
         </View>
-      </View>
+      </View> : null}
 
       {/* Keep the organizer invite visible on the round; sync controls stay in the sheet. */}
-      <ContestJoinCode contest={contest} />
+      {isTabRoute ? <ContestJoinCode contest={contest} /> : null}
 
-      {/* Active screen — rendered directly, no Slot/router */}
-      <ActiveScreen />
-      <RoundStatusSheet contest={contest} visible={statusOpen} onClose={closeStatus} />
+      <Slot />
+      {isTabRoute ? <RoundStatusSheet contest={contest} visible={statusOpen} onClose={closeStatus} /> : null}
     </SafeScreen>
   );
 }

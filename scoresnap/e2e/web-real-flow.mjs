@@ -1,3 +1,4 @@
+import { checkGap01Routes } from './shared/gap01-routes.mjs';
 import { checkHomeGameLibrary } from './shared/home-game-library.mjs';
 import { seedPaidTier } from "./shared/paid-tier-fixture.mjs";
 // Real-app web verification for SnapScore (no mockups).
@@ -189,6 +190,14 @@ await vis(page.getByText(/^leaderboard$/i)).first().click();
 const noScores = await page.getByText(/^No scores yet$/).waitFor({ state: "visible", timeout: 10000 }).then(() => true, () => false);
 check(noScores, "New contest starts with no scores (no sample data)");
 await vis(page.getByText(/^scorecard$/i)).first().click();
+
+await checkGap01Routes(page, contestUrl);
+check(true, 'GAP-01 round edit, Add a game and tournament routes open and return to their originating tab');
+if (process.argv.includes('--gap01-only')) {
+  check(pageErrors.length === 0, 'GAP-01 has no runtime errors', pageErrors.join('; '));
+  await browser.close();
+  process.exit(failedCheckCount(results) ? 1 : 0);
+}
 
 // 3. GS-2 in the running app: enter a scorecard where Sam's row is all 4s.
 // The pre-fix parser treated any row of 3-5 values as par and would have dropped Sam.

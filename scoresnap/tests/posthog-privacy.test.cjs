@@ -57,7 +57,7 @@ function inspectPostHogCaptures(sourceFiles) {
 function nativeCaptureSources() {
   return [
     "../app/contest/new.tsx",
-    "../app/contest/[id]/scorecard.tsx",
+    "../app/contest/[id]/index.tsx",
     "../app/paywall.tsx",
     "../app/scan/index.tsx",
     "../app/scan/review.tsx",

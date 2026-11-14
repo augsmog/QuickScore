@@ -118,7 +118,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
   });
   deps['../../../src/components/LeaderboardResultsList'] = { LeaderboardResultsList };
-  const Screen = load('app/contest/[id]/index.tsx', deps).default;
+  const Screen = load('app/contest/[id]/leaderboard.tsx', deps).default;
   let tree;
   try {
     await act(async () => {

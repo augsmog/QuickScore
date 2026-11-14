@@ -35,8 +35,8 @@ test('Legacy Nassau keeps engine labels for two players',()=>check(`
 const {calcNassauPress}=await import('./src/engine/calculators/nassau-press.ts').then(m=>m.default??m);const p=group('g',['Alice Smith','Bob Jones'],[3,4]).players;const result=calcNassauPress(...p);assert.equal(labels(result,2,p).leader,'Alice Smith');assert.equal(labels(result,2,p).down,'Bob Jones');
 `));
 test('UI uses scoped helper, side labels, complete dependencies and daily round context',()=>check(`
-const ui=fs.readFileSync('app/contest/[id]/scorecard.tsx','utf8');assert.ok(!ui.includes('calcSkins(players'));assert.ok(!ui.includes('players[1].name'));assert.ok(ui.includes('liveSkinsStatus(contest, group.id)'));assert.ok(ui.includes('liveNassauLabels(result, nineStatus)'));assert.ok(!ui.includes('leader?.split'));assert.ok(!ui.includes('downPlayer.split'));assert.ok(ui.includes('[group.players, currentHole, contest.games, course, contest.gameConfig, auxiliary, activeGroups, group.id]'));assert.ok(ui.includes('calcStrokePlay([player], course)[0].toPar'));
-const daily=fs.readFileSync('app/contest/[id]/index.tsx','utf8');assert.ok(daily.includes('teamCardPlayers(contest,scoreView === "daily")'));assert.ok(daily.includes('(scoreView === "daily" ? liveRoundCourse(contest) : contest.course).name'));assert.ok(daily.includes('scoreView === "daily" ? getActiveGroups(contest) : contest.groups'));
+const ui=fs.readFileSync('app/contest/[id]/index.tsx','utf8');assert.ok(!ui.includes('calcSkins(players'));assert.ok(!ui.includes('players[1].name'));assert.ok(ui.includes('liveSkinsStatus(contest, group.id)'));assert.ok(ui.includes('liveNassauLabels(result, nineStatus)'));assert.ok(!ui.includes('leader?.split'));assert.ok(!ui.includes('downPlayer.split'));assert.ok(ui.includes('[group.players, currentHole, contest.games, course, contest.gameConfig, auxiliary, activeGroups, group.id]'));assert.ok(ui.includes('calcStrokePlay([player], course)[0].toPar'));
+const daily=fs.readFileSync('app/contest/[id]/leaderboard.tsx','utf8');assert.ok(daily.includes('teamCardPlayers(contest,scoreView === "daily")'));assert.ok(daily.includes('(scoreView === "daily" ? liveRoundCourse(contest) : contest.course).name'));assert.ok(daily.includes('scoreView === "daily" ? getActiveGroups(contest) : contest.groups'));
 `));
 test('Shared-ball daily cards select current round, cumulative includes both and labels teams',()=>check(`
 const c=fixture();c.games=['alternate_shot'];c.rounds.forEach((round,i)=>{round.groups=[group('g',['A','B','C','D'],[9,9,9,9])];});c.auxiliaryByScope={'r1/g':{teamCards:{1:{red:4,blue:5}}},'r2/g':{teamCards:{1:{red:3,blue:4}}}};
@@ -49,5 +49,5 @@ assert.equal(calcStrokePlay([p],r.liveRoundCourse(c))[0].toPar,0);assert.equal(5
 `));
 test('Weighted pending carry banner avoids incorrect fixed next-win promises',()=>check(`
 const c=fixture();c.gameConfig.skinsScope='group';c.gameConfig.skinsTier='progressive';assert.equal(liveSkins(c,'g').remaining,171);
-const ui=fs.readFileSync('app/contest/[id]/scorecard.tsx','utf8');assert.ok(!ui.includes('x value next win'));assert.ok(ui.includes('Unawarded units in this scope'));
+const ui=fs.readFileSync('app/contest/[id]/index.tsx','utf8');assert.ok(!ui.includes('x value next win'));assert.ok(ui.includes('Unawarded units in this scope'));
 `));

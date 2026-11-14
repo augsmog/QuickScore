@@ -29,7 +29,7 @@ test('round score, tabs, and invite semantics are fully gated by exact roles and
 });
 
 test('round controls publish the same semantics in their React Native components', () => {
-  const scorecard = read('app/contest/[id]/scorecard.tsx');
+  const scorecard = read('app/contest/[id]/index.tsx');
   const tabs = read('app/contest/[id]/_layout.tsx');
   const invite = read('src/ui/ContestJoinCode.tsx');
 
