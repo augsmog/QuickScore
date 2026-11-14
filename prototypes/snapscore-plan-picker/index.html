@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; form-action 'none'; base-uri 'none'">
+<title>SnapScore · Draft plan picker</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f6f5ef;color:#193b31;font:16px/1.5 system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:32px 28px}header{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #d4dcd2;padding-bottom:20px}.brand{font-weight:800;font-size:23px;letter-spacing:-1px}.brand span{color:#6e856a}.badge{font-size:12px;font-weight:750;background:#ffedba;color:#624810;border:1px solid #ddc57b;border-radius:6px;padding:6px 10px}.eyebrow{font-size:11px;font-weight:750;letter-spacing:2px;text-transform:uppercase;color:#597463;margin:28px 0 8px}h1{font-size:clamp(29px,4vw,44px);line-height:1.1;letter-spacing:-1.5px;margin:0 0 12px} .intro{color:#53675b;margin:0 0 25px;max-width:630px}.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.plan{position:relative;border:1px solid #c8d3c7;border-radius:16px;background:#fffef9;padding:22px;display:flex;flex-direction:column}.plan.selected{border:2px solid #2e654b;padding:21px;background:#f0f5eb}.top{display:flex;justify-content:space-between;gap:8px;align-items:center}h2{font-size:20px;margin:0;letter-spacing:-.5px}.marker{border:1px solid #77957b;width:20px;height:20px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;font-size:12px}.selected .marker{color:white;background:#2e654b}.price{font-size:35px;font-weight:750;letter-spacing:-1.5px;margin:16px 0 0}.price small{font-size:14px;font-weight:450;letter-spacing:0}.note{font-size:12px;color:#58705d;margin:0}.trial{font-size:12px;font-weight:700;margin:16px 0 0;color:#2e654b}ul{padding:0;list-style:none;font-size:14px;margin:16px 0 22px;flex:1}li{padding-left:19px;margin:10px 0;position:relative}li:before{content:'✓';position:absolute;left:0;color:#587a4e}.muted{color:#68746c}.muted:before{content:'–'}button{font:inherit;cursor:pointer;border-radius:9px;min-height:46px;font-weight:700;border:1px solid #2e654b;color:#214a37;background:transparent}button:focus-visible{outline:3px solid #b58124;outline-offset:4px}.selected button{background:#214a37;color:#fff}.version{font-size:10px;border:1px solid #a8b99e;border-radius:4px;padding:1px 4px;white-space:nowrap}.selection{margin-top:18px;background:#e6eddf;border-radius:12px;padding:17px 20px;display:flex;justify-content:space-between;gap:18px;align-items:center}.selection p{margin:3px 0 0;font-size:13px;color:#4c6252}.selection button{background:#214a37;color:white;padding:10px 22px;white-space:nowrap}.foot{font-size:12px;color:#607264;margin:14px 0 0}#status{font-size:13px;color:#214a37;margin:10px 0 0;min-height:20px} @media(max-width:650px){main{padding:20px 18px}header{align-items:flex-start}.brand{font-size:20px}.badge{max-width:145px;font-size:11px}.eyebrow{margin-top:22px}.intro{font-size:14px;margin-bottom:18px}.plans{grid-template-columns:1fr;gap:10px}.plan{padding:16px}.plan.selected{padding:15px}.price{font-size:29px;margin-top:4px}.trial{position:absolute;right:16px;top:45px;margin:0}ul{font-size:13px;margin:9px 0 12px}li{margin:5px 0}.selection{align-items:stretch;flex-direction:column;gap:12px;padding:16px}h2{font-size:18px}.foot{line-height:1.6}}
+</style>
+<main>
+<header><div class="brand">⚑ Snap<span>Score</span></div><span class="badge">Draft pricing, not final</span></header>
+<p class="eyebrow">Developer preview · Plan exploration</p>
+<h1>Your game. Your plan.</h1>
+<p class="intro">From a casual round to tournament day. Explore a plan with a 7-day trial — this preview only simulates your choice.</p>
+<section class="plans" aria-label="Compare plans">
+<article class="plan" data-plan="Free"><div class="top"><h2>Free</h2><span class="marker" aria-hidden="true"></span></div><p class="price">$0<small> / year</small></p><p class="note">Keep it casual</p><p class="trial">7-day trial</p><ul><li>Score your rounds on this device</li><li>Review your round totals</li><li class="muted">Cross-device sharing not included</li></ul><button aria-pressed="false">Choose Free</button></article>
+<article class="plan selected" data-plan="Pro"><div class="top"><h2>Pro</h2><span class="marker" aria-hidden="true">✓</span></div><p class="price">~$25<small> / year</small></p><p class="note">For your regular game</p><p class="trial">7-day trial</p><ul><li>Everything in Free</li><li><strong>Cross-device sharing</strong> <span class="version">1.0</span><br>Share rounds &amp; tournaments</li><li>Keep your group in the loop</li></ul><button aria-pressed="true">Choose Pro</button></article>
+<article class="plan" data-plan="Tournament Director"><div class="top"><h2>Tournament Director</h2><span class="marker" aria-hidden="true"></span></div><p class="price">$50–100<small> / year</small></p><p class="note">Draft annual range</p><p class="trial">7-day trial</p><ul><li>Everything in Pro</li><li><strong>Cross-device sharing</strong> <span class="version">1.0</span><br>Share rounds &amp; tournaments</li><li>For organizing tournament play</li></ul><button aria-pressed="false">Choose Tournament Director</button></article>
+</section>
+<section class="selection" aria-label="Selected plan"><div><strong id="summary">Pro · 7-day trial</strong><p>Mock selection only. Nothing starts or renews.</p></div><button id="simulate">Preview 7-day trial</button></section>
+<p id="status" role="status" aria-live="polite"></p>
+<p class="foot">LOCAL MOCK · No account, payment details, or purchase required. Free stays free after its trial. Paid trial terms and pricing are exploratory.</p>
+</main>
+<script>
+let selected = 'Pro';
+const status = document.querySelector('#status');
+document.querySelectorAll('[data-plan]').forEach(card => {
+ card.querySelector('button').addEventListener('click', () => {
+  selected = card.dataset.plan;
+  document.querySelectorAll('[data-plan]').forEach(other => {
+   const active = other === card;
+   other.classList.toggle('selected', active);
+   other.querySelector('button').setAttribute('aria-pressed', String(active));
+   other.querySelector('.marker').textContent = active ? '✓' : '';
+  });
+  document.querySelector('#summary').textContent = selected + ' · 7-day trial';
+  status.textContent = selected + ' selected. Preview only.';
+ });
+});
+document.querySelector('#simulate').addEventListener('click', () => {
+ status.textContent = 'Simulated: ' + selected + ' 7-day trial. No trial started, no charge, no data saved.';
+});
+</script>
+</html>
