@@ -73,7 +73,11 @@ export class PartialImportSession {
   completeReview(token: ReviewToken, context: PartialImportSessionContext, input: PartialImportInput): PartialImportSessionState | null {
     if (token !== this.generation) return null;
     const result = buildPartialImport(input);
-    this.state = { status: "draft", context, result };
+    // Snapshot the context object: the caller may hold onto and mutate the same object it
+    // passed in (e.g. a live group/round selection) before later calling `confirm` with it.
+    // Storing a reference instead of a copy would make the staleness check below compare the
+    // mutated object against itself and always pass.
+    this.state = { status: "draft", context: { ...context }, result };
     return this.state;
   }
 
@@ -104,9 +108,15 @@ export class PartialImportSession {
     }
     if (!this.state.result.ok) throw new Error("Cannot confirm a draft with unresolved blockers");
     const patch = this.state.result.patch;
+    const generationBeforeApply = this.generation;
     apply(patch);
+    if (this.generation !== generationBeforeApply) {
+      // `apply` reentered the session (e.g. triggered setAccount/discard) -- honor that
+      // instead of clobbering it with a confirmed state for the now-stale context.
+      return this.state;
+    }
     this.generation += 1;
-    this.state = { status: "confirmed", context, patch };
+    this.state = { status: "confirmed", context: { ...context }, patch };
     return this.state;
   }
 
