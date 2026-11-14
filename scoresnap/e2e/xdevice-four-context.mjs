@@ -5,9 +5,7 @@ import path from 'node:path';
 import { selectHostPlayer } from './xdevice-host-player.mjs';
 import { isSavedContestPath } from './xdevice-route.mjs';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-const { summarize, toMarkdown } = require('./consumer-ux-metrics.cjs');
+import { ObservationArchive, observeConsumerActions, writeConsumerReport } from './xdevice-consumer-report.mjs';
 import { withTdFixtureEntitlement } from './xdevice-td-fixture.mjs';
 const base = process.env.BASE_URL ?? 'http://127.0.0.1:8089';
 const out = process.env.OUT_DIR ?? '/tmp/xdevice-four-context';
@@ -25,22 +23,8 @@ const contexts = await Promise.all(devices.map(device => browser.newContext({
   isMobile: true,
   hasTouch: true,
 })));
-for (const context of contexts) await context.addInitScript(() => {
-  const key = '__aug81_consumer_observations__';
-  const read = () => { try { return JSON.parse(sessionStorage.getItem(key) || '[]'); } catch { return []; } };
-  const record = event => { const events = read(); events.push(event); sessionStorage.setItem(key, JSON.stringify(events)); };
-  document.addEventListener('click', event => {
-    const element = event.target.closest('button,a,[role="button"],input,select,[data-testid]') || event.target;
-    const rect = element.getBoundingClientRect();
-    const label = element.getAttribute('aria-label') || element.getAttribute('placeholder') || element.innerText || element.getAttribute('data-testid') || element.tagName;
-    record({ type: 'activate', label: String(label).replace(/\s+/g, ' ').trim().slice(0, 120), y: rect.top + window.scrollY, viewportHeight: window.innerHeight });
-  }, true);
-  let lastScroll = 0;
-  document.addEventListener('scroll', () => {
-    const now = Date.now();
-    if (now - lastScroll > 250) { record({ type: 'scroll' }); lastScroll = now; }
-  }, { capture: true, passive: true });
-});
+for (const context of contexts) await context.addInitScript(observeConsumerActions);
+const observations = new ObservationArchive();
 const pages = await Promise.all(contexts.map(c => c.newPage()));
 const names = ['Xdev Host', 'Xdev Bravo', 'Xdev Charlie', 'Xdev Delta'];
 const snapshots = new WeakMap();
@@ -215,16 +199,6 @@ async function converge(indices) {
 async function queueEntries(p) {
   return p.evaluate(contestId => Object.keys(localStorage).filter(k => k.includes('snapscore.outbox.v1.')).flatMap(k => JSON.parse(localStorage.getItem(k)).entries).filter(e => e.draft.contest_id === contestId), contestId);
 }
-async function writeConsumerReport() {
-  const events = await Promise.all(pages.map(page => page.evaluate(() => {
-    try { return JSON.parse(sessionStorage.getItem('__aug81_consumer_observations__') || '[]'); } catch { return []; }
-  })));
-  const rows = summarize(events, devices.map(device => device.name));
-  await Promise.all([
-    import('node:fs/promises').then(fs => fs.writeFile(path.join(out, 'consumer-ux.json'), `${JSON.stringify({ simulation: true, entitlementFixture: 'disposable TD organizer; ordinary guest accounts', rows }, null, 2)}\n`)),
-    import('node:fs/promises').then(fs => fs.writeFile(path.join(out, 'consumer-ux.md'), toMarkdown(rows))),
-  ]);
-}
 let contestId, contestUrl, code;
 try {
   const signed = [];
@@ -331,6 +305,7 @@ try {
       await converge([0, 1, 2, 3]);
     });
     await step('host leaves; players continue; host returns without loss or duplicates', async () => {
+      await observations.archive(0, pages[0]);
       await pages[0].close(); await contexts[0].setOffline(true);
       for (const i of [1, 2, 3]) { await save(i, 3, i + 7); expectCell(i, 3, i + 7); }
       await converge([1, 2, 3]);
@@ -437,7 +412,7 @@ try {
     });
     console.log('PASS four isolated browsers: approve x3, offline reconnect D,B,C, same-hole conflict resolved, host leave/return, removed-phone lockout');
   }
-  await writeConsumerReport();
+  await writeConsumerReport({ pages, devices, out, observations });
 } catch (error) {
   for (const [i, p] of pages.entries()) if (!p.isClosed()) await p.screenshot({ path: path.join(out, `failure-${i}.png`), fullPage: true }).catch(() => {});
   throw error;
