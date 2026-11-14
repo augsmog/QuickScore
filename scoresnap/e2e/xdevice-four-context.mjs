@@ -2,12 +2,29 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { selectHostPlayer } from './xdevice-host-player.mjs';
+import { isSavedContestPath } from './xdevice-route.mjs';
 import assert from 'node:assert/strict';
+import { ObservationArchive, observeConsumerActions, writeConsumerReport } from './xdevice-consumer-report.mjs';
+import { withTdFixtureEntitlement } from './xdevice-td-fixture.mjs';
 const base = process.env.BASE_URL ?? 'http://127.0.0.1:8089';
 const out = process.env.OUT_DIR ?? '/tmp/xdevice-four-context';
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_BIN ? { executablePath: process.env.CHROME_BIN } : {}) });
-const contexts = await Promise.all(Array.from({ length: 4 }, () => browser.newContext()));
+const devices = [
+  { name: 'iPhone SE (375×667)', viewport: { width: 375, height: 667 } },
+  { name: 'iPhone 15 Pro (393×852)', viewport: { width: 393, height: 852 } },
+  { name: 'iPhone 15 Pro Max (430×932)', viewport: { width: 430, height: 932 } },
+  { name: 'iPad representative landscape (1024×768)', viewport: { width: 1024, height: 768 } },
+];
+const contexts = await Promise.all(devices.map(device => browser.newContext({
+  viewport: device.viewport,
+  deviceScaleFactor: 1,
+  isMobile: true,
+  hasTouch: true,
+})));
+for (const context of contexts) await context.addInitScript(observeConsumerActions);
+const observations = new ObservationArchive();
 const pages = await Promise.all(contexts.map(c => c.newPage()));
 const names = ['Xdev Host', 'Xdev Bravo', 'Xdev Charlie', 'Xdev Delta'];
 const snapshots = new WeakMap();
@@ -133,19 +150,6 @@ async function converge(indices) {
       }
       if (i === 0) {
         if (!await text(panel(), 'Current online snapshot').isVisible()) return 'context 0: host UI missing Current online snapshot';
-        for (const owner of [1, 2, 3]) {
-          const cells = expected.filter(c => c.i === owner);
-          const sum = cells.reduce((n, c) => n + c.value, 0);
-          const info = pages[i].getByText(names[owner], { exact: true }).locator('..');
-          if (sum && !await info.getByText(new RegExp(`^Thru ${cells.length} — ${sum} \\(`)).isVisible()) return `context 0: host total missing for player ${owner}, expected ${sum}`;
-        }
-        const heading = await pages[i].getByText(/^HOLE \d{2}$/).first().allTextContents();
-        const hole = Number(heading.join('').match(/\d+/)?.[0]);
-        if (!hole) return 'context 0: host UI missing hole heading';
-        for (const cell of expected.filter(c => c.hole === hole)) {
-          const displayed = (await pages[i].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
-          if (Number(displayed.trim().split(/\s/)[0]) !== cell.value) return `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
-        }
       }
       // Guests expose confirmed totals for every player, even though only their own cells are editable.
       if (i !== 0) for (const owner of [1, 2, 3]) {
@@ -156,6 +160,18 @@ async function converge(indices) {
     return true;
   });
   if (indices.includes(0)) {
+    // The status assertion above must run while its sheet is open. Scorecard
+    // assertions run after dismissal and select each player's actual group.
+    for (const owner of [1, 2, 3]) {
+      const cells = expected.filter(c => c.i === owner);
+      const sum = cells.reduce((n, c) => n + c.value, 0);
+      await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[owner]);
+      if (sum) await poll(`host total visible for player ${owner}`, async () => {
+        const info = pages[0].getByText(names[owner], { exact: true }).locator('..');
+        return await info.getByText(new RegExp(`^Thru ${cells.length} — ${sum} \\(`)).isVisible()
+          || `context 0: host total missing for player ${owner}, expected ${sum}`;
+      });
+    }
     const current = async () => Number((await pages[0].getByText(/^HOLE \d{2}$/).first().textContent()).match(/\d+/)[0]);
     const original = await current();
     const go = async target => {
@@ -168,11 +184,14 @@ async function converge(indices) {
     };
     for (const hole of [...new Set(expected.map(c => c.hole))].sort((a, b) => a - b)) {
       await go(hole);
-      for (const cell of expected.filter(c => c.hole === hole)) await poll('host synchronized cell visible', async () => {
-        const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
-        return Number(displayed.trim().split(/\s/)[0]) === cell.value
-          || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
-      });
+      for (const cell of expected.filter(c => c.hole === hole)) {
+        await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[cell.i]);
+        await poll('host synchronized cell visible', async () => {
+          const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
+          return Number(displayed.trim().split(/\s/)[0]) === cell.value
+            || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
+        });
+      }
     }
     await go(original);
   }
@@ -190,18 +209,28 @@ try {
     assert.equal(process.env.XDEV_SIGNIN_ONLY, '1', 'All A–D credentials required; XDEV_SIGNIN_ONLY=1 allows only sign-in smoke');
     console.log('PASS sign-in screen in four isolated contexts; full flow NOT RUN (credentials absent)');
   } else {
+    assert.equal(process.env.XDEV_TEST_TD_HOST, '1', 'The four-player two-group organizer scenario requires the disposable TD test entitlement fixture');
+    assert(['127.0.0.1', 'localhost', '::1'].includes(new URL(base).hostname), 'TD fixture is restricted to a loopback disposable stack');
+    const scanState = await pages[0].evaluate(() => localStorage.getItem('snapscore-scans'));
+    const tdScanState = withTdFixtureEntitlement(scanState);
+    await pages[0].evaluate(value => localStorage.setItem('snapscore-scans', value), tdScanState);
+    await pages[0].reload();
+    await pages[0].waitForURL(u => !u.pathname.includes('/auth/'));
     await step('create four-player contest and enable sharing', async () => {
       const a = pages[0];
       await a.goto(`${base}/contest/new`);
       await a.getByPlaceholder('Your name').fill(names[0]);
       await a.getByPlaceholder('Player 2 name').fill(names[1]);
       for (let i = 2; i < 4; i++) { await text(a, '+ ADD PLAYER').click(); await a.getByPlaceholder(`Player ${i + 1} name`).fill(names[i]); }
+      await a.getByTestId('add-group').click();
+      for (const i of [1, 3]) await a.getByTestId(`player-group-${names[i]}`).click();
+      for (const i of [1, 3]) await a.getByTestId(`player-group-${names[i]}`).getByText('G2').waitFor();
       await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
       await a.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
       await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
       await a.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
-      await text(a, /^START$/i).click();
-      await a.waitForURL(/\/contest\/[^/]+$/);
+      await a.getByTestId('contest-start').click();
+      await a.waitForURL(url => isSavedContestPath(url.pathname));
       contestUrl = a.url(); contestId = new URL(contestUrl).pathname.split('/').pop();
       await text(a, 'Enable online sharing').click();
       const label = await a.getByTestId('organizer-join-code').innerText();
@@ -235,6 +264,12 @@ try {
       await text(pages[0], 'Online sync').click();
       await retry(0);
       await text(pages[0], 'Current online snapshot').waitFor();
+      const round = snapshot(pages[0])?.rounds[0];
+      assert(round && round.groups.length === 2, 'Server snapshot preserves the two-group fixture');
+      const groupByName = new Map(round.players.map(player => [player.displayName, player.group_id]));
+      assert.equal(groupByName.get(names[0]), groupByName.get(names[2]), 'A and C are assigned to group 1');
+      assert.equal(groupByName.get(names[1]), groupByName.get(names[3]), 'B and D are assigned to group 2');
+      assert.notEqual(groupByName.get(names[0]), groupByName.get(names[1]), 'Each simulated device is associated with the intended group');
     });
     await step('offline drafts visible immediately; reconnect D B C', async () => {
       for (const i of [1, 2, 3]) {
@@ -253,7 +288,7 @@ try {
       await closeStatus(pages[0]);
       await text(pages[0], 'NEXT').click();
       await text(pages[0], 'HOLE 02').waitFor();
-      await pages[0].getByTestId(`score-par-${names[1]}`).click();
+      await (await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[1])).click();
       await poll('host hole two accepted before B reconnects', async () => {
         const cell = snapshot(pages[0])?.rounds[0].players.find(p => p.displayName === names[1])?.cells.find(c => c.hole === 2);
         return cell?.strokes != null || 'context 0: snapshot player 1 hole 2 expected accepted score, actual clear/missing';
@@ -270,6 +305,7 @@ try {
       await converge([0, 1, 2, 3]);
     });
     await step('host leaves; players continue; host returns without loss or duplicates', async () => {
+      await observations.archive(0, pages[0]);
       await pages[0].close(); await contexts[0].setOffline(true);
       for (const i of [1, 2, 3]) { await save(i, 3, i + 7); expectCell(i, 3, i + 7); }
       await converge([1, 2, 3]);
@@ -350,6 +386,7 @@ try {
       for (let hole = 1; hole <= 4; hole++) {
         await text(pages[0], `HOLE ${String(hole).padStart(2, '0')}`).waitFor();
         for (const cell of expected.filter(c => c.hole === hole)) {
+          await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[cell.i]);
           await poll('host preserved cell visible', async () => {
             const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
             return Number(displayed.trim().split(/\s/)[0]) === cell.value
@@ -375,6 +412,7 @@ try {
     });
     console.log('PASS four isolated browsers: approve x3, offline reconnect D,B,C, same-hole conflict resolved, host leave/return, removed-phone lockout');
   }
+  await writeConsumerReport({ pages, devices, out, observations });
 } catch (error) {
   for (const [i, p] of pages.entries()) if (!p.isClosed()) await p.screenshot({ path: path.join(out, `failure-${i}.png`), fullPage: true }).catch(() => {});
   throw error;

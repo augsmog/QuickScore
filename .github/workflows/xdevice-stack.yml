@@ -157,6 +157,9 @@ jobs:
           source "$RUNNER_TEMP/xdevice-browser.env"
           EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true EXPO_PUBLIC_OFFLINE_MODE=false npx expo export --platform web --output-dir dist-web
       - uses: ./.github/actions/playwright-chromium
+      - name: Host group selection and sheet-dismissal regression
+        working-directory: scoresnap
+        run: node --test tests/xdevice-host-player.test.mjs
       - name: Full two-user then four-user browser acceptance (no sign-in-only mode)
         working-directory: scoresnap
         run: |
@@ -176,7 +179,7 @@ jobs:
           node e2e/xdevice-two-context.mjs 2>&1 | tee "$OUT_DIR/browser.log"
           export OUT_DIR="$GITHUB_WORKSPACE/xdevice-browser-evidence/four"
           mkdir -p "$OUT_DIR"
-          node e2e/xdevice-four-context.mjs 2>&1 | tee "$OUT_DIR/four.log"
+          XDEV_TEST_TD_HOST=1 node e2e/xdevice-four-context.mjs 2>&1 | tee "$OUT_DIR/four.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
