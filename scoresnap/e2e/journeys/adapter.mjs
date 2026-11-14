@@ -100,7 +100,10 @@ export const cases={
     await check('destination',()=>ready(page,'round-settlement')); await step('settle');
     await act.activate(page.getByTestId('journey-leaderboard'),{feature:'leaderboard'}); await enter('round-leaderboard');
     await check('leaderboard-totals',async()=>{for(const n of ['Augie','Sam']) assert.equal((await page.getByTestId(`leaderboard-total-${n}`).innerText()).trim(),'4');}); await step('leaderboard');
-    await reload(); await enter('round-scorecard');
+    // URL-driven tabs (Refs AUG-1115/AUG-1129) now keep the last-active tab across
+    // a reload instead of always bouncing back to the scorecard; the score persistence
+    // this step proves is read straight from localStorage, independent of which tab renders.
+    await reload(); await enter('round-leaderboard');
     await check('outcome',async()=>assert.deepEqual(await scores(page),[expected,expected])); await step('reload-saved');
   },
   'J-invite-from-round':async({page,act,check,step})=>{
