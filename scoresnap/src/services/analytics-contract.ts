@@ -17,7 +17,7 @@ const entries: Record<string, { files: string[]; allowedProps: string[] }> = {
   },
   "round_finalized": {
     "files": [
-      "app/contest/[id]/scorecard.tsx"
+      "app/contest/[id]/index.tsx"
     ],
     "allowedProps": [
       "game_ids",

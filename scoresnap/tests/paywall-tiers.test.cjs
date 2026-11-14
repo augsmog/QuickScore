@@ -1,6 +1,6 @@
 const fs=require('fs'),ts=require('typescript');
 const read=p=>fs.readFileSync(p,'utf8');
-function load(p,deps={}) {const m={exports:{}};new Function('require','module','exports',ts.transpileModule(read(p),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(id==='@/services/platform-alert')return {showAlert:(...args)=>deps['react-native']?.Alert?.alert?.(...args)};if(id.endsWith('/ui/SafeScreen'))return {SafeScreen:'SafeAreaView',SheetSurface:'View',FullScreenSheet:'Modal'};if(id in deps)return deps[id];throw Error(id)},m,m.exports);return m.exports;}
+function load(p,deps={}) {const m={exports:{}};new Function('require','module','exports',ts.transpileModule(read(p),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(id==='@/services/platform-alert')return {showAlert:(...args)=>deps['react-native']?.Alert?.alert?.(...args)};if(id.endsWith('/ui/SafeScreen'))return {SafeScreen:'SafeAreaView',SheetSurface:'View',FullScreenSheet:'Modal'};if(id in deps)return deps[id];if(id.endsWith('/ui/contest-back'))return load('src/ui/contest-back.ts');throw Error(id)},m,m.exports);return m.exports;}
 // AUG-817: this suite encodes the Pro-enabled product contract (free is gated, 3-scan cap, hosting
 // shape gates). Pin the reversible pro_enabled flag ON (setProEnabled) on every freshly-loaded
 // entitlements module so it keeps passing when the shipped default is OFF; the flag-off direction

@@ -73,7 +73,7 @@ test('Games add button keeps approved copy, touch size and edit destination', as
     expect(button.props.style.minHeight).toBeGreaterThanOrEqual(44);
     expect(root.findAllByType('Text').map(text)).toContain('Choose from 50+ game modes.');
     await act(async () => button.props.onPress());
-    expect(push).toHaveBeenCalledWith('/contest/round-a/edit');
+    expect(push).toHaveBeenCalledWith('/contest/round-a/edit?from=games');
   });
 });
 
@@ -100,7 +100,7 @@ test.each([['configured game', ['stroke_play']], ['no configured games', []]])(
       expect(root.findAllByType('Text').map(text)).toContain('Choose from 50+ game modes.');
       await act(async () => button.props.onPress());
       expect(push).toHaveBeenCalledTimes(1);
-      expect(push).toHaveBeenCalledWith('/contest/round-a/edit');
+      expect(push).toHaveBeenCalledWith('/contest/round-a/edit?from=games');
     });
   }
 );

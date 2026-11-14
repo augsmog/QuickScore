@@ -248,6 +248,7 @@ export default function TournamentRoundsScreen() {
         }}
       >
         <AnimatedPressable
+          testID="round-child-back"
           onPress={() => router.replace(contestBackHref(id!, from) as any)}
           style={{
             padding: 6,
