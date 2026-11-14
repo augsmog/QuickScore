@@ -14,13 +14,14 @@ function load(file, dependencies) {
   return m.exports;
 }
 const engine = load('src/engine/contest-results.ts');
+const groupSettlement = load('src/engine/group-settlement.ts');
 const jsx = (type,props) => typeof type === 'function' ? type(props) : ({type,props});
 const nodes = n => !n || typeof n !== 'object' ? [] : Array.isArray(n) ? n.flatMap(nodes) : [n,...nodes(n.props?.children)];
 const text = n => n == null ? '' : typeof n !== 'object' ? String(n) : Array.isArray(n) ? n.map(text).join('') : text(n.props?.children);
 const find = (tree,id) => nodes(tree).find(n=>n.props?.testID===id);
 function render(contest,tier='pro') {
   const deps = {react:{useState:v=>[v,()=>{}],useRef:v=>({current:v}),useEffect:()=>{}},'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{View:'View',Text:'Text',ScrollView:'ScrollView',Pressable:'Pressable',Share:{}},'expo-router':{useRouter:()=>({}),useLocalSearchParams:()=>({id:'c'})},'lucide-react-native':{},'expo-haptics':{}};
-  const extras = {'services/purchases':{},'services/paywall-plans':{},'services/scorecard-pdf-font':{},'services/scorecard-pdf':{},'services/share-scorecard-pdf':{}, 'services/live-share-url-state': { liveShareScope: (actor, id) => JSON.stringify([actor, id]), useLiveShareUrl: () => undefined },'services/analytics':{webAnalytics:{capture:jest.fn(async()=>undefined)}},'engine/contest-results':engine,'engine/calculators/skins':load('src/engine/calculators/skins.ts'),'stores/scan-store':{useScanStore:f=>f({tier})},'stores/contest-store':{useContestStore:f=>f({contests:[contest]})},'services/entitlements':{canSeeSettlement:t=>t!=='free'},'ui/recap/RecapCard':{},'ui/recap/model':{buildRecapModel:()=>({})},'ui/LiveShare':{},'ui/copy':{settlementLeader:n=>n},'ui/paywall-copy':{PAYWALL_COPY:{}},'ui/theme':{COLORS:{},FONTS:{},TYPOGRAPHY:{},RADII:{}}};
+  const extras = {'services/purchases':{},'services/paywall-plans':{},'services/scorecard-pdf-font':{},'services/scorecard-pdf':{},'services/share-scorecard-pdf':{}, 'services/live-share-url-state': { liveShareScope: (actor, id) => JSON.stringify([actor, id]), useLiveShareUrl: () => undefined },'services/analytics':{webAnalytics:{capture:jest.fn(async()=>undefined)}},'engine/contest-results':engine,'engine/group-settlement':groupSettlement,'engine/calculators/skins':load('src/engine/calculators/skins.ts'),'stores/scan-store':{useScanStore:f=>f({tier})},'stores/contest-store':{useContestStore:f=>f({contests:[contest]})},'services/entitlements':{canSeeSettlement:t=>t!=='free'},'ui/recap/RecapCard':{},'ui/recap/model':{buildRecapModel:()=>({})},'ui/LiveShare':{},'ui/copy':{settlementLeader:n=>n},'ui/paywall-copy':{PAYWALL_COPY:{}},'ui/theme':{COLORS:{},FONTS:{},TYPOGRAPHY:{},RADII:{}}};
   for (const [key,value] of Object.entries(extras)) deps['../../../src/'+key]=value;
   deps['../../../src/stores/auth-store'] = { useAuthStore: f => f({ user: { id: 'account-a' }, isAnonymous: false, isInitialized: true, isLoading: false }) };
   deps.zustand = { useStore: (store, selector) => selector(store.getState()) };
@@ -119,6 +120,25 @@ test.each([undefined,1])('three-player tiny-stake game totals reconcile in cents
  }
 });
 
+test('multi-group contest renders per-group settlement without cross-group netting, plus an all-groups rollup',()=>{
+ const c=fixture();c.games=['match_play'];
+ c.groups=[group(Array(9).fill(3),Array(9).fill(4)),group(Array(9).fill(4),Array(9).fill(3),'x')];
+ const tree=render(c);
+ const expected=groupSettlement.calculateGroupSettlements(c);
+ expect(expected.groups.length).toBe(2);
+ for(const {groupId,summary} of expected.groups){
+   const node=find(tree,`settlement-group-${groupId}`);
+   expect(node).toBeDefined();
+   for(const t of summary.transactions) expect(text(node)).toContain(`${t.from} → ${t.to}`);
+ }
+ expect(text(find(tree,'settlement-all-groups-label'))).toBe('ALL GROUPS · WHO OWES WHAT');
+});
+test('single-group contest has no BY GROUP section and keeps the plain WHO OWES WHAT label',()=>{
+ const c=fixture();
+ const tree=render(c);
+ expect(find(tree,'settlement-group-g')).toBeUndefined();
+ expect(text(find(tree,'settlement-all-groups-label'))).toBe('WHO OWES WHAT');
+});
 test('constituent-only tied/pending players remain visible; legacy does not import round rosters',()=>{
  const c=fixture();c.isTournament=true;c.games=['match_play'];c.groups=[group(Array(9).fill(4),Array(9).fill(4))];
  c.rounds=[{id:'r1',number:1,groups:[group(Array(9).fill(4),Array(9).fill(4),'x')]},{id:'r2',number:2,groups:c.groups}];
@@ -126,4 +146,45 @@ test('constituent-only tied/pending players remain visible; legacy does not impo
  let tree=verifyRows(c);expect(row(tree,0,'xA')).toBe('xAEven');expect(row(tree,0,'xB')).toBe('xBEven');
  c.rounds[0].groups[0].players[0].scores[0]=0;tree=verifyRows(c);expect(row(tree,0,'xA')).toBe('xAPending');expect(row(tree,0,'A')).toBe('APending');
  c.gameConfig={};tree=verifyRows(c);expect(find(tree,'settlement-game-0-player-xA')).toBeUndefined();
+});
+
+test('ready group remains visible when another group is pending, without aggregate amounts',()=>{
+ const c=fixture();c.games=['match_play'];
+ c.groups=[group(Array(9).fill(3),Array(9).fill(4)),group([0,...Array(8).fill(4)],Array(9).fill(3),'x')];
+ const tree=render(c);
+ expect(find(tree,'settlement-pending')).toBeDefined();
+ expect(text(find(tree,'settlement-group-g'))).toBe('gB → A$2.00');
+ expect(text(find(tree,'settlement-group-x'))).toBe('xPending');
+ expect(find(tree,'settlement-session-total')).toBeUndefined();
+ expect(find(tree,'settlement-all-groups-label')).toBeUndefined();
+});
+test('tied field game renders an explicit Even ledger',()=>{
+ const c=fixture();c.games=['skins'];
+ c.groups=[group(Array(9).fill(4),Array(9).fill(4)),group(Array(9).fill(4),Array(9).fill(4),'x')];
+ expect(text(find(render(c),'settlement-group-field'))).toBe('Field (all groups)Even');
+});
+test('pending field game renders Pending while ready group amounts remain visible',()=>{
+ const c=fixture();c.games=['match_play','skins'];
+ c.groups=[group(Array(9).fill(3),Array(9).fill(4)),group([0,...Array(8).fill(4)],Array(9).fill(3),'x')];
+ const tree=render(c);
+ expect(text(find(tree,'settlement-group-field'))).toBe('Field (all groups)Pending');
+ expect(text(find(tree,'settlement-group-g'))).toBe('gB → A$2.00');
+ expect(text(find(tree,'settlement-group-x'))).toBe('xPending');
+});
+test('mixed scopes render exact isolated group rows and combined transaction amounts',()=>{
+ const c=fixture();c.games=['match_play','skins'];
+ c.groups=[group(Array(9).fill(3),Array(9).fill(4)),group(Array(9).fill(4),Array(9).fill(3),'x')];
+ c.groups[0].players[0].scores[0]=2;
+ const tree=render(c);
+ expect(text(find(tree,'settlement-group-g'))).toBe('gB → A$2.00');
+ expect(text(find(tree,'settlement-group-x'))).toBe('xxA → xB$2.00');
+ const scoped=groupSettlement.calculateGroupSettlements(c);
+ expect(scoped.field.transactions.length).toBeGreaterThan(0);
+ expect(text(find(tree,'settlement-group-field'))).toBe('Field (all groups)'+scoped.field.transactions.map(t=>`${t.from} → ${t.to}$${t.amount.toFixed(2)}`).join(''));
+ const combined=text(find(tree,'settlement-all-groups'));
+ const aggregate=engine.calculateContestSettlement(c);
+ expect(aggregate.transactions.length).toBeGreaterThan(0);
+ for(const t of aggregate.transactions) expect(combined).toContain(`${t.from} → ${t.to}$${t.amount.toFixed(2)}`);
+ expect(text(find(tree,'settlement-group-g'))).not.toContain('xA');
+ expect(text(find(tree,'settlement-group-x'))).not.toContain('B → A');
 });
