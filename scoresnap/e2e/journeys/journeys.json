@@ -425,24 +425,39 @@
         "web-offline"
       ],
       "start": "home",
-      "fixture": "fresh-context-v1",
+      "fixture": "fresh-td-v1",
       "features": [],
       "budget": {
-        "activations": 6,
-        "screens": 4,
-        "timeoutMs": 20000
+        "activations": 13,
+        "screens": 2,
+        "timeoutMs": 60000
       },
       "baseline": null,
-      "status": "deferred",
+      "status": "gated",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
         "activation",
         "destination",
+        "two-rounds-selected",
+        "eight-ready",
+        "sam-in-g2",
+        "setup-modes",
+        "setup-settings",
+        "created",
         "outcome"
       ],
-      "deferredReason": "Multiday creation outside the phase 1 slice",
-      "requiredSteps": []
+      "requiredSteps": [
+        "entry",
+        "create",
+        "tournament-2-rounds",
+        "eight-players",
+        "groups-split",
+        "round-settings",
+        "created",
+        "saved"
+      ],
+      "linear": "AUG-1149"
     },
     {
       "id": "J-join-code",

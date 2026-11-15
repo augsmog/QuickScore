@@ -19,6 +19,9 @@ export async function setup(context,page,journey,base) {
   });
   if(await paywallSetup(context,page,journey,base))return;
   if(await acceptanceSetup(context,page,journey,base))return;
+  // Empty storage plus the Tournament Director tier: multi-group, multi-round
+  // hosting is TD-only (canHostTournament), so a free fresh context cannot create it.
+  if(journey.fixture==='fresh-td-v1') await seedPaidTier(context,'td');
   if(journey.fixture==='two-player-empty-v1') {
     await seedPaidTier(context,'td');
     await context.addInitScript(({id})=>{
@@ -67,6 +70,24 @@ async function waitForStableViewportRect(locator) {
     requestAnimationFrame(tick);
   }));
 }
+// Bring a control fully into view with real wheel scrolls on its nearest
+// scrollable ancestor (counted by the runner), never Playwright autoscroll.
+async function reveal(page,act,locator) {
+  for(let i=0;i<6;i++) {
+    const delta=await locator.evaluate(el=>{
+      const r=el.getBoundingClientRect(),top=innerHeight*0.2,bottom=innerHeight*0.6;
+      if(r.top>=top&&r.bottom<=bottom)return 0;
+      let s=el.parentElement;
+      while(s&&!(s.scrollHeight>s.clientHeight&&/auto|scroll/.test(getComputedStyle(s).overflowY)))s=s.parentElement;
+      document.querySelectorAll('[data-journey-scroll]').forEach(n=>n.removeAttribute('data-journey-scroll'));
+      if(!s)return 0;
+      s.setAttribute('data-journey-scroll','1');
+      return Math.round(r.top-top);
+    });
+    if(!delta)return;
+    await act.scroll(page.locator('[data-journey-scroll]'),Math.max(-800,Math.min(800,delta)));
+  }
+}
 export const cases={
   ...paywallCases,
   ...acceptanceCases,
@@ -78,6 +99,47 @@ export const cases={
     await act.type(page.getByPlaceholder('Your name'),'Unsubmitted'); await step('edit');
     await act.activate(page.getByTestId('new-contest-back')); await enter('home');
     await check('outcome',async()=>assert.equal((await contests(page)).length,0)); await step('cancel-home');
+  },
+  'J-create-8p-multiday':async({page,act,check,step,enter})=>{
+    const names=['Augie','Sam','Lee','Max','Kai','Ray','Ty','Bo'];
+    await check('entry',async()=>assert.equal((await contests(page)).length,0));
+    await act.activate(page.getByTestId('home-new-contest'));
+    await check('activation',()=>page.waitForURL(/\/contest\/new$/));
+    await enter('create'); await check('destination',()=>ready(page,'create')); await step('create');
+    const toggle=page.getByTestId('tournament-toggle');
+    await reveal(page,act,toggle); await act.activate(toggle,{navigation:false});
+    await check('two-rounds-selected',()=>page.getByTestId('rounds-2').waitFor({state:'visible'})); await step('tournament-2-rounds');
+    // Two groups before adding players 3-8, so new rows alternate G1/G2.
+    const addGroup=page.getByTestId('add-group');
+    await reveal(page,act,addGroup); await act.activate(addGroup,{navigation:false});
+    const addPlayer=page.getByText('+ ADD PLAYER',{exact:true});
+    for(let i=2;i<names.length;i++) {await reveal(page,act,addPlayer); await act.activate(addPlayer,{navigation:false});}
+    for(let i=0;i<names.length;i++) {
+      const input=page.getByPlaceholder(i===0?'Your name':`Player ${i+1} name`,{exact:true});
+      await reveal(page,act,input); await act.type(input,names[i]);
+    }
+    await check('eight-ready',()=>page.getByText('8 ready',{exact:true}).waitFor({state:'visible'})); await step('eight-players');
+    // Rows default to G1,G1,G1,G2,G1,G2,G1,G2: move Sam to G2 for a 4/4 split.
+    const samGroup=page.getByTestId('player-group-Sam');
+    await reveal(page,act,samGroup); await act.activate(samGroup,{navigation:false});
+    await check('sam-in-g2',async()=>assert.equal((await samGroup.innerText()).trim(),'G2')); await step('groups-split');
+    for(const id of ['setup-modes','setup-settings']) {
+      await act.activate(page.getByTestId('contest-continue'),{navigation:false});
+      await check(id,()=>page.getByTestId(id==='setup-modes'?'contest-step-gamemodes':'contest-step-round-settings').waitFor({state:'visible'}));
+    }
+    await step('round-settings');
+    await act.activate(page.getByTestId('contest-start'));
+    await check('created',()=>page.waitForURL(/\/contest\/[0-9a-f-]{36}$/)); await step('created');
+    await check('outcome',async()=>{
+      const all=await contests(page);
+      assert.equal(all.length,1);
+      const c=all[0];
+      assert.deepEqual(c.groups.map(g=>g.players.map(p=>p.name)),[['Augie','Lee','Kai','Ty'],['Sam','Max','Ray','Bo']]);
+      assert.equal(c.isTournament,true,'multi-day toggle must persist on the contest');
+      assert.equal(c.rounds?.length,2,'2 rounds must be persisted');
+      for(const r of c.rounds) assert.equal(r.groups.flatMap(g=>g.players).length,8);
+    });
+    await step('saved');
   },
   'J-home-join-code-error':async({page,act,check,step,enter})=>{
     await check('entry',()=>ready(page,'home'));
