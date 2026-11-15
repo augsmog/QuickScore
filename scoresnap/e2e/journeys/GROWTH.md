@@ -123,3 +123,5 @@ Integration scope: preserve the existing two-minute journey timeout and always-r
 
 AUG-293 current-main reconciliation: preserve PR92 seven journeys, helper commands, budgets and growth rows; append paywall controls without dropping cases or increasing the 120-second gate. Application paywall repair and journey implementation remain byte-identical to reviewed ce1d924. Combined browser/timing validation remains pending; no browser launched during this local source reconciliation.
 | 2026-11-02 | J-finalize-settle | Show the incomplete scorecard confirmation on web, cancel, and keep the round active | AUG-289 rendered failure on exact main `f706a63` | Strict marker removed; rendered dialog title/actions, dismissal and persisted active status asserted | SnapScore maintainers | AUG-289 |
+
+| 2026-11-15 | J-score-hand | Score a full 18 by hand: par both players on every hole via Next, 53 activations, all 36 scores persisted | AUG-1148 / AUG-313 Gate J (supersedes AUG-291 deferral) | `J-score-hand` gated in adapter.mjs: hole-1 persistence, hole-18 reached, `scores()` equals 18x4 for both players | SnapScore maintainers | AUG-1148 |
