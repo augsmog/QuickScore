@@ -86,7 +86,7 @@ function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime, myGroup = fa
   }
   const { useOnlineStore } = load('src/stores/online-store.ts', { zustand: require('zustand') });
   if (membership) useOnlineStore.getState().repair(contest.id, membership, { revision: 1 });
-  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput' };
+  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput', Pressable: 'Pressable' };
   const theme = {
     COLORS: new Proxy({}, { get: (_, key) => String(key) }),
     FONTS: new Proxy({}, { get: (_, key) => String(key) }),
@@ -153,6 +153,7 @@ function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime, myGroup = fa
     '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
   });
   deps['../../../src/components/LeaderboardResultsList'] = { LeaderboardResultsList };
+  deps['../../../src/components/PlayerScorecardSheet'] = { PlayerScorecardSheet: () => null };
   const Screen = load('app/contest/[id]/leaderboard.tsx', deps).default;
   Screen.onlineStore = useOnlineStore;
   Screen.contest = contest;

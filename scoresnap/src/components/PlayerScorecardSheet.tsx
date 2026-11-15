@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, View, Text, ScrollView, Pressable } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { COLORS, FONTS, RADII } from "../ui/theme";
 import { formatToPar } from "../utils/formatters";
 import { buildPlayerScorecard } from "../engine/calculators/player-scorecard";
@@ -59,8 +59,8 @@ export function PlayerScorecardSheet({ player, course, onClose }: Props) {
   });
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}>
+    <View style={[StyleSheet.absoluteFill, { zIndex: 50, elevation: 50, justifyContent: "flex-end", backgroundColor: COLORS.sheetScrim }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Close scorecard" onPress={onClose} style={{ flex: 1 }} />
         <View testID="player-scorecard-sheet"
           style={{ maxHeight: "88%", backgroundColor: COLORS.bg, borderTopLeftRadius: RADII.lg, borderTopRightRadius: RADII.lg, padding: 20 }}>
           <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
@@ -82,7 +82,6 @@ export function PlayerScorecardSheet({ player, course, onClose }: Props) {
             <View style={{ height: 24 }} />
           </ScrollView>
         </View>
-      </View>
-    </Modal>
+    </View>
   );
 }

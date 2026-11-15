@@ -30,7 +30,7 @@ test.each([[5, 'primary', 10], [4, 'transparent', 10], [3, 'transparent', 0], [2
       react: {},
       'react/jsx-runtime': { jsx, jsxs: jsx },
       '@shopify/flash-list': { FlashList: 'FlashList' },
-      'react-native': { View: 'View', Text: 'Text' },
+      'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable' },
       '../ui/theme': {
         COLORS: new Proxy({}, { get: (_, key) => String(key) }),
         FONTS: {}, RADII: {},
