@@ -62,12 +62,12 @@ test("simulator-offline is a local-only E2E fixture build, never production env"
 test("production and TestFlight profiles are byte-for-byte what they were", () => {
   expect(eas.build.production).toEqual({
     autoIncrement: true, channel: "production", environment: "production",
-    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true" },
+    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_PRO_ENABLED: "false" },
   });
   expect(eas.build.testflight).toEqual({
     distribution: "store", ios: { buildConfiguration: "Release" }, autoIncrement: true,
     channel: "testflight", environment: "production",
-    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true" },
+    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_PRO_ENABLED: "false" },
   });
 });
 
