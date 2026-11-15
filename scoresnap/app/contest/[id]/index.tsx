@@ -79,6 +79,10 @@ export default function ScorecardScreen() {
   const sharedCard=contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot" || g==="chapman");
   const auxiliary=scopedAuxiliary(contest,group.id,activeRound?.id);
   const displayPlayers=sharedCard?group.players.filter((p,i,all)=>all.findIndex(q=>q.team===p.team)===i).map(p=>({...p,name:`Team ${p.team}`,scores:course.holes.map((_,i)=>auxiliary.teamCards?.[i+1]?.[p.team!]??0)})):group.players;
+  // Check if all players on current hole have scores
+  const allScoredOnHole = displayPlayers.every(
+    (p) => (p.scores[currentHole - 1] || 0) > 0
+  );
   const holeData = course.holes[currentHole - 1];
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
@@ -225,13 +229,29 @@ export default function ScorecardScreen() {
   const handleNextHole = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Check if Tier 2 games need aux input before advancing
-    if (contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games.filter(g=>g!=="wolf" || !auxiliary.wolf?.[currentHole]), currentHoleInfo, currentPlayerScores)) {
-      setShowAuxPrompt(true);
-    } else {
-      advanceToNextHole();
+    const proceed = () => {
+      // Check if Tier 2 games need aux input before advancing
+      if (contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games.filter(g=>g!=="wolf" || !auxiliary.wolf?.[currentHole]), currentHoleInfo, currentPlayerScores)) {
+        setShowAuxPrompt(true);
+      } else {
+        advanceToNextHole();
+      }
+    };
+
+    if (!allScoredOnHole) {
+      showAlert(
+        "Confirmation required",
+        "Not every player has a score for this hole yet. Enter a score for each player, or continue and score it later.",
+        [
+          { text: "Keep Scoring", style: "cancel" },
+          { text: "Continue Anyway", onPress: proceed },
+        ]
+      );
+      return;
     }
-  }, [contest.games, contest.gameConfig, auxiliary, currentHole, currentHoleInfo, currentPlayerScores, advanceToNextHole]);
+
+    proceed();
+  }, [contest.games, contest.gameConfig, auxiliary, currentHole, currentHoleInfo, currentPlayerScores, advanceToNextHole, allScoredOnHole]);
 
   const handlePrevHole = useCallback(() => {
     if (currentHole > 1) {
@@ -341,11 +361,6 @@ export default function ScorecardScreen() {
   const totalExpected = allPlayers.length * 18;
   const percentComplete =
     totalExpected > 0 ? Math.round((totalScores / totalExpected) * 100) : 0;
-
-  // Check if all players on current hole have scores
-  const allScoredOnHole = displayPlayers.every(
-    (p) => (p.scores[currentHole - 1] || 0) > 0
-  );
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
