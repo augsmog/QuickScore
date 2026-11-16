@@ -126,3 +126,12 @@ AUG-293 current-main reconciliation: preserve PR92 seven journeys, helper comman
 
 | 2026-11-15 | J-score-hand | Score a full 18 by hand: par both players on every hole via Next, 53 activations, all 36 scores persisted | AUG-1148 / AUG-313 Gate J (supersedes AUG-291 deferral) | `J-score-hand` gated in adapter.mjs: hole-1 persistence, hole-18 reached, `scores()` equals 18x4 for both players | SnapScore maintainers | AUG-1148 |
 | 2026-11-15 | J-create-8p-multiday | Create an 8-player, 2-round, 2-group tournament through the real New Contest wizard (TD tier) | AUG-313 / AUG-1149 | Gated; 8 names typed, G2 split 4/4 asserted; strict outcome requires isTournament and 2 persisted rounds. AUG-1151 (stacked) persists the rounds, so the outcome is green | SnapScore maintainers | AUG-1149 |
+
+
+### 2026-11-16 — Refs AUG-1168 / AUG-348, unmounted question-model reconciliation
+
+Continue PR273 as canonical over overlapping PR274. Preserve played-hole/unknown-par
+questions and explicit empty/no answers; incomplete cached facts remain pending, recorder
+rejects wrong-game/overwrite/incomplete answers, unsupported press history stays pending.
+Focused Jest: 6 suites / 65 tests PASS; TypeScript clean. This is pure code evidence only;
+photo-to-active-scoring and account-linked continuation acceptance remain open on AUG-348.

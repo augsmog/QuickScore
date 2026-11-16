@@ -11,7 +11,7 @@
 import type { AuxiliaryData, GameType } from "../engine/types";
 
 export type PartialImportQuestionKind =
-  | "teams" | "wolf-partner" | "hammer-decision" | "snake-putters"
+  | "teams" | "press-history" | "wolf-partner" | "hammer-decision" | "snake-putters"
   | "greenie-winner" | "bbb-winners";
 
 export interface PartialImportQuestion {
@@ -48,8 +48,37 @@ const TEAM_ASSIGNMENT_GAMES: ReadonlySet<GameType> = new Set<GameType>([
   "vegas", "best_ball", "scramble", "shamble", "alternate_shot", "chapman", "fourball",
 ]);
 
-const has = (rec: object | undefined, hole: number) =>
-  !!rec && Object.prototype.hasOwnProperty.call(rec, hole) && (rec as Record<number, unknown>)[hole] !== undefined;
+/** Planning and recording share validation; partial cached facts must remain pending. */
+export const PARTIAL_GAME_FACTS = {
+  wolf: { key: "wolf", kind: "wolf-partner" },
+  hammer: { key: "hammer", kind: "hammer-decision" },
+  snake: { key: "snake", kind: "snake-putters" },
+  greenies: { key: "greenies", kind: "greenie-winner" },
+  bingo_bango_bongo: { key: "bbb", kind: "bbb-winners" },
+} as const;
+
+export function completePartialGameFact(game: GameType, value: unknown): boolean {
+  const id = (v: unknown) => typeof v === "string" && v.trim().length > 0;
+  const winner = (v: unknown) => v === null || id(v);
+  if (game === "greenies") return winner(value);
+  if (game === "snake") return Array.isArray(value) && value.every(id);
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  switch (game) {
+    case "wolf": return typeof v.isLoneWolf === "boolean" &&
+      (v.isLoneWolf ? v.partnerId === null : id(v.partnerId));
+    case "hammer": return typeof v.hammered === "boolean" && typeof v.accepted === "boolean" &&
+      typeof v.hammerBy === "string" && (!v.hammered || id(v.hammerBy));
+    case "bingo_bango_bongo": return winner(v.bingo) && winner(v.bango) && winner(v.bongo);
+    default: return false;
+  }
+}
+
+export function hasCompletePartialGameFact(game: GameType, aux: AuxiliaryData, hole: number): boolean {
+  const fact = PARTIAL_GAME_FACTS[game as keyof typeof PARTIAL_GAME_FACTS];
+  const rec = fact && aux[fact.key];
+  return !!rec && Object.prototype.hasOwnProperty.call(rec, hole) && completePartialGameFact(game, rec[hole]);
+}
 
 export function questionsForGame(game: GameType, input: PartialImportGameInput): PartialImportQuestion[] {
   const out: PartialImportQuestion[] = [];
@@ -62,16 +91,19 @@ export function questionsForGame(game: GameType, input: PartialImportGameInput):
       input.playerIds.every(id => !!input.teamByPlayer?.[id]);
     if (!known) q("teams", null);
   }
+  // AuxiliaryData cannot represent manual press declarations. Keep them pending
+  // until a dedicated settings/history adapter exists; never infer them from strokes.
+  if (game === "nassau_press") q("press-history", null);
   for (const hole of holes) {
     switch (game) {
-      case "wolf": if (!has(aux.wolf, hole)) q("wolf-partner", hole); break;
-      case "hammer": if (!has(aux.hammer, hole)) q("hammer-decision", hole); break;
-      case "snake": if (!has(aux.snake, hole)) q("snake-putters", hole); break;
+      case "wolf": if (!hasCompletePartialGameFact(game, aux, hole)) q("wolf-partner", hole); break;
+      case "hammer": if (!hasCompletePartialGameFact(game, aux, hole)) q("hammer-decision", hole); break;
+      case "snake": if (!hasCompletePartialGameFact(game, aux, hole)) q("snake-putters", hole); break;
       case "greenies":
         // Par unknown => cannot tell if it was a par 3; ask rather than skip.
-        if ((input.parByHole[hole] === undefined || input.parByHole[hole] === 3) && !has(aux.greenies, hole)) q("greenie-winner", hole);
+        if ((input.parByHole[hole] === undefined || input.parByHole[hole] === 3) && !hasCompletePartialGameFact(game, aux, hole)) q("greenie-winner", hole);
         break;
-      case "bingo_bango_bongo": if (!has(aux.bbb, hole)) q("bbb-winners", hole); break;
+      case "bingo_bango_bongo": if (!hasCompletePartialGameFact(game, aux, hole)) q("bbb-winners", hole); break;
       default: break;
     }
   }

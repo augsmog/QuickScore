@@ -14,6 +14,24 @@ const base = (over: Partial<PartialImportGameInput> = {}): PartialImportGameInpu
 });
 
 describe("partial-import games (AUG-348g)", () => {
+  it("keeps malformed existing facts pending", () => {
+    const s = planPartialImportGames(base({ games: ["wolf", "hammer", "snake", "bingo_bango_bongo"], playedHoles: [10], aux: {
+      wolf: { 10: { isLoneWolf: false, partnerId: null } },
+      hammer: { 10: { hammered: true, hammerBy: "", accepted: true } },
+      snake: { 10: [""] }, bbb: { 10: { bingo: "a" } },
+    } as any }));
+    expect(s.every(x => x.status === "pending")).toBe(true);
+  });
+  it("never claims unsupported press history is ready", () => {
+    const s = planPartialImportGames(base({ games: ["nassau_press"], playerIds: ["a", "b"] }));
+    expect(s[0].open).toEqual([{ game: "nassau_press", kind: "press-history", hole: null }]);
+    expect(canSettlePartialGame(s, "nassau_press")).toBe(false);
+  });
+  it("retains unknown-par shotgun holes absent from course metadata", () => {
+    const input = base({ games: ["greenies"], playedHoles: [18, 10, 18], parByHole: { 10: 4 }, aux: { greenies: { 18: null } } });
+    expect(planPartialImportGames(input)[0].status).toBe("ready");
+    expect(questionsForGame("greenies", { ...input, aux: {} })).toEqual([{ game: "greenies", kind: "greenie-winner", hole: 18 }]);
+  });
   it("score-only games are ready with no questions", () => {
     const s = planPartialImportGames(base({ games: ["stroke_play", "skins", "stableford"] }));
     expect(s.every(x => x.status === "ready" && x.open.length === 0)).toBe(true);

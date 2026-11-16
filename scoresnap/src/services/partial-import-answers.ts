@@ -7,6 +7,7 @@
  * Unmounted: no React, store, persistence or network imports.
  */
 import type { AuxiliaryData } from "../engine/types";
+import { PARTIAL_GAME_FACTS, completePartialGameFact, hasCompletePartialGameFact } from "./partial-import-games";
 import type { PartialImportQuestion } from "./partial-import-games";
 
 export type PartialImportAnswer =
@@ -18,7 +19,7 @@ export type PartialImportAnswer =
 
 export type RecordAnswerResult =
   | { ok: true; aux: AuxiliaryData }
-  | { ok: false; reason: "kind-mismatch" | "not-played-hole" | "round-level" | "incomplete" };
+  | { ok: false; reason: "kind-mismatch" | "not-played-hole" | "round-level" | "incomplete" | "already-answered" };
 
 export function recordPartialImportAnswer(
   aux: AuxiliaryData | undefined,
@@ -30,6 +31,12 @@ export function recordPartialImportAnswer(
   const hole = question.hole;
   if (hole === null) return { ok: false, reason: "round-level" };
   if (!playedHoles.includes(hole)) return { ok: false, reason: "not-played-hole" };
+  const fact = PARTIAL_GAME_FACTS[question.game as keyof typeof PARTIAL_GAME_FACTS];
+  if (!fact || fact.kind !== question.kind) return { ok: false, reason: "kind-mismatch" };
+  if (hasCompletePartialGameFact(question.game, aux ?? {}, hole)) return { ok: false, reason: "already-answered" };
+  const value = answer.kind === "snake-putters" ? answer.playerIds :
+    answer.kind === "greenie-winner" ? answer.playerId : answer;
+  if (!completePartialGameFact(question.game, value)) return { ok: false, reason: "incomplete" };
   const next: AuxiliaryData = { ...(aux ?? {}) };
   switch (answer.kind) {
     case "wolf-partner":

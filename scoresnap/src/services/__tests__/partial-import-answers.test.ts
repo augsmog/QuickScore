@@ -9,6 +9,25 @@ const played = [10, 11];
 const q = (kind: any, hole: number | null) => ({ game: "wolf" as const, kind, hole });
 
 describe("partial-import answers (AUG-348h)", () => {
+  it("does not replace an existing explicit answer", () => {
+    const aux = { greenies: { 10: null } };
+    expect(recordPartialImportAnswer(aux, { game: "greenies", kind: "greenie-winner", hole: 10 }, { kind: "greenie-winner", playerId: "a" }, played)).toEqual({ ok: false, reason: "already-answered" });
+    expect(aux.greenies[10]).toBeNull();
+  });
+  it("rejects a kind belonging to another game", () => {
+    expect(recordPartialImportAnswer({}, { game: "wolf", kind: "greenie-winner", hole: 10 }, { kind: "greenie-winner", playerId: null }, played)).toEqual({ ok: false, reason: "kind-mismatch" });
+  });
+  it("rejects incomplete runtime payloads rather than storing undefined facts", () => {
+    for (const [game, kind, value] of [
+      ["wolf", "wolf-partner", { partnerId: "a" }],
+      ["hammer", "hammer-decision", { hammered: true, hammerBy: "a" }],
+      ["bingo_bango_bongo", "bbb-winners", { bingo: null, bango: null }],
+      ["greenies", "greenie-winner", {}],
+      ["snake", "snake-putters", { playerIds: [""] }],
+    ] as const) {
+      expect(recordPartialImportAnswer({}, { game, kind, hole: 10 }, { kind, ...value } as any, played)).toEqual({ ok: false, reason: "incomplete" });
+    }
+  });
   it("records a wolf partner without mutating input aux", () => {
     const aux = { wolf: { 10: { partnerId: "a", isLoneWolf: false } } };
     const r = recordPartialImportAnswer(aux, q("wolf-partner", 11), { kind: "wolf-partner", partnerId: "b", isLoneWolf: false }, played);

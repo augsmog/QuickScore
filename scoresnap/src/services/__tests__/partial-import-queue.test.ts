@@ -2,6 +2,10 @@ import { planPartialImportGames } from "../partial-import-games";
 import { nextOpenQuestion, orderedOpenQuestions, partialImportGate } from "../partial-import-queue";
 import { recordPartialImportAnswer } from "../partial-import-answers";
 
+declare const describe: (name: string, fn: () => void) => void;
+declare const it: (name: string, fn: () => void) => void;
+declare const expect: any;
+
 const base = { playedHoles: [3, 1], parByHole: { 1: 4, 3: 4 }, playerIds: ["a", "b"] };
 
 describe("partial-import-queue", () => {
