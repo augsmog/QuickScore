@@ -384,7 +384,7 @@ export default function NewContestScreen() {
   };
 
   return (
-    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top", "bottom"]}>
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, flexDirection: "row", alignItems: "center", gap: 12 }}>
         <AnimatedPressable
@@ -641,6 +641,7 @@ export default function NewContestScreen() {
                       alignItems: "center",
                       justifyContent: "center",
                       gap: 6,
+                      minHeight: 44,
                       paddingVertical: 10,
                       borderRadius: RADII.md,
                       backgroundColor: COLORS.surfaceLow,
@@ -790,8 +791,8 @@ export default function NewContestScreen() {
                           testID={`player-team-${player.name}-${t.id}`}
                           onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}
                           style={{
-                            minWidth: 28,
-                            height: 28,
+                            minWidth: 44,
+                            minHeight: 44,
                             borderRadius: RADII.md,
                             alignItems: "center",
                             justifyContent: "center",
@@ -817,8 +818,8 @@ export default function NewContestScreen() {
                       updatePlayer(player.id, "team", nextTeam);
                     }}
                     style={{
-                      minWidth: 36,
-                      height: 28,
+                      minWidth: 44,
+                      minHeight: 44,
                       borderRadius: RADII.md,
                       alignItems: "center",
                       justifyContent: "center",
