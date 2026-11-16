@@ -29,6 +29,13 @@ function contextEquals(a: PartialImportSessionContext, b: PartialImportSessionCo
     a.roundId === b.roundId && a.groupId === b.groupId;
 }
 
+/** Returns a copy whose nested context (if any) is never the internal instance -- callers can
+ * mutate what they're handed without corrupting session state. */
+function cloneState(state: PartialImportSessionState): PartialImportSessionState {
+  if (state.status === "empty") return { status: "empty" };
+  return { ...state, context: { ...state.context } };
+}
+
 /** A token minted by `beginReview`; a later `completeReview` must present the exact token it got back. */
 export type ReviewToken = number;
 
@@ -36,9 +43,13 @@ export class PartialImportSession {
   private accountId: string | null = null;
   private generation: ReviewToken = 0;
   private state: PartialImportSessionState = { status: "empty" };
+  /** Identity of the draft currently in `state` (the token that produced it via `completeReview`). */
+  private draftToken: ReviewToken | null = null;
+  /** Draft tokens that have already had `apply` invoked, so a reentrant retry can't repeat it. */
+  private appliedTokens: Set<ReviewToken> = new Set();
 
   getState(): PartialImportSessionState {
-    return this.state;
+    return cloneState(this.state);
   }
 
   /**
@@ -51,6 +62,7 @@ export class PartialImportSession {
     this.accountId = accountId;
     this.generation += 1;
     this.state = { status: "empty" };
+    this.draftToken = null;
   }
 
   /**
@@ -68,13 +80,17 @@ export class PartialImportSession {
   /**
    * Delivers reviewed input for a prior `beginReview` token. A token superseded by a newer
    * `beginReview`, `setAccount`, `confirm`, or `discard` is silently dropped (returns null) --
-   * it must never resurrect a stale or cleared draft.
+   * it must never resurrect a stale or cleared draft. Also dropped: a context whose accountId
+   * does not match the session's established account (the token alone is not proof of account --
+   * a caller must not be able to smuggle another account's context in under a valid token).
    */
   completeReview(token: ReviewToken, context: PartialImportSessionContext, input: PartialImportInput): PartialImportSessionState | null {
     if (token !== this.generation) return null;
+    if (context.accountId !== this.accountId) return null;
     const result = buildPartialImport(input);
+    this.draftToken = token;
     this.state = { status: "draft", context: { ...context }, result };
-    return this.state;
+    return cloneState(this.state);
   }
 
   /** True when there is a draft whose context exactly matches the caller's current context. */
@@ -85,9 +101,15 @@ export class PartialImportSession {
   /**
    * Confirms the current draft for `context`, invoking `apply` with the reviewed patch exactly
    * once. Idempotent: if this context was already confirmed, returns the existing confirmed
-   * state without calling `apply` again (repeated confirm/retry never duplicates a write).
+   * state without calling `apply` again (repeated confirm/retry never duplicates a write) --
+   * this holds even for a reentrant retry where `apply` itself started a new review via
+   * `beginReview` (which bumps the generation but leaves the pending draft in place): the draft's
+   * own token is marked applied before any retry can observe it, so a second confirm for the
+   * same draft returns the current state without invoking `apply` again.
    * Throws rather than silently confirming when the account/context is stale or the draft is
-   * blocked -- the caller must `setAccount`/re-review before confirm can proceed.
+   * blocked -- the caller must `setAccount`/re-review before confirm can proceed. Also throws
+   * when `context.accountId` does not match the confirming account, even if `context` otherwise
+   * matches the stored draft -- a caller cannot apply one account's draft under another's say.
    */
   confirm(
     accountId: string,
@@ -95,30 +117,40 @@ export class PartialImportSession {
     apply: (patch: readonly PartialImportCell[]) => void
   ): PartialImportSessionState {
     if (accountId !== this.accountId) throw new Error("Confirm belongs to a different account");
+    if (context.accountId !== accountId) throw new Error("Confirm context does not match the confirming account");
     if (this.state.status === "confirmed" && contextEquals(this.state.context, context)) {
-      return this.state;
+      return cloneState(this.state);
     }
     if (this.state.status !== "draft") throw new Error("No reviewed draft to confirm");
     if (!contextEquals(this.state.context, context)) {
       throw new Error("Draft context is stale; re-run review before confirming");
     }
     if (!this.state.result.ok) throw new Error("Cannot confirm a draft with unresolved blockers");
+    const draftToken = this.draftToken;
+    if (draftToken !== null && this.appliedTokens.has(draftToken)) {
+      // apply() already ran for this exact draft (e.g. a reentrant beginReview mid-apply left
+      // the draft in place while bumping the generation); a retry must not call it again.
+      return cloneState(this.state);
+    }
     const patch = this.state.result.patch;
     const generationBeforeApply = this.generation;
     apply(patch);
+    if (draftToken !== null) this.appliedTokens.add(draftToken);
     if (this.generation !== generationBeforeApply) {
-      // apply() itself invalidated this session (e.g. triggered setAccount/discard) --
-      // honor that instead of resurrecting a confirmed state over it.
-      return this.state;
+      // apply() itself invalidated this session (e.g. triggered setAccount/discard, or started a
+      // new review) -- honor that instead of resurrecting a confirmed state over it.
+      return cloneState(this.state);
     }
     this.generation += 1;
     this.state = { status: "confirmed", context: { ...context }, patch };
-    return this.state;
+    this.draftToken = null;
+    return cloneState(this.state);
   }
 
   /** Explicit discard (user abandons the flow). Ordinary Back/Cancel must not call this. */
   discard(): void {
     this.generation += 1;
     this.state = { status: "empty" };
+    this.draftToken = null;
   }
 }

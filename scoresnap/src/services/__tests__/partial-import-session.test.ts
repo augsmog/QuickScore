@@ -226,4 +226,80 @@ describe("PartialImportSession", () => {
     expect(() => session.beginReview("acct-2", ctx())).toThrow(/different account/);
     expect(() => session.beginReview("acct-1", ctx({ accountId: "acct-2" }))).toThrow(/does not match/);
   });
+
+  it("returns isolated copies from getState/completeReview -- mutating them cannot corrupt session state or smuggle a bad context into confirm", () => {
+    const session = new PartialImportSession();
+    session.setAccount("acct-1");
+    const token = session.beginReview("acct-1", ctx());
+    const fromComplete = session.completeReview(token, ctx(), input(4));
+    const fromGetState = session.getState();
+    expect(fromComplete).not.toBe(fromGetState);
+    if (fromComplete?.status === "draft") fromComplete.context.groupId = "hacked-complete";
+    if (fromGetState.status === "draft") fromGetState.context.groupId = "hacked-getstate";
+
+    // Internal state is untouched by mutating either returned object.
+    expect(session.getState()).toMatchObject({ status: "draft", context: ctx() });
+
+    const applied: unknown[] = [];
+    // Confirming with one of the mutated objects is rejected as stale; no apply occurs.
+    const mutatedContext = fromComplete?.status === "draft" ? fromComplete.context : ctx();
+    expect(() => session.confirm("acct-1", mutatedContext, (patch) => applied.push(patch)))
+      .toThrow(/stale/);
+    expect(applied).toHaveLength(0);
+
+    // The real, unmutated context still confirms normally afterwards.
+    const state = session.confirm("acct-1", ctx(), (patch) => applied.push(patch));
+    expect(applied).toHaveLength(1);
+    expect(state).toMatchObject({ status: "confirmed" });
+  });
+
+  it("reentrant confirm: apply() starting a new review mid-confirm does not let a retry apply a second time", () => {
+    const session = new PartialImportSession();
+    session.setAccount("acct-1");
+    const token = session.beginReview("acct-1", ctx());
+    session.completeReview(token, ctx(), input(4));
+    const applied: unknown[] = [];
+    let reentered = false;
+    const apply = (patch: unknown) => {
+      applied.push(patch);
+      if (!reentered) {
+        reentered = true;
+        // The host kicks off the next review synchronously from inside apply, before this
+        // confirm call has finished.
+        session.beginReview("acct-1", ctx());
+      }
+    };
+
+    const first = session.confirm("acct-1", ctx(), apply);
+    // The nested beginReview bumped the generation, so this confirm cannot safely finalize --
+    // it returns the still-pending draft rather than resurrecting a confirmed status.
+    expect(first).toMatchObject({ status: "draft" });
+
+    // A caller retrying confirm for what it believes is the same unconfirmed draft must not
+    // trigger a second apply invocation.
+    const second = session.confirm("acct-1", ctx(), apply);
+    expect(applied).toHaveLength(1);
+    expect(second).toMatchObject({ status: "draft" });
+  });
+
+  it("rejects a cross-account context smuggled into completeReview under a valid token", () => {
+    const session = new PartialImportSession();
+    session.setAccount("acct-1");
+    const token = session.beginReview("acct-1", ctx());
+    const crossAccountDelivery = session.completeReview(token, ctx({ accountId: "acct-2" }), input(4));
+    expect(crossAccountDelivery).toBeNull();
+    expect(session.getState()).toEqual({ status: "empty" });
+  });
+
+  it("rejects confirm when context.accountId does not match the confirming account, even if it matches the stored draft", () => {
+    const session = new PartialImportSession();
+    session.setAccount("acct-1");
+    const token = session.beginReview("acct-1", ctx());
+    session.completeReview(token, ctx(), input(4));
+    const applied: unknown[] = [];
+    expect(() => session.confirm("acct-1", ctx({ accountId: "acct-2" }), (patch) => applied.push(patch)))
+      .toThrow(/confirming account/);
+    expect(applied).toHaveLength(0);
+    expect(session.getState()).toMatchObject({ status: "draft" });
+  });
 });
