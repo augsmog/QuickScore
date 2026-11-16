@@ -1,3 +1,4 @@
+import {assertLibraryTargets,assertRulesSurface} from './layout-targets.mjs';
 import {homeModeTargets,assertHomeModeTargets} from './home-mode-targets.mjs';
 import {paywallSetup,paywallReady,paywallCases} from './paywall-recovery.mjs';
 import {acceptanceSetup,acceptanceReady,acceptanceCases} from './acceptance-cases.mjs';
@@ -197,7 +198,7 @@ export const cases={
   'J-game-rules':async({page,act,check,step})=>{
     await check('entry',()=>ready(page,'home'));
     await act.activate(page.getByTestId('home-see-all-modes'),{feature:'game-library'});
-    await check('library',()=>page.getByText('50+ game modes',{exact:true}).waitFor({state:'visible'}));
+    await check('library',async()=>{await page.getByText('50+ game modes',{exact:true}).waitFor({state:'visible'});await assertLibraryTargets(page);});
     await step('game-library');
     await waitForStableViewportRect(page.getByText('50+ game modes',{exact:true}));
     await act.scroll(page.getByTestId('game-mode-row-skins').locator('xpath=../..'),240);
@@ -208,6 +209,7 @@ export const cases={
       await sheet.waitFor({state:'visible'});
       assert.equal(await sheet.getByText('Skins',{exact:true}).count(),1);
       assert.ok((await sheet.innerText()).trim().length>0);
+      await assertRulesSurface(page);
     });
     await waitForStableViewportRect(page.getByTestId('game-info-close'));
     await step('skins-rules');

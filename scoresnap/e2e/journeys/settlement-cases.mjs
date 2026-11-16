@@ -1,3 +1,4 @@
+import {assertHomeSettlementTargets,assertSettlementTargets} from './layout-targets.mjs';
 import {assertStrokeMark} from './settlement-row-contract.mjs';
 import assert from 'node:assert/strict';
 import {account,seedAcceptance,visible,text,press,reveal,persisted,waitState,stablePaint} from './acceptance-common.mjs';
@@ -25,9 +26,9 @@ export const acceptanceCases={'J-settlement-mark-lifecycle':async({page,act,chec
     // Use existing adapter's test-only tab ID; do not add role/name semantics.
     await act.activate(page.getByTestId('journey-settlement'));await enter('acceptance-settlement');
   };
-  await check('entry',async()=>{assert.equal((await persisted(page,'snapscore-auth')).user.id,account.id);const ledgers=(await persisted(page,storage))?.ledgers||{};assert.equal(Object.keys(ledgers).length,0);});
+  await check('entry',async()=>{await assertHomeSettlementTargets(page);assert.equal((await persisted(page,'snapscore-auth')).user.id,account.id);const ledgers=(await persisted(page,storage))?.ledgers||{};assert.equal(Object.keys(ledgers).length,0);});
   await open('a');
-  await check('unmarked',async()=>{assert.equal(await undo().count(),0);assert.equal(await page.getByRole('button',{name:'Mark settled Sam to Augie',exact:true}).count(),2);await text(page.getByTestId('settlement-session-total'),'$20.00');});await step('unmarked');
+  await check('unmarked',async()=>{await assertSettlementTargets(page);assert.equal(await undo().count(),0);assert.equal(await page.getByRole('button',{name:'Mark settled Sam to Augie',exact:true}).count(),2);await text(page.getByTestId('settlement-session-total'),'$20.00');});await step('unmarked');
   await intendedRow();await press(page,act,mark());
   let saved,timestamp,label;
   await check('marked',async()=>{
