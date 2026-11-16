@@ -869,6 +869,7 @@ export default function NewContestScreen() {
 
               <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <AnimatedPressable
+                  testID="remove-group" accessibilityLabel="Remove group"
                   onPress={() => {
                     if (numGroups > 1) {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -882,8 +883,8 @@ export default function NewContestScreen() {
                     }
                   }}
                   style={{
-                    width: 36,
-                    height: 36,
+                    width: 44,
+                    height: 44,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",
@@ -902,8 +903,8 @@ export default function NewContestScreen() {
                     setNumGroups(numGroups + 1);
                   }}
                   style={{
-                    width: 36,
-                    height: 36,
+                    width: 44,
+                    height: 44,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",
