@@ -30,6 +30,7 @@ import {
   useContestStore,
   generateId,
   defaultCourse,
+  buildTournamentRounds,
   Contest,
   ContestGroup,
 } from "../../src/stores/contest-store";
@@ -302,6 +303,8 @@ export default function NewContestScreen() {
 
     const cleanConfig = validateSetup();
     if (!cleanConfig) return;
+    // AUG-1151: the multi-day toggle and round count must reach the saved contest.
+    const rounds = isTournament ? buildTournamentRounds(groups, course, numRounds) : undefined;
     const contest: Contest = {
       id: Crypto.randomUUID(),
       name: contestName || autoName,
@@ -316,6 +319,7 @@ export default function NewContestScreen() {
       games: selectedGames,
       gameConfig: cleanConfig,
       createdAt: new Date().toISOString(),
+      ...(rounds ? { isTournament: true, rounds, currentRound: 1 } : {}),
     };
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
