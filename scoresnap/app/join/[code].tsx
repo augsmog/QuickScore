@@ -44,7 +44,7 @@ export default function JoinContest() {
   const join = (c: Contest, playerId: string) => {
     try { guest.join(c, playerId, name); setJoined(true); setError(""); } catch (e: any) { setError(e.message); }
   };
-  return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><Pressable testID="join-dismiss" accessibilityRole="button" accessibilityLabel="Back to home" onPress={() => router.replace("/")} style={{ paddingVertical: 12 }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>Back to home</Text></Pressable>{!onlineEnabled && <LocalJoinLimitationBanner />}</View><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
+  return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><Pressable testID="join-dismiss" accessibilityRole="button" accessibilityLabel="Back to home" onPress={() => router.replace("/")} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>Back to home</Text></Pressable>{!onlineEnabled && <LocalJoinLimitationBanner actionLabel="Got a different code? Enter it below" onAction={() => setCode("")} />}</View><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
     <Text style={{ fontFamily: FONTS.headline, color: COLORS.text, fontSize: 26 }}>Join with code</Text>
     <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>{onlineEnabled ? 'Sign in with email or Apple to join this round.' : 'Play as a guest. No account needed.'}</Text>
     {onlineEnabled && <Pressable onPress={() => router.push('/auth/sign-in')}><Text style={{color: COLORS.primary}}>Sign in with email or Apple</Text></Pressable>}
