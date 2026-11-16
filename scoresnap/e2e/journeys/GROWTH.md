@@ -126,7 +126,8 @@ AUG-293 current-main reconciliation: preserve PR92 seven journeys, helper comman
 
 | 2026-11-15 | J-score-hand | Score a full 18 by hand: par both players on every hole via Next, 53 activations, all 36 scores persisted | AUG-1148 / AUG-313 Gate J (supersedes AUG-291 deferral) | `J-score-hand` gated in adapter.mjs: hole-1 persistence, hole-18 reached, `scores()` equals 18x4 for both players | SnapScore maintainers | AUG-1148 |
 | 2026-11-15 | J-create-8p-multiday | Create an 8-player, 2-round, 2-group tournament through the real New Contest wizard (TD tier) | AUG-313 / AUG-1149 | Gated; 8 names typed, G2 split 4/4 asserted; strict outcome requires isTournament and 2 persisted rounds. AUG-1151 (stacked) persists the rounds, so the outcome is green | SnapScore maintainers | AUG-1149 |
-
+| 2026-11-16 | J-game-rules | Skins/Vegas/Sixes full mode row targets >=44px; no unrelated foreground text/control overlap in rules sheet; backdrop is not foreground | AUG-1155 automated sweep (clipped bounds/backdrop false positives) | library + rule in adapter.mjs; layout-targets.browser.test.mjs runs all three profiles and rejects a real foreground collision | aos-ready | AUG-1166 |
+| 2026-11-16 | J-settlement-mark-lifecycle, J-by-game-nine, J-settlement-tab-runtime-recalc | Full course-card, quick-start-chip and settlement-button targets >=44px independently of scroll clipping | AUG-1155 automated sweep (raw 68/50/44px boxes clipped to 33/25/19px) | entry/unmarked/nine-hole-signed-rows + runtime-recalc preconditions; layout-targets.browser.test.mjs rejects a 19px target on all three profiles | aos-ready | AUG-1167 |
 
 ### 2026-11-16 — Refs AUG-1168 / AUG-348, unmounted question-model reconciliation
 
