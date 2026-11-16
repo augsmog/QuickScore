@@ -1,6 +1,6 @@
 /** Layout rules for the Settings screen. Pure so device profiles can be tested (AUG-1163). */
 export const SETTINGS_MIN_TARGET_PX = 44;
-// Native iOS Switch is ~51x31; the touchable wrapper must be at least 44 tall and wide.
+// Native iOS Switch is ~51x31; the named switch itself must be at least 44 tall and wide.
 export const SETTINGS_SWITCH_SIZE = { width: 51, height: 31 };
 
 export const SETTINGS_SWITCH_TARGET = {
@@ -12,8 +12,8 @@ export function settingsLayout(insets: { top: number; bottom: number; left?: num
   const left = insets.left ?? 0;
   const right = insets.right ?? 0;
   return {
-    // Header + scroll content clear the side bands (landscape notch) via the container.
-    edges: ['top', 'left', 'right'] as const,
+    // The scroll viewport itself clears every band, including during intermediate scrolls.
+    edges: ['top', 'bottom', 'left', 'right'] as const,
     scrollPaddingLeft: 16,
     scrollPaddingRight: 16,
     // Last row (Sign Out) must scroll clear of the home-indicator band.

@@ -40,6 +40,8 @@ function settingsScreen(platform = "ios") {
     'expo-router': { useRouter: () => ({ push, back, replace: jest.fn() }) },
     'lucide-react-native': new Proxy({}, { get: (_, name) => `Icon:${name}` }),
     '../src/ui/SafeScreen': { SafeScreen: 'SafeScreen' },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }) },
+    '../src/ui/settings-layout': load('src/ui/settings-layout.ts'),
     '../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
     '../src/ui/theme': load('src/ui/theme.ts'),
     '../src/ui/paywall-copy': { PAYWALL_COPY: C },
@@ -140,4 +142,21 @@ test('existing single Profile gear is named Settings and remains in first conten
   expect(gear.slice(0, gear.indexOf('</AnimatedPressable>'))).toContain('accessibilityLabel="Settings"');
   expect(gear.slice(0, gear.indexOf('</AnimatedPressable>'))).toContain('router.push("/settings")');
   expect(source.indexOf('testID="profile-settings-gear"')).toBeLessThan(source.indexOf('>SCORING<'));
+});
+
+
+test.each(['ios', 'web'])('the named switch itself owns the 44px target on %s', platform => {
+  const screen = settingsScreen(platform);
+  const tree = screen.render();
+  const switches = nodes(tree).filter(node => node.type === 'Switch');
+  expect(switches).toHaveLength(14);
+  for (const toggle of switches) {
+    expect(toggle.props.style.minWidth).toBeGreaterThanOrEqual(44);
+    expect(toggle.props.style.minHeight).toBeGreaterThanOrEqual(44);
+    const before = toggle.props.value;
+    toggle.props.onValueChange(!before);
+    expect(control(screen.render(), toggle.props.accessibilityLabel).props.value).toBe(!before);
+  }
+  const safeScreen = nodes(tree).find(node => node.type === 'SafeScreen');
+  expect(safeScreen.props.edges).toEqual(expect.arrayContaining(['top', 'bottom', 'left', 'right']));
 });

@@ -10,7 +10,7 @@ test('settings: switch target and rows are >= 44px and bottom clears home band o
     assert(l.switchTarget.minHeight >= 44 && l.switchTarget.minWidth >= 44, `${name} switch target >= 44px`);
     assert(l.rowMinHeight >= 44, `${name} row >= 44px`);
     assert(l.scrollPaddingBottom >= p.bottom + 60, `${name} last row clears bottom inset`);
-    assert(l.edges.includes('top') && l.edges.includes('left') && l.edges.includes('right'), `${name} side/top edges owned`);
+    assert(l.edges.includes('top') && l.edges.includes('bottom') && l.edges.includes('left') && l.edges.includes('right'), `${name} side/top edges owned`);
   }
 });
 

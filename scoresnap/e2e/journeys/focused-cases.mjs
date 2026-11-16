@@ -23,7 +23,13 @@ export const focusedCases={
  await act.activate(page.getByRole('button',{name:'Delete Account',exact:true}),{feature:'delete-account'});
  await check('confirmation-three-taps',async()=>{await visible(page.getByText('Delete your account?',{exact:true}));await visible(page.getByRole('button',{name:'Keep my account',exact:true}));await visible(page.getByRole('button',{name:'Yes, delete my account',exact:true}));assert.deepEqual(await persisted(page,'snapscore-auth'),before);});await step('confirmation-stop');},
  'J-settings-control-inventory':async q=>{const {page,act,check,step}=q;await settings(q);await check('complete-role-name-inventory',async()=>{
-   for(const [role,names] of Object.entries(settingsInventory)){const all=page.getByRole(role);assert.equal(await all.count(),names.length,`${role}: missing, duplicate or extra control`);for(const name of names){const control=page.getByRole(role,{name,exact:true});assert.equal(await control.count(),1,`${role}: ${name}`);await reveal(page,act,control);await visible(control);const rect=await control.boundingBox();assert(rect&&rect.width>0&&rect.height>0);}}
+   for(const [role,names] of Object.entries(settingsInventory)){const all=page.getByRole(role);assert.equal(await all.count(),names.length,`${role}: missing, duplicate or extra control`);for(const name of names){const control=page.getByRole(role,{name,exact:true});assert.equal(await control.count(),1,`${role}: ${name}`);await reveal(page,act,control);await visible(control);const rect=await control.boundingBox();assert(rect&&rect.width>=44&&rect.height>=44,`${name}: target must measure >=44x44, got ${JSON.stringify(rect)}`);
+     const safe=await control.evaluate(el=>{
+       let ancestor=el.parentElement,top=0,bottom=innerHeight;
+       while(ancestor){const s=getComputedStyle(ancestor),r=ancestor.getBoundingClientRect();if(/auto|scroll|hidden/.test(s.overflowY)){top=Math.max(top,r.top);bottom=Math.min(bottom,r.bottom);}ancestor=ancestor.parentElement;}
+       return {top,bottom};
+     });
+     assert(rect.y>=safe.top-0.5&&rect.y+rect.height<=safe.bottom+0.5,`${name}: target must clear the clipped safe scroll viewport`);}}
    // Any unnamed extra keyboard-focusable control is also a failure, not excluded from the inventory.
    const unnamed=await page.locator('[tabindex="0"],button,input,a[href],select,textarea').evaluateAll(els=>els.filter(el=>{const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&!el.closest('[aria-hidden="true"]')&&!((el.getAttribute('aria-label')||el.textContent||'').trim());}).map(el=>el.outerHTML));assert.deepEqual(unnamed,[]);
  });await step('inventory-complete');},

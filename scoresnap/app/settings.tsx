@@ -117,8 +117,8 @@ function ToggleRow({
           </Text>
         )}
       </View>
-      <View style={{ ...SETTINGS_SWITCH_TARGET, alignItems: "center", justifyContent: "center" }}>
       <Switch
+        style={SETTINGS_SWITCH_TARGET}
         accessibilityRole={Platform.OS === "web" ? undefined : "switch"}
         accessibilityLabel={label}
         accessibilityHint={sublabel}
@@ -129,7 +129,6 @@ function ToggleRow({
         thumbColor={value ? COLORS.primary : COLORS.textDim}
         ios_backgroundColor={COLORS.surfaceHigh}
       />
-      </View>
     </View>
   );
 }
