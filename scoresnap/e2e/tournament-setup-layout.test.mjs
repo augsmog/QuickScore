@@ -14,4 +14,6 @@ test('new.tsx wires the shared styles', async () => {
   const src = readFileSync(new URL('../app/contest/new.tsx', import.meta.url), 'utf8');
   assert(src.includes('...roundCountPillStyle'));
   assert(src.includes('...groupChipStyle'));
+  assert.match(src, /minHeight: nameInputMinHeight/);
+  assert.match(src, /\.\.\.handicapInputBox/);
 });
