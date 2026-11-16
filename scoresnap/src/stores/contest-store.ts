@@ -548,6 +548,35 @@ export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
+/**
+ * AUG-1151: rounds for a multi-day contest created in the New Contest wizard.
+ * Round 1 uses the configured groups as-is, the same way addRound seeds round 1
+ * from contest.groups. Later rounds keep the host's grouping and player IDs, but
+ * get fresh group IDs and fresh score arrays, so no two rounds share a group or
+ * a score array. addRound puts everyone in one group because it runs mid-event;
+ * the wizard instead keeps the grouping the host just set up.
+ * Returns undefined for fewer than 2 rounds (a single-round contest is unchanged).
+ */
+export function buildTournamentRounds(
+  groups: ContestGroup[],
+  course: Course,
+  roundCount: number,
+  makeId: () => string = generateId,
+): RoundInfo[] | undefined {
+  if (!Number.isInteger(roundCount) || roundCount < 2) return undefined;
+  return Array.from({ length: roundCount }, (_, i) => ({
+    id: makeId(),
+    number: i + 1,
+    name: `Round ${i + 1}`,
+    course,
+    groups: i === 0 ? groups : groups.map((g) => ({
+      ...g,
+      id: makeId(),
+      players: g.players.map((p) => ({ ...p, scores: new Array(course.holes.length).fill(0) })),
+    })),
+  }));
+}
+
 // Default course template (par 72)
 export function defaultCourse(name: string = "My Course"): Course {
   const defaultHoles: HoleInfo[] = [
