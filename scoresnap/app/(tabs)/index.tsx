@@ -11,6 +11,7 @@ import { useAuthStore } from "../../src/stores/auth-store";
 import { useState, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, FlatList, Alert } from "react-native";
 import { useRouter } from "expo-router";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Camera, ChevronRight, X, Users, Plus, Hash } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../src/ui/theme";
@@ -27,6 +28,7 @@ import { useOnboardingStore } from "../../src/stores/onboarding-store";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const bottomTabBarHeight = useBottomTabBarHeight();
   const tier = useScanStore(s => s.tier);
   const storedContests = useContestStore((s) => s.contests);
   const demoMode = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
@@ -103,8 +105,8 @@ export default function HomeScreen() {
     <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       <ScrollView
         testID="home-scroll"
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        style={{ flex: 1, marginBottom: bottomTabBarHeight }}
+        contentContainerStyle={{ paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Wordmark ── */}
