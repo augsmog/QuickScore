@@ -165,6 +165,25 @@ export const cases={
     await reload(); await enter('round-leaderboard');
     await check('outcome',async()=>assert.deepEqual(await scores(page),[expected,expected])); await step('reload-saved');
   },
+  'J-score-hand':async({page,act,check,step})=>{
+    await check('entry',()=>ready(page,'round-scorecard'));
+    const names=['Augie','Sam'];
+    for(let hole=1;hole<=18;hole++) {
+      for(const name of names) await act.activate(page.getByTestId(`score-par-${name}`),{navigation:false});
+      if(hole===1) {
+        await check('activation',async()=>assert.deepEqual((await scores(page)).map(s=>s[0]),[4,4]));
+        await step('hole-1-scored');
+      }
+      if(hole<18) await act.activate(page.getByTestId('score-next-hole'),{navigation:false});
+    }
+    await check('destination',async()=>{
+      assert.equal(await page.getByTestId('score-prev-hole').getAttribute('aria-disabled'),null,'on hole 18 Previous is available');
+      assert.equal(await page.getByTestId('score-par-Augie').isVisible(),true);
+    }); await step('hole-18-scored');
+    const full=Array(18).fill(4);
+    await check('outcome',async()=>assert.deepEqual(await scores(page),[full,full]));
+    await step('all-saved');
+  },
   'J-invite-from-round':async({page,act,check,step})=>{
     await check('entry',()=>ready(page,'round-scorecard'));
     await check('code-visible',async()=>assert.equal((await page.getByTestId('organizer-join-code').innerText()).trim(),'Join code: JRNY26'));

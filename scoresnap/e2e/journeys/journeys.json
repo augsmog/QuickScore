@@ -315,20 +315,20 @@
     {
       "id": "J-score-hand",
       "persona": "New golfer",
-      "goal": "Score a full 18 by hand",
+      "goal": "Score a full 18 by hand (par each hole for both players), reaching hole 18 with all scores saved",
       "platform": [
         "web-offline"
       ],
-      "start": "home",
-      "fixture": "fresh-context-v1",
+      "start": "round",
+      "fixture": "two-player-empty-v1",
       "features": [],
       "budget": {
-        "activations": 6,
-        "screens": 4,
-        "timeoutMs": 20000
+        "activations": 53,
+        "screens": 1,
+        "timeoutMs": 60000
       },
       "baseline": null,
-      "status": "deferred",
+      "status": "gated",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
@@ -336,9 +336,12 @@
         "destination",
         "outcome"
       ],
-      "deferredReason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only",
-      "linear": "AUG-291",
-      "requiredSteps": []
+      "requiredSteps": [
+        "entry",
+        "hole-1-scored",
+        "hole-18-scored",
+        "all-saved"
+      ]
     },
     {
       "id": "J-delete-account",
