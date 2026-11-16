@@ -9,7 +9,7 @@ import { localDate } from "../../src/utils/local-date";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useAuthStore } from "../../src/stores/auth-store";
 import { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, FlatList, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, FlatList, Alert, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Camera, ChevronRight, X, Users, Plus, Hash } from "lucide-react-native";
@@ -28,6 +28,8 @@ import { useOnboardingStore } from "../../src/stores/onboarding-store";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const modeChipWidth = Math.max(44, (width - 48) / 2);
   const bottomTabBarHeight = useBottomTabBarHeight();
   const tier = useScanStore(s => s.tier);
   const storedContests = useContestStore((s) => s.contests);
@@ -445,7 +447,11 @@ export default function HomeScreen() {
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+            style={{ marginHorizontal: 20 }}
+            contentContainerStyle={{ gap: 8 }}
+            snapToInterval={modeChipWidth + 8}
+            snapToAlignment="start"
+            decelerationRate="fast"
             data={allGameNames}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
@@ -459,6 +465,9 @@ export default function HomeScreen() {
                   style={{
                     backgroundColor: COLORS.secondaryContainer,
                     borderRadius: RADII.full,
+                    width: modeChipWidth,
+                    minWidth: 44,
+                    minHeight: 44,
                     paddingHorizontal: 14,
                     paddingVertical: 8,
                     flexDirection: "row",
@@ -473,6 +482,7 @@ export default function HomeScreen() {
                       fontFamily: FONTS.medium,
                       fontSize: 12,
                       color: COLORS.secondary,
+                      flexShrink: 1,
                     }}
                   >
                     {item.name}
