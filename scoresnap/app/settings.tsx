@@ -1,5 +1,7 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../src/ui/SafeScreen";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { settingsLayout, SETTINGS_SWITCH_TARGET } from "../src/ui/settings-layout";
 import { useState, useCallback } from "react";
 import {
   View,
@@ -116,6 +118,7 @@ function ToggleRow({
         )}
       </View>
       <Switch
+        style={SETTINGS_SWITCH_TARGET}
         accessibilityRole={Platform.OS === "web" ? undefined : "switch"}
         accessibilityLabel={label}
         accessibilityHint={sublabel}
@@ -245,6 +248,8 @@ function NumberRow({
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const L = settingsLayout(insets);
   const settings = useSettingsStore();
   const { user, signOut, isAnonymous } = useAuthStore();
   const tier = useScanStore((s) => s.tier);
@@ -344,7 +349,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={L.edges}>
       {/* Header */}
       <View
         style={{
@@ -363,7 +368,7 @@ export default function SettingsScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: L.scrollPaddingBottom }}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Account ── */}
