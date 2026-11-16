@@ -1,3 +1,4 @@
+import {homeModeTargets,assertHomeModeTargets} from './home-mode-targets.mjs';
 import {paywallSetup,paywallReady,paywallCases} from './paywall-recovery.mjs';
 import {acceptanceSetup,acceptanceReady,acceptanceCases} from './acceptance-cases.mjs';
 // SnapScore web-offline adapter. Fixtures stop before the measured goal.
@@ -92,6 +93,7 @@ export const cases={
   ...paywallCases,
   ...acceptanceCases,
   'J-home-create-cancel':async({page,act,check,step,enter})=>{
+    assertHomeModeTargets(await homeModeTargets(page));
     await check('entry',async()=>assert.equal((await contests(page)).length,0));
     await act.activate(page.getByTestId('home-new-contest'),{feature:'create'});
     await check('activation',()=>page.waitForURL(/\/contest\/new$/));

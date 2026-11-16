@@ -234,15 +234,14 @@ export default function LeaderboardScreen() {
     <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 16 }}>
       <View
         testID="leaderboard-rank-toggle"
-        style={{ flexDirection: "row", width: 150, height: 36, backgroundColor: COLORS.surfaceMid, borderRadius: RADII.full, padding: 2, gap: 2 }}
+        style={{ flexDirection: "row", width: 150, height: 48, backgroundColor: COLORS.surfaceMid, borderRadius: RADII.full, padding: 2, gap: 2 }}
       >
         <AnimatedPressable
           testID="leaderboard-rank-gross"
           onPress={() => setRankMode("gross")}
-          hitSlop={{ top: 6, bottom: 6 }}
           style={{
             width: 72,
-            height: 32,
+            height: 44,
             justifyContent: "center",
             alignItems: "center",
             borderRadius: RADII.full,
@@ -262,10 +261,9 @@ export default function LeaderboardScreen() {
         <AnimatedPressable
           testID="leaderboard-rank-net"
           onPress={() => setRankMode("net")}
-          hitSlop={{ top: 6, bottom: 6 }}
           style={{
             width: 72,
-            height: 32,
+            height: 44,
             justifyContent: "center",
             alignItems: "center",
             borderRadius: RADII.full,
