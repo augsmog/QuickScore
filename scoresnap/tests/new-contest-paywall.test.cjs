@@ -123,3 +123,37 @@ test('variation validation blocks both Continue and Start without losing setting
   expect(validate).toHaveBeenCalledTimes(3); expect(h.addContest).not.toHaveBeenCalled();
   expect(h.byId('contest-step-round-settings')).toBeDefined();
 });
+
+test('multi-day toggle persists isTournament, the requested round count and all players with no shared IDs between rounds', () => {
+  const h = harness('td'); h.seed(8); const before = h.players().map(p => p.name);
+  act(() => h.byId('tournament-toggle').onValueChange(true));
+  h.byId('rounds-3').onPress();
+  h.press('Continue'); h.press('Continue'); h.press('Start');
+  const contest = h.addContest.mock.calls[0][0];
+  expect(contest.isTournament).toBe(true);
+  expect(contest.currentRound).toBe(1);
+  expect(contest.rounds).toHaveLength(3);
+  for (const round of contest.rounds) {
+    expect(round.groups.flatMap(g => g.players).map(p => p.name).sort()).toEqual([...before].sort());
+  }
+  // Round 1 keeps the wizard's own group (same convention as contest-store's addRound).
+  expect(contest.rounds[0].groups).toBe(contest.groups);
+  // Later rounds get their own round/group ids -- no ID sharing between rounds.
+  const roundIds = contest.rounds.map(r => r.id);
+  expect(new Set(roundIds).size).toBe(3);
+  const groupIds = contest.rounds.flatMap(r => r.groups.map(g => g.id));
+  expect(new Set(groupIds).size).toBe(3);
+  // Same player identity (id<->name) across rounds, but round 3's players are independent copies.
+  const byName = round => Object.fromEntries(round.groups.flatMap(g => g.players).map(p => [p.name, p.id]));
+  expect(byName(contest.rounds[2])).toEqual(byName(contest.rounds[0]));
+  contest.rounds[2].groups[0].players[0].scores[0] = 5;
+  expect(contest.rounds[0].groups[0].players[0].scores[0]).toBe(0);
+});
+
+test('single-round contest is unchanged when the multi-day toggle stays off', () => {
+  const h = harness('td'); h.seed(2); h.press('Continue'); h.press('Continue'); h.press('Start');
+  const contest = h.addContest.mock.calls[0][0];
+  expect(contest.isTournament).toBe(false);
+  expect(contest.rounds).toBeUndefined();
+  expect(contest.currentRound).toBeUndefined();
+});
