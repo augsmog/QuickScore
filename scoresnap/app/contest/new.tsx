@@ -32,7 +32,6 @@ import {
   defaultCourse,
   Contest,
   ContestGroup,
-  RoundInfo,
 } from "../../src/stores/contest-store";
 import { useAuthStore } from "../../src/stores/auth-store";
 import CourseSearch from "../../src/ui/CourseSearch";
@@ -303,28 +302,6 @@ export default function NewContestScreen() {
 
     const cleanConfig = validateSetup();
     if (!cleanConfig) return;
-
-    // Multi-day: round 1 keeps the wizard's own group split; later rounds start
-    // as a single re-pairing group (same convention as contest-store's addRound).
-    let rounds: RoundInfo[] | undefined;
-    if (isTournament) {
-      const allPlayers = groups.flatMap((g) => g.players);
-      rounds = [{ id: generateId(), number: 1, name: "Round 1", course, groups }];
-      for (let n = 2; n <= numRounds; n++) {
-        rounds.push({
-          id: generateId(),
-          number: n,
-          name: `Round ${n}`,
-          course,
-          groups: [{
-            id: generateId(),
-            name: "Group 1",
-            players: allPlayers.map((p) => ({ ...p, scores: new Array(18).fill(0) })),
-          }],
-        });
-      }
-    }
-
     const contest: Contest = {
       id: Crypto.randomUUID(),
       name: contestName || autoName,
@@ -339,9 +316,6 @@ export default function NewContestScreen() {
       games: selectedGames,
       gameConfig: cleanConfig,
       createdAt: new Date().toISOString(),
-      isTournament,
-      rounds,
-      currentRound: isTournament ? 1 : undefined,
     };
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
