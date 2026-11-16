@@ -13,15 +13,17 @@ const start = src.indexOf('testID="leaderboard-rank-toggle"');
 // be folded into the toggle-styling assertions.
 const block = src.slice(start, src.indexOf(') : null;', start));
 
-test('toggle is compact 150x36, right-aligned pill on surfaceMid', () => {
+test('toggle is 150x48 with 44px targets, right-aligned pill on surfaceMid', () => {
   assert.ok(start > 0);
   const pre = src.slice(start - 200, start);
   assert.match(pre, /justifyContent: "flex-end"/);
-  assert.match(block, /width: 150, height: 36, backgroundColor: COLORS\.surfaceMid, borderRadius: RADII\.full, padding: 2, gap: 2/);
+  assert.match(block, /width: 150, height: 48, backgroundColor: COLORS\.surfaceMid, borderRadius: RADII\.full, padding: 2, gap: 2/);
 });
 
 test('segments are 72 wide pills with primary/onPrimary active state', () => {
   assert.equal((block.match(/width: 72,/g) || []).length, 2);
+  assert.equal((block.match(/height: 44,/g) || []).length, 2);
+  assert.doesNotMatch(block, /hitSlop/);
   assert.equal((block.match(/borderRadius: RADII\.full,/g) || []).length, 3);
   assert.match(block, /COLORS\.primary : "transparent"/);
   assert.match(block, /fontFamily: FONTS\.semibold, fontSize: 15, color: COLORS\.onPrimary/);
