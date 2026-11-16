@@ -29,11 +29,21 @@ function contextEquals(a: PartialImportSessionContext, b: PartialImportSessionCo
     a.roundId === b.roundId && a.groupId === b.groupId;
 }
 
-/** Returns a copy whose nested context (if any) is never the internal instance -- callers can
- * mutate what they're handed without corrupting session state. */
+/** Returns a copy of a result whose patch/blocker arrays and cells are never the internal
+ * instances -- callers can mutate what they're handed without corrupting session state. */
+function cloneResult(result: PartialImportResult): PartialImportResult {
+  if (!result.ok) return { ok: false, blockers: [...result.blockers] };
+  return { ok: true, complete: result.complete, patch: result.patch.map((cell) => ({ ...cell })) };
+}
+
+/** Returns a copy whose nested context, result and patch (if any) are never the internal
+ * instances -- callers can mutate what they're handed without corrupting session state. */
 function cloneState(state: PartialImportSessionState): PartialImportSessionState {
   if (state.status === "empty") return { status: "empty" };
-  return { ...state, context: { ...state.context } };
+  if (state.status === "draft") {
+    return { status: "draft", context: { ...state.context }, result: cloneResult(state.result) };
+  }
+  return { status: "confirmed", context: { ...state.context }, patch: state.patch.map((cell) => ({ ...cell })) };
 }
 
 /** A token minted by `beginReview`; a later `completeReview` must present the exact token it got back. */
@@ -132,10 +142,14 @@ export class PartialImportSession {
       // the draft in place while bumping the generation); a retry must not call it again.
       return cloneState(this.state);
     }
+    // Mark the draft applied *before* invoking `apply`, not after: `apply` may itself call
+    // `beginReview` and then reenter `confirm` synchronously for this same still-pending draft
+    // (the generation bump alone doesn't clear `draftToken`). Marking after the call would let
+    // that reentrant confirm see the token as not-yet-applied and invoke `apply` a second time.
+    if (draftToken !== null) this.appliedTokens.add(draftToken);
     const patch = this.state.result.patch;
     const generationBeforeApply = this.generation;
     apply(patch);
-    if (draftToken !== null) this.appliedTokens.add(draftToken);
     if (this.generation !== generationBeforeApply) {
       // apply() itself invalidated this session (e.g. triggered setAccount/discard, or started a
       // new review) -- honor that instead of resurrecting a confirmed state over it.

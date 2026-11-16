@@ -282,6 +282,68 @@ describe("PartialImportSession", () => {
     expect(second).toMatchObject({ status: "draft" });
   });
 
+  it("returns isolated copies of the result patch -- mutating the patch cells cannot corrupt the value apply() later receives", () => {
+    const session = new PartialImportSession();
+    session.setAccount("acct-1");
+    const token = session.beginReview("acct-1", ctx());
+    const fromComplete = session.completeReview(token, ctx(), input(4));
+    const fromGetState = session.getState();
+    if (fromComplete?.status === "draft" && fromComplete.result.ok) {
+      fromComplete.result.patch[0].strokes = 99;
+    }
+    if (fromGetState.status === "draft" && fromGetState.result.ok) {
+      fromGetState.result.patch[0].strokes = 999;
+    }
+
+    // Internal state is untouched by mutating either returned object.
+    const state = session.getState();
+    if (state.status === "draft" && state.result.ok) {
+      expect(state.result.patch[0].strokes).toBe(4);
+    }
+
+    const applied: unknown[] = [];
+    session.confirm("acct-1", ctx(), (patch) => applied.push(patch));
+    expect(applied).toEqual([[{ playerId: "a", hole: 1, strokes: 4 }]]);
+  });
+
+  it("returns isolated copies of the blocker list -- clearing it through getState cannot corrupt session state", () => {
+    const session = new PartialImportSession();
+    session.setAccount("acct-1");
+    const token = session.beginReview("acct-1", ctx());
+    session.completeReview(token, ctx(), blockedInput);
+    const exposed = session.getState();
+    if (exposed.status === "draft" && !exposed.result.ok) {
+      exposed.result.blockers.length = 0;
+    }
+    const state = session.getState();
+    if (state.status === "draft" && !state.result.ok) {
+      expect(state.result.blockers.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("reentrant confirm: a nested confirm() called from inside apply() for the same still-pending draft does not invoke apply a second time", () => {
+    const session = new PartialImportSession();
+    session.setAccount("acct-1");
+    const token = session.beginReview("acct-1", ctx());
+    session.completeReview(token, ctx(), input(4));
+    const applied: unknown[] = [];
+    let reentered = false;
+    const apply = (patch: unknown) => {
+      applied.push(patch);
+      if (!reentered) {
+        reentered = true;
+        // The host kicks off the next review and immediately retries confirm synchronously
+        // from inside apply, before the outer confirm call has finished.
+        session.beginReview("acct-1", ctx());
+        session.confirm("acct-1", ctx(), apply);
+      }
+    };
+
+    session.confirm("acct-1", ctx(), apply);
+    session.confirm("acct-1", ctx(), apply);
+    expect(applied).toHaveLength(1);
+  });
+
   it("rejects a cross-account context smuggled into completeReview under a valid token", () => {
     const session = new PartialImportSession();
     session.setAccount("acct-1");
