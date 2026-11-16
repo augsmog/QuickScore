@@ -14,6 +14,16 @@ describe("partial-import answers (AUG-348h)", () => {
     expect(recordPartialImportAnswer(aux, { game: "greenies", kind: "greenie-winner", hole: 10 }, { kind: "greenie-winner", playerId: "a" }, played)).toEqual({ ok: false, reason: "already-answered" });
     expect(aux.greenies[10]).toBeNull();
   });
+  it("does not replace an existing empty-snake (nobody) answer", () => {
+    const aux = { snake: { 10: [] as string[] } };
+    expect(recordPartialImportAnswer(aux, { game: "snake", kind: "snake-putters", hole: 10 }, { kind: "snake-putters", playerIds: ["a"] }, played)).toEqual({ ok: false, reason: "already-answered" });
+    expect(aux.snake[10]).toEqual([]);
+  });
+  it("does not replace an existing explicit 'no hammer' answer", () => {
+    const aux = { hammer: { 10: { hammered: false, hammerBy: "", accepted: false } } };
+    expect(recordPartialImportAnswer(aux, { game: "hammer", kind: "hammer-decision", hole: 10 }, { kind: "hammer-decision", hammered: true, hammerBy: "a", accepted: true }, played)).toEqual({ ok: false, reason: "already-answered" });
+    expect(aux.hammer[10]).toEqual({ hammered: false, hammerBy: "", accepted: false });
+  });
   it("rejects a kind belonging to another game", () => {
     expect(recordPartialImportAnswer({}, { game: "wolf", kind: "greenie-winner", hole: 10 }, { kind: "greenie-winner", playerId: null }, played)).toEqual({ ok: false, reason: "kind-mismatch" });
   });
