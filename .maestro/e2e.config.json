@@ -120,15 +120,24 @@
       "captureHierarchy": true,
       "notes": "Read-only course search (Pebble Beach); no contest saved. Requires candidate simulator build with course search enabled. Last-row selector follows API ordering.",
       "skipInAll": "The online simulator build opens on the sign-in gate after onboarding (proof run 41727220634), and this flow must not create accounts or use credentials. Run by id against a signed-in test build; offline aug-429-ux-pass covers the pinned Confirm tees on a 16-tee fixture."
+    },
+    {
+      "id": "aug-294-demo-signin",
+      "file": ".maestro/flows/online/aug-294-demo-signin.yaml",
+      "build": "online",
+      "tickets": [
+        "AUG-294"
+      ],
+      "notes": "Read-only demo-account fresh sign-in; needs MAESTRO_DEMO_EMAIL and MAESTRO_DEMO_PW env supplied by the runner (not committed). Sample-round selectors are text-based and unverified on a simulator.",
+      "skipInAll": "Needs a signed-in demo credential passed as env; adding it as a CI secret needs Augie's yes. Run by id locally or on the box with MAESTRO_DEMO_EMAIL and MAESTRO_DEMO_PW set."
     }
   ],
   "blocked": [
     {
       "tickets": [
-        "AUG-294",
         "AUG-331"
       ],
-      "reason": "needs a signed-in demo/owner account; adding its credential as a CI secret needs Augie's yes"
+      "reason": "needs a signed-in demo/owner account; adding its credential as a CI secret needs Augie's yes (AUG-294 flow is written, run-by-id only)"
     }
   ],
   "knownBlocks": []

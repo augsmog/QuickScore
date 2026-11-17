@@ -1,0 +1,44 @@
+# AUG-294: the App Review demo account signs in on a fresh install and sees both sample rounds (Stroke Play and Skins $5), and Settle up opens.
+# Read-only: signs in with credentials passed as env (MAESTRO_DEMO_EMAIL / MAESTRO_DEMO_PW); writes nothing and creates no account.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- extendedWaitUntil:
+    visible: "Already have an account\\? Sign in|Skip|Next.*"
+    timeout: 60000
+- tapOn:
+    text: "Skip"
+    optional: true
+- tapOn: "Already have an account\\? Sign in"
+- takeScreenshot: aug-294-01-sign-in-form
+- tapOn: "Email address"
+- inputText: "${MAESTRO_DEMO_EMAIL}"
+- tapOn: "Password"
+- inputText: "${MAESTRO_DEMO_PW}"
+- tapOn: "Sign In"
+- extendedWaitUntil:
+    visible:
+      id: "home-new-contest"
+    timeout: 45000
+- assertNotVisible: ".*(Invalid|incorrect|failed).*"
+- takeScreenshot: aug-294-02-signed-in-home
+# Both sample rounds must be listed for the fresh sign-in.
+- scrollUntilVisible:
+    element: ".*Stroke Play.*"
+    direction: DOWN
+- assertVisible: ".*Stroke Play.*"
+- takeScreenshot: aug-294-03-stroke-play-round
+- scrollUntilVisible:
+    element: ".*Skins.*"
+    direction: DOWN
+- assertVisible: ".*Skins.*"
+- takeScreenshot: aug-294-04-skins-round
+- tapOn: ".*Skins.*"
+- extendedWaitUntil:
+    visible: ".*Settle up.*"
+    timeout: 20000
+- tapOn: ".*Settle up.*"
+- takeScreenshot: aug-294-05-settle-up-opened
+# Stop here: no scores entered, no settlement marked, nothing shared.
