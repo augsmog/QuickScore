@@ -4,6 +4,7 @@ module.exports = {
     '<rootDir>/tests/**/*.test.cjs',
     '<rootDir>/src/services/__tests__/partial-import.test.ts',
     '<rootDir>/src/services/__tests__/analytics-contract.test.ts',
+    '<rootDir>/src/services/__tests__/purchases-offerings.test.ts',
     '<rootDir>/src/engine/__tests__/leaderboard-rows.test.ts',
     '<rootDir>/src/engine/__tests__/contest-settlement-16p.test.ts',
     '<rootDir>/src/engine/__tests__/td-readiness-56-player.test.ts',
@@ -21,5 +22,8 @@ module.exports = {
     '<rootDir>/src/engine/__tests__/stored-cut-rule.test.ts',
     '<rootDir>/src/engine/__tests__/field-pot.test.ts',
   ],
+  // expo's babel preset injects `expo/virtual/env` (ESM) into any file reading process.env.EXPO_PUBLIC_*,
+  // so modules like src/services/purchases.ts need expo transformed for jest (AUG-538).
+  transformIgnorePatterns: ['/node_modules/(?!(expo|expo-modules-core)/)'],
   cacheDirectory: process.env.JEST_CACHE_DIR || '<rootDir>/.jest-cache',
 };
