@@ -53,6 +53,8 @@ function settingsScreen(store, proEnabled = true) {
     'expo-router': { useRouter: () => ({ push, back, replace: jest.fn() }) },
     'lucide-react-native': new Proxy({}, { get: (_, name) => `Icon:${name}` }),
     '../src/ui/SafeScreen': { SafeScreen: 'SafeScreen' },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }) },
+    '../src/ui/settings-layout': load('src/ui/settings-layout.ts'),
     '../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
     '../src/ui/theme': load('src/ui/theme.ts'),
     '../src/ui/paywall-copy': { PAYWALL_COPY: C },
