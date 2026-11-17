@@ -886,8 +886,8 @@ export default function NewContestScreen() {
                     }
                   }}
                   style={{
-                    width: 36,
-                    height: 36,
+                    width: 44,
+                    height: 44,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",
@@ -906,8 +906,8 @@ export default function NewContestScreen() {
                     setNumGroups(numGroups + 1);
                   }}
                   style={{
-                    width: 36,
-                    height: 36,
+                    width: 44,
+                    height: 44,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",

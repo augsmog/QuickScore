@@ -46,3 +46,25 @@ test('game-mode picker cards meet the 44px tap target', () => {
   const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
   assert.match(block, /minHeight: 44,/);
 });
+
+// AUG-1155: J-home-create-cancel "edit" capture found the "Number of groups"
+// stepper's minus/plus buttons rendering at raw 36x36, below the 44px minimum.
+test('number-of-groups stepper minus button meets the 44x44 tap target', () => {
+  const start = src.indexOf('if (numGroups > 1) {');
+  assert.ok(start > 0);
+  const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
+  assert.match(block, /width: 44,/);
+  assert.match(block, /height: 44,/);
+  assert.doesNotMatch(block, /\bwidth: 36,/);
+  assert.doesNotMatch(block, /\bheight: 36,/);
+});
+
+test('number-of-groups stepper add-group button meets the 44x44 tap target', () => {
+  const start = src.indexOf('testID="add-group" accessibilityLabel="Add group"');
+  assert.ok(start > 0);
+  const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
+  assert.match(block, /width: 44,/);
+  assert.match(block, /height: 44,/);
+  assert.doesNotMatch(block, /\bwidth: 36,/);
+  assert.doesNotMatch(block, /\bheight: 36,/);
+});
