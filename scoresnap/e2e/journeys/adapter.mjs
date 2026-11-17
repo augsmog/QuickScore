@@ -90,6 +90,14 @@ async function reveal(page,act,locator) {
     await act.scroll(page.locator('[data-journey-scroll]'),Math.max(-800,Math.min(800,delta)));
   }
 }
+// Assert the actual named control, rather than its padded parent or style constant.
+async function setupTarget(page,act,locator,label) {
+  assert.equal(await locator.count(),1,`${label}: unique setup control`);
+  await reveal(page,act,locator);
+  const rect=await locator.boundingBox();
+  assert(rect&&rect.width>=44&&rect.height>=44,
+    `${label}: target must measure >=44x44, got ${JSON.stringify(rect)}`);
+}
 export const cases={
   ...paywallCases,
   ...acceptanceCases,
@@ -99,6 +107,7 @@ export const cases={
     await act.activate(page.getByTestId('home-new-contest'),{feature:'create'});
     await check('activation',()=>page.waitForURL(/\/contest\/new$/));
     await enter('create'); await check('destination',()=>ready(page,'create')); await step('create');
+    await check('name-target-44px',()=>setupTarget(page,act,page.getByPlaceholder('Your name'),'create name'));
     await act.type(page.getByPlaceholder('Your name'),'Unsubmitted'); await step('edit');
     await act.activate(page.getByTestId('new-contest-back')); await enter('home');
     await check('outcome',async()=>assert.equal((await contests(page)).length,0)); await step('cancel-home');
@@ -111,7 +120,10 @@ export const cases={
     await enter('create'); await check('destination',()=>ready(page,'create')); await step('create');
     const toggle=page.getByTestId('tournament-toggle');
     await reveal(page,act,toggle); await act.activate(toggle,{navigation:false});
-    await check('two-rounds-selected',()=>page.getByTestId('rounds-2').waitFor({state:'visible'})); await step('tournament-2-rounds');
+    await check('two-rounds-selected',()=>page.getByTestId('rounds-2').waitFor({state:'visible'}));
+    await check('round-count-targets-44px',async()=>{
+      for(const count of [2,3,4])await setupTarget(page,act,page.getByTestId(`rounds-${count}`),`rounds-${count}`);
+    }); await step('tournament-2-rounds');
     // Two groups before adding players 3-8, so new rows alternate G1/G2.
     const addGroup=page.getByTestId('add-group');
     await reveal(page,act,addGroup); await act.activate(addGroup,{navigation:false});
@@ -119,12 +131,14 @@ export const cases={
     for(let i=2;i<names.length;i++) {await reveal(page,act,addPlayer); await act.activate(addPlayer,{navigation:false});}
     for(let i=0;i<names.length;i++) {
       const input=page.getByPlaceholder(i===0?'Your name':`Player ${i+1} name`,{exact:true});
-      await reveal(page,act,input); await act.type(input,names[i]);
+      await check(`player-${i+1}-name-target-44px`,()=>setupTarget(page,act,input,`player ${i+1} name`));
+      await act.type(input,names[i]);
+      await check(`player-${i+1}-handicap-target-44px`,()=>setupTarget(page,act,page.getByTestId(`player-handicap-${names[i]}`),`player ${i+1} handicap`));
     }
     await check('eight-ready',()=>page.getByText('8 ready',{exact:true}).waitFor({state:'visible'})); await step('eight-players');
     // Rows default to G1,G1,G1,G2,G1,G2,G1,G2: move Sam to G2 for a 4/4 split.
     const samGroup=page.getByTestId('player-group-Sam');
-    await reveal(page,act,samGroup); await act.activate(samGroup,{navigation:false});
+    await check('group-target-44px',()=>setupTarget(page,act,samGroup,'Sam group')); await act.activate(samGroup,{navigation:false});
     await check('sam-in-g2',async()=>assert.equal((await samGroup.innerText()).trim(),'G2')); await step('groups-split');
     for(const id of ['setup-modes','setup-settings']) {
       await act.activate(page.getByTestId('contest-continue'),{navigation:false});

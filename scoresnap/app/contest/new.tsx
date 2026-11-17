@@ -48,6 +48,7 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
+import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox } from "../../src/ui/tournament-setup-layout";
 import { posthog } from "../../src/config/posthog";
 import { posthogAppLogger } from "../../src/services/posthog-log";
 import { isCompactViewport } from "../../src/ui/compact-viewport";
@@ -506,8 +507,7 @@ export default function NewContestScreen() {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }}
                       style={{
-                        paddingHorizontal: 16,
-                        paddingVertical: 8,
+                        ...roundCountPillStyle,
                         borderRadius: RADII.md,
                         borderWidth: 1,
                         borderColor: numRounds === n ? COLORS.primary : COLORS.border,
@@ -710,7 +710,7 @@ export default function NewContestScreen() {
                       color: COLORS.text,
                       backgroundColor: nameEmpty ? COLORS.warn + "08" : "transparent",
                       borderRadius: RADII.sm,
-                      minHeight: 44,
+                      minHeight: nameInputMinHeight,
                       paddingHorizontal: nameEmpty ? 8 : 0,
                       paddingVertical: 2,
                       marginHorizontal: nameEmpty ? -8 : 0,
@@ -747,13 +747,12 @@ export default function NewContestScreen() {
                       style={{
                         backgroundColor: COLORS.surfaceHighest,
                         borderRadius: RADII.md,
-                        minHeight: 44,
+                        ...handicapInputBox,
                         paddingHorizontal: 10,
                         paddingVertical: 5,
                         fontSize: 14,
                         fontFamily: FONTS.bold,
                         color: parseFloat(player.handicap) < 0 ? COLORS.gold : COLORS.primary,
-                        width: 60,
                         textAlign: "center",
                       }}
                     />
@@ -769,8 +768,7 @@ export default function NewContestScreen() {
                         style={{
                           backgroundColor: COLORS.surfaceHighest,
                           borderRadius: RADII.md,
-                          paddingHorizontal: 8,
-                          paddingVertical: 3,
+                          ...groupChipStyle,
                         }}
                       >
                         <Text style={{ fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textDim }}>
