@@ -360,6 +360,7 @@ export default function NewContestScreen() {
           paddingVertical: 10,
           paddingHorizontal: 14,
           marginBottom: 8,
+          minHeight: 44,
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
