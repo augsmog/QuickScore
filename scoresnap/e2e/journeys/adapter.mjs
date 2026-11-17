@@ -1,3 +1,4 @@
+import {assertCreateFooterClear} from './create-footer.mjs';
 import {assertLibraryTargets,assertRulesSurface} from './layout-targets.mjs';
 import {homeModeTargets,assertHomeModeTargets} from './home-mode-targets.mjs';
 import {paywallSetup,paywallReady,paywallCases} from './paywall-recovery.mjs';
@@ -107,6 +108,7 @@ export const cases={
     await act.activate(page.getByTestId('home-new-contest'),{feature:'create'});
     await check('activation',()=>page.waitForURL(/\/contest\/new$/));
     await enter('create'); await check('destination',()=>ready(page,'create')); await step('create');
+    await check('player-list-clears-footer',()=>assertCreateFooterClear(page));
     await check('name-target-44px',()=>setupTarget(page,act,page.getByPlaceholder('Your name'),'create name'));
     await act.type(page.getByPlaceholder('Your name'),'Unsubmitted'); await step('edit');
     await act.activate(page.getByTestId('new-contest-back')); await enter('home');
