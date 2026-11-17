@@ -36,3 +36,13 @@ test('player-team chips (>4 teams) meet the 44x44 tap target', () => {
   assert.match(block, /minHeight: 44,/);
   assert.doesNotMatch(block, /\bheight: 28,/);
 });
+
+// AUG-1176: J-free-paywall-recover/-group-first "modes" capture found every
+// game-mode-* card (renderGameCard) rendering at 43px, 1px under the 44px minimum,
+// because this renderer had no explicit minHeight unlike the other card variants.
+test('game-mode picker cards meet the 44px tap target', () => {
+  const start = src.indexOf('testID={`game-mode-${game.id}`}');
+  assert.ok(start > 0);
+  const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
+  assert.match(block, /minHeight: 44,/);
+});
