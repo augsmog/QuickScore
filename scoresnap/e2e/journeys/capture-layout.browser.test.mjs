@@ -48,3 +48,37 @@ test('every capture audits safe bands, targets, overlaps and visible text',async
     }else assert.deepEqual(result.failures,[]);
   });
 });
+
+test('scroll fragments retain full target size without broadening visible geometry',async t=>{
+  const browser=await chromium.launch();t.after(()=>browser.close());
+  const page=await browser.newPage({viewport:{width:393,height:852}});
+  // Recorded full/fragment dimensions from every AUG-1178 journey cluster.
+  const rows=[[353,80,15],[390,80,3],[335,68,33],[108,44,13],[163.5,50,25],[108,44,19],[51,44,39],[162,44,30],[44,44,6],[60,44,42]];
+  const audit=async(html)=>{
+    await page.setContent(`<style>body{margin:0}button,input{box-sizing:border-box;padding:0;border:0}</style>${html}`);
+    return auditCapture(page,{profileName:'iphone-15-pro',profile:getSafeAreaProfile('iphone-15-pro'),journey:'scroll-fixture',capture:'scroll',screenshot:'scroll.png'});
+  };
+  const markup=(w,h,fragment,overflow='auto',extra='')=>`<div style="position:absolute;left:0;top:100px;width:393px;height:${fragment}px;overflow-y:${overflow};${extra}"><button aria-label="row" style="display:block;width:${w}px;height:${h}px"></button></div>`;
+  for(const [w,h,fragment] of rows)await t.test(`${w}x${h} visible ${fragment}`,async()=>{
+    const result=await audit(markup(w,h,fragment));
+    assert.equal(result.targets[0].height,fragment,'paint geometry stays clipped');
+    assert.deepEqual(result.failures,[]);
+  });
+  for(const overflow of ['auto','scroll'])await t.test(`horizontal ${overflow}`,async()=>{
+    const result=await audit(`<div style="position:absolute;left:100px;top:100px;width:6px;height:60px;overflow-x:${overflow}"><button style="width:44px;height:44px"></button></div>`);
+    assert.equal(result.targets[0].width,6);
+    assert.deepEqual(result.failures,[]);
+  });
+  for(const [name,html,expected] of [
+    ['hidden',markup(44,44,6,'hidden'),'target-size'],
+    ['clip',markup(44,44,6,'clip'),'target-size'],
+    ...['paint','strict','content'].map(contain=>[contain,markup(44,44,6,'auto',`contain:${contain}`),'target-size']),
+    ['small-raw',markup(44,30,6),'target-size'],
+    ['non-scrollable-auto',`<div style="position:absolute;left:100px;top:100px;width:44px;height:44px;overflow:auto"><button style="position:absolute;top:-38px;width:44px;height:44px"></button></div>`,'target-size'],
+    ['nested-hidden',`<div style="position:absolute;left:100px;top:100px;height:6px;width:60px;overflow:auto"><div style="height:30px;overflow:hidden"><button style="width:44px;height:44px"></button></div><div style="height:100px"></div></div>`,'target-size'],
+    ...[4,800].map(y=>[`safe-band-${y}`,`<div style="position:absolute;left:100px;top:${y}px;height:44px;width:60px;overflow:auto"><button style="display:block;width:44px;height:44px"></button><div style="height:100px"></div></div>`,'safe-area']),
+  ])await t.test(name,async()=>{
+    const result=await audit(html);
+    assert(result.failures.some(f=>f.assertion===expected),JSON.stringify(result));
+  });
+});

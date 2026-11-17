@@ -45,13 +45,18 @@ export async function auditCapture(page,context) {
     const elements=[...document.querySelectorAll(selector)];
     const rect=r=>({left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height});
     const identify=el=>el.getAttribute('aria-label')||el.getAttribute('data-testid')||el.textContent?.trim().slice(0,80)||el.tagName;
-    const visibleRect=(el,r)=>{
+    const visibleRect=(el,r,forTargetSize=false)=>{
       let left=Math.max(0,r.left),top=Math.max(0,r.top),right=Math.min(innerWidth,r.right),bottom=Math.min(innerHeight,r.bottom),unsupported=false;
       for(let a=el;a;a=a.parentElement){
         const s=getComputedStyle(a),b=a.getBoundingClientRect();
         if(s.clipPath!=='none'||s.clip!=='auto'||s.transform!=='none'&&!/^matrix\([^,]+, 0, 0, [^,]+, [^,]+, [^,]+\)$/.test(s.transform))unsupported=true;
-        if(/hidden|clip|auto|scroll/.test(s.overflowX)||s.contain.split(/\s+/).includes('paint')){left=Math.max(left,b.left);right=Math.min(right,b.right);}
-        if(/hidden|clip|auto|scroll/.test(s.overflowY)||s.contain.split(/\s+/).includes('paint')){top=Math.max(top,b.top);bottom=Math.min(bottom,b.bottom);}
+        // Only sizing may ignore a genuinely scrollable ancestor's fragment.
+        // Paint, inclusion, overlap and safe-area checks keep the visible rect.
+        const paint=s.contain.split(/\s+/).some(v=>['paint','strict','content'].includes(v));
+        const scrollX=forTargetSize&&a!==el&&/auto|scroll/.test(s.overflowX)&&a.scrollWidth>a.clientWidth;
+        const scrollY=forTargetSize&&a!==el&&/auto|scroll/.test(s.overflowY)&&a.scrollHeight>a.clientHeight;
+        if(paint||/hidden|clip|auto|scroll/.test(s.overflowX)&&!scrollX){left=Math.max(left,b.left);right=Math.min(right,b.right);}
+        if(paint||/hidden|clip|auto|scroll/.test(s.overflowY)&&!scrollY){top=Math.max(top,b.top);bottom=Math.min(bottom,b.bottom);}
       }
       return {left,top,right,bottom,width:right-left,height:bottom-top,unsupported};
     };
@@ -71,7 +76,7 @@ export async function auditCapture(page,context) {
       if(!helpers.renderedChain(el))continue;
       const raw=rect(el.getBoundingClientRect()),visible=visibleRect(el,raw);
       if(visible.width<=0||visible.height<=0||!paintVisible(el,visible))continue;
-      targets.push({id,name:identify(el),...visible,raw});
+      targets.push({id,name:identify(el),...visible,raw,size:visibleRect(el,raw,true)});
     }
     const texts=[],walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
     while(walker.nextNode()){
@@ -92,7 +97,7 @@ export async function auditCapture(page,context) {
     if(item.unsupported)fail('unsupported-geometry',item);
     if(item.top<context.profile.top||item.bottom>context.profile.height-context.profile.bottom)fail('safe-area',item);
   }
-  for(const target of layout.targets)if(target.width<44||target.height<44)fail('target-size',target);
+  for(const target of layout.targets)if(target.size.width<44||target.size.height<44)fail('target-size',target);
   // No parentId exemptions: independent nested interactive controls are still
   // ambiguous targets; own label text is associated by DOM ancestry below.
   for(const overlap of findInteractiveTargetOverlaps(layout.targets))fail('control-overlap',overlap);
