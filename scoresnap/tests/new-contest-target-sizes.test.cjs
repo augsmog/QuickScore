@@ -68,3 +68,31 @@ test('number-of-groups stepper add-group button meets the 44x44 tap target', () 
   assert.doesNotMatch(block, /\bwidth: 36,/);
   assert.doesNotMatch(block, /\bheight: 36,/);
 });
+
+// AUG-1155: J-free-paywall-recover/-group-first "inline" capture found the skins
+// mode (Net/Gross) and scope (Whole field/Each group) radio buttons rendering at
+// raw 40px tall, below the 44px minimum (padding:12 with no explicit minHeight).
+test('skins-mode radio buttons meet the 44px tap target', () => {
+  const start = src.indexOf('onPress={() => setGameConfig((prev) => ({ ...prev, skinsMode: mode }))}');
+  assert.ok(start > 0);
+  const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
+  assert.match(block, /minHeight: 44,/);
+});
+
+test('skins-scope radio buttons meet the 44px tap target', () => {
+  const start = src.indexOf('onPress={() => setGameConfig(prev => ({ ...prev, skinsScope: scope }))}');
+  assert.ok(start > 0);
+  const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
+  assert.match(block, /minHeight: 44,/);
+});
+
+// AUG-1155: J-create-8p-multiday "eight-players" capture found the remove-player
+// (X) button rendering at raw 24x24 (padding:4 around a 16px icon, no min target).
+test('remove-player button meets the 44x44 tap target', () => {
+  const start = src.indexOf('onPress={() => removePlayer(player.id)}');
+  assert.ok(start > 0);
+  const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
+  assert.match(block, /minWidth: 44,/);
+  assert.match(block, /minHeight: 44,/);
+  assert.doesNotMatch(block, /padding: 4,/);
+});
