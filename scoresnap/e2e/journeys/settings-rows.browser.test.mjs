@@ -50,12 +50,17 @@ async function firstPaintBox(control,profile) {
     return {raw:r.height,width:r.width,visibleHeight,hit};
   },profile);
 }
-// Scoped to the two profiles named in AUG-1177's acceptance (SE/ProMax). 15Pro is deliberately
-// NOT asserted strictly here: investigating it surfaced a real, separate first-paint clip on
-// Distance Unit (21px, screen-height-dependent -- 15Pro's 852pt height sits between SE's 667pt
-// and ProMax's 932pt, so the same row lands mid-fold only there) that this ticket's scoped
-// header-margin fix does not reach. Filed as sibling AUG-1228 (Refs AUG-313), not exempted here.
-for(const name of ['iphone-se','iphone-pro-max']) {
+// AUG-1228: an earlier capture reported 15Pro's Distance Unit straddling the fold at first
+// paint (21px, screen-height-dependent -- 15Pro's 852pt height sits between SE's 667pt and
+// ProMax's 932pt). Repeated captures here (9 runs, cold and warm server starts) reproduced
+// that figure exactly once; the other 8 settled at visibleHeight 0 (fully below the fold,
+// 35px of slack -- not a finding, same accepted state as SE's copy of this row) with top/
+// bottom pixel-identical across runs. The one outlier matches a transient reflow (a sublabel
+// above re-wrapping during font swap, shifting every row below it) that stablePaint's fixed
+// fonts.ready+2-RAF wait doesn't rule out; hardened above to poll for layout stability before
+// returning. 15Pro is included below now that the capture itself is stable; no production
+// layout change made since the stable state isn't clipped.
+for(const name of ['iphone-se','iphone-15-pro','iphone-pro-max']) {
   test(`Settings named rows do not straddle the fold below 44px at first paint: ${name}`,async t=>{
     const profile=SAFE_AREA_PROFILES[name],browser=await chromium.launch();t.after(()=>browser.close());
     const context=await browser.newContext({viewport:profile,serviceWorkers:'block'});
