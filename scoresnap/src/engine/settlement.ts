@@ -21,7 +21,7 @@ import { calcAcesDeuces } from "./calculators/aces-deuces";
 import { calcDots } from "./calculators/dots";
 import { calcRabbit } from "./calculators/rabbit";
 import { calcDefender } from "./calculators/defender";
-import { calcFourBall } from "./calculators/fourball";
+import { calcFourBallAllTeams } from "./calculators/fourball";
 import { calcScramble } from "./calculators/scramble";
 import { calcWolf } from "./calculators/wolf";
 import { calcHammer } from "./calculators/hammer";
@@ -626,43 +626,16 @@ export function calculateSettlement(
       }
 
       case "fourball": {
-        // FourBallResult: { team1Names, team2Names, holeResults[], finalStatus }
-        // finalStatus > 0 means team1 won. Fourball requires exactly 2 teams of 2.
+        // Every team plays every other team (round robin best-ball match play).
+        // Teams may have any size; groups larger than four are supported.
         const teams = groupByTeam(players);
-        const teamIds = Array.from(teams.keys());
-        if (teamIds.length >= 2) {
-          const team1 = teams.get(teamIds[0])!;
-          const team2 = teams.get(teamIds[1])!;
-          if (team1.length === 2 && team2.length === 2) {
-            const result = calcFourBall(
-              [team1[0], team1[1]] as [Player, Player],
-              [team2[0], team2[1]] as [Player, Player],
-              course
-            );
-            if (result.finalStatus > 0) {
-              // Team 1 won
-              for (const loser of team2) {
-                for (const winner of team1) {
-                  transactions.push({
-                    from: loser.name,
-                    to: winner.name,
-                    amount: betUnit,
-                    gameType,
-                  });
-                }
-              }
-            } else if (result.finalStatus < 0) {
-              // Team 2 won
-              for (const loser of team1) {
-                for (const winner of team2) {
-                  transactions.push({
-                    from: loser.name,
-                    to: winner.name,
-                    amount: betUnit,
-                    gameType,
-                  });
-                }
-              }
+        for (const m of calcFourBallAllTeams(teams)) {
+          if (m.finalStatus === 0) continue;
+          const winners = teams.get(m.finalStatus > 0 ? m.team1Id : m.team2Id)!;
+          const losers = teams.get(m.finalStatus > 0 ? m.team2Id : m.team1Id)!;
+          for (const loser of losers) {
+            for (const winner of winners) {
+              transactions.push({ from: loser.name, to: winner.name, amount: betUnit, gameType });
             }
           }
         }
