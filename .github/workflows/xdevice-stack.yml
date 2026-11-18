@@ -177,6 +177,63 @@ jobs:
         run: |
           rm -f "$RUNNER_TEMP/invite-private.json" "$RUNNER_TEMP/invite-status.json" "$RUNNER_TEMP/invite.env" "$RUNNER_TEMP/invite-start.log"
           supabase stop --no-backup
+  # AUG-1273: simulator-only (no device) four-identity harness for the M9 lightweight
+  # leagues candidate. Device acceptance itself stays with AUG-412 (device-evidence).
+  xdevice-four-identities-league:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test the same candidate commit as the client
+        uses: actions/checkout@v4
+        with:
+          repository: augsmog/QuickScore
+          ref: ${{ github.sha }}
+          path: backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - name: Install client dependencies on disposable hosted runner
+        working-directory: scoresnap
+        run: npm ci --no-audit --no-fund
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - uses: docker/login-action@v3
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start disposable PG17, Auth, PostgREST and Realtime (never linked)
+        working-directory: backend/scoresnap
+        run: |
+          # Disposable runner fixture only: real anonymous guest enrollment.
+          # Never linked to a project; no deployed Auth configuration is changed.
+          sed -i 's/enable_anonymous_sign_ins = false/enable_anonymous_sign_ins = true/' supabase/config.toml
+          # CLI start prints disposable API credentials on success; retain only
+          # a private runner-temporary log and never upload or print its contents.
+          if ! bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit > "$RUNNER_TEMP/xdevice-start.log" 2>&1; then
+            echo "Disposable stack startup failed"
+            docker ps --format '{{.Names}} {{.Status}}'
+            exit 1
+          fi
+          supabase db reset
+          # M9 league candidate, outside the active migration chain: disposable CI database only.
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261103150000_lightweight_leagues.sql
+      - name: Four identities against the M9 league candidate
+        working-directory: scoresnap
+        env:
+          XDEVICE_API: http://127.0.0.1:54321
+          XDEVICE_DB: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          XDEVICE_BACKEND: ${{ github.workspace }}/backend/scoresnap
+        run: node --import tsx e2e/xdevice/four-identities-league.mts
+      - name: Stop disposable stack
+        if: always()
+        working-directory: backend/scoresnap
+        run: supabase stop --no-backup
   xdevice-browser-two-users:
     runs-on: ubuntu-latest
     timeout-minutes: 30
