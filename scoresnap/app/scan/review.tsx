@@ -29,6 +29,7 @@ import { ConfettiOverlay } from "../../src/ui/animations/ConfettiOverlay";
 
 import type { ScannedPlayer } from "../../src/services/score-parser";
 import { applyCourseHoles, autoMatchPlayers, parseReviewData, grossScore, subtotal, blockingReason, completeScores, commitQuickSettle } from "../../src/services/ocr-review";
+import { planPartialReview, togglePlayedHole } from "../../src/services/partial-review";
 import { posthog } from "../../src/config/posthog";
 import { posthogAppLogger } from "../../src/services/posthog-log";
 import { enqueueQuickSettleCompletion } from "../../src/services/quick-settle-completion-sync";
@@ -54,6 +55,7 @@ export default function ScanReviewScreen() {
 
   const contests = useContestStore((s) => s.contests);
   const importScores = useContestStore((s) => s.importScores);
+  const applyReviewedPartialImport = useContestStore((s) => s.applyReviewedPartialImport);
   const storedContest = contests.find((c) => c.id === contestId);
   const activeRound = storedContest?.isTournament ? storedContest.rounds?.find(r => r.number === storedContest.currentRound) : undefined;
   const contest = storedContest && activeRound ? { ...storedContest, groups: activeRound.groups, course: activeRound.course ?? storedContest.course } : storedContest;
@@ -125,6 +127,9 @@ export default function ScanReviewScreen() {
   }, [scannedPlayers]);
 
   const lowConfCount = concerns.length;
+  // Partial-scorecard mode (AUG-348): import only explicitly played holes into an existing group.
+  const [partialMode, setPartialMode] = useState(false);
+  const [playedHoles, setPlayedHoles] = useState<Set<number>>(new Set());
   const [commitError, setCommitError] = useState<string | null>(null);
   // Main imports only the selected group. Exclude another group's row only
   // when its exact name uniquely identifies that player across the whole card.
@@ -142,6 +147,13 @@ export default function ScanReviewScreen() {
     (!importPlayers.length || !contest?.groups.some(g => g.id === selectedGroupId &&
       importPlayers.every(p => g.players.some(cp => cp.id === p.matchedPlayerId))))
     ? "Match players to the selected group" : null);
+  const partialGroup = contest?.groups.find(g => g.id === selectedGroupId);
+  const partialPlan = useMemo(() => partialMode && contestId && partialGroup
+    ? planPartialReview(importPlayers, partialGroup.players.map(p => ({ id: p.id, name: p.name, scores: Object.fromEntries(p.scores.map((s, i) => [contest!.course.holes[i]?.num ?? i + 1, s])) })),
+        contest!.course.holes.map(h => h.num), playedHoles)
+    : null, [partialMode, contestId, partialGroup, importPlayers, playedHoles, contest]);
+  const partialBlock = partialMode ? (partialPlan ? (partialPlan.result.ok ? null : partialPlan.result.blockers[0]) : "Partial import needs an existing contest group") : null;
+  const effectiveReason = partialMode ? partialBlock : reason;
   useEffect(() => { AccessibilityInfo.announceForAccessibility(reason || "All required scores entered. Confirm and Calculate available."); setCommitError(null); }, [reason]);
 
   const updatePlayerName = (idx: number, name: string) => {
@@ -203,8 +215,15 @@ export default function ScanReviewScreen() {
   const [pendingNavTarget, setPendingNavTarget] = useState<string | null>(null);
 
   const handleCommit = () => {
-    if (reason) return;
+    if (effectiveReason) return;
     try {
+
+    if (partialMode && partialPlan?.result.ok && contestId) {
+      applyReviewedPartialImport(contestId, activeRound?.id ?? null, selectedGroupId, partialPlan.result.patch);
+      posthog?.capture("scorecard_partial_imported", { cell_count: partialPlan.result.patch.length, hole_count: playedHoles.size });
+      setPendingNavTarget(`/contest/${contestId}`);
+      return;
+    }
 
     if (contestId && selectedGroupId) {
       // Flow 1: Importing into existing contest
@@ -872,13 +891,41 @@ export default function ScanReviewScreen() {
           backgroundColor: COLORS.bg,
         }}
       >
-        {(reason || commitError) && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: COLORS.error, marginBottom: 8 }}>{reason || commitError}</Text>}
+        {contestId && (
+          <View testID="partial-review-panel" style={{ marginBottom: 10 }}>
+            <Pressable testID="partial-toggle" accessibilityRole="switch" accessibilityState={{ checked: partialMode }}
+              accessibilityLabel="Partial scorecard: import only holes played"
+              onPress={() => setPartialMode(m => !m)} style={{ minHeight: 44, justifyContent: "center" }}>
+              <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold }}>{partialMode ? "Partial scorecard: ON" : "Partial scorecard? Tap to import only holes played"}</Text>
+            </Pressable>
+            {partialMode && (
+              <>
+                <Text style={{ color: COLORS.textDim, marginVertical: 4 }}>Select the holes actually played on this card</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                  {contest!.course.holes.map(h => {
+                    const on = playedHoles.has(h.num);
+                    return (
+                      <Pressable key={h.num} testID={`partial-hole-${h.num}`} accessibilityRole="checkbox" accessibilityState={{ checked: on }}
+                        accessibilityLabel={`Hole ${h.num} played`} onPress={() => setPlayedHoles(p => togglePlayedHole(p, h.num))}
+                        style={{ minWidth: 44, minHeight: 44, borderRadius: RADII.md, alignItems: "center", justifyContent: "center",
+                          backgroundColor: on ? COLORS.primary + "33" : COLORS.surfaceHighest, borderWidth: on ? 2 : 0, borderColor: COLORS.primary }}>
+                        <Text style={{ color: COLORS.text, fontFamily: FONTS.bold }}>{h.num}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {partialPlan && <Text testID="partial-summary" style={{ color: COLORS.text, marginTop: 6 }}>{partialPlan.summary}</Text>}
+              </>
+            )}
+          </View>
+        )}
+        {(effectiveReason || commitError) && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: COLORS.error, marginBottom: 8 }}>{effectiveReason || commitError}</Text>}
         {/* Confirm & Calculate — primary CTA */}
         <Pressable
           testID="scan-commit"
           onPress={handleCommit}
-          disabled={!!reason}
-          accessibilityState={{ disabled: !!reason }}
+          disabled={!!effectiveReason}
+          accessibilityState={{ disabled: !!effectiveReason }}
           style={{
             borderRadius: RADII.lg,
             paddingVertical: 16,
