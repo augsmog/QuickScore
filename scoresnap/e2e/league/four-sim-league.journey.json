@@ -1,0 +1,64 @@
+{
+  "schema": "snapscore-league-journey/1",
+  "ticket": "AUG-1273",
+  "refs": ["AUG-412", "AUG-1265"],
+  "execution": {
+    "target": "existing-sharing-enabled-simulator-app",
+    "physicalPhones": false,
+    "deviceExecutionInThisSlice": false,
+    "build": "online",
+    "requiredFlags": { "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true },
+    "backend": "disposable-loopback-only",
+    "fixtureStack": "e2e/xdevice/four-identities.mts"
+  },
+  "identities": [
+    { "id": "host", "simulator": "sim-1", "role": "organizer", "anonymous": false, "player": null },
+    { "id": "bravo", "simulator": "sim-2", "role": "player", "anonymous": true, "player": "p1" },
+    { "id": "charlie", "simulator": "sim-3", "role": "player", "anonymous": true, "player": "p2" },
+    { "id": "delta", "simulator": "sim-4", "role": "scorer", "anonymous": true, "player": null, "scope": "round-2-group" }
+  ],
+  "event": { "rounds": 2, "players": ["p1", "p2", "p3"], "groups": { "round-2-group": ["p1"] } },
+  "steps": [
+    { "id": "S1-before-approval-isolation", "phase": "isolation", "actors": ["bravo", "charlie", "delta"],
+      "actions": ["request-join"],
+      "expect": [
+        { "actor": "bravo", "assert": "no-roster-visible" },
+        { "actor": "charlie", "assert": "no-roster-visible" },
+        { "actor": "delta", "assert": "no-roster-visible" },
+        { "actor": "bravo", "assert": "fetch-snapshot-denied", "code": "42501" },
+        { "actor": "host", "assert": "pending-requests-listed", "count": 3 }
+      ] },
+    { "id": "S2-event-specific-approval-mapping", "phase": "approval", "actors": ["host"],
+      "actions": ["approve-bravo-as-p1", "approve-charlie-as-p2", "approve-delta-as-scorer-round-2"],
+      "expect": [
+        { "actor": "bravo", "assert": "member-of-event", "player": "p1" },
+        { "actor": "charlie", "assert": "member-of-event", "player": "p2" },
+        { "actor": "delta", "assert": "scorer-scope-only", "round": 2 },
+        { "actor": "charlie", "assert": "write-denied", "round": 2, "player": "p2" }
+      ] },
+    { "id": "S3-mapped-score-sync", "phase": "sync", "actors": ["host", "bravo", "charlie", "delta"],
+      "actions": ["bravo-writes-r1-p1-h1", "charlie-writes-r1-p2-h1", "delta-writes-r2-p1-h1"],
+      "expect": [
+        { "actor": "host", "assert": "cell-equals", "round": 1, "player": "p1", "hole": 1 },
+        { "actor": "host", "assert": "cell-equals", "round": 1, "player": "p2", "hole": 1 },
+        { "actor": "host", "assert": "cell-equals", "round": 2, "player": "p1", "hole": 1 },
+        { "actor": "all", "assert": "snapshots-converged" }
+      ] },
+    { "id": "S4-offline-reconnect-exactly-once", "phase": "offline", "actors": ["bravo"],
+      "actions": ["go-offline", "bravo-writes-r1-p1-h2", "lose-response-after-commit", "go-online", "replay-same-op-id"],
+      "expect": [
+        { "actor": "bravo", "assert": "replayed-request-identical" },
+        { "actor": "host", "assert": "score-event-count-delta", "count": 1 },
+        { "actor": "all", "assert": "snapshots-converged" }
+      ] },
+    { "id": "S5-relaunch-membership-recovery", "phase": "relaunch", "actors": ["bravo", "charlie", "delta"],
+      "actions": ["terminate-app", "relaunch-app"],
+      "expect": [
+        { "actor": "bravo", "assert": "membership-restored", "player": "p1" },
+        { "actor": "charlie", "assert": "membership-restored", "player": "p2" },
+        { "actor": "delta", "assert": "membership-restored", "round": 2 },
+        { "actor": "all", "assert": "snapshots-converged" }
+      ] }
+  ],
+  "requiredPhases": ["isolation", "approval", "sync", "offline", "relaunch"]
+}
