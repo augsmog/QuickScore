@@ -71,10 +71,12 @@ async function geometry(locator,{text}={}) {
         if(s.contain.split(/\s+/).includes('paint'))clipX=clipY=true;
         if(s.clip!=='auto') {const m=s.clip.match(/rect\(([^)]*)\)/);if(m){const v=m[1].split(/[ ,]+/).map(q=>q==='auto'?null:parseFloat(q));if(v[0]!=null){y=b.y+v[0];clipY=true;}if(v[1]!=null){right=Math.min(right,b.x+v[1]);clipX=true;}if(v[2]!=null){bottom=Math.min(bottom,b.y+v[2]);clipY=true;}if(v[3]!=null){x=b.x+v[3];clipX=true;}}}
         if(s.clipPath&&s.clipPath!=='none') {
-          const inset=s.clipPath.match(/^inset\(([^)]*)\)$/);
-          if(inset){const raw=inset[1].split(/\s+/),expanded=raw.length===1?[raw[0],raw[0],raw[0],raw[0]]:raw.length===2?[raw[0],raw[1],raw[0],raw[1]]:raw.length===3?[raw[0],raw[1],raw[2],raw[1]]:raw;
-            const px=(v,size)=>parseFloat(v)*(v.endsWith('%')?size/100:1),[t,rr,bb,ll]=[px(expanded[0],b.height),px(expanded[1],b.width),px(expanded[2],b.height),px(expanded[3],b.width)];
-            x=b.x+ll;right=b.right-rr;y=b.y+t;bottom=b.bottom-bb;clipX=clipY=true;}
+          // Strict plain-rectangle inset() only; rounded/unit-ful/unparseable shapes are not
+          // modelled, and an inset never widens an outer clip (AUG-1178/AUG-1241).
+          const inset=s.clipPath.match(/^inset\(([^)]*)\)$/),v=inset&&inset[1].trim().split(/\s+/),ok=v&&v.length>=1&&v.length<=4&&v.every(q=>/^-?\d*\.?\d+(px|%)?$/.test(q));
+          if(ok){const e=v.length===1?[v[0],v[0],v[0],v[0]]:v.length===2?[v[0],v[1],v[0],v[1]]:v.length===3?[v[0],v[1],v[2],v[1]]:v;
+            const px=(q,size)=>parseFloat(q)*(q.endsWith('%')?size/100:1),[t,rr,bb,ll]=[px(e[0],b.height),px(e[1],b.width),px(e[2],b.height),px(e[3],b.width)];
+            x=Math.max(x,b.x+ll);right=Math.min(right,b.right-rr);y=Math.max(y,b.y+t);bottom=Math.min(bottom,b.bottom-bb);clipX=clipY=true;}
         }
         if(clipX||clipY)clips.push({x:clipX?x:-1e7,y:clipY?y:-1e7,width:clipX?Math.max(0,right-x):2e7,height:clipY?Math.max(0,bottom-y):2e7});
       }

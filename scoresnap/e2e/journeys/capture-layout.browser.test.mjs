@@ -36,6 +36,9 @@ test('every capture audits safe bands, targets, overlaps and visible text',async
     // one fully clipped to zero area -- fail the whole capture as unsupported-geometry).
     ['inset-clip-partial','<button style="position:absolute;left:100px;top:100px;width:44px;height:44px;clip-path:inset(0 0 24px 0)">Go</button>','target-size'],
     ['inset-clip-full','<button style="position:absolute;left:100px;top:100px;width:44px;height:44px;clip-path:inset(50%)">Go</button>',null],
+    // AUG-1241: rounded insets are not plain rectangles; negative insets must not widen an outer clip.
+    ['inset-rounded','<button style="position:absolute;left:100px;top:100px;width:44px;height:44px;clip-path:inset(0 round 10px)">Go</button>','unsupported-geometry'],
+    ['inset-negative-keeps-outer-clip','<div style="position:absolute;left:100px;top:100px;width:44px;height:20px;overflow:hidden"><button style="position:absolute;left:0;top:0;width:44px;height:44px;clip-path:inset(-10px)">Go</button></div>','target-size'],
     ['safe-edge',button(100,59)+button(200,774),null],
     ['two-pixel-overlap',button(100,100)+button(142,100),null],
     ['offscreen',button(100,900),null],
