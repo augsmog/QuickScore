@@ -56,7 +56,11 @@ try {
     await card.getByLabel('Journey Round hole 1 strokes').fill('6');await text(card,'Save hole 1').click();
     await host.goto(`${base}/contest/${f.contestId}/scorecard`);
     let snapshot=await freshSnapshot(host,()=>host.reload());
-    const score=await selectHostPlayer(host,snapshot.rounds[0],f.players[0].name);await score.click();
+    const score=await selectHostPlayer(host,snapshot.rounds[0],f.players[0].name);
+    const hostWrite=host.waitForResponse(r=>r.url()===`${f.api}/rest/v1/rpc/write_score` && r.request().method()==='POST' && r.request().postDataJSON()?.player_id===f.players[0].id);
+    hostWrite.catch(()=>{});
+    await score.click();
+    assert((await hostWrite).ok(),'Host write_score RPC succeeded');
     await eventually(async()=>assertScores(f,await db.snapshot()));
     // Reconnect then cold pages retain the actual sessions and approved identity.
     await guestContext.setOffline(true);await guestContext.setOffline(false);
