@@ -40,6 +40,21 @@ function requestContest(r) {
   try { return r.request().postDataJSON()?.contest_id; } catch { return undefined; }
 }
 const text = (p, value) => p.getByText(value, { exact: true }).filter({ visible: true }).first();
+// AUG-291's unscored-player warning can appear after NEXT when the visible
+// group has a hole with no score yet; Save pars so navigation still lands
+// (this host-side par write never touches another player's own queued edit:
+// it only fills the cell the host's screen already shows as unscored).
+// Re-anchor on the host's own card (A, never scored in this fixture) first:
+// callers often leave a *different* player's group selected (selectHostPlayer,
+// used for cell checks), and Save pars would otherwise write a phantom par
+// into that other player's still-in-progress hole instead of A's own gap.
+async function clickHoleNav(p, label) {
+  if (p === pages[0]) await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[0]);
+  await text(p, label).click();
+  const savePars = text(p, 'Save pars');
+  await savePars.waitFor({ timeout: 500 }).catch(() => {});
+  if (await savePars.isVisible().catch(() => false)) await savePars.click();
+}
 // Round status sheet (direction A): sharing, join code and Online sync sit behind the header status chip.
 async function openStatus(p) {
   if (await p.getByTestId('round-status-sheet').isVisible().catch(() => false)) return;
@@ -178,7 +193,7 @@ async function converge(indices) {
       while (await current() !== target) {
         const before = await current();
         await closeStatus(pages[0]);
-        await text(pages[0], before < target ? 'NEXT' : 'PREV').click();
+        await clickHoleNav(pages[0], before < target ? 'NEXT' : 'PREV');
         await text(pages[0], `HOLE ${String(before + (before < target ? 1 : -1)).padStart(2, '0')}`).waitFor();
       }
     };
@@ -286,7 +301,7 @@ try {
       await save(1, 2, 9);
       await guest(1).getByText(/^Hole 2 · current clear · queued 9 · par/).first().waitFor();
       await closeStatus(pages[0]);
-      await text(pages[0], 'NEXT').click();
+      await clickHoleNav(pages[0], 'NEXT');
       await text(pages[0], 'HOLE 02').waitFor();
       await (await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[1])).click();
       await poll('host hole two accepted before B reconnects', async () => {
@@ -302,6 +317,16 @@ try {
       await poll('conflict removed', async () => (await queueEntries(pages[1])).every(e => e.state !== 'conflict') || 'context 1: durable conflict entry remains');
       await poll('conflict actions gone', async () => (!await guestText(1, 'Keep current').isVisible() && !await guestText(1, 'Use my score').isVisible()) || 'context 1: guest conflict action still visible');
       expectCell(1, 2, current);
+      // C shares the host's scoring group (group 1). If C's hole 2 stayed
+      // unscored, the host's own forced Next-through-hole-2 traversal later
+      // (go(), used by every subsequent converge() to inspect scorecard
+      // cells) would hit the unscored-hole gate while C is still the other
+      // unscored member of that group, and Save pars would silently write a
+      // phantom par into C's hole 2 along with the host's. Score it directly
+      // now, the same way every other tracked cell in this fixture is set,
+      // so the host's own par-skip never has another tracked player to catch.
+      await save(2, 2, 7);
+      expectCell(2, 2, 7);
       await converge([0, 1, 2, 3]);
     });
     await step('host leaves; players continue; host returns without loss or duplicates', async () => {
@@ -393,7 +418,7 @@ try {
               || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
           });
         }
-        if (hole < 4) { await closeStatus(pages[0]); await text(pages[0], 'NEXT').click(); }
+        if (hole < 4) { await closeStatus(pages[0]); await clickHoleNav(pages[0], 'NEXT'); }
       }
       const status = await freshResponse(3, 'my_sync_status', sequence, async () => {
         // Reload first: a focus response from the old document can be discarded
