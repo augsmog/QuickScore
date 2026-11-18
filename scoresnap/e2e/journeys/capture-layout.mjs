@@ -55,13 +55,14 @@ export async function auditCapture(page,context) {
           // this function already does for overflow/scroll ancestors, instead of
           // refusing to measure it. Other basic-shape functions (circle, polygon,
           // ellipse, path...) have no rectangular equivalent, so they stay unsupported.
-          // `round <radius>` makes the inset corners non-rectangular; that has no
-          // rectangular equivalent either, so it must stay unsupported rather than
-          // silently folding only the first four (ignored-rounding) offsets.
-          const inset=s.clipPath.match(/^inset\(([^)]*)\)$/);
-          if(inset&&!/round/i.test(inset[1])){
-            const raw=inset[1].split(/\s+/),expanded=raw.length===1?[raw[0],raw[0],raw[0],raw[0]]:raw.length===2?[raw[0],raw[1],raw[0],raw[1]]:raw.length===3?[raw[0],raw[1],raw[2],raw[1]]:raw;
-            const px=(v,size)=>parseFloat(v)*(v.endsWith('%')?size/100:1),[ct,cr,cb,cl]=[px(expanded[0],b.height),px(expanded[1],b.width),px(expanded[2],b.height),px(expanded[3],b.width)];
+          // Only a plain-rectangle inset() (1-4 px/% values, no `round`) is modelled; an
+          // inset never widens an outer clip, so negative values are clamped to zero.
+          // Requiring every token to be a bare number+unit also rejects round/calc/other
+          // units by construction, instead of a `round`-only keyword check.
+          const inset=s.clipPath.match(/^inset\(([^)]*)\)$/),raw=inset&&inset[1].trim().split(/\s+/);
+          if(raw&&raw.length>=1&&raw.length<=4&&raw.every(q=>/^-?\d*\.?\d+(px|%)?$/.test(q))){
+            const expanded=raw.length===1?[raw[0],raw[0],raw[0],raw[0]]:raw.length===2?[raw[0],raw[1],raw[0],raw[1]]:raw.length===3?[raw[0],raw[1],raw[2],raw[1]]:raw;
+            const px=(v,size)=>Math.max(0,parseFloat(v)*(v.endsWith('%')?size/100:1)),[ct,cr,cb,cl]=[px(expanded[0],b.height),px(expanded[1],b.width),px(expanded[2],b.height),px(expanded[3],b.width)];
             left=Math.max(left,b.left+cl);right=Math.min(right,b.right-cr);top=Math.max(top,b.top+ct);bottom=Math.min(bottom,b.bottom-cb);
           } else unsupported=true;
         }
