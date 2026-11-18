@@ -114,7 +114,7 @@ test('PDF context subscriptions release on unmount and stay single across route 
 test('settled Unicode fixture saves and reopens with exact hole rows, totals and results offline',async()=>{
  const fx=JSON.parse(fs.readFileSync('../.maestro/fixtures/pdf-settled-round.json','utf8'));
  const {compareScorecardText}=require('../e2e/shared/pdf-scorecard-contract.cjs');
- const {execFileSync}=require('node:child_process');
+ const {extractScorecardText}=require('../e2e/shared/pdf-scorecard-extract.cjs');
  const dir=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'scorecard-fixture-'));
  const oldFetch=global.fetch;global.fetch=jest.fn(()=>{throw Error('network forbidden');});
  try {
@@ -131,7 +131,7 @@ test('settled Unicode fixture saves and reopens with exact hole rows, totals and
   expect(pdf.share).toHaveBeenCalledTimes(1);
   const saved=fs.readFileSync(target);expect(saved.subarray(0,5).toString()).toBe('%PDF-');
   expect((await require('pdf-lib').PDFDocument.load(saved)).getPageCount()).toBeGreaterThan(0);
-  const extracted=execFileSync('pdftotext',['-layout',target,'-'],{encoding:'utf8'});
+  const extracted=await extractScorecardText(saved);
   expect(compareScorecardText(extracted,fx).errors).toEqual([]);
   expect(compareScorecardText(extracted.replace(fx.expected.players[0].name,'Wrong player'),fx).status).toBe('failed');
   expect(compareScorecardText(extracted.replace(String(fx.expected.players[0].total),'999'),fx).status).toBe('failed');

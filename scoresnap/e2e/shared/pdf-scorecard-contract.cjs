@@ -2,7 +2,7 @@
  * Whitespace/Unicode normalization only: scores, totals, order and names stay exact.
  */
 const fs=require('node:fs');
-const {execFileSync}=require('node:child_process');
+const {extractScorecardText}=require('./pdf-scorecard-extract.cjs');
 const normalize=text=>text.normalize('NFC').replace(/\s+/g,' ').trim();
 function compareScorecardText(text,fixture){
  const errors=[];
@@ -27,13 +27,14 @@ function compareScorecardText(text,fixture){
  }
  return {schema:'snapscore-pdf-comparison/1',status:errors.length?'failed':'passed',errors};
 }
-function compareSavedPdf(pdfPath,fixture,execute=execFileSync){
- // Missing extractor, unreadable/corrupt file and extraction failure never pass.
+async function compareSavedPdf(pdfPath,fixture){
+ // Unreadable/corrupt file, unsupported encoding and extraction failure never pass.
  if(!fs.readFileSync(pdfPath).subarray(0,5).equals(Buffer.from('%PDF-')))throw Error('not a PDF');
- return compareScorecardText(execute('pdftotext',['-layout',pdfPath,'-'],{encoding:'utf8'}),fixture);
+ return compareScorecardText(await extractScorecardText(fs.readFileSync(pdfPath)),fixture);
 }
 module.exports={compareScorecardText,compareSavedPdf};
 if(require.main===module){
- try{const r=compareSavedPdf(process.argv[2],JSON.parse(fs.readFileSync(process.argv[3],'utf8')));console.log(JSON.stringify(r,null,2));process.exitCode=r.status==='passed'?0:1;}
- catch(e){console.error(`PDF comparison failed: ${e.message}`);process.exitCode=1;}
+ compareSavedPdf(process.argv[2],JSON.parse(fs.readFileSync(process.argv[3],'utf8')))
+  .then(r=>{console.log(JSON.stringify(r,null,2));process.exitCode=r.status==='passed'?0:1;})
+  .catch(e=>{console.error(`PDF comparison failed: ${e.message}`);process.exitCode=1;});
 }

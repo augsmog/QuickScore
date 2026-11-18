@@ -15,7 +15,7 @@ SHA256. Zero/multiple exports, symlinks, truncated bytes, or an existing destina
 fail the flow. No share recipient is selected. This verifies local save/reopen;
 it does not claim that the iOS Files picker or recipient delivery was tested.
 
-Run the comparator on the preserved artifact using an existing `pdftotext`:
+Run the comparator on the preserved artifact using the repo's pinned `pdf-lib`:
 
 ```
 node scoresnap/e2e/shared/pdf-scorecard-contract.cjs \
@@ -24,17 +24,21 @@ node scoresnap/e2e/shared/pdf-scorecard-contract.cjs \
 ```
 
 It checks exact normalized rows for title/course/date, player names, ordered hole
-headers/scores, totals and results. Missing extractor, unreadable file or failed
+headers/scores, totals and results. Unsupported encoding, unreadable file or failed
 comparison returns failure. The native collection receipt explicitly keeps
 `contentComparison: pending` until this separate automated check runs. Bind the
 PDF receipt and comparison result to the native manifest's app source SHA and
 build digest before closing AUG-402. A share sheet alone is insufficient evidence.
 
 Focused integration tests drive the real settlement export handler and real PDF
-builder, write bytes to disk, reopen with PDFDocument and extract/compare text.
+builder, write bytes to disk, reopen with PDFDocument and decode the embedded Unicode map/positioned text to compare contents.
 A fresh native font loader resolves the bundled font with network calls forbidden.
 Real unsupported CJK and emoji inputs reach the existing error panel without any
 local file or share invocation. These are code-level automated proofs, not native
 simulator acceptance. Shared setup readiness and an existing compatible offline
 simulator app remain prerequisites for runtime execution. No new build or native
 run is authorized by this patch. Android remains a non-blocking Tier 3 follow-up.
+
+The extractor is intentionally limited to the app's emitted hex-glyph Tj text
+blocks and bfchar ToUnicode maps. Unknown encodings/operators fail closed. No
+system PDF utility is required in CI; this preserves actual-byte assertions.
