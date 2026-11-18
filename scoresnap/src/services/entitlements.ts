@@ -48,6 +48,8 @@ export function canHostTournament(contest: HostDraft, tier: Tier): boolean {
 }
 /** #49: call immediately before host publish/share; guests never call this helper. */
 export const canPublishHostedContest = canHostTournament;
+/** AUG-1263: the PRO badge on a game is a Pro-membership affordance; never shown while pro_enabled is off. */
+export const showProBadge = (gameId: string): boolean => proEnabled() && !(FREE_GAMES as readonly string[]).includes(gameId);
 export const canSeeSettlement = (tier: Tier) => resolveTier(tier) !== 'free';
 export const canSeeStats = canSeeSettlement;
 export function scanAllowance(tier: Tier, now: Date) {

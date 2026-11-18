@@ -2,7 +2,7 @@ import { showAlert } from "@/services/platform-alert";
 import { SheetSurface, FullScreenSheet, SafeScreen } from "../../src/ui/SafeScreen";
 import { GAME_MODE_LIBRARY } from "../../src/engine/game-mode-library";
 import { useScanStore } from "../../src/stores/scan-store";
-import { canUseGame, defaultRoundGames } from "../../src/services/entitlements";
+import { canUseGame, defaultRoundGames, showProBadge } from "../../src/services/entitlements";
 import { GAME_SHEET_STYLE } from "../../src/ui/gameSheetStyle";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
 import { localDate } from "../../src/utils/local-date";
@@ -673,7 +673,7 @@ export default function HomeScreen() {
                           COMING SOON
                         </Text>
                       </View>
-                    ) : !FREE_GAME_IDS.includes(selectedGame.id) ? (
+                    ) : showProBadge(selectedGame.id) ? (
                       <View
                         style={{
                           backgroundColor: COLORS.gold + "22",
