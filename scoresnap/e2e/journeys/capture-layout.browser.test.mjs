@@ -30,6 +30,12 @@ test('every capture audits safe bands, targets, overlaps and visible text',async
     ['text-over-control',button(100,100)+'<span style="position:absolute;left:100px;top:100px;pointer-events:none">Outside label</span>','text-over-control'],
     ['title-in-band','<h1 style="position:absolute;top:0;margin:0">Title</h1>','safe-area'],
     ['unsupported-clip',`<div style="clip-path:circle(50%)">${button(100,100)}</div>`,'unsupported-geometry'],
+    // AUG-1178 follow-up: inset() is a plain rectangle against the element's own
+    // border box and must be resolved exactly, not bailed out as unsupported --
+    // the negative-proof label-clip-path fixture relies on this to reach its own
+    // targeted visible-text-missing check instead of tripping this generic audit.
+    ['clip-path-inset-full','<button style="position:absolute;left:100px;top:100px;width:44px;height:44px;clip-path:inset(50%)">Go</button>',null],
+    ['clip-path-inset-partial','<button style="position:absolute;left:100px;top:100px;width:44px;height:44px;clip-path:inset(0 0 22px 0)">Go</button>','target-size'],
     ['safe-edge',button(100,59)+button(200,774),null],
     ['two-pixel-overlap',button(100,100)+button(142,100),null],
     ['offscreen',button(100,900),null],

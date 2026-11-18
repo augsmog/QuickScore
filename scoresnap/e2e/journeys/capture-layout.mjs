@@ -49,7 +49,20 @@ export async function auditCapture(page,context) {
       let left=r.left,top=r.top,right=r.right,bottom=r.bottom,unsupported=false,scrolledX=false,scrolledY=false;
       for(let a=el;a;a=a.parentElement){
         const s=getComputedStyle(a),b=a.getBoundingClientRect();
-        if(s.clipPath!=='none'||s.clip!=='auto'||s.transform!=='none'&&!/^matrix\([^,]+, 0, 0, [^,]+, [^,]+, [^,]+\)$/.test(s.transform))unsupported=true;
+        // inset() is a plain rectangle against this element's own border box, so it can
+        // be resolved exactly; any other shape function (circle/polygon/path/url/...)
+        // keeps the conservative unsupported bailout rather than guessing its bounds.
+        if(s.clipPath!=='none'){
+          const m=/^inset\(\s*(-?[\d.]+(?:%|px))(?:\s+(-?[\d.]+(?:%|px)))?(?:\s+(-?[\d.]+(?:%|px)))?(?:\s+(-?[\d.]+(?:%|px)))?\s*\)$/.exec(s.clipPath.trim());
+          if(m){
+            const vals=[m[1],m[2],m[3],m[4]].filter(Boolean);
+            const [insetTop,insetRight,insetBottom,insetLeft]=vals.length===1?[vals[0],vals[0],vals[0],vals[0]]:vals.length===2?[vals[0],vals[1],vals[0],vals[1]]:vals.length===3?[vals[0],vals[1],vals[2],vals[1]]:vals;
+            const px=(v,ref)=>v.endsWith('%')?parseFloat(v)/100*ref:parseFloat(v);
+            left=Math.max(left,b.left+px(insetLeft,b.width));right=Math.min(right,b.right-px(insetRight,b.width));
+            top=Math.max(top,b.top+px(insetTop,b.height));bottom=Math.min(bottom,b.bottom-px(insetBottom,b.height));
+          } else unsupported=true;
+        }
+        if(s.clip!=='auto'||s.transform!=='none'&&!/^matrix\([^,]+, 0, 0, [^,]+, [^,]+, [^,]+\)$/.test(s.transform))unsupported=true;
         // Only sizing may ignore a genuinely scrollable ancestor's fragment.
         // Paint, inclusion, overlap and safe-area checks keep the visible rect.
         const paint=s.contain.split(/\s+/).some(v=>['paint','strict','content'].includes(v));
