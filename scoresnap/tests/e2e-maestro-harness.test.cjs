@@ -213,3 +213,24 @@ test("Skins card tap waits for its own mounted ID rather than generic text", () 
     }
   }
 });
+
+test('PDF evidence seeds frozen completed Unicode fixture and captures locally reopened bytes',()=>{
+ const f=config.flows.find(f=>f.id==='aug-315-export-pdf');
+ expect(f.capturePdf).toBe(true);expect(f.tickets).toContain('AUG-402');
+ const fixture=JSON.parse(read(f.comparisonFixture));
+ const seed=JSON.parse(read(config.fixtures[f.fixture].file));
+ const persisted=JSON.parse(seed['snapscore-contests']);
+ expect(persisted.state.contests).toEqual([fixture.contest]);
+ expect(persisted.state.activeContestId).toBe(fixture.contest.id);
+ expect(fixture.contest.status).toBe('completed');
+ expect(fixture.expected.players.map(p=>p.total)).toEqual([71,72,72]);
+ for(const p of fixture.expected.players)expect(p.scores).toHaveLength(18);
+ const [,steps]=docs(f.file);
+ expect(steps).toContainEqual({tapOn:fixture.contest.name});
+ expect(steps.some(s=>s.runFlow?.includes('create-two-player'))).toBe(false);
+ const runner=read('.maestro/scripts/run-ios-sim.sh');
+ expect(runner).toContain('read -r ID FLOW FIXTURE HIER CAPTURE_PDF');
+ expect(runner).toContain('"$CONTAINER/Library/Caches" "$D/pdf"');
+ expect(runner).toMatch(/if ! python3 .*collect-pdf.py[\s\S]*?RC=1/);
+ expect(runner).toContain('"savedPdf":');
+});

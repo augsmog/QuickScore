@@ -24,6 +24,10 @@
     "paid-tier": {
       "file": ".maestro/fixtures/asyncstorage-paid-tier.json",
       "notes": "same persisted subscription cache as e2e/shared/paid-tier-fixture.mjs; no purchase bypass"
+    },
+    "pdf-settled": {
+      "file": ".maestro/fixtures/asyncstorage-pdf-settled.json",
+      "notes": "Frozen completed 18-hole gross-skins round; Unicode Latin/Greek/Cyrillic names, no backend."
     }
   },
   "flows": [
@@ -91,10 +95,13 @@
       "file": ".maestro/flows/offline/aug-315-export-pdf.yaml",
       "build": "offline",
       "tickets": [
-        "AUG-315"
+        "AUG-315",
+        "AUG-402"
       ],
-      "fixture": "paid-tier",
-      "partial": "simulator share sheet only; physical iOS+Android recipient checks stay open"
+      "fixture": "pdf-settled",
+      "partial": "simulator share sheet only; physical iOS+Android recipient checks stay open",
+      "capturePdf": true,
+      "comparisonFixture": ".maestro/fixtures/pdf-settled-round.json"
     },
     {
       "id": "aug-429-ux-pass",
