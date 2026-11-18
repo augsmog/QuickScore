@@ -50,12 +50,9 @@ async function firstPaintBox(control,profile) {
     return {raw:r.height,width:r.width,visibleHeight,hit};
   },profile);
 }
-// Scoped to the two profiles named in AUG-1177's acceptance (SE/ProMax). 15Pro is deliberately
-// NOT asserted strictly here: investigating it surfaced a real, separate first-paint clip on
-// Distance Unit (21px, screen-height-dependent -- 15Pro's 852pt height sits between SE's 667pt
-// and ProMax's 932pt, so the same row lands mid-fold only there) that this ticket's scoped
-// header-margin fix does not reach. Filed as sibling AUG-1228 (Refs AUG-313), not exempted here.
-for(const name of ['iphone-se','iphone-pro-max']) {
+// AUG-1228 requires the 15 Pro Distance Unit row to be visible at first paint.
+// A fully hidden row does not meet that acceptance, even though it does not straddle the fold.
+for(const name of ['iphone-se','iphone-15-pro','iphone-pro-max']) {
   test(`Settings named rows do not straddle the fold below 44px at first paint: ${name}`,async t=>{
     const profile=SAFE_AREA_PROFILES[name],browser=await chromium.launch();t.after(()=>browser.close());
     const context=await browser.newContext({viewport:profile,serviceWorkers:'block'});
@@ -75,9 +72,16 @@ for(const name of ['iphone-se','iphone-pro-max']) {
     await page.getByRole('tab',{name:'Profile',exact:true}).click();
     await page.getByRole('button',{name:'Settings',exact:true}).click();
     await page.getByRole('button',{name:'Delete Account',exact:true}).waitFor();await stablePaint(page);
+    const firstPaint=[];
     for(const label of ['Default Unit Amount, $5','Distance Unit, Yards']) {
       const control=page.getByRole('button',{name:label,exact:true});assert.equal(await control.count(),1);
       const box=await firstPaintBox(control,profile);
+      firstPaint.push({label,...box});
+      const dir=path.resolve(process.env.OUT_DIR||'e2e/settings-row-screens','settings-rows',name);
+      fs.mkdirSync(dir,{recursive:true});
+      fs.writeFileSync(path.join(dir,'first-paint.json'),JSON.stringify(firstPaint,null,2));
+      if(name==='iphone-15-pro'&&label==='Distance Unit, Yards')
+        assert(box.visibleHeight>=44,`${name} ${label} must show >=44px at first paint: ${JSON.stringify(box)}`);
       // A fully off-screen row (visibleHeight 0) isn't painted at all at this fold and is not a finding;
       // only a row straddling the fold with a partial fragment below 44px is the defect.
       assert(box.visibleHeight===0||box.visibleHeight>=44,`${name} ${label} clipped below 44px at first paint: ${JSON.stringify(box)}`);
