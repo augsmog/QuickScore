@@ -177,3 +177,140 @@ describe('AUG-84 journey: handoff visibility, second-identity merge, onboarding,
     // this assertion documents that native-intent and onboarding-gate independently honor the same flag.
   });
 });
+
+// Round-2 fix: the tests above only exercise the account-merge.ts primitive directly, never
+// src/services/account-handoff.ts's real orchestration (prepareAccountHandoff/finishAccountHandoff,
+// useHandoffStore) or src/ui/AccountHandoffPanel.tsx. A merge with real conflicts can still be
+// invisible to the user if that wiring is broken, so this chains the same merge scenario through
+// the actual service and panel instead of asserting the merge primitive's return value alone.
+const mergeLogic = loadModule(path.join(__dirname, '../src/services/account-merge.ts'), {});
+
+// Minimal zustand-compatible store: callable with no args (what the panel does), plus
+// getState/setState (what account-handoff.ts does). Real zustand's hook form throws
+// "Invalid hook call" when called outside a React render, which this vm-sandboxed
+// harness never performs, so a hand-rolled store stands in for it here.
+function fakeZustandCreate(factory) {
+  let state = factory();
+  const store = () => state;
+  store.getState = () => state;
+  store.setState = (patch) => { state = { ...state, ...(typeof patch === 'function' ? patch(state) : patch) }; };
+  return store;
+}
+
+function buildFullHandoffService(sharingEnabled, existingAccounts = new Map()) {
+  const kv = new Map();
+  const storage = {
+    getItem: async (k) => kv.get(k) ?? null,
+    setItem: async (k, v) => { kv.set(k, v); },
+    removeItem: async (k) => { kv.delete(k); },
+  };
+  const guestRoundsByToken = new Map();
+  let tokenCalls = 0;
+  // account-handoff.ts's own rpc wrapper (passed as accountHandoff()'s rpc arg) calls
+  // supabase.rpc(name, args) and destructures { data, error } off the result, then returns
+  // data -- so this mock, standing in for supabase.rpc itself, must return that shape too.
+  const rpc = async (name, args) => {
+    if (name === 'prepare_account_handoff') return { data: null, error: null };
+    if (name === 'claim_account_handoff') {
+      const target = args.p_target;
+      const guestRounds = guestRoundsByToken.get(args.p_token) ?? [];
+      const existing = existingAccounts.get(target) ?? [];
+      const merged = mergeLogic.mergeRoundHistory(existing, guestRounds);
+      existingAccounts.set(target, merged);
+      return { data: { transferred: guestRounds.length, conflicts: existing.length + guestRounds.length - merged.length }, error: null };
+    }
+    throw Error(`unexpected rpc: ${name}`);
+  };
+  let session = { user: { id: 'guest-journey', is_anonymous: true } };
+  const store = loadModule(path.join(__dirname, '../src/services/account-handoff.ts'), {
+    '@react-native-async-storage/async-storage': { default: storage },
+    'expo-crypto': { randomUUID: () => `tok${tokenCalls++}` },
+    zustand: { create: fakeZustandCreate },
+    '../db/supabase': { supabase: { auth: { getSession: async () => ({ data: { session }, error: null }) }, rpc } },
+    './cross-device': { onlineEnabled: sharingEnabled, replayOnlineScores: async () => {}, onlineQueue: async () => ({ entries: [] }), client: { discover: async () => {} } },
+    './account-round-history': { stageGuestHistory: async () => {}, claimGuestHistory: async () => 0 },
+    '../stores/auth-store': { useAuthStore: { getState: () => ({ isAnonymous: session.user.is_anonymous }) } },
+    './account-merge': mergeLogic,
+  });
+  return {
+    api: store,
+    signIn(accountId) { session = { user: { id: accountId, is_anonymous: false } }; },
+    async stageGuestRoundsForPendingHandoff(rounds) {
+      const raw = JSON.parse(await storage.getItem(mergeLogic.ACCOUNT_HANDOFF_KEY));
+      guestRoundsByToken.set(raw.token, rounds);
+    },
+  };
+}
+
+function renderHandoffPanel(deps) {
+  const file = path.join(__dirname, '../src/ui/AccountHandoffPanel.tsx');
+  const jsx = (type, props) => ({ type, props: props || {} });
+  const context = {
+    exports: {},
+    require: (name) => { if (!(name in deps)) throw Error(`unexpected import in panel harness: ${name}`); return deps[name]; },
+  };
+  const output = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  vm.runInNewContext(output, { ...context, jsx, jsxs: jsx });
+  return context.exports.AccountHandoffPanel();
+}
+
+function panelDeps(service, anonymous) {
+  return {
+    './theme': { COLORS: { text: '#000', primary: '#06c', surfaceHigh: '#eee' } },
+    './compact-viewport': { isCompactViewport: () => false },
+    react: {},
+    'react/jsx-runtime': { jsx: (type, props) => ({ type, props: props || {} }), jsxs: (type, props) => ({ type, props: props || {} }) },
+    'react-native': { Dimensions: { get: () => ({ width: 393, height: 852 }) }, Pressable: 'Pressable', Text: 'Text', View: 'View' },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 59, right: 0, bottom: 34, left: 0 }) },
+    'expo-router': { useRouter: () => ({ push: () => {} }) },
+    '../stores/auth-store': { useAuthStore: (selector) => selector({ isAnonymous: anonymous }) },
+    '../services/account-handoff': { useHandoffStore: service.api.useHandoffStore, finishAccountHandoff: service.api.finishAccountHandoff },
+  };
+}
+
+function panelMessageText(panel) {
+  const children = [].concat(panel?.props?.children ?? []).flat(Infinity);
+  const textNode = children.find((c) => c && c.type === 'Text');
+  return textNode?.props?.children;
+}
+
+describe('AUG-1272 round-2: real account-handoff.ts service wiring and panel visibility (not just the account-merge.ts primitive)', () => {
+  test('finishAccountHandoff drives useHandoffStore with the real merge result, and the panel renders it as a visible banner', async () => {
+    const accounts = new Map([['account-9', [{ id: 'round-1', score: 80 }, { id: 'round-5', score: 90 }]]]);
+    const service = buildFullHandoffService(true, accounts);
+    await service.api.prepareAccountHandoff();
+    await service.stageGuestRoundsForPendingHandoff([{ id: 'round-1', score: 72 }, { id: 'round-2', score: 68 }]);
+
+    service.signIn('account-9');
+    await service.api.finishAccountHandoff();
+
+    const state = service.api.useHandoffStore.getState();
+    assert.equal(state.busy, false);
+    assert.equal(state.error, false);
+    assert.match(state.message, /2 guest round memberships/);
+    assert.match(state.message, /1 existing account membership/);
+
+    const panel = renderHandoffPanel(panelDeps(service, false));
+    assert.notEqual(panel, null); // visible: a real merge happened, this must not be suppressed
+    assert.equal(panelMessageText(panel), state.message); // bound to live store state, not the hardcoded placeholder
+  });
+
+  test('flag-off: finishAccountHandoff never touches useHandoffStore, and the panel renders nothing', async () => {
+    const service = buildFullHandoffService(false, new Map([['account-9', []]]));
+    await service.api.prepareAccountHandoff();
+    service.signIn('account-9');
+    await service.api.finishAccountHandoff();
+
+    // expect().toEqual (not node:assert) because the untouched initial store state was built
+    // by a factory function compiled inside the vm sandbox -- a different realm, so its plain
+    // object literal has a different Object.prototype than this file's, which node:assert's
+    // strict deepEqual would wrongly treat as unequal despite identical keys/values.
+    const state = service.api.useHandoffStore.getState();
+    expect(state).toEqual({ message: '', busy: false, error: false });
+
+    const panel = renderHandoffPanel(panelDeps(service, false));
+    assert.equal(panel, null); // suppressed: no handoff state to show and not anonymous
+  });
+});
