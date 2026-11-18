@@ -535,6 +535,8 @@ export default function ScorecardScreen() {
                   borderRadius: RADII.md,
                   paddingHorizontal: 14,
                   paddingVertical: 6,
+                  minHeight: 44,
+                  justifyContent: "center",
                   alignSelf: "flex-start",
                 }}
               >

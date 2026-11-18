@@ -11,3 +11,20 @@ export function getSafeAreaProfile(name = 'iphone-15-pro') {
   const profile = SAFE_AREA_PROFILES[name];
   return profile;
 }
+
+// Override only safe-area-context's hidden CSS environment measurement.
+export const simulateSafeArea = ({top,bottom}) => {
+    const original = window.getComputedStyle;
+    window.getComputedStyle = function(element, ...args) {
+      const style = original.call(this,element,...args);
+      if (element.style.position === 'fixed' && element.style.visibility === 'hidden' && element.style.transitionProperty === 'padding') {
+        return new Proxy(style,{get(target,key) {
+          if (key === 'paddingTop') return `${top}px`;
+          if (key === 'paddingBottom') return `${bottom}px`;
+          const value = Reflect.get(target,key,target);
+          return typeof value === 'function' ? value.bind(target) : value;
+        }});
+      }
+      return style;
+    };
+  };

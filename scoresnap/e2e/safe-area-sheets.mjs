@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {getSafeAreaProfile} from './safe-area-profiles.mjs';
+import {getSafeAreaProfile,simulateSafeArea} from './safe-area-profiles.mjs';
 import {findInteractiveTargetOverlaps} from './interactive-target-geometry.mjs';
 const base = process.env.BASE_URL || 'http://127.0.0.1:8089';
 const out = process.env.OUT_DIR || 'e2e/screens/safe-area';
@@ -22,21 +22,7 @@ try {
   });
   // Override only safe-area-context's hidden CSS env measurement element. This
   // exercises real providers and consumers; it never pads application content.
-  await context.addInitScript(({top,bottom}) => {
-    const original = window.getComputedStyle;
-    window.getComputedStyle = function(element, ...args) {
-      const style = original.call(this,element,...args);
-      if (element.style.position === 'fixed' && element.style.visibility === 'hidden' && element.style.transitionProperty === 'padding') {
-        return new Proxy(style,{get(target,key) {
-          if (key === 'paddingTop') return `${top}px`;
-          if (key === 'paddingBottom') return `${bottom}px`;
-          const value = Reflect.get(target,key,target);
-          return typeof value === 'function' ? value.bind(target) : value;
-        }});
-      }
-      return style;
-    };
-  }, {top,bottom});
+  await context.addInitScript(simulateSafeArea, {top,bottom});
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
