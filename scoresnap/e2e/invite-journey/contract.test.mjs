@@ -34,3 +34,10 @@ test('native artifact requires matching provenance, sharing and disposable backe
   validateArtifact(meta,fixture(),source);
   for(const patch of [{source_sha:'c'.repeat(40)},{api:'https://production.invalid'},{cross_device_sharing:false},{offline:true},{executable_sha256:''}]) assert.throws(()=>validateArtifact({...meta,...patch},fixture(),source));
 });
+
+test('canonical invite is owner-only; guest score proof must not demand or expose it',()=>{
+  const guest=snapshot();delete guest.invite_code;
+  assertScores(fixture(),guest,{owner:false});
+  assert.throws(()=>assertScores(fixture(),guest));
+  assert.throws(()=>assertScores(fixture(),snapshot(),{owner:false}));
+});

@@ -20,8 +20,10 @@ export function assertShare(f,payload) {
   assert(urls.some(value=>new URL(value).pathname===(value.startsWith('snapscore:')?`/${f.code}`:`/join/${f.code}`) &&
     (!value.startsWith('snapscore:') || new URL(value).hostname==='join')),'Actual share URL must contain canonical invite');
 }
-export function assertScores(f,s) {
-  assert.equal(s.contest_id,f.contestId); assert.equal(s.invite_code,f.code);
+export function assertScores(f,s,{owner=true}={}) {
+  assert.equal(s.contest_id,f.contestId);
+  if(owner) assert.equal(s.invite_code,f.code);
+  else assert.equal(s.invite_code,undefined,'Guest snapshot must not expose owner-only canonical invite');
   const rounds=s.rounds.filter(r=>r.id===f.roundId); assert.equal(rounds.length,1);
   for(const expected of f.players) {
     const matches=rounds[0].players.filter(p=>p.id===expected.id); assert.equal(matches.length,1);

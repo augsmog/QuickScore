@@ -24,7 +24,9 @@ await enrollNewRound(contest,data.user.id,{
   rpc:async(name,args)=>{const {data,error}=await auth.rpc(name,args);assert(!error,`Disposable fixture RPC ${name}`);return data;}
 });
 const {data:snapshot,error:snapshotError}=await auth.rpc('fetch_snapshot',{contest_id:contestId,after_revision:0});
-assert(!snapshotError && snapshot.invite_code===code && snapshot.rounds.length===1,'Canonical fixture snapshot');
+assert(!snapshotError && snapshot,'Fixture snapshot RPC succeeds');
+assert.equal(snapshot.invite_code,code,'Owner snapshot contains canonical synthetic invite (requires owner-invite proposal)');
+assert.equal(snapshot.rounds.length,1,'Fixture contains exactly one round');
 const round=snapshot.rounds[0];
 // Bind generated server IDs, never local IDs assumed to survive enrollment.
 const fixture={api,code,contestId,roundId:round.id,hole:1,players:players.map(p=>{

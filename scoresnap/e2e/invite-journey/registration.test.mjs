@@ -15,6 +15,9 @@ test('CI runs independent real-UI anonymous-enabled and disabled stacks and keep
   assert.match(commands,/node --import tsx e2e\/invite-journey\/seed\.mts/);
   assert.match(commands,/node e2e\/invite-journey\/browser\.mjs/);
   assert(!commands.includes('supabase link'));
+  assert(commands.indexOf('20261031230000_restore_game_settings.sql') < commands.indexOf('20261101190000_owner_invite_snapshot.sql'));
+  assert(commands.includes('20261101190000_owner_invite_snapshot.sql'));
+  assert(commands.indexOf('20261101190000_owner_invite_snapshot.sql') < commands.indexOf('node --import tsx'));
   const upload=job.steps.find(s=>s.uses==='actions/upload-artifact@v4');
   assert.equal(upload.with.path,'invite-journey-evidence');
   assert(commands.includes('rm -f "$RUNNER_TEMP/invite-private.json"'));

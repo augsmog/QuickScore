@@ -23,7 +23,7 @@ Use an **existing** compatible simulator `.app` containing PR87 (merge `6017bec3
 
 The E2E system must establish this metadata from the original build configuration; do not manufacture metadata to bless an incompatible app. The runner verifies source and executable hash and fails before installation when prerequisites are missing. Missing compatible artifact/provenance is an artifact dependency, not permission to build, spend or change credentials. No native capture is claimed by static validation or browser runtime.
 
-On a macOS E2E host with its existing approved disposable Supabase stack (anonymous Auth enabled, normal migrations and account-handoff proposal applied as in xdevice-stack), dependencies, Maestro and two fresh booted dedicated simulators named `e2e-invite-*`:
+On a macOS E2E host with its existing approved disposable Supabase stack (anonymous Auth enabled, normal migrations plus existing account-handoff, owner-discovery, game-settings and owner-invite proposals applied in the order shown in xdevice-stack), dependencies, Maestro and two fresh booted dedicated simulators named `e2e-invite-*`:
 
 ```sh
 cd scoresnap
@@ -41,3 +41,5 @@ rm -f "$INVITE_FIXTURE" "$INVITE_STATUS"
 ```
 
 Both simulator installations persist across phases. The host cold-opens the server contest with no seeded local contest/scores. The restored invite must equal the actual iOS Copy share payload. The guest uses the real anonymous join UI; host approval must bind that exact anonymous identity to the intended server player ID. Guest and host score in different groups. Cold process reconnects must retain rendered scores, authorized server scores keyed by contest/round/group/player/hole, and binding; untouched hole 2 stays clear. The runner writes `receipt.json` only after all checks pass and captures final screenshots. Do not run it from box engineering lanes.
+
+The baseline snapshot omits canonical invite codes. The disposable matrix applies the existing game-settings predecessor and owner-invite extension; no proposal is deployed to a live project. Owner snapshots must contain the canonical code; guest snapshots must omit that owner-only field while retaining keyed score proof.

@@ -58,7 +58,7 @@ try {
     await eventually(async()=>assertScores(f,await db.snapshot()));
     // Reconnect then cold pages retain the actual sessions and approved identity.
     await guestContext.setOffline(true);await guestContext.setOffline(false);
-    for(const p of [host,guest]) {const s=await freshSnapshot(p,()=>p.reload());assertScores(f,s);}
+    for(const p of [host,guest]) {const s=await freshSnapshot(p,()=>p.reload());assertScores(f,s,{owner:p===host});}
     snapshot=await db.snapshot();assertScores(f,snapshot);
     for(const p of f.players) assert.equal(await (await selectHostPlayer(host,snapshot.rounds[0],p.name)).innerText(),String(p.score));
     assert.equal(await card.getByLabel('Journey Round hole 1 strokes').inputValue(),'6');

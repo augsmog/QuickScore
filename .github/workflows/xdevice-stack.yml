@@ -134,6 +134,10 @@ jobs:
           supabase db reset
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261103071000_account_handoff.sql
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261101020000_owner_discovery.sql
+          # Existing offline proposals only on this disposable stack: snapshot's
+          # owner-only invite extension requires the game-settings predecessor.
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261031230000_restore_game_settings.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/proposed/20261101190000_owner_invite_snapshot.sql
           supabase status -o json > "$RUNNER_TEMP/invite-status.json"
       - name: Seed synthetic fixture and export disposable app
         working-directory: scoresnap
