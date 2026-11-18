@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { getPackages, purchasePackage, restorePurchases, syncProStatus } from '../src/services/purchases';
 import { eligibleAnnualTrials, buildPaywallView, type PaywallSelection } from '../src/services/paywall-plans';
+import { proEnabled } from '../src/services/entitlements';
 import { useScanStore } from '../src/stores/scan-store';
 import { PRIVACY_URL, TERMS_URL } from '../src/config/support';
 import { PAYWALL as P } from '../src/ui/paywall-tokens';
@@ -18,7 +19,8 @@ export default function PaywallScreen() {
   const { tier: target } = useLocalSearchParams<{ tier?: string }>();
   const tier = useScanStore(s => s.tier);
   useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
-  const [selection, setSelection] = useState<PaywallSelection>({ tier: target === 'td' ? 'td' : 'pro', period: 'year' });
+  // AUG-1263: the Pro row is hidden while pro_enabled is off (below), so never default-select it.
+  const [selection, setSelection] = useState<PaywallSelection>({ tier: target === 'td' || !proEnabled() ? 'td' : 'pro', period: 'year' });
   const [packages, setPackages] = useState<Awaited<ReturnType<typeof getPackages>>>({ annual: null, monthly: null, td_annual: null, td_monthly: null });
   const [eligible, setEligible] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
@@ -41,7 +43,7 @@ export default function PaywallScreen() {
     catch (e: unknown) { showAlert(C.subscription, e instanceof Error ? e.message || C.retry : C.retry); }
     finally { setBusy(false); }
   }
-  const v = buildPaywallView(packages, eligible, tier, selection);
+  const v = buildPaywallView(packages, eligible, tier, selection, proEnabled());
   const tag = (label: string) => <Text style={[s.tag, label === C.current && s.current]}>{label}</Text>;
   return <SafeScreen style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>

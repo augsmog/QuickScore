@@ -111,6 +111,19 @@ try {
   assert.match(statsText, /Statistics/);
   await page.screenshot({ path: path.join(out, 'statistics.png'), fullPage: true });
   trace.push({ type: 'statistics', text: statsText.slice(0, 1200) });
+
+  // AUG-1263: the paywall still has to sell Tournament Director while pro_enabled is off (it is
+  // the one surface that stays paid), but the Pro plan row -- unpurchasable while the flag is
+  // off -- must not ride along. Go straight to the TD-upsell route a free user actually lands on.
+  await page.goto(`${base}/paywall?tier=td`, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Tournament Director', { exact: true }).first().waitFor({ state: 'visible' });
+  const paywallText = (await page.locator('body').innerText()).replace(/\s+/g, ' ').trim();
+  assert.doesNotMatch(paywallText, /\$24\.99|\$3\.99|Recommended/, 'Pro plan must not be offered on the paywall while pro_enabled is off');
+  assert.match(paywallText, /Tournament Director/);
+  assert.match(paywallText, /\$79\.99|\$12\.99/, 'Tournament Director purchase path must still work');
+  await page.screenshot({ path: path.join(out, 'paywall-td-only.png'), fullPage: true });
+  trace.push({ type: 'paywall-td-only', text: paywallText.slice(0, 1200) });
+
   assert.deepEqual(trace.filter(x => x.type === 'pageerror'), [], 'page must not report runtime errors');
   fs.writeFileSync(path.join(out, 'run-log.json'), JSON.stringify(trace, null, 2));
   console.log('PRO_OFF_FREE_PASS: skins selected, settlement amount rendered, Statistics opened without a Pro gate');
