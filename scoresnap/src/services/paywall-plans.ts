@@ -18,11 +18,20 @@ import { PAYWALL_COPY as C } from '../ui/paywall-copy';
 import type { Tier } from './entitlements';
 export type PaywallSelection = { tier: Tier; period: 'year' | 'month' };
 const format = (template: string, price: string, period: string) => template.replace('{price}', price).replace('{period}', period);
-export function buildPaywallView(packages: Record<string, PurchasesPackage | null> | null, eligible: Record<string, boolean>, tier: Tier, selection: PaywallSelection) {
+/**
+ * AUG-1263: proEnabledNow defaults to true so every caller that predates the pro_enabled flag
+ * (including existing tests) keeps seeing both plans unchanged. The real app passes the live
+ * proEnabled() so the Pro row -- unpurchasable while the flag is off -- never reaches someone
+ * shopping for Tournament Director. tier==='pro' still shows an existing raw Pro subscriber their
+ * own plan. The `?? rows[rows.length - 1]` fallback covers a selection pointed at a now-hidden
+ * plan (e.g. the default 'pro' selection reaching this with the flag off) without throwing.
+ */
+export function buildPaywallView(packages: Record<string, PurchasesPackage | null> | null, eligible: Record<string, boolean>, tier: Tier, selection: PaywallSelection, proEnabledNow = true) {
   const period = selection.period;
+  const visiblePlans = PLAN_OPTIONS.filter(plan => plan.tier !== 'pro' || proEnabledNow || tier === 'pro');
   const rows = [
     { tier: 'free' as Tier, name: C.free, body: C.freeBody, tag: tier === 'free' ? C.current : '', alternate: '', price: '', trial: '', key: '', selected: selection.tier === 'free' },
-    ...PLAN_OPTIONS.map(plan => {
+    ...visiblePlans.map(plan => {
       const option = plan.options[period === 'year' ? 0 : 1];
       const other = plan.options[period === 'year' ? 1 : 0];
       const pkg = packages?.[option.key];
@@ -34,7 +43,7 @@ export function buildPaywallView(packages: Record<string, PurchasesPackage | nul
         key: option.key, selected: selection.tier === plan.tier };
     }),
   ];
-  const selected = rows.find(row => row.selected)!;
+  const selected = rows.find(row => row.selected) ?? rows[rows.length - 1];
   const pkg = packages?.[selected.key] ?? null;
   const owned = tier === 'td' || (tier === 'pro' && selection.tier === 'pro');
   const disabled = selection.tier === 'free' || owned || !pkg;
