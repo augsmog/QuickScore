@@ -33,6 +33,24 @@ try {
   await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
   trace.push({ type: 'boot', url: page.url(), onboarding: await page.evaluate(() => localStorage.getItem('snapscore-onboarding')) });
   await page.getByTestId('home-new-contest').waitFor({ state: 'visible' });
+
+  // AUG-1263: Home's game-info sheet (reached via "See All" game modes) is the one surface the
+  // Nov 11 no-Pro sweep found still showing a gold PRO badge on a formerly-paid game. Open it on
+  // Skins -- Pro-gated while the flag is on, free while it is off -- before the badge code is
+  // exercised any other way, so a regression here is caught by the actual rendered DOM.
+  await page.getByTestId('home-see-all-modes').click();
+  const gameInfoRow = page.getByTestId('game-mode-row-skins');
+  await gameInfoRow.waitFor({ state: 'visible' });
+  await gameInfoRow.click();
+  const gameInfoSheet = page.getByTestId('game-info-sheet');
+  await gameInfoSheet.waitFor({ state: 'visible' });
+  const gameInfoText = (await gameInfoSheet.innerText()).replace(/\s+/g, ' ').trim();
+  assert.doesNotMatch(gameInfoText, /\bPRO\b/, 'Home game-info sheet must not show a PRO badge while pro_enabled is off');
+  await page.screenshot({ path: path.join(out, 'home-game-info-skins.png'), fullPage: true });
+  trace.push({ type: 'home-game-info', text: gameInfoText });
+  await page.getByTestId('game-info-close').click();
+  await gameInfoSheet.waitFor({ state: 'hidden' });
+
   await page.getByTestId('home-new-contest').click();
   await page.getByPlaceholder('Your name', { exact: true }).fill('Flag Off Golfer');
   await page.getByPlaceholder('Player 2 name', { exact: true }).fill('Flag Off Partner');
@@ -119,6 +137,13 @@ try {
   await page.getByText('Tournament Director', { exact: true }).first().waitFor({ state: 'visible' });
   const paywallText = (await page.locator('body').innerText()).replace(/\s+/g, ' ').trim();
   assert.doesNotMatch(paywallText, /\$24\.99|\$3\.99|Recommended/, 'Pro plan must not be offered on the paywall while pro_enabled is off');
+  // AUG-1263: the Nov 11 no-Pro sweep named these four exact leftover strings on this screen
+  // (SNAPSCORE PRO eyebrow, the enforced-3-scans free body, "Everything in Pro" TD body, and the
+  // Pro/TD shared-trial line); checking only price/Recommended let all four ride along uncaught.
+  assert.doesNotMatch(paywallText, /SNAPSCORE PRO/, 'paywall must not show the Pro-era eyebrow while pro_enabled is off');
+  assert.doesNotMatch(paywallText, /Core games.{0,3}3 scans a month/, 'paywall must not claim an enforced scan cap while pro_enabled is off');
+  assert.doesNotMatch(paywallText, /Everything in Pro/, 'paywall must not describe Tournament Director relative to Pro while pro_enabled is off');
+  assert.doesNotMatch(paywallText, /across Pro and Tournament Director/, 'paywall trial line must not reference Pro while pro_enabled is off');
   assert.match(paywallText, /Tournament Director/);
   assert.match(paywallText, /\$79\.99|\$12\.99/, 'Tournament Director purchase path must still work');
   await page.screenshot({ path: path.join(out, 'paywall-td-only.png'), fullPage: true });

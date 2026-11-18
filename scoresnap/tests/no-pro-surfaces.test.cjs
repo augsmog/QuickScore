@@ -51,6 +51,68 @@ test('a selection pointed at a hidden plan falls back instead of throwing', () =
   expect(v.package).toBeNull();
 });
 
+// The vault sweep (customer-desk-nopro-sweep-2026-11-11.md item 3) named four exact leftover
+// strings reachable at /paywall?tier=td while pro_enabled is off: the "SNAPSCORE PRO" eyebrow, the
+// Free row's "3 scans a month" cap (scanning is actually unlimited once Pro is free), the
+// Tournament Director body still reading "Everything in Pro," and "One trial per Apple ID across
+// Pro and Tournament Director." None may survive in the built view when the flag is off.
+const LEFTOVERS = [copy.PAYWALL_COPY.eyebrow, copy.PAYWALL_COPY.freeBody, copy.PAYWALL_COPY.tdBody, copy.PAYWALL_COPY.oneTrial];
+function strings(v) {
+  return [v.eyebrow, v.oneTrial, ...v.rows.map(r => r.body)].filter(Boolean);
+}
+test('none of the four named Pro-era leftover strings survive in the built view while the flag is off', () => {
+  const v = view('free', false);
+  for (const leftover of LEFTOVERS) expect(strings(v)).not.toContain(leftover);
+  expect(v.eyebrow).toBe(copy.PAYWALL_COPY.eyebrowNoPro);
+  expect(v.rows.find(r => r.tier === 'free').body).toBe(copy.PAYWALL_COPY.freeBodyNoPro);
+  expect(v.rows.find(r => r.tier === 'td').body).toBe(copy.PAYWALL_COPY.tdBodyNoPro);
+  expect(v.oneTrial).toBe(copy.PAYWALL_COPY.oneTrialNoPro);
+});
+test('flag on keeps the original Pro-era strings byte-exact (figma fixture contract unaffected)', () => {
+  const v = view('free', true);
+  for (const leftover of LEFTOVERS) expect(strings(v)).toContain(leftover);
+});
+
+// Mount the actual app/paywall.tsx screen (same idiom as AC-PW tests in
+// paywall-clubhouse-ledger.test.cjs) with a live proEnabled()=>false, the exact way a free user
+// reaches /paywall?tier=td, and check the real rendered text -- not just the pure helper's output.
+function mountPaywall({ proEnabledNow = false, target = 'td', ownerTier = 'free' } = {}) {
+  const states = []; let cursor = 0;
+  const jsx = (type, props) => ({ type, props });
+  const Screen = load('app/paywall.tsx', {
+    react: { useState: init => { const i = cursor++; if (!(i in states)) states[i] = init; return [states[i], v => { states[i] = v; }]; }, useEffect: () => {} },
+    'react/jsx-runtime': { jsx, jsxs: jsx },
+    'react-native': { View: 'View', Text: 'Text', ScrollView: 'ScrollView', Pressable: 'Pressable', Alert: { alert: () => {} }, Linking: { openURL: () => {} }, StyleSheet: { create: x => x } },
+    'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
+    'expo-router': { useRouter: () => ({ back: () => {} }), useLocalSearchParams: () => ({ tier: target }) },
+    '@expo-google-fonts/inter': { useFonts: () => [true] },
+    '@/services/platform-alert': { showAlert: () => {} },
+    '../src/ui/SafeScreen': { SafeScreen: 'SafeAreaView' },
+    '../src/services/purchases': { getPackages: async () => ({ annual: null, monthly: null, td_annual: null, td_monthly: null }), purchasePackage: async () => true, restorePurchases: async () => true, syncProStatus: async () => {} },
+    '../src/services/paywall-plans': plans, '../src/services/entitlements': { proEnabled: () => proEnabledNow },
+    '../src/stores/scan-store': { useScanStore: f => f({ tier: ownerTier }) },
+    '../src/config/support': load('src/config/support.ts'), '../src/config/posthog': { posthog: null },
+    '../src/ui/paywall-tokens': load('src/ui/paywall-tokens.ts'), '../src/ui/paywall-icons': { PaywallIcon: 'Icon', PaywallRadio: 'Radio' },
+    '../src/ui/paywall-copy': copy,
+  }).default;
+  cursor = 0;
+  return Screen();
+}
+const nodesOf = n => !n || typeof n !== 'object' ? [] : Array.isArray(n) ? n.flatMap(nodesOf) : [n, ...nodesOf(n.props?.children)];
+const textOf = n => n == null ? '' : typeof n !== 'object' ? String(n) : Array.isArray(n) ? n.map(textOf).join('') : textOf(n.props?.children);
+test('the actual mounted /paywall?tier=td screen renders none of the four leftovers while the flag is off', () => {
+  const rendered = textOf(nodesOf(mountPaywall()));
+  for (const leftover of LEFTOVERS) expect(rendered).not.toContain(leftover);
+  expect(rendered).toContain(copy.PAYWALL_COPY.eyebrowNoPro);
+  expect(rendered).toContain(copy.PAYWALL_COPY.tdBodyNoPro);
+  expect(rendered).toContain(copy.PAYWALL_COPY.oneTrialNoPro);
+  expect(rendered).toContain('Tournament Director');
+});
+test('the actual mounted /paywall screen keeps every leftover string when the flag is on', () => {
+  const rendered = textOf(nodesOf(mountPaywall({ proEnabledNow: true })));
+  for (const leftover of LEFTOVERS) expect(rendered).toContain(leftover);
+});
+
 test('the real screens wire the live flag through, not a hardcoded default', () => {
   const paywallScreen = read('app/paywall.tsx');
   expect(paywallScreen).toMatch(/import\s*\{\s*proEnabled\s*\}\s*from\s*['"]\.\.\/src\/services\/entitlements['"]/);

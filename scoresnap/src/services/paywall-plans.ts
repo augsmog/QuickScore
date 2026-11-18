@@ -30,12 +30,12 @@ export function buildPaywallView(packages: Record<string, PurchasesPackage | nul
   const period = selection.period;
   const visiblePlans = PLAN_OPTIONS.filter(plan => plan.tier !== 'pro' || proEnabledNow || tier === 'pro');
   const rows = [
-    { tier: 'free' as Tier, name: C.free, body: C.freeBody, tag: tier === 'free' ? C.current : '', alternate: '', price: '', trial: '', key: '', selected: selection.tier === 'free' },
+    { tier: 'free' as Tier, name: C.free, body: proEnabledNow ? C.freeBody : C.freeBodyNoPro, tag: tier === 'free' ? C.current : '', alternate: '', price: '', trial: '', key: '', selected: selection.tier === 'free' },
     ...visiblePlans.map(plan => {
       const option = plan.options[period === 'year' ? 0 : 1];
       const other = plan.options[period === 'year' ? 1 : 0];
       const pkg = packages?.[option.key];
-      return { tier: plan.tier as Tier, name: plan.tier === 'pro' ? C.pro : C.td, body: plan.tier === 'td' ? C.tdBody : '',
+      return { tier: plan.tier as Tier, name: plan.tier === 'pro' ? C.pro : C.td, body: plan.tier === 'td' ? (proEnabledNow ? C.tdBody : C.tdBodyNoPro) : '',
         tag: tier === plan.tier ? C.current : plan.tier === 'pro' ? C.recommended : '',
         alternate: format(C.alternate, packages?.[other.key]?.product.priceString || other.fallback, other.period),
         price: format(C.price, pkg?.product.priceString || option.fallback, period),
@@ -57,6 +57,6 @@ export function buildPaywallView(packages: Record<string, PurchasesPackage | nul
     { icon: 'library' as const, title: C.libraryTitle, body: C.libraryBody },
     { icon: 'live' as const, title: C.liveTitle, body: C.liveBody },
   ];
-  return { restore: C.restore, eyebrow: C.eyebrow, headline: C.headline, values, scans: C.scans, rows, cta, billed,
-    oneTrial: C.oneTrial, legal: C.legal, terms: C.terms, dot: C.dot, privacy: C.privacy, disabled, package: pkg };
+  return { restore: C.restore, eyebrow: proEnabledNow ? C.eyebrow : C.eyebrowNoPro, headline: C.headline, values, scans: C.scans, rows, cta, billed,
+    oneTrial: proEnabledNow ? C.oneTrial : C.oneTrialNoPro, legal: C.legal, terms: C.terms, dot: C.dot, privacy: C.privacy, disabled, package: pkg };
 }
