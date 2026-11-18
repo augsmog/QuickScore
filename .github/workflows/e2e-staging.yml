@@ -53,7 +53,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Start disposable stack (never linked) and apply the full migration chain
         run: |
-          test "$(grep -c '^enable_anonymous_sign_ins = false$' supabase/config.toml)" = 1
+          test "$(grep -c '^enable_anonymous_sign_ins = true$' supabase/config.toml)" = 1
           # CLI start prints disposable API credentials; keep them in a private runner-temp log only.
           if ! bash scripts/ci/supabase-start-cached.sh start -x vector,logflare,studio,imgproxy,mailpit > "$RUNNER_TEMP/staging-start.log" 2>&1; then
             echo "Disposable stack startup failed"
