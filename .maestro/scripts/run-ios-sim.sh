@@ -5,10 +5,11 @@
 # Needs: macOS with Xcode simulators, python3, maestro on PATH. Uses no credentials.
 set -euo pipefail
 
-CONFIG=".maestro/e2e.config.json"; FLOWS="all"; BUILD_ID=""; OUT="e2e-out"; APP_URL=""; APP_PATH=""; BUILD=""
+CONFIG=".maestro/e2e.config.json"; FLOWS="all"; BUILD_ID=""; OUT="e2e-out"; APP_URL=""; APP_PATH=""; BUILD=""; METRIC_PROFILE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --config) CONFIG="$2"; shift 2;;
+    --metric-profile) METRIC_PROFILE="$2"; shift 2;;
     --app-url) APP_URL="$2"; shift 2;;
     --app-path) APP_PATH="$2"; shift 2;;
     --build) BUILD="$2"; shift 2;;
@@ -24,6 +25,10 @@ ROOT="$(pwd)"; CONFIG="$ROOT/$CONFIG"; mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)
 cfg() { python3 -c "import json,sys;c=json.load(open('$CONFIG'));print(eval(sys.argv[1]))" "$1"; }
 APP_ID="$(cfg "c['appId']")"; PRODUCT="$(cfg "c['product']")"
 DEVICE_TYPE="$(cfg "c['device']['type']")"
+if [ -n "$METRIC_PROFILE" ]; then
+  case "$METRIC_PROFILE" in small|large) ;; *) echo "unknown metric profile" >&2; exit 2;; esac
+  DEVICE_TYPE="$(cfg "c['metricProfiles']['$METRIC_PROFILE']['type']")"
+fi
 
 # 1. Select a source-built app or fetch the supplied build, then prove its architecture.
 WORK="$(mktemp -d)"; APP_SOURCE="eas-artifact"; APP_SOURCE_SHA=""
@@ -118,6 +123,7 @@ json.dump({"schema":"aos-e2e/v1","product":c["product"],"repo":c["repo"],"appId"
   "gitSha":os.environ.get("GITHUB_SHA",""),"ghRunId":os.environ.get("GITHUB_RUN_ID",""),
   "build":{"key":"$BUILD","source":"$APP_SOURCE","sourceCommit":"$APP_SOURCE_SHA","easProfile":c["builds"]["$BUILD"]["easProfile"],"easBuildId":"$BUILD_ID","url":"$APP_URL","sha256":"$SHA",
            "executable":"$EXE","lipoArchs":"$ARCHS","file":"""$FILE_OUT"""},
+  "metricProfile":"$METRIC_PROFILE",
   "device":{"type":"$DEVICE_TYPE","runtime":"$RUNTIME","iosVersion":"$OS_VERSION","udid":"$UDID"},
   "maestroVersion":"""$MAESTRO_VERSION""","flows":flows},open(os.path.join(out,"manifest.json"),"w"),indent=2)
 PY

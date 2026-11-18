@@ -70,10 +70,16 @@
       "file": ".maestro/flows/offline/aug-325-score-entry.yaml",
       "build": "offline",
       "tickets": [
-        "AUG-325"
+        "AUG-325",
+        "AUG-387"
       ],
       "fixture": "paid-tier",
-      "captureHierarchy": true
+      "captureHierarchy": true,
+      "metricProfiles": [
+        "small",
+        "large"
+      ],
+      "metricsContract": "scoresnap/e2e/score-entry-round.mjs"
     },
     {
       "id": "aug-319-settled-persists",
@@ -138,5 +144,15 @@
       "reason": "needs a signed-in demo/owner account; adding its credential as a CI secret needs Augie's yes"
     }
   ],
-  "knownBlocks": []
+  "knownBlocks": [],
+  "metricProfiles": {
+    "small": {
+      "type": "iPhone SE (3rd generation)",
+      "maxWidthPt": 375
+    },
+    "large": {
+      "type": "iPhone 16 Pro Max",
+      "minWidthPt": 430
+    }
+  }
 }
