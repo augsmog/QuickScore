@@ -30,6 +30,12 @@ test('every capture audits safe bands, targets, overlaps and visible text',async
     ['text-over-control',button(100,100)+'<span style="position:absolute;left:100px;top:100px;pointer-events:none">Outside label</span>','text-over-control'],
     ['title-in-band','<h1 style="position:absolute;top:0;margin:0">Title</h1>','safe-area'],
     ['unsupported-clip',`<div style="clip-path:circle(50%)">${button(100,100)}</div>`,'unsupported-geometry'],
+    // AUG-1178: clip-path:inset() is a plain rectangle and must fold into the same
+    // box-intersection as overflow/scroll ancestors, not refuse to measure (which
+    // previously made any inset()-clipped element anywhere on the page -- including
+    // one fully clipped to zero area -- fail the whole capture as unsupported-geometry).
+    ['inset-clip-partial','<button style="position:absolute;left:100px;top:100px;width:44px;height:44px;clip-path:inset(0 0 24px 0)">Go</button>','target-size'],
+    ['inset-clip-full','<button style="position:absolute;left:100px;top:100px;width:44px;height:44px;clip-path:inset(50%)">Go</button>',null],
     ['safe-edge',button(100,59)+button(200,774),null],
     ['two-pixel-overlap',button(100,100)+button(142,100),null],
     ['offscreen',button(100,900),null],

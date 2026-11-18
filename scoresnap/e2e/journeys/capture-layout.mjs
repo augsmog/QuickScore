@@ -49,7 +49,19 @@ export async function auditCapture(page,context) {
       let left=r.left,top=r.top,right=r.right,bottom=r.bottom,unsupported=false,scrolledX=false,scrolledY=false;
       for(let a=el;a;a=a.parentElement){
         const s=getComputedStyle(a),b=a.getBoundingClientRect();
-        if(s.clipPath!=='none'||s.clip!=='auto'||s.transform!=='none'&&!/^matrix\([^,]+, 0, 0, [^,]+, [^,]+, [^,]+\)$/.test(s.transform))unsupported=true;
+        if(s.clip!=='auto'||s.transform!=='none'&&!/^matrix\([^,]+, 0, 0, [^,]+, [^,]+, [^,]+\)$/.test(s.transform))unsupported=true;
+        if(s.clipPath!=='none'){
+          // inset() is a plain rectangle: fold it into the same box-intersection
+          // this function already does for overflow/scroll ancestors, instead of
+          // refusing to measure it. Other basic-shape functions (circle, polygon,
+          // ellipse, path...) have no rectangular equivalent, so they stay unsupported.
+          const inset=s.clipPath.match(/^inset\(([^)]*)\)$/);
+          if(inset){
+            const raw=inset[1].split(/\s+/),expanded=raw.length===1?[raw[0],raw[0],raw[0],raw[0]]:raw.length===2?[raw[0],raw[1],raw[0],raw[1]]:raw.length===3?[raw[0],raw[1],raw[2],raw[1]]:raw;
+            const px=(v,size)=>parseFloat(v)*(v.endsWith('%')?size/100:1),[ct,cr,cb,cl]=[px(expanded[0],b.height),px(expanded[1],b.width),px(expanded[2],b.height),px(expanded[3],b.width)];
+            left=Math.max(left,b.left+cl);right=Math.min(right,b.right-cr);top=Math.max(top,b.top+ct);bottom=Math.min(bottom,b.bottom-cb);
+          } else unsupported=true;
+        }
         // Only sizing may ignore a genuinely scrollable ancestor's fragment.
         // Paint, inclusion, overlap and safe-area checks keep the visible rect.
         const paint=s.contain.split(/\s+/).some(v=>['paint','strict','content'].includes(v));
