@@ -40,9 +40,21 @@ async function firstPaintBox(control,profile) {
       if(/hidden|clip|auto|scroll/.test(s.overflowY)){top=Math.max(top,b.top);bottom=Math.min(bottom,b.bottom);}
     }
     const visTop=Math.max(r.top,top),visBottom=Math.min(r.bottom,bottom);
-    return {raw:r.height,visibleHeight:Math.max(0,visBottom-visTop)};
+    const visibleHeight=Math.max(0,visBottom-visTop);
+    let hit=null;
+    if(visibleHeight>0){
+      const cx=r.left+r.width/2,cy=(visTop+visBottom)/2;
+      const underCursor=document.elementFromPoint(cx,cy);
+      hit=underCursor===el||el.contains(underCursor);
+    }
+    return {raw:r.height,width:r.width,visibleHeight,hit};
   },profile);
 }
+// Scoped to the two profiles named in AUG-1177's acceptance (SE/ProMax). 15Pro is deliberately
+// NOT asserted strictly here: investigating it surfaced a real, separate first-paint clip on
+// Distance Unit (21px, screen-height-dependent -- 15Pro's 852pt height sits between SE's 667pt
+// and ProMax's 932pt, so the same row lands mid-fold only there) that this ticket's scoped
+// header-margin fix does not reach. Filed as sibling AUG-1228 (Refs AUG-313), not exempted here.
 for(const name of ['iphone-se','iphone-pro-max']) {
   test(`Settings named rows do not straddle the fold below 44px at first paint: ${name}`,async t=>{
     const profile=SAFE_AREA_PROFILES[name],browser=await chromium.launch();t.after(()=>browser.close());
@@ -69,6 +81,10 @@ for(const name of ['iphone-se','iphone-pro-max']) {
       // A fully off-screen row (visibleHeight 0) isn't painted at all at this fold and is not a finding;
       // only a row straddling the fold with a partial fragment below 44px is the defect.
       assert(box.visibleHeight===0||box.visibleHeight>=44,`${name} ${label} clipped below 44px at first paint: ${JSON.stringify(box)}`);
+      if(box.visibleHeight>0){
+        assert(box.width>=44,`${name} ${label} visible fragment narrower than 44px at first paint: ${JSON.stringify(box)}`);
+        assert(box.hit,`${name} ${label} visible fragment at first paint cannot receive a pointer hit: ${JSON.stringify(box)}`);
+      }
     }
   });
 }
