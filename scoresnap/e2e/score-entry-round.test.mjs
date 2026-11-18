@@ -41,7 +41,7 @@ test('full round flow asserts every hole, captures evidence and finalizes withou
   assert.ok(steps.some(s=>s.assertVisible===`.*HOLE ${String(n).padStart(2,'0')}.*`));
   assert.ok(steps.some(s=>s.takeScreenshot===`aug-325-${String(n).padStart(2,'0')}-hole-scored`));
  }
- const next=steps.filter(s=>s.tapOn?.id==='score-next-hole');assert.equal(next.length,17);
+ const next=steps.filter(s=>s.tapOn?.id==='score-next-hole');assert.equal(next.length,18);
  assert.ok(next.every(s=>s.tapOn.optional===undefined));
  assert.equal(steps.filter(s=>s.tapOn?.id==='score-par-Ava').length,18);
  assert.equal(steps.filter(s=>s.tapOn?.id==='score-par-Ben').length,18);

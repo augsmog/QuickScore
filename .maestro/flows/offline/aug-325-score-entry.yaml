@@ -225,6 +225,9 @@ appId: com.scoresnap.app
 - tapOn:
     id: "score-par-Ben"
 - takeScreenshot: aug-325-18-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 18.*"
 - scrollUntilVisible:
     element: "Finalize Round"
     direction: DOWN
@@ -232,4 +235,5 @@ appId: com.scoresnap.app
 - assertVisible: "Finalize Round?"
 - tapOn: "Finalize"
 - assertNotVisible: "Finalize Round"
+- assertVisible: "Round Finalized — Scores Locked"
 - takeScreenshot: aug-325-19-finalize-outcome

@@ -89,8 +89,12 @@ while IFS=$'\t' read -r ID FLOW FIXTURE HIER; do
   xcrun simctl install "$UDID" "$APP"
   [ "$FIXTURE" = "-" ] || seed_asyncstorage "$FIXTURE"
   START=$(date +%s); set +e
-  (cd "$D" && maestro --device "$UDID" test --format junit --output "$D/junit.xml" \
-      --test-output-dir "$D" --debug-output "$D/debug" "$ROOT/$FLOW") > "$D/maestro.log" 2>&1
+  if [ "$ID" = "aug-325-score-entry" ] && [ -n "$METRIC_PROFILE" ]; then
+    node "$ROOT/scoresnap/e2e/score-entry-collect.mjs" "$ROOT" "$D" "$UDID" "$METRIC_PROFILE" "$APP_SOURCE_SHA" "${GITHUB_RUN_ID:-local}-$UDID" > "$D/maestro.log" 2>&1
+  else
+    (cd "$D" && maestro --device "$UDID" test --format junit --output "$D/junit.xml" \
+        --test-output-dir "$D" --debug-output "$D/debug" "$ROOT/$FLOW") > "$D/maestro.log" 2>&1
+  fi
   RC=$?; set -e
   [ "$HIER" = "1" ] && maestro --device "$UDID" hierarchy > "$D/hierarchy.json" 2>/dev/null || true
   [ $RC -eq 0 ] || { FAILED=1; maestro --device "$UDID" hierarchy > "$D/hierarchy-at-failure.json" 2>/dev/null || true; }
@@ -110,6 +114,7 @@ for line in open(res):
     flows.append({"id":i,"file":f,"tickets":byid[i]["tickets"],"status":"passed" if rc=="0" else "failed","exitCode":int(rc),"seconds":int(secs),
       "fixture":byid[i].get("fixture"),"partial":byid[i].get("partial"),"liveWrite":byid[i].get("liveWrite"),
       "screenshots":sorted(os.path.basename(p) for p in glob.glob(os.path.join(d,"*.png"))),
+      "scoreEntryMetrics":json.load(open(os.path.join(d,"metrics.json"))) if os.path.exists(os.path.join(d,"metrics.json")) else None,
       "hierarchy":os.path.exists(os.path.join(d,"hierarchy.json"))})
 json.dump({"schema":"aos-e2e/v1","product":c["product"],"repo":c["repo"],"appId":c["appId"],
   "gitSha":os.environ.get("GITHUB_SHA",""),"ghRunId":os.environ.get("GITHUB_RUN_ID",""),
