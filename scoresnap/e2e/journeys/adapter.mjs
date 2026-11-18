@@ -215,8 +215,11 @@ export const cases={
     await check('entry',()=>ready(page,'home'));
     await act.activate(page.getByTestId('home-see-all-modes'),{feature:'game-library'});
     await check('library',async()=>{await page.getByText('50+ game modes',{exact:true}).waitFor({state:'visible'});await assertLibraryTargets(page);});
-    await step('game-library');
+    // The library sheet slides in; wait for its entrance transition to settle
+    // before the step() capture/audit, or rows are measured mid-animation
+    // (transiently clipped near the viewport bottom edge).
     await waitForStableViewportRect(page.getByText('50+ game modes',{exact:true}));
+    await step('game-library');
     await act.scroll(page.getByTestId('game-mode-row-skins').locator('xpath=../..'),240);
     await step('game-modes-scroll');
     await act.activate(page.getByTestId('game-mode-row-skins'),{feature:'skins-rules'});
