@@ -41,12 +41,14 @@ function requestContest(r) {
 }
 const text = (p, value) => p.getByText(value, { exact: true }).filter({ visible: true }).first();
 // AUG-291's unscored-player warning can appear after NEXT when the visible
-// group has a hole with no score yet; dismiss it so navigation still lands.
+// group has a hole with no score yet; Save pars so navigation still lands
+// (this host-side par write never touches another player's own queued edit:
+// it only fills the cell the host's screen already shows as unscored).
 async function clickHoleNav(p, label) {
   await text(p, label).click();
-  const continueAnyway = text(p, 'Continue Anyway');
-  await continueAnyway.waitFor({ timeout: 500 }).catch(() => {});
-  if (await continueAnyway.isVisible().catch(() => false)) await continueAnyway.click();
+  const savePars = text(p, 'Save pars');
+  await savePars.waitFor({ timeout: 500 }).catch(() => {});
+  if (await savePars.isVisible().catch(() => false)) await savePars.click();
 }
 // Round status sheet (direction A): sharing, join code and Online sync sit behind the header status chip.
 async function openStatus(p) {

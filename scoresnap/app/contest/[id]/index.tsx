@@ -1,6 +1,7 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { isCompactViewport } from "../../../src/ui/compact-viewport";
+import { allScoredOnHole as computeAllScoredOnHole, playersNeedingPar } from "../../../src/ui/hole-nav";
 import { onlineEnabled } from '../../../src/services/cross-device';
 import { useOnlineStore } from '../../../src/stores/online-store';
 import { overlayScorecard } from '../../../src/services/scorecard-overlay';
@@ -80,9 +81,7 @@ export default function ScorecardScreen() {
   const auxiliary=scopedAuxiliary(contest,group.id,activeRound?.id);
   const displayPlayers=sharedCard?group.players.filter((p,i,all)=>all.findIndex(q=>q.team===p.team)===i).map(p=>({...p,name:`Team ${p.team}`,scores:course.holes.map((_,i)=>auxiliary.teamCards?.[i+1]?.[p.team!]??0)})):group.players;
   // Check if all players on current hole have scores
-  const allScoredOnHole = displayPlayers.every(
-    (p) => (p.scores[currentHole - 1] || 0) > 0
-  );
+  const allScoredOnHole = computeAllScoredOnHole(displayPlayers, currentHole);
   const holeData = course.holes[currentHole - 1];
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
@@ -238,20 +237,30 @@ export default function ScorecardScreen() {
       }
     };
 
+    // Save pars skips the per-score bisque/joker/wolf declaration gates (adjustScore/
+    // setToPar): it is an explicit "take par for the rest" shortcut, not a manual entry,
+    // so it must not re-surface a declaration prompt for players the scorer is skipping.
+    const saveParsAndProceed = () => {
+      for (const p of playersNeedingPar(displayPlayers, currentHole)) {
+        updateScore(contest.id, group.id, p.id, currentHole, par);
+      }
+      proceed();
+    };
+
     if (!allScoredOnHole) {
       showAlert(
         "Confirmation required",
-        "Not every player has a score for this hole yet. Enter a score for each player, or continue and score it later.",
+        "Not every player has a score for this hole yet. Save par for the rest, or keep scoring.",
         [
-          { text: "Keep Scoring", style: "cancel" },
-          { text: "Continue Anyway", onPress: proceed },
+          { text: "Stay", style: "cancel" },
+          { text: "Save pars", onPress: saveParsAndProceed },
         ]
       );
       return;
     }
 
     proceed();
-  }, [contest.games, contest.gameConfig, auxiliary, currentHole, currentHoleInfo, currentPlayerScores, advanceToNextHole, allScoredOnHole]);
+  }, [contest.id, contest.games, contest.gameConfig, auxiliary, currentHole, currentHoleInfo, currentPlayerScores, advanceToNextHole, allScoredOnHole, displayPlayers, group.id, par, updateScore]);
 
   const handlePrevHole = useCallback(() => {
     if (currentHole > 1) {
