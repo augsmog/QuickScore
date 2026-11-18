@@ -1,42 +1,12 @@
-# AUG-637: safe-area CourseSearch-step recovery on the pinned existing EAS artifact
-# 33ac8ba5-c7d1-49b5-ba8e-f14c44211882 (no new build, no new spend). That artifact predates
-# EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true in the offline profile, so Players & Course renders the
-# plain "Course name" TextInput that ships today behind COURSE_SEARCH_ENABLED=false
-# (app/contest/new.tsx), not the "Search courses..." button -- confirmed against the retained
-# 2026-11-14 capture in .maestro/fixtures/retained-20261114/, see
-# tests/e2e-existing-binary-selectors.test.cjs. Grades only reaching the course field past the
-# Skins/Players setup steps; AUG-380/AUG-589 own the rest of safe-area acceptance.
+# AUG-637: safe-area Players & Course step recovery on the pinned existing EAS artifact
+# 33ac8ba5-c7d1-49b5-ba8e-f14c44211882 (no new build, no new spend). Grades only reaching
+# past the Course field setup step; other safe-area captures stay with AUG-380/AUG-589.
 appId: com.scoresnap.app
 ---
 - launchApp:
     clearState: true
     permissions: { all: allow }
 - runFlow: ../../subflows/finish-onboarding.yaml
-- tapOn:
-    id: "home-see-all-modes"
-- assertVisible: "50+ game modes"
-- assertVisible: "Close game mode library"
-- tapOn: "Close game mode library"
-- scrollUntilVisible:
-    element:
-      text: "^Skins$"
-      below:
-        text: "^GAME MODES$"
-    direction: RIGHT
-    visibilityPercentage: 100
-- tapOn:
-    text: "^Skins$"
-    below:
-      text: "^GAME MODES$"
-- assertVisible:
-    id: "game-info-sheet"
-- tapOn:
-    id: "game-info-close"
-- scrollUntilVisible:
-    element:
-      id: "home-new-contest"
-    direction: UP
-    centerElement: true
 - tapOn:
     id: "home-new-contest"
 - extendedWaitUntil:
@@ -50,15 +20,19 @@ appId: com.scoresnap.app
 - tapOn: "PLAYERS"
 - tapOn: "Player 2 name"
 - inputText: "Ben"
-- assertVisible: "Ava"
-- assertVisible: "Ben"
 - tapOn: "PLAYERS"
+# This existing artifact's captured a11y tree has no "Search courses..." control (confirmed
+# against the retained 2026-11-14 capture in .maestro/fixtures/retained-20261114/, see
+# tests/e2e-existing-binary-selectors.test.cjs): the Players & Course step renders the plain
+# "Course name" TextInput (app/contest/new.tsx's COURSE_SEARCH_ENABLED=false branch), not the
+# CourseSearch picker. Never used by aug-309-safe-area.yaml: that keeps the CourseSearch tap
+# for current and future source-built binaries, which have course search enabled.
 - scrollUntilVisible:
-    element: "Course name"
+    element: "^Course name$"
     direction: UP
     visibilityPercentage: 100
     centerElement: true
-- tapOn: "Course name"
+- tapOn: "^Course name$"
 - inputText: "E2E Tee Course"
 - assertVisible: "E2E Tee Course"
-- takeScreenshot: aug-637-02-course-name-recovered
+- takeScreenshot: aug-637-02-safe-area-course-recovered

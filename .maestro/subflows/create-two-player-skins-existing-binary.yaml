@@ -1,10 +1,10 @@
 # Existing-binary variant of create-two-player-skins.yaml, scoped to AUG-637 reruns only.
-# The pinned EAS artifact 6a97486c-6f45-42cd-ad09-27d959395fb4 predates the AUG-612 iOS a11y
-# childOf fix, so the game-mode-skins accessibility id never mounts on it (confirmed against the
-# retained 2026-11-14 capture in .maestro/fixtures/retained-20261114/, see
-# tests/e2e-existing-binary-selectors.test.cjs). Falls back to the unique "Skins" label text.
-# Never used by the online/offline build flows: those keep the id-based tap (AUG-1105) for
-# current and future builds, which do mount the id.
+# The pinned EAS artifact 6a97486c-6f45-42cd-ad09-27d959395fb4's captured a11y tree has no
+# resource-id on the game-mode cards (confirmed against the retained 2026-11-14 capture in
+# .maestro/fixtures/retained-20261114/, see tests/e2e-existing-binary-selectors.test.cjs), so
+# the id-based tap never mounts on this specific frozen build. Falls back to the unique
+# "Skins" label text instead. Never used by the general-purpose create-two-player-skins.yaml:
+# that keeps the id-based tap (AUG-663) for current and future source-built binaries.
 appId: com.scoresnap.app
 ---
 - tapOn:

@@ -87,6 +87,27 @@
       "fixture": "paid-tier"
     },
     {
+      "id": "aug-637-settlement-existing-binary",
+      "file": ".maestro/flows/offline/aug-637-settlement-existing-binary.yaml",
+      "build": "offline",
+      "tickets": [
+        "AUG-637",
+        "AUG-1280"
+      ],
+      "fixture": "paid-tier",
+      "notes": "Settlement Skins-step recovery re-run on the pinned existing EAS artifact 6a97486c; no new build. Later settlement acceptance stays with AUG-586/AUG-396."
+    },
+    {
+      "id": "aug-637-safe-area-existing-binary",
+      "file": ".maestro/flows/offline/aug-637-safe-area-existing-binary.yaml",
+      "build": "offline",
+      "tickets": [
+        "AUG-637",
+        "AUG-1280"
+      ],
+      "notes": "Players & Course step recovery re-run on the pinned existing EAS artifact 33ac8ba5; no new build. Other safe-area captures stay with AUG-380/AUG-589."
+    },
+    {
       "id": "aug-315-export-pdf",
       "file": ".maestro/flows/offline/aug-315-export-pdf.yaml",
       "build": "offline",
