@@ -29,6 +29,49 @@ function requireTarget(box) {
   assert(box.top>=box.clipTop-.5&&box.bottom<=box.clipBottom+.5,`revealed row clipped: ${JSON.stringify(box)}`);
   assert(box.hit,`revealed row cannot receive pointer: ${JSON.stringify(box)}`);
 }
+// First-paint target size at the exact J-delete-account "settings-two-taps" capture point
+// (no scroll, no reveal). Refs AUG-1177: the Default Unit Amount / Distance Unit rows must
+// clear 44px visible height here, not only after being scrolled into view.
+async function firstPaintBox(control,profile) {
+  return control.evaluate((el,p)=>{
+    const r=el.getBoundingClientRect();let top=p.top,bottom=p.height-p.bottom;
+    for(let a=el.parentElement;a;a=a.parentElement){
+      const s=getComputedStyle(a),b=a.getBoundingClientRect();
+      if(/hidden|clip|auto|scroll/.test(s.overflowY)){top=Math.max(top,b.top);bottom=Math.min(bottom,b.bottom);}
+    }
+    const visTop=Math.max(r.top,top),visBottom=Math.min(r.bottom,bottom);
+    return {raw:r.height,visibleHeight:Math.max(0,visBottom-visTop)};
+  },profile);
+}
+for(const name of ['iphone-se','iphone-pro-max']) {
+  test(`Settings named rows do not straddle the fold below 44px at first paint: ${name}`,async t=>{
+    const profile=SAFE_AREA_PROFILES[name],browser=await chromium.launch();t.after(()=>browser.close());
+    const context=await browser.newContext({viewport:profile,serviceWorkers:'block'});
+    await containOffline(context,base);
+    await context.addInitScript(({top,bottom})=>{
+      const original=window.getComputedStyle;
+      window.getComputedStyle=function(el,...args){
+        const style=original.call(this,el,...args);
+        if(el.style.position==='fixed'&&el.style.visibility==='hidden'&&el.style.transitionProperty==='padding')
+          return new Proxy(style,{get(target,key){if(key==='paddingTop')return `${top}px`;if(key==='paddingBottom')return `${bottom}px`;const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});
+        return style;
+      };
+    },profile);
+    await seedAcceptance(context,{kind:'profile',tier:'free',origin:new URL(base).origin});
+    const page=await context.newPage();page.setDefaultTimeout(5000);
+    await page.goto(base+'/');await page.getByTestId('home-new-contest').waitFor();
+    await page.getByRole('tab',{name:'Profile',exact:true}).click();
+    await page.getByRole('button',{name:'Settings',exact:true}).click();
+    await page.getByRole('button',{name:'Delete Account',exact:true}).waitFor();await stablePaint(page);
+    for(const label of ['Default Unit Amount, $5','Distance Unit, Yards']) {
+      const control=page.getByRole('button',{name:label,exact:true});assert.equal(await control.count(),1);
+      const box=await firstPaintBox(control,profile);
+      // A fully off-screen row (visibleHeight 0) isn't painted at all at this fold and is not a finding;
+      // only a row straddling the fold with a partial fragment below 44px is the defect.
+      assert(box.visibleHeight===0||box.visibleHeight>=44,`${name} ${label} clipped below 44px at first paint: ${JSON.stringify(box)}`);
+    }
+  });
+}
 for(const name of ['iphone-se','iphone-15-pro','iphone-pro-max']) {
   test(`Settings named rows fully reveal as 44px targets: ${name}`,async t=>{
     const profile=SAFE_AREA_PROFILES[name],browser=await chromium.launch();t.after(()=>browser.close());
