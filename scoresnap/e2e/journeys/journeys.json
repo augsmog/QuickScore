@@ -53,6 +53,8 @@
         "entry",
         "activation",
         "destination",
+        "player-list-clears-footer",
+        "name-target-44px",
         "outcome"
       ],
       "requiredSteps": [
@@ -315,20 +317,20 @@
     {
       "id": "J-score-hand",
       "persona": "New golfer",
-      "goal": "Score a full 18 by hand",
+      "goal": "Score a full 18 by hand (par each hole for both players), reaching hole 18 with all scores saved",
       "platform": [
         "web-offline"
       ],
-      "start": "home",
-      "fixture": "fresh-context-v1",
+      "start": "round",
+      "fixture": "two-player-empty-v1",
       "features": [],
       "budget": {
-        "activations": 6,
-        "screens": 4,
-        "timeoutMs": 20000
+        "activations": 53,
+        "screens": 1,
+        "timeoutMs": 60000
       },
       "baseline": null,
-      "status": "deferred",
+      "status": "gated",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
@@ -336,9 +338,12 @@
         "destination",
         "outcome"
       ],
-      "deferredReason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only",
-      "linear": "AUG-291",
-      "requiredSteps": []
+      "requiredSteps": [
+        "entry",
+        "hole-1-scored",
+        "hole-18-scored",
+        "all-saved"
+      ]
     },
     {
       "id": "J-delete-account",
@@ -425,24 +430,57 @@
         "web-offline"
       ],
       "start": "home",
-      "fixture": "fresh-context-v1",
+      "fixture": "fresh-td-v1",
       "features": [],
       "budget": {
-        "activations": 6,
-        "screens": 4,
-        "timeoutMs": 20000
+        "activations": 13,
+        "screens": 2,
+        "timeoutMs": 60000
       },
       "baseline": null,
-      "status": "deferred",
+      "status": "gated",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
         "activation",
         "destination",
+        "two-rounds-selected",
+        "round-count-targets-44px",
+        "player-1-name-target-44px",
+        "player-2-name-target-44px",
+        "player-3-name-target-44px",
+        "player-4-name-target-44px",
+        "player-5-name-target-44px",
+        "player-6-name-target-44px",
+        "player-7-name-target-44px",
+        "player-8-name-target-44px",
+        "player-1-handicap-target-44px",
+        "player-2-handicap-target-44px",
+        "player-3-handicap-target-44px",
+        "player-4-handicap-target-44px",
+        "player-5-handicap-target-44px",
+        "player-6-handicap-target-44px",
+        "player-7-handicap-target-44px",
+        "player-8-handicap-target-44px",
+        "group-target-44px",
+        "eight-ready",
+        "sam-in-g2",
+        "setup-modes",
+        "setup-settings",
+        "created",
         "outcome"
       ],
-      "deferredReason": "Multiday creation outside the phase 1 slice",
-      "requiredSteps": []
+      "requiredSteps": [
+        "entry",
+        "create",
+        "tournament-2-rounds",
+        "eight-players",
+        "groups-split",
+        "round-settings",
+        "created",
+        "saved"
+      ],
+      "linear": "AUG-1149"
     },
     {
       "id": "J-join-code",

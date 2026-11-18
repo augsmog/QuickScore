@@ -12,7 +12,6 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ALERT_EMAIL = Deno.env.get("ALERT_EMAIL") || "jones.augie1@gmail.com";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const ALERT_EMAIL_FROM = Deno.env.get("ALERT_EMAIL_FROM") || "SnapScore <alerts@snapscore.autumn8.me>";
 
 // The API key is only required to construct the SDK client. Signature checks use STRIPE_WEBHOOK_SECRET.
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "sk_test_placeholder", {
@@ -34,7 +33,7 @@ async function sendAlertEmail(subject: string, body: string) {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: ALERT_EMAIL_FROM,
+      from: "ScoreSnap <alerts@scoresnap.app>",
       to: ALERT_EMAIL,
       subject,
       html: body,

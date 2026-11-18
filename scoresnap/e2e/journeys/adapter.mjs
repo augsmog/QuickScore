@@ -1,3 +1,6 @@
+import {assertCreateFooterClear} from './create-footer.mjs';
+import {assertLibraryTargets,assertRulesSurface} from './layout-targets.mjs';
+import {homeModeTargets,assertHomeModeTargets} from './home-mode-targets.mjs';
 import {paywallSetup,paywallReady,paywallCases} from './paywall-recovery.mjs';
 import {acceptanceSetup,acceptanceReady,acceptanceCases} from './acceptance-cases.mjs';
 // SnapScore web-offline adapter. Fixtures stop before the measured goal.
@@ -19,6 +22,9 @@ export async function setup(context,page,journey,base) {
   });
   if(await paywallSetup(context,page,journey,base))return;
   if(await acceptanceSetup(context,page,journey,base))return;
+  // Empty storage plus the Tournament Director tier: multi-group, multi-round
+  // hosting is TD-only (canHostTournament), so a free fresh context cannot create it.
+  if(journey.fixture==='fresh-td-v1') await seedPaidTier(context,'td');
   if(journey.fixture==='two-player-empty-v1') {
     await seedPaidTier(context,'td');
     await context.addInitScript(({id})=>{
@@ -67,17 +73,92 @@ async function waitForStableViewportRect(locator) {
     requestAnimationFrame(tick);
   }));
 }
+// Bring a control fully into view with real wheel scrolls on its nearest
+// scrollable ancestor (counted by the runner), never Playwright autoscroll.
+async function reveal(page,act,locator) {
+  for(let i=0;i<6;i++) {
+    const delta=await locator.evaluate(el=>{
+      const r=el.getBoundingClientRect(),top=innerHeight*0.2,bottom=innerHeight*0.6;
+      if(r.top>=top&&r.bottom<=bottom)return 0;
+      let s=el.parentElement;
+      while(s&&!(s.scrollHeight>s.clientHeight&&/auto|scroll/.test(getComputedStyle(s).overflowY)))s=s.parentElement;
+      document.querySelectorAll('[data-journey-scroll]').forEach(n=>n.removeAttribute('data-journey-scroll'));
+      if(!s)return 0;
+      s.setAttribute('data-journey-scroll','1');
+      return Math.round(r.top-top);
+    });
+    if(!delta)return;
+    await act.scroll(page.locator('[data-journey-scroll]'),Math.max(-800,Math.min(800,delta)));
+  }
+}
+// Assert the actual named control, rather than its padded parent or style constant.
+async function setupTarget(page,act,locator,label) {
+  assert.equal(await locator.count(),1,`${label}: unique setup control`);
+  await reveal(page,act,locator);
+  const rect=await locator.boundingBox();
+  assert(rect&&rect.width>=44&&rect.height>=44,
+    `${label}: target must measure >=44x44, got ${JSON.stringify(rect)}`);
+}
 export const cases={
   ...paywallCases,
   ...acceptanceCases,
   'J-home-create-cancel':async({page,act,check,step,enter})=>{
+    assertHomeModeTargets(await homeModeTargets(page));
     await check('entry',async()=>assert.equal((await contests(page)).length,0));
     await act.activate(page.getByTestId('home-new-contest'),{feature:'create'});
     await check('activation',()=>page.waitForURL(/\/contest\/new$/));
     await enter('create'); await check('destination',()=>ready(page,'create')); await step('create');
+    await check('player-list-clears-footer',()=>assertCreateFooterClear(page));
+    await check('name-target-44px',()=>setupTarget(page,act,page.getByPlaceholder('Your name'),'create name'));
     await act.type(page.getByPlaceholder('Your name'),'Unsubmitted'); await step('edit');
     await act.activate(page.getByTestId('new-contest-back')); await enter('home');
     await check('outcome',async()=>assert.equal((await contests(page)).length,0)); await step('cancel-home');
+  },
+  'J-create-8p-multiday':async({page,act,check,step,enter})=>{
+    const names=['Augie','Sam','Lee','Max','Kai','Ray','Ty','Bo'];
+    await check('entry',async()=>assert.equal((await contests(page)).length,0));
+    await act.activate(page.getByTestId('home-new-contest'));
+    await check('activation',()=>page.waitForURL(/\/contest\/new$/));
+    await enter('create'); await check('destination',()=>ready(page,'create')); await step('create');
+    const toggle=page.getByTestId('tournament-toggle');
+    await reveal(page,act,toggle); await act.activate(toggle,{navigation:false});
+    await check('two-rounds-selected',()=>page.getByTestId('rounds-2').waitFor({state:'visible'}));
+    await check('round-count-targets-44px',async()=>{
+      for(const count of [2,3,4])await setupTarget(page,act,page.getByTestId(`rounds-${count}`),`rounds-${count}`);
+    }); await step('tournament-2-rounds');
+    // Two groups before adding players 3-8, so new rows alternate G1/G2.
+    const addGroup=page.getByTestId('add-group');
+    await reveal(page,act,addGroup); await act.activate(addGroup,{navigation:false});
+    const addPlayer=page.getByText('+ ADD PLAYER',{exact:true});
+    for(let i=2;i<names.length;i++) {await reveal(page,act,addPlayer); await act.activate(addPlayer,{navigation:false});}
+    for(let i=0;i<names.length;i++) {
+      const input=page.getByPlaceholder(i===0?'Your name':`Player ${i+1} name`,{exact:true});
+      await check(`player-${i+1}-name-target-44px`,()=>setupTarget(page,act,input,`player ${i+1} name`));
+      await act.type(input,names[i]);
+      await check(`player-${i+1}-handicap-target-44px`,()=>setupTarget(page,act,page.getByTestId(`player-handicap-${names[i]}`),`player ${i+1} handicap`));
+    }
+    await check('eight-ready',()=>page.getByText('8 ready',{exact:true}).waitFor({state:'visible'})); await step('eight-players');
+    // Rows default to G1,G1,G1,G2,G1,G2,G1,G2: move Sam to G2 for a 4/4 split.
+    const samGroup=page.getByTestId('player-group-Sam');
+    await check('group-target-44px',()=>setupTarget(page,act,samGroup,'Sam group')); await act.activate(samGroup,{navigation:false});
+    await check('sam-in-g2',async()=>assert.equal((await samGroup.innerText()).trim(),'G2')); await step('groups-split');
+    for(const id of ['setup-modes','setup-settings']) {
+      await act.activate(page.getByTestId('contest-continue'),{navigation:false});
+      await check(id,()=>page.getByTestId(id==='setup-modes'?'contest-step-gamemodes':'contest-step-round-settings').waitFor({state:'visible'}));
+    }
+    await step('round-settings');
+    await act.activate(page.getByTestId('contest-start'));
+    await check('created',()=>page.waitForURL(/\/contest\/[0-9a-f-]{36}$/)); await step('created');
+    await check('outcome',async()=>{
+      const all=await contests(page);
+      assert.equal(all.length,1);
+      const c=all[0];
+      assert.deepEqual(c.groups.map(g=>g.players.map(p=>p.name)),[['Augie','Lee','Kai','Ty'],['Sam','Max','Ray','Bo']]);
+      assert.equal(c.isTournament,true,'multi-day toggle must persist on the contest');
+      assert.equal(c.rounds?.length,2,'2 rounds must be persisted');
+      for(const r of c.rounds) assert.equal(r.groups.flatMap(g=>g.players).length,8);
+    });
+    await step('saved');
   },
   'J-home-join-code-error':async({page,act,check,step,enter})=>{
     await check('entry',()=>ready(page,'home'));
@@ -103,6 +184,25 @@ export const cases={
     await reload(); await enter('round-leaderboard');
     await check('outcome',async()=>assert.deepEqual(await scores(page),[expected,expected])); await step('reload-saved');
   },
+  'J-score-hand':async({page,act,check,step})=>{
+    await check('entry',()=>ready(page,'round-scorecard'));
+    const names=['Augie','Sam'];
+    for(let hole=1;hole<=18;hole++) {
+      for(const name of names) await act.activate(page.getByTestId(`score-par-${name}`),{navigation:false});
+      if(hole===1) {
+        await check('activation',async()=>assert.deepEqual((await scores(page)).map(s=>s[0]),[4,4]));
+        await step('hole-1-scored');
+      }
+      if(hole<18) await act.activate(page.getByTestId('score-next-hole'),{navigation:false});
+    }
+    await check('destination',async()=>{
+      assert.equal(await page.getByTestId('score-prev-hole').getAttribute('aria-disabled'),null,'on hole 18 Previous is available');
+      assert.equal(await page.getByTestId('score-par-Augie').isVisible(),true);
+    }); await step('hole-18-scored');
+    const full=Array(18).fill(4);
+    await check('outcome',async()=>assert.deepEqual(await scores(page),[full,full]));
+    await step('all-saved');
+  },
   'J-invite-from-round':async({page,act,check,step})=>{
     await check('entry',()=>ready(page,'round-scorecard'));
     await check('code-visible',async()=>assert.equal((await page.getByTestId('organizer-join-code').innerText()).trim(),'Join code: JRNY26'));
@@ -114,7 +214,7 @@ export const cases={
   'J-game-rules':async({page,act,check,step})=>{
     await check('entry',()=>ready(page,'home'));
     await act.activate(page.getByTestId('home-see-all-modes'),{feature:'game-library'});
-    await check('library',()=>page.getByText('50+ game modes',{exact:true}).waitFor({state:'visible'}));
+    await check('library',async()=>{await page.getByText('50+ game modes',{exact:true}).waitFor({state:'visible'});await assertLibraryTargets(page);});
     await step('game-library');
     await waitForStableViewportRect(page.getByText('50+ game modes',{exact:true}));
     await act.scroll(page.getByTestId('game-mode-row-skins').locator('xpath=../..'),240);
@@ -125,6 +225,7 @@ export const cases={
       await sheet.waitFor({state:'visible'});
       assert.equal(await sheet.getByText('Skins',{exact:true}).count(),1);
       assert.ok((await sheet.innerText()).trim().length>0);
+      await assertRulesSurface(page);
     });
     await waitForStableViewportRect(page.getByTestId('game-info-close'));
     await step('skins-rules');
