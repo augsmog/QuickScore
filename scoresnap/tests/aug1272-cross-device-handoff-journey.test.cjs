@@ -89,8 +89,13 @@ function buildHandoffFixture() {
 }
 
 describe('AUG-84 journey: handoff visibility, second-identity merge, onboarding, flag-off', () => {
-  test('guest prepares handoff, signs into an existing account, and history merges with no data loss or duplication', async () => {
+  test('guest prepares handoff, signs into an existing account with its own history, and the merge preserves the existing account, adds the new rounds, and lets the account win a colliding id with no data loss or duplication', async () => {
     const fx = buildHandoffFixture();
+    // Seed account-1 as a pre-existing signed-in account with its own rounds, including one
+    // round-1 at a different score than the guest's -- this is the only way to actually exercise
+    // "no data loss" (round-5 must survive) and "no duplication" (one round-1, account's score wins).
+    fx.accounts.set('account-1', [{ id: 'round-1', score: 80 }, { id: 'round-5', score: 90 }]);
+
     await fx.handoff.prepare('guest-A');
     const raw = JSON.parse(await fx.storage.getItem('snapscore.account-handoff.v1'));
     fx.stageGuestRounds(raw.token, [{ id: 'round-1', score: 72 }, { id: 'round-2', score: 68 }]);
@@ -98,8 +103,12 @@ describe('AUG-84 journey: handoff visibility, second-identity merge, onboarding,
     const result = await fx.handoff.claim('account-1');
     // expect().toEqual (not node:assert) because mergeRoundHistory/accountHandoff run inside a
     // separate vm context (a different realm) -- toEqual compares structurally across realms.
-    expect(result).toEqual({ transferred: 2, conflicts: 0 });
-    expect(fx.accounts.get('account-1').map((r) => r.id).sort()).toEqual(['round-1', 'round-2']);
+    expect(result).toEqual({ transferred: 2, conflicts: 1 }); // round-1 collides; round-2 is new
+    const merged = fx.accounts.get('account-1');
+    expect(merged.map((r) => r.id).sort()).toEqual(['round-1', 'round-2', 'round-5']); // no duplicate round-1, round-5 not lost
+    expect(merged.find((r) => r.id === 'round-1').score).toBe(80); // account's own round-1 wins, guest's 72 is discarded, not overwritten
+    expect(merged.find((r) => r.id === 'round-5').score).toBe(90); // pre-existing history with no guest counterpart survives untouched
+    expect(merged.find((r) => r.id === 'round-2').score).toBe(68); // the genuinely new guest round is transferred
     // Claim is consumed: the handoff key is cleared, so a repeat claim is a no-op, not a duplicate transfer.
     assert.equal(await fx.storage.getItem('snapscore.account-handoff.v1'), null);
   });
@@ -124,16 +133,32 @@ describe('AUG-84 journey: handoff visibility, second-identity merge, onboarding,
     await assert.rejects(() => fx.handoff.prepare('guest-B'), /Finish the pending account handoff first/);
   });
 
-  test('onboarding gate bypasses only for a signed-in, cross-device-linked session (sharing on), chained to the merge above', () => {
+  test('onboarding gate bypasses only once an actual handoff claim against this fixture has resolved into that account', async () => {
     require('tsx/cjs');
     const { isAppReadyForSession } = require('../src/services/onboarding-gate.ts');
+    const target = 'account-7'; // deliberately not a hardcoded 'account-1' literal, to prove this isn't copy-pasted
+
     // Before merge: anonymous guest, no linked remote user yet -- must still onboard.
     assert.equal(isAppReadyForSession({
       hasCompletedOnboarding: false, crossDeviceSharingEnabled: true, hasSession: true, isAnonymous: true, remoteUserId: null,
     }), false);
-    // After merge/claim finished and signed in as the target account -- bypass is allowed.
+
+    // Actually run the handoff fixture and chain the gate check off its live result, instead of
+    // asserting a second hardcoded case -- remoteUserId below is the exact value this claim() call
+    // resolved against, and the bypass is gated on result.transferred > 0 (merge actually happened).
+    const fx = buildHandoffFixture();
+    await fx.handoff.prepare('guest-B');
+    const raw = JSON.parse(await fx.storage.getItem('snapscore.account-handoff.v1'));
+    fx.stageGuestRounds(raw.token, [{ id: 'round-9', score: 81 }]);
+    const result = await fx.handoff.claim(target);
+    assert.ok(result.transferred > 0, 'merge must actually have happened before the gate can bypass');
+
     assert.equal(isAppReadyForSession({
-      hasCompletedOnboarding: false, crossDeviceSharingEnabled: true, hasSession: true, isAnonymous: false, remoteUserId: 'account-1',
+      hasCompletedOnboarding: false,
+      crossDeviceSharingEnabled: true,
+      hasSession: true,
+      isAnonymous: false,
+      remoteUserId: target, // same variable the claim() call above used, not a copy-pasted literal
     }), true);
   });
 
