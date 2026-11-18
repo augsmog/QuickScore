@@ -58,9 +58,11 @@ try {
   // Host owns a league and two already-synced events. Event A has member 1
   // and member 3 already approved (so link_league_event imports them as
   // league members, the only way the M9 candidate creates league
-  // membership). Event B is linked to the league but none of them is an
-  // event B participant yet. Member 2 is never approved anywhere and never
-  // becomes a league member, as a negative control throughout.
+  // membership). Event B is linked to the league with only the host already
+  // approved there (every contest host carries an approved membership row
+  // for their own event); no other identity is an event B participant yet.
+  // Member 2 is never approved anywhere and never becomes a league member,
+  // as a negative control throughout.
   const eventA = randomUUID(), eventB = randomUUID();
   const hostA = randomUUID(), m1A = randomUUID(), m3A = randomUUID();
   const hostB = randomUUID(), m1Seat = randomUUID(), m2Seat = randomUUID();
@@ -83,7 +85,7 @@ INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status)
   const league = (await rpc(0)('create_league', { p_league_name: 'Harness League' })) as string;
   await rpc(0)('link_league_event', { p_league_id: league, p_contest_id: eventA });
   const linkB = await rpc(0)('link_league_event', { p_league_id: league, p_contest_id: eventB });
-  assert.deepEqual(linkB, { status: 'linked', mapped_players: 0 }, 'event B has no approved members yet to import');
+  assert.deepEqual(linkB, { status: 'linked', mapped_players: 1 }, 'event B has only the host\'s own approved membership to import; no participant has joined yet');
   assert.equal((await rpc(0)('list_my_leagues', {})).length, 1);
   assert.equal((await rpc(0)('list_league_roster', { p_league_id: league })).length, 3, 'linking event A imported the host, member 1 and member 3, all already approved there; event B had no approved non-host member yet to import');
 
