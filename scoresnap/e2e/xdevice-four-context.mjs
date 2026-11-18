@@ -317,6 +317,16 @@ try {
       await poll('conflict removed', async () => (await queueEntries(pages[1])).every(e => e.state !== 'conflict') || 'context 1: durable conflict entry remains');
       await poll('conflict actions gone', async () => (!await guestText(1, 'Keep current').isVisible() && !await guestText(1, 'Use my score').isVisible()) || 'context 1: guest conflict action still visible');
       expectCell(1, 2, current);
+      // C shares the host's scoring group (group 1). If C's hole 2 stayed
+      // unscored, the host's own forced Next-through-hole-2 traversal later
+      // (go(), used by every subsequent converge() to inspect scorecard
+      // cells) would hit the unscored-hole gate while C is still the other
+      // unscored member of that group, and Save pars would silently write a
+      // phantom par into C's hole 2 along with the host's. Score it directly
+      // now, the same way every other tracked cell in this fixture is set,
+      // so the host's own par-skip never has another tracked player to catch.
+      await save(2, 2, 7);
+      expectCell(2, 2, 7);
       await converge([0, 1, 2, 3]);
     });
     await step('host leaves; players continue; host returns without loss or duplicates', async () => {
