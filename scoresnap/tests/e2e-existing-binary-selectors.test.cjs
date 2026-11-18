@@ -87,7 +87,7 @@ describe("safe-area existing binary (EAS 33ac8ba5, flow SHA f23fc9687d673673af33
 
   test("the existing-binary flow taps the Course name field directly, not Search courses", () => {
     const [, steps] = docs(".maestro/flows/offline/aug-637-safe-area-existing-binary.yaml");
-    expect(steps).toContainEqual({ tapOn: "Course name" });
+    expect(steps).toContainEqual({ tapOn: "^Course name$" });
     expect(steps.some((s) => s.tapOn === "Search courses...")).toBe(false);
     expect(steps).toContainEqual({ inputText: "E2E Tee Course" });
   });
