@@ -50,6 +50,13 @@ test('every capture audits safe bands, targets, overlaps and visible text',async
     // A near-full-viewport overlay (2px short of covering edge-to-edge) is not a
     // backdrop and must still be audited normally for overlap.
     ['near-full-not-backdrop','<button style="position:absolute;left:0;top:0;width:391px;height:850px"></button>'+button(100,100),'control-overlap'],
+    // A lone viewport-spanning control with nothing else on screen has no sheet/dialog
+    // content to dim -- it is an ordinary full-screen control, not a dismiss-scrim, and
+    // must still be audited for safe-area.
+    ['lone-full-viewport-control',button(0,0,393,852),'safe-area'],
+    // clip-path:inset() with a `round` radius is not a plain rectangle; it must stay
+    // unsupported rather than silently folding only the first four offsets.
+    ['inset-clip-rounded','<button style="position:absolute;left:100px;top:100px;width:44px;height:44px;clip-path:inset(1px 2px 3px 4px round 50%)">Go</button>','unsupported-geometry'],
   ];
   for(const [name,html,expected] of fixtures)await t.test(name,async()=>{
     await page.setContent(`<style>body{margin:0}button{padding:0;border:0;font:12px Arial}</style>${html}`);
@@ -104,6 +111,11 @@ test('scroll fragments retain full target size without broadening visible geomet
     ['small-raw',markup(44,30,6),'target-size'],
     ['non-scrollable-auto',`<div style="position:absolute;left:100px;top:100px;width:44px;height:44px;overflow:auto"><button style="position:absolute;top:-38px;width:44px;height:44px"></button></div>`,'target-size'],
     ['nested-hidden',`<div style="position:absolute;left:100px;top:100px;height:6px;width:60px;overflow:auto"><div style="height:30px;overflow:hidden"><button style="width:44px;height:44px"></button></div><div style="height:100px"></div></div>`,'target-size'],
+    // A farther-out static frame that is genuinely smaller than the nearer scrollable
+    // ancestor's own box (unlike AUG-1212's viewport/body-sized case) still permanently
+    // clips the row to that smaller window no matter how it is scrolled, and must keep
+    // re-applying its own fragment.
+    ['smaller-outer-frame-past-scroll-ancestor',`<div style="position:absolute;left:100px;top:100px;width:60px;height:6px;overflow:hidden"><div style="width:60px;height:44px;overflow-y:auto"><button style="display:block;width:44px;height:44px"></button><div style="height:100px"></div></div></div>`,'target-size'],
     ...[4,800].map(y=>[`safe-band-${y}`,`<div style="position:absolute;left:100px;top:${y}px;height:44px;width:60px;overflow:auto"><button style="display:block;width:44px;height:44px"></button><div style="height:100px"></div></div>`,'safe-area']),
   ])await t.test(name,async()=>{
     const result=await audit(html);

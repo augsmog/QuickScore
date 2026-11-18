@@ -46,7 +46,7 @@ export async function auditCapture(page,context) {
     const rect=r=>({left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height});
     const identify=el=>el.getAttribute('aria-label')||el.getAttribute('data-testid')||el.textContent?.trim().slice(0,80)||el.tagName;
     const visibleRect=(el,r,forTargetSize=false)=>{
-      let left=r.left,top=r.top,right=r.right,bottom=r.bottom,unsupported=false,scrolledX=false,scrolledY=false;
+      let left=r.left,top=r.top,right=r.right,bottom=r.bottom,unsupported=false,scrollBoxX=null,scrollBoxY=null;
       for(let a=el;a;a=a.parentElement){
         const s=getComputedStyle(a),b=a.getBoundingClientRect();
         if(s.clip!=='auto'||s.transform!=='none'&&!/^matrix\([^,]+, 0, 0, [^,]+, [^,]+, [^,]+\)$/.test(s.transform))unsupported=true;
@@ -55,8 +55,11 @@ export async function auditCapture(page,context) {
           // this function already does for overflow/scroll ancestors, instead of
           // refusing to measure it. Other basic-shape functions (circle, polygon,
           // ellipse, path...) have no rectangular equivalent, so they stay unsupported.
+          // `round <radius>` makes the inset corners non-rectangular; that has no
+          // rectangular equivalent either, so it must stay unsupported rather than
+          // silently folding only the first four (ignored-rounding) offsets.
           const inset=s.clipPath.match(/^inset\(([^)]*)\)$/);
-          if(inset){
+          if(inset&&!/round/i.test(inset[1])){
             const raw=inset[1].split(/\s+/),expanded=raw.length===1?[raw[0],raw[0],raw[0],raw[0]]:raw.length===2?[raw[0],raw[1],raw[0],raw[1]]:raw.length===3?[raw[0],raw[1],raw[2],raw[1]]:raw;
             const px=(v,size)=>parseFloat(v)*(v.endsWith('%')?size/100:1),[ct,cr,cb,cl]=[px(expanded[0],b.height),px(expanded[1],b.width),px(expanded[2],b.height),px(expanded[3],b.width)];
             left=Math.max(left,b.left+cl);right=Math.min(right,b.right-cr);top=Math.max(top,b.top+ct);bottom=Math.min(bottom,b.bottom-cb);
@@ -68,18 +71,23 @@ export async function auditCapture(page,context) {
         const scrollX=forTargetSize&&a!==el&&/auto|scroll/.test(s.overflowX)&&a.scrollWidth>a.clientWidth;
         const scrollY=forTargetSize&&a!==el&&/auto|scroll/.test(s.overflowY)&&a.scrollHeight>a.clientHeight;
         // Once a nearer ancestor has already proven the element reachable by scrolling,
-        // a farther-out static frame (commonly body/html locking outer page scroll
-        // around that same inner scrollview) must not re-impose its own fragment either.
-        if(!scrolledX&&(paint||/hidden|clip|auto|scroll/.test(s.overflowX)&&!scrollX)){left=Math.max(left,b.left);right=Math.min(right,b.right);}
-        if(!scrolledY&&(paint||/hidden|clip|auto|scroll/.test(s.overflowY)&&!scrollY)){top=Math.max(top,b.top);bottom=Math.min(bottom,b.bottom);}
-        if(scrollX)scrolledX=true;
-        if(scrollY)scrolledY=true;
+        // a farther-out static frame must not re-impose its own fragment UNLESS it is
+        // itself smaller than that scrollable ancestor's own box (a genuine additional
+        // clip, not just a body/html page-scroll lock whose box coincides with or
+        // exceeds it).
+        const restrictsX=!scrollBoxX||b.left>scrollBoxX.left||b.right<scrollBoxX.right;
+        const restrictsY=!scrollBoxY||b.top>scrollBoxY.top||b.bottom<scrollBoxY.bottom;
+        if(restrictsX&&(paint||/hidden|clip|auto|scroll/.test(s.overflowX)&&!scrollX)){left=Math.max(left,b.left);right=Math.min(right,b.right);}
+        if(restrictsY&&(paint||/hidden|clip|auto|scroll/.test(s.overflowY)&&!scrollY)){top=Math.max(top,b.top);bottom=Math.min(bottom,b.bottom);}
+        if(scrollX&&!scrollBoxX)scrollBoxX=b;
+        if(scrollY&&!scrollBoxY)scrollBoxY=b;
       }
       // The viewport edge is itself just the outermost scroll boundary: once a nearer
       // ancestor has already proven the element reachable by scrolling, the window's
-      // current scroll-position snapshot isn't a real clip either.
-      if(!scrolledX){left=Math.max(0,left);right=Math.min(innerWidth,right);}
-      if(!scrolledY){top=Math.max(0,top);bottom=Math.min(innerHeight,bottom);}
+      // current scroll-position snapshot isn't a real clip either, unless the viewport
+      // is itself narrower than that scrollable ancestor's own box.
+      if(!scrollBoxX||0>scrollBoxX.left||innerWidth<scrollBoxX.right){left=Math.max(0,left);right=Math.min(innerWidth,right);}
+      if(!scrollBoxY||0>scrollBoxY.top||innerHeight<scrollBoxY.bottom){top=Math.max(0,top);bottom=Math.min(innerHeight,bottom);}
       return {left,top,right,bottom,width:right-left,height:bottom-top,unsupported};
     };
     // A transparent cover or pointer-events:none changes hit testing without
@@ -102,9 +110,13 @@ export async function auditCapture(page,context) {
       // (tap-anywhere-to-dismiss scrim), not a placed UI target: it is expected to
       // ignore safe-area insets and to sit beneath the screen it is dimming, so it is
       // not a real target-size/safe-area/overlap candidate against that background.
-      const backdrop=visible.left<=0.5&&visible.top<=0.5&&visible.right>=innerWidth-0.5&&visible.bottom>=innerHeight-0.5;
-      targets.push({id,name:identify(el),...visible,raw,size:visibleRect(el,raw,true),backdrop});
+      const spansViewport=visible.left<=0.5&&visible.top<=0.5&&visible.right>=innerWidth-0.5&&visible.bottom>=innerHeight-0.5;
+      targets.push({id,name:identify(el),...visible,raw,size:visibleRect(el,raw,true),spansViewport});
     }
+    // A dismiss-scrim only exists alongside the sheet/dialog content it dims; a
+    // viewport-spanning control with nothing else on screen is an ordinary (and
+    // audit-worthy) full-screen control, not a backdrop.
+    for(const t of targets)t.backdrop=t.spansViewport&&targets.length>1;
     const texts=[],walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
     while(walker.nextNode()){
       const node=walker.currentNode,el=node.parentElement;
