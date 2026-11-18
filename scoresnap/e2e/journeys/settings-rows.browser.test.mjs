@@ -50,16 +50,8 @@ async function firstPaintBox(control,profile) {
     return {raw:r.height,width:r.width,visibleHeight,hit};
   },profile);
 }
-// AUG-1228: an earlier capture reported 15Pro's Distance Unit straddling the fold at first
-// paint (21px, screen-height-dependent -- 15Pro's 852pt height sits between SE's 667pt and
-// ProMax's 932pt). Repeated captures here (9 runs, cold and warm server starts) reproduced
-// that figure exactly once; the other 8 settled at visibleHeight 0 (fully below the fold,
-// 35px of slack -- not a finding, same accepted state as SE's copy of this row) with top/
-// bottom pixel-identical across runs. The one outlier matches a transient reflow (a sublabel
-// above re-wrapping during font swap, shifting every row below it) that stablePaint's fixed
-// fonts.ready+2-RAF wait doesn't rule out; hardened above to poll for layout stability before
-// returning. 15Pro is included below now that the capture itself is stable; no production
-// layout change made since the stable state isn't clipped.
+// AUG-1228 requires the 15 Pro Distance Unit row to be visible at first paint.
+// A fully hidden row does not meet that acceptance, even though it does not straddle the fold.
 for(const name of ['iphone-se','iphone-15-pro','iphone-pro-max']) {
   test(`Settings named rows do not straddle the fold below 44px at first paint: ${name}`,async t=>{
     const profile=SAFE_AREA_PROFILES[name],browser=await chromium.launch();t.after(()=>browser.close());
@@ -80,9 +72,16 @@ for(const name of ['iphone-se','iphone-15-pro','iphone-pro-max']) {
     await page.getByRole('tab',{name:'Profile',exact:true}).click();
     await page.getByRole('button',{name:'Settings',exact:true}).click();
     await page.getByRole('button',{name:'Delete Account',exact:true}).waitFor();await stablePaint(page);
+    const firstPaint=[];
     for(const label of ['Default Unit Amount, $5','Distance Unit, Yards']) {
       const control=page.getByRole('button',{name:label,exact:true});assert.equal(await control.count(),1);
       const box=await firstPaintBox(control,profile);
+      firstPaint.push({label,...box});
+      const dir=path.resolve(process.env.OUT_DIR||'e2e/settings-row-screens','settings-rows',name);
+      fs.mkdirSync(dir,{recursive:true});
+      fs.writeFileSync(path.join(dir,'first-paint.json'),JSON.stringify(firstPaint,null,2));
+      if(name==='iphone-15-pro'&&label==='Distance Unit, Yards')
+        assert(box.visibleHeight>=44,`${name} ${label} must show >=44px at first paint: ${JSON.stringify(box)}`);
       // A fully off-screen row (visibleHeight 0) isn't painted at all at this fold and is not a finding;
       // only a row straddling the fold with a partial fragment below 44px is the defect.
       assert(box.visibleHeight===0||box.visibleHeight>=44,`${name} ${label} clipped below 44px at first paint: ${JSON.stringify(box)}`);

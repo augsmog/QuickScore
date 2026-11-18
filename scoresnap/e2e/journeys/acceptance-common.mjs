@@ -58,17 +58,4 @@ export async function waitState(page,key,predicateSource) {
   await page.waitForFunction(({key,predicateSource})=>new Function('state',`return (${predicateSource})(state)`)(JSON.parse(localStorage.getItem(key)||'null')?.state),{key,predicateSource});
 }
 export async function waitChecked(locator,value) {await locator.page().waitForFunction(({el,value})=>el.checked===value,{el:await locator.elementHandle(),value});assert.equal(await locator.isChecked(),value);}
-// AUG-1228: fonts.ready + 2 RAF can still land on a frame where a late font swap is
-// mid-reflow (e.g. a sublabel re-wrapping from 2 lines to 1), shifting every row below it
-// by double-digit px for one frame. Poll document height across a few more frames and only
-// return once it stops moving, so geometry reads below this call see the settled layout.
-export async function stablePaint(page) {await page.evaluate(async()=>{
-  await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-  let prev=document.documentElement.scrollHeight;
-  for(let i=0;i<8;i++){
-    await new Promise(r=>requestAnimationFrame(r));
-    const next=document.documentElement.scrollHeight;
-    if(next===prev)return;
-    prev=next;
-  }
-});}
+export async function stablePaint(page) {await page.evaluate(async()=>{await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});}
