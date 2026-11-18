@@ -37,6 +37,13 @@ test('every capture audits safe bands, targets, overlaps and visible text',async
     ['transparent-text','<span style="position:absolute;top:0;color:transparent">Hidden</span>',null],
     ['opacity-product',`<div style="opacity:.2"><div style="opacity:.2">${button(100,4)}</div></div>`,null],
     ['covered-control',button(100,4)+'<div style="position:fixed;inset:0;background:white"></div>',null],
+    // AUG-1211: a full-viewport interactive scrim (modal/sheet backdrop) must not be
+    // flagged for safe-area, and background content it dims must not be flagged as
+    // overlapping it -- the backdrop is excluded from the overlap/safe-area audit.
+    ['scrim-backdrop','<button style="position:absolute;left:0;top:0;width:393px;height:852px;background:rgba(0,0,0,.5)"></button><span style="position:absolute;left:20px;top:400px">Background label</span>'+button(150,600),null],
+    // A near-full-viewport overlay (2px short of covering edge-to-edge) is not a
+    // backdrop and must still be audited normally for overlap.
+    ['near-full-not-backdrop','<button style="position:absolute;left:0;top:0;width:391px;height:850px"></button>'+button(100,100),'control-overlap'],
   ];
   for(const [name,html,expected] of fixtures)await t.test(name,async()=>{
     await page.setContent(`<style>body{margin:0}button{padding:0;border:0;font:12px Arial}</style>${html}`);
@@ -68,6 +75,21 @@ test('scroll fragments retain full target size without broadening visible geomet
     const result=await audit(`<div style="position:absolute;left:100px;top:100px;width:6px;height:60px;overflow-x:${overflow}"><button style="width:44px;height:44px"></button></div>`);
     assert.equal(result.targets[0].width,6);
     assert.deepEqual(result.failures,[]);
+  });
+  // AUG-1212: a static outer frame whose own box happens to coincide with the
+  // viewport (the common body/html page-lock pattern around an inner real
+  // scrollview) must not re-impose that boundary once the inner scrollable
+  // ancestor has already proven the row reachable by scrolling -- regardless
+  // of whether that outer frame is literally the viewport edge or an explicit
+  // overflow:hidden ancestor whose box happens to match it.
+  await t.test('viewport-matching outer static frame does not re-clip past an inner scrollable ancestor',async()=>{
+    const result=await audit(`<div style="position:absolute;left:0;top:0;width:393px;height:852px;overflow:hidden"><div style="position:absolute;left:0;top:700px;width:393px;height:152px;overflow-y:auto"><button aria-label="row" style="display:block;width:353px;height:80px;margin-top:100px"></button></div></div>`);
+    assert.equal(result.targets[0].size.height,80,'sizing ignores the redundant outer frame once the inner scroll ancestor already exempted this axis');
+    // The row's bottom genuinely sits in the device's bottom inset band at this
+    // scroll position, so safe-area (deliberately not scroll-exempt) still fires --
+    // only the target-size false positive from the redundant outer clamp is fixed.
+    assert.equal(result.failures.length,1);
+    assert.equal(result.failures[0].assertion,'safe-area');
   });
   for(const [name,html,expected] of [
     ['hidden',markup(44,44,6,'hidden'),'target-size'],
