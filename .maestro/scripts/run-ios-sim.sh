@@ -71,7 +71,7 @@ for f in c["flows"]:
     if f["build"]!=sys.argv[2] or (ids is not None and f["id"] not in ids): continue
     if ids is None and f.get("skipInAll"): continue  # opt-in only; reason lives in the config
     fx=c["fixtures"][f["fixture"]]["file"] if f.get("fixture") else "-"
-    print("\t".join([f["id"],f["file"],fx,"1" if f.get("captureHierarchy") else "0"]))
+    print("\t".join([f["id"],f["file"],fx,"1" if f.get("captureHierarchy") else "0","1" if f.get("capturePdf") else "0"]))
 PY
 [ -s "$WORK/flows.tsv" ] || { echo "no flows match build=$BUILD flows=$FLOWS" >&2; exit 2; }
 
@@ -82,7 +82,7 @@ seed_asyncstorage() { # $1 fixture json (key -> string value), written as RN Asy
 }
 
 : > "$WORK/results.tsv"; FAILED=0
-while IFS=$'\t' read -r ID FLOW FIXTURE HIER; do
+while IFS=$'\t' read -r ID FLOW FIXTURE HIER CAPTURE_PDF; do
   D="$OUT/flows/$ID"; mkdir -p "$D"
   xcrun simctl terminate "$UDID" "$APP_ID" 2>/dev/null || true
   xcrun simctl uninstall "$UDID" "$APP_ID" 2>/dev/null || true
@@ -96,6 +96,12 @@ while IFS=$'\t' read -r ID FLOW FIXTURE HIER; do
         --test-output-dir "$D" --debug-output "$D/debug" "$ROOT/$FLOW") > "$D/maestro.log" 2>&1
   fi
   RC=$?; set -e
+  if [ "$CAPTURE_PDF" = "1" ] && [ "$RC" -eq 0 ]; then
+    CONTAINER="$(xcrun simctl get_app_container "$UDID" "$APP_ID" data)"
+    if ! python3 "$ROOT/.maestro/scripts/collect-pdf.py" "$CONTAINER/Library/Caches" "$D/pdf" > "$D/pdf-collection.log" 2>&1; then
+      RC=1
+    fi
+  fi
   [ "$HIER" = "1" ] && maestro --device "$UDID" hierarchy > "$D/hierarchy.json" 2>/dev/null || true
   [ $RC -eq 0 ] || { FAILED=1; maestro --device "$UDID" hierarchy > "$D/hierarchy-at-failure.json" 2>/dev/null || true; }
   # Maestro writes takeScreenshot files under its timestamped run dir; lift them to the flow dir for the manifest.
@@ -115,6 +121,8 @@ for line in open(res):
       "fixture":byid[i].get("fixture"),"partial":byid[i].get("partial"),"liveWrite":byid[i].get("liveWrite"),
       "screenshots":sorted(os.path.basename(p) for p in glob.glob(os.path.join(d,"*.png"))),
       "scoreEntryMetrics":json.load(open(os.path.join(d,"metrics.json"))) if os.path.exists(os.path.join(d,"metrics.json")) else None,
+      "savedPdf":json.load(open(os.path.join(d,"pdf","receipt.json"))) if os.path.exists(os.path.join(d,"pdf","receipt.json")) else None,
+      "comparisonFixture":byid[i].get("comparisonFixture"),
       "hierarchy":os.path.exists(os.path.join(d,"hierarchy.json"))})
 json.dump({"schema":"aos-e2e/v1","product":c["product"],"repo":c["repo"],"appId":c["appId"],
   "gitSha":os.environ.get("GITHUB_SHA",""),"ghRunId":os.environ.get("GITHUB_RUN_ID",""),
