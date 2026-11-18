@@ -58,9 +58,10 @@ try {
   // Host owns a league and two already-synced events. Event A has member 1
   // and member 3 already approved (so link_league_event imports them as
   // league members, the only way the M9 candidate creates league
-  // membership). Event B is linked to the league with only the host already
-  // approved there (every contest host carries an approved membership row
-  // for their own event); no other identity is an event B participant yet.
+  // membership). Event B seeds only the host's own approved membership row
+  // (inserted explicitly above, contest_memberships for eventB/users[0]);
+  // no other identity is an event B participant yet, so the host is the
+  // sole approved membership link_league_event imports for event B.
   // Member 2 is never approved anywhere and never becomes a league member,
   // as a negative control throughout.
   const eventA = randomUUID(), eventB = randomUUID();
