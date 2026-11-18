@@ -40,6 +40,14 @@ function requestContest(r) {
   try { return r.request().postDataJSON()?.contest_id; } catch { return undefined; }
 }
 const text = (p, value) => p.getByText(value, { exact: true }).filter({ visible: true }).first();
+// AUG-291's unscored-player warning can appear after NEXT when the visible
+// group has a hole with no score yet; dismiss it so navigation still lands.
+async function clickHoleNav(p, label) {
+  await text(p, label).click();
+  const continueAnyway = text(p, 'Continue Anyway');
+  await continueAnyway.waitFor({ timeout: 500 }).catch(() => {});
+  if (await continueAnyway.isVisible().catch(() => false)) await continueAnyway.click();
+}
 // Round status sheet (direction A): sharing, join code and Online sync sit behind the header status chip.
 async function openStatus(p) {
   if (await p.getByTestId('round-status-sheet').isVisible().catch(() => false)) return;
@@ -178,7 +186,7 @@ async function converge(indices) {
       while (await current() !== target) {
         const before = await current();
         await closeStatus(pages[0]);
-        await text(pages[0], before < target ? 'NEXT' : 'PREV').click();
+        await clickHoleNav(pages[0], before < target ? 'NEXT' : 'PREV');
         await text(pages[0], `HOLE ${String(before + (before < target ? 1 : -1)).padStart(2, '0')}`).waitFor();
       }
     };
@@ -286,7 +294,7 @@ try {
       await save(1, 2, 9);
       await guest(1).getByText(/^Hole 2 · current clear · queued 9 · par/).first().waitFor();
       await closeStatus(pages[0]);
-      await text(pages[0], 'NEXT').click();
+      await clickHoleNav(pages[0], 'NEXT');
       await text(pages[0], 'HOLE 02').waitFor();
       await (await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[1])).click();
       await poll('host hole two accepted before B reconnects', async () => {
@@ -393,7 +401,7 @@ try {
               || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
           });
         }
-        if (hole < 4) { await closeStatus(pages[0]); await text(pages[0], 'NEXT').click(); }
+        if (hole < 4) { await closeStatus(pages[0]); await clickHoleNav(pages[0], 'NEXT'); }
       }
       const status = await freshResponse(3, 'my_sync_status', sequence, async () => {
         // Reload first: a focus response from the old document can be discarded

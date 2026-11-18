@@ -183,6 +183,9 @@ try {
     await check('preplay cancel',page.getByText('Cancel — remains pending',{exact:true}));
     await page.getByText('Cancel — remains pending',{exact:true}).click();
     await page.getByTestId('score-next-hole').click();
+    // The fixture never scores a hole, so AUG-291's unscored-player warning
+    // fires first; dismiss it before the Tier-2 aux prompt can appear.
+    await page.getByText('Continue Anyway',{exact:true}).click();
     await geometry('auxiliary');
     await page.goto(base+'/scan/game-details?contestId=safe-fixture&groupId=g',{waitUntil:'networkidle'});
     await geometry('game-prompt');
