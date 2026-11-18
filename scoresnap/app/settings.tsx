@@ -1,5 +1,6 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../src/ui/SafeScreen";
+import { PICKER_ROW_STYLE } from "../src/ui/picker-row-layout";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { settingsLayout, SETTINGS_SWITCH_TARGET } from "../src/ui/settings-layout";
 import { useState, useCallback } from "react";
@@ -172,10 +173,7 @@ function PickerRow({
       style={{
         backgroundColor: COLORS.surfaceLow,
         borderRadius: RADII.lg,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        minHeight: 44,
-        marginBottom: 6,
+        ...PICKER_ROW_STYLE,
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
