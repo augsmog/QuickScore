@@ -1,7 +1,12 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../src/ui/SafeScreen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { settingsLayout, SETTINGS_SWITCH_TARGET } from "../src/ui/settings-layout";
+import {
+  settingsLayout,
+  SETTINGS_SWITCH_TARGET,
+  SETTINGS_SECTION_HEADER_MARGIN_TOP,
+  SETTINGS_SCORING_HEADER_MARGIN_TOP,
+} from "../src/ui/settings-layout";
 import { useState, useCallback } from "react";
 import {
   View,
@@ -53,7 +58,7 @@ import { SUPPORT_BASE_URL } from "../src/config/support";
 
 // ─── Reusable row components ──────────────────────────────────
 
-function SectionHeader({ title }: { title: string }) {
+function SectionHeader({ title, marginTop = SETTINGS_SECTION_HEADER_MARGIN_TOP }: { title: string; marginTop?: number }) {
   return (
     <Text
       style={{
@@ -62,7 +67,7 @@ function SectionHeader({ title }: { title: string }) {
         color: COLORS.primary,
         letterSpacing: 2,
         textTransform: "uppercase",
-        marginTop: 28,
+        marginTop,
         marginBottom: 10,
         marginLeft: 4,
       }}
@@ -73,12 +78,14 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 function ToggleRow({
+  compact = false,
   icon,
   label,
   sublabel,
   value,
   onToggle,
 }: {
+  compact?: boolean;
   icon: React.ReactNode;
   label: string;
   sublabel?: string;
@@ -91,7 +98,7 @@ function ToggleRow({
         backgroundColor: COLORS.surfaceLow,
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingVertical: compact ? 2 : 14,
         minHeight: 44,
         marginBottom: 6,
         flexDirection: "row",
@@ -134,6 +141,7 @@ function ToggleRow({
 }
 
 function PickerRow({
+  compact = false,
   icon,
   label,
   value,
@@ -141,6 +149,7 @@ function PickerRow({
   options,
   onSelect,
 }: {
+  compact?: boolean;
   icon: React.ReactNode;
   label: string;
   value: string;
@@ -173,7 +182,7 @@ function PickerRow({
         backgroundColor: COLORS.surfaceLow,
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingVertical: compact ? 8 : 14,
         minHeight: 44,
         marginBottom: 6,
         flexDirection: "row",
@@ -194,12 +203,14 @@ function PickerRow({
 }
 
 function NumberRow({
+  compact = false,
   icon,
   label,
   sublabel,
   value,
   onPress,
 }: {
+  compact?: boolean;
   icon: React.ReactNode;
   label: string;
   sublabel?: string;
@@ -217,7 +228,7 @@ function NumberRow({
         backgroundColor: COLORS.surfaceLow,
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingVertical: compact ? 2 : 14,
         minHeight: 44,
         marginBottom: 6,
         flexDirection: "row",
@@ -518,10 +529,12 @@ export default function SettingsScreen() {
           <ChevronRight size={14} color={COLORS.textDim} />
         </AnimatedPressable>
 
+        {/* Compact Scoring spacing keeps Distance Unit above the 15 Pro safe-area fold. */}
         {/* ── Scoring ── */}
-        <SectionHeader title="Scoring" />
+        <SectionHeader title="Scoring" marginTop={SETTINGS_SCORING_HEADER_MARGIN_TOP} />
 
         <PickerRow
+          compact
           icon={<Hash size={18} color={COLORS.textDim} />}
           label="Score Display"
           value={settings.scoreFormat}
@@ -535,6 +548,7 @@ export default function SettingsScreen() {
         />
 
         <ToggleRow
+          compact
           icon={<Target size={18} color={COLORS.textDim} />}
           label="Show Net Scores"
           sublabel="Apply handicap strokes to displayed scores"
@@ -544,6 +558,7 @@ export default function SettingsScreen() {
 
         {Platform.OS === "ios" ? (
           <NumberRow
+            compact
             icon={<Gauge size={18} color={COLORS.textDim} />}
             label="Default Unit Amount"
             sublabel="Starting unit amount for new contests"
@@ -556,6 +571,7 @@ export default function SettingsScreen() {
           />
         ) : (
           <NumberRow
+            compact
             icon={<Gauge size={18} color={COLORS.textDim} />}
             label="Default Unit Amount"
             sublabel="Starting unit amount for new contests"
@@ -565,6 +581,7 @@ export default function SettingsScreen() {
         )}
 
         <ToggleRow
+          compact
           icon={<Zap size={18} color={COLORS.textDim} />}
           label="Auto-Complete at 18"
           sublabel="Automatically finalize round after hole 18"
@@ -573,7 +590,7 @@ export default function SettingsScreen() {
         />
 
         {/* ── Course & Play ── */}
-        <SectionHeader title="Course & Play" />
+        <SectionHeader title="Course & Play" marginTop={8} />
 
         <PickerRow
           icon={<Ruler size={18} color={COLORS.textDim} />}

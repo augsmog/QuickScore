@@ -24,6 +24,10 @@ function registered(m,w){
  }
  assert.equal((contracts.run.match(/node --test /g)||[]).length,4);
  for(const file of ['metrics','glyph-evidence','glyph-evidence.browser','paywall-recovery','reach-report','paywall-badge.browser','acceptance-fixtures','offline-containment','punctuation-reference','probe-target','settlement-row-contract','text-fragments','focused-fixtures','fixture-origin','game-rules','ci-registration','punctuation-reference.browser','review-negative.browser','value-dom-regressions.browser','settled-timestamp.browser'])assert(contracts.run.includes(`${file}.test.mjs`),file);
+ const browser=contracts.run.split('\n').find(line=>line.includes('fixture-controls'));
+ assert(browser,'browser contract command');
+ for(const file of ['capture-layout.browser.test.mjs','home-rank-layout.browser.test.mjs'])assert(browser.includes(file),`missing strict geometry or product regression: ${file}`);
+ assert.match(browser,/BASE_URL=http:\/\/127\.0\.0\.1:8092/,'rendered product fixture uses the served export');
  assert(gate.run.includes('negative-proof.mjs'));
  assert.match(gate.run,/for profile in iphone-se iphone-15-pro iphone-pro-max; do/);
  assert.match(gate.run,/DEVICE_PROFILE="\$profile" BASE_URL=http:\/\/127\.0\.0\.1:8092 OUT_DIR="e2e\/journey-screens\/\$profile" node e2e\/journeys\/runner\.mjs/);
@@ -63,6 +67,9 @@ test('missing registration, capture, control or filtered execution fails integra
  for(const mutate of [w=>{const s=w.jobs['build-standard'].steps.find(s=>s.name?.startsWith('Export Pro flag'));s.run=s.run.replace('EXPO_PUBLIC_PRO_ENABLED=false','EXPO_PUBLIC_PRO_ENABLED=true');},w=>{const s=w.jobs['build-standard'].steps.find(s=>s.name?.startsWith('Pro flag-off'));s.run=s.run.replace('BASE_URL=http://127.0.0.1:8094 OUT_DIR=e2e/journey-screens/pro-on-negative node e2e/journeys/pro-off-free.mjs','echo no-op');},w=>{for(const s of w.jobs['build-standard'].steps.filter(s=>s.with?.name?.startsWith('pro-'))){s.if='false';s.with.path='scoresnap/missing';}},w=>{const steps=w.jobs['build-standard'].steps;const i=steps.findIndex(s=>s.uses==='./.github/actions/playwright-chromium');const [setup]=steps.splice(i,1);steps.push(setup);}]){const w=structuredClone(workflow);mutate(w);assert.throws(()=>registered(manifest,w));}
  for(const [name,transform] of [
   ['Journey contract tests',s=>s.replace('settled-timestamp.browser.test.mjs','omitted-control.mjs')],
+  ['Journey contract tests',s=>s.replace('capture-layout.browser.test.mjs','omitted-auditor.mjs')],
+  ['Journey contract tests',s=>s.replace('home-rank-layout.browser.test.mjs','omitted-product-regression.mjs')],
+  ['Journey contract tests',s=>s.replace('BASE_URL=http://127.0.0.1:8092 OUT_DIR=e2e/journey-screens/fixture-controls','OUT_DIR=e2e/journey-screens/fixture-controls')],
   ['Journey runner + negative proof',s=>'JOURNEYS=J-delete-account '+s],
   ['Journey runner + negative proof',s=>s.replace('iphone-pro-max','missing-profile')],
   ['Journey runner + negative proof',s=>s.replace('negative-proof.mjs','omitted-proof.mjs')],

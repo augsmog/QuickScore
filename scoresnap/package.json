@@ -62,6 +62,7 @@
     "posthog-js": "1.445.2"
   },
   "devDependencies": {
+    "@testing-library/react-native": "13.3.3",
     "@types/react": "~19.1.0",
     "eas-cli": "^18.4.0",
     "fast-check": "^4.10.2",

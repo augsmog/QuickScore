@@ -360,6 +360,7 @@ export default function NewContestScreen() {
           paddingVertical: 10,
           paddingHorizontal: 14,
           marginBottom: 8,
+          minHeight: 44,
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
@@ -838,7 +839,12 @@ export default function NewContestScreen() {
                 )}
 
                 {players.length > 2 && (
-                  <AnimatedPressable onPress={() => removePlayer(player.id)} style={{ padding: 4 }}>
+                  <AnimatedPressable
+                    testID={`remove-player-${player.name}`}
+                    accessibilityLabel={`Remove ${player.name || "player"}`}
+                    onPress={() => removePlayer(player.id)}
+                    style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
+                  >
                     <X size={16} color={COLORS.textDim} />
                   </AnimatedPressable>
                 )}
@@ -885,8 +891,8 @@ export default function NewContestScreen() {
                     }
                   }}
                   style={{
-                    width: 36,
-                    height: 36,
+                    width: 44,
+                    height: 44,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",
@@ -905,8 +911,8 @@ export default function NewContestScreen() {
                     setNumGroups(numGroups + 1);
                   }}
                   style={{
-                    width: 36,
-                    height: 36,
+                    width: 44,
+                    height: 44,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",
@@ -942,7 +948,7 @@ export default function NewContestScreen() {
                       aria-checked={(gameConfig.skinsMode ?? "net") === mode}
                       accessibilityState={{ checked: (gameConfig.skinsMode ?? "net") === mode }}
                       onPress={() => setGameConfig((prev) => ({ ...prev, skinsMode: mode }))}
-                      style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.skinsMode ?? "net") === mode ? COLORS.primary : COLORS.surfaceMid }}>
+                      style={{ padding: 12, minHeight: 44, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsMode ?? "net") === mode ? COLORS.primary : COLORS.surfaceMid }}>
                       <Text style={{ color: COLORS.text }}>{mode === "net" ? "Net" : "Gross"}</Text>
                     </AnimatedPressable>
                   ))}
@@ -955,7 +961,7 @@ export default function NewContestScreen() {
                       aria-checked={(gameConfig.skinsScope ?? "field") === scope}
                       accessibilityState={{ checked: (gameConfig.skinsScope ?? "field") === scope }}
                       onPress={() => setGameConfig(prev => ({ ...prev, skinsScope: scope }))}
-                      style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.skinsScope ?? "field") === scope ? COLORS.primary : COLORS.surfaceMid }}>
+                      style={{ padding: 12, minHeight: 44, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsScope ?? "field") === scope ? COLORS.primary : COLORS.surfaceMid }}>
                       <Text style={{ color: COLORS.text }}>{scope === "field" ? "Whole field" : "Each group"}</Text>
                     </AnimatedPressable>
                   ))}
