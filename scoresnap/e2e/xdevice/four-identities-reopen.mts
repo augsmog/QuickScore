@@ -22,6 +22,7 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
+import { validJoinCode } from '../../src/services/guest-join';
 const outboxModule = await import(process.env.XDEVICE_OUTBOX_MODULE || '../../src/services/score-outbox.ts');
 const { scoreOutbox } = outboxModule.default ?? outboxModule;
 import * as onlineModule from '../../src/services/online-client';
@@ -68,8 +69,10 @@ try {
   // --- Host / join / approval / roster ----------------------------------
   const contest = randomUUID();
   const hostPlayer = randomUUID(), p1 = randomUUID(), p2 = randomUUID(), p3 = randomUUID();
+  const JOIN_CODE = 'SHRRND'; // exactly 6 chars from guest-join.ts's JOIN_ALPHABET (no I/O/0/1)
+  assert(validJoinCode(JOIN_CODE), 'fixture join code must pass production validation');
   sql(`INSERT INTO public.contests(id,owner_id,name,course,status,invite_code,protocol,sync_enabled) VALUES
-('${contest}','${users[0].id}','Shared Round','{"holes":[{"num":1,"par":4},{"num":2,"par":3}]}','active','SHRRND',1,true);
+('${contest}','${users[0].id}','Shared Round','{"holes":[{"num":1,"par":4},{"num":2,"par":3}]}','active','${JOIN_CODE}',1,true);
 INSERT INTO public.contest_players(id,contest_id,user_id,name,scores) VALUES
 ('${hostPlayer}','${contest}','${users[0].id}','Host',ARRAY[0,0]),
 ('${p1}','${contest}',NULL,'Member One',ARRAY[0,0]),
@@ -79,7 +82,7 @@ INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status)
 ('${contest}','${users[0].id}','host',NULL,'approved');`);
 
   for (let i = 1; i < 4; i++) {
-    assert.deepEqual(await clients[i].requestJoin('SHRRND', `Guest ${i}`), { status: 'pending' });
+    assert.deepEqual(await clients[i].requestJoin(JOIN_CODE, `Guest ${i}`), { status: 'pending' });
     const discovered = await clients[i].discover();
     assert.equal(discovered.memberships.length, 0, 'no roster leaks before host approval');
   }

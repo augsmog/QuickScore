@@ -10,6 +10,15 @@ const repo = path.resolve(__dirname, "..", "..");
 const scriptPath = path.join(__dirname, "..", "e2e", "xdevice", "four-identities-reopen.mts");
 const script = fs.readFileSync(scriptPath, "utf8");
 const workflow = yaml.load(fs.readFileSync(path.join(repo, ".github", "workflows", "xdevice-stack.yml"), "utf8"));
+const { validJoinCode } = require("../src/services/guest-join.ts");
+
+test("the fixture join code passes the production six-character contract", () => {
+  const codes = [...script.matchAll(/JOIN_CODE = '([^']+)'/g)].map((m) => m[1]);
+  expect(codes.length).toBeGreaterThan(0);
+  for (const code of codes) expect(validJoinCode(code)).toBe(true);
+  // The harness also asserts this itself at runtime against the same production check.
+  expect(script).toMatch(/assert\(validJoinCode\(JOIN_CODE\)/);
+});
 
 test("the reopen harness script exists and refuses non-loopback endpoints before any Auth/SQL/HTTP call", () => {
   expect(fs.existsSync(scriptPath)).toBe(true);
