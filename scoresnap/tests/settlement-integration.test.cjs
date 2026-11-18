@@ -109,3 +109,46 @@ test('request generation also prevents old successful PDF dispatch after store-o
 test('PDF context subscriptions release on unmount and stay single across route changes',async()=>{
  const s=screen(await start());s.render();expect(s.subscriptionCounts()).toEqual([1,1]);s.state.contest={...s.state.contest,id:'other'};s.render();expect(s.subscriptionCounts()).toEqual([1,1]);s.unmount();expect(s.subscriptionCounts()).toEqual([0,0]);
 });
+
+// Refs AUG-1277: real screen -> embedded-font builder -> saved bytes -> reopened contents.
+test('settled Unicode fixture saves and reopens with exact hole rows, totals and results offline',async()=>{
+ const fx=JSON.parse(fs.readFileSync('../.maestro/fixtures/pdf-settled-round.json','utf8'));
+ const {compareScorecardText}=require('../e2e/shared/pdf-scorecard-contract.cjs');
+ const {execFileSync}=require('node:child_process');
+ const dir=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'scorecard-fixture-'));
+ const oldFetch=global.fetch;global.fetch=jest.fn(()=>{throw Error('network forbidden');});
+ try {
+  const target=path.join(dir,'saved.pdf');
+  // A fresh native font loader uses the bundled asset on its first invocation.
+  const fontLoader=load('src/services/scorecard-pdf-font.ts',{
+   'expo-asset':{Asset:{fromModule:()=>({localUri:'file:///bundled/font.ttf',downloadAsync:async()=>{}})}},
+   'expo-file-system':{File:class{bytes=async()=>new Uint8Array(fs.readFileSync('assets/fonts/SourceSans3_400Regular.ttf'));}},
+   'react-native':{Platform:{OS:'ios'}},'../../assets/fonts/SourceSans3_400Regular.ttf':1});
+  const pdf={font:fontLoader.loadScorecardPdfFont,build:buildScorecardPdf,
+   share:jest.fn(async bytes=>fs.writeFileSync(target,bytes))};
+  const s=screen(await start(),fx.contest,pdf);
+  await exportButton(s.render()).props.onPress();
+  expect(pdf.share).toHaveBeenCalledTimes(1);
+  const saved=fs.readFileSync(target);expect(saved.subarray(0,5).toString()).toBe('%PDF-');
+  expect((await require('pdf-lib').PDFDocument.load(saved)).getPageCount()).toBeGreaterThan(0);
+  const extracted=execFileSync('pdftotext',['-layout',target,'-'],{encoding:'utf8'});
+  expect(compareScorecardText(extracted,fx).errors).toEqual([]);
+  expect(compareScorecardText(extracted.replace(fx.expected.players[0].name,'Wrong player'),fx).status).toBe('failed');
+  expect(compareScorecardText(extracted.replace(String(fx.expected.players[0].total),'999'),fx).status).toBe('failed');
+  expect(compareScorecardText(extracted.replace(/3\s+4\s+4\s+4\s+4\s+4\s+4\s+4\s+4/,'9 4 4 4 4 4 4 4 4'),fx).status).toBe('failed');
+  expect(compareScorecardText(extracted.replace('+$0.67','+$9.99'),fx).status).toBe('failed');
+  expect(global.fetch).not.toHaveBeenCalled();
+ }finally{global.fetch=oldFetch;fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test.each(['東京','😀'])('unsupported %s emits no local PDF from the real screen',async name=>{
+ const fx=JSON.parse(fs.readFileSync('../.maestro/fixtures/pdf-settled-round.json','utf8'));
+ fx.contest.groups[0].players[0].name=name;
+ const dir=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'scorecard-reject-'));
+ try{
+  const pdf={font:async()=>new Uint8Array(fs.readFileSync('assets/fonts/SourceSans3_400Regular.ttf')),build:buildScorecardPdf,
+   share:jest.fn(async bytes=>fs.writeFileSync(path.join(dir,'bad.pdf'),bytes))};
+  const s=screen(await start(),fx.contest,pdf);await exportButton(s.render()).props.onPress();
+  expect(errorPanel(s.render())).toBeDefined();expect(pdf.share).not.toHaveBeenCalled();expect(fs.readdirSync(dir)).toEqual([]);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});

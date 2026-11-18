@@ -1,14 +1,16 @@
-# AUG-315 (simulator part): Settlement "Export scorecard (PDF)" builds a PDF and opens the iOS share sheet with a file attachment.
-# Physical-device share, recipient open and Android remain open; the sheet is dismissed, never sent.
+# AUG-315 / AUG-402: offline first-launch export of frozen settled Unicode round.
+# The adapter saves locally before opening the share sheet; the runner reopens/copies that cache file, never sends it.
 appId: com.scoresnap.app
 ---
 - launchApp:
     clearState: false
     permissions: { all: allow }
 - runFlow: ../../subflows/finish-onboarding.yaml
-- runFlow: ../../subflows/create-two-player-skins.yaml
-- runFlow: ../../subflows/score-18-holes.yaml
+- tapOn: "E2E PDF Unicode Round"
 - tapOn: "Settlement"
+- assertVisible: "Zoë Łukasz"
+- assertVisible: "Δημήτρης"
+- assertVisible: "Алексей"
 - scrollUntilVisible:
     element: "Export scorecard \\(PDF\\)"
     direction: DOWN
