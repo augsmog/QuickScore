@@ -2,7 +2,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const React = require('react');
-const { create, act } = require('react-test-renderer');
+jest.mock('react-native', () => ({
+  StyleSheet: { flatten: style => Object.assign({}, ...[style].flat(Infinity).filter(Boolean)) },
+  Platform: { OS: 'ios' },
+}));
+const { render, act, fireEvent } = require('@testing-library/react-native/pure');
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -56,8 +60,11 @@ function scanRow(name, matchedPlayerId, hole2Confidence = 0.95) {
   return { name, source: 'ocr', requiredHoles: Array.from({ length: 18 }, (_, i) => i + 1), scores, confidence, nameConfidence: 0.95, matchedPlayerId };
 }
 
-function mountScreen({ contestId = 'c1', groupId, scanData, contest, back = () => {}, applyReviewedPartialImport, isAnonymous = true }) {
+function mountScreen({ contestId = 'c1', groupId, scanData, contest, back = () => {}, applyReviewedPartialImport, isAnonymous = true, live = {} }) {
   const element = (tag) => (props) => React.createElement(tag, props, props.children);
+  const canonical = () => ({ contests: [live.contest ?? contest], applyReviewedPartialImport });
+  const authState = () => live.auth ?? { session: null, isAnonymous };
+  const authStore = Object.assign(() => authState(), { getState: authState, subscribe: listener => { live.authListener = listener; return () => {}; } });
   const screen = load('app/scan/partial-review.tsx', {
     react: React,
     'react/jsx-runtime': require('react/jsx-runtime'),
@@ -65,24 +72,21 @@ function mountScreen({ contestId = 'c1', groupId, scanData, contest, back = () =
       View: element('View'), Text: element('Text'), ScrollView: element('ScrollView'),
       Pressable: element('Pressable'), TextInput: element('TextInput'),
     },
-    'expo-router': { useRouter: () => ({ back }), useLocalSearchParams: () => ({ contestId, groupId, scanData }) },
+    'expo-router': { useRouter: () => ({ back }), useLocalSearchParams: () => ({ contestId, groupId, scanData, sourceContext: JSON.stringify([isAnonymous?'anonymous':'signed-out',contestId,contest.isTournament?contest.rounds.find(r=>r.number===contest.currentRound)?.id??null:null]) }) },
     'lucide-react-native': Object.fromEntries(['X', 'Check', 'AlertTriangle'].map((n) => [n, () => null])),
     '../../src/ui/theme': theme,
     '../../src/stores/contest-store': {
-      useContestStore: (select) => select({ contests: [contest], applyReviewedPartialImport }),
+      useContestStore: Object.assign((select) => select(canonical()), { getState: canonical }),
     },
-    '../../src/stores/auth-store': { useAuthStore: () => ({ session: null, isAnonymous }) },
+    '../../src/stores/auth-store': { useAuthStore: authStore },
     '../../src/services/ocr-review': ocrReview,
     '../../src/services/partial-import': partialImport,
     '../../src/services/partial-import-session': partialImportSession,
     '../../src/services/partial-import-confirm': partialImportConfirm,
   }).default;
 
-  let tree;
-  act(() => {
-    tree = create(React.createElement(screen));
-  });
-  return tree;
+  const rendered = render(React.createElement(screen));
+  return { get root() { return rendered.UNSAFE_root; }, unmount: rendered.unmount, Screen: screen, rendered };
 }
 
 function press(tree, testID) {
@@ -122,6 +126,7 @@ test('blocks confirm until the uncertain hole-2 cell is resolved, then saves exa
     expect(confirmBtn().props.disabled).toBe(false);
     press(tree, 'partial-confirm');
 
+    press(tree, 'partial-confirm');
     expect(calls).toHaveLength(1);
     const [cId, roundId, groupId, patch] = calls[0];
     expect(cId).toBe('c1');
@@ -194,3 +199,150 @@ test('ambiguous same-name rows require explicit mapping before confirm is possib
     act(() => tree.unmount());
   }
 });
+
+for (const replacement of ['0', '-1', 'NaN', '2.5', '']) {
+  test(`invalid edited score ${JSON.stringify(replacement)} cannot fall back to confirmed OCR`, () => {
+    const group = group4();
+    const contest = { id: 'c1', course: COURSE, status: 'active', groups: [group], isTournament: false };
+    const calls = [];
+    const tree = mountScreen({ contest, scanData: JSON.stringify([
+      scanRow('Alice', null), scanRow('Bob', null), scanRow('Cara', null), scanRow('Dana', null, 0.4),
+    ]), applyReviewedPartialImport: (...args) => calls.push(args) });
+    try {
+      press(tree, 'partial-cell-confirm-3:2');
+      act(() => tree.root.find(n => n.type === 'TextInput' && n.props.testID === 'partial-cell-input-3:2').props.onChangeText(replacement));
+      expect(tree.root.find(n => n.props.testID === 'partial-confirm').props.disabled).toBe(true);
+      press(tree, 'partial-confirm');
+      expect(calls).toHaveLength(0);
+    } finally { act(() => tree.unmount()); }
+  });
+}
+
+test('a rejected write retains edits and cannot immediately repeat the same write', () => {
+  const group = group4();
+  const contest = { id: 'c1', course: COURSE, status: 'active', groups: [group], isTournament: false };
+  const calls = [];
+  const tree = mountScreen({ contest, scanData: JSON.stringify([
+    scanRow('Alice', null), scanRow('Bob', null), scanRow('Cara', null), scanRow('Dana', null, 0.4),
+  ]), applyReviewedPartialImport: (...args) => { calls.push(args); throw new Error('denied'); } });
+  try {
+    act(() => tree.root.find(n => n.type === 'TextInput' && n.props.testID === 'partial-cell-input-3:2').props.onChangeText('6'));
+    press(tree, 'partial-confirm');
+    press(tree, 'partial-confirm');
+    expect(calls).toHaveLength(1);
+    expect(tree.root.find(n => n.type === 'TextInput' && n.props.testID === 'partial-cell-input-3:2').props.value).toBe('6');
+  } finally { act(() => tree.unmount()); }
+});
+
+for (const change of ['account', 'round', 'completed', 'conflict']) {
+  test(`a stale event cannot write after ${change} changes`, () => {
+    const group = group4();
+    const contest = { id: 'c1', course: COURSE, status: 'active', groups: [group], isTournament: false };
+    const calls = [], live = {};
+    const tree = mountScreen({ contest, live, scanData: JSON.stringify([
+      scanRow('Alice', null), scanRow('Bob', null), scanRow('Cara', null), scanRow('Dana', null),
+    ]), applyReviewedPartialImport: (...args) => calls.push(args) });
+    try {
+      if (change === 'account') live.auth = { session: { user: { id: 'other' } }, isAnonymous: false };
+      if (change === 'round') live.contest = { ...contest, isTournament: true, currentRound: 2, rounds: [{ id:'r2', number:2, groups:[group], course:COURSE }] };
+      if (change === 'completed') live.contest = { ...contest, status:'completed' };
+      if (change === 'conflict') live.contest = { ...contest, groups:[{...group, players:group.players.map((p,i)=>i===0?{...p,scores:[7,...p.scores.slice(1)]}:p)}] };
+      press(tree, 'partial-confirm');
+      expect(calls).toHaveLength(0);
+    } finally { act(() => tree.unmount()); }
+  });
+}
+
+test('Cancel/remount retains corrections; switching accounts while unmounted clears them', () => {
+  const group = group4(), live = {};
+  const contest = { id:'c1', course:COURSE, status:'active', groups:[group], isTournament:false };
+  const calls = [];
+  const tree = mountScreen({ contest, live, scanData:JSON.stringify([
+    scanRow('Alice',null),scanRow('Bob',null),scanRow('Cara',null),scanRow('Dana',null,0.4),
+  ]), applyReviewedPartialImport:(...args)=>calls.push(args) });
+  fireEvent.changeText(tree.rendered.getByTestId('partial-cell-input-3:2'), '6');
+  fireEvent.press(tree.rendered.getByTestId('partial-cancel'));
+  tree.unmount();
+  const again = render(React.createElement(tree.Screen));
+  expect(again.getByTestId('partial-cell-input-3:2').props.value).toBe('6');
+  expect(calls).toHaveLength(0);
+  again.unmount();
+  act(() => live.authListener({session:{user:{id:'other'}},isAnonymous:false},{session:null,isAnonymous:true}));
+  const cleared = render(React.createElement(tree.Screen));
+  expect(cleared.getByTestId('partial-cell-input-3:2').props.value).toBe('');
+  expect(cleared.getByTestId('partial-confirm').props.disabled).toBe(true);
+  cleared.unmount();
+});
+
+test('six players and back-nine numbered holes save their actual identities, leaving future holes blank', () => {
+  const course = {...COURSE,holes:COURSE.holes.slice(9)};
+  const players = Array.from({length:6},(_,i)=>player(`p${i}`,`Player ${i}`));
+  const group={id:'g1',name:'Group',players};
+  const contest={id:'c1',course,status:'active',groups:[group],isTournament:false};
+  const calls=[];
+  const rows=players.map(p=>({...scanRow(p.name,null),requiredHoles:course.holes.map(h=>h.num),
+    scores:[4,5,...Array(7).fill(null)],confidence:[0.95,0.95,...Array(7).fill(0)]}));
+  const tree=mountScreen({contest,scanData:JSON.stringify(rows),applyReviewedPartialImport:(...args)=>calls.push(args)});
+  try {
+    expect(tree.rendered.queryByTestId('partial-hole-1')).toBeNull();
+    expect(tree.rendered.getAllByText('Unplayed')).toHaveLength(6);
+    fireEvent.press(tree.rendered.getByTestId('partial-confirm'));
+    expect(calls).toHaveLength(1);
+    expect(calls[0][3]).toEqual(players.flatMap(p=>[{playerId:p.id,hole:10,strokes:4},{playerId:p.id,hole:11,strokes:5}]));
+  } finally {tree.unmount();}
+});
+
+test('uncertain player identity requires an explicit roster choice', () => {
+  const group=group4(),contest={id:'c1',course:COURSE,status:'active',groups:[group],isTournament:false};
+  const rows=[scanRow('Alice',null),scanRow('Bob',null),scanRow('Cara',null),scanRow('Dana',null)];
+  rows[0].nameConfidence=0.1;
+  const calls=[];
+  const tree=mountScreen({contest,scanData:JSON.stringify(rows),applyReviewedPartialImport:(...args)=>calls.push(args)});
+  try {
+    expect(tree.rendered.getByTestId('partial-confirm').props.disabled).toBe(true);
+    fireEvent.press(tree.rendered.getByTestId('partial-map-0-p1'));
+    fireEvent.press(tree.rendered.getByTestId('partial-confirm'));
+    expect(calls).toHaveLength(1);
+  } finally {tree.unmount();}
+});
+
+for (const partial of [false, true]) {
+  test(`text intake preserves ${partial ? 'partial' : 'full-card'} routing and hole handling`, () => {
+    const element = tag => props => React.createElement(tag,props,props.children);
+    const parser = load('src/services/score-parser.ts');
+    const calls=[];
+    const contest={id:'c1',course:COURSE,status:'active',groups:[group4()]};
+    const noop=()=>{};
+    const Screen=load('app/scan/index.tsx', {
+      react:React,'react/jsx-runtime':require('react/jsx-runtime'),
+      'react-native':Object.fromEntries(['View','Text','Pressable','Image','TextInput','ScrollView'].map(tag=>[tag,element(tag)]).concat([
+        ['Dimensions',{get:()=>({width:390,height:844})}],['Platform',{OS:'web'}],
+      ])),
+      'expo-router':{useRouter:()=>({push:value=>calls.push(value)}),useLocalSearchParams:()=>({contestId:'c1',mode:partial?'partial':undefined})},
+      'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:0,bottom:0})},
+      'expo-camera':{CameraView:element('CameraView'),useCameraPermissions:()=>[{granted:true},noop]},
+      'lucide-react-native':Object.fromEntries(['X','Camera','Lock','RotateCcw','Check','SwitchCamera','ImageIcon','Zap','ZapOff'].map(n=>[n,()=>null])),
+      'expo-haptics':{},'../../src/ui/theme':theme,
+      '../../src/stores/contest-store':{useContestStore:select=>select({contests:[contest]})},
+      '../../src/stores/auth-store':{useAuthStore:{getState:()=>({isAnonymous:true,session:null})}},
+      '../../src/stores/scan-store':{useScanStore:()=>({canScan:()=>true,getRemainingFreeScans:()=>3,isPro:false})},
+      '../../src/services/ocr-consent':{requestOCRConsent:()=>Promise.resolve(true)},
+      '../../src/services/ocr-review':ocrReview,'../../src/services/ocr-service':{},
+      '../../src/services/entitlements':{proEnabled:()=>false},
+      '../../src/services/analytics':{webAnalytics:{capture:()=>Promise.resolve()}},
+      '../../src/config/offline':{OFFLINE_MODE:true},'../../src/config/native-ocr':{NATIVE_OCR_DISABLED:false},
+      '../../src/services/score-parser':parser,'../../src/config/posthog':{posthog:null},'../../src/services/posthog-log':{},
+    }).default;
+    const screen=render(React.createElement(Screen));
+    try {
+      fireEvent.changeText(screen.getByTestId('scorecard-text-input'),'Alice,4,5\nBob,4,5\nCara,4,5\nDana,4,5');
+      fireEvent.press(screen.getByText('Parse Scorecard'));
+      expect(calls).toHaveLength(1);
+      expect(calls[0].pathname).toBe(partial?'/scan/partial-review':'/scan/review');
+      expect(calls[0].params.sourceContext).toBe(partial?JSON.stringify(['anonymous','c1',null]):undefined);
+      const rows=JSON.parse(calls[0].params.scanData);
+      if (partial) expect(rows.every(r=>!r.alignmentError)).toBe(true);
+      else expect(rows).toEqual(ocrReview.applyCourseHoles(parser.parseScoreGrid(parser.textToGrid('Alice,4,5\nBob,4,5\nCara,4,5\nDana,4,5'),undefined,'paste').players,COURSE.holes.map(h=>h.num)));
+    } finally {screen.unmount();}
+  });
+}

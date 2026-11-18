@@ -1,5 +1,5 @@
 import { SafeScreen } from "../../src/ui/SafeScreen";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { View, Text, Pressable, ScrollView, TextInput } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { X, Check, AlertTriangle } from "lucide-react-native";
@@ -47,20 +47,33 @@ interface ScreenDraft {
 const sessionsByKey = new Map<string, PartialImportSession>();
 const draftsByKey = new Map<string, ScreenDraft>();
 
+function accountKey(state: ReturnType<typeof useAuthStore.getState>): string {
+  return state.isAnonymous ? "anonymous" : state.session?.user.id ?? "signed-out";
+}
+// Clear retained drafts even if the review screen is currently unmounted.
+useAuthStore.subscribe((next, previous) => {
+  if (accountKey(next) !== accountKey(previous)) {
+    draftsByKey.clear();
+    for (const session of sessionsByKey.values()) session.setAccount(null);
+    sessionsByKey.clear();
+  }
+});
+
 function cellKey(rowIndex: number, hole: number): string {
   return `${rowIndex}:${hole}`;
 }
 
 export default function ScanPartialReviewScreen() {
   const router = useRouter();
-  const { contestId, groupId: groupIdParam, scanData } = useLocalSearchParams<{
+  const { contestId, groupId: groupIdParam, scanData, sourceContext } = useLocalSearchParams<{
     contestId?: string;
     groupId?: string;
     scanData?: string;
+    sourceContext?: string;
   }>();
 
   const auth = useAuthStore();
-  const accountId = auth.isAnonymous ? "anonymous" : auth.session?.user?.id ?? "anonymous";
+  const accountId = accountKey(auth);
   const applyReviewedPartialImport = useContestStore((s) => s.applyReviewedPartialImport);
   const storedContest = useContestStore((s) => s.contests.find((c) => c.id === contestId));
   const activeRound = storedContest?.isTournament
@@ -75,7 +88,13 @@ export default function ScanPartialReviewScreen() {
   );
   const group = groups.find((g) => g.id === groupId) ?? null;
 
-  const draftKey = contestId && groupId ? `${accountId}:${contestId}:${roundId ?? ""}:${groupId}` : null;
+  const draftKey = contestId && groupId ? JSON.stringify([accountId, contestId, roundId, groupId, scanData]) : null;
+  const entryContext = useRef({ accountId, contestId, roundId });
+  const attemptedPatch = useRef<string | null>(null);
+  const contextCurrent = entryContext.current.accountId === accountId &&
+    entryContext.current.contestId === contestId && entryContext.current.roundId === roundId &&
+    sourceContext === JSON.stringify([accountId, contestId, roundId]);
+
 
   const { initialRows, parseError } = useMemo(() => {
     if (!contestId || !storedContest || !course) return { initialRows: null, parseError: COPY.noContext };
@@ -93,7 +112,7 @@ export default function ScanPartialReviewScreen() {
   const autoRows: ScannedPlayer[] = useMemo(() => {
     if (!initialRows) return [];
     if (!group) return initialRows;
-    return autoMatchPlayers(initialRows, group.players.map((p) => ({ id: p.id, name: p.name })));
+    return autoMatchPlayers(initialRows.map(row => ({ ...row, matchedPlayerId: null })), group.players.map((p) => ({ id: p.id, name: p.name })));
   }, [initialRows, group]);
 
   // A hole counts as played by default when at least one scanned row has a non-blank reading
@@ -121,6 +140,17 @@ export default function ScanPartialReviewScreen() {
   );
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const draft = draftKey ? draftsByKey.get(draftKey) : undefined;
+    setPlayedHoles(draft?.playedHoles ?? defaultPlayedHoles);
+    setManualMap(draft?.manualMap ?? {});
+    setCorrections(draft?.corrections ?? {});
+    setConfirmedCells(draft?.confirmedCells ?? new Set());
+    attemptedPatch.current = null;
+    setSaveError(null);
+    setSaved(false);
+  }, [draftKey]);
 
   function persistDraft(next: Partial<ScreenDraft>) {
     if (!draftKey) return;
@@ -152,6 +182,12 @@ export default function ScanPartialReviewScreen() {
   }
 
   function setCorrection(rowIndex: number, hole: number, text: string) {
+    setConfirmedCells(prev => {
+      const next = new Set(prev);
+      next.delete(cellKey(rowIndex, hole));
+      persistDraft({ confirmedCells: next });
+      return next;
+    });
     setCorrections((prev) => {
       const next = { ...prev, [cellKey(rowIndex, hole)]: text };
       persistDraft({ corrections: next });
@@ -169,7 +205,7 @@ export default function ScanPartialReviewScreen() {
   }
 
   const rowsDisplayed: ScannedPlayer[] = useMemo(
-    () => autoRows.map((row, i) => ({ ...row, matchedPlayerId: manualMap[i] ?? row.matchedPlayerId })),
+    () => autoRows.map((row, i) => ({ ...row, matchedPlayerId: Object.prototype.hasOwnProperty.call(manualMap, i) ? manualMap[i] : row.matchedPlayerId })),
     [autoRows, manualMap]
   );
 
@@ -182,13 +218,16 @@ export default function ScanPartialReviewScreen() {
           if (!playedHoles.has(hole)) return;
           const key = cellKey(i, hole);
           const typed = corrections[key];
-          if (typed !== undefined && typed.trim() !== "") {
+          if (typed !== undefined) {
             const n = Number(typed.trim());
             if (Number.isInteger(n) && n > 0) {
               scores[hIdx] = n;
               confidence[hIdx] = 1;
               return;
             }
+            scores[hIdx] = null;
+            confidence[hIdx] = 0;
+            return;
           }
           const raw = grossScore(row.scores[hIdx]);
           if (confirmedCells.has(key) && raw !== null) {
@@ -226,14 +265,38 @@ export default function ScanPartialReviewScreen() {
     [group, course, reviewedRows, targets, holeIdentities, playedHoles]
   );
 
-  const canConfirm = result !== null && result.ok && result.complete && playedHoles.size > 0;
+  const mappingResolved = autoRows.every((row, i) => row.nameConfidence >= MIN_PARTIAL_IMPORT_CONFIDENCE || Boolean(manualMap[i]));
+  const patchKey = result?.ok ? JSON.stringify(result.patch) : null;
+  const canConfirm = contextCurrent && storedContest?.status === "active" && mappingResolved &&
+    result !== null && result.ok && result.complete && playedHoles.size > 0 && !saved && attemptedPatch.current !== patchKey;
 
   function handleCancel() {
     router.back();
   }
 
   function handleConfirm() {
-    if (!draftKey || !contestId || !group || !result || !result.ok || !result.complete) return;
+    if (!canConfirm || !draftKey || !contestId || !group || !result || !result.ok || !result.complete) return;
+    // Read canonical identity/context at the event boundary: render closures may be stale.
+    const latestAuth = useAuthStore.getState();
+    const latestAccount = accountKey(latestAuth);
+    const latestContest = useContestStore.getState().contests.find(c => c.id === contestId);
+    const latestRound = latestContest?.isTournament ? latestContest.rounds?.find(r => r.number === latestContest.currentRound) : undefined;
+    const latestGroup = (latestRound?.groups ?? latestContest?.groups)?.find(g => g.id === group.id);
+    if (latestAccount !== accountId || latestContest?.status !== "active" ||
+        (latestRound?.id ?? null) !== roundId || !latestGroup || !course ||
+        latestContest.isTournament && !latestRound) {
+      setSaveError(COPY.failure);
+      return;
+    }
+    const fresh = buildPartialImport({ rows: reviewedRows, holeIdentities, playedHoles, coverage: "full-group",
+      players: latestGroup.players.map(p => ({id:p.id,name:p.name,
+        scores:Object.fromEntries(((latestRound?.course ?? latestContest.course).holes).map((h,i)=>[h.num,p.scores[i]]))})) });
+    if (!fresh.ok || !fresh.complete || JSON.stringify(fresh.patch) !== patchKey) {
+      setSaveError(COPY.failure);
+      return;
+    }
+    // Fence before calling the store, including reentrant callbacks and failed writes.
+    attemptedPatch.current = patchKey;
     const context: PartialImportSessionContext = {
       accountId, contestId, roundId, groupId: group.id,
     };
@@ -261,10 +324,10 @@ export default function ScanPartialReviewScreen() {
       router.back();
       return;
     }
-    setSaveError(outcome.error);
+    setSaveError(COPY.failure);
   }
 
-  if (parseError || !contestId || !storedContest || !course) {
+  if (parseError || !contestId || !storedContest || !course || !contextCurrent || accountId === "signed-out" || storedContest.isTournament && !activeRound) {
     return (
       <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 16 }}>
@@ -321,7 +384,7 @@ export default function ScanPartialReviewScreen() {
                 accessibilityRole="button"
                 onPress={() => togglePlayedHole(hole)}
                 style={{
-                  minWidth: 44, minHeight: 36, borderRadius: RADII.md, alignItems: "center", justifyContent: "center",
+                  minWidth: 44, minHeight: 44, borderRadius: RADII.md, alignItems: "center", justifyContent: "center",
                   backgroundColor: playedHoles.has(hole) ? COLORS.primary : COLORS.surfaceMid,
                 }}
               >
@@ -333,6 +396,7 @@ export default function ScanPartialReviewScreen() {
           </View>
         </View>
 
+        {!mappingResolved && <Text accessibilityRole="alert" style={{ color: COLORS.warn }}>{COPY.mapping}</Text>}
         {rowsDisplayed.map((row, rowIndex) => (
           <View key={rowIndex} testID={`partial-row-${rowIndex}`} style={{ gap: 8, padding: 12, borderRadius: RADII.lg, backgroundColor: COLORS.surfaceLow }}>
             <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold }}>{row.name}</Text>
@@ -344,7 +408,7 @@ export default function ScanPartialReviewScreen() {
                   accessibilityRole="button"
                   onPress={() => setMapping(rowIndex, p.id)}
                   style={{
-                    paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADII.sm,
+                    minHeight: 44, justifyContent: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADII.sm,
                     backgroundColor: row.matchedPlayerId === p.id ? COLORS.primary : COLORS.surfaceMid,
                   }}
                 >

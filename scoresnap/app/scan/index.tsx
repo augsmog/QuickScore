@@ -1,6 +1,7 @@
 import { SafeScreen } from "../../src/ui/SafeScreen";
 import { requestOCRConsent } from "../../src/services/ocr-consent";
 import { applyCourseHoles } from "../../src/services/ocr-review";
+import { useAuthStore } from "../../src/stores/auth-store";
 import { useContestStore } from "../../src/stores/contest-store";
 import { useState, useRef, useCallback } from "react";
 import { View, Text, Pressable, Image, Dimensions, Platform, TextInput, ScrollView } from "react-native";
@@ -57,6 +58,11 @@ export default function ScanScreen() {
   const selectedContest = useContestStore(s => s.contests.find(c => c.id === contestId));
   const selectedRound = selectedContest?.rounds?.find(r => r.number === selectedContest.currentRound);
   const requiredHoles = (selectedRound?.course ?? selectedContest?.course)?.holes.map(h => h.num);
+  const partialContext = () => {
+    const auth = useAuthStore.getState();
+    const account = auth.isAnonymous ? "anonymous" : auth.session?.user.id ?? "signed-out";
+    return JSON.stringify([account, contestId, selectedContest?.isTournament ? selectedRound?.id ?? null : null]);
+  };
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<ScanPhase>("ready");
   const [scorecardText, setScorecardText] = useState("");
@@ -106,6 +112,7 @@ export default function ScanScreen() {
 
   const handleConfirmPhoto = useCallback(async () => {
     if (!photoUri) return;
+    const sourceContext = isPartial ? partialContext() : undefined;
     if (!(await requestOCRConsent())) { setPhase("text-entry"); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPhase("processing");
@@ -138,6 +145,7 @@ export default function ScanScreen() {
             groupId: groupId || "",
             photoUri: photoUri || "",
             scanData: JSON.stringify(result.players),
+            ...(isPartial ? { sourceContext } : {}),
           },
         });
       }, 500);
@@ -148,7 +156,7 @@ export default function ScanScreen() {
       );
       setPhase("error");
     }
-  }, [contestId, groupId, reviewPathname, router, photoUri, requiredHoles]);
+  }, [contestId, groupId, reviewPathname, router, photoUri, requiredHoles, isPartial, selectedContest, selectedRound]);
 
   const handleRetake = useCallback(() => {
     setPhotoUri(null);
@@ -209,7 +217,7 @@ export default function ScanScreen() {
               void webAnalytics.capture("score_snap_completed", { duration_ms: Date.now() - startedAt, success: true });
               router.push({
                 pathname: reviewPathname,
-                params: { contestId: contestId || "", groupId: groupId || "", photoUri: "", scanData: JSON.stringify(applyCourseHoles(result.players, requiredHoles)) },
+                params: { contestId: contestId || "", groupId: groupId || "", photoUri: "", scanData: JSON.stringify(isPartial ? result.players : applyCourseHoles(result.players, requiredHoles)), ...(isPartial ? { sourceContext: partialContext() } : {}) },
               });
             }}
             style={{ backgroundColor: COLORS.primary, borderRadius: RADII.lg, padding: 16, alignItems: "center" }}
