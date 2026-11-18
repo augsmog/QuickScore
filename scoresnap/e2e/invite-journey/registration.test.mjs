@@ -1,0 +1,37 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+const require=createRequire(import.meta.url),yaml=require('js-yaml');
+const read=rel=>readFileSync(new URL(rel,import.meta.url),'utf8');
+test('CI runs independent real-UI anonymous-enabled and disabled stacks and keeps credentials private',()=>{
+  const workflow=yaml.load(read('../../../.github/workflows/xdevice-stack.yml'));
+  const job=workflow.jobs['invite-join-ui'];
+  assert.deepEqual(job.strategy.matrix.anonymous,['false','true']);
+  assert.equal(job.strategy['fail-fast'],false);
+  const commands=job.steps.map(s=>s.run??'').join('\n');
+  assert.match(commands,/enable_anonymous_sign_ins = \$INVITE_ANONYMOUS/);
+  assert.match(commands,/node --test e2e\/invite-journey\/\*\.test\.mjs/);
+  assert.match(commands,/node --import tsx e2e\/invite-journey\/seed\.mts/);
+  assert.match(commands,/node e2e\/invite-journey\/browser\.mjs/);
+  assert(!commands.includes('supabase link'));
+  const upload=job.steps.find(s=>s.uses==='actions/upload-artifact@v4');
+  assert.equal(upload.with.path,'invite-journey-evidence');
+  assert(commands.includes('rm -f "$RUNNER_TEMP/invite-private.json"'));
+  assert(workflow.on.pull_request.paths.includes('scoresnap/e2e/**'));
+});
+test('native orchestrator preserves installations, checks source ancestry and emits proof only after readback',()=>{
+  const native=read('./native.mjs');
+  assert(!native.includes('clearState:true'));
+  assert(!native.includes("'uninstall'"));
+  assert.match(native,/host!==guest/);assert.match(native,/e2e-invite-/);
+  assert.match(native,/merge-base','--is-ancestor','6017bec355cae206fa7bb3da583859736c7ad57e'/);
+  assert.match(native,/simctl','pbpaste',host/);
+  assert.match(native,/assertBinding\(f,m\[0\],request.requester\)/);
+  assert.match(native,/assertScores\(f,await db.snapshot\(\)\)/);
+  assert(native.lastIndexOf('assertScores(')<native.indexOf("path.join(out,'receipt.json')"));
+  const source=read('../../src/ui/ContestJoinCode.tsx')+read('../../src/ui/OnlineSyncPanel.tsx')+read('../../src/ui/OnlineGuestScorecard.tsx');
+  for(const label of ['Copy / share invite','Approve as','Save hole','strokes']) assert(source.includes(label));
+});
+
+test('negative readback uses the actual event schema and never a nonexistent score table',()=>{const code=read('./browser.mjs');assert(code.includes("'score_events'"));assert(!code.includes("'hole_scores'"));});
