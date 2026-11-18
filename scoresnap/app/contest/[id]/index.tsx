@@ -85,6 +85,10 @@ export default function ScorecardScreen() {
   const isCompleted = contest.status === "completed";
   const compactViewport = isCompactViewport(Dimensions.get("window"));
   const tightSpacing = Dimensions.get("window").height < 950;
+  // iPhone SE-class heights (<700) need a few more px reclaimed above and within the
+  // player-score list so the second player's score row clears the fold without
+  // scrolling once the safe-area top inset is reserved (AUG-1243).
+  const veryCompact = Dimensions.get("window").height < 700;
 
   // Build current-hole scores map for AuxiliaryPrompt (Tier 2 games)
   const currentPlayerScores = useMemo(() => {
@@ -380,8 +384,8 @@ export default function ScorecardScreen() {
         <View
           style={{
             paddingHorizontal: 20,
-            paddingTop: tightSpacing ? 8 : 12,
-            paddingBottom: tightSpacing ? 4 : 8,
+            paddingTop: veryCompact ? 4 : tightSpacing ? 8 : 12,
+            paddingBottom: veryCompact ? 2 : tightSpacing ? 4 : 8,
             flexDirection: "row",
             alignItems: "flex-end",
             justifyContent: "space-between",
@@ -559,8 +563,8 @@ export default function ScorecardScreen() {
 
         {/* ── Player Score Steppers ── */}
         <ScrollView
-          style={{ flex: 1, minHeight: 0, marginTop: tightSpacing ? 4 : 8 }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: tightSpacing ? 4 : 12, gap: tightSpacing ? 4 : 8 }}
+          style={{ flex: 1, minHeight: 0, marginTop: veryCompact ? 0 : tightSpacing ? 4 : 8 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: veryCompact ? 2 : tightSpacing ? 4 : 12, gap: veryCompact ? 2 : tightSpacing ? 4 : 8 }}
           showsVerticalScrollIndicator={false}
         >
           {displayPlayers.map((player, idx) => {
@@ -581,7 +585,7 @@ export default function ScorecardScreen() {
                 style={{
                   backgroundColor: COLORS.surfaceHigh,
                   borderRadius: RADII.lg,
-                  padding: compactViewport ? 4 : tightSpacing ? 10 : 14,
+                  padding: veryCompact ? 2 : compactViewport ? 4 : tightSpacing ? 10 : 14,
                   borderLeftWidth: 3,
                   borderLeftColor: hasScore ? color : COLORS.surfaceHighest,
                   opacity: isCompleted ? 0.7 : 1,
@@ -593,7 +597,7 @@ export default function ScorecardScreen() {
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: tightSpacing ? 2 : 10,
+                    marginBottom: veryCompact ? 0 : tightSpacing ? 2 : 10,
                   }}
                 >
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
@@ -762,7 +766,7 @@ export default function ScorecardScreen() {
         <View
           style={{
             paddingHorizontal: 20,
-            paddingBottom: 8,
+            paddingBottom: veryCompact ? 4 : 8,
           }}
         >
           {/* Hole Navigation */}
