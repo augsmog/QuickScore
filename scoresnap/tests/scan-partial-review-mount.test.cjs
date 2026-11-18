@@ -200,7 +200,7 @@ test('ambiguous same-name rows require explicit mapping before confirm is possib
   }
 });
 
-for (const replacement of ['0', '-1', 'NaN', '2.5', '']) {
+for (const replacement of ['0', '-1', 'NaN', '2.5', '', '9007199254740992']) {
   test(`invalid edited score ${JSON.stringify(replacement)} cannot fall back to confirmed OCR`, () => {
     const group = group4();
     const contest = { id: 'c1', course: COURSE, status: 'active', groups: [group], isTournament: false };
@@ -269,7 +269,7 @@ test('Cancel/remount retains corrections; switching accounts while unmounted cle
   again.unmount();
   act(() => live.authListener({session:{user:{id:'other'}},isAnonymous:false},{session:null,isAnonymous:true}));
   const cleared = render(React.createElement(tree.Screen));
-  expect(cleared.getByTestId('partial-cell-input-3:2').props.value).toBe('');
+  expect(cleared.getByTestId('partial-cell-input-3:2').props.value).toBe('5');
   expect(cleared.getByTestId('partial-confirm').props.disabled).toBe(true);
   cleared.unmount();
 });
@@ -306,37 +306,47 @@ test('uncertain player identity requires an explicit roster choice', () => {
   } finally {tree.unmount();}
 });
 
+function mountIntake({ partial, platform = 'web', scanScorecard = jest.fn(), consent = true, auth = {isAnonymous:true,session:null}, live = {} }) {
+  const element = tag => props => React.createElement(tag,props,props.children);
+  const parser = load('src/services/score-parser.ts');
+  const calls=[];
+  const contest={id:'c1',course:COURSE,status:'active',groups:[group4()]};
+  const noop=()=>{};
+  const Camera = React.forwardRef((props, ref) => {
+    React.useImperativeHandle(ref, () => ({takePictureAsync:async()=>({uri:'file://card.jpg'})}));
+    return React.createElement('CameraView', props, props.children);
+  });
+  const Screen=load('app/scan/index.tsx', {
+    react:React,'react/jsx-runtime':require('react/jsx-runtime'),
+    'react-native':Object.fromEntries(['View','Text','Pressable','Image','TextInput','ScrollView'].map(tag=>[tag,element(tag)]).concat([
+      ['Dimensions',{get:()=>({width:390,height:844})}],['Platform',{OS:platform}],
+    ])),
+    'expo-router':{useRouter:()=>({push:value=>calls.push(value)}),useLocalSearchParams:()=>({contestId:'c1',mode:partial?'partial':undefined})},
+    'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:0,bottom:0})},
+    'expo-camera':{CameraView:Camera,useCameraPermissions:()=>[{granted:true},noop]},
+    'lucide-react-native':Object.fromEntries(['X','Camera','Lock','RotateCcw','Check','SwitchCamera','ImageIcon','Zap','ZapOff'].map(n=>[n,()=>null])),
+    'expo-haptics':{impactAsync:noop,notificationAsync:noop,ImpactFeedbackStyle:{Medium:'medium',Light:'light'},NotificationFeedbackType:{Success:'success'}},
+    '../../src/ui/theme':theme,
+    '../../src/stores/contest-store':{useContestStore:Object.assign(select=>select({contests:[contest]}),{getState:()=>({contests:[live.contest ?? contest]}),subscribe:listener=>{live.contestListener=listener;return()=>{};}})},
+    '../../src/stores/auth-store':{useAuthStore:{getState:()=>auth,subscribe:listener=>{live.authListener=listener;return()=>{};}}},
+    '../../src/stores/scan-store':{useScanStore:()=>({canScan:()=>true,getRemainingFreeScans:()=>3,isPro:false})},
+    '../../src/services/ocr-consent':{requestOCRConsent:()=>Promise.resolve(consent)},
+    '../../src/services/ocr-review':ocrReview,'../../src/services/ocr-service':{scanScorecard},
+    '../../src/services/entitlements':{proEnabled:()=>false},
+    '../../src/services/analytics':{webAnalytics:{capture:()=>Promise.resolve()}},
+    '../../src/config/offline':{OFFLINE_MODE:false},'../../src/config/native-ocr':{NATIVE_OCR_DISABLED:false},
+    '../../src/services/score-parser':parser,'../../src/config/posthog':{posthog:null},
+    '../../src/services/posthog-log':{posthogAppLogger:{scorecardScanCompleted:noop}},
+  }).default;
+  return {screen:render(React.createElement(Screen)), calls, parser};
+}
+
 for (const partial of [false, true]) {
   test(`text intake preserves ${partial ? 'partial' : 'full-card'} routing and hole handling`, () => {
-    const element = tag => props => React.createElement(tag,props,props.children);
-    const parser = load('src/services/score-parser.ts');
-    const calls=[];
-    const contest={id:'c1',course:COURSE,status:'active',groups:[group4()]};
-    const noop=()=>{};
-    const Screen=load('app/scan/index.tsx', {
-      react:React,'react/jsx-runtime':require('react/jsx-runtime'),
-      'react-native':Object.fromEntries(['View','Text','Pressable','Image','TextInput','ScrollView'].map(tag=>[tag,element(tag)]).concat([
-        ['Dimensions',{get:()=>({width:390,height:844})}],['Platform',{OS:'web'}],
-      ])),
-      'expo-router':{useRouter:()=>({push:value=>calls.push(value)}),useLocalSearchParams:()=>({contestId:'c1',mode:partial?'partial':undefined})},
-      'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:0,bottom:0})},
-      'expo-camera':{CameraView:element('CameraView'),useCameraPermissions:()=>[{granted:true},noop]},
-      'lucide-react-native':Object.fromEntries(['X','Camera','Lock','RotateCcw','Check','SwitchCamera','ImageIcon','Zap','ZapOff'].map(n=>[n,()=>null])),
-      'expo-haptics':{},'../../src/ui/theme':theme,
-      '../../src/stores/contest-store':{useContestStore:select=>select({contests:[contest]})},
-      '../../src/stores/auth-store':{useAuthStore:{getState:()=>({isAnonymous:true,session:null})}},
-      '../../src/stores/scan-store':{useScanStore:()=>({canScan:()=>true,getRemainingFreeScans:()=>3,isPro:false})},
-      '../../src/services/ocr-consent':{requestOCRConsent:()=>Promise.resolve(true)},
-      '../../src/services/ocr-review':ocrReview,'../../src/services/ocr-service':{},
-      '../../src/services/entitlements':{proEnabled:()=>false},
-      '../../src/services/analytics':{webAnalytics:{capture:()=>Promise.resolve()}},
-      '../../src/config/offline':{OFFLINE_MODE:true},'../../src/config/native-ocr':{NATIVE_OCR_DISABLED:false},
-      '../../src/services/score-parser':parser,'../../src/config/posthog':{posthog:null},'../../src/services/posthog-log':{},
-    }).default;
-    const screen=render(React.createElement(Screen));
+    const {screen,calls,parser}=mountIntake({partial});
     try {
       fireEvent.changeText(screen.getByTestId('scorecard-text-input'),'Alice,4,5\nBob,4,5\nCara,4,5\nDana,4,5');
-      fireEvent.press(screen.getByText('Parse Scorecard'));
+      fireEvent.press(screen.getByTestId('parse-scorecard-button'));
       expect(calls).toHaveLength(1);
       expect(calls[0].pathname).toBe(partial?'/scan/partial-review':'/scan/review');
       expect(calls[0].params.sourceContext).toBe(partial?JSON.stringify(['anonymous','c1',null]):undefined);
@@ -345,4 +355,108 @@ for (const partial of [false, true]) {
       else expect(rows).toEqual(ocrReview.applyCourseHoles(parser.parseScoreGrid(parser.textToGrid('Alice,4,5\nBob,4,5\nCara,4,5\nDana,4,5'),undefined,'paste').players,COURSE.holes.map(h=>h.num)));
     } finally {screen.unmount();}
   });
+
+  test(`photo intake preserves ${partial ? 'partial' : 'full-card'} routing and binds context before OCR`, async () => {
+    jest.useFakeTimers();
+    const auth={isAnonymous:true,session:null};
+    const rows=[scanRow('Alice',null)];
+    let resolveOCR;
+    const scanScorecard=jest.fn(()=>new Promise(resolve=>{resolveOCR=resolve;}));
+    const {screen,calls}=mountIntake({partial,platform:'ios',scanScorecard,auth});
+    try {
+      const capture=screen.UNSAFE_root.findAll(n=>n.type==='Pressable'&&n.props.onPress).find(n=>n.props.style instanceof Function);
+      await act(async()=>{await capture.props.onPress();});
+      await act(async()=>{fireEvent.press(screen.getByText('Process Scores'));});
+      expect(scanScorecard).toHaveBeenCalledWith('file://card.jpg',expect.any(Function),partial?undefined:COURSE.holes.map(h=>h.num));
+      await act(async()=>{resolveOCR({players:rows});});
+      act(()=>jest.runOnlyPendingTimers());
+      expect(calls).toHaveLength(1);
+      expect(calls[0].pathname).toBe(partial?'/scan/partial-review':'/scan/review');
+      expect(JSON.parse(calls[0].params.scanData)).toEqual(rows);
+      expect(calls[0].params.sourceContext).toBe(partial?JSON.stringify(['anonymous','c1',null]):undefined);
+    } finally {screen.unmount();jest.useRealTimers();}
+  });
+}
+
+test('missing played cells outside a nine-hole scan can be explicitly corrected', () => {
+  const group=group4(),contest={id:'c1',course:COURSE,status:'active',groups:[group],isTournament:false};
+  const rows=group.players.map(p=>({...scanRow(p.name,null),requiredHoles:COURSE.holes.slice(0,9).map(h=>h.num),scores:[4,5,...Array(7).fill(null)],confidence:[.95,.95,...Array(7).fill(0)]}));
+  const calls=[];
+  const tree=mountScreen({contest,scanData:JSON.stringify(rows),applyReviewedPartialImport:(...args)=>calls.push(args)});
+  try {
+    fireEvent.press(tree.rendered.getByTestId('partial-hole-10'));
+    expect(tree.rendered.getByTestId('partial-confirm').props.disabled).toBe(true);
+    for (let i=0;i<4;i++) fireEvent.changeText(tree.rendered.getByTestId(`partial-cell-input-${i}:10`),'6');
+    expect(tree.rendered.getByTestId('partial-confirm').props.disabled).toBe(false);
+    fireEvent.press(tree.rendered.getByTestId('partial-confirm'));
+    expect(calls[0][3].filter(c=>c.hole===10)).toEqual(group.players.map(p=>({playerId:p.id,hole:10,strokes:6})));
+  } finally {tree.unmount();}
+});
+
+test('review labels and diagnostics use approved copy, including unambiguous cell identity', () => {
+  const group=group4(),contest={id:'c1',course:COURSE,status:'active',groups:[group],isTournament:false};
+  const tree=mountScreen({contest,scanData:JSON.stringify(group.players.map((p,i)=>scanRow(p.name,null,i===3?.1:.95))),applyReviewedPartialImport:jest.fn()});
+  try {
+    expect(tree.rendered.getByTestId('partial-cell-input-3:2').props.accessibilityLabel).toBe('Dana (p4), hole 2');
+    expect(tree.rendered.getByTestId('partial-blocker-0').props.children).toBe('Enter and confirm a score for every played hole.');
+    expect(tree.rendered.getByText('Select only the holes already played. Other holes stay blank.')).toBeDefined();
+    expect(tree.rendered.getByText('Choose a player for each row. Check the player ID when names match.')).toBeDefined();
+  } finally {tree.unmount();}
+});
+
+
+test('confident OCR is editable to resolve an existing saved-score conflict', () => {
+  const group=group4(); group.players[0].scores[0]=6;
+  const contest={id:'c1',course:COURSE,status:'active',groups:[group],isTournament:false};
+  const calls=[];
+  const tree=mountScreen({contest,scanData:JSON.stringify(group.players.map(p=>scanRow(p.name,null))),applyReviewedPartialImport:(...args)=>calls.push(args)});
+  try {
+    expect(tree.rendered.getByTestId('partial-confirm').props.disabled).toBe(true);
+    fireEvent.changeText(tree.rendered.getByTestId('partial-cell-input-0:1'),'6');
+    expect(tree.rendered.getByTestId('partial-confirm').props.disabled).toBe(false);
+    fireEvent.press(tree.rendered.getByTestId('partial-confirm'));
+    expect(calls).toHaveLength(1);
+    expect(calls[0][3]).toHaveLength(7);
+    expect(calls[0][3].some(c=>c.playerId==='p1'&&c.hole===1)).toBe(false);
+  } finally {tree.unmount();}
+});
+
+test('successful save cannot reapply the same scan after remount', () => {
+  const group=group4(),contest={id:'c1',course:COURSE,status:'active',groups:[group],isTournament:false};
+  const calls=[];
+  const tree=mountScreen({contest,scanData:JSON.stringify(group.players.map(p=>scanRow(p.name,null))),applyReviewedPartialImport:(...args)=>calls.push(args)});
+  fireEvent.press(tree.rendered.getByTestId('partial-confirm'));
+  tree.unmount();
+  const again=render(React.createElement(tree.Screen));
+  try {
+    fireEvent.press(again.getByTestId('partial-confirm'));
+    expect(calls).toHaveLength(1);
+  } finally {again.unmount();}
+});
+
+for (const transition of ['account','round']) {
+ test(`pending partial photo is invalidated by ${transition} changing away and back`,async()=>{
+  jest.useFakeTimers();
+  const auth={isAnonymous:true,session:null},live={};
+  let resolveOCR;
+  const scanScorecard=jest.fn(()=>new Promise(resolve=>{resolveOCR=resolve;}));
+  const {screen,calls}=mountIntake({partial:true,platform:'ios',scanScorecard,auth,live});
+  try {
+    const capture=screen.UNSAFE_root.findAll(n=>n.type==='Pressable'&&n.props.onPress).find(n=>n.props.style instanceof Function);
+    await act(async()=>{await capture.props.onPress();});
+    await act(async()=>{fireEvent.press(screen.getByText('Process Scores'));});
+    act(()=>{
+      if(transition==='account') {
+        auth.isAnonymous=false;auth.session={user:{id:'other'}};live.authListener?.();
+        auth.isAnonymous=true;auth.session=null;live.authListener?.();
+      } else {
+        live.contest={id:'c1',isTournament:true,currentRound:2,status:'active',rounds:[{id:'r2',number:2}]};live.contestListener?.();
+        live.contest=undefined;live.contestListener?.();
+      }
+    });
+    await act(async()=>{resolveOCR({players:[scanRow('Alice',null)]});});
+    act(()=>jest.runOnlyPendingTimers());
+    expect(calls).toHaveLength(0);
+  } finally {screen.unmount();jest.useRealTimers();}
+ });
 }

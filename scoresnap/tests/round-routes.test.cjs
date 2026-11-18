@@ -1,14 +1,14 @@
 const fs=require('fs'),ts=require('typescript');
 const jsx=(type,props)=>({type,props});
-function render({canGoBack=false,hasContest=true}={}){
- const back=jest.fn(),replace=jest.fn();
+function render({canGoBack=false,hasContest=true,status='completed'}={}){
+ const back=jest.fn(),replace=jest.fn(),push=jest.fn();
  const stateValues=[];
- const contest=hasContest?{id:'c',name:'Round',course:{name:'Course'},groups:[],status:'completed'}:undefined;
+ const contest=hasContest?{id:'c',name:'Round',course:{name:'Course'},groups:[],status}:undefined;
  const deps={
   react:{useState:v=>{let value=v;stateValues.push(()=>value);return [v,next=>{value=typeof next==='function'?next(value):next}]},useCallback:f=>f},
   'react/jsx-runtime':{jsx,jsxs:jsx},
   'react-native':{View:'View',Text:'Text',Pressable:'Pressable',Dimensions:{get:()=>({width:390,height:844})}},
-  'expo-router':{Slot:'Slot',usePathname:()=>'/contest/c',useLocalSearchParams:()=>({id:'c'}),useRouter:()=>({back,replace,canGoBack:()=>canGoBack})},
+  'expo-router':{Slot:'Slot',usePathname:()=>'/contest/c',useLocalSearchParams:()=>({id:'c'}),useRouter:()=>({back,replace,push,canGoBack:()=>canGoBack})},
   'lucide-react-native':{},'expo-haptics':{},
   './index':{default:'leaderboard'},'./scorecard':{default:'scorecard'},'./games':{default:'games'},'./settlement':{default:'settlement'},
   '../../../src/ui/OnlineSyncPanel':{OnlineSyncPanel:'OnlineSyncPanel'},
@@ -26,7 +26,7 @@ function render({canGoBack=false,hasContest=true}={}){
  };
  const m={exports:{}};
  new Function('require','module','exports',ts.transpileModule(fs.readFileSync('app/contest/[id]/_layout.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText)(id=>{if(!(id in deps))throw Error(id);return deps[id]},m,m.exports);
- return {tree:m.exports.default(),back,replace,statusOpen:()=>stateValues[0]()};
+ return {tree:m.exports.default(),back,replace,push,statusOpen:()=>stateValues[0]()};
 }
 const nodes=n=>!n||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];
 test('contest layout renders its current tab through the Slot outlet (AUG-1125: navigator stays mounted)',()=>{
@@ -64,4 +64,14 @@ test.each([true,false])('missing-contest Back uses history or Home (%s)',canGoBa
  const {tree,back,replace}=render({canGoBack,hasContest:false});
  nodes(tree).find(n=>n.type==='Pressable'&&n.props?.onPress).props.onPress();
  expect(canGoBack?back:replace).toHaveBeenCalledWith(...(canGoBack?[]:['/']));
+});
+
+test.each(['active','completed','draft'])('partial-card entry is available only on active rounds (%s)',status=>{
+ const {tree,push}=render({status});
+ const entry=nodes(tree).find(n=>n.props?.testID==='round-scan-partial');
+ if(status==='active') {
+  expect(entry.props.accessibilityLabel).toBe('Scan partial card');
+  entry.props.onPress();
+  expect(push).toHaveBeenCalledWith('/scan?contestId=c&mode=partial');
+ } else expect(entry).toBeUndefined();
 });

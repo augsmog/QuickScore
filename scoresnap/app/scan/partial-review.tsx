@@ -22,6 +22,11 @@ const COPY = {
   intro: "Choose the group and played holes, match each row to a player, and check the scores before saving.",
   group: "Group",
   played: "Played holes",
+  playedHelp: "Select only the holes already played. Other holes stay blank.",
+  playerHelp: "Choose a player for each row. Check the player ID when names match.",
+  conflict: "A saved score differs from this card. Resolve the difference before saving.",
+  stale: "The account, round, or group changed. Return to the active round and review again.",
+  invalidScan: "This scan could not be opened. Return to the camera and try again.",
   player: "Match player",
   cellReview: "Check score",
   cellConfirm: "Confirm score",
@@ -105,7 +110,7 @@ export default function ScanPartialReviewScreen() {
       // would misclassify every genuinely partial card as a hole-alignment error, so it isn't used here.
       return { initialRows: parseReviewData(scanData), parseError: null };
     } catch {
-      return { initialRows: null, parseError: COPY.noContext };
+      return { initialRows: null, parseError: COPY.invalidScan };
     }
   }, [contestId, storedContest, course, scanData]);
 
@@ -139,7 +144,7 @@ export default function ScanPartialReviewScreen() {
     () => existingDraft?.confirmedCells ?? new Set()
   );
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(() => Boolean(draftKey && sessionsByKey.get(draftKey)?.getState().status === "confirmed"));
 
   useEffect(() => {
     const draft = draftKey ? draftsByKey.get(draftKey) : undefined;
@@ -149,7 +154,7 @@ export default function ScanPartialReviewScreen() {
     setConfirmedCells(draft?.confirmedCells ?? new Set());
     attemptedPatch.current = null;
     setSaveError(null);
-    setSaved(false);
+    setSaved(Boolean(draftKey && sessionsByKey.get(draftKey)?.getState().status === "confirmed"));
   }, [draftKey]);
 
   function persistDraft(next: Partial<ScreenDraft>) {
@@ -209,18 +214,23 @@ export default function ScanPartialReviewScreen() {
     [autoRows, manualMap]
   );
 
+  const holeIdentities = useMemo(() => (course?.holes ?? []).map((h) => h.num), [course]);
+
   const reviewedRows: ScannedPlayer[] = useMemo(
     () =>
       rowsDisplayed.map((row, i) => {
-        const scores = [...row.scores];
-        const confidence = [...row.confidence];
-        (row.requiredHoles ?? []).forEach((hole, hIdx) => {
+        // Align by identity so a shorter scan retains blank cells that can be corrected
+        // for any explicitly played course hole, without inventing a reading.
+        const rowHoles = row.requiredHoles ?? fullHoles;
+        const scores = holeIdentities.map(hole => row.scores[rowHoles.indexOf(hole)] ?? null);
+        const confidence = holeIdentities.map(hole => row.confidence[rowHoles.indexOf(hole)] ?? 0);
+        holeIdentities.forEach((hole, hIdx) => {
           if (!playedHoles.has(hole)) return;
           const key = cellKey(i, hole);
           const typed = corrections[key];
           if (typed !== undefined) {
             const n = Number(typed.trim());
-            if (Number.isInteger(n) && n > 0) {
+            if (Number.isSafeInteger(n) && n > 0) {
               scores[hIdx] = n;
               confidence[hIdx] = 1;
               return;
@@ -229,14 +239,14 @@ export default function ScanPartialReviewScreen() {
             confidence[hIdx] = 0;
             return;
           }
-          const raw = grossScore(row.scores[hIdx]);
+          const raw = grossScore(scores[hIdx]);
           if (confirmedCells.has(key) && raw !== null) {
             confidence[hIdx] = 1;
           }
         });
-        return { ...row, scores, confidence };
+        return { ...row, requiredHoles: holeIdentities, scores, confidence };
       }),
-    [rowsDisplayed, playedHoles, corrections, confirmedCells]
+    [rowsDisplayed, playedHoles, corrections, confirmedCells, holeIdentities]
   );
 
   const targets: PartialImportTarget[] = useMemo(
@@ -249,7 +259,6 @@ export default function ScanPartialReviewScreen() {
     [group, course]
   );
 
-  const holeIdentities = useMemo(() => (course?.holes ?? []).map((h) => h.num), [course]);
 
   const result = useMemo(
     () =>
@@ -306,6 +315,11 @@ export default function ScanPartialReviewScreen() {
       sessionsByKey.set(draftKey, session);
     }
     session.setAccount(accountId);
+    if (session.getState().status === "confirmed") {
+      setSaved(true);
+      router.back();
+      return;
+    }
     const token = session.beginReview(accountId, context);
     const state = session.completeReview(token, context, {
       rows: reviewedRows, players: targets, holeIdentities, playedHoles, coverage: "full-group",
@@ -333,7 +347,7 @@ export default function ScanPartialReviewScreen() {
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 16 }}>
           <AlertTriangle size={32} color={COLORS.warn} />
           <Text style={{ ...TYPOGRAPHY.body, color: COLORS.text, textAlign: "center" }}>
-            {parseError || COPY.noContext}
+            {parseError || (!contextCurrent ? COPY.stale : COPY.noContext)}
           </Text>
           <Pressable testID="partial-review-back" accessibilityRole="button" onPress={handleCancel}>
             <Text style={{ color: COLORS.primary }}>{COPY.back}</Text>
@@ -376,6 +390,7 @@ export default function ScanPartialReviewScreen() {
 
         <View style={{ gap: 8 }}>
           <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>{COPY.played}</Text>
+          <Text style={{ color: COLORS.textDim }}>{COPY.playedHelp}</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {holeIdentities.map((hole) => (
               <Pressable
@@ -396,6 +411,8 @@ export default function ScanPartialReviewScreen() {
           </View>
         </View>
 
+        <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>{COPY.player}</Text>
+        <Text style={{ color: COLORS.textDim }}>{COPY.playerHelp}</Text>
         {!mappingResolved && <Text accessibilityRole="alert" style={{ color: COLORS.warn }}>{COPY.mapping}</Text>}
         {rowsDisplayed.map((row, rowIndex) => (
           <View key={rowIndex} testID={`partial-row-${rowIndex}`} style={{ gap: 8, padding: 12, borderRadius: RADII.lg, backgroundColor: COLORS.surfaceLow }}>
@@ -426,24 +443,24 @@ export default function ScanPartialReviewScreen() {
                 const key = cellKey(rowIndex, hole);
                 const needsReview = raw === null || rawConfidence < MIN_PARTIAL_IMPORT_CONFIDENCE;
                 const resolved = !needsReview || confirmedCells.has(key) ||
-                  (() => { const n = Number((corrections[key] ?? "").trim()); return Number.isInteger(n) && n > 0; })();
+                  (() => { const n = Number((corrections[key] ?? "").trim()); return Number.isSafeInteger(n) && n > 0; })();
                 return (
                   <View key={hole} style={{ width: 96, gap: 4 }}>
-                    <Text style={{ color: COLORS.textDim, fontSize: 11 }}>Hole {hole}</Text>
-                    {needsReview ? (
-                      <>
+                    <Text style={{ color: COLORS.textDim, fontSize: 11 }}>{hole}</Text>
+                    <>
+                        {needsReview &&
                         <Text testID={`partial-cell-status-${key}`} style={{ color: COLORS.warn, fontSize: 11 }}>
                           {COPY.cellReview}
-                        </Text>
+                        </Text>}
                         <TextInput
                           testID={`partial-cell-input-${key}`}
-                          accessibilityLabel={`${row.name} hole ${hole} score`}
+                          accessibilityLabel={`${row.name} (${row.matchedPlayerId ?? ""}), hole ${hole}`}
                           keyboardType="number-pad"
-                          value={corrections[key] ?? ""}
+                          value={corrections[key] ?? (raw === null ? "" : String(raw))}
                           onChangeText={(text) => setCorrection(rowIndex, hole, text)}
                           style={{ borderWidth: 1, borderColor: COLORS.textDim, borderRadius: RADII.sm, padding: 8, color: COLORS.text }}
                         />
-                        {raw !== null && (
+                        {needsReview && raw !== null && (
                           <Pressable
                             testID={`partial-cell-confirm-${key}`}
                             accessibilityRole="button"
@@ -454,12 +471,7 @@ export default function ScanPartialReviewScreen() {
                           </Pressable>
                         )}
                         {!resolved && <AlertTriangle size={14} color={COLORS.warn} />}
-                      </>
-                    ) : (
-                      <Text testID={`partial-cell-value-${key}`} style={{ color: COLORS.text, fontFamily: FONTS.semibold }}>
-                        {raw}
-                      </Text>
-                    )}
+                    </>
                   </View>
                 );
               })}
@@ -474,7 +486,7 @@ export default function ScanPartialReviewScreen() {
           <View style={{ gap: 4 }}>
             {result.blockers.map((b, i) => (
               <Text key={i} testID={`partial-blocker-${i}`} style={{ color: COLORS.warn, fontSize: 12 }}>
-                {b}
+                {b.startsWith("Score conflict") ? COPY.conflict : /roster|mapping|player id|rows map/.test(b) ? COPY.mapping : COPY.missing}
               </Text>
             ))}
           </View>
