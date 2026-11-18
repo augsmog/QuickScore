@@ -31,8 +31,26 @@ pass alone does not prove that artifact references exist or match a simulator ru
 the independent E2E verifier must bind them to the manifest and actual artifacts.
 Both profiles must have the same app source SHA before AUG-387 can close.
 
-Remaining integration work for AUG-1278: the native runner currently captures one
-hierarchy at flow end. It still needs per-hole measured hierarchy, observed action
-counts and screenshot contrast sampling to produce the observation input above.
-The validator fails closed until that collector supplies complete measurements;
-this patch is partial harness progress and does not close AUG-1278 or AUG-387.
+The native runner now invokes `score-entry-collect.mjs` for score-entry when a
+metric profile is selected. It runs19 Maestro phases, captures hierarchy and an
+actual simulator screenshot after each phase, and reads completed command traces
+for observed score/Next/correction counts. It samples the interior of both native
+navigation targets from screenshot pixels and records sample regions/colors/counts
+and screenshot SHA256 in contrast sidecars. Missing traces/ids/pixels or incomplete
+finalization fail the run. No device execution is performed by the code tests.
+
+Run the existing compatible app with the approved native runner, once per profile:
+
+```
+.maestro/scripts/run-ios-sim.sh --app-path /existing/SnapScore.app --build offline \
+  --flows aug-325-score-entry --metric-profile small --out small-out
+.maestro/scripts/run-ios-sim.sh --app-path /existing/SnapScore.app --build offline \
+  --flows aug-325-score-entry --metric-profile large --out large-out
+```
+
+Each app must carry SourceCommit.txt; observations use that app source SHA.
+`observations.json`, `metrics.json`, phase command traces, JUnit, hierarchies,
+screenshots and contrast sidecars are retained. Run without a metric profile
+retains the generic capture path and does not produce a measured acceptance report.
+The collector preserves failures such as the current compact44pt controls; it does
+not change app targets or waive56pt. AUG-387 remains separate native evidence.

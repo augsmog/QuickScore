@@ -89,8 +89,12 @@ while IFS=$'\t' read -r ID FLOW FIXTURE HIER CAPTURE_PDF; do
   xcrun simctl install "$UDID" "$APP"
   [ "$FIXTURE" = "-" ] || seed_asyncstorage "$FIXTURE"
   START=$(date +%s); set +e
-  (cd "$D" && maestro --device "$UDID" test --format junit --output "$D/junit.xml" \
-      --test-output-dir "$D" --debug-output "$D/debug" "$ROOT/$FLOW") > "$D/maestro.log" 2>&1
+  if [ "$ID" = "aug-325-score-entry" ] && [ -n "$METRIC_PROFILE" ]; then
+    node "$ROOT/scoresnap/e2e/score-entry-collect.mjs" "$ROOT" "$D" "$UDID" "$METRIC_PROFILE" "$APP_SOURCE_SHA" "${GITHUB_RUN_ID:-local}-$UDID" > "$D/maestro.log" 2>&1
+  else
+    (cd "$D" && maestro --device "$UDID" test --format junit --output "$D/junit.xml" \
+        --test-output-dir "$D" --debug-output "$D/debug" "$ROOT/$FLOW") > "$D/maestro.log" 2>&1
+  fi
   RC=$?; set -e
   if [ "$CAPTURE_PDF" = "1" ] && [ "$RC" -eq 0 ]; then
     CONTAINER="$(xcrun simctl get_app_container "$UDID" "$APP_ID" data)"
@@ -116,6 +120,7 @@ for line in open(res):
     flows.append({"id":i,"file":f,"tickets":byid[i]["tickets"],"status":"passed" if rc=="0" else "failed","exitCode":int(rc),"seconds":int(secs),
       "fixture":byid[i].get("fixture"),"partial":byid[i].get("partial"),"liveWrite":byid[i].get("liveWrite"),
       "screenshots":sorted(os.path.basename(p) for p in glob.glob(os.path.join(d,"*.png"))),
+      "scoreEntryMetrics":json.load(open(os.path.join(d,"metrics.json"))) if os.path.exists(os.path.join(d,"metrics.json")) else None,
       "savedPdf":json.load(open(os.path.join(d,"pdf","receipt.json"))) if os.path.exists(os.path.join(d,"pdf","receipt.json")) else None,
       "comparisonFixture":byid[i].get("comparisonFixture"),
       "hierarchy":os.path.exists(os.path.join(d,"hierarchy.json"))})

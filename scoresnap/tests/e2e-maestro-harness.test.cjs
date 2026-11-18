@@ -234,3 +234,10 @@ test('PDF evidence seeds frozen completed Unicode fixture and captures locally r
  expect(runner).toMatch(/if ! python3 .*collect-pdf.py[\s\S]*?RC=1/);
  expect(runner).toContain('"savedPdf":');
 });
+
+
+test('combined native runner preserves both evidence collectors in manifest',()=>{
+ const runner=read('.maestro/scripts/run-ios-sim.sh');
+ expect(runner).toContain('"scoreEntryMetrics":');expect(runner).toContain('"savedPdf":');
+ expect(runner).toContain('score-entry-collect.mjs');expect(runner).toContain('collect-pdf.py');
+});
