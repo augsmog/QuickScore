@@ -51,7 +51,9 @@ type FlashOption = "off" | "on" | "auto";
 
 export default function ScanScreen() {
   const router = useRouter();
-  const { contestId } = useLocalSearchParams<{ contestId?: string }>();
+  const { contestId, groupId, mode } = useLocalSearchParams<{ contestId?: string; groupId?: string; mode?: string }>();
+  const isPartial = mode === "partial";
+  const reviewPathname = isPartial ? "/scan/partial-review" : "/scan/review";
   const selectedContest = useContestStore(s => s.contests.find(c => c.id === contestId));
   const selectedRound = selectedContest?.rounds?.find(r => r.number === selectedContest.currentRound);
   const requiredHoles = (selectedRound?.course ?? selectedContest?.course)?.holes.map(h => h.num);
@@ -130,9 +132,10 @@ export default function ScanScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => {
         router.push({
-          pathname: "/scan/review",
+          pathname: reviewPathname,
           params: {
             contestId: contestId || "",
+            groupId: groupId || "",
             photoUri: photoUri || "",
             scanData: JSON.stringify(result.players),
           },
@@ -145,7 +148,7 @@ export default function ScanScreen() {
       );
       setPhase("error");
     }
-  }, [contestId, router, photoUri, requiredHoles]);
+  }, [contestId, groupId, reviewPathname, router, photoUri, requiredHoles]);
 
   const handleRetake = useCallback(() => {
     setPhotoUri(null);
@@ -205,8 +208,8 @@ export default function ScanScreen() {
               setTextError(null);
               void webAnalytics.capture("score_snap_completed", { duration_ms: Date.now() - startedAt, success: true });
               router.push({
-                pathname: "/scan/review",
-                params: { contestId: contestId || "", photoUri: "", scanData: JSON.stringify(applyCourseHoles(result.players, requiredHoles)) },
+                pathname: reviewPathname,
+                params: { contestId: contestId || "", groupId: groupId || "", photoUri: "", scanData: JSON.stringify(applyCourseHoles(result.players, requiredHoles)) },
               });
             }}
             style={{ backgroundColor: COLORS.primary, borderRadius: RADII.lg, padding: 16, alignItems: "center" }}
