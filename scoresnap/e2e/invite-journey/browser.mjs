@@ -45,7 +45,9 @@ try {
     await freshSnapshot(host,()=>host.goto(`${base}/contest/${f.contestId}`));
     assert.equal(await host.getByTestId('organizer-join-code').innerText(),`Join code: ${f.code}`);
     await text(host,'Copy / share invite').click();
-    assertShare(f,await host.evaluate(()=>navigator.clipboard.readText()));
+    // Restored-host share() awaits a rejoinHost round trip before writing the
+    // clipboard; click() only dispatches the event, so the read must retry.
+    await eventually(async()=>assertShare(f,await host.evaluate(()=>navigator.clipboard.readText())));
     await host.getByTestId('round-status-chip').filter({visible:true}).first().click();await text(host,'Online sync').click();
     await text(host,`Approve as ${f.players[1].name}`).click();
     await eventually(async()=>{const m=await db.read(`contest_memberships?contest_id=eq.${f.contestId}&user_id=eq.${request.requester}&select=*`);assert.equal(m.length,1);assertBinding(f,m[0],request.requester);});
