@@ -5,7 +5,7 @@ import { isCompactViewport } from "../../../src/ui/compact-viewport";
 import { useState, useCallback } from "react";
 import { Dimensions, View, Text, Pressable } from "react-native";
 import { Slot, useLocalSearchParams, usePathname, useRouter } from "expo-router";
-import { ChevronLeft, ChevronRight, Camera, Edit3, Calendar } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Camera, Edit3, Calendar, ClipboardCheck } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, RADII } from "../../../src/ui/theme";
 import { useContestStore } from "../../../src/stores/contest-store";
@@ -160,6 +160,27 @@ export default function ContestLayout() {
           >
             <Camera size={18} color={COLORS.accent} />
           </AnimatedPressable>
+          {contest.status === "active" && (
+            <AnimatedPressable
+              testID="round-scan-partial"
+              accessibilityRole="button"
+              accessibilityLabel="Scan partial card"
+              onPress={() => router.push(`/scan?contestId=${id}&mode=partial`)}
+              style={{
+                borderRadius: RADII.sm,
+                padding: 8,
+                minWidth: 44,
+                minHeight: 44,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: COLORS.card,
+                borderColor: COLORS.border,
+                borderWidth: 1,
+              }}
+            >
+              <ClipboardCheck size={18} color={COLORS.textDim} />
+            </AnimatedPressable>
+          )}
         </View>
 
         <Pressable
