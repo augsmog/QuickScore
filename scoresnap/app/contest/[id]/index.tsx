@@ -85,6 +85,10 @@ export default function ScorecardScreen() {
   const isCompleted = contest.status === "completed";
   const compactViewport = isCompactViewport(Dimensions.get("window"));
   const tightSpacing = Dimensions.get("window").height < 950;
+  // iPhone SE-class heights (<700) need the player ScrollView to reclaim room
+  // from this screen's own chrome: the shared contest layout's top safe-area
+  // inset (AUG-1155) otherwise pushes the 2nd+ player row below the fold.
+  const veryTightSpacing = Dimensions.get("window").height < 700;
 
   // Build current-hole scores map for AuxiliaryPrompt (Tier 2 games)
   const currentPlayerScores = useMemo(() => {
@@ -380,8 +384,8 @@ export default function ScorecardScreen() {
         <View
           style={{
             paddingHorizontal: 20,
-            paddingTop: tightSpacing ? 8 : 12,
-            paddingBottom: tightSpacing ? 4 : 8,
+            paddingTop: veryTightSpacing ? 4 : tightSpacing ? 8 : 12,
+            paddingBottom: veryTightSpacing ? 2 : tightSpacing ? 4 : 8,
             flexDirection: "row",
             alignItems: "flex-end",
             justifyContent: "space-between",
@@ -559,7 +563,7 @@ export default function ScorecardScreen() {
 
         {/* ── Player Score Steppers ── */}
         <ScrollView
-          style={{ flex: 1, minHeight: 0, marginTop: tightSpacing ? 4 : 8 }}
+          style={{ flex: 1, minHeight: 0, marginTop: veryTightSpacing ? 0 : tightSpacing ? 4 : 8 }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: tightSpacing ? 4 : 12, gap: tightSpacing ? 4 : 8 }}
           showsVerticalScrollIndicator={false}
         >
@@ -762,7 +766,7 @@ export default function ScorecardScreen() {
         <View
           style={{
             paddingHorizontal: 20,
-            paddingBottom: 8,
+            paddingBottom: veryTightSpacing ? 4 : 8,
           }}
         >
           {/* Hole Navigation */}
@@ -869,7 +873,7 @@ export default function ScorecardScreen() {
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  marginBottom: tightSpacing ? 3 : 6,
+                  marginBottom: veryTightSpacing ? 1 : tightSpacing ? 3 : 6,
                 }}
               >
                 <Text
@@ -898,7 +902,7 @@ export default function ScorecardScreen() {
                   height: 4,
                   borderRadius: 2,
                   backgroundColor: COLORS.surfaceHighest,
-                  marginBottom: tightSpacing ? 6 : 10,
+                  marginBottom: veryTightSpacing ? 3 : tightSpacing ? 6 : 10,
                   overflow: "hidden",
                 }}
               >

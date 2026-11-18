@@ -72,6 +72,10 @@ export default function ContestLayout() {
 
   const allPlayers = contest.groups.flatMap((g) => g.players);
   const compactViewport = isCompactViewport(Dimensions.get("window"));
+  // iPhone SE-class heights (<700) need this shared header trimmed further so the
+  // round screen's player ScrollView keeps room once the top safe-area inset is
+  // applied (AUG-1155 made every journey simulate it; previously it read as 0).
+  const veryCompactViewport = Dimensions.get("window").height < 700;
 
   return (
     // One stable tree for every child route: the Slot navigator must stay mounted so Expo Router
@@ -79,8 +83,8 @@ export default function ContestLayout() {
     // Nested screens (edit, tournament-rounds) own their header, so chrome renders only on tab routes.
     <SafeScreen testID={isTabRoute ? "contest-screen" : undefined} style={{ flex: 1, backgroundColor: COLORS.bg }} edges={isTabRoute ? ["top", "bottom"] : []}>
       {/* Header */}
-      {isTabRoute ? <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: compactViewport ? 4 : 8, paddingBottom: compactViewport ? 4 : 12 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: compactViewport ? 6 : 12 }}>
+      {isTabRoute ? <View testID="contest-header" style={{ paddingHorizontal: 20, paddingTop: veryCompactViewport ? 2 : compactViewport ? 4 : 8, paddingBottom: veryCompactViewport ? 2 : compactViewport ? 4 : 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: veryCompactViewport ? 2 : compactViewport ? 6 : 12 }}>
           <AnimatedPressable
             onPress={() => router.back()}
             style={{
@@ -190,7 +194,7 @@ export default function ContestLayout() {
           onPress={() => setStatusOpen(true)}
           style={{ minHeight: 44, borderRadius: RADII.full, backgroundColor: COLORS.surfaceLow,
             flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 8,
-            paddingHorizontal: 12, marginBottom: 12 }}
+            paddingHorizontal: 12, marginBottom: veryCompactViewport ? 6 : 12 }}
         >
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary }} />
           <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>
