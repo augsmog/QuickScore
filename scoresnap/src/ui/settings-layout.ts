@@ -2,6 +2,11 @@
 export const SETTINGS_MIN_TARGET_PX = 44;
 // Native iOS Switch is ~51x31; the named switch itself must be at least 44 tall and wide.
 export const SETTINGS_SWITCH_SIZE = { width: 51, height: 31 };
+// Default section-header top margin (AUG-1177). The Scoring section header uses a reduced
+// margin so the Default Unit Amount / Distance Unit rows that follow it don't land partially
+// below the first-paint viewport edge on SE/ProMax (J-delete-account settings-two-taps capture).
+export const SETTINGS_SECTION_HEADER_MARGIN_TOP = 28;
+export const SETTINGS_SCORING_HEADER_MARGIN_TOP = 16;
 
 export const SETTINGS_SWITCH_TARGET = {
   minWidth: Math.max(SETTINGS_MIN_TARGET_PX, SETTINGS_SWITCH_SIZE.width),
