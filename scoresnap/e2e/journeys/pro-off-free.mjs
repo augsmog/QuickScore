@@ -45,7 +45,17 @@ try {
   const gameInfoSheet = page.getByTestId('game-info-sheet');
   await gameInfoSheet.waitFor({ state: 'visible' });
   const gameInfoText = (await gameInfoSheet.innerText()).replace(/\s+/g, ' ').trim();
-  assert.doesNotMatch(gameInfoText, /\bPRO\b/, 'Home game-info sheet must not show a PRO badge while pro_enabled is off');
+  // This same script also runs as the flag-ON negative proof (see web-smoke.yml), where Skins'
+  // PRO badge is expected to render -- follow the same FIRST_PRO_GATE idiom as the skins-create
+  // and settlement gates below instead of a plain assert, so that run still fails at the first
+  // gate (not the first CI-breaking surprise) and the grep for FIRST_PRO_GATE still finds it.
+  if (/\bPRO\b/.test(gameInfoText)) {
+    await page.screenshot({ path: path.join(out, 'first-pro-gate-home-game-info.png'), fullPage: true });
+    trace.push({ type: 'first-pro-gate', screen: 'home-game-info', text: gameInfoText });
+    fs.writeFileSync(path.join(out, 'run-log.json'), JSON.stringify(trace, null, 2));
+    console.error(`FIRST_PRO_GATE home-game-info: ${gameInfoText}`);
+    throw new Error('Flag-on journey stopped at the first Pro gate on the Home game-info sheet');
+  }
   await page.screenshot({ path: path.join(out, 'home-game-info-skins.png'), fullPage: true });
   trace.push({ type: 'home-game-info', text: gameInfoText });
   await page.getByTestId('game-info-close').click();
