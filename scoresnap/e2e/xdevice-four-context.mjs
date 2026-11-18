@@ -44,7 +44,12 @@ const text = (p, value) => p.getByText(value, { exact: true }).filter({ visible:
 // group has a hole with no score yet; Save pars so navigation still lands
 // (this host-side par write never touches another player's own queued edit:
 // it only fills the cell the host's screen already shows as unscored).
+// Re-anchor on the host's own card (A, never scored in this fixture) first:
+// callers often leave a *different* player's group selected (selectHostPlayer,
+// used for cell checks), and Save pars would otherwise write a phantom par
+// into that other player's still-in-progress hole instead of A's own gap.
 async function clickHoleNav(p, label) {
+  if (p === pages[0]) await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[0]);
   await text(p, label).click();
   const savePars = text(p, 'Save pars');
   await savePars.waitFor({ timeout: 500 }).catch(() => {});
