@@ -138,7 +138,9 @@
       "fixture": "paid-tier",
       "pinnedEasBuildId": "6a97486c-6f45-42cd-ad09-27d959395fb4",
       "notes": "Existing-binary selector repair (AUG-1280): Skins-step recovery only, no new build/spend.",
-      "skipInAll": "Must be dispatched with --app-url for the pinned existing artifact 6a97486c-6f45-42cd-ad09-27d959395fb4, never a fresh offline build; run by id."
+      "skipInAll": "Must be dispatched with --app-url for the pinned existing artifact 6a97486c-6f45-42cd-ad09-27d959395fb4, never a fresh offline build; run by id.",
+      "pinnedArtifactUrl": "https://expo.dev/artifacts/eas/A2xUXNFVPlLSd4IeqHiMC78QNNeCmNZc_DlPzo6z7jg.tar.gz",
+      "pinnedArtifactSha256": "cdc9e24cd6e397f44af5cdd2f647d5a0b381ed1c8b6ab082ad4a9ad5c1a45a37"
     },
     {
       "id": "aug-637-safe-area-existing-binary",
@@ -150,7 +152,9 @@
       ],
       "pinnedEasBuildId": "33ac8ba5-c7d1-49b5-ba8e-f14c44211882",
       "notes": "Existing-binary selector repair (AUG-1280): CourseSearch-step recovery only, no new build/spend.",
-      "skipInAll": "Must be dispatched with --app-url for the pinned existing artifact 33ac8ba5-c7d1-49b5-ba8e-f14c44211882, never a fresh offline build; run by id."
+      "skipInAll": "Must be dispatched with --app-url for the pinned existing artifact 33ac8ba5-c7d1-49b5-ba8e-f14c44211882, never a fresh offline build; run by id.",
+      "pinnedArtifactUrl": "https://expo.dev/artifacts/eas/rHN01CMzGD-0Vc3GazGreDet3WofzJkdTMqOkDZbz00.tar.gz",
+      "pinnedArtifactSha256": "3d2021e6e99a15c46f1ea70917af86771b7733a3306ec84fecd8c52b197e87ee"
     }
   ],
   "blocked": [
