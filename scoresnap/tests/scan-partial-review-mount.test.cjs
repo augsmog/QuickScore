@@ -194,3 +194,47 @@ test('ambiguous same-name rows require explicit mapping before confirm is possib
     act(() => tree.unmount());
   }
 });
+
+test('stealing an auto-matched row\'s player does not silently resurrect it on the row it left', () => {
+  // All four names are unique, so every row auto-matches cleanly (no manual touch yet).
+  const group = group4();
+  const contest = { id: 'c1', name: 'Test', course: COURSE, status: 'active', groups: [group], isTournament: false };
+  const scanData = JSON.stringify([
+    scanRow('Alice', null), scanRow('Bob', null), scanRow('Cara', null), scanRow('Dana', null),
+  ]);
+  const calls = [];
+  const tree = mountScreen({
+    groupId: 'g1', scanData, contest,
+    applyReviewedPartialImport: (...args) => calls.push(args),
+  });
+  try {
+    // Row 0 (Alice) auto-matched to p1 with no manual action yet. Explicitly give p1 to row 1
+    // instead -- row 0 must NOT keep displaying/submitting p1 (that would be two rows silently
+    // sharing one player).
+    press(tree, 'partial-map-1-p1');
+
+    const row0SelectedP1 = tree.root
+      .find((n) => n.props.testID === 'partial-row-0')
+      .findAll((n) => n.props.testID === 'partial-map-0-p1')[0].props.style.backgroundColor;
+    const row1SelectedP1 = tree.root
+      .find((n) => n.props.testID === 'partial-row-1')
+      .findAll((n) => n.props.testID === 'partial-map-1-p1')[0].props.style.backgroundColor;
+    expect(row1SelectedP1).toBe(theme.COLORS.primary);
+    expect(row0SelectedP1).not.toBe(theme.COLORS.primary); // row 0 no longer shows p1 selected.
+
+    // p1 is now covered (by row 1), but row 1 abandoned its own auto-match (p2) by moving --
+    // p2 is orphaned until someone explicitly claims it, so coverage is still incomplete.
+    const confirmBtn = () => tree.root.find((n) => n.props.testID === 'partial-confirm');
+    expect(confirmBtn().props.disabled).toBe(true);
+
+    // Explicit resolution: row 0 claims the orphaned p2, completing a clean two-row swap.
+    press(tree, 'partial-map-0-p2');
+    expect(confirmBtn().props.disabled).toBe(false);
+
+    press(tree, 'partial-confirm');
+    expect(calls).toHaveLength(1);
+    expect(new Set(calls[0][3].map((c) => c.playerId))).toEqual(new Set(['p1', 'p2', 'p3', 'p4']));
+  } finally {
+    act(() => tree.unmount());
+  }
+});

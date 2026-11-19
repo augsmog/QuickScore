@@ -141,13 +141,18 @@ export default function ScanPartialReviewScreen() {
 
   function setMapping(rowIndex: number, playerId: string | null) {
     setManualMap((prev) => {
-      const base = { ...prev };
-      for (const key of Object.keys(base)) {
-        if (Number(key) !== rowIndex && base[Number(key)] === playerId) base[Number(key)] = null;
-      }
-      base[rowIndex] = playerId;
-      persistDraft({ manualMap: base });
-      return base;
+      const next = { ...prev };
+      // Clear any other row currently holding this player, whether that row's mapping came from
+      // a prior manual pick or from the untouched auto-match -- a row that never had a manual
+      // entry yet still counts as "holding" its auto-matched player and must be clearable too.
+      autoRows.forEach((row, i) => {
+        if (i === rowIndex) return;
+        const current = Object.prototype.hasOwnProperty.call(next, i) ? next[i] : row.matchedPlayerId;
+        if (current === playerId) next[i] = null;
+      });
+      next[rowIndex] = playerId;
+      persistDraft({ manualMap: next });
+      return next;
     });
   }
 
@@ -169,7 +174,14 @@ export default function ScanPartialReviewScreen() {
   }
 
   const rowsDisplayed: ScannedPlayer[] = useMemo(
-    () => autoRows.map((row, i) => ({ ...row, matchedPlayerId: manualMap[i] ?? row.matchedPlayerId })),
+    () =>
+      autoRows.map((row, i) => ({
+        ...row,
+        // An explicit manual clear (null) must stick, not fall back to the stale auto-match --
+        // `manualMap[i] ?? row.matchedPlayerId` would treat a cleared `null` the same as "never
+        // touched" and silently resurrect the auto value, letting two rows claim the same player.
+        matchedPlayerId: Object.prototype.hasOwnProperty.call(manualMap, i) ? manualMap[i] : row.matchedPlayerId,
+      })),
     [autoRows, manualMap]
   );
 
