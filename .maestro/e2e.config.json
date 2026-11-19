@@ -24,10 +24,6 @@
     "paid-tier": {
       "file": ".maestro/fixtures/asyncstorage-paid-tier.json",
       "notes": "same persisted subscription cache as e2e/shared/paid-tier-fixture.mjs; no purchase bypass"
-    },
-    "pdf-settled": {
-      "file": ".maestro/fixtures/asyncstorage-pdf-settled.json",
-      "notes": "Frozen completed 18-hole gross-skins round; Unicode Latin/Greek/Cyrillic names, no backend."
     }
   },
   "flows": [
@@ -70,16 +66,10 @@
       "file": ".maestro/flows/offline/aug-325-score-entry.yaml",
       "build": "offline",
       "tickets": [
-        "AUG-325",
-        "AUG-387"
+        "AUG-325"
       ],
       "fixture": "paid-tier",
-      "captureHierarchy": true,
-      "metricProfiles": [
-        "small",
-        "large"
-      ],
-      "metricsContract": "scoresnap/e2e/score-entry-round.mjs"
+      "captureHierarchy": true
     },
     {
       "id": "aug-319-settled-persists",
@@ -95,13 +85,10 @@
       "file": ".maestro/flows/offline/aug-315-export-pdf.yaml",
       "build": "offline",
       "tickets": [
-        "AUG-315",
-        "AUG-402"
+        "AUG-315"
       ],
-      "fixture": "pdf-settled",
-      "partial": "simulator share sheet only; physical iOS+Android recipient checks stay open",
-      "capturePdf": true,
-      "comparisonFixture": ".maestro/fixtures/pdf-settled-round.json"
+      "fixture": "paid-tier",
+      "partial": "simulator share sheet only; physical iOS+Android recipient checks stay open"
     },
     {
       "id": "aug-429-ux-pass",
@@ -114,16 +101,6 @@
       "notes": "Requires simulator-offline built from candidate source with EXPO_PUBLIC_E2E_COURSE_FIXTURE=true; synthetic 16-tee course, no backend calls."
     },
     {
-      "id": "aug-309-safe-area",
-      "file": ".maestro/flows/offline/aug-309-safe-area.yaml",
-      "build": "offline",
-      "tickets": [
-        "AUG-309",
-        "AUG-380"
-      ],
-      "notes": "Test-only safe-area screenshots on the existing offline simulator build; no app source changes."
-    },
-    {
       "id": "aug-429-tee-confirm",
       "file": ".maestro/flows/online/aug-429-tee-confirm.yaml",
       "build": "online",
@@ -133,35 +110,6 @@
       "captureHierarchy": true,
       "notes": "Read-only course search (Pebble Beach); no contest saved. Requires candidate simulator build with course search enabled. Last-row selector follows API ordering.",
       "skipInAll": "The online simulator build opens on the sign-in gate after onboarding (proof run 41727220634), and this flow must not create accounts or use credentials. Run by id against a signed-in test build; offline aug-429-ux-pass covers the pinned Confirm tees on a 16-tee fixture."
-    },
-    {
-      "id": "aug-637-settlement-existing-binary",
-      "file": ".maestro/flows/offline/aug-637-settlement-existing-binary.yaml",
-      "build": "offline",
-      "tickets": [
-        "AUG-637",
-        "AUG-1280"
-      ],
-      "fixture": "paid-tier",
-      "pinnedEasBuildId": "6a97486c-6f45-42cd-ad09-27d959395fb4",
-      "notes": "Existing-binary selector repair (AUG-1280): Skins-step recovery only, no new build/spend.",
-      "skipInAll": "Must be dispatched with --app-url for the pinned existing artifact 6a97486c-6f45-42cd-ad09-27d959395fb4, never a fresh offline build; run by id.",
-      "pinnedArtifactUrl": "https://expo.dev/artifacts/eas/A2xUXNFVPlLSd4IeqHiMC78QNNeCmNZc_DlPzo6z7jg.tar.gz",
-      "pinnedArtifactSha256": "cdc9e24cd6e397f44af5cdd2f647d5a0b381ed1c8b6ab082ad4a9ad5c1a45a37"
-    },
-    {
-      "id": "aug-637-safe-area-existing-binary",
-      "file": ".maestro/flows/offline/aug-637-safe-area-existing-binary.yaml",
-      "build": "offline",
-      "tickets": [
-        "AUG-637",
-        "AUG-1280"
-      ],
-      "pinnedEasBuildId": "33ac8ba5-c7d1-49b5-ba8e-f14c44211882",
-      "notes": "Existing-binary selector repair (AUG-1280): CourseSearch-step recovery only, no new build/spend.",
-      "skipInAll": "Must be dispatched with --app-url for the pinned existing artifact 33ac8ba5-c7d1-49b5-ba8e-f14c44211882, never a fresh offline build; run by id.",
-      "pinnedArtifactUrl": "https://expo.dev/artifacts/eas/rHN01CMzGD-0Vc3GazGreDet3WofzJkdTMqOkDZbz00.tar.gz",
-      "pinnedArtifactSha256": "3d2021e6e99a15c46f1ea70917af86771b7733a3306ec84fecd8c52b197e87ee"
     }
   ],
   "blocked": [
@@ -173,15 +121,5 @@
       "reason": "needs a signed-in demo/owner account; adding its credential as a CI secret needs Augie's yes"
     }
   ],
-  "knownBlocks": [],
-  "metricProfiles": {
-    "small": {
-      "type": "iPhone SE (3rd generation)",
-      "maxWidthPt": 375
-    },
-    "large": {
-      "type": "iPhone 16 Pro Max",
-      "minWidthPt": 430
-    }
-  }
+  "knownBlocks": []
 }

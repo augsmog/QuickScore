@@ -2,16 +2,15 @@ import { showAlert } from "@/services/platform-alert";
 import { SheetSurface, FullScreenSheet, SafeScreen } from "../../src/ui/SafeScreen";
 import { GAME_MODE_LIBRARY } from "../../src/engine/game-mode-library";
 import { useScanStore } from "../../src/stores/scan-store";
-import { canUseGame, defaultRoundGames, showProBadge } from "../../src/services/entitlements";
+import { canUseGame, defaultRoundGames } from "../../src/services/entitlements";
 import { GAME_SHEET_STYLE } from "../../src/ui/gameSheetStyle";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
 import { localDate } from "../../src/utils/local-date";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useAuthStore } from "../../src/stores/auth-store";
 import { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, FlatList, Alert, useWindowDimensions } from "react-native";
+import { View, Text, ScrollView, Pressable, FlatList, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Camera, ChevronRight, X, Users, Plus, Hash } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../src/ui/theme";
@@ -28,9 +27,6 @@ import { useOnboardingStore } from "../../src/stores/onboarding-store";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const modeChipWidth = Math.max(44, (width - 48) / 2);
-  const bottomTabBarHeight = useBottomTabBarHeight();
   const tier = useScanStore(s => s.tier);
   const storedContests = useContestStore((s) => s.contests);
   const demoMode = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
@@ -107,8 +103,8 @@ export default function HomeScreen() {
     <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       <ScrollView
         testID="home-scroll"
-        style={{ flex: 1, marginBottom: bottomTabBarHeight }}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Wordmark ── */}
@@ -447,11 +443,7 @@ export default function HomeScreen() {
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={{ marginHorizontal: 20 }}
-            contentContainerStyle={{ gap: 8 }}
-            snapToInterval={modeChipWidth + 8}
-            snapToAlignment="start"
-            decelerationRate="fast"
+            contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
             data={allGameNames}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
@@ -465,9 +457,6 @@ export default function HomeScreen() {
                   style={{
                     backgroundColor: COLORS.secondaryContainer,
                     borderRadius: RADII.full,
-                    width: modeChipWidth,
-                    minWidth: 44,
-                    minHeight: 44,
                     paddingHorizontal: 14,
                     paddingVertical: 8,
                     flexDirection: "row",
@@ -482,7 +471,6 @@ export default function HomeScreen() {
                       fontFamily: FONTS.medium,
                       fontSize: 12,
                       color: COLORS.secondary,
-                      flexShrink: 1,
                     }}
                   >
                     {item.name}
@@ -673,7 +661,7 @@ export default function HomeScreen() {
                           COMING SOON
                         </Text>
                       </View>
-                    ) : showProBadge(selectedGame.id) ? (
+                    ) : !FREE_GAME_IDS.includes(selectedGame.id) ? (
                       <View
                         style={{
                           backgroundColor: COLORS.gold + "22",

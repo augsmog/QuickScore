@@ -52,8 +52,7 @@
       "channel": "testflight",
       "environment": "production",
       "env": {
-        "EXPO_PUBLIC_FEATURE_COURSE_SEARCH": "true",
-        "EXPO_PUBLIC_PRO_ENABLED": "false"
+        "EXPO_PUBLIC_FEATURE_COURSE_SEARCH": "true"
       }
     },
     "production": {
@@ -61,8 +60,7 @@
       "channel": "production",
       "environment": "production",
       "env": {
-        "EXPO_PUBLIC_FEATURE_COURSE_SEARCH": "true",
-        "EXPO_PUBLIC_PRO_ENABLED": "false"
+        "EXPO_PUBLIC_FEATURE_COURSE_SEARCH": "true"
       }
     }
   },
