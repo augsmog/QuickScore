@@ -21,7 +21,7 @@
 //
 // Covered by lib/bundle-from-maestro.test.mjs (node --test).
 
-import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, statSync , realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
@@ -246,4 +246,4 @@ function main() {
   console.error(`bundle: ${bundle.checkpoints.length} checkpoint(s) from ${bundle.profile} (${bundle.platform})`);
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) main();

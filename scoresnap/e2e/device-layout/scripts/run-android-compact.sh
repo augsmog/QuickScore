@@ -102,10 +102,12 @@ gate_capture() {
   node "$DL/scripts/bundle-from-maestro.mjs" "$capdir" --platform android --profile "$PROFILE" \
     --source-sha "$SHA" --out "$capdir/$bundle"
   if ! node "$DL/run-geometry.mjs" "$capdir/$bundle" --waivers "$DL/waivers.json" \
-      --expect-sha "$SHA" --profile "$PROFILE" --out "$capdir/geometry-${bundle%.json}.json"; then
+      --expect-sha "$SHA" --profile "$PROFILE" --expect-build "$BUILD_HASH" --out "$capdir/geometry-${bundle%.json}.json"; then
     echo "::error::device-layout geometry findings on $PROFILE (${bundle})"
     FAIL=1
   fi
+  # Fail-safe: an entry point that silently does not run (e.g. macOS symlinked tmp paths) must never pass.
+  [ -s "$capdir/geometry-${bundle%.json}.json" ] || { echo "::error::geometry produced no result file for ${bundle} (silent exit)"; FAIL=1; }
 }
 
 OUTDIR="$OUTROOT/$PROFILE"

@@ -12,7 +12,7 @@
 //   node scripts/make-capture-manifest.mjs <captureDir> \
 //     --profile <id> --platform <ios|android> --source-sha <sha> [--build-hash <h>] [--font-scale <n>]
 
-import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync , realpathSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
@@ -82,4 +82,4 @@ function main() {
   console.error(`capture-manifest: ${manifest.checkpoints.length} checkpoint(s) → ${out}`);
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) main();
