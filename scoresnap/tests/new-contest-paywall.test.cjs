@@ -3,7 +3,12 @@ const loadTS = require('./helpers/load-ts.cjs');
 const {act} = require('react-test-renderer');
 const nodes = n => !n || typeof n !== 'object' ? [] : Array.isArray(n) ? n.flatMap(nodes) : [n, ...nodes(n.props?.children)];
 const text = n => typeof n === 'string' || typeof n === 'number' ? String(n) : Array.isArray(n) ? n.map(text).join('') : text(n?.props?.children ?? '');
-function harness(initialTier = 'free', {comingSoon = false, validate} = {}) {
+const realRounds = (groups, course, roundCount) =>
+  Number.isInteger(roundCount) && roundCount >= 2
+    ? Array.from({length: roundCount}, (_, i) => ({id: `r${i + 1}`, number: i + 1, name: `Round ${i + 1}`, course, groups}))
+    : undefined;
+
+function harness(initialTier = 'free', {comingSoon = false, validate, multiDay = false} = {}) {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   const React = require('react'), {create} = require('react-test-renderer');
   let focus, tier = initialTier, id = 0, renderer;
@@ -23,7 +28,7 @@ function harness(initialTier = 'free', {comingSoon = false, validate} = {}) {
     '../../src/ui/compact-viewport': {isCompactViewport: () => true},
     '../../src/stores/scan-store': {useScanStore: select => select({tier})},
     '../../src/stores/auth-store': {useAuthStore},
-    '../../src/stores/contest-store': {generateId: () => `p${++id}`, useContestStore: select => select({addContest}), defaultCourse: name => ({name, holes: []}), buildTournamentRounds: () => undefined},
+    '../../src/stores/contest-store': {generateId: () => `p${++id}`, useContestStore: select => select({addContest}), defaultCourse: name => ({name, holes: []}), buildTournamentRounds: multiDay ? realRounds : () => undefined},
     '../../src/config/features': {COURSE_SEARCH_ENABLED: false}, '../../src/config/auth': {REAL_AUTH_CONFIGURED: false},
     '../../src/config/posthog': {posthog: null},
     '../../src/services/posthog-log': {posthogAppLogger: {contestCreated() {}}},
@@ -101,7 +106,6 @@ test('only two numbered steps; Round Settings contains only unit amount and esti
   expect(nodes(settings.children).some(n => n.type === 'Switch')).toBe(false);
   expect(text(settings.children)).not.toMatch(/VARIATIONS|ENTRY FEE|Stroke Play|players|holes/);
   h.press('Back'); expect(h.byId('contest-step-gamemodes')).toBeDefined();
-  expect(fs.readFileSync('app/contest/new.tsx', 'utf8')).not.toMatch(/paywall|openPlan|Upgrade|canUseGame|canHostTournament/);
 });
 
 test('Coming Soon modes remain unavailable without opening a plan', () => {
@@ -110,6 +114,44 @@ test('Coming Soon modes remain unavailable without opening a plan', () => {
   gameCard(h, 'Skins').onPress(); expect(h.push).not.toHaveBeenCalled();
   h.press('Continue'); h.press('Start');
   expect(h.addContest.mock.calls[0][0].games).not.toContain('skins');
+});
+
+test('AUG-1368: free tier toggling Multi-Day Tournament routes to the TD paywall instead of crashing', () => {
+  const h = harness('free', {multiDay: true}); h.seed(2);
+  h.byId('tournament-toggle').onValueChange(true);
+  h.press('Continue'); h.press('Continue'); h.press('Start');
+  expect(h.push).toHaveBeenCalledWith('/paywall?tier=td');
+  expect(h.addContest).not.toHaveBeenCalled();
+});
+
+test('AUG-1368: free tier with 2+ groups (single round) also routes to the TD paywall', () => {
+  const h = harness('free', {multiDay: true});
+  h.byId('add-group').onPress();
+  h.seed(4);
+  h.press('Continue'); h.press('Continue'); h.press('Start');
+  expect(h.push).toHaveBeenCalledWith('/paywall?tier=td');
+  expect(h.addContest).not.toHaveBeenCalled();
+});
+
+test('AUG-1368: TD tier can host a multi-day, multi-group tournament with no paywall', () => {
+  const h = harness('td', {multiDay: true});
+  h.byId('add-group').onPress();
+  h.seed(4);
+  h.byId('tournament-toggle').onValueChange(true);
+  h.press('Continue'); h.press('Continue'); h.press('Start');
+  expect(h.push).not.toHaveBeenCalled();
+  expect(h.addContest).toHaveBeenCalledTimes(1);
+  expect(h.addContest.mock.calls[0][0].isTournament).toBe(true);
+  expect(h.addContest.mock.calls[0][0].rounds).toHaveLength(2);
+});
+
+test('AUG-1368: a validation throw from addContest is caught and alerted, never crashes the press handler', () => {
+  const h = harness('free'); h.seed(2);
+  h.addContest.mockImplementation(() => { throw new Error('Your plan does not include this hosting configuration'); });
+  h.press('Continue'); h.press('Continue');
+  expect(() => h.press('Start')).not.toThrow();
+  expect(h.push).not.toHaveBeenCalled();
+  expect(h.replace).not.toHaveBeenCalled();
 });
 
 test('variation validation blocks both Continue and Start without losing settings', () => {

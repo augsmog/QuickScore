@@ -35,6 +35,8 @@ import {
   ContestGroup,
 } from "../../src/stores/contest-store";
 import { useAuthStore } from "../../src/stores/auth-store";
+import { useScanStore } from "../../src/stores/scan-store";
+import { canHostTournament } from "../../src/services/entitlements";
 import CourseSearch from "../../src/ui/CourseSearch";
 import type { Course } from "../../src/engine/types";
 import type { TeeBox } from "../../src/services/course-api";
@@ -72,6 +74,7 @@ export default function NewContestScreen() {
   const router = useRouter();
   const addContest = useContestStore((s) => s.addContest);
   const user = useAuthStore((s) => s.user);
+  const tier = useScanStore((s) => s.tier);
   const compactViewport = isCompactViewport(Dimensions.get("window"));
 
   const [step, setStep] = useState(0);
@@ -323,8 +326,25 @@ export default function NewContestScreen() {
       ...(rounds ? { isTournament: true, rounds, currentRound: 1 } : {}),
     };
 
+    // AUG-1368: a free/Pro tier can toggle multi-day rounds or add groups in this wizard, but
+    // hosting more than one round or group requires a real TD entitlement. Gate before saving so
+    // the wizard routes to the TD paywall instead of letting the store's validator throw.
+    if (!canHostTournament(contest, tier)) {
+      router.push("/paywall?tier=td");
+      return;
+    }
+
+    try {
+      addContest(contest);
+    } catch (e) {
+      showAlert(
+        "Can't create contest",
+        e instanceof Error ? e.message : "Something went wrong. Please try again."
+      );
+      return;
+    }
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    addContest(contest);
     posthog?.capture("contest_created", {
       player_count: validPlayers.length,
       group_count: groups.length,
