@@ -1,0 +1,17 @@
+{
+  "name": "@augie-os/device-layout",
+  "version": "1.0.0",
+  "private": true,
+  "description": "device-layout/v1: shared device matrix + layout rules, receipts, waivers and vision rubric for SnapScore, Locker Room Defense (Godot) and future products.",
+  "type": "module",
+  "bin": {"device-layout": "bin/device-layout.mjs"},
+  "exports": {
+    ".": "./src/gate.mjs",
+    "./config": "./src/config.mjs",
+    "./rules": "./src/rules.mjs",
+    "./adapters/snapscore": "./adapters/snapscore.mjs",
+    "./adapters/godot": "./adapters/godot.mjs"
+  },
+  "scripts": {"test": "node --test test/*.test.mjs"},
+  "engines": {"node": ">=20"}
+}

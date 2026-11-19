@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "device-layout/receipt/v1",
+  "title": "device-layout/v1 gate receipt",
+  "type": "object",
+  "required": ["schema", "product", "generatedAt", "configDigest", "devices", "rules", "counts", "results", "missing", "invalid", "expiredWaivers", "unusedWaivers", "vision", "verdict"],
+  "properties": {
+    "schema": {"const": "device-layout/receipt/v1"},
+    "product": {"type": "string"},
+    "sha": {"type": ["string", "null"]},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "configDigest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "units": {"enum": ["pt", "dp", "css-px"]},
+    "devices": {"type": "array"},
+    "rules": {"type": "object"},
+    "counts": {"type": "object", "required": ["snapshots", "failures", "waived", "missing", "invalid", "expiredWaivers"]},
+    "results": {"type": "array", "items": {"type": "object", "required": ["device", "screen", "failures", "waived"], "properties": {
+      "failures": {"type": "array", "items": {"type": "object", "required": ["rule", "subject", "geometry"]}},
+      "waived": {"type": "array", "items": {"type": "object", "required": ["rule", "subject", "waiver", "ticket"]}}
+    }}},
+    "missing": {"type": "array"},
+    "invalid": {"type": "array"},
+    "expiredWaivers": {"type": "array"},
+    "unusedWaivers": {"type": "array"},
+    "vision": {"type": "object", "required": ["rubric", "status"]},
+    "verdict": {"enum": ["PASS", "FAIL"]}
+  }
+}

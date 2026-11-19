@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "device-layout/v1",
+  "title": "device-layout/v1 config (device matrix + rules)",
+  "type": "object",
+  "required": ["schema", "product", "devices"],
+  "properties": {
+    "schema": {"const": "device-layout/v1"},
+    "product": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+    "units": {"enum": ["pt", "dp", "css-px"], "default": "pt"},
+    "rules": {
+      "type": "object",
+      "properties": {
+        "minTarget": {"$ref": "#/$defs/size"},
+        "subpixelEpsilon": {"type": "number", "minimum": 0, "exclusiveMaximum": 1, "default": 0.01},
+        "overlapTolerance": {"type": "number", "minimum": 0, "default": 2},
+        "checks": {"type": "array", "minItems": 1, "items": {"enum": ["target-size", "safe-area", "control-overlap", "text-over-control", "offscreen", "unsupported-geometry"]}}
+      }
+    },
+    "devices": {"type": "array", "minItems": 1, "items": {
+      "type": "object",
+      "required": ["id", "platform", "orientation", "width", "height"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+        "platform": {"enum": ["ios", "android", "web"]},
+        "orientation": {"enum": ["portrait", "landscape"]},
+        "width": {"type": "number", "exclusiveMinimum": 0},
+        "height": {"type": "number", "exclusiveMinimum": 0},
+        "safeArea": {"type": "object", "properties": {"top": {"type": "number", "minimum": 0}, "right": {"type": "number", "minimum": 0}, "bottom": {"type": "number", "minimum": 0}, "left": {"type": "number", "minimum": 0}}},
+        "minTarget": {"$ref": "#/$defs/size"}
+      }
+    }},
+    "screens": {"type": "array", "items": {
+      "type": "object", "required": ["id"],
+      "properties": {"id": {"type": "string"}, "required": {"type": "boolean", "default": true}, "devices": {"type": "array", "items": {"type": "string"}}}
+    }}
+  },
+  "$defs": {"size": {"type": "object", "required": ["width", "height"], "properties": {"width": {"type": "number", "exclusiveMinimum": 0}, "height": {"type": "number", "exclusiveMinimum": 0}}}}
+}

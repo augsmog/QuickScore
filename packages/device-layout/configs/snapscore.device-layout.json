@@ -1,0 +1,11 @@
+{
+  "schema": "device-layout/v1",
+  "product": "snapscore",
+  "units": "css-px",
+  "rules": {"minTarget": {"width": 44, "height": 44}, "subpixelEpsilon": 0.01, "overlapTolerance": 2},
+  "devices": [
+    {"id": "iphone-se", "platform": "ios", "orientation": "portrait", "width": 375, "height": 667, "safeArea": {"top": 20, "bottom": 0}},
+    {"id": "iphone-15-pro", "platform": "ios", "orientation": "portrait", "width": 393, "height": 852, "safeArea": {"top": 59, "bottom": 34}},
+    {"id": "iphone-16-plus", "platform": "ios", "orientation": "portrait", "width": 402, "height": 874, "safeArea": {"top": 62, "bottom": 34}}
+  ]
+}
