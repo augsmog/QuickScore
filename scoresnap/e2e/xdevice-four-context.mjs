@@ -153,7 +153,10 @@ function expectCell(i, hole, value) {
 async function converge(indices) {
   for (const i of indices) if (i !== 0) await retry(i);
   // Require a new host-authorized response, including after reopening the host page.
-  if (indices.includes(0)) await freshResponse(0, 'fetch_snapshot', sequence, () => retry(0));
+  if (indices.includes(0)) {
+    await freshResponse(0, 'fetch_snapshot', sequence, () => retry(0));
+    await closeStatus(pages[0]);
+  }
   await poll(`contexts ${indices.join(',')} converge to every expected cell and UI total`, async () => {
     for (const i of indices) {
       const s = snapshot(pages[i]);
