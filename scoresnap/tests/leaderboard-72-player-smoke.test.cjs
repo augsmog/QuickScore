@@ -60,7 +60,6 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     'expo-router': { useLocalSearchParams: () => ({ id: contest.id }) },
     'lucide-react-native': { Flag: 'Flag' },
     '../../../src/ui/theme': theme,
-    '../../../src/stores/online-store': { useOnlineStore: (select) => select({ events: {} }) },
     '../../../src/stores/contest-store': {
       useContestStore: (selector) => selector({ contests: [contest] }),
       getTournamentPlayers: () => players,
@@ -118,7 +117,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
   });
   deps['../../../src/components/LeaderboardResultsList'] = { LeaderboardResultsList };
-  const Screen = load('app/contest/[id]/leaderboard.tsx', deps).default;
+  const Screen = load('app/contest/[id]/index.tsx', deps).default;
   let tree;
   try {
     await act(async () => {

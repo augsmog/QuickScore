@@ -157,11 +157,9 @@ try {
     if (await text(signedOut,'Skip').isVisible()) { await text(signedOut,'Skip').click(); await signedOut.goto(`${base}/join/${code}`); }
     await signedOut.getByPlaceholder('Display name').fill('Signed out visitor');
     await text(signedOut,'Find contest').click();
-    // AUG-259: anonymous sign-in is now enabled, so a signed-out visitor's code
-    // lookup succeeds and files a pending join request instead of erroring.
-    await text(signedOut,'Request sent. Your host must approve your spot. Keep this device to retain unsent scores.').waitFor();
+    await text(signedOut,'Guest sign-in unavailable. Sign in with email or Apple, then reopen your invite.').waitFor();
     await text(signedOut,'Sign in with email or Apple').waitFor();
-    await shot(signedOut,'10-signed-out-guest-request');
+    await shot(signedOut,'10-signed-out-recovery');
     await text(signedOut,'Sign in with email or Apple').click();
     // A fresh visitor completes onboarding before the protected Auth route.
     await signedOut.getByText(/Skip|Already have an account/).first().waitFor();

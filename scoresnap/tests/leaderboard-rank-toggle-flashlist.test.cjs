@@ -102,7 +102,6 @@ test('Gross/Net toggle inside the FlashList header still re-ranks the virtualize
     'expo-router': { useLocalSearchParams: () => ({ id: contest.id }) },
     'lucide-react-native': { Flag: 'Flag' },
     '../../../src/ui/theme': theme,
-    '../../../src/stores/online-store': { useOnlineStore: (select) => select({ events: {} }) },
     '../../../src/stores/contest-store': {
       useContestStore: (selector) => selector({ contests: [contest] }),
       getTournamentPlayers: () => players,
@@ -128,7 +127,7 @@ test('Gross/Net toggle inside the FlashList header still re-ranks the virtualize
     '../../../src/components/LeaderboardResultsList': { LeaderboardResultsList },
   };
 
-  const Screen = load('app/contest/[id]/leaderboard.tsx', deps).default;
+  const Screen = load('app/contest/[id]/index.tsx', deps).default;
   let tree;
   try {
     await act(async () => {
