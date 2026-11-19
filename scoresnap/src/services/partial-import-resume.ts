@@ -9,7 +9,7 @@ export function scoringPlayOrder(holes: readonly HoleInfo[], group: ContestGroup
   return start > 0 ? [...identities.slice(start), ...identities.slice(0, start)] : identities;
 }
 
-export function partialImportResume(contest: Contest | undefined, groupId?: string) {
+export function partialImportResume(contest: Contest | undefined, groupId?: string, resumeImport = true) {
   const round = contest?.isTournament ? contest.rounds?.find(r => r.number === contest.currentRound) : undefined;
   const groups = round?.groups ?? contest?.groups ?? [];
   const groupIndex = Math.max(0, groups.findIndex(g => g.id === groupId));
@@ -19,5 +19,5 @@ export function partialImportResume(contest: Contest | undefined, groupId?: stri
   const order = scoringPlayOrder(holes, group);
   const scored = group.players.flatMap(p => holes.flatMap((h, index) =>
     Number.isFinite(p.scores[index]) && p.scores[index] > 0 ? [{ playerId: p.id, hole: h.num }] : []));
-  return { groupIndex, hole: nextHoleToScore(order, group.players.map(p => p.id), scored) ?? order[0] ?? null };
+  return { groupIndex, hole: (resumeImport ? nextHoleToScore(order, group.players.map(p => p.id), scored) : null) ?? order[0] ?? null };
 }

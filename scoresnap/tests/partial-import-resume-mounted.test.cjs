@@ -56,3 +56,13 @@ test('all scored never auto-finalizes and navigation honors rotated nonsequentia
 finally {
     m.dispose();
 } });
+test('ordinary scorecard entry and reload keep the first hole rather than auto-resuming an import', () => {
+    const c = fixture(holes, 1);
+    c.groups[0].players.forEach(p => { p.scores[0] = 6; });
+    const m = mount(c, { id: 'c' });
+    try {
+        expect(m.text()).toContain('HOLE 01');
+        m.rerender();
+        expect(m.text()).toContain('HOLE 01');
+    } finally { m.dispose(); }
+});

@@ -65,13 +65,13 @@ export default function ScorecardScreen() {
   const completeContest = useContestStore((s) => s.completeContest);
   const updateAuxiliaryData = useContestStore((s) => s.updateAuxiliaryData);
 
-  const [currentHole, setCurrentHole] = useState(() => partialImportResume(contest, groupId).hole ?? 1);
-  const [selectedGroup, setSelectedGroup] = useState(() => partialImportResume(contest, groupId).groupIndex);
+  const [currentHole, setCurrentHole] = useState(() => partialImportResume(contest, groupId, Boolean(resumeImport)).hole ?? 1);
+  const [selectedGroup, setSelectedGroup] = useState(() => partialImportResume(contest, groupId, Boolean(resumeImport)).groupIndex);
   const roundContext = contest?.isTournament ? contest.rounds?.find(r => r.number === contest.currentRound)?.id : null;
   useEffect(() => {
     // A fresh confirm route must reset even an already-mounted scorer. Ordinary score
     // edits do not reset navigation or skip the hole the scorer is still editing.
-    const resume = partialImportResume(contest, groupId);
+    const resume = partialImportResume(contest, groupId, Boolean(resumeImport));
     if (resume.hole !== null) { setCurrentHole(resume.hole); setSelectedGroup(resume.groupIndex); }
   }, [id, groupId, resumeImport, roundContext, Boolean(contest)]);
   const [showAuxPrompt, setShowAuxPrompt] = useState(false);
@@ -566,7 +566,7 @@ export default function ScorecardScreen() {
                 key={g.id}
                 onPress={() => {
                   setSelectedGroup(gi);
-                  setCurrentHole(partialImportResume(contest, g.id).hole ?? currentHole);
+                  setCurrentHole(partialImportResume(contest, g.id, Boolean(resumeImport)).hole ?? currentHole);
                 }}
                 style={{
                   backgroundColor:
