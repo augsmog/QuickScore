@@ -185,7 +185,7 @@ jobs:
     # live rubric self-check on the owner negative fixtures with the same reviewer. Runs on the
     # Mac runner, where the reviewer command (DEVICE_LAYOUT_VISION_CMD) is configured runner-side;
     # no model credentials live in GitHub. Unset reviewer or missing bundles => FAIL (fail closed).
-    if: always() && needs.changes.outputs.native == 'true'
+    if: ${{ !cancelled() && needs.changes.outputs.native == 'true' }}
     runs-on: [self-hosted, ios-sim]
     timeout-minutes: 30
     steps:
