@@ -142,6 +142,28 @@ export function enqueueScore(outbox: Outbox, input: ScoreInput, opId: string): O
   return { ...outbox, ops: [...outbox.ops, op], versions: { ...outbox.versions, [key]: expectedVersion + 1 } };
 }
 
+/**
+ * Merge an authorized snapshot into the local->server id map. Entries from
+ * id_map win. A restored host (fresh device) has no id_map rows for rows it did
+ * not create, and its local ids are the server ids, so fall back to identity;
+ * a single-round contest also answers to the contest id (AUG-1296).
+ */
+export function mergeSnapshotIds(ids: IdMap, snapshot?: { contest_id: string; id_map?: { kind: string; local_id: string; server_id: string }[]; rounds?: { id: string; players: { id: string }[] }[] }): IdMap {
+  if (!snapshot) return ids;
+  const mapped = { rounds: new Set<string>(), players: new Set<string>() };
+  for (const e of snapshot.id_map ?? []) {
+    if (e.kind === 'round') { ids.rounds[e.local_id] = e.server_id; mapped.rounds.add(e.server_id); }
+    if (e.kind === 'player') { ids.players[e.local_id] = e.server_id; mapped.players.add(e.server_id); }
+  }
+  const rounds = snapshot.rounds ?? [];
+  for (const r of rounds) {
+    if (!mapped.rounds.has(r.id) && ids.rounds[r.id] === undefined) ids.rounds[r.id] = r.id;
+    for (const p of r.players) if (!mapped.players.has(p.id) && ids.players[p.id] === undefined) ids.players[p.id] = p.id;
+  }
+  if (rounds.length === 1 && ids.rounds[snapshot.contest_id] === undefined) ids.rounds[snapshot.contest_id] = rounds[0].id;
+  return ids;
+}
+
 export function resolveWrite(ids: IdMap, op: ScoreOp): WriteArgs | null {
   const playerId = ids.players[op.playerLocalId];
   if (!playerId) return null;
