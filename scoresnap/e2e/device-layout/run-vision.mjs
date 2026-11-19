@@ -29,8 +29,8 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { runSelfCheck } from './lib/vision-selfcheck.mjs';
-import { reviewCandidate } from './lib/vision-candidate.mjs';
-import { validateBundle, expectedFlows } from './run-geometry.mjs';
+import { reviewCandidate, reviewerPolicyErrors } from './lib/vision-candidate.mjs';
+import { validateBundle, expectFromArgs } from './run-geometry.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const NEG = resolve(__dir, 'fixtures/negative/fixtures.json');
@@ -88,13 +88,9 @@ function candidateMain(args) {
   const reviewCmd = flag(args, '--review-cmd');
   const outDir = resolve(flag(args, '--reviews') || join(dirname(bundlePath), 'reviews'));
   const bundle = JSON.parse(readFileSync(bundlePath, 'utf8'));
-  const cadence = flag(args, '--cadence') || 'per-pr';
-  const config = JSON.parse(readFileSync(resolve(__dir, 'config/device-layout.config.json'), 'utf8'));
-  const bErr = validateBundle(bundle, {
-    sourceSha: flag(args, '--expect-sha') || undefined,
-    profile: flag(args, '--profile') || undefined,
-    flows: cadence === 'none' ? [] : expectedFlows(config, cadence),
-  });
+  const expect = expectFromArgs(args);
+  const policy = expect.config.reviewerPolicy;
+  const bErr = validateBundle(bundle, expect);
   if (bErr.length) { console.error(`FAIL candidate bundle: ${bErr.join('; ')}`); process.exit(1); }
   if (!reviewCmd) {
     console.error('FAIL vision reviewer unavailable: --review-cmd / DEVICE_LAYOUT_VISION_CMD not set (fail closed)');
@@ -104,7 +100,12 @@ function candidateMain(args) {
   const fixtures = loadFixtures();
   try { invokeReviewer(reviewCmd, fixtures, join(outDir, 'selfcheck')); }
   catch (e) { console.error('FAIL vision reviewer unavailable:', e.message); process.exit(1); }
-  const sc = runSelfCheck(fixtures, loadReviews(fixtures, join(outDir, 'selfcheck')));
+  const scReviews = loadReviews(fixtures, join(outDir, 'selfcheck'));
+  const sc = runSelfCheck(fixtures, scReviews);
+  for (const [h, r] of Object.entries(scReviews)) {
+    const pe = reviewerPolicyErrors(r, policy);
+    if (pe.length) { sc.ok = false; sc.results.push({ file: h, ok: false, errors: pe }); }
+  }
   if (!sc.ok) {
     for (const r of sc.results) for (const e of r.errors || []) console.error(`  self-check ${r.file}: ${e}`);
     console.error('FAIL live rubric self-check — reviewer drifted; candidate not trusted');
@@ -133,6 +134,7 @@ function candidateMain(args) {
   }
   const res = reviewCandidate(bundle, {
     readFile,
+    policy,
     review: (_p, meta) => {
       if (batchErr) throw batchErr;
       return byHash[`${meta.artifactHash}|${meta.flow}|${meta.checkpoint}`] || null;
@@ -159,6 +161,11 @@ function main() {
   }
   const reviews = loadReviews(fixtures, reviewsDir);
   const result = runSelfCheck(fixtures, reviews);
+  const policy = JSON.parse(readFileSync(resolve(__dir, 'config/device-layout.config.json'), 'utf8')).reviewerPolicy;
+  for (const [h, r] of Object.entries(reviews)) {
+    const pe = reviewerPolicyErrors(r, policy);
+    if (pe.length) { result.ok = false; result.results.push({ file: h, ok: false, errors: pe }); }
+  }
   for (const r of result.results) {
     const tag = r.ok ? 'PASS' : 'FAIL';
     console.log(`[${tag}] ${r.kind || 'negative'} fixture ${r.file}` +

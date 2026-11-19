@@ -103,3 +103,12 @@ Added after the Codex astra/high check on `7116885` (three findings, all fixed):
    `DEVICE_LAYOUT_VISION_CMD`, configured runner-side, batch contract `cmd <manifest.json>` -> JSON array of reviews (reference: `scripts/review-codex.sh`, Codex
    gpt-6-astra/high; never Grok). Unset or failing reviewer => FAIL. The aggregate
    `device-layout-gate` requires `vision-candidate` success whenever native evidence is required.
+
+### Round-2 Codex findings (79a87a2), fixed
+- Evidence must be *measured*: every node needs an id and a finite bbox; every checkpoint needs
+  `context.viewport` (matching the declared profile's logicalSize; iOS ±1pt, Android ±2% measured)
+  and `context.safeArea {top,bottom,left,right}`; the profile must be declared in config with the
+  bundle's platform; `configSha256` must equal sha256 of `config/device-layout.config.json`;
+  `--expect-build <hash>` binds `buildHash` when the build step knows it.
+- Candidate reviews must match `reviewerPolicy` exactly (openai / gpt-6-astra / high), are bound to
+  the device as well, and any Grok/xAI reviewer is rejected; the self-check enforces the same policy.

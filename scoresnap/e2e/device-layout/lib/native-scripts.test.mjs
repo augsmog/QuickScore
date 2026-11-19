@@ -17,18 +17,22 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 const a = process.argv.slice(2); const f = (n) => a[a.indexOf(n) + 1];
 const out = f('--out'); const profile = f('--profile'); const platform = f('--platform');
-const cfg = JSON.parse(readFileSync(new URL('../config/device-layout.config.json', import.meta.url)));
+const cfgText = readFileSync(new URL('../config/device-layout.config.json', import.meta.url), 'utf8');
+const cfg = JSON.parse(cfgText);
+const prof = cfg.profiles.find((p) => p.id === profile);
+const context = { viewport: { width: prof.logicalSize[0], height: prof.logicalSize[1] }, safeArea: { top: 20, bottom: 0, left: 0, right: 0 } };
 mkdirSync(join(dirname(out), 'shots'), { recursive: true });
 const checkpoints = []; let i = 0;
 for (const fl of cfg.flows.filter((x) => x.cadence === 'per-pr')) for (const c of fl.checkpoints) {
   const rel = 'shots/' + (i++) + '.png'; const buf = Buffer.from(profile + rel);
   writeFileSync(join(dirname(out), rel), buf);
   const box = { left: 20, top: 100, right: 340, bottom: 160 };
-  checkpoints.push({ flow: fl.id, checkpoint: c, screen: fl.id, deviceId: profile, platform, context: {},
+  checkpoints.push({ flow: fl.id, checkpoint: c, screen: fl.id, deviceId: profile, platform, context,
     nodes: [{ id: 'b', role: 'control', text: 'b', bbox: box, hitRegion: box, enabled: true, parentId: null, meta: { required: true } }],
     screenshot: rel, screenshotSha256: createHash('sha256').update(buf).digest('hex') });
 }
-writeFileSync(out, JSON.stringify({ sourceSha: f('--source-sha'), buildHash: 'stub-build', profile, platform, checkpoints }));
+writeFileSync(out, JSON.stringify({ sourceSha: f('--source-sha'), buildHash: 'stub-build', profile, platform,
+  configSha256: createHash('sha256').update(cfgText).digest('hex'), checkpoints }));
 `;
 
 // Stub reviewer: replays the committed calibration review for owner fixtures (live self-check),

@@ -5,7 +5,8 @@
 //   - the screenshot must exist and its sha256 must equal checkpoint.screenshotSha256;
 //   - the reviewer is invoked on that exact file; reviewer unavailable/throws => FAIL;
 //   - the review must validate against the schema and be bound to the same artifact hash,
-//     sourceSha, buildHash, flow and checkpoint;
+//     sourceSha, buildHash, device, flow and checkpoint;
+//   - the reviewer identity must equal config reviewerPolicy (Codex gpt-6-astra/high), never Grok;
 //   - the review must have verdict "pass" with no major/critical finding.
 // Pure apart from the injected `readFile` and `review` functions, so it is unit-testable.
 
@@ -14,7 +15,21 @@ import { validateReview, hasMajor, majorRules } from './vision-schema.mjs';
 
 export const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 
-export function reviewCandidate(bundle, { readFile, review }) {
+// Reviewer policy (config reviewerPolicy): the review must come from exactly the configured
+// cross-company reviewer/effort, and never from Grok/xAI. Missing policy => fail closed.
+export function reviewerPolicyErrors(review, policy) {
+  const errs = [];
+  const rv = review?.reviewer || {};
+  const s = (v) => String(v || '').toLowerCase();
+  if (s(rv.provider) === 'xai' || s(rv.model).includes('grok')) errs.push('reviewer is Grok/xAI (never allowed)');
+  if (!policy) { errs.push('no reviewerPolicy configured (fail closed)'); return errs; }
+  for (const k of ['provider', 'model', 'effort']) {
+    if (s(rv[k]) !== s(policy[k])) errs.push(`reviewer.${k} "${rv[k]}" != policy "${policy[k]}"`);
+  }
+  return errs;
+}
+
+export function reviewCandidate(bundle, { readFile, review, policy }) {
   const results = [];
   const errors = [];
   if (typeof review !== 'function') {
@@ -42,7 +57,8 @@ export function reviewCandidate(bundle, { readFile, review }) {
       if (rev) {
         const v = validateReview(rev);
         if (!v.ok) errs.push(`invalid review: ${v.errors.join('; ')}`);
-        for (const k of ['sourceSha', 'buildHash', 'artifactHash', 'flow', 'checkpoint']) {
+        errs.push(...reviewerPolicyErrors(rev, policy));
+        for (const k of ['sourceSha', 'buildHash', 'artifactHash', 'device', 'flow', 'checkpoint']) {
           if (rev[k] !== meta[k]) errs.push(`review ${k} "${rev[k]}" not bound to candidate "${meta[k]}"`);
         }
         if (rev.verdict !== 'pass' || hasMajor(rev)) {
