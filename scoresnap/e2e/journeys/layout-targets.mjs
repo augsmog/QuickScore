@@ -1,11 +1,17 @@
 import assert from 'node:assert/strict';
 
+const MIN_TARGET_PX=44;
+// Chromium's own layout occasionally rounds a true 44px box to e.g. 43.999969482421875
+// (observed as exactly 44 - 2^-15). That's rendering jitter, not a real shortfall, so allow
+// a small fixed epsilon rather than failing on sub-pixel noise.
+const SUBPIXEL_EPS=0.01;
+
 // Target size is the rendered border box, not the fragment visible at a scroll
 // boundary. Reachability is separately checked by the journey before activation.
 export async function assertTargetSize(locator) {
   assert.equal(await locator.count(),1,'target must be unique');
   const box=await locator.boundingBox();
-  assert(box&&box.width>=44&&box.height>=44,`target must be >=44x44: ${JSON.stringify(box)}`);
+  assert(box&&box.width>=MIN_TARGET_PX-SUBPIXEL_EPS&&box.height>=MIN_TARGET_PX-SUBPIXEL_EPS,`target must be >=44x44: ${JSON.stringify(box)}`);
   return box;
 }
 export async function assertLibraryTargets(page) {
