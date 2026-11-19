@@ -48,7 +48,7 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
-import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox } from "../../src/ui/tournament-setup-layout";
+import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox, switchTapSlot } from "../../src/ui/tournament-setup-layout";
 import { posthog } from "../../src/config/posthog";
 import { posthogAppLogger } from "../../src/services/posthog-log";
 import { isCompactViewport } from "../../src/ui/compact-viewport";
@@ -475,26 +475,27 @@ export default function NewContestScreen() {
 
             {/* Tournament Toggle */}
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: compactViewport ? 4 : 12 }}>
-              <Switch
-                testID="tournament-toggle"
-                accessibilityLabel="Multi-Day Tournament"
-                style={{ width: 44, height: 44 }}
-                value={isTournament}
-                onValueChange={(val) => {
-                  setIsTournament(val);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                thumbColor={COLORS.card}
-              />
-              <Text style={{ color: COLORS.text, fontSize: 15, marginLeft: 12 }}>
+              <View style={switchTapSlot}>
+                <Switch
+                  testID="tournament-toggle"
+                  accessibilityLabel="Multi-Day Tournament"
+                  value={isTournament}
+                  onValueChange={(val) => {
+                    setIsTournament(val);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                  thumbColor={COLORS.card}
+                />
+              </View>
+              <Text style={{ color: COLORS.text, fontSize: 15, marginLeft: 12, flex: 1 }}>
                 Multi-Day Tournament
               </Text>
 
             </View>
 
             {isTournament && (
-              <View style={{ marginBottom: 16, paddingLeft: 48 }}>
+              <View style={{ marginBottom: 16 }}>
                 <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 8, fontSize: 11 }}>
                   NUMBER OF ROUNDS
                 </Text>
@@ -595,14 +596,15 @@ export default function NewContestScreen() {
                   Split players into teams (up to 20)
                 </Text>
               </View>
-              <Switch
-                testID="team-mode"
-                value={hasTeams}
-                onValueChange={setHasTeams}
-                style={{ width: 44, height: 44 }}
-                trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
-                thumbColor={COLORS.text}
-              />
+              <View style={switchTapSlot}>
+                <Switch
+                  testID="team-mode"
+                  value={hasTeams}
+                  onValueChange={setHasTeams}
+                  trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                  thumbColor={COLORS.card}
+                />
+              </View>
             </View>
 
             {hasTeams && (
@@ -678,34 +680,36 @@ export default function NewContestScreen() {
                   borderRadius: RADII.lg,
                   padding: 12,
                   marginBottom: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
+                  flexDirection: "column",
+                  gap: 8,
                 }}
               >
-                {/* Avatar */}
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: COLORS.surfaceHighest,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ fontFamily: FONTS.bold, fontSize: 14, color: COLORS.text }}>
-                    {player.name.trim() ? player.name.trim()[0].toUpperCase() : `${idx + 1}`}
-                  </Text>
-                </View>
+                {/* Row 1: avatar + name + remove — identity on its own line so
+                    the name field is never squeezed by the controls below (AUG-1367). */}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  {/* Avatar */}
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: COLORS.surfaceHighest,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ fontFamily: FONTS.bold, fontSize: 14, color: COLORS.text }}>
+                      {player.name.trim() ? player.name.trim()[0].toUpperCase() : `${idx + 1}`}
+                    </Text>
+                  </View>
 
-                <View style={{ flex: 1 }}>
                   <TextInput
                     value={player.name}
                     onChangeText={(v) => updatePlayer(player.id, "name", v)}
                     placeholder={idx === 0 ? "Your name" : `Player ${idx + 1} name`}
                     placeholderTextColor={nameEmpty ? COLORS.warn : COLORS.textDim}
                     style={{
+                      flex: 1,
                       fontSize: 15,
                       fontFamily: FONTS.medium,
                       color: COLORS.text,
@@ -714,10 +718,25 @@ export default function NewContestScreen() {
                       minHeight: nameInputMinHeight,
                       paddingHorizontal: nameEmpty ? 8 : 0,
                       paddingVertical: 2,
-                      marginHorizontal: nameEmpty ? -8 : 0,
                     }}
                   />
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+
+                  {players.length > 2 && (
+                    <AnimatedPressable
+                      testID={`remove-player-${player.name}`}
+                      accessibilityLabel={`Remove ${player.name || "player"}`}
+                      onPress={() => removePlayer(player.id)}
+                      style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
+                    >
+                      <X size={16} color={COLORS.textDim} />
+                    </AnimatedPressable>
+                  )}
+                </View>
+
+                {/* Row 2: handicap + group + team assignment — deliberate controls
+                    row that wraps instead of clipping under width pressure (AUG-1367). */}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                     <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textDim }}>
                       HCP
                     </Text>
@@ -757,97 +776,87 @@ export default function NewContestScreen() {
                         textAlign: "center",
                       }}
                     />
-                    {numGroups > 1 && (
-                      <AnimatedPressable testID={`player-group-${player.name}`} accessibilityLabel={`Change group for ${player.name}`}
-                        onPress={() =>
-                          updatePlayer(
-                            player.id,
-                            "groupIndex",
-                            ((player.groupIndex + 1) % numGroups) as unknown as string
-                          )
-                        }
-                        style={{
-                          backgroundColor: COLORS.surfaceHighest,
-                          borderRadius: RADII.md,
-                          ...groupChipStyle,
-                        }}
-                      >
-                        <Text style={{ fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textDim }}>
-                          G{player.groupIndex + 1}
-                        </Text>
-                      </AnimatedPressable>
-                    )}
                   </View>
-                </View>
 
-                {hasTeams && teams.length <= 4 && (
-                  <View style={{ flexDirection: "row", gap: 3, flexWrap: "wrap" }}>
-                    {teams.map((t) => {
-                      const isActive = player.team === t.id;
-                      return (
-                        <AnimatedPressable
-                          key={t.id}
-                          testID={`player-team-${player.name}-${t.id}`}
-                          onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}
-                          style={{
-                            minWidth: 44,
-                            minHeight: 44,
-                            borderRadius: RADII.md,
-                            alignItems: "center",
-                            justifyContent: "center",
-                            paddingHorizontal: 6,
-                            backgroundColor: isActive ? COLORS.primary : COLORS.surfaceHighest,
-                          }}
-                        >
-                          <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: isActive ? COLORS.onPrimary : COLORS.textDim }}>
-                            {t.id}
-                          </Text>
-                        </AnimatedPressable>
-                      );
-                    })}
-                  </View>
-                )}
-
-                {hasTeams && teams.length > 4 && (
-                  <AnimatedPressable
-                    onPress={() => {
-                      const currentIdx = teams.findIndex((t) => t.id === player.team);
-                      const nextIdx = (currentIdx + 1) % (teams.length + 1);
-                      const nextTeam = nextIdx === teams.length ? null : teams[nextIdx].id;
-                      updatePlayer(player.id, "team", nextTeam);
-                    }}
-                    style={{
-                      minWidth: 44,
-                      minHeight: 44,
-                      borderRadius: RADII.md,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      paddingHorizontal: 8,
-                      backgroundColor: player.team ? COLORS.primary : COLORS.surfaceHighest,
-                    }}
-                  >
-                    <Text
+                  {numGroups > 1 && (
+                    <AnimatedPressable testID={`player-group-${player.name}`} accessibilityLabel={`Change group for ${player.name}`}
+                      onPress={() =>
+                        updatePlayer(
+                          player.id,
+                          "groupIndex",
+                          ((player.groupIndex + 1) % numGroups) as unknown as string
+                        )
+                      }
                       style={{
-                        fontFamily: FONTS.bold,
-                        fontSize: 11,
-                        color: player.team ? COLORS.onPrimary : COLORS.textDim,
+                        backgroundColor: COLORS.surfaceHighest,
+                        borderRadius: RADII.md,
+                        ...groupChipStyle,
                       }}
                     >
-                      {player.team || "—"}
-                    </Text>
-                  </AnimatedPressable>
-                )}
+                      <Text style={{ fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textDim }}>
+                        G{player.groupIndex + 1}
+                      </Text>
+                    </AnimatedPressable>
+                  )}
 
-                {players.length > 2 && (
-                  <AnimatedPressable
-                    testID={`remove-player-${player.name}`}
-                    accessibilityLabel={`Remove ${player.name || "player"}`}
-                    onPress={() => removePlayer(player.id)}
-                    style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
-                  >
-                    <X size={16} color={COLORS.textDim} />
-                  </AnimatedPressable>
-                )}
+                  {hasTeams && teams.length <= 4 && (
+                    <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+                      {teams.map((t) => {
+                        const isActive = player.team === t.id;
+                        return (
+                          <AnimatedPressable
+                            key={t.id}
+                            testID={`player-team-${player.name}-${t.id}`}
+                            onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}
+                            style={{
+                              minWidth: 44,
+                              minHeight: 44,
+                              borderRadius: RADII.md,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              paddingHorizontal: 6,
+                              backgroundColor: isActive ? COLORS.primary : COLORS.surfaceHighest,
+                            }}
+                          >
+                            <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: isActive ? COLORS.onPrimary : COLORS.textDim }}>
+                              {t.id}
+                            </Text>
+                          </AnimatedPressable>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {hasTeams && teams.length > 4 && (
+                    <AnimatedPressable
+                      onPress={() => {
+                        const currentIdx = teams.findIndex((t) => t.id === player.team);
+                        const nextIdx = (currentIdx + 1) % (teams.length + 1);
+                        const nextTeam = nextIdx === teams.length ? null : teams[nextIdx].id;
+                        updatePlayer(player.id, "team", nextTeam);
+                      }}
+                      style={{
+                        minWidth: 44,
+                        minHeight: 44,
+                        borderRadius: RADII.md,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingHorizontal: 8,
+                        backgroundColor: player.team ? COLORS.primary : COLORS.surfaceHighest,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: FONTS.bold,
+                          fontSize: 11,
+                          color: player.team ? COLORS.onPrimary : COLORS.textDim,
+                        }}
+                      >
+                        {player.team || "—"}
+                      </Text>
+                    </AnimatedPressable>
+                  )}
+                </View>
               </View>
             );
             })}
