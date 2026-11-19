@@ -115,6 +115,24 @@ describe("applyReviewedPartialImportToContest", () => {
       .toThrow(/conflicts with an existing score/);
     expect(confirmedPlayedHoles(contest, undefined, "g1")).toEqual([]);
   });
+
+  it("rejects a patch cell outside the explicitly reviewed played-hole scope, never inferring it from the patch", () => {
+    const contest = makeContest();
+    const snapshot = JSON.parse(JSON.stringify(contest));
+    expect(() => applyReviewedPartialImportToContest(contest, null, "g1", [{ playerId: "a", hole: 10, strokes: 4 }], [2]))
+      .toThrow(/outside the explicitly reviewed played-hole scope/);
+    // Rejection atomicity: no mutation and no scope recorded either.
+    expect(contest).toEqual(snapshot);
+    expect(confirmedPlayedHoles(contest, undefined, "g1")).toEqual([]);
+  });
+
+  it("allows a patch cell already covered by a prior confirm's merged scope, not just this call's playedHoles", () => {
+    let contest = makeContest();
+    contest = applyReviewedPartialImportToContest(contest, null, "g1", [], [10]);
+    contest = applyReviewedPartialImportToContest(contest, null, "g1", [{ playerId: "a", hole: 10, strokes: 4 }], [2]);
+    expect(confirmedPlayedHoles(contest, undefined, "g1")).toEqual([2, 10]);
+    expect(contest.groups[0].players.find(p => p.id === "a")!.scores[9]).toBe(4);
+  });
 });
 
 describe("planPartialImportGamesForScope", () => {
@@ -140,6 +158,21 @@ describe("planPartialImportGamesForScope", () => {
     const plan = planPartialImportGamesForScope(contest, undefined, "g1", ["wolf"]);
     const holesAsked = plan.find((s) => s.game === "wolf")!.open.map((q) => q.hole);
     expect(holesAsked.sort()).toEqual([1, 2]);
+  });
+
+  it("rejects an unknown or missing tournament round instead of silently falling back to legacy/default groups", () => {
+    const round1: RoundInfo = {
+      id: "r1", number: 1, name: "R1", course: COURSE,
+      groups: [{ id: "g1", name: "G1", players: fourPlayers({ 1: 4 }) }],
+    };
+    let contest = makeContest({ isTournament: true, currentRound: 1, rounds: [round1], games: ["wolf"], groups: [] });
+    contest = applyReviewedPartialImportToContest(contest, "r1", "g1", [], [1]);
+    // The active round's history is confirmed-pending; a missing/unknown roundId must never
+    // fall back to contest.groups and silently report it as fully resolved (ready, open: []).
+    expect(() => planPartialImportGamesForScope(contest, "missing-round", "g1", ["wolf"]))
+      .toThrow(/Unknown or missing tournament round/);
+    expect(() => planPartialImportGamesForScope(contest, undefined, "g1", ["wolf"]))
+      .toThrow(/Unknown or missing tournament round/);
   });
 });
 

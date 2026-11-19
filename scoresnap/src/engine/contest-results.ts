@@ -56,6 +56,11 @@ export function applyReviewedPartialImportToContest(
     throw new Error("Reviewed import played holes must be explicitly reviewed course holes");
   }
 
+  const scope = scopeKey(round?.id, groupId);
+  const existingScope = contest.confirmedPlayedHolesByScope?.[scope] ?? [];
+  const mergedScope = [...new Set([...existingScope, ...playedHoles])].sort((a, b) => a - b);
+  const reviewedHoles = new Set(mergedScope);
+
   const seen = new Set<string>();
   const cells = patch.map(cell => {
     if (!cell || typeof cell.playerId !== "string" || !cell.playerId || !Number.isInteger(cell.hole) ||
@@ -65,6 +70,7 @@ export function applyReviewedPartialImportToContest(
     const playerMatches = group.players.filter(p => p.id === cell.playerId);
     const holeIndex = course.holes.findIndex(h => h.num === cell.hole);
     if (playerMatches.length !== 1 || holeIndex < 0) throw new Error("Reviewed import cell is outside the selected group or course");
+    if (!reviewedHoles.has(cell.hole)) throw new Error("Reviewed import cell is outside the explicitly reviewed played-hole scope");
     const key = JSON.stringify([cell.playerId, cell.hole]);
     if (seen.has(key)) throw new Error("Reviewed import patch contains duplicate cells");
     seen.add(key);
@@ -77,9 +83,6 @@ export function applyReviewedPartialImportToContest(
     return { playerId: cell.playerId, holeIndex, strokes: cell.strokes };
   });
 
-  const scope = scopeKey(round?.id, groupId);
-  const existingScope = contest.confirmedPlayedHolesByScope?.[scope] ?? [];
-  const mergedScope = [...new Set([...existingScope, ...playedHoles])].sort((a, b) => a - b);
   const scopeChanged = mergedScope.length !== existingScope.length;
   const scoreChanged = cells.some(cell => group.players.find(p => p.id === cell.playerId)?.scores[cell.holeIndex] !== cell.strokes);
   if (!scoreChanged && !scopeChanged) return contest;
@@ -112,7 +115,11 @@ export function planPartialImportGamesForScope(
   groupId: string,
   games: readonly GameType[] = contest.games
 ): PartialImportGameState[] {
-  const round = contest.isTournament ? contest.rounds?.find(r => r.id === roundId) : undefined;
+  let round: NonNullable<Contest['rounds']>[number] | undefined;
+  if (contest.isTournament) {
+    round = contest.rounds?.find(r => r.id === roundId);
+    if (!round) throw new Error("Unknown or missing tournament round for partial-import game plan");
+  }
   const group = (round?.groups ?? contest.groups).find(g => g.id === groupId);
   if (!group) throw new Error("Unknown group for partial-import game plan");
   const course = round?.course ?? contest.course;
