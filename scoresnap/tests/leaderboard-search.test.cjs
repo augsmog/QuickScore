@@ -33,7 +33,7 @@ function load(file, deps) {
 // Deterministic 5-player field, distinct totals so ranks are 1..5 in name order:
 // Amy Adams (lowest) ... Eve Evans (highest). 18-hole hcp map so net is available
 // and the Gross/Net toggle renders in the header.
-function buildScreen() {
+function buildScreen({ multiRound = false } = {}) {
   const roster = [
     { id: 'p1', name: 'Amy Adams', per: 3 },
     { id: 'p2', name: 'Bob Brown', per: 4 },
@@ -61,6 +61,15 @@ function buildScreen() {
       holes: Array.from({ length: 18 }, (_, index) => ({ num: index + 1, par: 4, hcp: index + 1 })),
     },
   };
+  if (multiRound) {
+    const r1Players = players.map((p) => ({ ...p, scores: Array(18).fill(p.id === 'p3' ? 4 : p.scores[0] + 1) }));
+    const todayPlayers = players.map((p) => ({ ...p, scores: Array(18).fill(p.id === 'p3' ? 3 : p.scores[0]) }));
+    contest.currentRound = 2;
+    contest.rounds = [
+      { number: 1, course: contest.course, groups: [{ id: 'round-1', players: r1Players }] },
+      { number: 2, course: contest.course, groups: [{ id: 'round-2', players: todayPlayers }] },
+    ];
+  }
   const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput' };
   const theme = {
     COLORS: new Proxy({}, { get: (_, key) => String(key) }),
@@ -143,8 +152,8 @@ function search(tree, text) {
   });
 }
 
-async function mount() {
-  const Screen = buildScreen();
+async function mount(options) {
+  const Screen = buildScreen(options);
   let tree;
   await act(async () => {
     tree = create(React.createElement(Screen));
@@ -209,6 +218,25 @@ test('Gross/Net toggle and recent-hole strip still render while searching', asyn
     // Search field remains in the header.
     expect(tree.root.findAll((n) => (n.props.testID || '') === 'leaderboard-search')).toHaveLength(1);
   } finally {
+    await act(async () => tree.unmount());
+  }
+});
+
+test('multi-round screen wires R1/Today through search and pinned You without rank drift', async () => {
+  globalThis.__SNAPSCORE_FIXTURE_YOU__ = 'p3';
+  const tree = await mount({ multiRound: true });
+  try {
+    search(tree, 'cara');
+    expect(rowTestIds(tree)).toEqual(['leaderboard-player-Cara Cole']);
+    const row = tree.root.find((node) => node.props.testID === 'leaderboard-player-Cara Cole');
+    const text = row.findAll((node) => node.type === 'Text').map((node) => node.children.join(''));
+    expect(text[0]).toBe('3'); // field rank survives search + pin
+    expect(text).toContain('72'); // R1 gross total from round 1
+    expect(text).toContain('−18'); // Today to-par from current round
+    expect(row.find((node) => node.props.testID === 'leaderboard-you-chip-p3')).toBeTruthy();
+    expect(row.props.style.height).toBe(44);
+  } finally {
+    delete globalThis.__SNAPSCORE_FIXTURE_YOU__;
     await act(async () => tree.unmount());
   }
 });
