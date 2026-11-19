@@ -1,0 +1,791 @@
+{
+  "sha": "21bde3b9fe241e6b604849e057b965e0023aeefa",
+  "platform": "web-offline",
+  "flags": {
+    "EXPO_PUBLIC_OFFLINE_MODE": true,
+    "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+  },
+  "fixtureVersion": "two-player-empty-v1",
+  "deviceProfile": "iphone-390x844-check",
+  "safeArea": {
+    "width": 390,
+    "height": 844,
+    "top": 59,
+    "bottom": 34
+  },
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "startedAt": "2026-11-04T10:31:49.913Z",
+  "required": [
+    "J-invite-from-round"
+  ],
+  "executed": [
+    "J-invite-from-round"
+  ],
+  "results": [
+    {
+      "id": "J-invite-from-round",
+      "fixtureVersion": "two-player-empty-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 1,
+        "textEdit": 0,
+        "focus": 1,
+        "scroll": 0,
+        "screens": [
+          "round-scorecard"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "round-scorecard"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": "invite",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [
+          {
+            "feature": "invite",
+            "signature": null,
+            "status": "passed",
+            "depth": 1,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 20,
+              "y": 296,
+              "width": 350,
+              "height": 44
+            }
+          }
+        ],
+        "durationMs": 659
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 1,
+            "textEdit": 0,
+            "focus": 1,
+            "scroll": 0,
+            "screens": [
+              "round-scorecard"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "round-scorecard"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": "invite",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [
+              {
+                "feature": "invite",
+                "signature": null,
+                "status": "passed",
+                "depth": 1,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 20,
+                  "y": 296,
+                  "width": 350,
+                  "height": 44
+                }
+              }
+            ],
+            "durationMs": 659
+          },
+          "assertions": [
+            "entry",
+            "code-visible",
+            "activation",
+            "destination",
+            "outcome"
+          ],
+          "pageErrors": [],
+          "featureChecks": [
+            "invite"
+          ],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 36
+            },
+            {
+              "number": 2,
+              "name": "invite-copied",
+              "captureMs": 33
+            }
+          ],
+          "error": null
+        }
+      ]
+    }
+  ],
+  "coverageGaps": [
+    {
+      "id": "J-score-hand",
+      "reason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only"
+    },
+    {
+      "id": "J-create-8p-multiday",
+      "reason": "Multiday creation outside the phase 1 slice"
+    },
+    {
+      "id": "J-join-code",
+      "reason": "Offline error path does not prove successful backend or cross-device join"
+    },
+    {
+      "id": "J-guest-join-web",
+      "reason": "Guest identity and backend joining deferred; existing sharing suites retained"
+    },
+    {
+      "id": "J-reopen-after-crash",
+      "reason": "Reload persistence is gated; process kill/crash recovery is separate coverage"
+    }
+  ],
+  "mutation": null,
+  "harnessTree": null,
+  "glyphEvidence": [
+    {
+      "id": 1,
+      "text": "Copy / share local invite",
+      "testId": "journey-invite",
+      "clip": {
+        "x": 20,
+        "y": 310,
+        "width": 148.828125,
+        "height": 16
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 25
+      },
+      "captures": {
+        "normal": "glyphs-RDpBvu/001-normal.png",
+        "wrapped-visible": "glyphs-RDpBvu/001-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-RDpBvu/001-glyphs-suppressed.png",
+        "restored": "glyphs-RDpBvu/001-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 788,
+          "significant": 698,
+          "total": 2368
+        },
+        "characters": [
+          [
+            {
+              "significant": 55,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 46,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 12,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 42,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 21,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 43,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 37,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 20,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 30,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 25,
+              "inkHeight": 10,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "text": "Copy / share local invite",
+      "testId": "journey-invite",
+      "clip": {
+        "x": 20,
+        "y": 310,
+        "width": 148.828125,
+        "height": 16
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 25
+      },
+      "captures": {
+        "normal": "glyphs-RDpBvu/002-normal.png",
+        "wrapped-visible": "glyphs-RDpBvu/002-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-RDpBvu/002-glyphs-suppressed.png",
+        "restored": "glyphs-RDpBvu/002-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 788,
+          "significant": 698,
+          "total": 2368
+        },
+        "characters": [
+          [
+            {
+              "significant": 55,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 46,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 12,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 42,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 21,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 43,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 37,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 20,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 30,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 25,
+              "inkHeight": 10,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "text": "Copy / share local invite",
+      "testId": "journey-invite",
+      "clip": {
+        "x": 20,
+        "y": 310,
+        "width": 148.828125,
+        "height": 16
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 25
+      },
+      "captures": {
+        "normal": "glyphs-RDpBvu/003-normal.png",
+        "wrapped-visible": "glyphs-RDpBvu/003-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-RDpBvu/003-glyphs-suppressed.png",
+        "restored": "glyphs-RDpBvu/003-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 788,
+          "significant": 698,
+          "total": 2368
+        },
+        "characters": [
+          [
+            {
+              "significant": 55,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 46,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 12,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 42,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 21,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 43,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 37,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 20,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 30,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 22,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 25,
+              "inkHeight": 10,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "gate": {
+    "status": "passed",
+    "errors": []
+  },
+  "elapsedMs": 2421
+}
