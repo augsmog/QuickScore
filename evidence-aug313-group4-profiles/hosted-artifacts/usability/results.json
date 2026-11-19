@@ -1,0 +1,31 @@
+{
+  "required": [
+    "join-empty",
+    "join-invalid",
+    "join-deeplink",
+    "create-cancel",
+    "review-error"
+  ],
+  "results": [
+    {
+      "id": "join-empty",
+      "status": "passed"
+    },
+    {
+      "id": "join-invalid",
+      "status": "passed"
+    },
+    {
+      "id": "join-deeplink",
+      "status": "passed"
+    },
+    {
+      "id": "create-cancel",
+      "status": "passed"
+    },
+    {
+      "id": "review-error",
+      "status": "passed"
+    }
+  ]
+}

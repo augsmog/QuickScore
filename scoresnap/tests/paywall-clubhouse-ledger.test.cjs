@@ -12,19 +12,16 @@ const strings=v=>[v.restore,v.eyebrow,v.headline,...v.values.flatMap(r=>[r.title
 test('AC-PW1 byte-exact staged launch strings in both periods',()=>{
  const fixture=require('./fixtures/paywall-figma-strings.json');
  for(const [period,id] of [['year','1:164'],['month','1:247']])
- // t1517u: Tournament Director has no free trial, so the Figma TD trial tag is intentionally not rendered.
- expect(strings(view(period)).sort()).toEqual(Object.values(fixture[id]).filter(n=>!/Plan \/ Tournament Director > Price > Tag \/ Trial/.test(n.path)).map(n=>n.characters).sort());
+ expect(strings(view(period)).sort()).toEqual(Object.values(fixture[id]).map(n=>n.characters).sort());
 });
 test('AC-PW2 four eligibility cases, throw, monthly never offers a trial',async()=>{
  for(const tier of ['pro','td'])for(const allowed of [true,false]){
   check.mockResolvedValue({'pro-y':{status:tier==='pro'&&allowed?2:1},'td-y':{status:tier==='td'&&allowed?2:1}});
   const e=await plans.eligibleAnnualTrials(packages);
-  expect(view('year',tier,'free',packages,e).cta===C.startTrial).toBe(tier==='pro'&&allowed);
-  expect(e['td-y']).toBe(false);
-  expect(view('year','td','free',packages,e).rows.find(r=>r.tier==='td').trial).toBe('');
+  expect(view('year',tier,'free',packages,e).cta===C.startTrial).toBe(allowed);
   for(const period of ['year','month']){
    const v=view(period,tier,'free',packages,e);
-   if(period==='month'||!allowed||tier==='td'){expect(v.cta).not.toContain('trial');expect(v.billed).not.toMatch(/^Then/);}
+   if(period==='month'||!allowed){expect(v.cta).not.toContain('trial');expect(v.billed).not.toMatch(/^Then/);}
    if(period==='month')expect(v.rows.every(r=>!r.trial)).toBe(true);
   }
  }
@@ -43,8 +40,8 @@ function screen({restore=async()=>true,owner='free',target}={}){
  'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'expo-router':{useRouter:()=>({back}),useLocalSearchParams:()=>({tier:target})},
  '@expo-google-fonts/inter':{useFonts:()=>[true]},
  '../src/services/purchases':{getPackages:async()=>packages,purchasePackage:async()=>true,restorePurchases:restore,syncProStatus:async()=>{}},
- '../src/services/paywall-plans':plans,'../src/services/entitlements':{proEnabled:()=>true},'../src/stores/scan-store':{useScanStore:f=>f({tier:owner})},
- '../src/config/support':load('src/config/support.ts'),'../src/config/posthog':{posthog:null},'../src/ui/paywall-copy':{PAYWALL_COPY:C},
+ '../src/services/paywall-plans':plans,'../src/stores/scan-store':{useScanStore:f=>f({tier:owner})},
+ '../src/config/support':load('src/config/support.ts'),'../src/ui/paywall-copy':{PAYWALL_COPY:C},
  '../src/ui/paywall-tokens':load('src/ui/paywall-tokens.ts'),'../src/ui/paywall-icons':{PaywallIcon:'Icon',PaywallRadio:'Radio'},
  }).default;
  return {render:()=>{cursor=0;return Screen()},states,effects,alert,openURL,back};

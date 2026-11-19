@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://snapscore.autumn8.me/sitemap.xml

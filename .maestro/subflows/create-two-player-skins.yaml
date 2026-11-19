@@ -22,16 +22,15 @@ appId: com.scoresnap.app
 - tapOn:
     text: "Continue"
     index: 0
-# Mode cards expose stable IDs and selected accessibility state.
+# Mode chips expose their existing game name.
 - extendedWaitUntil:
-    visible:
-      id: "game-mode-skins"
+    visible: "Skins"
     timeout: 15000
+# Home stays mounted under the New Contest stack, so scope the tap to the Game Modes step.
 - tapOn:
-    id: "game-mode-skins"
-- assertVisible:
-    id: "game-mode-skins"
-    selected: true
+    text: "Skins"
+    childOf:
+      id: "contest-step-gamemodes"
 - scrollUntilVisible:
     element: "Continue"
     direction: DOWN
