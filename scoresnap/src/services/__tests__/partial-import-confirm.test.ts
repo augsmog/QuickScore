@@ -36,11 +36,11 @@ function draftSession(strokes: number | null = 4, confidence = 0.95): PartialImp
 }
 
 function recordingStore(fail?: string) {
-  const calls: Array<[string, string | null, string, readonly PartialImportCell[]]> = [];
+  const calls: Array<[string, string | null, string, readonly PartialImportCell[], readonly number[] | undefined]> = [];
   return {
     calls,
-    applyReviewedPartialImport(contestId: string, roundId: string | null, groupId: string, patch: readonly PartialImportCell[]) {
-      calls.push([contestId, roundId, groupId, patch]);
+    applyReviewedPartialImport(contestId: string, roundId: string | null, groupId: string, patch: readonly PartialImportCell[], playedHoles?: readonly number[]) {
+      calls.push([contestId, roundId, groupId, patch, playedHoles]);
       if (fail) throw new Error(fail);
     },
   };
@@ -52,7 +52,7 @@ describe("confirmPartialImportToStore", () => {
     const store = recordingStore();
     const outcome = confirmPartialImportToStore(session, "acct-1", ctx(), store);
     expect(outcome).toEqual({ ok: true, patch: [{ playerId: "a", hole: 10, strokes: 4 }] });
-    expect(store.calls).toEqual([["contest-1", "round-1", "group-1", [{ playerId: "a", hole: 10, strokes: 4 }]]]);
+    expect(store.calls).toEqual([["contest-1", "round-1", "group-1", [{ playerId: "a", hole: 10, strokes: 4 }], [10]]]);
     expect(session.getState().status).toBe("confirmed");
   });
 

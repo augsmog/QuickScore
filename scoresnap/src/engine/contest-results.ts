@@ -13,6 +13,8 @@ export function scopedAuxiliary(contest:Contest,groupId:string,roundId?:string):
 }
 /** Settle constituent rounds with their own courses/events; never sum unrelated hole cards. */
 export function calculateContestSettlement(contest:Contest,games:GameType[]=contest.games,bet=contest.betUnit):SettlementSummary {
+  // AUG-1396: imported mid-round history with unanswered game facts must never settle.
+  if(contest.playedHolesByScope && require('../services/partial-import-history').hasPendingPartialHistory(contest)) return {transactions:[],netByPlayer:Object.fromEntries(contest.groups.flatMap(g=>g.players).map(p=>[p.name,0])),pending:true};
   if(contest.gameConfig?.rulesVersion!==1) return calculateSettlement(contest.groups.flatMap(g=>g.players),contest.course,games,bet,contest.auxiliaryData,contest.gameConfig,contest.groups);
   const rounds=contest.isTournament && contest.rounds?.length?contest.rounds:[{id:undefined,course:contest.course,groups:contest.groups}];
   const results=rounds.map(round=>{

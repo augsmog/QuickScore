@@ -19,7 +19,7 @@ export interface PartialImportCell {
 }
 
 export type PartialImportResult =
-  | { ok: true; patch: PartialImportCell[]; complete: boolean }
+  | { ok: true; patch: PartialImportCell[]; complete: boolean; /** Reviewed played-hole scope, sorted; explicit input, never inferred. */ playedHoles: number[] }
   | { ok: false; blockers: string[] };
 
 export interface PartialImportInput {
@@ -129,5 +129,5 @@ export function buildPartialImport(input: PartialImportInput): PartialImportResu
 
   if (blockers.length) return { ok: false, blockers };
   patch.sort((a, b) => a.playerId.localeCompare(b.playerId) || a.hole - b.hole);
-  return { ok: true, patch, complete };
+  return { ok: true, patch, complete, playedHoles: [...playedHoles].sort((a, b) => a - b) };
 }

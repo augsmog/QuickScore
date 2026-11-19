@@ -73,6 +73,8 @@ export interface Contest {
   createdAt: string;
   auxiliaryData?: AuxiliaryData;
   auxiliaryByScope?: Record<string, AuxiliaryData>;
+  /** Reviewed confirmed-played hole identities per `scopeKey(round, group)` (AUG-1396). Explicit review input only. */
+  playedHolesByScope?: Record<string, number[]>;
   isDemo?: boolean;
   joinCode?: string;
   liveShareEnabled?: boolean;
@@ -115,7 +117,8 @@ interface ContestState {
     contestId: string,
     roundId: string | null,
     groupId: string,
-    patch: readonly PartialImportCell[]
+    patch: readonly PartialImportCell[],
+    playedHoles?: readonly number[]
   ) => void;
 
   completeContest: (id: string) => void;
@@ -290,7 +293,7 @@ export const useContestStore = create<ContestState>()(
           { ...c, ...(tracking ? { onlineEdits } : {}), rounds: c.rounds!.map(r => r.id === round.id ? { ...r, groups } : r) } : { ...c, ...(tracking ? { onlineEdits } : {}), groups }) }));
       },
 
-      applyReviewedPartialImport: (contestId, roundId, groupId, patch) => {
+      applyReviewedPartialImport: (contestId, roundId, groupId, patch, playedHoles) => {
         const contest = get().contests.find(c => c.id === contestId);
         if (!contest) throw new Error("Contest not found");
         let round: RoundInfo | undefined;
@@ -328,7 +331,24 @@ export const useContestStore = create<ContestState>()(
           validateScoreWrite(contest, groupId, cell.playerId, holeIndex + 1, cell.strokes);
           return { playerId: cell.playerId, holeIndex, strokes: cell.strokes };
         });
-        if (!cells.some(cell => group.players.find(p => p.id === cell.playerId)?.scores[cell.holeIndex] !== cell.strokes)) return;
+        // Validate the reviewed played-hole scope before any write so a rejection is atomic.
+        let scope: number[] | undefined;
+        if (playedHoles !== undefined) {
+          const courseNums = new Set(course.holes.map(h => h.num));
+          if (!Array.isArray(playedHoles) || !playedHoles.length || new Set(playedHoles).size !== playedHoles.length ||
+              playedHoles.some(h => !Number.isInteger(h) || !courseNums.has(h))) throw new Error("Reviewed played holes are outside the selected course");
+          if (cells.some(cell => !playedHoles.includes(course.holes[cell.holeIndex].num))) throw new Error("Reviewed import cell is outside the confirmed played holes");
+          scope = [...playedHoles].sort((a, b) => a - b);
+        }
+        const sKey = scopeKey(round?.id, groupId);
+        const prevScope = contest.playedHolesByScope?.[sKey] ?? [];
+        const nextScope = scope ? [...new Set([...prevScope, ...scope])].sort((a, b) => a - b) : prevScope;
+        const scopeChanged = nextScope.length !== prevScope.length;
+        const scoresChanged = cells.some(cell => group.players.find(p => p.id === cell.playerId)?.scores[cell.holeIndex] !== cell.strokes);
+        if (scopeChanged) {
+          set(state => ({ contests: state.contests.map(c => c.id !== contestId ? c : { ...c, playedHolesByScope: { ...c.playedHolesByScope, [sKey]: nextScope } }) }));
+        }
+        if (!scoresChanged) return;
 
         const updatedGroups = groups.map(g => g.id !== groupId ? g : ({
           ...g,

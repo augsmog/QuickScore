@@ -37,14 +37,14 @@ describe("buildPartialImport", () => {
     const result = model([row("A", "a", [10, 11, 12], [4, 5, null])], [player("a", "A")], [10, 11, 12], [10, 11]);
     expect(result).toEqual({ ok: true, complete: true, patch: [
       { playerId: "a", hole: 10, strokes: 4 }, { playerId: "a", hole: 11, strokes: 5 },
-    ] });
+    ], playedHoles: [10, 11] });
   });
 
   it("supports mixed completion by importing only explicitly played cells", () => {
     const result = model([row("A", "a", [1, 2, 3], [4, null, 5])], [player("a", "A")], [1, 2, 3], [1, 3]);
     expect(result).toEqual({ ok: true, complete: true, patch: [
       { playerId: "a", hole: 1, strokes: 4 }, { playerId: "a", hole: 3, strokes: 5 },
-    ] });
+    ], playedHoles: [1, 3] });
   });
 
   it("blocks missing and low-confidence played cells by hole", () => {
@@ -56,7 +56,7 @@ describe("buildPartialImport", () => {
 
   it("blocks a changed existing score but treats an identical score as a no-op", () => {
     const same = model([row("A", "a", [1], [4])], [player("a", "A", { 1: 4 })], [1], [1]);
-    expect(same).toEqual({ ok: true, complete: true, patch: [] });
+    expect(same).toEqual({ ok: true, complete: true, patch: [], playedHoles: [1] });
     const conflict = model([row("A", "a", [1], [5])], [player("a", "A", { 1: 4 })], [1], [1]);
     expect(conflict).toMatchObject({ ok: false, blockers: [expect.stringContaining("Score conflict")] });
   });
