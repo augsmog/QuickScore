@@ -35,6 +35,7 @@ import {
   Zap,
   Info,
   CreditCard,
+  Trophy,
   HelpCircle,
 } from "lucide-react-native";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../src/ui/theme";
@@ -521,6 +522,23 @@ export default function SettingsScreen() {
         {/* Keep plan management for existing subscribers while the Pro upgrade path is dormant. */}
         {(proEnabled() || tier === "pro" || tier === "td") && (
           <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[tier]} onPress={() => router.push("/paywall")} />
+        )}
+        {/* AUG-1369: Tournament Director is the only live IAP, so it must stay discoverable even
+            while the Pro upgrade path is dormant. Without a persistent entry here a free user has
+            no route to the TD paywall outside the contest-edit flow (owner smoke test, t1544u).
+            Shown to every non-TD tier; TD subscribers manage it via "Manage plan" above. This does
+            not reintroduce a dormant-Pro surface (AUG-1263): it targets the TD paywall, where the
+            Pro row stays hidden while pro_enabled is off. */}
+        {tier !== "td" && (
+          <AnimatedPressable accessibilityRole="button" accessibilityLabel={C.td} accessibilityHint={C.tdBodyNoPro} onPress={() => router.push("/paywall?tier=td")}
+            style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Trophy size={18} color={COLORS.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>{C.td}</Text>
+              <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{C.tdBodyNoPro}</Text>
+            </View>
+            <ChevronRight size={14} color={COLORS.textDim} />
+          </AnimatedPressable>
         )}
         <AnimatedPressable accessibilityRole="button" accessibilityLabel="Restore purchases" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
           style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
