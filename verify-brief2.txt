@@ -1,0 +1,64 @@
+TICKET: AUG-837 (SnapScore AUG-817d flag-off web journey, verify-and-close check)
+PR: https://github.com/augsmog/QuickScore/pull/226 (branch claude/aug-837-verify)
+HEAD SHA: 36390a05990a9ec01652c98fe974629f0aa57e19 (round 2, after fixing round-1 findings)
+TIER: low
+
+ROUND 1 FAILING-CHECKS (from the prior verifier pass) and what changed:
+
+1. "Pro-badge assertion -- pro-off-free.mjs:107 excludes literal 'Pro plan badge'
+   only on Statistics; it never checks the actual Profile badge,
+   profile-plan-badge ('Plan: Pro' / 'Pro')."
+   FIX: added `assert.equal(await page.getByTestId('profile-plan-badge').count(), 0, ...)`
+   right after clicking the Profile tab, before navigating to Statistics.
+
+2. "Free-scan-cap coverage -- the doc claims settlement/statistics coverage, but
+   only Statistics excludes 'free cloud scans this month'; Settlement does not."
+   FIX: added `free cloud scans this month` to the Settlement text
+   `assert.doesNotMatch` regex (previously only on the Statistics regex). Also
+   corrected the evidence doc's deviation note, which had wrongly claimed
+   settlement already covered this.
+
+3. "No-paywall-route assertion -- the journey asserts the final /statistics URL
+   but has no assertion excluding paywall navigation throughout the journey."
+   FIX: added `assert.notEqual(new URL(page.url()).pathname, '/paywall', ...)`
+   right after the Settlement tab click and right after the Profile tab click.
+
+YOUR JOB (round 2): verify each of the 3 fixes actually lands as described and is
+correct, on this exact head SHA:
+
+1. Open scoresnap/e2e/journeys/pro-off-free.mjs in this PR's branch at
+   36390a05990a9ec01652c98fe974629f0aa57e19 (or `git diff
+   4fef6f0205906c5782b1787ff621f4b652a36162..36390a05990a9ec01652c98fe974629f0aa57e19`
+   in this same worktree -- it is checked out here already). Confirm the three
+   new assertions exist, are placed at the points described above, and use the
+   correct testID / regex.
+2. Confirm scoresnap/e2e/journeys/AUG-837-EVIDENCE.md was updated to describe the
+   fix accurately and no longer overstates coverage.
+3. Confirm this diff is test/doc-only: no changes to any file under scoresnap/app
+   or scoresnap/src, no changes to .github/workflows/*.
+4. If you can run it: BASE_URL points at a served `expo export --platform web`
+   build. I already ran this locally (not reproducible in this sandbox without
+   npm/expo) with these results -- treat as reported evidence, not something you
+   need to reproduce, but flag if the code itself looks like it would NOT behave
+   this way:
+   - EXPO_PUBLIC_PRO_ENABLED=false export: `node e2e/journeys/pro-off-free.mjs`
+     printed `PRO_OFF_FREE_PASS: skins selected, settlement amount rendered,
+     Statistics opened without a Pro gate` (exit 0).
+   - EXPO_PUBLIC_PRO_ENABLED=true export (negative proof): same journey printed
+     `FIRST_PRO_GATE skins-create: Your plan does not include this hosting
+     configuration` and exited 1 (unchanged from before the fix, since the new
+     assertions are all after that gate).
+   - `node --test e2e/journeys/ci-registration.test.mjs
+     scripts/ci/pro-enabled-shipping-config.node.cjs` -> 6/6 pass.
+5. Re-check: are there any OTHER gaps versus AUG-837's literal acceptance
+   criteria (no paywall route, no PaywallTeaser, no Pro plan badge, no free-scan
+   cap text, no Upgrade/Pro upsell, Settle up renders amounts) that are still not
+   covered anywhere in the journey? Only flag something as a NEW failing check if
+   it is a real, concrete gap -- not a restatement of something already fixed.
+
+Do not re-implement anything yourself. If everything above holds, PASS.
+
+End your response with exactly one line:
+VERDICT: PASS
+or, for each failing check:
+FAILING-CHECK: <short check name> -- <evidence>
