@@ -1,0 +1,50 @@
+{
+  "description": "Immutable owner-confirmed negative fixtures for the device-layout gate. These are real screenshots from SnapScore 1.0.1 build 32 (New Contest, iPhone 16 Pro 402x874pt, iOS 26) whose layout the owner reported broken (t1547u). Every CI run sends them through the vision step; each MUST come back verdict=fail with a major finding for each requiredRule, or the gate fails itself (rubric-drift detection, scoresnap/e2e/device-layout/lib/vision-selfcheck.mjs). These PNGs are screenshots, NOT hierarchy — geometry negative fixtures (frozen from reproducing the defects on a verified matching build) are tracked by AUG-1376.",
+  "sourceSha": "587e88f3",
+  "buildHash": "1.0.1(32)",
+  "device": "iPhone 16 Pro, 402x874pt, iOS 26",
+  "flow": "New Contest",
+  "ruleLabels": {
+    "1": "switch overlaps its own label",
+    "2": "player card hard-clipped by the sticky Continue footer",
+    "3": "rounds picker loses 'Number of Rounds' context on scroll",
+    "4": "excessive dead space / player-card HCP+badge+chip imbalance",
+    "5": "A/B team chips below 8pt edge gap",
+    "7": "Team Mode switch renders as an unlabeled dark pill"
+  },
+  "fixtures": [
+    {
+      "file": "multi-day.png",
+      "kind": "negative",
+      "artifactHash": "multi-day.png",
+      "sha256": "d5795f73b94c3e28cb792072512d526f291f72e154fefc708e9cbc33584101e8",
+      "pixelSize": [1206, 2622],
+      "checkpoint": "Multi-day on",
+      "requiredRuleGroups": [[1], [2], [4, 6], [7]],
+      "alsoExpected": [6],
+      "annotatedDefects": [
+        "Rule 1: the Multi-Day green switch's right edge/thumb touches and overlaps the 'Multi-Day Tournament' label.",
+        "Rule 2: player card #1 ('Your name') is bisected / hard-clipped by the sticky Continue footer (run 1 MISSED this).",
+        "Rule 4: ~70pt of dead space above the 'New Contest' header; rounds picker indented ~48pt.",
+        "Rule 7: Team Mode switch is an unlabeled dark pill against a faint track."
+      ]
+    },
+    {
+      "file": "team-mode.png",
+      "kind": "negative",
+      "artifactHash": "team-mode.png",
+      "sha256": "b163566b8e93e302e59cf5c86fadc2e5332916ae17efd0433edc7166405e9a24",
+      "pixelSize": [1206, 2622],
+      "checkpoint": "Scrolled with team mode on",
+      "requiredRuleGroups": [[2], [3], [4, 6]],
+      "alsoExpected": [5, 7],
+      "annotatedDefects": [
+        "Rule 2: the 'Augi' player card with its HCP row is hard-clipped by the sticky Continue footer (run 1 MISSED this).",
+        "Rule 3: the 2/3/4 round buttons have lost the 'NUMBER OF ROUNDS' label after scrolling.",
+        "Rule 4: player-card imbalance — 'A' badge far-left, name offset, HCP value floating with dead space, A/B chips jammed on the right edge (run 1 MISSED the HCP/badge imbalance specifically).",
+        "Rule 5: the A and B team chips have < 8pt edge gap.",
+        "Rule 7: the enabled Team Mode switch reads as overlapping dark pills (thumb indistinct from track)."
+      ]
+    }
+  ]
+}
