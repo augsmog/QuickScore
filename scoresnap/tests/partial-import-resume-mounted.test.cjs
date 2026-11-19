@@ -66,3 +66,17 @@ test('ordinary scorecard entry and reload keep the first hole rather than auto-r
         expect(m.text()).toContain('HOLE 01');
     } finally { m.dispose(); }
 });
+test('ordinary group selection preserves the currently edited hole for host scoring', () => {
+    const c = fixture(holes, 1);
+    c.groups[0].players.forEach(p => { p.scores[0] = 4; });
+    c.groups.push({ id: 'other', name: 'Other', players: [player('C', Array(18).fill(0))] });
+    const m = mount(c, { id: 'c' });
+    try {
+        act(() => m.tree.root.findByProps({ testID: 'score-next-hole' }).props.onPress());
+        expect(m.text()).toContain('HOLE 02');
+        const groupButton = m.tree.root.findAllByType('Pressable').find(n => flatten(n.findAllByType('Text').map(t => t.props.children)).includes('Other'));
+        act(() => groupButton.props.onPress());
+        expect(m.text()).toContain('HOLE 02');
+        expect(m.text()).toContain('C');
+    } finally { m.dispose(); }
+});

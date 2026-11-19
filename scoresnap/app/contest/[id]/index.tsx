@@ -566,7 +566,9 @@ export default function ScorecardScreen() {
                 key={g.id}
                 onPress={() => {
                   setSelectedGroup(gi);
-                  setCurrentHole(partialImportResume(contest, g.id, Boolean(resumeImport)).hole ?? currentHole);
+                  // Ordinary host scoring switches groups on the current hole. Only an
+                  // import-resume context selects that group's next unscored hole.
+                  if (resumeImport) setCurrentHole(partialImportResume(contest, g.id).hole ?? currentHole);
                 }}
                 style={{
                   backgroundColor:
