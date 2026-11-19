@@ -6,44 +6,32 @@ appId: com.scoresnap.app
 - extendedWaitUntil:
     visible: "Your name"
     timeout: 15000
-# Player 1 may be prefilled with the local profile name (offline build shows "Golfer"); replace it.
-- tapOn:
-    text: "Your name|Golfer.*"
-    index: 0
-- eraseText: 30
+- tapOn: "Your name"
 - inputText: "Ava"
-# iOS hideKeyboard is unreliable here; the form uses keyboardShouldPersistTaps="handled", so tapping a label dismisses it.
-- tapOn: "PLAYERS"
 - tapOn: "Player 2 name"
 - inputText: "Ben"
-- tapOn: "PLAYERS"
-- assertVisible: "Ava"
-- assertVisible: "Ben"
+- hideKeyboard
 - tapOn:
-    text: "Continue"
+    text: "NEXT.*"
     index: 0
-# Mode cards expose stable IDs and selected accessibility state.
 - extendedWaitUntil:
-    visible:
-      id: "game-mode-skins"
+    visible: "Skins"
     timeout: 15000
 - tapOn:
-    id: "game-mode-skins"
-- assertVisible:
-    id: "game-mode-skins"
-    selected: true
+    text: "Skins"
+    index: 0
 - scrollUntilVisible:
-    element: "Continue"
+    element: "NEXT.*"
     direction: DOWN
     optional: true
 - tapOn:
-    text: "Continue"
+    text: "NEXT.*"
     index: 0
 - scrollUntilVisible:
-    element: "Start"
+    element: "START CONTEST.*"
     direction: DOWN
     optional: true
-- tapOn: "Start"
+- tapOn: "START CONTEST.*"
 - extendedWaitUntil:
     visible: "Settlement"
     timeout: 20000

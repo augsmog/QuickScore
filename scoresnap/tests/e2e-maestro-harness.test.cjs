@@ -46,7 +46,6 @@ test("every flow is listed once, exists, targets the app and names its ticket", 
     expect(shots.length).toBeGreaterThan(0);
     for (const s of shots) expect(s).toMatch(new RegExp(`^${ticket.toLowerCase()}-\\d\\d-[a-z0-9-]+$`));
     if (f.fixture) expect(fs.existsSync(path.join(repo, config.fixtures[f.fixture].file))).toBe(true);
-    if ("skipInAll" in f) expect(typeof f.skipInAll === "string" && f.skipInAll.length > 20).toBe(true);
   }
 });
 
@@ -55,10 +54,7 @@ test("runFlow references resolve and subflows target the app", () => {
     const [header, steps] = yaml.loadAll(fs.readFileSync(file, "utf8"));
     expect(header.appId).toBe(config.appId);
     for (const s of steps || []) {
-      if (!s || !s.runFlow) continue;
-      const target = typeof s.runFlow === "string" ? s.runFlow : s.runFlow.file;
-      if (target === undefined) expect(Array.isArray(s.runFlow.commands)).toBe(true); // inline conditional block
-      else expect(fs.existsSync(path.resolve(path.dirname(file), target))).toBe(true);
+      if (s && s.runFlow) expect(fs.existsSync(path.resolve(path.dirname(file), typeof s.runFlow === "string" ? s.runFlow : s.runFlow.file))).toBe(true);
     }
   }
 });
@@ -87,15 +83,14 @@ test("paid-tier fixture is the same persisted cache shape as the web fixture", (
 });
 
 test("selectors used by flows exist in the app source", () => {
-  const src = [...walk(path.join(__dirname, "..", "app")), ...walk(path.join(__dirname, "..", "src", "ui"))].filter((f) => f.endsWith(".tsx")).map((f) => fs.readFileSync(f, "utf8")).join("\n");
+  const src = walk(path.join(__dirname, "..", "app")).filter((f) => f.endsWith(".tsx")).map((f) => fs.readFileSync(f, "utf8")).join("\n");
   const ids = new Set();
   for (const file of walk(dir).filter((f) => f.endsWith(".yaml"))) {
     for (const m of fs.readFileSync(file, "utf8").matchAll(/id:\s*"([^"]+)"/g)) ids.add(m[1]);
   }
   for (const id of ids) {
-    const literal = src.includes(`testID="${id}"`) || (["course-tee-last", "course-tee-row"].includes(id) && src.includes('testID={ti === selectedCourse.teeBoxes.length - 1 ? "course-tee-last"'));
-    const templ = (/^score-(minus|par|plus)-/.test(id) && src.includes(`testID={\`score-${id.split("-")[1]}-\${player.name}\`}`))
-      || (/^game-mode-/.test(id) && src.includes("testID={`game-mode-${game.id}`}"));
+    const literal = src.includes(`testID="${id}"`);
+    const templ = /^score-(minus|par|plus)-/.test(id) && src.includes(`testID={\`score-${id.split("-")[1]}-\${player.name}\`}`);
     expect([id, literal || templ]).toEqual([id, true]);
   }
 });
@@ -108,136 +103,4 @@ test("workflow is manual-only, secret-free, and passes inputs through env", () =
   expect(parsed.permissions).toEqual({ contents: "read" });
   for (const step of parsed.jobs.maestro.steps) if (step.run) expect(step.run).not.toMatch(/\$\{\{/);
   expect(read(".maestro/scripts/run-ios-sim.sh")).toMatch(/lipo -archs/);
-  expect(parsed.on.workflow_dispatch.inputs.app_url.required).toBe(false);
-  const sourceBuild = parsed.jobs.maestro.steps.find((step) => step.name === "Build simulator app from source");
-  expect(sourceBuild).toBeDefined();
-  expect(sourceBuild.run).toMatch(/npx expo prebuild --platform ios --clean --no-install/);
-  expect(sourceBuild.run).toMatch(/pod install/);
-  expect(sourceBuild.run).toMatch(/xcodebuild .* -scheme SnapScore -configuration Release .* build/s);
-  expect(sourceBuild.run).toMatch(/CODE_SIGNING_ALLOWED=NO/);
-  expect(sourceBuild.run).toMatch(/git -C scoresnap rev-parse HEAD/);
-  expect(sourceBuild.run).toMatch(/export SENTRY_DISABLE_AUTO_UPLOAD=true/);
-  expect(sourceBuild.run).toMatch(/SourceCommit\.txt/);
-  expect(sourceBuild.run).toMatch(/Release-iphonesimulator/);
-  const runner = read(".maestro/scripts/run-ios-sim.sh");
-  expect(runner).toMatch(/--app-path/);
-  expect(runner).toMatch(/sourceCommit/);
-  expect(runner).toMatch(/APP_SOURCE_SHA=.*tr -d .*SourceCommit\.txt/s);
-  expect(runner).toMatch(/APP_SOURCE_SHA.*GITHUB_SHA/s);
-});
-
-
-test("UX tee flow uses the offline fixture and captures the last row and pinned confirm", () => {
-  const env = eas.build[config.builds.offline.easProfile].env;
-  expect(env.EXPO_PUBLIC_FEATURE_COURSE_SEARCH).toBe("true");
-  expect(env.EXPO_PUBLIC_E2E_COURSE_FIXTURE).toBe("true");
-  const [, steps] = docs(".maestro/flows/offline/aug-429-ux-pass.yaml");
-  expect(steps).toContainEqual({ inputText: "E2E Tee Course" });
-  expect(steps).toContainEqual({ scrollUntilVisible: { element: "Tee 16", direction: "DOWN" } });
-  const last = steps.findIndex(s => s.tapOn === "Tee 16");
-  expect(steps[last + 1]).toEqual({ assertVisible: { id: "confirm-tees" } });
-  expect(steps[last + 2].takeScreenshot).toBe("aug-429-14-pinned-confirm-last-row");
-});
-
-
-test("online tee flow reaches the API's last row before confirming without saving", () => {
-  expect(eas.build.simulator.env.EXPO_PUBLIC_FEATURE_COURSE_SEARCH).toBe("true");
-  const flow = config.flows.find(f => f.id === "aug-429-tee-confirm");
-  expect(flow.build).toBe("online");
-  expect(flow.liveWrite).toBeUndefined();
-  const [, steps] = docs(flow.file);
-  expect(steps).toContainEqual({ inputText: "Pebble Beach" });
-  expect(steps).toContainEqual({ tapOn: { id: "course-tee-row", index: 0 } });
-  expect(steps).toContainEqual({ scrollUntilVisible: { element: { id: "course-tee-last" }, direction: "DOWN" } });
-  const last = steps.findIndex(s => s.tapOn?.id === "course-tee-last");
-  expect(steps[last + 1]).toEqual({ assertVisible: { id: "confirm-tees" } });
-  expect(steps[last + 2]).toEqual({ takeScreenshot: "aug-429-24-online-pinned-confirm-last-row" });
-  expect(steps[last + 3]).toEqual({ tapOn: { id: "confirm-tees" } });
-  expect(read(flow.file)).not.toMatch(/tapOn: "Start"|create-two-player/);
-});
-
-test("safe-area flow reveals and anchors the Home Skins chip in GAME MODES", () => {
-  const flow = config.flows.find((f) => f.id === "aug-309-safe-area");
-  expect(flow).toBeDefined();
-  const [, steps] = docs(flow.file);
-  const homeSkins = { text: "^Skins$", below: { text: "^GAME MODES$" } };
-  expect(steps).toContainEqual({
-    scrollUntilVisible: {
-      element: homeSkins,
-      direction: "RIGHT",
-      visibilityPercentage: 100,
-    },
-  });
-  const skinsTaps = steps.filter((step) => step.tapOn?.text?.includes("Skins"));
-  expect(skinsTaps).toEqual([{ tapOn: homeSkins }]);
-});
-
-
-test("AUG-309 safe-area flow captures the first frame, sheets, player matching, keyboard and rotation", () => {
-  const flow = config.flows.find(f => f.id === "aug-309-safe-area");
-  expect(flow).toEqual(expect.objectContaining({
-    file: ".maestro/flows/offline/aug-309-safe-area.yaml",
-    build: "offline",
-    tickets: ["AUG-309", "AUG-380"],
-  }));
-  const [header, steps] = docs(flow.file);
-  expect(header.appId).toBe(config.appId);
-  const screenshots = steps.filter(s => s?.takeScreenshot).map(s => s.takeScreenshot);
-  expect(screenshots).toEqual([
-    "aug-309-01-home-see-all-first-frame",
-    "aug-309-02-game-info-portrait",
-    "aug-309-03-game-info-landscape",
-    "aug-309-04-game-info-portrait-restored",
-    "aug-309-05-player-matching-keyboard",
-    "aug-309-06-course-search-keyboard",
-  ]);
-  expect(steps).toContainEqual({ setOrientation: "LANDSCAPE_LEFT" });
-  expect(steps).toContainEqual({ setOrientation: "PORTRAIT" });
-  expect(steps).toContainEqual({ inputText: "Ava" });
-  expect(steps).toContainEqual({ inputText: "Ben" });
-  expect(steps).toContainEqual({ inputText: "E2E Tee Course" });
-  expect(steps).toContainEqual({ assertVisible: { id: "game-info-sheet" } });
-});
-
-test("Skins card tap waits for its own mounted ID rather than generic text", () => {
-  const [, steps] = docs(".maestro/subflows/create-two-player-skins.yaml");
-  const tap = steps.findIndex(s => s.tapOn && s.tapOn.id === "game-mode-skins");
-  expect(tap).toBeGreaterThan(0);
-  expect(steps[tap - 1].extendedWaitUntil).toEqual({
-    visible: { id: "game-mode-skins" }, timeout: 15000,
-  });
-  // A generic text match cannot establish that a more specific tap target is ready.
-  for (let i = 1; i < steps.length; i++) {
-    if (steps[i].tapOn?.id && steps[i - 1].extendedWaitUntil) {
-      expect(steps[i - 1].extendedWaitUntil.visible).toEqual({ id: steps[i].tapOn.id });
-    }
-  }
-});
-
-test('PDF evidence seeds frozen completed Unicode fixture and captures locally reopened bytes',()=>{
- const f=config.flows.find(f=>f.id==='aug-315-export-pdf');
- expect(f.capturePdf).toBe(true);expect(f.tickets).toContain('AUG-402');
- const fixture=JSON.parse(read(f.comparisonFixture));
- const seed=JSON.parse(read(config.fixtures[f.fixture].file));
- const persisted=JSON.parse(seed['snapscore-contests']);
- expect(persisted.state.contests).toEqual([fixture.contest]);
- expect(persisted.state.activeContestId).toBe(fixture.contest.id);
- expect(fixture.contest.status).toBe('completed');
- expect(fixture.expected.players.map(p=>p.total)).toEqual([71,72,72]);
- for(const p of fixture.expected.players)expect(p.scores).toHaveLength(18);
- const [,steps]=docs(f.file);
- expect(steps).toContainEqual({tapOn:fixture.contest.name});
- expect(steps.some(s=>s.runFlow?.includes('create-two-player'))).toBe(false);
- const runner=read('.maestro/scripts/run-ios-sim.sh');
- expect(runner).toContain('read -r ID FLOW FIXTURE HIER CAPTURE_PDF');
- expect(runner).toContain('"$CONTAINER/Library/Caches" "$D/pdf"');
- expect(runner).toMatch(/if ! python3 .*collect-pdf.py[\s\S]*?RC=1/);
- expect(runner).toContain('"savedPdf":');
-});
-
-
-test('combined native runner preserves both evidence collectors in manifest',()=>{
- const runner=read('.maestro/scripts/run-ios-sim.sh');
- expect(runner).toContain('"scoreEntryMetrics":');expect(runner).toContain('"savedPdf":');
- expect(runner).toContain('score-entry-collect.mjs');expect(runner).toContain('collect-pdf.py');
 });

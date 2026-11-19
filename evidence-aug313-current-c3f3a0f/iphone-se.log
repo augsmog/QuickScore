@@ -1,0 +1,16 @@
+PASSED J-home-create-cancel: activations=2, screens=2, taskMs=800
+PASSED J-home-join-code-error: activations=3, screens=2, taskMs=845
+PASSED J-round-score-settle-reload: activations=5, screens=3, taskMs=2622
+PASSED J-invite-from-round: activations=1, screens=1, taskMs=582
+PASSED J-finalize-settle: activations=2, screens=1, taskMs=201
+PASSED J-delete-account: activations=3, screens=3, taskMs=376
+PASSED J-free-paywall-recover: activations=10, screens=3, taskMs=2238
+PASSED J-game-rules: activations=3, screens=1, taskMs=1431
+PASSED J-settlement-mark-lifecycle: activations=15, screens=3, taskMs=10779
+PASSED J-settings-control-inventory: activations=2, screens=3, taskMs=3507
+PASSED J-by-game-nine: activations=2, screens=2, taskMs=2447
+PASSED J-by-game-pending: activations=2, screens=2, taskMs=2000
+PASSED J-settlement-tab-runtime-recalc: activations=10, screens=2, taskMs=3162
+PASSED J-trial-preview-unloaded: activations=2, screens=2, taskMs=929
+PASSED J-free-paywall-group-first: activations=10, screens=3, taskMs=2404
+Journey gate PASSED: 15/15; elapsed 48536 ms; coverage gaps 5

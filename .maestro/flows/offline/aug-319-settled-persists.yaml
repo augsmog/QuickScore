@@ -18,7 +18,7 @@ appId: com.scoresnap.app
     direction: DOWN
 - tapOn: "Mark settled .*"
 - extendedWaitUntil:
-    visible: "Unsettle .*|.*Settled .*"
+    visible: ".*Settled .*"
     timeout: 10000
 - takeScreenshot: aug-319-02-marked-settled
 - stopApp
@@ -30,9 +30,8 @@ appId: com.scoresnap.app
       id: "home-new-contest"
     timeout: 45000
 - takeScreenshot: aug-319-03-relaunched-home
-# Home's active-game card exposes one combined label ("My Course, Stroke Play, Skins, 2 players, ...").
 - tapOn:
-    text: ".*Skins, 2 players.*"
+    text: ".*Ava.*|.*Round.*"
     index: 0
 - extendedWaitUntil:
     visible: "Settlement"
@@ -41,5 +40,5 @@ appId: com.scoresnap.app
 - scrollUntilVisible:
     element: "Unsettle .*"
     direction: DOWN
-- assertVisible: "Unsettle .*|.*Settled .*"
+- assertVisible: ".*Settled .*"
 - takeScreenshot: aug-319-04-still-settled-after-relaunch

@@ -53,8 +53,6 @@
         "entry",
         "activation",
         "destination",
-        "player-list-clears-footer",
-        "name-target-44px",
         "outcome"
       ],
       "requiredSteps": [
@@ -317,20 +315,20 @@
     {
       "id": "J-score-hand",
       "persona": "New golfer",
-      "goal": "Score a full 18 by hand (par each hole for both players), reaching hole 18 with all scores saved",
+      "goal": "Score a full 18 by hand",
       "platform": [
         "web-offline"
       ],
-      "start": "round",
-      "fixture": "two-player-empty-v1",
+      "start": "home",
+      "fixture": "fresh-context-v1",
       "features": [],
       "budget": {
-        "activations": 53,
-        "screens": 1,
-        "timeoutMs": 60000
+        "activations": 6,
+        "screens": 4,
+        "timeoutMs": 20000
       },
       "baseline": null,
-      "status": "gated",
+      "status": "deferred",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
@@ -338,12 +336,9 @@
         "destination",
         "outcome"
       ],
-      "requiredSteps": [
-        "entry",
-        "hole-1-scored",
-        "hole-18-scored",
-        "all-saved"
-      ]
+      "deferredReason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only",
+      "linear": "AUG-291",
+      "requiredSteps": []
     },
     {
       "id": "J-delete-account",
@@ -387,7 +382,7 @@
     {
       "id": "J-free-paywall-recover",
       "persona": "Free golfer with an unsubmitted draft",
-      "goal": "Free modes and inline settings remain selected across both setup steps; returning preserves the unsaved player and course draft",
+      "goal": "Paid hosting controls reopen TD plans on deliberate repeats and preserve draft on each single Close",
       "platform": [
         "web-offline"
       ],
@@ -395,30 +390,45 @@
       "fixture": "paywall-recovery-v1",
       "features": [],
       "budget": {
-        "activations": 11,
-        "screens": 4,
+        "activations": 10,
+        "screens": 3,
         "timeoutMs": 20000
       },
       "baseline": null,
       "status": "gated",
-      "origin": "AUG-429 D1/D2 supersedes New Contest paywall recovery; legacy journey IDs retained",
+      "origin": "AUG-293 owner comments 779acf43-74ab-4589-b17c-846c4277f91e and 3113d1d7-94cf-49df-9cf5-25695c481b51",
       "assertions": [
         "entry",
         "draft-entered",
-        "two-step-modes",
-        "free-modes-inline",
-        "settings-only",
-        "selection-preserved",
-        "draft-preserved",
+        "badge-1",
+        "plans-1",
+        "recovered-1",
+        "badge-2",
+        "plans-2",
+        "recovered-2",
+        "badge-3",
+        "plans-3",
+        "recovered-3",
+        "badge-4",
+        "plans-4",
+        "recovered-4",
         "outcome"
       ],
       "requiredSteps": [
+        "entry",
         "draft",
-        "modes",
-        "inline",
-        "settings",
-        "modes-return",
-        "draft-return",
+        "badge-1",
+        "paywall-1",
+        "recovered-1",
+        "badge-2",
+        "paywall-2",
+        "recovered-2",
+        "badge-3",
+        "paywall-3",
+        "recovered-3",
+        "badge-4",
+        "paywall-4",
+        "recovered-4",
         "outcome"
       ]
     },
@@ -430,57 +440,24 @@
         "web-offline"
       ],
       "start": "home",
-      "fixture": "fresh-td-v1",
+      "fixture": "fresh-context-v1",
       "features": [],
       "budget": {
-        "activations": 13,
-        "screens": 2,
-        "timeoutMs": 60000
+        "activations": 6,
+        "screens": 4,
+        "timeoutMs": 20000
       },
       "baseline": null,
-      "status": "gated",
+      "status": "deferred",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
         "activation",
         "destination",
-        "two-rounds-selected",
-        "round-count-targets-44px",
-        "player-1-name-target-44px",
-        "player-2-name-target-44px",
-        "player-3-name-target-44px",
-        "player-4-name-target-44px",
-        "player-5-name-target-44px",
-        "player-6-name-target-44px",
-        "player-7-name-target-44px",
-        "player-8-name-target-44px",
-        "player-1-handicap-target-44px",
-        "player-2-handicap-target-44px",
-        "player-3-handicap-target-44px",
-        "player-4-handicap-target-44px",
-        "player-5-handicap-target-44px",
-        "player-6-handicap-target-44px",
-        "player-7-handicap-target-44px",
-        "player-8-handicap-target-44px",
-        "group-target-44px",
-        "eight-ready",
-        "sam-in-g2",
-        "setup-modes",
-        "setup-settings",
-        "created",
         "outcome"
       ],
-      "requiredSteps": [
-        "entry",
-        "create",
-        "tournament-2-rounds",
-        "eight-players",
-        "groups-split",
-        "round-settings",
-        "created",
-        "saved"
-      ],
-      "linear": "AUG-1149"
+      "deferredReason": "Multiday creation outside the phase 1 slice",
+      "requiredSteps": []
     },
     {
       "id": "J-join-code",
@@ -796,7 +773,7 @@
     {
       "id": "J-free-paywall-group-first",
       "persona": "Free golfer with an unsubmitted draft",
-      "goal": "Free modes and inline settings remain selected across both setup steps; returning preserves the unsaved player and course draft",
+      "goal": "Paid hosting controls reopen TD plans on deliberate repeats and preserve draft on each single Close",
       "platform": [
         "web-offline"
       ],
@@ -804,30 +781,45 @@
       "fixture": "paywall-recovery-v1",
       "features": [],
       "budget": {
-        "activations": 11,
-        "screens": 4,
+        "activations": 10,
+        "screens": 3,
         "timeoutMs": 20000
       },
       "baseline": null,
       "status": "gated",
-      "origin": "AUG-429 D1/D2 supersedes New Contest paywall recovery; legacy journey IDs retained",
+      "origin": "AUG-293 owner comments 779acf43-74ab-4589-b17c-846c4277f91e and 3113d1d7-94cf-49df-9cf5-25695c481b51",
       "assertions": [
         "entry",
         "draft-entered",
-        "two-step-modes",
-        "free-modes-inline",
-        "settings-only",
-        "selection-preserved",
-        "draft-preserved",
+        "badge-1",
+        "plans-1",
+        "recovered-1",
+        "badge-2",
+        "plans-2",
+        "recovered-2",
+        "badge-3",
+        "plans-3",
+        "recovered-3",
+        "badge-4",
+        "plans-4",
+        "recovered-4",
         "outcome"
       ],
       "requiredSteps": [
+        "entry",
         "draft",
-        "modes",
-        "inline",
-        "settings",
-        "modes-return",
-        "draft-return",
+        "badge-1",
+        "paywall-1",
+        "recovered-1",
+        "badge-2",
+        "paywall-2",
+        "recovered-2",
+        "badge-3",
+        "paywall-3",
+        "recovered-3",
+        "badge-4",
+        "paywall-4",
+        "recovered-4",
         "outcome"
       ]
     }

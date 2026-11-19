@@ -1,0 +1,12 @@
+file:///workspace/aos-work/lanes/ss-infra/aug313-coverage-next/scoresnap/e2e/safe-area-profiles.mjs:9
+    throw new Error(`Unknown DEVICE_PROFILE ${name}; expected ${Object.keys(SAFE_AREA_PROFILES).join(', ')}`);
+          ^
+
+Error: Unknown DEVICE_PROFILE iphone-15-pro-max; expected iphone-se, iphone-15-pro, iphone-pro-max
+    at getSafeAreaProfile (file:///workspace/aos-work/lanes/ss-infra/aug313-coverage-next/scoresnap/e2e/safe-area-profiles.mjs:9:11)
+    at file:///workspace/aos-work/lanes/ss-infra/aug313-coverage-next/scoresnap/e2e/journeys/runner.mjs:17:15
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.1
