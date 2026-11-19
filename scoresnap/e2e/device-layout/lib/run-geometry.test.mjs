@@ -102,3 +102,17 @@ test('validateBundle: declared profile viewport, platform, build and config bind
   assert.match(validateBundle(ok, { configSha256: configSha256(text) }).join(), /configSha256/);
   assert.deepEqual(validateBundle({ ...ok, configSha256: configSha256(text) }, { configSha256: configSha256(text) }), []);
 });
+
+// Codex check on baa4b08 (AUG-1392): context.platform must not override the validated platform.
+test('context.platform cannot override the declared platform (Codex probe)', () => {
+  const small = { id: 's', role: 'control', text: 's', bbox: { left: 20, top: 100, right: 66, bottom: 146 },
+    hitRegion: { left: 20, top: 100, right: 66, bottom: 146 }, enabled: true, parentId: null, meta: { required: true } };
+  const normal = runBundle(bundle([cp([small])]), EMPTY_WAIVERS, new Date(), { config: CONFIG });
+  assert.equal(normal.ok, false, '46x46 Android control fails rule 5 (48dp)');
+  const spoofed = bundle([cp([small], { platform: 'ios' })]);
+  assert.match(validateBundle(spoofed, { config: CONFIG }).join(), /context.platform ios conflicts/);
+  assert.equal(runBundle(spoofed, EMPTY_WAIVERS, new Date(), { config: CONFIG }).ok, false);
+  // Even without validation errors, the evaluator uses the checkpoint platform.
+  const r = runBundle(bundle([cp([small])]), EMPTY_WAIVERS);
+  assert.ok(r.results[0].kept.some((f) => f.rule === 5));
+});

@@ -101,6 +101,9 @@ export function validateBundle(bundle, expect = {}) {
     }
     // Device geometry context is mandatory: rules 2/5 judge against the real viewport + insets.
     const ctx = cp?.context || {};
+    if (ctx.platform !== undefined && ctx.platform !== cp?.platform) {
+      errors.push(`${at} context.platform ${ctx.platform} conflicts with checkpoint platform ${cp?.platform}`);
+    }
     if (!ctx.viewport || !finite(ctx.viewport.width) || !finite(ctx.viewport.height)) {
       errors.push(`${at} missing measured context.viewport`);
     } else if (prof && !viewportMatches(ctx.viewport, prof.logicalSize, prof.platform)) {
@@ -130,7 +133,8 @@ export function runBundle(bundle, waiverDoc, now = new Date(), expect = {}) {
     return { ok: false, keptCount: 0, results, error: errors.join('; '), errors };
   }
   for (const cp of bundle.checkpoints) {
-    const { findings } = evaluateCheckpoint(cp.nodes, { platform: cp.platform, ...cp.context });
+    // Platform is bound to the validated checkpoint/bundle platform; context can never override it.
+    const { findings } = evaluateCheckpoint(cp.nodes, { ...cp.context, platform: cp.platform });
     const applied = applyWaivers(findings, waiverDoc, {
       screen: cp.screen, deviceId: cp.deviceId, state: cp.state,
     }, now);
