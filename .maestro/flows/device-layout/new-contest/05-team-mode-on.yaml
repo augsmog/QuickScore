@@ -1,0 +1,12 @@
+# device-layout New Contest — checkpoint 05: Team Mode on (team chips + switch state legibility).
+appId: com.scoresnap.app
+---
+- assertVisible:
+    id: "team-mode"
+- tapOn:
+    id: "team-mode"
+# Team name inputs appear once teams are on.
+- extendedWaitUntil:
+    visible: "Team A|Eagles|Team Mode"
+    timeout: 8000
+- takeScreenshot: device-layout-new-contest-05-team-mode-on

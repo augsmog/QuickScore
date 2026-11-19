@@ -1,0 +1,15 @@
+# device-layout Join — checkpoint 00: the Home join-code entry.
+# Cross-device sharing is flag-gated (CROSS_DEVICE_SHARING_ENABLED /
+# EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING). The per-PR device-layout build ships the flag OFF, so
+# the join entry MUST be hidden — assert that, so a layout capture never silently covers a missing
+# control. (The nightly online build, flag on, uses join/00-entry-online.yaml which asserts it is
+# present.)
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../../subflows/finish-onboarding.yaml
+- assertNotVisible:
+    id: "home-join-code"
+- takeScreenshot: device-layout-join-00-entry

@@ -1,0 +1,15 @@
+# device-layout New Contest — checkpoint 04: 4-round tournament, scrolled so the chip row sits
+# mid-screen (checks spacing/alignment of the segmented control after a scroll).
+appId: com.scoresnap.app
+---
+- assertVisible:
+    id: "rounds-4"
+- tapOn:
+    id: "rounds-4"
+- scrollUntilVisible:
+    element:
+      id: "team-mode"
+    direction: DOWN
+    timeout: 12000
+    centerElement: true
+- takeScreenshot: device-layout-new-contest-04-rounds-4-scrolled

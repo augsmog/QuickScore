@@ -1,0 +1,17 @@
+# device-layout New Contest — checkpoint 06: four players (player cards A/B chips + HCP crowding).
+appId: com.scoresnap.app
+---
+# Scroll back up to the player list and the Add Player control.
+- scrollUntilVisible:
+    element: "+ ADD PLAYER|ADD PLAYER"
+    direction: UP
+    timeout: 12000
+    centerElement: true
+- tapOn: "ADD PLAYER"
+- tapOn: "ADD PLAYER"
+- scrollUntilVisible:
+    element: "Player 3 name"
+    direction: UP
+    timeout: 8000
+    optional: true
+- takeScreenshot: device-layout-new-contest-06-four-players

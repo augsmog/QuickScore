@@ -1,0 +1,15 @@
+# device-layout Paywall — checkpoint 00: /paywall?tier=td (tournament/"Director" upgrade view).
+# The plan cards' CTA must sit above the fold on the shortest screen (SE). Deep-linked so this
+# does not depend on the New Contest gate wiring.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../../subflows/finish-onboarding.yaml
+- openLink: "snapscore://paywall?tier=td"
+- extendedWaitUntil:
+    visible:
+      accessibilityLabel: "Close"
+    timeout: 12000
+- takeScreenshot: device-layout-paywall-00-tier-td

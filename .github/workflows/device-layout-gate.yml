@@ -122,18 +122,27 @@ jobs:
 
   android-compact:
     needs: [changes, deterministic, vision-selfcheck]
-    # Native layer: runs only when the AUG-1376 Maestro device-layout harness is wired AND the
-    # owner enables it (repo variable DEVICE_LAYOUT_NATIVE == 'true'). Until then the per-PR
-    # required surface is layers 1–2; this keeps hosted minutes at zero on a not-yet-wired build.
+    # Native layer (AUG-1376): builds the debug APK, boots a compact AVD (ubuntu-latest KVM), drives
+    # the Maestro device-layout capture flows → geometry runner. Runs whenever a PR affects app UI.
     # Owner card t1550s9640 (Nov 19 2026): both platforms, full native evidence; no enablement variable.
     if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      DEVICE_LAYOUT_OUT: ${{ github.workspace }}/device-layout-out
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install app dependencies
+        run: npm ci --prefix scoresnap
       - name: Enable KVM (hardware accel, ubuntu-latest, 1x quota)
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -143,9 +152,17 @@ jobs:
           api-level: 35
           arch: x86_64
           profile: pixel_5
-          # Compact custom AVD geometry (≈360x800dp @ 480dpi) is applied by the harness config.
+          # Compact custom AVD geometry (≈360x800dp @ 480dpi) is forced by the harness (wm density/size).
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: bash scoresnap/e2e/device-layout/scripts/run-android-compact.sh
+      - name: Upload Android device-layout evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-layout-android-${{ github.run_id }}
+          path: device-layout-out
+          retention-days: 7
+          if-no-files-found: warn
 
   ios-sim:
     needs: [changes, deterministic, vision-selfcheck]
@@ -154,12 +171,22 @@ jobs:
     if: needs.changes.outputs.native == 'true'
     runs-on: [self-hosted, ios-sim]
     timeout-minutes: 45
+    env:
+      DEVICE_LAYOUT_OUT: ${{ github.workspace }}/device-layout-out
     steps:
       - uses: actions/checkout@v4
       - name: iOS simulator legs (iPhone 16 Pro, iPhone SE 3)
         env:
           DEVICE_LAYOUT_IOS_PROFILES: iphone-16-pro,iphone-se-3
         run: bash scoresnap/e2e/device-layout/scripts/run-ios-sim.sh
+      - name: Upload iOS device-layout evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-layout-ios-${{ github.run_id }}
+          path: device-layout-out
+          retention-days: 7
+          if-no-files-found: warn
 
   device-layout-gate:
     # The ONE aggregate status check. Its name is the contract: branch protection on main and
