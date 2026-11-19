@@ -43,6 +43,7 @@ function settingsScreen(platform = "ios") {
     '../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
     '../src/ui/theme': load('src/ui/theme.ts'),
     '../src/ui/paywall-copy': { PAYWALL_COPY: C },
+    '../src/services/entitlements': { proEnabled: () => true },
     '../src/stores/scan-store': { useScanStore: selector => selector({ tier: "td" }) },
     '../src/stores/settings-store': { useSettingsStore: () => settings },
     '../src/stores/auth-store': { useAuthStore: () => ({ user: null, isAnonymous: true }) },
