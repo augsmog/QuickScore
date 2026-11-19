@@ -226,7 +226,7 @@ jobs:
           path: scoresnap/e2e/screens/matrix
   # Keep the established required check name. Never accept skipped/cancelled dependencies.
   web-smoke:
-    needs: [build-standard, browser-flows, browser-matrix]
+    needs: [build-standard, browser-flows, browser-matrix, flag-off-free-journey]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -239,3 +239,43 @@ jobs:
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
         run: node scoresnap/scripts/ci/web-gate.mjs
+
+  flag-off-free-journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: scoresnap
+    env:
+      EXPO_PUBLIC_PRO_ENABLED: 'false'
+      EXPO_PUBLIC_OFFLINE_MODE: 'true'
+      EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: 'false'
+      EXPO_PUBLIC_DEMO_MODE: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - run: npm ci
+      - run: node --test e2e/journeys/pro-off-free.test.mjs e2e/journeys/ci-registration.test.mjs
+      - run: npx expo export --platform web --output-dir dist-pro-flag-off
+      - run: npx playwright install --with-deps chromium
+      - name: Run flag-off free journey
+        run: |
+          WEB_ROOT=dist-pro-flag-off PORT=8090 node e2e/serve.mjs > /tmp/pro-off-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:8090/ >/dev/null && break; sleep 1; done
+          BASE_URL=http://127.0.0.1:8090 node e2e/journeys/pro-off-free.mjs
+      - run: npx expo export --platform web --output-dir dist-pro-flag-on
+        env:
+          EXPO_PUBLIC_PRO_ENABLED: 'true'
+      - name: Run flag-on negative proof
+        run: |
+          WEB_ROOT=dist-pro-flag-on PORT=8090 node e2e/serve.mjs > /tmp/pro-on-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:8090/ >/dev/null && break; sleep 1; done
+          BASE_URL=http://127.0.0.1:8090 node e2e/journeys/pro-off-free.mjs --expect-paywall
