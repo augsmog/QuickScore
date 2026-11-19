@@ -103,6 +103,29 @@ export const cases={
     await reload(); await enter('round-scorecard');
     await check('outcome',async()=>assert.deepEqual(await scores(page),[expected,expected])); await step('reload-saved');
   },
+  // Full-18 cost control: `score-Augie`/`score-Sam` get one real reachability
+  // (role/name/geometry/glyph-paint) proof at hole 1, already identical layout
+  // for holes 2-18, so the remaining 17 holes use direct clicks. This keeps the
+  // journey inside the shared two-minute CI budget instead of repeating the
+  // expensive per-activation proof 18 times (AUG-291/AUG-313).
+  'J-score-hand':async({page,act,check,step})=>{
+    await check('entry',async()=>assert.deepEqual(await scores(page),[Array(18).fill(0),Array(18).fill(0)]));
+    await step('entry');
+    for(const name of ['Augie','Sam']) await act.activate(page.getByTestId(`score-par-${name}`),{feature:`score-${name}`,navigation:false});
+    const hole1=[4,...Array(17).fill(0)];
+    await check('activation',async()=>assert.deepEqual(await scores(page),[hole1,hole1]));
+    await step('hole1-scored');
+    for(let hole=2;hole<=18;hole++) {
+      await page.getByTestId('score-next-hole').click();
+      await page.getByText(`HOLE ${String(hole).padStart(2,'0')}`).waitFor({state:'visible'});
+      for(const name of ['Augie','Sam']) await page.getByTestId(`score-par-${name}`).click();
+    }
+    await check('destination',()=>page.getByText('HOLE 18').waitFor({state:'visible'}));
+    await step('hole18-reached');
+    const allPar=Array(18).fill(4);
+    await check('outcome',async()=>assert.deepEqual(await scores(page),[allPar,allPar]));
+    await step('all-scored');
+  },
   'J-invite-from-round':async({page,act,check,step})=>{
     await check('entry',()=>ready(page,'round-scorecard'));
     await check('code-visible',async()=>assert.equal((await page.getByTestId('organizer-join-code').innerText()).trim(),'Join code: JRNY26'));

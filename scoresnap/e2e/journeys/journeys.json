@@ -319,16 +319,39 @@
       "platform": [
         "web-offline"
       ],
-      "start": "home",
-      "fixture": "fresh-context-v1",
-      "features": [],
+      "start": "round",
+      "fixture": "two-player-empty-v1",
+      "features": [
+        {
+          "name": "score-Augie",
+          "role": "button",
+          "accessibleName": "Set Augie score to par",
+          "visibleText": "PAR",
+          "class": "core",
+          "maxActivations": 2,
+          "maxScrolls": 0,
+          "testId": "score-par-Augie",
+          "start": "round"
+        },
+        {
+          "name": "score-Sam",
+          "role": "button",
+          "accessibleName": "Set Sam score to par",
+          "visibleText": "PAR",
+          "class": "core",
+          "maxActivations": 2,
+          "maxScrolls": 0,
+          "testId": "score-par-Sam",
+          "start": "round"
+        }
+      ],
       "budget": {
-        "activations": 6,
-        "screens": 4,
-        "timeoutMs": 20000
+        "activations": 4,
+        "screens": 2,
+        "timeoutMs": 30000
       },
       "baseline": null,
-      "status": "deferred",
+      "status": "gated",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
@@ -336,9 +359,12 @@
         "destination",
         "outcome"
       ],
-      "deferredReason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only",
-      "linear": "AUG-291",
-      "requiredSteps": []
+      "requiredSteps": [
+        "entry",
+        "hole1-scored",
+        "hole18-reached",
+        "all-scored"
+      ]
     },
     {
       "id": "J-delete-account",
