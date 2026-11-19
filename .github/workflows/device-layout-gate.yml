@@ -122,9 +122,7 @@ jobs:
 
   android-compact:
     needs: [changes, deterministic, vision-selfcheck]
-    # Native layer: runs only when the AUG-1376 Maestro device-layout harness is wired AND the
-    # owner enables it (repo variable DEVICE_LAYOUT_NATIVE == 'true'). Until then the per-PR
-    # required surface is layers 1–2; this keeps hosted minutes at zero on a not-yet-wired build.
+    # Native layer for app-UI changes (native == true). Fails loudly until the AUG-1376 harness lands.
     # Owner card t1550s9640 (Nov 19 2026): both platforms, full native evidence; no enablement variable.
     if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
@@ -145,7 +143,15 @@ jobs:
           profile: pixel_5
           # Compact custom AVD geometry (≈360x800dp @ 480dpi) is applied by the harness config.
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: bash scoresnap/e2e/device-layout/scripts/run-android-compact.sh
+          script: DEVICE_LAYOUT_OUT="${{ runner.temp }}/device-layout-out" bash scoresnap/e2e/device-layout/scripts/run-android-compact.sh
+      - name: Upload Android capture bundle (candidate-bound; reviewed by vision-candidate)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-layout-android
+          path: ${{ runner.temp }}/device-layout-out
+          if-no-files-found: ignore
+          retention-days: 14
 
   ios-sim:
     needs: [changes, deterministic, vision-selfcheck]
@@ -159,14 +165,44 @@ jobs:
       - name: iOS simulator legs (iPhone 16 Pro, iPhone SE 3)
         env:
           DEVICE_LAYOUT_IOS_PROFILES: iphone-16-pro,iphone-se-3
-        run: bash scoresnap/e2e/device-layout/scripts/run-ios-sim.sh
+          DEVICE_LAYOUT_OUT: ${{ runner.temp }}/device-layout-out
+        run: |
+          rm -rf "$DEVICE_LAYOUT_OUT"
+          bash scoresnap/e2e/device-layout/scripts/run-ios-sim.sh
+      - name: Upload iOS capture bundles (candidate-bound; reviewed by vision-candidate)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-layout-ios
+          path: ${{ runner.temp }}/device-layout-out
+          if-no-files-found: ignore
+          retention-days: 14
+
+  vision-candidate:
+    needs: [changes, android-compact, ios-sim]
+    # Layer 2 on the CANDIDATE (Codex check 7116885 finding 3): the cross-company vision reviewer
+    # judges every native checkpoint screenshot of this exact build (sha256-bound), after a fresh
+    # live rubric self-check on the owner negative fixtures with the same reviewer. Runs on the
+    # Mac runner, where the reviewer command (DEVICE_LAYOUT_VISION_CMD) is configured runner-side;
+    # no model credentials live in GitHub. Unset reviewer or missing bundles => FAIL (fail closed).
+    if: always() && needs.changes.outputs.native == 'true'
+    runs-on: [self-hosted, ios-sim]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: device-layout-*
+          path: ${{ runner.temp }}/device-layout-candidate
+      - name: Candidate vision review (all native bundles, both platforms)
+        run: bash scoresnap/e2e/device-layout/scripts/run-vision-candidate.sh "${{ runner.temp }}/device-layout-candidate"
 
   device-layout-gate:
     # The ONE aggregate status check. Its name is the contract: branch protection on main and
     # augie-os-control safe_merge.py both require a check named exactly `device-layout-gate`.
     # Always runs and always reports, so doc-only PRs are not blocked.
     if: always()
-    needs: [changes, deterministic, vision-selfcheck, android-compact, ios-sim]
+    needs: [changes, deterministic, vision-selfcheck, android-compact, ios-sim, vision-candidate]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -179,14 +215,16 @@ jobs:
           R_VIS: ${{ needs.vision-selfcheck.result }}
           R_AND: ${{ needs.android-compact.result }}
           R_IOS: ${{ needs.ios-sim.result }}
+          R_VCAND: ${{ needs.vision-candidate.result }}
         run: |
           set -u
-          echo "changes=$R_CHANGES deterministic=$R_DET vision-selfcheck=$R_VIS android-compact=$R_AND ios-sim=$R_IOS ui=$UI native=$NATIVE"
+          echo "changes=$R_CHANGES deterministic=$R_DET vision-selfcheck=$R_VIS android-compact=$R_AND ios-sim=$R_IOS vision-candidate=$R_VCAND ui=$UI native=$NATIVE"
           [ "$R_CHANGES" = success ] || { echo "::error::changes job $R_CHANGES"; exit 1; }
           if [ "$UI" != true ]; then echo "Doc-only change: exempt (success)."; exit 0; fi
           { [ "$R_DET" = success ] && [ "$R_VIS" = success ]; } || { echo "::error::layer 1/2 not green"; exit 1; }
           if [ "$NATIVE" = true ]; then
             [ "$R_AND" = success ] || { echo "::error::Android native leg $R_AND (full native evidence required)"; exit 1; }
             [ "$R_IOS" = success ] || { echo "::error::iOS native leg $R_IOS (full native evidence required)"; exit 1; }
+            [ "$R_VCAND" = success ] || { echo "::error::candidate vision review $R_VCAND (cross-company review of this build's screenshots required)"; exit 1; }
           fi
           echo "device-layout-gate: PASS"
