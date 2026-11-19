@@ -1,0 +1,82 @@
+{
+  "sourceSha": "587e88f3",
+  "buildHash": "1.0.1(32)",
+  "artifactHash": "multi-day.png",
+  "device": "iPhone 16 Pro 402x874pt, iOS 26",
+  "flow": "New Contest",
+  "checkpoint": "Multi-day on",
+  "reviewer": {
+    "provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "findings": [
+    {
+      "rule": 1,
+      "severity": "major",
+      "bbox": [
+        47,
+        802,
+        541,
+        874
+      ],
+      "reason": "The Multi-Day Tournament label begins inside the switch's right edge, overlapping its thumb/track. There is no separation between control and label."
+    },
+    {
+      "rule": 2,
+      "severity": "major",
+      "bbox": [
+        47,
+        1587,
+        895,
+        1787
+      ],
+      "reason": "The last visible player card is bisected at y=1758 by the sticky Continue footer. The badge and lower input are cut off; this is concealed card content above the viewport bottom, not an ordinary scroll-edge fragment."
+    },
+    {
+      "rule": 4,
+      "severity": "major",
+      "bbox": [
+        47,
+        146,
+        453,
+        413
+      ],
+      "reason": "The header controls start near y=310, approximately 70pt below the modal origin at y=146, exceeding the 32pt limit and leaving excessive blank space."
+    },
+    {
+      "rule": 4,
+      "severity": "minor",
+      "bbox": [
+        47,
+        939,
+        507,
+        1088
+      ],
+      "reason": "The rounds label and picker start at x=159, approximately 48pt inward from the section grid at x=47, without a visible alignment anchor."
+    },
+    {
+      "rule": 4,
+      "severity": "major",
+      "bbox": [
+        47,
+        1587,
+        895,
+        1758
+      ],
+      "reason": "The visible player-card layout is unbalanced: the badge sits low at the far left, the name field starts much higher at x=166, and the lower input starts farther right at x=247. These elements lack a coherent row alignment."
+    },
+    {
+      "rule": 7,
+      "severity": "major",
+      "bbox": [
+        754,
+        1348,
+        903,
+        1415
+      ],
+      "reason": "The Team Mode switch reads as a dark pill against a barely distinguishable pale track. Its thumb and track do not clearly communicate the off state."
+    }
+  ],
+  "verdict": "fail"
+}
