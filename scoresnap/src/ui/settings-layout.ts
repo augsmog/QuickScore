@@ -7,6 +7,10 @@ export const SETTINGS_SWITCH_SIZE = { width: 51, height: 31 };
 // below the first-paint viewport edge on SE/ProMax (J-delete-account settings-two-taps capture).
 export const SETTINGS_SECTION_HEADER_MARGIN_TOP = 28;
 export const SETTINGS_SCORING_HEADER_MARGIN_TOP = 16;
+// The Subscription section now carries the persistent Tournament Director entry (AUG-1369). A
+// reduced header margin keeps that added row from pushing the Scoring section's Distance Unit row
+// below the 15 Pro first-paint fold (AUG-1228), same rationale as the Scoring header above.
+export const SETTINGS_SUBSCRIPTION_HEADER_MARGIN_TOP = 16;
 
 export const SETTINGS_SWITCH_TARGET = {
   minWidth: Math.max(SETTINGS_MIN_TARGET_PX, SETTINGS_SWITCH_SIZE.width),

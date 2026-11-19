@@ -6,6 +6,7 @@ import {
   SETTINGS_SWITCH_TARGET,
   SETTINGS_SECTION_HEADER_MARGIN_TOP,
   SETTINGS_SCORING_HEADER_MARGIN_TOP,
+  SETTINGS_SUBSCRIPTION_HEADER_MARGIN_TOP,
 } from "../src/ui/settings-layout";
 import { useState, useCallback } from "react";
 import {
@@ -518,7 +519,7 @@ export default function SettingsScreen() {
           </AnimatedPressable>
         )}
 
-        <SectionHeader title="Subscription" />
+        <SectionHeader title="Subscription" marginTop={SETTINGS_SUBSCRIPTION_HEADER_MARGIN_TOP} />
         {/* Keep plan management for existing subscribers while the Pro upgrade path is dormant. */}
         {(proEnabled() || tier === "pro" || tier === "td") && (
           <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[tier]} onPress={() => router.push("/paywall")} />
@@ -530,12 +531,15 @@ export default function SettingsScreen() {
             not reintroduce a dormant-Pro surface (AUG-1263): it targets the TD paywall, where the
             Pro row stays hidden while pro_enabled is off. */}
         {tier !== "td" && (
+          // Compact, single-line-per-text-row entry so its height is deterministic (no body-text
+          // wrapping that pushes the Scoring section's Distance Unit row below the 15 Pro first-paint
+          // fold — AUG-1228 guard). Matches the single-line "Manage plan"/"Restore purchases" rows.
           <AnimatedPressable accessibilityRole="button" accessibilityLabel={C.td} accessibilityHint={C.tdBodyNoPro} onPress={() => router.push("/paywall?tier=td")}
-            style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 12 }}>
+            style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, paddingVertical: 10, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
             <Trophy size={18} color={COLORS.primary} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>{C.td}</Text>
-              <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{C.tdBodyNoPro}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>{C.td}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{C.tdBodyNoPro}</Text>
             </View>
             <ChevronRight size={14} color={COLORS.textDim} />
           </AnimatedPressable>
