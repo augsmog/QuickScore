@@ -11,9 +11,9 @@
 //   --self-check --reviews <dir>   Validate pre-produced reviews/<artifactHash>.json against
 //                                  fixtures/negative/fixtures.json (+ optional positive). Used
 //                                  by CI after the reviewer step and by calibration.
-//   --review-cmd "<cmd>"           Invoke a reviewer per image: the command receives the image
-//                                  path as $1 and a metadata JSON file as $2 and must print the
-//                                  review JSON object to stdout. Reviewer unavailable => fail.
+//   --review-cmd "<cmd>"           Invoke the reviewer in batch: the command receives a manifest
+//                                  {items:[{image, meta}]} as $1 and must print a JSON array of
+//                                  review objects (same order). Reviewer unavailable => fail.
 //
 //   --candidate <bundle.json> --review-cmd "<cmd>" [--reviews <dir>] [--expect-sha SHA]
 //                                  Candidate acceptance: FIRST re-runs the live self-check on
@@ -55,31 +55,32 @@ function loadReviews(fixtures, dir) {
   return reviews;
 }
 
-function invokeReviewer(cmd, fixtures, outDir) {
+// Reviewer contract (batch, so one model call covers a whole bundle): the command receives ONE
+// argument, a manifest JSON file {items:[{image, meta}]}, and must print a JSON array of review
+// objects in the same order on stdout. Each review is written to <outDir>/<artifactHash>.json.
+export function batchReview(cmd, items, outDir) {
   mkdirSync(outDir, { recursive: true });
-  for (const fx of fixtures) {
-    const img = join(fx.baseDir, fx.file);
-    const metaFile = join(outDir, `${fx.artifactHash}.meta.json`);
-    writeFileSync(metaFile, JSON.stringify({
-      sourceSha: fx.meta.sourceSha, buildHash: fx.meta.buildHash, artifactHash: fx.artifactHash,
-      device: fx.meta.device, flow: fx.meta.flow, checkpoint: fx.checkpoint,
-    }, null, 2));
-    const stdout = execFileSync('bash', ['-c', `${cmd} "$1" "$2"`, 'review', img, metaFile], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
-    writeFileSync(join(outDir, `${fx.artifactHash}.json`), stdout);
+  const manifest = join(outDir, `manifest-${Date.now()}-${process.pid}.json`);
+  writeFileSync(manifest, JSON.stringify({ items }, null, 2));
+  const stdout = execFileSync('bash', ['-c', `${cmd} "$1"`, 'review', manifest],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  let reviews = JSON.parse(stdout);
+  if (!Array.isArray(reviews) && Array.isArray(reviews?.reviews)) reviews = reviews.reviews;
+  if (!Array.isArray(reviews) || reviews.length !== items.length) {
+    throw new Error(`reviewer returned ${Array.isArray(reviews) ? reviews.length : 'non-array'} reviews for ${items.length} images`);
   }
+  items.forEach((it, i) => writeFileSync(join(outDir, `${it.meta.artifactHash}.json`), JSON.stringify(reviews[i], null, 2)));
+  return reviews;
 }
 
-function shellReviewer(cmd, outDir) {
-  return (img, meta) => {
-    mkdirSync(outDir, { recursive: true });
-    const metaFile = join(outDir, `${meta.artifactHash}.meta.json`);
-    writeFileSync(metaFile, JSON.stringify(meta, null, 2));
-    const stdout = execFileSync('bash', ['-c', `${cmd} "$1" "$2"`, 'review', img, metaFile],
-      { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
-    const review = JSON.parse(stdout);
-    writeFileSync(join(outDir, `${meta.artifactHash}.json`), JSON.stringify(review, null, 2));
-    return review;
-  };
+function invokeReviewer(cmd, fixtures, outDir) {
+  batchReview(cmd, fixtures.map((fx) => ({
+    image: join(fx.baseDir, fx.file),
+    meta: {
+      sourceSha: fx.meta.sourceSha, buildHash: fx.meta.buildHash, artifactHash: fx.artifactHash,
+      device: fx.meta.device, flow: fx.meta.flow, checkpoint: fx.checkpoint,
+    },
+  })), outDir);
 }
 
 function candidateMain(args) {
@@ -109,11 +110,33 @@ function candidateMain(args) {
     console.error('FAIL live rubric self-check — reviewer drifted; candidate not trusted');
     process.exit(1);
   }
-  // 2. Candidate screenshots, hash-bound.
+  // 2. Candidate screenshots, hash-bound: hash-check every checkpoint, review all valid ones in
+  //    ONE batch call, then judge each review against its own checkpoint.
   const base = dirname(bundlePath);
+  const readFile = (p) => readFileSync(resolve(base, p));
+  const pre = reviewCandidate(bundle, { readFile, review: () => null });
+  const toReview = [];
+  bundle.checkpoints.forEach((cp, i) => {
+    if (pre.results[i] && pre.results[i].errors.every((e) => e === 'reviewer returned no review')) {
+      toReview.push({ image: resolve(base, cp.screenshot), meta: {
+        sourceSha: bundle.sourceSha, buildHash: bundle.buildHash, artifactHash: cp.screenshotSha256,
+        device: cp.deviceId, platform: cp.platform, flow: cp.flow, checkpoint: cp.checkpoint } });
+    }
+  });
+  const byHash = {};
+  let batchErr = null;
+  if (toReview.length) {
+    try {
+      const reviews = batchReview(reviewCmd, toReview, outDir);
+      toReview.forEach((it, i) => { byHash[`${it.meta.artifactHash}|${it.meta.flow}|${it.meta.checkpoint}`] = reviews[i]; });
+    } catch (e) { batchErr = e; }
+  }
   const res = reviewCandidate(bundle, {
-    readFile: (p) => readFileSync(resolve(base, p)),
-    review: (p, meta) => shellReviewer(reviewCmd, outDir)(resolve(base, p), meta),
+    readFile,
+    review: (_p, meta) => {
+      if (batchErr) throw batchErr;
+      return byHash[`${meta.artifactHash}|${meta.flow}|${meta.checkpoint}`] || null;
+    },
   });
   for (const e of res.errors) console.error(`FAIL ${e}`);
   for (const r of res.results) {

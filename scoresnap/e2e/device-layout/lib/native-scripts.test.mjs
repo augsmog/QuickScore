@@ -35,12 +35,16 @@ writeFileSync(out, JSON.stringify({ sourceSha: f('--source-sha'), buildHash: 'st
 // and returns a clean, bound review for candidate screenshots.
 const REVIEWER = `#!/usr/bin/env node
 import { readFileSync, existsSync } from 'node:fs';
-const meta = JSON.parse(readFileSync(process.argv[3], 'utf8'));
-const cal = process.env.CAL_DIR + '/' + meta.artifactHash + '.json';
-if (existsSync(cal)) { process.stdout.write(readFileSync(cal, 'utf8')); process.exit(0); }
-process.stdout.write(JSON.stringify({ sourceSha: meta.sourceSha, buildHash: meta.buildHash, artifactHash: meta.artifactHash,
-  device: meta.device, flow: meta.flow, checkpoint: meta.checkpoint,
-  reviewer: { provider: 'openai', model: 'gpt-6-astra', effort: 'high' }, findings: [], verdict: 'pass' }));
+const { items } = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const out = items.map(({ meta }) => {
+  const cal = process.env.CAL_DIR + '/' + meta.artifactHash + '.json';
+  if (existsSync(cal)) return JSON.parse(readFileSync(cal, 'utf8'));
+  return { sourceSha: meta.sourceSha, buildHash: meta.buildHash, artifactHash: meta.artifactHash,
+    device: meta.device, flow: meta.flow, checkpoint: meta.checkpoint,
+    reviewer: { provider: 'openai', model: 'gpt-6-astra', effort: 'high' }, findings: [], verdict: process.env.STUB_VERDICT || 'pass',
+    ...(process.env.STUB_VERDICT === 'fail' ? { findings: [{ rule: 2, severity: 'major', bbox: [0, 0, 1, 1], reason: 'stub clip' }] } : {}) };
+});
+process.stdout.write(JSON.stringify(out));
 `;
 
 function fakeRepo({ harness = true } = {}) {
@@ -96,6 +100,15 @@ test('android + iOS scripts resolve every path and pass a complete candidate-bou
     { ...env, DEVICE_LAYOUT_VISION_CMD: `node ${join(root, 'reviewer.mjs')}` }, '/');
   assert.equal(withRev.status, 0, withRev.stdout + withRev.stderr);
   assert.equal((withRev.stdout.match(/CANDIDATE VISION: PASS/g) || []).length, 3);
+  // A reviewer that flags the candidate fails the leg.
+  const flagged = run(join(dl, 'scripts/run-vision-candidate.sh'), [join(root, 'out')],
+    { ...env, STUB_VERDICT: 'fail', DEVICE_LAYOUT_VISION_CMD: `node ${join(root, 'reviewer.mjs')}` }, '/');
+  assert.notEqual(flagged.status, 0);
+  assert.match(flagged.stdout, /CANDIDATE VISION: FAIL/);
+  // A reviewer that errors fails closed.
+  const broken = run(join(dl, 'scripts/run-vision-candidate.sh'), [join(root, 'out')],
+    { ...env, DEVICE_LAYOUT_VISION_CMD: 'false' }, '/');
+  assert.notEqual(broken.status, 0);
 });
 
 test('a stale bundle (different SHA) fails the geometry gate', () => {

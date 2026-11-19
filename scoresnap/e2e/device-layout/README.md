@@ -100,6 +100,6 @@ Added after the Codex astra/high check on `7116885` (three findings, all fixed):
    runs `run-vision.mjs --candidate`: a fresh live self-check on the owner negative fixtures with
    the same reviewer, then a sha256-bound review of every candidate screenshot (verdict pass, no
    major finding, bound to sourceSha/buildHash/flow/checkpoint). The reviewer is
-   `DEVICE_LAYOUT_VISION_CMD`, configured runner-side (reference: `scripts/review-codex.sh`, Codex
+   `DEVICE_LAYOUT_VISION_CMD`, configured runner-side, batch contract `cmd <manifest.json>` -> JSON array of reviews (reference: `scripts/review-codex.sh`, Codex
    gpt-6-astra/high; never Grok). Unset or failing reviewer => FAIL. The aggregate
    `device-layout-gate` requires `vision-candidate` success whenever native evidence is required.
