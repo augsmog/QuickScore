@@ -7,6 +7,7 @@ import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { buildLeaderboard } from "../../../src/engine/calculators/leaderboard-view";
+import { buildLeaderboardRows } from "../../../src/engine/leaderboard-rows";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
@@ -20,6 +21,7 @@ export default function LeaderboardScreen() {
   const [viewMode, setViewMode] = useState<"individual" | "groups">("individual");
   const [scoreView, setScoreView] = useState<"cumulative" | "daily">("cumulative");
   const [rankMode, setRankMode] = useState<"gross" | "net">("gross");
+  const [myGroupOnly, setMyGroupOnly] = useState(false);
 
   if (!contest) return null;
 
@@ -67,6 +69,27 @@ export default function LeaderboardScreen() {
   // Net ranks the individual leaderboard by net total using the handicap strokes
   // already entered for net games; it is only offered when the course supports it.
   const { rows: individualResults, netAvailable } = buildLeaderboard(allPlayers, leaderboardCourse, rankMode);
+  const viewerGroup = contest.groups.find((group) => group.players.some((player) => player.host));
+  // Alternate Shot / Chapman leaderboard rows are group-scoped team cards (`<groupId>/<team>`),
+  // while ordinary rows use roster player IDs. Add the derived cards to their source group so
+  // the same group filter continues to work for these individual leaderboard rows.
+  const leaderboardGroups = contest.groups.map((group) => ({
+    ...group,
+    players: [
+      ...group.players,
+      ...allPlayers.filter((player) => player.id.startsWith(`${group.id}/`)),
+    ],
+  }));
+  const leaderboardRows = buildLeaderboardRows(individualResults, allPlayers, {
+    holeCount: leaderboardCourse.holes.length,
+    groups: leaderboardGroups,
+    groupId: myGroupOnly ? viewerGroup?.id : undefined,
+  });
+  const visiblePlayerIds = new Set(leaderboardRows.map((row) => row.playerId));
+  const visibleIndividualResults = myGroupOnly && viewerGroup
+    ? individualResults.filter((result) => visiblePlayerIds.has(result.playerId))
+    : individualResults;
+  const rankByPlayerId = Object.fromEntries(leaderboardRows.map((row) => [row.playerId, row.rankLabel]));
 
 
   // Compute team stats if teams exist
@@ -226,6 +249,28 @@ export default function LeaderboardScreen() {
     </View>
   ) : null;
 
+  const myGroupToggle = (
+    <View style={{ marginBottom: 16 }}>
+      <AnimatedPressable
+        testID="leaderboard-my-group"
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !viewerGroup, selected: myGroupOnly }}
+        onPress={() => { if (viewerGroup) setMyGroupOnly((enabled) => !enabled); }}
+        style={{ alignSelf: "flex-start", minHeight: 40, paddingHorizontal: 14, justifyContent: "center", borderRadius: RADII.full,
+          backgroundColor: myGroupOnly ? COLORS.primary : COLORS.surfaceMid, opacity: viewerGroup ? 1 : 0.55 }}
+      >
+        <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: myGroupOnly ? COLORS.onPrimary : COLORS.text }}>
+          My group{myGroupOnly ? " · On" : " · Off"}
+        </Text>
+      </AnimatedPressable>
+      {!viewerGroup && (
+        <Text testID="leaderboard-my-group-empty" style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, marginTop: 6 }}>
+          My group is unavailable because you are not assigned to a group.
+        </Text>
+      )}
+    </View>
+  );
+
   // Individual view: virtualize the ranked rows with FlashList (72+ player fields, AUG-253).
   // The screen owns ranking (buildLeaderboard) and the Gross/Net toggle; the list only
   // recycles the already-ranked rows, which stay pixel-identical to the prior ScrollView.
@@ -233,12 +278,15 @@ export default function LeaderboardScreen() {
     return (
       <LeaderboardResultsList
         results={individualResults}
+        visibleResults={visibleIndividualResults}
+        rankByPlayerId={rankByPlayerId}
         allPlayers={allPlayers}
         recentPlayers={recentPlayers}
         contest={contest}
         ListHeaderComponent={
           <>
             {header}
+            {myGroupToggle}
             {grossNetToggle}
           </>
         }

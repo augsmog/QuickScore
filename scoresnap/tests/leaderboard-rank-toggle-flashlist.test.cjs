@@ -35,9 +35,12 @@ function load(file, deps) {
 test('Gross/Net toggle inside the FlashList header still re-ranks the virtualized rows', async () => {
   const players = [
     { id: 'p1', name: 'Alice', handicap: 0, scores: Array(18).fill(4) },
-    { id: 'p2', name: 'Bob', handicap: 18, scores: Array(18).fill(5) },
+    { id: 'p2', name: 'Bob', handicap: 18, host: true, scores: Array(18).fill(5) },
   ];
-  const groups = [{ id: 'g1', name: 'Field', players }];
+  const groups = [
+    { id: 'g1', name: 'Field A', players: [players[0]] },
+    { id: 'g2', name: 'Field B', players: [players[1]] },
+  ];
   const course = { name: 'Course', holes: Array.from({ length: 18 }, (_, i) => ({ num: i + 1, par: 4, hcp: i + 1 })) };
   const contest = {
     id: 'c-rank', isTournament: true, hasTeams: false, groups,
@@ -52,6 +55,10 @@ test('Gross/Net toggle inside the FlashList header still re-ranks the virtualize
   const netRows = [
     { playerId: 'p2', name: 'Bob', total: 72, toPar: 0 },
     { playerId: 'p1', name: 'Alice', total: 72, toPar: 0 },
+  ];
+  const teamRows = [
+    { id: 'g1/A', playerId: 'g1/A', name: 'Team A', handicap: 0, scores: Array(18).fill(4), total: 70, toPar: -2 },
+    { id: 'g2/A', playerId: 'g2/A', name: 'Team A', handicap: 0, scores: Array(18).fill(5), total: 75, toPar: 3 },
   ];
 
   // Passthrough FlashList that records the `data` (ranked rows) it was handed on every
@@ -108,17 +115,18 @@ test('Gross/Net toggle inside the FlashList header still re-ranks the virtualize
       getActiveGroups: () => groups,
     },
     '../../../src/engine/contest-results': {
-      teamCardPlayers: () => players,
+      teamCardPlayers: (value) => value.gameConfig ? teamRows : players,
       liveRoundCourse: (value) => value.course,
     },
     '../../../src/engine/calculators/stroke-play': { calcStrokePlay: () => grossRows },
     '../../../src/engine/calculators/leaderboard-view': {
-      buildLeaderboard: (_players, _course, rankMode) => ({
-        rows: rankMode === 'net' ? netRows : grossRows,
+      buildLeaderboard: (rankedPlayers, _course, rankMode) => ({
+        rows: rankedPlayers === teamRows ? teamRows : rankMode === 'net' ? netRows : grossRows,
         netAvailable: true,
         mode: rankMode === 'net' ? 'net' : 'gross',
       }),
     },
+    '../../../src/engine/leaderboard-rows': load('src/engine/leaderboard-rows.ts', {}),
     '../../../src/ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
     '../../../src/utils/formatters': { formatToPar: (value) => (value === 0 ? 'E' : String(value)) },
     '../../../src/ui/AnimatedPressable': { AnimatedPressable },
@@ -138,13 +146,40 @@ test('Gross/Net toggle inside the FlashList header still re-ranks the virtualize
     // Default is Gross: FlashList data is the gross ranking (Alice first).
     expect(capture.data.map((r) => r.playerId)).toEqual(['p1', 'p2']);
 
-    // Press Net.
-    await act(async () => {
-      netToggle[0].props.onPress();
-    });
+    const myGroup = tree.root.findByProps({ testID: 'leaderboard-my-group' });
+    await act(async () => myGroup.props.onPress());
+    expect(capture.data.map((r) => r.playerId)).toEqual(['p2']);
+    expect(tree.root.findByProps({ testID: 'leaderboard-rank-p2' }).children.join('')).toBe('2');
+    await act(async () => myGroup.props.onPress());
+    expect(capture.data.map((r) => r.playerId)).toEqual(['p1', 'p2']);
+    await act(async () => myGroup.props.onPress());
+    await act(async () => netToggle[0].props.onPress());
+    expect(capture.data.map((r) => r.playerId)).toEqual(['p2']);
+    await act(async () => myGroup.props.onPress());
+    expect(capture.data.map((r) => r.playerId)).toEqual(['p2', 'p1']);
 
     // FlashList now holds the NET ranking (Bob first) — the toggle re-ranked the list.
-    expect(capture.data.map((r) => r.playerId)).toEqual(['p2', 'p1']);
+
+    // Team-card IDs include their source group, so My group still selects the host's cards.
+    contest.gameConfig = { rulesVersion: 1 };
+    contest.games = ['alternate_shot'];
+    await act(async () => tree.update(React.createElement(Screen)));
+    expect(capture.data.map((r) => r.playerId)).toEqual(['g1/A', 'g2/A']);
+    const teamMyGroup = tree.root.findByProps({ testID: 'leaderboard-my-group' });
+    await act(async () => teamMyGroup.props.onPress());
+    expect(capture.data.map((r) => r.playerId)).toEqual(['g2/A']);
+    expect(tree.root.findByProps({ testID: 'leaderboard-rank-g2/A' }).children.join('')).toBe('2');
+
+    // An ungrouped viewer gets a disabled control and a clear one-line explanation.
+    players[1].host = false;
+    await act(async () => teamMyGroup.props.onPress());
+    await act(async () => tree.update(React.createElement(Screen)));
+    const disabledMyGroup = tree.root.findByProps({ testID: 'leaderboard-my-group' });
+    expect(disabledMyGroup.props.accessibilityState.disabled).toBe(true);
+    expect(tree.root.findByProps({ testID: 'leaderboard-my-group-empty' }).children.join(''))
+      .toContain('not assigned to a group');
+    await act(async () => disabledMyGroup.props.onPress());
+    expect(capture.data.map((r) => r.playerId)).toEqual(['g1/A', 'g2/A']);
   } finally {
     if (tree) await act(async () => tree.unmount());
   }

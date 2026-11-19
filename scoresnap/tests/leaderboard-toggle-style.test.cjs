@@ -7,7 +7,7 @@ const assert = require('node:assert');
 // `{individualResults.map` row loop no longer lives in this file); slice to that boundary.
 const src = fs.readFileSync('app/contest/[id]/index.tsx', 'utf8');
 const start = src.indexOf('testID="leaderboard-rank-toggle"');
-const block = src.slice(start, src.indexOf('<LeaderboardResultsList', start));
+const block = src.slice(start, src.indexOf('const myGroupToggle', start));
 
 test('toggle is compact 150x36, right-aligned pill on surfaceMid', () => {
   assert.ok(start > 0);

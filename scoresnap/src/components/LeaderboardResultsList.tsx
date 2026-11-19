@@ -10,6 +10,9 @@ import type { Contest } from "../stores/contest-store";
 type LeaderboardResultsListProps = {
   /** Ranked rows for the active Gross/Net mode (buildLeaderboard output), already sorted. */
   results: StrokePlayResult[];
+  /** Optional filtered view; rank metadata still comes from the full field. */
+  visibleResults?: StrokePlayResult[];
+  rankByPlayerId?: Record<string, string>;
   /** All players in the current view, used to resolve holes played. */
   allPlayers: Player[];
   /** Players whose recent-form strokes drive the last-3-holes strip. */
@@ -30,6 +33,8 @@ type LeaderboardResultsListProps = {
  */
 export function LeaderboardResultsList({
   results,
+  visibleResults,
+  rankByPlayerId,
   allPlayers,
   recentPlayers,
   contest,
@@ -39,7 +44,7 @@ export function LeaderboardResultsList({
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <FlashList
-        data={results}
+        data={visibleResults ?? results}
         keyExtractor={(r) => r.playerId}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
@@ -51,8 +56,10 @@ export function LeaderboardResultsList({
             ? player.scores.filter((s) => s > 0).length
             : 0;
 
-          const rank = results.findIndex((result) => result.total === r.total) + 1;
-          const tied = results.filter((result) => result.total === r.total).length > 1;
+          const rankLabel = rankByPlayerId?.[r.playerId] ?? (() => {
+            const position = results.findIndex((result) => result.total === r.total) + 1;
+            return results.filter((result) => result.total === r.total).length > 1 ? `T${position}` : `${position}`;
+          })();
           const recentScores = recentPlayers.find((p) => p.id === r.playerId)?.scores ?? [];
           // Par source is the contest course per AUG-620 brief item 8 (contest.course.holes[i].par),
           // not the active-round course; chip pars stay stable regardless of tournament round.
@@ -71,8 +78,8 @@ export function LeaderboardResultsList({
                 gap: 12,
               }}
             >
-              <Text style={{ width: 28, fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
-                {tied ? `T${rank}` : rank}
+              <Text testID={`leaderboard-rank-${r.playerId}`} style={{ width: 28, fontFamily: FONTS.score, fontSize: 14, color: COLORS.textDim }}>
+                {rankLabel}
               </Text>
 
               {/* Avatar initial */}
