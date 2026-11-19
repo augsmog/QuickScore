@@ -1037,6 +1037,33 @@ export default function NewContestScreen() {
               </>
             )}
             {/* Game Variations */}
+            {selectedGames.includes("fourball") && (
+              <View style={{ marginBottom: 20 }}>
+                <Text style={{ color: COLORS.text, marginBottom: 8 }}>Four-Ball pair score</Text>
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  {(["better", "total"] as const).map((mode) => (
+                    <AnimatedPressable key={mode} testID={`fourball-scoring-${mode}`}
+                      accessibilityRole="radio" accessibilityLabel={mode === "better" ? "Better score per hole" : "Total pair scores"}
+                      accessibilityState={{ checked: (gameConfig.fourBallScoring ?? "better") === mode }}
+                      onPress={() => setGameConfig((prev) => ({ ...prev, fourBallScoring: mode }))}
+                      style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.fourBallScoring ?? "better") === mode ? COLORS.primary : COLORS.surfaceMid }}>
+                      <Text style={{ color: COLORS.text }}>{mode === "better" ? "Better score" : "Total scores"}</Text>
+                    </AnimatedPressable>
+                  ))}
+                </View>
+                {(roundRobinAvailable || gameConfig.fourBallFormat === "round_robin") && (
+                  <AnimatedPressable testID="fourball-format-round-robin"
+                    accessibilityRole="checkbox" accessibilityLabel="Six-player round robin: each pair plays both other pairs"
+                    accessibilityState={{ checked: gameConfig.fourBallFormat === "round_robin" }}
+                    onPress={() => setGameConfig((prev) => ({ ...prev, fourBallFormat: prev.fourBallFormat === "round_robin" ? undefined : "round_robin" }))}
+                    style={{ marginTop: 10, padding: 12, borderRadius: 8, backgroundColor: gameConfig.fourBallFormat === "round_robin" ? COLORS.primary : COLORS.surfaceMid }}>
+                    <Text style={{ color: COLORS.text }}>Six players: round robin (each pair plays both other pairs)</Text>
+                  </AnimatedPressable>
+                )}
+                <Text style={{ color: COLORS.textDim, marginTop: 6, fontSize: 12 }}>Partners share each team result equally.</Text>
+              </View>
+            )}
+
             {applicableVariations.length > 0 && (
               <View style={{ marginBottom: 20 }}>
                 <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
@@ -1206,33 +1233,6 @@ export default function NewContestScreen() {
             <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
               Round Settings
             </Text>
-
-            {selectedGames.includes("fourball") && (
-              <View style={{ marginBottom: 20 }}>
-                <Text style={{ color: COLORS.text, marginBottom: 8 }}>Four-Ball pair score</Text>
-                <View style={{ flexDirection: "row", gap: 12 }}>
-                  {(["better", "total"] as const).map((mode) => (
-                    <AnimatedPressable key={mode} testID={`fourball-scoring-${mode}`}
-                      accessibilityRole="radio" accessibilityLabel={mode === "better" ? "Better score per hole" : "Total pair scores"}
-                      accessibilityState={{ checked: (gameConfig.fourBallScoring ?? "better") === mode }}
-                      onPress={() => setGameConfig((prev) => ({ ...prev, fourBallScoring: mode }))}
-                      style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.fourBallScoring ?? "better") === mode ? COLORS.primary : COLORS.surfaceMid }}>
-                      <Text style={{ color: COLORS.text }}>{mode === "better" ? "Better score" : "Total scores"}</Text>
-                    </AnimatedPressable>
-                  ))}
-                </View>
-                {(roundRobinAvailable || gameConfig.fourBallFormat === "round_robin") && (
-                  <AnimatedPressable testID="fourball-format-round-robin"
-                    accessibilityRole="checkbox" accessibilityLabel="Six-player round robin: each pair plays both other pairs"
-                    accessibilityState={{ checked: gameConfig.fourBallFormat === "round_robin" }}
-                    onPress={() => setGameConfig((prev) => ({ ...prev, fourBallFormat: prev.fourBallFormat === "round_robin" ? undefined : "round_robin" }))}
-                    style={{ marginTop: 10, padding: 12, borderRadius: 8, backgroundColor: gameConfig.fourBallFormat === "round_robin" ? COLORS.primary : COLORS.surfaceMid }}>
-                    <Text style={{ color: COLORS.text }}>Six players: round robin (each pair plays both other pairs)</Text>
-                  </AnimatedPressable>
-                )}
-                <Text style={{ color: COLORS.textDim, marginTop: 6, fontSize: 12 }}>Partners share each team result equally.</Text>
-              </View>
-            )}
 
             {/* Stake per hole */}
             <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
