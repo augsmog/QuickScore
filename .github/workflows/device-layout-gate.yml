@@ -1,0 +1,142 @@
+name: device-layout-gate
+# AUG-1380 (child of AUG-1373). Cross-device usability + visual layout gate for SnapScore UI
+# PRs. ALWAYS STARTS (no workflow-level path filter — those leave required checks stuck
+# "Expected"/pending). Path logic lives INSIDE the `changes` job: UI-affecting changes run the
+# full gate; doc-only changes emit an explicit successful exemption. See
+# /workspace/aos-state/reports/2026-11-19-device-gate-t1547u/RECONCILED-PLAN.md sections B–E.
+#
+# Layers:
+#   1. deterministic  — rules 1–8 geometry engine + fixture/waiver integrity (fast, free).
+#   2. vision-selfcheck — rubric-drift self-check: the committed owner negative fixtures MUST
+#                         come back flagged (rule 2 footer-clip + rule-4/6 alignment family),
+#                         or the gate fails itself.
+#   3. android-compact — Android compact AVD (360x800dp, API 35) on ubuntu-latest KVM, Maestro
+#                        device-layout flows → geometry runner. Gated on the native harness
+#                        (AUG-1376) + owner enablement (variable DEVICE_LAYOUT_NATIVE) so we do
+#                        not burn hosted minutes on a not-yet-wired build. iOS rows land on the
+#                        Mac mini runner under AUG-1376.
+#
+# Making this a REQUIRED merge-blocking check (branch protection on augsmog/QuickScore main +
+# the safe_merge.py mandatory-named-check change) is an owner-approved control item, tracked in
+# the RECONCILED-PLAN owner items. The workflow is the always-start half of that contract.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ui: ${{ steps.filter.outputs.ui }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        name: Decide if this PR affects SnapScore UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.sha }}"
+          if [ -z "$base" ]; then base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"; fi
+          files="$(git diff --name-only "$base" "$head" || true)"
+          echo "changed files:"; echo "$files"
+          # UI-affecting: app routes, shared UI/theme/assets, native/config/deps, flows, the gate
+          # itself, and the device-layout module. Unknown-impact (non doc-only) runs the gate.
+          ui=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              scoresnap/app/**|scoresnap/src/ui/**|scoresnap/src/**/*.tsx|scoresnap/assets/**|\
+              scoresnap/app.json|scoresnap/app.config.*|scoresnap/package.json|scoresnap/package-lock.json|\
+              .maestro/**|scoresnap/e2e/device-layout/**|.github/workflows/device-layout-gate.yml)
+                ui=true ;;
+              *.md|docs/**|**/*.md|LICENSE|.gitignore)
+                : ;;  # doc-only candidate
+              *)
+                ui=true ;;  # unknown impact → run the gate (fail safe)
+            esac
+          done <<< "$files"
+          echo "ui=$ui" >> "$GITHUB_OUTPUT"
+          if [ "$ui" = "false" ]; then
+            echo "Doc-only change — device-layout gate exempt (explicit success)."
+          fi
+
+  deterministic:
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: scoresnap/e2e/device-layout
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Layer 1 — deterministic geometry rules 1–8 + fixtures + waivers (unit tests)
+        if: needs.changes.outputs.ui == 'true'
+        run: node --test lib/*.test.mjs
+      - name: Validate committed waivers.json
+        if: needs.changes.outputs.ui == 'true'
+        run: node -e "import('./lib/waivers.mjs').then(m=>{const d=JSON.parse(require('fs').readFileSync('waivers.json'));const r=m.validateWaivers(d);if(!r.ok){console.error(r.errors.join('\n'));process.exit(1)}console.log('waivers ok')})"
+      - name: Doc-only exemption
+        if: needs.changes.outputs.ui != 'true'
+        run: echo "Doc-only change — deterministic layer skipped by design (exempt success)."
+
+  vision-selfcheck:
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: scoresnap/e2e/device-layout
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Layer 2 — rubric-drift self-check against committed owner negative fixtures
+        if: needs.changes.outputs.ui == 'true'
+        # Uses the committed Codex astra/high calibration reviews (reproduced run, no API/spend).
+        # When the live reviewer is wired into CI (owner item: credentials), swap --reviews for
+        #   --review-cmd "$DEVICE_LAYOUT_VISION_CMD" to produce reviews fresh each run.
+        run: node run-vision.mjs --self-check --reviews fixtures/negative/calibration
+      - name: Doc-only exemption
+        if: needs.changes.outputs.ui != 'true'
+        run: echo "Doc-only change — vision self-check skipped by design (exempt success)."
+
+  android-compact:
+    needs: [changes, deterministic, vision-selfcheck]
+    # Native layer: runs only when the AUG-1376 Maestro device-layout harness is wired AND the
+    # owner enables it (repo variable DEVICE_LAYOUT_NATIVE == 'true'). Until then the per-PR
+    # required surface is layers 1–2; this keeps hosted minutes at zero on a not-yet-wired build.
+    if: needs.changes.outputs.ui == 'true' && vars.DEVICE_LAYOUT_NATIVE == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable KVM (hardware accel, ubuntu-latest, 1x quota)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_5
+          # Compact custom AVD geometry (≈360x800dp @ 480dpi) is applied by the harness config.
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: bash scoresnap/e2e/device-layout/scripts/run-android-compact.sh
