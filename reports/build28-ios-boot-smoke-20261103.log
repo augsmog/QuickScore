@@ -1,0 +1,108 @@
+Bytecode makes the app startup faster, disabling bytecode is highly discouraged and should only be used for debugging purposes.
+Starting Metro Bundler
+| (node:1362781) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1362782) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1362788) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1362794) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS ../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/entry.js ▓▓▓▓░░░░░░░░░░░░ 25.0% (10/25)
+| (node:1362800) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1362806) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS ../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 43.9% (454/686)
+iOS ../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 84.8% ( 992/1111)
+iOS Bundling failed 11071ms ../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/entry.js (1305 modules)
+Error: Unable to resolve module expo-router from /workspace/aos-work/lanes/ss-release/QuickScore/scoresnap/app/(tabs)/_layout.tsx: expo-router could not be found within the project or in these directories:
+  ../../../../../../node_modules
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { [33mTabs[39m } [36mfrom[39m [32m"expo-router"[39m[33m;[39m
+ [90m   |[39m                       [31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { [33mView[39m[33m,[39m [33mStyleSheet[39m } [36mfrom[39m [32m"react-native"[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { [33mHome[39m[33m,[39m [33mTrophy[39m[33m,[39m [33mUser[39m } [36mfrom[39m [32m"lucide-react-native"[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { useSafeAreaInsets } [36mfrom[39m [32m"react-native-safe-area-context"[39m[33m;[39m[0m
+
+Import stack:
+
+ app/(tabs)/_layout.tsx
+ | import "expo-router"
+
+ app (require.context)
+
+Expo export failed with exit code 1
+
+Retry with resolver settings on exported Metro config:
+Bytecode makes the app startup faster, disabling bytecode is highly discouraged and should only be used for debugging purposes.
+Starting Metro Bundler
+| (node:1364030) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1364054) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1364029) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1364037) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1364048) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS ../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 81.3% (1285/1425)
+| (node:1364036) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS ../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 86.2% (1612/1887)
+iOS ../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 86.2% (1880/3750)
+iOS ../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 86.2% (2959/3752)
+iOS ../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 96.6% (3892/3959)
+iOS Bundled 17584ms ../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/entry.js (4011 modules)
+
+› Assets (48):
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/100Thin_Italic/Inter_100Thin_Italic.ttf (347 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/100Thin/Inter_100Thin.ttf (343 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/200ExtraLight_Italic/Inter_200ExtraLight_Italic.ttf (347 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/200ExtraLight/Inter_200ExtraLight.ttf (343 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/300Light_Italic/Inter_300Light_Italic.ttf (347 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/300Light/Inter_300Light.ttf (343 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/400Regular_Italic/Inter_400Regular_Italic.ttf (346 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf (342 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/500Medium_Italic/Inter_500Medium_Italic.ttf (346 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf (343 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/600SemiBold_Italic/Inter_600SemiBold_Italic.ttf (347 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf (344 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/700Bold_Italic/Inter_700Bold_Italic.ttf (348 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf (344 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/800ExtraBold_Italic/Inter_800ExtraBold_Italic.ttf (349 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/800ExtraBold/Inter_800ExtraBold.ttf (345 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/900Black_Italic/Inter_900Black_Italic.ttf (349 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@expo-google-fonts/inter/900Black/Inter_900Black.ttf (345 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@react-navigation/elements/lib/module/assets/back-icon-mask.png (653 B)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@react-navigation/elements/lib/module/assets/back-icon.png (4 variations | 566 B)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@react-navigation/elements/lib/module/assets/clear-icon.png (4 variations | 425 B)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@react-navigation/elements/lib/module/assets/close-icon.png (4 variations | 235 B)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/@react-navigation/elements/lib/module/assets/search-icon.png (3 variations | 582 B)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/assets/arrow_down.png (9.46 kB)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/assets/error.png (469 B)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/assets/file.png (138 B)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/assets/forward.png (188 B)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/assets/pkg.png (364 B)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/assets/sitemap.png (465 B)
+../../../../../aos-state/test-program/nm/f706a63/node_modules/expo-router/assets/unmatched.png (4.75 kB)
+assets/fonts/Marcellus_400Regular.ttf (44 kB)
+assets/fonts/MarcellusSC_400Regular.ttf (45.2 kB)
+assets/fonts/SourceSans3_400Regular.ttf (381 kB)
+assets/fonts/SourceSans3_500Medium.ttf (381 kB)
+assets/fonts/SourceSans3_600SemiBold.ttf (381 kB)
+assets/fonts/SourceSans3_700Bold.ttf (381 kB)
+assets/fonts/SourceSans3_800ExtraBold.ttf (381 kB)
+
+› ios bundles (1):
+_expo/static/js/ios/entry-1de98691ecbfb1e2b8c05ec4b3b229c0.js (8.23 MB)
+
+› Files (1):
+metadata.json (3.35 kB)
+
+Exported: dist-ios
+Something prevented Expo from exiting, forcefully exiting now.
+AppRegistry: ran main
+IGNORED harness noise: Invalid value used as weak map key
+IGNORED harness noise: Unspecified error
+iOS boot smoke: PASS (0 unexpected errors, 2 ignored harness errors)
