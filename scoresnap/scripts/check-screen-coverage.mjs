@@ -227,7 +227,7 @@ function main() {
   const routeFiles = discoverRouteFiles(opts.appDir, baseForRel);
   const flowIds = loadFlowIds(opts.maestroConfig);
   const requiredDeviceIds = (
-    (manifest.releaseGate && manifest.releaseGate.requiredDeviceIds) || ['iphone-15-pro', 'iphone-16-plus']
+    (manifest.releaseGate && manifest.releaseGate.requiredDeviceIds) || ['iphone-15-pro', 'iphone-16-pro']
   );
 
   const result = validateCoverage({ manifest, routeFiles, flowIds, requiredDeviceIds });

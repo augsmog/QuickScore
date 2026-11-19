@@ -13,7 +13,7 @@ import {
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
-const REQUIRED = ['iphone-15-pro', 'iphone-16-plus'];
+const REQUIRED = ['iphone-15-pro', 'iphone-16-pro'];
 const FLOWS = new Set(['aug-270-home-subhead', 'aug-271-paywall']);
 
 function baseGate() {
@@ -22,7 +22,7 @@ function baseGate() {
       requiredDeviceIds: REQUIRED,
       devices: [
         { id: 'iphone-15-pro', logicalSize: [393, 852] },
-        { id: 'iphone-16-plus', logicalSize: [402, 874] },
+        { id: 'iphone-16-pro', logicalSize: [402, 874] },
       ],
       assertionClasses: ['target-size', 'collision', 'clipping', 'occlusion', 'reachability'],
     },
@@ -47,7 +47,7 @@ const coveredScreen = (file) => ({
   coverage: 'covered',
   flows: ['aug-270-home-subhead'],
   screenshots: ['x-01'],
-  devices: ['iphone-15-pro', 'iphone-16-plus'],
+  devices: ['iphone-15-pro', 'iphone-16-pro'],
   assertions: ['target-size', 'collision'],
 });
 
@@ -123,7 +123,7 @@ test('covered screen missing a required device fails', () => {
   s.devices = ['iphone-15-pro'];
   const r = run([s], ['app/a.tsx']);
   assert.equal(r.ok, false);
-  assert.ok(r.errors.some((e) => e.includes('must capture required device "iphone-16-plus"')));
+  assert.ok(r.errors.some((e) => e.includes('must capture required device "iphone-16-pro"')));
 });
 
 test('covered screen missing assertions fails', () => {
@@ -154,7 +154,7 @@ test('missing required release device fails', () => {
   gate.devices = [{ id: 'iphone-15-pro', logicalSize: [393, 852] }];
   const r = run([{ file: 'app/_layout.tsx', kind: 'layout', reason: 'x' }], ['app/_layout.tsx'], { releaseGate: gate });
   assert.equal(r.ok, false);
-  assert.ok(r.errors.some((e) => e.includes('missing required device id "iphone-16-plus"')));
+  assert.ok(r.errors.some((e) => e.includes('missing required device id "iphone-16-pro"')));
 });
 
 test('flow ids unknown (no maestro config) skips flow-ref check but still requires flows array', () => {

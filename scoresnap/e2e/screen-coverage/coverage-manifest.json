@@ -2,10 +2,10 @@
   "ticket": "AUG-1373",
   "description": "Release-bound route/state coverage registry for SnapScore. Every route file under scoresnap/app/** is listed here and classified. Visual screens are 'covered' (native screenshot + geometry assertions landed) or 'pending' (native coverage tracked by releaseGate.nativeReceiptTicket). Non-visual files (layout/special/dev) are exempt with a reason. check-screen-coverage.mjs fails CI if any route file is unregistered, any entry is stale, or any 'covered' claim lacks real flow/screenshot/device/assertion evidence. Native screenshot execution at the required device sizes with the geometry assertions is built on AUG-1376.",
   "releaseGate": {
-    "requiredDeviceIds": ["iphone-15-pro", "iphone-16-plus"],
+    "requiredDeviceIds": ["iphone-15-pro", "iphone-16-pro"],
     "devices": [
       { "id": "iphone-15-pro", "name": "iPhone 15 Pro", "logicalSize": [393, 852] },
-      { "id": "iphone-16-plus", "name": "iPhone 16 Plus", "logicalSize": [402, 874] }
+      { "id": "iphone-16-pro", "name": "iPhone 16 Pro", "logicalSize": [402, 874] }
     ],
     "assertionClasses": ["target-size", "collision", "clipping", "occlusion", "reachability"],
     "nativeReceiptTicket": "AUG-1376"

@@ -34,6 +34,6 @@ Run locally: `npm run coverage:screens` and `npm run test:screen-coverage` (from
 
 ## Promoting a screen to `covered`
 The native screenshot + geometry-assertion execution (393×852 iPhone 15 Pro, 402×874
-iPhone 16 Plus) is built on **AUG-1376**. As each screen's native flow + assertions land there,
+iPhone 16 Pro) is built on **AUG-1376**. As each screen's native flow + assertions land there,
 flip its manifest entry from `pending` to `covered` with the real `flows`/`screenshots` ids —
 the gate then enforces that the evidence references are valid.

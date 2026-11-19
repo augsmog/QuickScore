@@ -22,7 +22,7 @@ coverage can never silently regress — "missing coverage fails acceptance":
 
 **Split out to AUG-1376 (needs macOS CI, not buildable on the Linux box lanes):** the native
 screenshot + geometry-assertion execution at 393×852 (iPhone 15 Pro) and 402×874
-(iPhone 16 Plus); it flips manifest screens from `pending` to `covered`.
+(iPhone 16 Pro); it flips manifest screens from `pending` to `covered`.
 
 **Not in scope / owner-admin:** marking this check *required* in branch protection is a repo
 settings change (owner/admin), not a lane action.
