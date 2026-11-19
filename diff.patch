@@ -1,0 +1,277 @@
+diff --git a/.github/actions/playwright-chromium/action.yml b/.github/actions/playwright-chromium/action.yml
+new file mode 100644
+index 0000000..ec30e1b
+--- /dev/null
++++ b/.github/actions/playwright-chromium/action.yml
+@@ -0,0 +1,24 @@
++name: Install Playwright Chromium
++description: Install cached Chromium and repair missing Ubuntu browser dependencies only when needed.
++outputs:
++  cache-hit:
++    description: Whether the Playwright browser cache was restored.
++    value: ${{ steps.browser-cache.outputs.cache-hit }}
++runs:
++  using: composite
++  steps:
++    - id: playwright-version
++      shell: bash
++      working-directory: ${{ github.workspace }}/scoresnap
++      run: |
++        version="$(node -e 'const lock=require("./package-lock.json"); const p=lock.packages?.["node_modules/@playwright/test"] ?? lock.packages?.["node_modules/playwright"]; if (!p?.version) process.exit(1); process.stdout.write(p.version)')"
++        echo "version=$version" >> "$GITHUB_OUTPUT"
++    - id: browser-cache
++      uses: actions/cache@v4
++      with:
++        path: ~/.cache/ms-playwright
++        key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
++    - name: Install and verify Chromium
++      shell: bash
++      working-directory: ${{ github.workspace }}/scoresnap
++      run: bash scripts/ci/install-playwright-chromium.sh
+diff --git a/.github/workflows/tournament-e2e.yml b/.github/workflows/tournament-e2e.yml
+index 9253efa..62e4948 100644
+--- a/.github/workflows/tournament-e2e.yml
++++ b/.github/workflows/tournament-e2e.yml
+@@ -134,7 +134,7 @@ jobs:
+           EXPO_PUBLIC_OFFLINE_MODE=true npx expo export --platform web --output-dir dist-web
+       
+       - name: Install Playwright
+-        run: npx playwright install --with-deps chromium
++        uses: ./.github/actions/playwright-chromium
+       
+       - name: Start web server
+         run: |
+diff --git a/.github/workflows/web-smoke.yml b/.github/workflows/web-smoke.yml
+index 48dc769..7596983 100644
+--- a/.github/workflows/web-smoke.yml
++++ b/.github/workflows/web-smoke.yml
+@@ -47,8 +47,12 @@ jobs:
+             npx expo export --platform web --output-dir dist-web-pro-on --clear
+       - name: Verify Pro flag is baked into both exports
+         run: node --test scripts/ci/pro-flag-web-export.cjs
++      - run: node --test e2e/usability-gate.test.mjs scripts/ci/web-pipeline.test.mjs
++      - run: npm test -- --runInBand
++      - name: Exercise Chromium dependency retry path
++        run: bash scripts/ci/test-playwright-setup.sh
+       - name: Install Chromium for Pro-off acceptance journey
+-        run: npx playwright install --with-deps chromium
++        uses: ./.github/actions/playwright-chromium
+       - name: Pro flag-off Playwright journey and flag-on negative proof
+         run: |
+           WEB_ROOT=dist-web-pro-off PORT=8093 node e2e/serve.mjs > /tmp/pro-off-server.log 2>&1 &
+@@ -71,8 +75,6 @@ jobs:
+           set -e
+           if [ "$negative_status" -eq 0 ]; then echo 'Flag-on journey unexpectedly passed'; exit 1; fi
+           grep -E 'FIRST_PRO_GATE (skins-create|settlement):' e2e/journey-screens/pro-on-negative/run.log
+-      - run: node --test e2e/usability-gate.test.mjs scripts/ci/web-pipeline.test.mjs
+-      - run: npm test -- --runInBand
+       - name: Build and identify standard offline app
+         env:
+           EXPO_PUBLIC_OFFLINE_MODE: 'true'
+@@ -128,7 +130,7 @@ jobs:
+           path: scoresnap
+       - name: Verify standard artifact before executing browsers
+         run: node scripts/ci/web-artifact.mjs verify dist-web ci-standard-manifest.json
+-      - run: npx playwright install --with-deps chromium
++      - uses: ./.github/actions/playwright-chromium
+       - name: Browser smoke
+         run: |
+           node e2e/serve.mjs > /tmp/web-smoke-server.log 2>&1 &
+@@ -254,7 +256,7 @@ jobs:
+           path: scoresnap
+       - name: Verify standard artifact before executing browsers
+         run: node scripts/ci/web-artifact.mjs verify dist-web ci-standard-manifest.json
+-      - run: npx playwright install --with-deps chromium
++      - uses: ./.github/actions/playwright-chromium
+       - name: Browser matrix
+         run: |
+           node e2e/serve.mjs > /tmp/web-matrix-server.log 2>&1 &
+diff --git a/.github/workflows/xdevice-stack.yml b/.github/workflows/xdevice-stack.yml
+index 4eaf6d3..7cff565 100644
+--- a/.github/workflows/xdevice-stack.yml
++++ b/.github/workflows/xdevice-stack.yml
+@@ -156,8 +156,7 @@ jobs:
+           node e2e/xdevice-browser-setup.mjs
+           source "$RUNNER_TEMP/xdevice-browser.env"
+           EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true EXPO_PUBLIC_OFFLINE_MODE=false npx expo export --platform web --output-dir dist-web
+-      - run: npx playwright install --with-deps chromium
+-        working-directory: scoresnap
++      - uses: ./.github/actions/playwright-chromium
+       - name: Full two-user then four-user browser acceptance (no sign-in-only mode)
+         working-directory: scoresnap
+         run: |
+diff --git a/scoresnap/e2e/journeys/ci-registration.test.mjs b/scoresnap/e2e/journeys/ci-registration.test.mjs
+index fbe772d..b0328de 100644
+--- a/scoresnap/e2e/journeys/ci-registration.test.mjs
++++ b/scoresnap/e2e/journeys/ci-registration.test.mjs
+@@ -22,7 +22,7 @@ function registered(m,w){
+  assert(exports,'AUG-852 requires the isolated Pro flag exports');
+  assert.match(exports.run,/EXPO_PUBLIC_PRO_ENABLED=false EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="\$RUNNER_TEMP\/metro-cache-pro-off"[\s\S]*?--output-dir dist-web-pro-off --clear/);
+  assert.match(exports.run,/EXPO_PUBLIC_PRO_ENABLED=true EXPO_PUBLIC_OFFLINE_MODE=true TMPDIR="\$RUNNER_TEMP\/metro-cache-pro-on"[\s\S]*?--output-dir dist-web-pro-on --clear/);
+- assert(w.jobs['build-standard'].steps.some(s=>s.name==='Install Chromium for Pro-off acceptance journey'&&s.run==='npx playwright install --with-deps chromium'));
++ assert(w.jobs['build-standard'].steps.some(s=>s.name==='Install Chromium for Pro-off acceptance journey'&&s.uses==='./.github/actions/playwright-chromium'));
+  const proJourney=w.jobs['build-standard'].steps.find(s=>s.name==='Pro flag-off Playwright journey and flag-on negative proof');
+  assert(proJourney,'AUG-852 Pro-off browser journey must run in build-standard');
+  assert.match(proJourney.run,/BASE_URL=http:\/\/127\.0\.0\.1:8093 OUT_DIR=e2e\/journey-screens\/pro-off-free node e2e\/journeys\/pro-off-free\.mjs/);
+diff --git a/scoresnap/scripts/ci/install-playwright-chromium.sh b/scoresnap/scripts/ci/install-playwright-chromium.sh
+new file mode 100644
+index 0000000..2d252b7
+--- /dev/null
++++ b/scoresnap/scripts/ci/install-playwright-chromium.sh
+@@ -0,0 +1,30 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++npx playwright install chromium
++
++probe_chromium() {
++  node -e 'const { chromium } = require("playwright"); (async () => { const browser = await chromium.launch({ headless: true }); const page = await browser.newPage(); await page.goto("about:blank"); await browser.close(); })().catch(error => { console.error(error); process.exit(1); });'
++}
++
++if probe_chromium; then
++  echo "Chromium launch probe passed; install-deps skipped."
++  exit 0
++fi
++
++echo "Chromium launch probe failed; installing system dependencies."
++delays=(20 60 120)
++for attempt in 1 2 3 4; do
++  if npx playwright install-deps chromium && probe_chromium; then
++    echo "Chromium launch probe passed after install-deps attempt $attempt."
++    exit 0
++  fi
++  if (( attempt <= 3 )); then
++    delay="${delays[$((attempt - 1))]}"
++    echo "Chromium dependency attempt $attempt failed; retrying in ${delay}s."
++    sleep "$delay"
++  fi
++done
++
++echo "INFRA: chromium deps unavailable (apt)" >&2
++exit 1
+diff --git a/scoresnap/scripts/ci/test-playwright-setup.sh b/scoresnap/scripts/ci/test-playwright-setup.sh
+new file mode 100644
+index 0000000..10698a4
+--- /dev/null
++++ b/scoresnap/scripts/ci/test-playwright-setup.sh
+@@ -0,0 +1,62 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
++temp_dir="$(mktemp -d)"
++trap 'rm -rf "$temp_dir"' EXIT
++export LOG_FILE="$temp_dir/log"
++export INSTALL_DEPS_COUNT_FILE="$temp_dir/install-deps-count"
++export PROBE_COUNT_FILE="$temp_dir/probe-count"
++export EXPECTED_NPX_LOG="$LOG_FILE"
++export EXPECTED_INSTALL_COUNT="$INSTALL_DEPS_COUNT_FILE"
++export EXPECTED_PROBE_COUNT="$PROBE_COUNT_FILE"
++export PATH="$temp_dir:$PATH"
++
++cat > "$temp_dir/npx" <<'MOCK_NPX'
++#!/usr/bin/env bash
++set -euo pipefail
++echo "$*" >> "$EXPECTED_NPX_LOG"
++if [[ "$*" == "playwright install chromium" ]]; then exit 0; fi
++if [[ "$*" == "playwright install-deps chromium" ]]; then
++  count=0; [[ -f "$EXPECTED_INSTALL_COUNT" ]] && count=$(cat "$EXPECTED_INSTALL_COUNT")
++  count=$((count + 1)); echo "$count" > "$EXPECTED_INSTALL_COUNT"
++  if [[ "${FORCE_DEPS_FAILURE:-0}" == 1 ]]; then exit 1; fi
++  exit 0
++fi
++echo "Unexpected npx arguments: $*" >&2
++exit 2
++MOCK_NPX
++cat > "$temp_dir/node" <<'MOCK_NODE'
++#!/usr/bin/env bash
++set -euo pipefail
++count=0; [[ -f "$EXPECTED_PROBE_COUNT" ]] && count=$(cat "$EXPECTED_PROBE_COUNT")
++count=$((count + 1)); echo "$count" > "$EXPECTED_PROBE_COUNT"
++[[ "${FORCE_PROBE_FAILURE:-0}" != 1 ]]
++[[ "$count" -ge 3 ]]
++MOCK_NODE
++cat > "$temp_dir/sleep" <<'MOCK_SLEEP'
++#!/usr/bin/env bash
++echo "sleep $*" >> "$EXPECTED_NPX_LOG"
++MOCK_SLEEP
++chmod +x "$temp_dir/npx" "$temp_dir/node" "$temp_dir/sleep"
++
++bash "$repo_root/scripts/ci/install-playwright-chromium.sh"
++grep -qx 'playwright install chromium' "$LOG_FILE"
++grep -qx 'playwright install-deps chromium' "$LOG_FILE"
++[[ "$(cat "$INSTALL_DEPS_COUNT_FILE")" == 2 ]]
++[[ "$(cat "$PROBE_COUNT_FILE")" == 3 ]]
++grep -q '^sleep 20$' "$LOG_FILE"
++
++: > "$LOG_FILE"
++rm -f "$INSTALL_DEPS_COUNT_FILE" "$PROBE_COUNT_FILE"
++failure_output="$temp_dir/failure-output"
++if FORCE_DEPS_FAILURE=1 FORCE_PROBE_FAILURE=1 bash "$repo_root/scripts/ci/install-playwright-chromium.sh" >"$failure_output" 2>&1; then
++  echo "Expected persistent dependency failures to exit non-zero." >&2
++  exit 1
++fi
++[[ "$(cat "$INSTALL_DEPS_COUNT_FILE")" == 4 ]]
++grep -qx 'sleep 20' "$LOG_FILE"
++grep -qx 'sleep 60' "$LOG_FILE"
++grep -qx 'sleep 120' "$LOG_FILE"
++grep -qx 'INFRA: chromium deps unavailable (apt)' "$failure_output"
++echo "PASS: failed probe retries install-deps and passes on retry."
+diff --git a/scoresnap/scripts/ci/web-pipeline.test.mjs b/scoresnap/scripts/ci/web-pipeline.test.mjs
+index f3a2c9a..7b59f88 100644
+--- a/scoresnap/scripts/ci/web-pipeline.test.mjs
++++ b/scoresnap/scripts/ci/web-pipeline.test.mjs
+@@ -145,16 +145,43 @@ test('standard producer runs original unit gates and exact flag-specific export'
+ });
+ test('consumers verify same-attempt artifact before any browser runs', () => {
+   for (const job of ['browser-flows', 'browser-matrix']) {
+-    assert.equal(workflow.jobs[job].needs, 'build-standard');
+-    const all = steps(job); const download = all.findIndex(step => step.uses === 'actions/download-artifact@v4');
+-    const verify = all.findIndex(step => step.run?.includes('web-artifact.mjs verify'));
+-    const browser = all.findIndex(step => step.run?.includes('playwright install'));
+-    assert.ok(download >= 0 && verify > download && browser > verify);
+-    assert.equal(all[download].with.name, 'standard-web-${{ github.run_id }}-${{ github.run_attempt }}');
+-    assert.equal(all[download].with['run-id'], undefined);
+-    assert.equal(all[download].with['github-token'], undefined);
+-    assert.ok(all.some(step => step.run === 'npm ci'));
+-    assert.ok(all.some(step => step.run === 'npx playwright install --with-deps chromium'));
++    assertBrowserSetupContract(workflow, job);
++  }
++});
++
++function assertBrowserSetupContract(value, job) {
++  assert.equal(value.jobs[job].needs, 'build-standard');
++  const all = value.jobs[job].steps;
++  const download = all.findIndex(step => step.uses === 'actions/download-artifact@v4');
++  const verify = all.findIndex(step => step.run?.includes('web-artifact.mjs verify'));
++  const setup = all.findIndex(step => step.uses === './.github/actions/playwright-chromium');
++  const browser = all.findIndex(step => /^Browser (smoke|matrix)$/.test(step.name ?? ''));
++  assert.ok(download >= 0 && verify > download && setup > verify && browser > setup,
++    `${job} must download and verify the same-attempt artifact, install Chromium, then run browsers`);
++  assert.equal(all[download].with.name, 'standard-web-${{ github.run_id }}-${{ github.run_attempt }}');
++  assert.equal(all[download].with['run-id'], undefined);
++  assert.equal(all[download].with['github-token'], undefined);
++  assert.ok(all.some(step => step.run === 'npm ci'));
++  assert.equal(all.filter(step => step.uses === './.github/actions/playwright-chromium').length, 1);
++  assert.ok(!all.some(step => step.run?.includes('playwright install --with-deps chromium')),
++    `${job} must use the shared Chromium action rather than the inline apt install`);
++}
++
++test('browser setup contract rejects a missing or misplaced shared Chromium action', () => {
++  for (const mutate of [
++    steps => { steps.splice(steps.findIndex(step => step.uses === './.github/actions/playwright-chromium'), 1); },
++    steps => {
++      const index = steps.findIndex(step => step.uses === './.github/actions/playwright-chromium');
++      [steps[index], steps[index - 1]] = [steps[index - 1], steps[index]];
++    },
++    steps => {
++      const index = steps.findIndex(step => step.uses === './.github/actions/playwright-chromium');
++      [steps[index], steps[index + 1]] = [steps[index + 1], steps[index]];
++    },
++  ]) {
++    const copy = structuredClone(workflow);
++    mutate(copy.jobs['browser-flows'].steps);
++    assert.throws(() => assertBrowserSetupContract(copy, 'browser-flows'));
+   }
+ });
+ test('all original browser coverage and flag-distinct builds remain', () => {
