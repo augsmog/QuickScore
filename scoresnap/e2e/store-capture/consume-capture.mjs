@@ -4,6 +4,7 @@ import { readFileSync, readdirSync, existsSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { decodePng, pixelStats } from './png-decode.mjs';
 import { loadConfig, validateConfig, validateManifest } from './validate-capture.mjs';
 
 export const sha256 = buf => createHash('sha256').update(buf).digest('hex');
@@ -13,6 +14,9 @@ export function pngSize(buf) {
   if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47 || buf.toString('ascii', 12, 16) !== 'IHDR') throw new Error('not a PNG');
   return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
 }
+
+export const MIN_DISTINCT_COLORS = 8;
+export const MAX_DOMINANT = 0.98; // a real screenshot is never >98% one colour
 
 // Expected file name: <targetId>-<n>.png (e.g. iphone-6.9-1.png)
 export function buildManifest(dir, provenance, c = loadConfig()) {
@@ -24,7 +28,10 @@ export function buildManifest(dir, provenance, c = loadConfig()) {
     if (!existsSync(p)) { problems.push(`missing file ${file}`); continue; }
     try {
       const buf = readFileSync(p);
-      entries.push({ target: t.id, frame: f.n, file, ...pngSize(buf), sha256: sha256(buf) });
+      const img = decodePng(buf); // bounded: CRC, size caps, inflate cap, real pixels
+      const st = pixelStats(img);
+      if (st.distinct < MIN_DISTINCT_COLORS || (st.dominant !== null && st.dominant > MAX_DOMINANT)) { problems.push(`${file}: blank or near-uniform image`); continue; }
+      entries.push({ target: t.id, frame: f.n, file, width: img.width, height: img.height, sha256: sha256(buf) });
     } catch (e) { problems.push(`${file}: ${e.message}`); }
   }
   const known = new Set(c.targets.flatMap(t => c.frames.map(f => `${t.id}-${f.n}.png`)));
