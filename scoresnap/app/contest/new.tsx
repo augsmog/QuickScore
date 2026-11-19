@@ -1,25 +1,29 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../../src/ui/SafeScreen";
 import * as Crypto from 'expo-crypto';
+import { useScanStore } from "../../src/stores/scan-store";
+import { canUseGame, canHostTournament } from "../../src/services/entitlements";
 import { COURSE_SEARCH_ENABLED } from "../../src/config/features";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import {
   View,
+  Alert,
   Text,
-  Dimensions,
   ScrollView,
   TextInput,
   Switch,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import {
   ChevronLeft,
   Plus,
   Minus,
   X,
+  Check,
+  Lock,
   UserPlus,
   ChevronRight,
   Info,
@@ -30,7 +34,6 @@ import {
   useContestStore,
   generateId,
   defaultCourse,
-  buildTournamentRounds,
   Contest,
   ContestGroup,
 } from "../../src/stores/contest-store";
@@ -40,18 +43,17 @@ import type { Course } from "../../src/engine/types";
 import type { TeeBox } from "../../src/services/course-api";
 import {
   ALL_GAMES,
+  FREE_GAME_IDS,
+  IMPLEMENTED_GAME_IDS,
   isGameImplemented,
   GameType,
   GameTypeInfo,
   GameConfig,
   GAME_VARIATIONS,
   validateVariationSetup,
+  Player,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
-import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox } from "../../src/ui/tournament-setup-layout";
-import { posthog } from "../../src/config/posthog";
-import { posthogAppLogger } from "../../src/services/posthog-log";
-import { isCompactViewport } from "../../src/ui/compact-viewport";
 
 interface PlayerInput {
   id: string;
@@ -70,18 +72,37 @@ interface TeamInput {
 
 export default function NewContestScreen() {
   const router = useRouter();
+  const tier = useScanStore(s => s.tier);
   const addContest = useContestStore((s) => s.addContest);
   const user = useAuthStore((s) => s.user);
-  const compactViewport = isCompactViewport(Dimensions.get("window"));
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(1);
+  // Guard only navigation in flight; deliberate taps after returning reopen plans.
+  const paywallInFlight = useRef(false);
+  const [hasPrompted, setHasPrompted] = useState(false);
+  const [planRoute, setPlanRoute] = useState<"/paywall" | "/paywall?tier=td">("/paywall");
+  useFocusEffect(useCallback(() => { paywallInFlight.current = false; }, []));
+  const openPlan = (route: "/paywall" | "/paywall?tier=td") => {
+    if (paywallInFlight.current) return;
+    paywallInFlight.current = true;
+    setHasPrompted(true);
+    setPlanRoute(route);
+    router.push(route);
+  };
+  const tdBadge = (
+    <View style={{ backgroundColor: COLORS.gold + "22", borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2, flexDirection: "row", alignItems: "center", gap: 3 }}>
+      <Lock size={9} color={COLORS.gold} />
+      <Text accessibilityLabel="Tournament Director" style={{ fontFamily: FONTS.bold, fontSize: 9, color: COLORS.gold }}>TD</Text>
+    </View>
+  );
+
   // Auto-generate contest name
   const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
 
   // Auto-populate Player 1 with signed-in user's first name
   const userFirstName = user?.firstName || user?.name?.split(" ")[0] || "";
 
-  // Players & Course precedes the two setup steps.
+  // Step 1: Players & Course
   const [contestName, setContestName] = useState("");
   const [courseName, setCourseName] = useState("");
   const [isTournament, setIsTournament] = useState(false);
@@ -120,11 +141,11 @@ export default function NewContestScreen() {
   const teamAName = teams[0]?.name || "Eagles";
   const teamBName = teams[1]?.name || "Birdies";
 
-  // Step 1: Games
+  // Step 2: Games
   const [selectedGames, setSelectedGames] = useState<GameType[]>(["stroke_play"]);
   const [betUnit, setBetUnit] = useState("5");
 
-  // Shared round settings and inline game variations
+  // Step 3: Wager settings & game variations
   const [gameConfig, setGameConfig] = useState<GameConfig>({ rulesVersion: 1, inputRulesVersion: 1, bbbAmountPerOpponent: true, rabbitHolderPays: true, skinsMode: "net", skinsScope: "field" });
   const [expandedTooltip, setExpandedTooltip] = useState<string | null>(null);
 
@@ -132,9 +153,9 @@ export default function NewContestScreen() {
   const applicableVariations = useMemo(
     () =>
       GAME_VARIATIONS.filter((v) =>
-        v.appliesTo.some((gameId) => selectedGames.includes(gameId))
+        v.appliesTo.some((gameId) => selectedGames.includes(gameId) && canUseGame(gameId, tier))
       ),
-    [selectedGames]
+    [selectedGames, tier]
   );
 
   const valuesMatch = (a: unknown, b: unknown): boolean => {
@@ -196,6 +217,7 @@ export default function NewContestScreen() {
 
   const toggleGame = (gameId: GameType) => {
     if (!isGameImplemented(gameId)) return; // Coming Soon — cannot select or prompt.
+    if (!selectedGames.includes(gameId) && !canUseGame(gameId, tier)) { openPlan("/paywall"); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedGames((prev) =>
       prev.includes(gameId)
@@ -232,10 +254,10 @@ export default function NewContestScreen() {
     .sort(sortByName);
 
   const canProceed = () => {
-    if (step === 0) {
+    if (step === 1) {
       return players.filter((p) => p.name.trim()).length >= 2;
     }
-    if (step === 1) {
+    if (step === 2) {
       return selectedGames.length > 0;
     }
     return true;
@@ -245,30 +267,9 @@ export default function NewContestScreen() {
   const betAmount = parseFloat(betUnit) || 0;
   const estimatedPot = betAmount * validPlayerCount * 18;
 
-  const validateSetup = () => {
-    const validPlayers = players.filter(p => p.name.trim());
-    const validationGroups = Array.from(new Set(validPlayers.map(p => p.groupIndex))).map(index => ({
-      id: String(index),
-      name: `Group ${index + 1}`,
-      players: validPlayers.filter(p => p.groupIndex === index).map(p => ({
-        id: p.id,
-        name: p.name.trim(),
-        handicap: parseFloat(p.handicap) || 0,
-        team: hasTeams ? p.team : null,
-        scores: new Array(18).fill(0),
-      })),
-    }));
-    const cleanConfig: GameConfig = {rulesVersion:1,inputRulesVersion:1};
-    if (selectedGames.includes("bingo_bango_bongo")) cleanConfig.bbbAmountPerOpponent = true;
-    if (selectedGames.includes("rabbit")) cleanConfig.rabbitHolderPays = true;
-    if (selectedGames.some(g => g === "skins" || g === "skins_carry")) { cleanConfig.skinsMode = gameConfig.skinsMode; cleanConfig.skinsScope = gameConfig.skinsScope; }
-    for (const v of GAME_VARIATIONS) if (v.appliesTo.some(g => selectedGames.includes(g)) && gameConfig[v.configKey] !== undefined) cleanConfig[v.configKey] = gameConfig[v.configKey];
-    const error = validateVariationSetup(validationGroups, selectedGames, cleanConfig, Number(betUnit));
-    if (error) { showAlert("Review contest rules", error); return null; }
-    return cleanConfig;
-  };
-
   const createContest = () => {
+    if (!canHostTournament({numGroups, numRounds: isTournament ? numRounds : 1}, tier)) { setStep(1); openPlan("/paywall?tier=td"); return; }
+    if (selectedGames.some(g => !canUseGame(g, tier))) { setStep(2); openPlan("/paywall"); return; }
     if (REAL_AUTH_CONFIGURED && (useAuthStore.getState().isAnonymous || !useAuthStore.getState().session)) {
       router.push("/auth/sign-in"); return;
     }
@@ -302,10 +303,16 @@ export default function NewContestScreen() {
       })
     );
 
-    const cleanConfig = validateSetup();
-    if (!cleanConfig) return;
-    // AUG-1151: the multi-day toggle and round count must reach the saved contest.
-    const rounds = isTournament ? buildTournamentRounds(groups, course, numRounds) : undefined;
+    // Check the saved shape too: a stale group index must not bypass the gate.
+    if (!canHostTournament({groups}, tier)) { setStep(1); openPlan("/paywall?tier=td"); return; }
+
+    const cleanConfig: GameConfig = {rulesVersion:1,inputRulesVersion:1};
+    if (selectedGames.includes("bingo_bango_bongo")) cleanConfig.bbbAmountPerOpponent = true;
+    if (selectedGames.includes("rabbit")) cleanConfig.rabbitHolderPays = true;
+    if (selectedGames.some(g => g === "skins" || g === "skins_carry")) { cleanConfig.skinsMode = gameConfig.skinsMode; cleanConfig.skinsScope = gameConfig.skinsScope; }
+    for (const v of GAME_VARIATIONS) if (v.appliesTo.some(g => selectedGames.includes(g)) && gameConfig[v.configKey] !== undefined) cleanConfig[v.configKey] = gameConfig[v.configKey];
+    const error = validateVariationSetup(groups, selectedGames, cleanConfig, Number(betUnit));
+    if (error) { showAlert("Review contest rules", error); return; }
     const contest: Contest = {
       id: Crypto.randomUUID(),
       name: contestName || autoName,
@@ -320,57 +327,37 @@ export default function NewContestScreen() {
       games: selectedGames,
       gameConfig: cleanConfig,
       createdAt: new Date().toISOString(),
-      ...(rounds ? { isTournament: true, rounds, currentRound: 1 } : {}),
     };
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     addContest(contest);
-    posthog?.capture("contest_created", {
-      player_count: validPlayers.length,
-      group_count: groups.length,
-      game_ids: selectedGames,
-      has_teams: hasTeams,
-      is_tournament: isTournament,
-      round_count: isTournament ? numRounds : 1,
-    });
-    posthogAppLogger.contestCreated({
-      playerCount: validPlayers.length,
-      groupCount: groups.length,
-      isTournament,
-    });
     router.replace(`/contest/${contest.id}`);
   };
 
   const renderGameCard = (game: GameTypeInfo) => {
     const isSelected = selectedGames.includes(game.id);
+    const isFree = FREE_GAME_IDS.includes(game.id);
     const isImplemented = isGameImplemented(game.id);
     const isComingSoon = !isImplemented;
     return (
       <AnimatedPressable
         key={game.id}
-        testID={`game-mode-${game.id}`}
-        accessibilityRole="button"
-        accessibilityState={{ selected: isSelected, disabled: isComingSoon }}
         onPress={() => toggleGame(game.id)}
         style={{
           backgroundColor: isSelected ? COLORS.surfaceHigh : COLORS.surfaceMid,
-          borderRadius: RADII.xl,
-          borderWidth: 1,
-          borderColor: isSelected ? COLORS.primary : COLORS.surfaceMid,
-          paddingVertical: 10,
-          paddingHorizontal: 14,
+          borderRadius: RADII.lg,
+          padding: 14,
           marginBottom: 8,
-          minHeight: 44,
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
           opacity: isComingSoon ? 0.5 : 1,
         }}
       >
-        <View>
+        <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <Text style={{ fontFamily: isSelected ? FONTS.bold : FONTS.semibold, fontSize: 15, color: isComingSoon ? COLORS.textDim : COLORS.text }}>
-              {game.name}
+              {!canUseGame(game.id, tier) ? "🔒 " : ""}{game.name}
             </Text>
             {isComingSoon ? (
               <View style={{ backgroundColor: COLORS.secondary + "22", borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2 }}>
@@ -378,20 +365,62 @@ export default function NewContestScreen() {
                   COMING SOON
                 </Text>
               </View>
+            ) : !isFree ? (
+              <View style={{ backgroundColor: COLORS.gold + "22", borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2, flexDirection: "row", alignItems: "center", gap: 3 }}>
+                <Lock size={9} color={COLORS.gold} />
+                <Text style={{ fontFamily: FONTS.bold, fontSize: 9, color: COLORS.gold }}>
+                  PRO
+                </Text>
+              </View>
             ) : null}
           </View>
+          <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
+            {game.desc}
+          </Text>
+          {/* Info badges */}
+          <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
+            <View style={{ backgroundColor: COLORS.secondaryContainer, borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ fontFamily: FONTS.medium, fontSize: 10, color: COLORS.textDim }}>
+                {game.minPlayers}-{game.maxPlayers} players
+              </Text>
+            </View>
+            <View style={{ backgroundColor: COLORS.secondaryContainer, borderRadius: RADII.md, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ fontFamily: FONTS.medium, fontSize: 10, color: COLORS.textDim }}>
+                {game.category}
+              </Text>
+            </View>
+          </View>
         </View>
+        {/* Toggle circle or Coming Soon indicator */}
+        {isComingSoon ? (
+          <View style={{ width: 26, height: 26 }} />
+        ) : (
+          <View
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 13,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: isSelected ? COLORS.primary : "transparent",
+              borderWidth: isSelected ? 0 : 2,
+              borderColor: COLORS.surfaceHighest,
+            }}
+          >
+            {isSelected && <Check size={14} color={COLORS.onPrimary} />}
+          </View>
+        )}
       </AnimatedPressable>
     );
   };
 
   return (
-    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top", "bottom"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, flexDirection: "row", alignItems: "center", gap: 12 }}>
         <AnimatedPressable
           testID="new-contest-back" accessibilityRole="button" accessibilityLabel="Back"
-          onPress={() => (step > 0 ? setStep(step - 1) : router.back())}
+          onPress={() => (step > 1 ? setStep(step - 1) : router.back())}
           style={{
             backgroundColor: COLORS.surfaceMid,
             borderRadius: RADII.md,
@@ -407,13 +436,13 @@ export default function NewContestScreen() {
           New Contest
         </Text>
         <Text style={{ fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textDim }}>
-          {step > 0 ? `Step ${step}/2` : ""}
+          Step {step}/3
         </Text>
       </View>
 
       {/* Progress bar */}
-      <View style={{ flexDirection: "row", gap: 4, paddingHorizontal: 20, marginBottom: compactViewport ? 8 : 16 }}>
-        {(step > 0 ? [1, 2] : []).map((s) => (
+      <View style={{ flexDirection: "row", gap: 4, paddingHorizontal: 20, marginBottom: 16 }}>
+        {[1, 2, 3].map((s) => (
           <View
             key={s}
             style={{
@@ -438,9 +467,14 @@ export default function NewContestScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* ═══════ Step 1: Players & Course ═══════ */}
-        {step === 0 && (
-          <View testID="contest-step-setup">
-            <Text style={{ fontFamily: FONTS.headline, fontSize: compactViewport ? 22 : 24, color: COLORS.text, marginBottom: compactViewport ? 8 : 20 }}>
+        {step === 1 && (
+          <View>
+            <View style={{ backgroundColor: COLORS.primary + "1A", borderRadius: RADII.md, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", marginBottom: 8 }}>
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.primary, letterSpacing: 1 }}>
+                STEP 01
+              </Text>
+            </View>
+            <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
               Players & Course
             </Text>
 
@@ -465,22 +499,23 @@ export default function NewContestScreen() {
                 borderRadius: RADII.md,
                 minHeight: 44,
                 paddingHorizontal: 16,
-                paddingVertical: compactViewport ? 10 : 14,
+                paddingVertical: 14,
                 fontSize: 15,
                 fontFamily: FONTS.regular,
                 color: COLORS.text,
-                marginBottom: compactViewport ? 8 : 16,
+                marginBottom: 16,
               }}
             />
 
             {/* Tournament Toggle */}
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: compactViewport ? 4 : 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
               <Switch
                 testID="tournament-toggle"
                 accessibilityLabel="Multi-Day Tournament"
                 style={{ width: 44, height: 44 }}
                 value={isTournament}
                 onValueChange={(val) => {
+                  if (val && !canHostTournament({numRounds}, tier)) { openPlan("/paywall?tier=td"); return; }
                   setIsTournament(val);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
@@ -490,7 +525,7 @@ export default function NewContestScreen() {
               <Text style={{ color: COLORS.text, fontSize: 15, marginLeft: 12 }}>
                 Multi-Day Tournament
               </Text>
-
+              {tier !== "td" && tdBadge}
             </View>
 
             {isTournament && (
@@ -508,7 +543,8 @@ export default function NewContestScreen() {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }}
                       style={{
-                        ...roundCountPillStyle,
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
                         borderRadius: RADII.md,
                         borderWidth: 1,
                         borderColor: numRounds === n ? COLORS.primary : COLORS.border,
@@ -533,7 +569,7 @@ export default function NewContestScreen() {
             <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 6 }}>
               COURSE
             </Text>
-            <View style={{ marginBottom: compactViewport ? 8 : 16 }}>
+            <View style={{ marginBottom: 16 }}>
               {COURSE_SEARCH_ENABLED ? (
                 <CourseSearch
                   initialCourseName={courseName}
@@ -580,8 +616,8 @@ export default function NewContestScreen() {
               style={{
                 backgroundColor: hasTeams ? COLORS.primary + "15" : COLORS.surfaceMid,
                 borderRadius: RADII.lg,
-                padding: compactViewport ? 10 : 16,
-                marginBottom: compactViewport ? 8 : 16,
+                padding: 16,
+                marginBottom: 16,
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -642,7 +678,6 @@ export default function NewContestScreen() {
                       alignItems: "center",
                       justifyContent: "center",
                       gap: 6,
-                      minHeight: 44,
                       paddingVertical: 10,
                       borderRadius: RADII.md,
                       backgroundColor: COLORS.surfaceLow,
@@ -711,7 +746,7 @@ export default function NewContestScreen() {
                       color: COLORS.text,
                       backgroundColor: nameEmpty ? COLORS.warn + "08" : "transparent",
                       borderRadius: RADII.sm,
-                      minHeight: nameInputMinHeight,
+                      minHeight: 44,
                       paddingHorizontal: nameEmpty ? 8 : 0,
                       paddingVertical: 2,
                       marginHorizontal: nameEmpty ? -8 : 0,
@@ -748,12 +783,13 @@ export default function NewContestScreen() {
                       style={{
                         backgroundColor: COLORS.surfaceHighest,
                         borderRadius: RADII.md,
-                        ...handicapInputBox,
+                        minHeight: 44,
                         paddingHorizontal: 10,
                         paddingVertical: 5,
                         fontSize: 14,
                         fontFamily: FONTS.bold,
                         color: parseFloat(player.handicap) < 0 ? COLORS.gold : COLORS.primary,
+                        width: 60,
                         textAlign: "center",
                       }}
                     />
@@ -769,7 +805,8 @@ export default function NewContestScreen() {
                         style={{
                           backgroundColor: COLORS.surfaceHighest,
                           borderRadius: RADII.md,
-                          ...groupChipStyle,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
                         }}
                       >
                         <Text style={{ fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textDim }}>
@@ -790,8 +827,8 @@ export default function NewContestScreen() {
                           testID={`player-team-${player.name}-${t.id}`}
                           onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}
                           style={{
-                            minWidth: 44,
-                            minHeight: 44,
+                            minWidth: 28,
+                            height: 28,
                             borderRadius: RADII.md,
                             alignItems: "center",
                             justifyContent: "center",
@@ -817,8 +854,8 @@ export default function NewContestScreen() {
                       updatePlayer(player.id, "team", nextTeam);
                     }}
                     style={{
-                      minWidth: 44,
-                      minHeight: 44,
+                      minWidth: 36,
+                      height: 28,
                       borderRadius: RADII.md,
                       alignItems: "center",
                       justifyContent: "center",
@@ -839,12 +876,7 @@ export default function NewContestScreen() {
                 )}
 
                 {players.length > 2 && (
-                  <AnimatedPressable
-                    testID={`remove-player-${player.name}`}
-                    accessibilityLabel={`Remove ${player.name || "player"}`}
-                    onPress={() => removePlayer(player.id)}
-                    style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
-                  >
+                  <AnimatedPressable onPress={() => removePlayer(player.id)} style={{ padding: 4 }}>
                     <X size={16} color={COLORS.textDim} />
                   </AnimatedPressable>
                 )}
@@ -875,7 +907,7 @@ export default function NewContestScreen() {
               <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim }}>
                 NUMBER OF GROUPS
               </Text>
-
+              {tier !== "td" && tdBadge}
               <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <AnimatedPressable
                   onPress={() => {
@@ -891,8 +923,8 @@ export default function NewContestScreen() {
                     }
                   }}
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: 36,
+                    height: 36,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",
@@ -908,11 +940,12 @@ export default function NewContestScreen() {
                   testID="add-group" accessibilityLabel="Add group"
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    if (!canHostTournament({numGroups: numGroups + 1}, tier)) { openPlan("/paywall?tier=td"); return; }
                     setNumGroups(numGroups + 1);
                   }}
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: 36,
+                    height: 36,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",
@@ -927,11 +960,11 @@ export default function NewContestScreen() {
         )}
 
         {/* ═══════ Step 2: Game Modes ═══════ */}
-        {step === 1 && (
-          <View testID="contest-step-gamemodes">
+        {step === 2 && (
+          <View>
             <View style={{ backgroundColor: COLORS.primary + "1A", borderRadius: RADII.md, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", marginBottom: 8 }}>
               <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.primary, letterSpacing: 1 }}>
-                STEP 01
+                STEP 02
               </Text>
             </View>
             <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
@@ -948,7 +981,7 @@ export default function NewContestScreen() {
                       aria-checked={(gameConfig.skinsMode ?? "net") === mode}
                       accessibilityState={{ checked: (gameConfig.skinsMode ?? "net") === mode }}
                       onPress={() => setGameConfig((prev) => ({ ...prev, skinsMode: mode }))}
-                      style={{ padding: 12, minHeight: 44, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsMode ?? "net") === mode ? COLORS.primary : COLORS.surfaceMid }}>
+                      style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.skinsMode ?? "net") === mode ? COLORS.primary : COLORS.surfaceMid }}>
                       <Text style={{ color: COLORS.text }}>{mode === "net" ? "Net" : "Gross"}</Text>
                     </AnimatedPressable>
                   ))}
@@ -961,7 +994,7 @@ export default function NewContestScreen() {
                       aria-checked={(gameConfig.skinsScope ?? "field") === scope}
                       accessibilityState={{ checked: (gameConfig.skinsScope ?? "field") === scope }}
                       onPress={() => setGameConfig(prev => ({ ...prev, skinsScope: scope }))}
-                      style={{ padding: 12, minHeight: 44, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsScope ?? "field") === scope ? COLORS.primary : COLORS.surfaceMid }}>
+                      style={{ padding: 12, borderRadius: 8, backgroundColor: (gameConfig.skinsScope ?? "field") === scope ? COLORS.primary : COLORS.surfaceMid }}>
                       <Text style={{ color: COLORS.text }}>{scope === "field" ? "Whole field" : "Each group"}</Text>
                     </AnimatedPressable>
                   ))}
@@ -976,7 +1009,7 @@ export default function NewContestScreen() {
                 <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
                   POPULAR FORMATS
                 </Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{popularFormats.map(renderGameCard)}</View>
+                {popularFormats.map(renderGameCard)}
               </>
             )}
 
@@ -986,7 +1019,7 @@ export default function NewContestScreen() {
                 <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginTop: 12, marginBottom: 10 }}>
                   CLASSIC FORMATS
                 </Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{classicFormats.map(renderGameCard)}</View>
+                {classicFormats.map(renderGameCard)}
               </>
             )}
 
@@ -1012,7 +1045,7 @@ export default function NewContestScreen() {
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: FONTS.medium, fontSize: 15, color: COLORS.textDim }}>
-                        {game.name}
+                        {!canUseGame(game.id, tier) ? "🔒 " : ""}{game.name}
                       </Text>
                       <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
                         {game.minPlayers}-{game.maxPlayers} players
@@ -1022,6 +1055,65 @@ export default function NewContestScreen() {
                 ))}
               </>
             )}
+          </View>
+        )}
+
+        {/* ═══════ Step 3: Round Settings ═══════ */}
+        {step === 3 && (
+          <View>
+            <View style={{ backgroundColor: COLORS.primary + "1A", borderRadius: RADII.md, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", marginBottom: 8 }}>
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.primary, letterSpacing: 1 }}>
+                STEP 03
+              </Text>
+            </View>
+            <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
+              Round Settings
+            </Text>
+
+            {/* Active games chips */}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
+              {selectedGames.map((gameId) => {
+                const game = ALL_GAMES.find((g) => g.id === gameId);
+                return (
+                  <View
+                    key={gameId}
+                    style={{
+                      backgroundColor: COLORS.primary + "1A",
+                      borderRadius: RADII.md,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                    }}
+                  >
+                    <Text style={{ fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.primary }}>
+                      {game?.name}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Stake per hole */}
+            <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
+              UNIT AMOUNT
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: 24 }}>
+              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28, color: COLORS.textDim, marginRight: 2 }}>
+                $
+              </Text>
+              <TextInput
+                value={betUnit}
+                onChangeText={setBetUnit}
+                keyboardType="numeric"
+                style={{
+                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
+                  fontSize: 40,
+                  minHeight: 44,
+                  color: COLORS.text,
+                  minWidth: 60,
+                }}
+              />
+            </View>
+
             {/* Game Variations */}
             {applicableVariations.length > 0 && (
               <View style={{ marginBottom: 20 }}>
@@ -1137,7 +1229,6 @@ export default function NewContestScreen() {
 
                         {/* Toggle */}
                         <Switch
-                          accessibilityLabel={variation.label}
                           value={active}
                           onValueChange={() => toggleVariation(variation)}
                           trackColor={{
@@ -1178,41 +1269,37 @@ export default function NewContestScreen() {
               </View>
             )}
 
-          </View>
-        )}
-
-        {/* ═══════ Step 3: Round Settings ═══════ */}
-        {step === 2 && (
-          <View testID="contest-step-round-settings">
-            <View style={{ backgroundColor: COLORS.primary + "1A", borderRadius: RADII.md, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", marginBottom: 8 }}>
-              <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.primary, letterSpacing: 1 }}>
-                STEP 02
-              </Text>
-            </View>
-            <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text, marginBottom: 20 }}>
-              Round Settings
-            </Text>
-
-            {/* Stake per hole */}
-            <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 10 }}>
-              UNIT AMOUNT
-            </Text>
-            <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: 24 }}>
-              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 28, color: COLORS.textDim, marginRight: 2 }}>
-                $
-              </Text>
-              <TextInput
-                value={betUnit}
-                onChangeText={setBetUnit}
-                keyboardType="numeric"
+            {applicableVariations.length === 0 && (
+              <View
                 style={{
-                  fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
-                  fontSize: 40,
-                  minHeight: 44,
-                  color: COLORS.text,
-                  minWidth: 60,
+                  backgroundColor: COLORS.surfaceMid,
+                  borderRadius: RADII.lg,
+                  padding: 16,
+                  marginBottom: 20,
+                  alignItems: "center",
                 }}
-              />
+              >
+                <Text
+                  style={{
+                    fontFamily: FONTS.regular,
+                    fontSize: 13,
+                    color: COLORS.textDim,
+                    textAlign: "center",
+                  }}
+                >
+                  No variations available for the selected game modes.
+                </Text>
+              </View>
+            )}
+
+            {/* Entry Fee */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textDim }}>
+                ENTRY FEE
+              </Text>
+              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 18, color: COLORS.text }}>
+                ${betAmount}
+              </Text>
             </View>
 
             {/* Estimated Total Pot - Hero Card */}
@@ -1232,7 +1319,14 @@ export default function NewContestScreen() {
               <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 48, color: COLORS.primary, marginBottom: 8 }}>
                 ${estimatedPot}
               </Text>
-
+              <View style={{ flexDirection: "row", gap: 16 }}>
+                <Text style={{ fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textDim }}>
+                  {validPlayerCount} players
+                </Text>
+                <Text style={{ fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textDim }}>
+                  18 holes
+                </Text>
+              </View>
             </View>
           </View>
         )}
@@ -1252,7 +1346,18 @@ export default function NewContestScreen() {
           gap: 12,
         }}
       >
-        {step > 0 && (
+        {hasPrompted && tier !== "td" && (
+          <AnimatedPressable
+            testID="form-upgrade"
+            accessibilityRole="button"
+            accessibilityLabel="Upgrade"
+            onPress={() => openPlan(tier === "pro" ? "/paywall?tier=td" : planRoute)}
+            style={{ alignItems: "center", justifyContent: "center", paddingHorizontal: 8 }}
+          >
+            <Text style={{ color: COLORS.gold, fontFamily: FONTS.bold, fontSize: 11 }}>Upgrade</Text>
+          </AnimatedPressable>
+        )}
+        {step > 1 && (
           <AnimatedPressable
             onPress={() => setStep(step - 1)}
             style={{
@@ -1264,15 +1369,13 @@ export default function NewContestScreen() {
             }}
           >
             <Text style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.textDim }}>
-              Back
+              {"\u2190"} BACK
             </Text>
           </AnimatedPressable>
         )}
         <AnimatedPressable
-          testID={step === 2 ? "contest-start" : "contest-continue"}
           onPress={() => {
-            if (step === 1 && !validateSetup()) return;
-            if (step < 2) setStep(step + 1);
+            if (step < 3) setStep(step + 1);
             else createContest();
           }}
           disabled={!canProceed()}
@@ -1282,7 +1385,7 @@ export default function NewContestScreen() {
             paddingVertical: 16,
             alignItems: "center",
             backgroundColor: canProceed() ? COLORS.primary : COLORS.surfaceHighest,
-            ...(canProceed() && step === 2 ? GLOW.primary : {}),
+            ...(canProceed() && step === 3 ? GLOW.primary : {}),
           }}
         >
           <Text
@@ -1292,7 +1395,7 @@ export default function NewContestScreen() {
               color: canProceed() ? COLORS.onPrimary : COLORS.textDim,
             }}
           >
-            {step === 2 ? "Start" : "Continue"}
+            {step === 3 ? "START CONTEST \u2713" : "NEXT \u2192"}
           </Text>
         </AnimatedPressable>
       </View>

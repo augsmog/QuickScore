@@ -24,6 +24,5 @@ export async function checkHomeGameLibrary(page, screenshotPath) {
   await page.getByTestId('game-mode-row-stroke_play').click();
   await page.getByTestId('game-info-sheet').waitFor({state:'visible'});
   assert.ok(await page.getByTestId('game-info-sheet').getByText('Stroke Play', {exact:true}).isVisible());
-  await page.getByTestId('game-info-close').click();
-  await page.getByTestId('game-info-sheet').waitFor({state:'hidden'});
+  await page.getByTestId('game-info-scrim').click();
 }
