@@ -26,6 +26,9 @@ function validateAuxiliaryWrite(...args:Parameters<typeof import("../engine/cont
 function validateScoreWrite(...args:Parameters<typeof import("../engine/contest-validation").validateScoreWrite>){if(args[0].gameConfig?.rulesVersion===1)return require("../engine/contest-validation").validateScoreWrite(...args);}
 function calculateContestSettlement(contest:Contest){return require("../engine/contest-results").calculateContestSettlement(contest);}
 function scopeKey(roundId:string|undefined,groupId:string):string{return require("../engine/contest-results").scopeKey(roundId,groupId);}
+function applyReviewedPartialImportToContest(...args: Parameters<typeof import("../engine/contest-results").applyReviewedPartialImportToContest>) {
+  return require("../engine/contest-results").applyReviewedPartialImportToContest(...args);
+}
 
 export interface ContestGroup {
   id: string;
@@ -73,6 +76,8 @@ export interface Contest {
   createdAt: string;
   auxiliaryData?: AuxiliaryData;
   auxiliaryByScope?: Record<string, AuxiliaryData>;
+  /** Explicitly reviewed partial-import played holes per scopeKey(roundId,groupId) (AUG-1396). Never inferred as every course hole. */
+  confirmedPlayedHolesByScope?: Record<string, number[]>;
   isDemo?: boolean;
   joinCode?: string;
   liveShareEnabled?: boolean;
@@ -115,7 +120,8 @@ interface ContestState {
     contestId: string,
     roundId: string | null,
     groupId: string,
-    patch: readonly PartialImportCell[]
+    patch: readonly PartialImportCell[],
+    playedHoles: readonly number[]
   ) => void;
 
   completeContest: (id: string) => void;
@@ -290,59 +296,12 @@ export const useContestStore = create<ContestState>()(
           { ...c, ...(tracking ? { onlineEdits } : {}), rounds: c.rounds!.map(r => r.id === round.id ? { ...r, groups } : r) } : { ...c, ...(tracking ? { onlineEdits } : {}), groups }) }));
       },
 
-      applyReviewedPartialImport: (contestId, roundId, groupId, patch) => {
+      applyReviewedPartialImport: (contestId, roundId, groupId, patch, playedHoles) => {
         const contest = get().contests.find(c => c.id === contestId);
         if (!contest) throw new Error("Contest not found");
-        let round: RoundInfo | undefined;
-        if (contest.isTournament) {
-          round = contest.rounds?.find(r => r.id === roundId);
-          if (!round || round.number !== contest.currentRound) throw new Error("Reviewed import round is no longer active");
-        } else if (roundId !== null) {
-          throw new Error("Reviewed import round does not match contest context");
-        }
-        const groups = round?.groups ?? contest.groups;
-        const group = groups.find(g => g.id === groupId);
-        const course = round?.course ?? contest.course;
-        if (!group || !Array.isArray(patch)) throw new Error("Invalid reviewed import group or patch");
-        if (contest.status === "completed") throw new Error("Completed scorecards are locked");
-        if (![9, 18].includes(course.holes.length) || course.holes.some(h => !Number.isInteger(h.num) || h.num < 1 || h.num > 18) ||
-            new Set(course.holes.map(h => h.num)).size !== course.holes.length) throw new Error("Course hole mapping requires manual entry");
-
-        const seen = new Set<string>();
-        const cells = patch.map(cell => {
-          if (!cell || typeof cell.playerId !== "string" || !cell.playerId || !Number.isInteger(cell.hole) ||
-              typeof cell.strokes !== "number" || !Number.isSafeInteger(cell.strokes) || cell.strokes < 1 || cell.strokes > 99) {
-            throw new Error("Invalid reviewed import cell");
-          }
-          const playerMatches = group.players.filter(p => p.id === cell.playerId);
-          const holeIndex = course.holes.findIndex(h => h.num === cell.hole);
-          if (playerMatches.length !== 1 || holeIndex < 0) throw new Error("Reviewed import cell is outside the selected group or course");
-          const key = JSON.stringify([cell.playerId, cell.hole]);
-          if (seen.has(key)) throw new Error("Reviewed import patch contains duplicate cells");
-          seen.add(key);
-          const player = playerMatches[0];
-          const existing = player.scores[holeIndex];
-          if (existing !== undefined && existing !== null && existing !== 0 && existing !== cell.strokes) {
-            throw new Error("Reviewed import conflicts with an existing score");
-          }
-          validateScoreWrite(contest, groupId, cell.playerId, holeIndex + 1, cell.strokes);
-          return { playerId: cell.playerId, holeIndex, strokes: cell.strokes };
-        });
-        if (!cells.some(cell => group.players.find(p => p.id === cell.playerId)?.scores[cell.holeIndex] !== cell.strokes)) return;
-
-        const updatedGroups = groups.map(g => g.id !== groupId ? g : ({
-          ...g,
-          players: g.players.map(p => {
-            const changes = cells.filter(cell => cell.playerId === p.id && p.scores[cell.holeIndex] !== cell.strokes);
-            if (!changes.length) return p;
-            const scores = [...p.scores];
-            for (const cell of changes) scores[cell.holeIndex] = cell.strokes;
-            return { ...p, scores };
-          }),
-        }));
-        set(state => ({ contests: state.contests.map(c => c.id !== contestId ? c : round
-          ? { ...c, rounds: c.rounds!.map(r => r.id === round!.id ? { ...r, groups: updatedGroups } : r) }
-          : { ...c, groups: updatedGroups }) }));
+        const updated = applyReviewedPartialImportToContest(contest, roundId, groupId, patch, playedHoles);
+        if (updated === contest) return;
+        set(state => ({ contests: state.contests.map(c => c.id === contestId ? updated : c) }));
       },
 
       completeContest: (id) => {
