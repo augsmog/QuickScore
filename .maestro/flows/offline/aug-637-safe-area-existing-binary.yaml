@@ -1,0 +1,38 @@
+# AUG-637: safe-area Players & Course step recovery on the pinned existing EAS artifact
+# 33ac8ba5-c7d1-49b5-ba8e-f14c44211882 (no new build, no new spend). Grades only reaching
+# past the Course field setup step; other safe-area captures stay with AUG-380/AUG-589.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+- tapOn:
+    id: "home-new-contest"
+- extendedWaitUntil:
+    visible: "Your name"
+    timeout: 15000
+- tapOn:
+    text: "Your name|Golfer.*"
+    index: 0
+- eraseText: 30
+- inputText: "Ava"
+- tapOn: "PLAYERS"
+- tapOn: "Player 2 name"
+- inputText: "Ben"
+- tapOn: "PLAYERS"
+# This existing artifact's captured a11y tree has no "Search courses..." control (confirmed
+# against the retained 2026-11-14 capture in .maestro/fixtures/retained-20261114/, see
+# tests/e2e-existing-binary-selectors.test.cjs): the Players & Course step renders the plain
+# "Course name" TextInput (app/contest/new.tsx's COURSE_SEARCH_ENABLED=false branch), not the
+# CourseSearch picker. Never used by aug-309-safe-area.yaml: that keeps the CourseSearch tap
+# for current and future source-built binaries, which have course search enabled.
+- scrollUntilVisible:
+    element: "^Course name$"
+    direction: UP
+    visibilityPercentage: 100
+    centerElement: true
+- tapOn: "^Course name$"
+- inputText: "E2E Tee Course"
+- assertVisible: "E2E Tee Course"
+- takeScreenshot: aug-637-02-safe-area-course-recovered

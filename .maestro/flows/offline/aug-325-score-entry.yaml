@@ -1,5 +1,4 @@
-# AUG-325: in-app score entry uses roomy hole-focused cards with 56pt steppers; 2 players score a hole in 3 taps.
-# The runner dumps the view hierarchy after this flow (captureHierarchy) so a verifier can read stepper frames in points.
+# AUG-325 / AUG-387: full18 automated score entry. Counts in the report are observed, not inferred from this flow.
 appId: com.scoresnap.app
 ---
 - launchApp:
@@ -13,17 +12,228 @@ appId: com.scoresnap.app
       id: "score-plus-Ava"
     timeout: 15000
 - assertVisible: ".*HOLE 01.*"
-- takeScreenshot: aug-325-01-hole-1-empty
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
 - tapOn:
     id: "score-par-Ava"
 - tapOn:
     id: "score-par-Ben"
-- takeScreenshot: aug-325-02-hole-1-two-taps
+- takeScreenshot: aug-325-01-hole-scored
 - tapOn:
     id: "score-next-hole"
 - assertVisible: ".*HOLE 02.*"
-- takeScreenshot: aug-325-03-hole-2-after-3-taps
-- tapOn:
+- assertVisible:
     id: "score-prev-hole"
-- assertVisible: ".*HOLE 01.*"
-- takeScreenshot: aug-325-04-back-to-hole-1
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-02-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 03.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-03-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 04.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-04-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 05.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-05-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 06.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-06-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 07.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-07-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 08.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-08-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 09.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-09-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 10.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-10-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 11.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-11-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 12.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-12-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 13.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-13-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 14.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-14-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 15.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-15-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 16.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-16-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 17.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-17-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 18.*"
+- assertVisible:
+    id: "score-prev-hole"
+- assertVisible:
+    id: "score-next-hole"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- takeScreenshot: aug-325-18-hole-scored
+- tapOn:
+    id: "score-next-hole"
+- assertVisible: ".*HOLE 18.*"
+- scrollUntilVisible:
+    element: "Finalize Round"
+    direction: DOWN
+- tapOn: "Finalize Round"
+- assertVisible: "Finalize Round?"
+- tapOn: "Finalize"
+- assertNotVisible: "Finalize Round"
+- assertVisible: "Round Finalized — Scores Locked"
+- takeScreenshot: aug-325-19-finalize-outcome

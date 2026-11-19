@@ -11,14 +11,39 @@ const scriptPath = path.join(__dirname, "..", "e2e", "xdevice", "four-identities
 const script = fs.readFileSync(scriptPath, "utf8");
 const workflow = yaml.load(fs.readFileSync(path.join(repo, ".github", "workflows", "xdevice-stack.yml"), "utf8"));
 
-test("the league harness script exists and refuses non-loopback endpoints before any Auth/SQL/HTTP call", () => {
+// A line disabled by prefixing it with `//` still contains every substring a
+// naive .includes()/.toMatch() check looks for, so every check below that
+// cares whether code is *active* (not just present in the file) must ignore
+// full-line comments first. None of the lines these checks inspect contain a
+// `//` inside a string literal, so trim-and-prefix-check is safe here.
+const isLiveLine = (l) => !l.trim().startsWith("//");
+const liveLines = script.split("\n").filter(isLiveLine);
+const liveScript = liveLines.join("\n");
+const ASSERT_CALL = /\bassert(?:\.(?:equal|deepEqual|rejects))?\(/g;
+const LIVE_ASSERT_COUNT = (liveScript.match(ASSERT_CALL) || []).length;
+
+test("the league harness script exists and refuses non-loopback endpoints before any Auth/SQL/HTTP call, and the guard is live code, not a comment", () => {
   expect(fs.existsSync(scriptPath)).toBe(true);
   const lines = script.split("\n");
   const guardLine = lines.findIndex((l) => l.includes("127.0.0.1") && l.includes("localhost"));
   expect(guardLine).toBeGreaterThan(-1);
-  // The guard must run before any network identity/SQL call is constructed.
+  expect(isLiveLine(lines[guardLine])).toBe(true);
+  // The guard must run before any network identity/SQL call is constructed,
+  // and that call must itself be live code (psql specifically, not a stand-in
+  // like `echo`, and not commented out).
   const firstNetworkLine = lines.findIndex((l) => l.includes("createClient(api") || l.includes("execFileSync('psql'"));
   expect(guardLine).toBeLessThan(firstNetworkLine);
+  const sqlDefLine = lines.find((l) => l.includes("execFileSync('psql'"));
+  expect(sqlDefLine).toBeDefined();
+  expect(isLiveLine(sqlDefLine)).toBe(true);
+});
+
+test("the journey keeps a real density of behavioral assertions, not just console.log labels", () => {
+  // Baseline is 28 live assert()/assert.equal()/assert.deepEqual()/assert.rejects()
+  // calls in the harness at AUG-1273 landing. A threshold well below that but
+  // well above "most assertions deleted" catches wholesale assertion removal
+  // even when the console.log('PASS ...') labels are left untouched.
+  expect(LIVE_ASSERT_COUNT).toBeGreaterThanOrEqual(24);
 });
 
 test("the harness exercises four distinct disposable identities, not two", () => {
