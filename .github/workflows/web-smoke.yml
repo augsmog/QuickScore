@@ -79,7 +79,7 @@ jobs:
           negative_status=$?
           set -e
           if [ "$negative_status" -eq 0 ]; then echo 'Flag-on journey unexpectedly passed'; exit 1; fi
-          grep -E 'FIRST_PRO_GATE (skins-create|settlement):' e2e/journey-screens/pro-on-negative/run.log
+          grep -E 'FIRST_PRO_GATE (skins-create|settlement|home-game-info):' e2e/journey-screens/pro-on-negative/run.log
       - name: Build and identify standard offline app
         env:
           EXPO_PUBLIC_OFFLINE_MODE: 'true'
