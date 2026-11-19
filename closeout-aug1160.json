@@ -1,0 +1,33 @@
+{
+ "schema": "aos-closeout/1",
+ "at": "2026-11-16T11:45:00-08:00",
+ "project": "snapscore",
+ "ticket": "AUG-1160",
+ "owner": "claude-ready",
+ "kind": "code",
+ "status": "done",
+ "evidence": {
+  "pr": "https://github.com/augsmog/QuickScore/pull/270",
+  "head_sha": "616b50fe73529d3c4e76b00f1631eaa656df1055",
+  "merge_sha": "517b206f1741c0496d4c6e834dd61d63c53ff664",
+  "ci": "https://github.com/augsmog/QuickScore/pull/270/checks (11/11 SUCCESS)",
+  "tests": "cd scoresnap && npx jest tests/account-handoff-panel.test.cjs -> 3/3 pass; npx tsc --noEmit -> clean"
+ },
+ "verifier": {
+  "by": "gpt-6-astra (verify_run.sh, HIGH tier, cross-company per t1374)",
+  "independent": true,
+  "verdict": "PASS",
+  "sha": "616b50fe73529d3c4e76b00f1631eaa656df1055"
+ },
+ "roles": {
+  "advisor": "none",
+  "builder": "anthropic/claude-code",
+  "checker": "openai/codex-high",
+  "researcher": "none"
+ },
+ "advisor": {
+  "calls": 0,
+  "triggers": []
+ },
+ "summary": "AccountHandoffPanel now owns its top safe-area inset; both action Pressables meet 44px tap target, superseding AUG-1156's wrong-file fix."
+}
