@@ -30,7 +30,8 @@ function parseArgs(argv) {
   const opts = {
     manifest: resolve(REPO_APP_ROOT, 'e2e/screen-coverage/coverage-manifest.json'),
     appDir: resolve(REPO_APP_ROOT, 'app'),
-    maestroConfig: resolve(REPO_APP_ROOT, '.maestro/e2e.config.json'),
+    // .maestro lives at the repo root, one level above scoresnap/.
+    maestroConfig: resolve(REPO_APP_ROOT, '../.maestro/e2e.config.json'),
     json: false,
   };
   for (let i = 0; i < argv.length; i++) {

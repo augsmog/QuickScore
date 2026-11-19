@@ -11,7 +11,7 @@ on:
       - 'scoresnap/e2e/screen-coverage/**'
       - 'scoresnap/scripts/check-screen-coverage.mjs'
       - 'scoresnap/scripts/check-screen-coverage.test.mjs'
-      - 'scoresnap/.maestro/e2e.config.json'
+      - '.maestro/e2e.config.json'
       - '.github/workflows/screen-coverage-gate.yml'
   push:
     branches: [main]

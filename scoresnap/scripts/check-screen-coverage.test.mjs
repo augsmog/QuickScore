@@ -2,7 +2,14 @@
 // Run: node --test scripts/check-screen-coverage.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { validateCoverage } from './check-screen-coverage.mjs';
+
+const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'check-screen-coverage.mjs');
 
 const REQUIRED = ['iphone-15-pro', 'iphone-16-plus'];
 const FLOWS = new Set(['aug-270-home-subhead', 'aug-271-paywall']);
@@ -151,4 +158,45 @@ test('missing required release device fails', () => {
 test('flow ids unknown (no maestro config) skips flow-ref check but still requires flows array', () => {
   const r = run([coveredScreen('app/a.tsx')], ['app/a.tsx'], { flowIds: null });
   assert.equal(r.ok, true, JSON.stringify(r.errors));
+});
+
+// CLI regression: the default --maestro-config path must resolve to the real repo-root
+// .maestro/e2e.config.json so a 'covered' claim with a bogus flow id is rejected, not
+// silently skipped. (Caught by Codex astra verify of PR #333.)
+test('CLI default maestro-config path validates flow ids against the real config', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cov-cli-'));
+  try {
+    mkdirSync(join(dir, 'app'));
+    writeFileSync(join(dir, 'app', 'x.tsx'), '');
+    const manifest = {
+      releaseGate: {
+        requiredDeviceIds: ['iphone-15-pro', 'iphone-16-plus'],
+        devices: [{ id: 'iphone-15-pro' }, { id: 'iphone-16-plus' }],
+        assertionClasses: ['target-size'],
+      },
+      screens: [
+        {
+          file: 'app/x.tsx', name: 'X', kind: 'screen', coverage: 'covered',
+          flows: ['definitely-not-a-real-flow'], screenshots: ['x-01'],
+          devices: ['iphone-15-pro', 'iphone-16-plus'], assertions: ['target-size'],
+        },
+      ],
+    };
+    const mPath = join(dir, 'm.json');
+    writeFileSync(mPath, JSON.stringify(manifest));
+    let exit = 0;
+    let out = '';
+    try {
+      // No --maestro-config: forces use of the default (repo-root) path.
+      out = execFileSync('node', [SCRIPT, '--manifest', mPath, '--app-dir', join(dir, 'app')],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) {
+      exit = e.status;
+      out = `${e.stdout || ''}${e.stderr || ''}`;
+    }
+    assert.equal(exit, 1, `expected exit 1, got ${exit}:\n${out}`);
+    assert.match(out, /not defined in \.maestro\/e2e\.config\.json/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
