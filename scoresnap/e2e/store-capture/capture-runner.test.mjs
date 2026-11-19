@@ -102,6 +102,48 @@ test('runCapture refuses to run (never calls the provider) when the plan has unr
   assert.equal(called, false);
 });
 
+test('buildCapturePlan refuses an accepted-release record that is present but incomplete', () => {
+  const config = loadConfig();
+  const plan = buildCapturePlan({ config, overlayManifest: stageOverlaysInMemory(config), overlaysBaseDir: '.', accepted: {} });
+  assert.ok(plan.errors.some(e => e.includes('missing buildId')));
+  assert.equal(plan.steps.length, 0);
+});
+
+test('runCapture refuses to run (never calls the provider) when two frame ids are swapped with captions left in place', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'aug1279-runner-'));
+  try {
+    const overlayManifest = stageOverlays(dir);
+    const config = loadConfig();
+    // Swap two ids between frame slots while leaving every frame's `caption` where it is -- each
+    // id still resolves to a real anchor and a real staged overlay individually, so only the
+    // config-level canonical-caption-per-id check (validateConfig) can see the mismatch.
+    [config.frames[0].id, config.frames[7].id] = [config.frames[7].id, config.frames[0].id];
+    let calls = 0;
+    const provider = { async capture() { calls++; return { file: 'x', width: 1, height: 1, sha256: 'a'.repeat(64) }; } };
+    await assert.rejects(() => runCapture(provider, { config, overlayManifest, overlaysBaseDir: dir, accepted: ACCEPTED }));
+    assert.equal(calls, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runCapture rejects caller-supplied provenance that conflicts with the accepted release', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'aug1279-runner-'));
+  try {
+    const overlayManifest = stageOverlays(dir);
+    const config = loadConfig();
+    let calls = 0;
+    const provider = { async capture() { calls++; return { file: 'x', width: 1, height: 1, sha256: 'a'.repeat(64) }; } };
+    await assert.rejects(
+      () => runCapture(provider, { config, overlayManifest, overlaysBaseDir: dir, accepted: ACCEPTED, provenance: { buildId: 'invented-build-not-accepted', sourceSha: 'f'.repeat(40) } }),
+      /conflicts with the accepted release/,
+    );
+    assert.equal(calls, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 function stageOverlaysInMemory(config) {
   const m = {};
   for (const f of config.frames) m[f.id] = { path: `${f.id}.svg`, sha256: 'a'.repeat(64) };

@@ -4,12 +4,13 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import {
   loadConfig, loadListing, listingFrames, validateConfig, validateManifest,
   validateManifestFiles, verifyScreenAnchorsExist, SCREEN_ANCHORS,
   MIN_REQUIRED_PROVENANCE, MIN_REQUIRED_ENTRY_FIELDS,
-  loadAcceptedRelease, validateAcceptedReleaseBinding,
+  loadAcceptedRelease, validateAcceptedRelease, validateAcceptedReleaseBinding,
   loadOverlayManifest, validateOverlayBinding, decodePngDimensions,
 } from './validate-capture.mjs';
 
@@ -18,7 +19,32 @@ const hex = (c, n) => c.repeat(n);
 const realConfigSha256 = () => createHash('sha256').update(readFileSync(fileURLToPath(new URL('./capture-config.json', import.meta.url)))).digest('hex');
 const ACCEPTED_FIXTURE = { buildId: 'b1', sourceSha: hex('a', 40), simulatorRuntime: 'iOS 26' };
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+function pngChunk(type, data) {
+  const typeBuf = Buffer.from(type, 'ascii');
+  const lenBuf = Buffer.alloc(4);
+  lenBuf.writeUInt32BE(data.length, 0);
+  const crcBuf = Buffer.alloc(4);
+  crcBuf.writeUInt32BE(zlib.crc32(Buffer.concat([typeBuf, data])), 0);
+  return Buffer.concat([lenBuf, typeBuf, data, crcBuf]);
+}
+// A structurally real PNG: signature + IHDR (correct length/CRC) + a non-empty IDAT + IEND, each
+// chunk's CRC-32 computed the same way the decoder verifies it. Pixel bytes are stubbed (this is
+// a fixture, not a renderer) but the chunk structure itself is genuine, not just header-shaped.
 function fakePng(width, height) {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  return Buffer.concat([
+    PNG_SIGNATURE,
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', Buffer.from('stub-pixel-data')),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+// The old header-only shape the checker flagged: signature + an IHDR-looking tag/length/dims with
+// no CRC and no IDAT/IEND -- must now be rejected as "not decodable", not accepted as a PNG.
+function truncatedHeaderOnlyPng(width, height) {
   const buf = Buffer.alloc(33);
   PNG_SIGNATURE.copy(buf, 0);
   buf.writeUInt32BE(13, 8);
@@ -123,17 +149,49 @@ test('decodePngDimensions reads real IHDR width/height and rejects non-PNG bytes
   assert.equal(decodePngDimensions(Buffer.from('not a png')), null);
 });
 
+test('decodePngDimensions rejects a header-only buffer with no CRC, IDAT or IEND', () => {
+  // Same byte shape the checker's probe used: a signature + length-shaped IHDR tag/dims is not,
+  // on its own, a decodable image -- it must have a complete chunk stream (CRC, pixel data, end).
+  assert.equal(decodePngDimensions(truncatedHeaderOnlyPng(1320, 2868)), null);
+});
+
+test('validateManifestFiles rejects a header-only fake PNG the same way it rejects a plain text file', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'aug1279-capture-'));
+  try {
+    const bytes = truncatedHeaderOnlyPng(1320, 2868);
+    writeFileSync(join(dir, 'truncated.png'), bytes);
+    const hash = createHash('sha256').update(bytes).digest('hex');
+    const m = { entries: [{ target: 'iphone-6.9', frame: 1, file: 'truncated.png', width: 1320, height: 2868, sha256: hash }] };
+    assert.ok(validateManifestFiles(m, dir).some(e => e.includes('is not a PNG')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('loadAcceptedRelease returns null in the shipped repo (no build has been accepted yet)', () => {
   assert.equal(loadAcceptedRelease(), null);
 });
 
+test('validateAcceptedRelease rejects a present-but-incomplete accepted-release record', () => {
+  assert.ok(validateAcceptedRelease(null).length > 0);
+  assert.ok(validateAcceptedRelease({}).some(e => e.includes('buildId')));
+  assert.ok(validateAcceptedRelease({ buildId: 'b1', sourceSha: hex('a', 40) }).some(e => e.includes('simulatorRuntime')));
+  assert.ok(validateAcceptedRelease({ buildId: 'b1', simulatorRuntime: 'iOS 26' }).some(e => e.includes('sourceSha')));
+  assert.deepEqual(validateAcceptedRelease(ACCEPTED_FIXTURE), []);
+});
+
 test('validateAcceptedReleaseBinding', () => {
   assert.ok(validateAcceptedReleaseBinding({ provenance: {} }, null).length > 0);
+  assert.ok(validateAcceptedReleaseBinding({ provenance: {} }, {}).some(e => e.includes('buildId')));
   const m = goodManifest();
   assert.deepEqual(validateAcceptedReleaseBinding(m, ACCEPTED_FIXTURE), []);
   assert.ok(validateAcceptedReleaseBinding({ provenance: { ...m.provenance, buildId: 'invented-build-not-accepted' } }, ACCEPTED_FIXTURE).some(e => e.includes('buildId')));
   assert.ok(validateAcceptedReleaseBinding({ provenance: { ...m.provenance, sourceSha: hex('0', 40) } }, ACCEPTED_FIXTURE).some(e => e.includes('sourceSha')));
   assert.ok(validateAcceptedReleaseBinding({ provenance: { ...m.provenance, simulatorRuntime: 'iOS 99' } }, ACCEPTED_FIXTURE).some(e => e.includes('simulatorRuntime')));
+  // A fully-accepted record that itself lacks simulatorRuntime must not make runtime binding
+  // optional -- this is the gap the checker named ("accepted-release lacking simulatorRuntime
+  // accepts manifest iOS 99").
+  assert.ok(validateAcceptedReleaseBinding({ provenance: { ...m.provenance, simulatorRuntime: 'iOS 99' } }, { buildId: 'b1', sourceSha: hex('a', 40) }).some(e => e.includes('simulatorRuntime')));
 });
 
 test('loadOverlayManifest returns null in the shipped repo (DotBot has not staged overlays here yet)', () => {

@@ -1,6 +1,7 @@
 // Static validation of the eight-frame x two-target store capture config + output manifest (AUG-1279). No device, network or ASC access.
 import { readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import zlib from 'node:zlib';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -97,12 +98,25 @@ export const loadAcceptedRelease = () => {
   return JSON.parse(readFileSync(p, 'utf8'));
 };
 
-export function validateAcceptedReleaseBinding(m, accepted) {
+// An accepted-release record that is present but incomplete (e.g. `{}`, or missing the runtime
+// the frames were actually captured under) is not a real binding -- it just looks truthy. Require
+// all three fields so a half-staged record can't make runtime binding optional downstream.
+export function validateAcceptedRelease(accepted) {
   if (!accepted) return ['no accepted-release record staged; provenance cannot be bound to a real accepted build'];
+  const errs = [];
+  if (!accepted.buildId) errs.push('accepted-release record missing buildId');
+  if (!accepted.sourceSha || !/^[a-f0-9]{40}$/.test(accepted.sourceSha)) errs.push('accepted-release record missing or invalid sourceSha');
+  if (!accepted.simulatorRuntime) errs.push('accepted-release record missing simulatorRuntime');
+  return errs;
+}
+
+export function validateAcceptedReleaseBinding(m, accepted) {
+  const baseErrs = validateAcceptedRelease(accepted);
+  if (baseErrs.length) return baseErrs;
   const errs = [];
   if (m?.provenance?.buildId !== accepted.buildId) errs.push(`provenance.buildId does not match the accepted release build (${accepted.buildId})`);
   if (m?.provenance?.sourceSha !== accepted.sourceSha) errs.push(`provenance.sourceSha does not match the accepted release source (${accepted.sourceSha})`);
-  if (accepted.simulatorRuntime && m?.provenance?.simulatorRuntime !== accepted.simulatorRuntime) errs.push(`provenance.simulatorRuntime does not match the accepted release runtime (${accepted.simulatorRuntime})`);
+  if (m?.provenance?.simulatorRuntime !== accepted.simulatorRuntime) errs.push(`provenance.simulatorRuntime does not match the accepted release runtime (${accepted.simulatorRuntime})`);
   return errs;
 }
 
@@ -173,13 +187,42 @@ export function validateManifest(m, c = loadConfig(), accepted = loadAcceptedRel
   return errs;
 }
 
-// Minimal PNG dimension decode: signature + IHDR width/height only, no CRC/chunk validation --
-// enough to bind a declared entry.width/height to what the file bytes actually are, and to reject
-// a non-PNG file (e.g. a text file with a declared width/height and a real hash of its own bytes).
+// PNG dimension decode by walking the real chunk stream, not just sniffing the signature + IHDR
+// tag: a signature plus a 24-byte IHDR header with no CRC, no IDAT pixel data and no IEND
+// terminator is not a decodable image, it is a crafted header that happens to pass a byte-offset
+// check. Every chunk's declared length must fit the remaining buffer (no claiming data that isn't
+// there) and its CRC-32 (over type+data, the same algorithm PNG itself specifies) must match the
+// declared CRC, so a truncated or hand-edited chunk is rejected rather than silently accepted.
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 export function decodePngDimensions(buf) {
-  if (buf.length < 24 || !buf.subarray(0, 8).equals(PNG_SIGNATURE) || buf.toString('ascii', 12, 16) !== 'IHDR') return null;
-  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  if (buf.length < 8 || !buf.subarray(0, 8).equals(PNG_SIGNATURE)) return null;
+  let offset = 8;
+  let ihdr = null;
+  let sawIDAT = false;
+  while (offset < buf.length) {
+    if (offset + 12 > buf.length) return null;
+    const length = buf.readUInt32BE(offset);
+    const type = buf.toString('ascii', offset + 4, offset + 8);
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + length;
+    const crcEnd = dataEnd + 4;
+    if (dataEnd > buf.length || crcEnd > buf.length) return null;
+    const declaredCrc = buf.readUInt32BE(dataEnd);
+    const actualCrc = zlib.crc32(buf.subarray(offset + 4, dataEnd));
+    if (actualCrc !== declaredCrc) return null;
+    if (type === 'IHDR') {
+      if (ihdr || length !== 13) return null;
+      ihdr = { width: buf.readUInt32BE(dataStart), height: buf.readUInt32BE(dataStart + 4) };
+    } else if (type === 'IDAT') {
+      if (!ihdr || length === 0) return null;
+      sawIDAT = true;
+    } else if (type === 'IEND') {
+      if (!ihdr || !sawIDAT) return null;
+      return ihdr;
+    }
+    offset = crcEnd;
+  }
+  return null;
 }
 
 // Byte-level binding for the real output manifest the E2E harness produces once a captured frame
