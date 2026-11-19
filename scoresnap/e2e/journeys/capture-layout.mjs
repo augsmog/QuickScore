@@ -106,17 +106,19 @@ export async function auditCapture(page,context) {
       if(!helpers.renderedChain(el))continue;
       const raw=rect(el.getBoundingClientRect()),visible=visibleRect(el,raw);
       if(visible.width<=0||visible.height<=0||!paintVisible(el,visible))continue;
-      // A control that spans the full viewport edge-to-edge is a modal/sheet backdrop
-      // (tap-anywhere-to-dismiss scrim), not a placed UI target: it is expected to
-      // ignore safe-area insets and to sit beneath the screen it is dimming, so it is
-      // not a real target-size/safe-area/overlap candidate against that background.
+      // A control that spans the full viewport edge-to-edge MAY be a modal/sheet
+      // backdrop (tap-anywhere-to-dismiss scrim), expected to ignore safe-area insets
+      // and to sit beneath the screen it is dimming -- but merely spanning the
+      // viewport while some other control exists anywhere on screen proves nothing:
+      // an ordinary full-screen control (e.g. a full-bleed canvas button) with an
+      // unrelated control elsewhere is not a backdrop. Require the app's own scrim
+      // naming convention (testID containing "scrim" or "backdrop", already used by
+      // every real FullScreenSheet in this app) as explicit backdrop identity.
       const spansViewport=visible.left<=0.5&&visible.top<=0.5&&visible.right>=innerWidth-0.5&&visible.bottom>=innerHeight-0.5;
-      targets.push({id,name:identify(el),...visible,raw,size:visibleRect(el,raw,true),spansViewport});
+      const scrimIdentity=/\b(scrim|backdrop)\b/i.test(el.getAttribute('data-testid')||'');
+      targets.push({id,name:identify(el),...visible,raw,size:visibleRect(el,raw,true),spansViewport,scrimIdentity});
     }
-    // A dismiss-scrim only exists alongside the sheet/dialog content it dims; a
-    // viewport-spanning control with nothing else on screen is an ordinary (and
-    // audit-worthy) full-screen control, not a backdrop.
-    for(const t of targets)t.backdrop=t.spansViewport&&targets.length>1;
+    for(const t of targets)t.backdrop=t.spansViewport&&t.scrimIdentity;
     const texts=[],walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
     while(walker.nextNode()){
       const node=walker.currentNode,el=node.parentElement;

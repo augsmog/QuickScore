@@ -43,17 +43,26 @@ test('every capture audits safe bands, targets, overlaps and visible text',async
     ['transparent-text','<span style="position:absolute;top:0;color:transparent">Hidden</span>',null],
     ['opacity-product',`<div style="opacity:.2"><div style="opacity:.2">${button(100,4)}</div></div>`,null],
     ['covered-control',button(100,4)+'<div style="position:fixed;inset:0;background:white"></div>',null],
-    // AUG-1211: a full-viewport interactive scrim (modal/sheet backdrop) must not be
-    // flagged for safe-area, and background content it dims must not be flagged as
-    // overlapping it -- the backdrop is excluded from the overlap/safe-area audit.
-    ['scrim-backdrop','<button style="position:absolute;left:0;top:0;width:393px;height:852px;background:rgba(0,0,0,.5)"></button><span style="position:absolute;left:20px;top:400px">Background label</span>'+button(150,600),null],
+    // AUG-1211: a full-viewport interactive scrim (modal/sheet backdrop), identified by
+    // this app's own testID convention (every real FullScreenSheet names its scrim/
+    // backdrop view that way -- see src/ui/GamePromptSheet.tsx, app/scan/review.tsx),
+    // must not be flagged for safe-area, and background content it dims must not be
+    // flagged as overlapping it -- the backdrop is excluded from the overlap/safe-area
+    // audit.
+    ['scrim-backdrop','<button data-testid="modal-scrim" style="position:absolute;left:0;top:0;width:393px;height:852px;background:rgba(0,0,0,.5)"></button><span style="position:absolute;left:20px;top:400px">Background label</span>'+button(150,600),null],
     // A near-full-viewport overlay (2px short of covering edge-to-edge) is not a
-    // backdrop and must still be audited normally for overlap.
-    ['near-full-not-backdrop','<button style="position:absolute;left:0;top:0;width:391px;height:850px"></button>'+button(100,100),'control-overlap'],
+    // backdrop and must still be audited normally for overlap, even with the scrim
+    // testID present.
+    ['near-full-not-backdrop','<button data-testid="modal-scrim" style="position:absolute;left:0;top:0;width:391px;height:850px"></button>'+button(100,100),'control-overlap'],
     // A lone viewport-spanning control with nothing else on screen has no sheet/dialog
     // content to dim -- it is an ordinary full-screen control, not a dismiss-scrim, and
     // must still be audited for safe-area.
     ['lone-full-viewport-control',button(0,0,393,852),'safe-area'],
+    // AUG-1155 checker finding: merely spanning the viewport while another control
+    // exists elsewhere on screen does not make a control a backdrop -- an ordinary
+    // full-screen control (no scrim/backdrop testID) must still be audited for
+    // safe-area even though a second, unrelated control is also visible.
+    ['full-viewport-no-scrim-identity-not-backdrop','<button style="position:absolute;left:0;top:0;width:393px;height:852px"></button>'+button(150,600),'safe-area'],
     // clip-path:inset() with a `round` radius is not a plain rectangle; it must stay
     // unsupported rather than silently folding only the first four offsets.
     ['inset-clip-rounded','<button style="position:absolute;left:100px;top:100px;width:44px;height:44px;clip-path:inset(1px 2px 3px 4px round 50%)">Go</button>','unsupported-geometry'],
