@@ -1,0 +1,16 @@
+{
+  "planned": 1,
+  "run": 1,
+  "passed": 1,
+  "failed": 0,
+  "seconds": 23.419,
+  "nineHoleMeaning": "9 played on 18-hole course; true nine-hole creation unsupported",
+  "results": [
+    {
+      "id": "foursome-18-manual",
+      "attempt": 1,
+      "ok": true,
+      "seconds": 23.198
+    }
+  ]
+}

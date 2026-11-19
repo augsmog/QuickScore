@@ -23,7 +23,6 @@ Append only. Owner is the accountable adapter team; issue closure requires remov
 | 2026-10-31 | J-delete-account | Reach named Settings and Delete account | App Review / reachability audit | GAP: Settings below fold / unnamed rows; deletion adapter deferred | SnapScore maintainers | AUG-292 |
 | 2026-10-31 | J-free-paywall-recover | Return from paid option without a second paywall or lost form | Usability audit | GAP: double-paywall recovery adapter deferred | SnapScore maintainers | AUG-293 |
 | 2026-10-31 | J-round-score-settle-reload | Score and settle controls require exact accessible names | Main bce5673 acceptance walk | Exact no-accessible-name xfails; viewport/hit-test and scores/settle/reload stay gated | SnapScore maintainers | AUG-306 |
-| 2026-11-03 | J-round-score-settle-reload, J-invite-from-round | Score-to-par actions, selected tabs and invite control expose exact accessible names/roles | AUG-306 fix regression; current-main nightly | Fully gated role/name, score persistence, settlement, leaderboard and invite assertions | SnapScore maintainers | AUG-306 |
 | 2026-10-31 | J-home-create-cancel | Core label must remain rendered through intermediate ancestors and contrast with its background | Verifier round 1 / fix round 1 | visible-text-missing for hide-label and transparent-label negative proofs | SnapScore maintainers | AUG-288 |
 | 2026-10-31 | J-home-create-cancel | Core label clipping and effective text fill must remain visible | Verifier round 2 / fix round 2 | Range geometry through all clipping ancestors, text-fill paint, and clipped-pixel proof; negative proofs `label-overflow-clipped`, `label-clip-path`, `text-fill-transparent` | SnapScore maintainers | AUG-288 |
 | 2026-10-31 | All executable journeys | Every required step must produce a screenshot in the current attempt | Verifier round 1 follow-up | requiredSteps inventory; missing step capture is red even with passing outcomes or a strict xfail | SnapScore maintainers | AUG-288 |
@@ -123,16 +122,3 @@ Integration scope: preserve the existing two-minute journey timeout and always-r
 
 AUG-293 current-main reconciliation: preserve PR92 seven journeys, helper commands, budgets and growth rows; append paywall controls without dropping cases or increasing the 120-second gate. Application paywall repair and journey implementation remain byte-identical to reviewed ce1d924. Combined browser/timing validation remains pending; no browser launched during this local source reconciliation.
 | 2026-11-02 | J-finalize-settle | Show the incomplete scorecard confirmation on web, cancel, and keep the round active | AUG-289 rendered failure on exact main `f706a63` | Strict marker removed; rendered dialog title/actions, dismissal and persisted active status asserted | SnapScore maintainers | AUG-289 |
-
-| 2026-11-15 | J-score-hand | Score a full 18 by hand: par both players on every hole via Next, 53 activations, all 36 scores persisted | AUG-1148 / AUG-313 Gate J (supersedes AUG-291 deferral) | `J-score-hand` gated in adapter.mjs: hole-1 persistence, hole-18 reached, `scores()` equals 18x4 for both players | SnapScore maintainers | AUG-1148 |
-| 2026-11-15 | J-create-8p-multiday | Create an 8-player, 2-round, 2-group tournament through the real New Contest wizard (TD tier) | AUG-313 / AUG-1149 | Gated; 8 names typed, G2 split 4/4 asserted; strict outcome requires isTournament and 2 persisted rounds. AUG-1151 (stacked) persists the rounds, so the outcome is green | SnapScore maintainers | AUG-1149 |
-| 2026-11-16 | J-game-rules | Skins/Vegas/Sixes full mode row targets >=44px; no unrelated foreground text/control overlap in rules sheet; backdrop is not foreground | AUG-1155 automated sweep (clipped bounds/backdrop false positives) | library + rule in adapter.mjs; layout-targets.browser.test.mjs runs all three profiles and rejects a real foreground collision | aos-ready | AUG-1166 |
-| 2026-11-16 | J-settlement-mark-lifecycle, J-by-game-nine, J-settlement-tab-runtime-recalc | Full course-card, quick-start-chip and settlement-button targets >=44px independently of scroll clipping | AUG-1155 automated sweep (raw 68/50/44px boxes clipped to 33/25/19px) | entry/unmarked/nine-hole-signed-rows + runtime-recalc preconditions; layout-targets.browser.test.mjs rejects a 19px target on all three profiles | aos-ready | AUG-1167 |
-
-### 2026-11-16 — Refs AUG-1168 / AUG-348, unmounted question-model reconciliation
-
-Continue PR273 as canonical over overlapping PR274. Preserve played-hole/unknown-par
-questions and explicit empty/no answers; incomplete cached facts remain pending, recorder
-rejects wrong-game/overwrite/incomplete answers, unsupported press history stays pending.
-Focused Jest: 6 suites / 65 tests PASS; TypeScript clean. This is pure code evidence only;
-photo-to-active-scoring and account-linked continuation acceptance remain open on AUG-348.

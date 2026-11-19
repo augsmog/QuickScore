@@ -1,9 +1,8 @@
 import { SafeScreen } from "../../src/ui/SafeScreen";
 import { requestOCRConsent } from "../../src/services/ocr-consent";
 import { applyCourseHoles } from "../../src/services/ocr-review";
-import { useAuthStore } from "../../src/stores/auth-store";
 import { useContestStore } from "../../src/stores/contest-store";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { View, Text, Pressable, Image, Dimensions, Platform, TextInput, ScrollView } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,15 +21,10 @@ import {
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, TYPOGRAPHY, RADII, GLOW } from "../../src/ui/theme";
 import { useScanStore } from "../../src/stores/scan-store";
-import { proEnabled } from "../../src/services/entitlements";
 import { scanScorecard } from "../../src/services/ocr-service";
-import { webAnalytics } from "../../src/services/analytics";
 
 import { OFFLINE_MODE } from "../../src/config/offline";
-import { NATIVE_OCR_DISABLED, NATIVE_OCR_DISABLED_MESSAGE } from "../../src/config/native-ocr";
 import { parseScoreGrid, textToGrid } from "../../src/services/score-parser";
-import { posthog } from "../../src/config/posthog";
-import { posthogAppLogger } from "../../src/services/posthog-log";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const FRAME_WIDTH = SCREEN_WIDTH - 80;
@@ -52,37 +46,10 @@ type FlashOption = "off" | "on" | "auto";
 
 export default function ScanScreen() {
   const router = useRouter();
-  const { contestId, groupId, mode } = useLocalSearchParams<{ contestId?: string; groupId?: string; mode?: string }>();
-  const isPartial = mode === "partial";
-  const reviewPathname = isPartial ? "/scan/partial-review" : "/scan/review";
+  const { contestId } = useLocalSearchParams<{ contestId?: string }>();
   const selectedContest = useContestStore(s => s.contests.find(c => c.id === contestId));
   const selectedRound = selectedContest?.rounds?.find(r => r.number === selectedContest.currentRound);
   const requiredHoles = (selectedRound?.course ?? selectedContest?.course)?.holes.map(h => h.num);
-  const partialContext = () => {
-    const auth = useAuthStore.getState();
-    const account = auth.isAnonymous ? "anonymous" : auth.session?.user.id ?? "signed-out";
-    const contest = useContestStore.getState().contests.find(c => c.id === contestId);
-    const round = contest?.isTournament ? contest.rounds?.find(r => r.number === contest.currentRound) : undefined;
-    return JSON.stringify([account, contestId, round?.id ?? null]);
-  };
-  // Any intervening account/round transition invalidates in-flight work, even A -> B -> A.
-  const intakeGeneration = useRef(0);
-  useEffect(() => {
-    if (!isPartial) return;
-    let context = partialContext();
-    const observe = () => {
-      const next = partialContext();
-      if (next !== context) {
-        intakeGeneration.current += 1;
-        context = next;
-        setErrorMessage("The account, round, or group changed. Return to the active round and review again.");
-        setPhase("error");
-      }
-    };
-    const stopAuth = useAuthStore.subscribe(observe);
-    const stopContest = useContestStore.subscribe(observe);
-    return () => { intakeGeneration.current += 1; stopAuth(); stopContest(); };
-  }, [contestId, groupId, isPartial]);
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<ScanPhase>("ready");
   const [scorecardText, setScorecardText] = useState("");
@@ -101,10 +68,7 @@ export default function ScanScreen() {
     if (!cameraRef.current) return;
 
     if (!canScan()) {
-      // AUG-826: never route to the Pro paywall while pro_enabled is off. Scans are
-      // unlimited then (scanAllowance resolves to td), so canScan() is always true and
-      // this branch is unreachable; the guard keeps it provably unreachable for Pro.
-      if (proEnabled()) setPhase("paywall");
+      setPhase("paywall");
       return;
     }
 
@@ -132,11 +96,7 @@ export default function ScanScreen() {
 
   const handleConfirmPhoto = useCallback(async () => {
     if (!photoUri) return;
-    const sourceContext = isPartial ? partialContext() : undefined;
-    const generation = intakeGeneration.current;
-    const stillCurrent = () => !isPartial || (intakeGeneration.current === generation && sourceContext === partialContext());
     if (!(await requestOCRConsent())) { setPhase("text-entry"); return; }
-    if (!stillCurrent()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPhase("processing");
     setProgress(0);
@@ -144,33 +104,21 @@ export default function ScanScreen() {
     try {
       const result = await scanScorecard(photoUri, (p, msg) => {
         setProgress(p);
-      }, isPartial ? undefined : requiredHoles);
+      }, requiredHoles);
 
-      if (!stillCurrent()) return;
       if (result.players.length === 0) {
         throw new Error("No players detected in this scorecard.");
       }
 
       setProgress(100);
-      posthog?.capture("scorecard_scan_processed", {
-        player_count: result.players.length,
-        has_contest_context: Boolean(contestId),
-      });
-      posthogAppLogger.scorecardScanCompleted({
-        playerCount: result.players.length,
-        hasContestContext: Boolean(contestId),
-      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => {
-        if (!stillCurrent()) return;
         router.push({
-          pathname: reviewPathname,
+          pathname: "/scan/review",
           params: {
             contestId: contestId || "",
-            groupId: groupId || "",
             photoUri: photoUri || "",
             scanData: JSON.stringify(result.players),
-            ...(isPartial ? { sourceContext } : {}),
           },
         });
       }, 500);
@@ -181,7 +129,7 @@ export default function ScanScreen() {
       );
       setPhase("error");
     }
-  }, [contestId, groupId, reviewPathname, router, photoUri, requiredHoles, isPartial, selectedContest, selectedRound]);
+  }, [contestId, router, photoUri, requiredHoles]);
 
   const handleRetake = useCallback(() => {
     setPhotoUri(null);
@@ -200,7 +148,7 @@ export default function ScanScreen() {
   }, []);
 
   // Text entry does not use OCR or consume scan credits.
-  if (phase === "text-entry" || OFFLINE_MODE || NATIVE_OCR_DISABLED || Platform.OS === "web") {
+  if (phase === "text-entry" || OFFLINE_MODE || Platform.OS === "web") {
     return (
       <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
         <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }} keyboardShouldPersistTaps="handled">
@@ -208,11 +156,6 @@ export default function ScanScreen() {
             <Text style={{ color: COLORS.primary }}>Go Back</Text>
           </Pressable>
           <Text style={{ ...TYPOGRAPHY.title, color: COLORS.text }}>Enter scorecard as text</Text>
-          {NATIVE_OCR_DISABLED && (
-            <Text testID="scan-unavailable-simulator" accessibilityRole="alert" style={{ color: COLORS.textDim }}>
-              {NATIVE_OCR_DISABLED_MESSAGE}
-            </Text>
-          )}
           <Text style={{ color: COLORS.textDim }}>
             Paste one row per line, with a player name followed by scores. Separate cells with commas, tabs, or two or more spaces. Hole and Par rows are optional.
           </Text>
@@ -229,20 +172,15 @@ export default function ScanScreen() {
             testID="parse-scorecard-button"
             accessibilityRole="button"
             onPress={() => {
-              const startedAt = Date.now();
-              void webAnalytics.capture("score_snap_started");
               const result = parseScoreGrid(textToGrid(scorecardText), undefined, "paste");
               if (result.players.length === 0) {
                 setTextError("No players found. Enter a player name followed by scores on each row.");
-                void webAnalytics.capture("score_snap_completed", { duration_ms: Date.now() - startedAt, success: false });
-                void webAnalytics.capture("error_shown", { code: "scorecard_parse_failed" });
                 return;
               }
               setTextError(null);
-              void webAnalytics.capture("score_snap_completed", { duration_ms: Date.now() - startedAt, success: true });
               router.push({
-                pathname: reviewPathname,
-                params: { contestId: contestId || "", groupId: groupId || "", photoUri: "", scanData: JSON.stringify(isPartial ? result.players : applyCourseHoles(result.players, requiredHoles)), ...(isPartial ? { sourceContext: partialContext() } : {}) },
+                pathname: "/scan/review",
+                params: { contestId: contestId || "", photoUri: "", scanData: JSON.stringify(applyCourseHoles(result.players, requiredHoles)) },
               });
             }}
             style={{ backgroundColor: COLORS.primary, borderRadius: RADII.lg, padding: 16, alignItems: "center" }}
@@ -559,8 +497,8 @@ export default function ScanScreen() {
               harsh glare.
             </Text>
 
-            {/* Free scan badge — AUG-826: hidden while pro_enabled is off (scans are unlimited then). */}
-            {proEnabled() && !isPro && (
+            {/* Free scan badge */}
+            {!isPro && (
               <View
                 style={{
                   backgroundColor:

@@ -1,0 +1,2 @@
+source=a4a29d8d94f8fab9915113771aaaedc40cb7e6d4
+scenario=foursome-18-manual
