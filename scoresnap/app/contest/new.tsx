@@ -439,7 +439,7 @@ export default function NewContestScreen() {
       >
         {/* ═══════ Step 1: Players & Course ═══════ */}
         {step === 0 && (
-          <View>
+          <View testID="contest-step-setup">
             <Text style={{ fontFamily: FONTS.headline, fontSize: compactViewport ? 22 : 24, color: COLORS.text, marginBottom: compactViewport ? 8 : 20 }}>
               Players & Course
             </Text>
