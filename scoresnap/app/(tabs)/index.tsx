@@ -116,8 +116,9 @@ export default function HomeScreen() {
 
   // A card is only safe to show if it fits entirely above the reserved tab
   // bar margin; a card that would be cut mid-row must not render at all.
-  const maxFullRecentRounds = maxFullRowsAboveBottomChrome(recentRoundsListTop, height, bottomTabBarHeight, 68, 8);
-  const visibleRecentRounds = completedContests.slice(0, Math.min(3, maxFullRecentRounds));
+  // Keep the most recently completed rounds, never the oldest, when capped.
+  const maxFullRecentRounds = Math.min(3, maxFullRowsAboveBottomChrome(recentRoundsListTop, height, bottomTabBarHeight, 68, 8));
+  const visibleRecentRounds = completedContests.slice(-maxFullRecentRounds);
 
   return (
     <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
