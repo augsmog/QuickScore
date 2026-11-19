@@ -106,10 +106,10 @@ test('godot adapter: undersized button and notch-band button fail', () => {
 });
 
 test('snapscore adapter round-trips a capture audit and profile', () => {
-  const device = profileToDevice('iphone-15-pro', {width: 393, height: 852, top: 59, bottom: 34});
+  const device = profileToDevice('iphone-16', {width: 393, height: 852, top: 59, bottom: 34});
   assert.deepEqual(device.safeArea, {top: 59, right: 0, bottom: 34, left: 0});
   const layout = {targets: [{id: 0, name: 'Save', left: 20, top: 100, right: 120, bottom: 140, raw: {}, size: {width: 100, height: 44}, backdrop: false}], texts: [{name: 'Save', left: 30, top: 110, right: 60, bottom: 130, owners: [0]}]};
-  const s = fromCaptureAudit(layout, {device: 'iphone-15-pro', screen: 'settings'});
+  const s = fromCaptureAudit(layout, {device: 'iphone-16', screen: 'settings'});
   const r = runGate({config: snapscore, snapshots: [s]});
   assert.equal(r.verdict, 'PASS', JSON.stringify(r.results));
   assert.equal(r.results[0].failures.length, 0);
@@ -126,8 +126,8 @@ test('gate: missing required screen/device and empty snapshot fail', () => {
 });
 
 test('waivers: ticketed waiver moves a failure to waived; expired waiver fails gate; bad waiver rejected', () => {
-  const s = snap('iphone-se', 'home', [box(0, 'tiny', 10, 30, 30, 30)]);
-  const waiver = {id: 'w1', rule: 'target-size', subject: 'tiny', device: 'iphone-se', ticket: 'AUG-1381', reason: 'fixture exception for test', approvedBy: 'checker', expires: '2099-01-01'};
+  const s = snap('iphone-se-3', 'home', [box(0, 'tiny', 10, 30, 30, 30)]);
+  const waiver = {id: 'w1', rule: 'target-size', subject: 'tiny', device: 'iphone-se-3', ticket: 'AUG-1381', reason: 'fixture exception for test', approvedBy: 'checker', expires: '2099-01-01'};
   const ok = runGate({config: snapscore, snapshots: [s], waivers: {schema: WAIVER_SCHEMA, waivers: [waiver]}});
   assert.equal(ok.verdict, 'PASS');
   assert.equal(ok.results[0].waived[0].ticket, 'AUG-1381');
@@ -139,7 +139,7 @@ test('waivers: ticketed waiver moves a failure to waived; expired waiver fails g
 });
 
 test('receipt carries schema, digest, devices and pending vision rubric', () => {
-  const r = runGate({config: snapscore, snapshots: [snap('iphone-se', 'home', [box(0, 'ok', 10, 30, 50, 50)])], sha: 'a'.repeat(40)});
+  const r = runGate({config: snapscore, snapshots: [snap('iphone-se-3', 'home', [box(0, 'ok', 10, 30, 50, 50)])], sha: 'a'.repeat(40)});
   const schema = readJson('schema/receipt.v1.schema.json');
   for (const k of schema.required) assert.ok(k in r, `receipt missing ${k}`);
   assert.match(r.configDigest, /^sha256:[0-9a-f]{64}$/);
@@ -165,4 +165,104 @@ test('CLI: godot adapter PASS on fixture-only matrix, FAIL exit 1 on full matrix
   assert.match(fail.stdout, /MISSING ipad-mini-landscape \/ pause-menu/);
   writeFileSync(join(dir, 'bad.json'), '{"schema":"nope"}');
   assert.equal(cli('validate', '--config', join(dir, 'bad.json')).status, 2);
+});
+
+// --- AUG-1373 widened gate (follow-up commit) ---
+import {evaluateVision, validateVisionReview} from '../src/vision.mjs';
+import {findTightTargets, PLATFORM_MIN_TARGET} from '../src/rules.mjs';
+
+test('snapscore matrix is the AUG-1373 six-row iOS+Android matrix; 402x874 is iPhone 16 Pro', () => {
+  const cfg = resolveConfig(snapscore);
+  assert.deepEqual(cfg.devices.map(d => `${d.platform}:${d.id}:${d.width}x${d.height}:${d.cadence}`), [
+    'ios:iphone-se-3:375x667:pr', 'ios:iphone-16:393x852:nightly', 'ios:iphone-16-pro:402x874:pr',
+    'ios:iphone-16-pro-max:440x956:nightly', 'android:android-compact-360:360x800:pr', 'android:android-pixel-pro-448:448x998:nightly',
+  ]);
+  assert.ok(!cfg.devices.some(d => d.id.includes('plus')), 'no iphone-16-plus mislabel');
+  assert.equal(cfg.rules.overlapTolerance, 1, 'rule 1: 1 logical unit');
+  assert.deepEqual(cfg.devices.find(d => d.platform === 'android').minTarget, {width: 48, height: 48});
+  assert.deepEqual(cfg.devices.find(d => d.platform === 'ios').minTarget, {width: 44, height: 44});
+});
+
+test('config rejects a per-device minimum below the platform floor', () => {
+  const bad = structuredClone(snapscore);
+  bad.devices[4].minTarget = {width: 44, height: 44};
+  assert.ok(validateConfig(bad).errors.some(e => e.includes('below the android floor 48x48')));
+});
+
+test('rules: 46pt control passes iOS, fails Android 48dp floor', () => {
+  const cfg = resolveConfig(snapscore);
+  const t = [box(0, 'Continue', 40, 300, 46, 46)];
+  const ios = cfg.devices.find(d => d.id === 'iphone-se-3'), android = cfg.devices.find(d => d.id === 'android-compact-360');
+  assert.deepEqual(evaluateSnapshot(snap(ios.id, 'new-contest', t), ios, cfg.rules), []);
+  assert.deepEqual(evaluateSnapshot(snap(android.id, 'new-contest', t), android, cfg.rules).map(f => f.rule), ['target-size']);
+});
+
+test('rules: target-spacing flags <8pt sibling gap (switch vs label control), not overlaps or nested', () => {
+  const cfg = resolveConfig(snapscore);
+  const dev = cfg.devices.find(d => d.id === 'iphone-16-pro');
+  const s = snap(dev.id, 'new-contest', [
+    box(0, 'Multi-day switch', 300, 200, 51, 44),
+    box(1, 'Multi-day row', 20, 200, 276, 44),        // 4pt to the switch -> tight
+    box(2, 'Team Mode switch', 300, 252, 51, 44),     // 8pt below -> ok
+    box(3, 'Chip', 20, 400, 60, 44), box(4, 'Chip x', 62, 400, 44, 44, {parentId: 3}), // nested -> ignored
+  ]);
+  const f = evaluateSnapshot(s, dev, cfg.rules);
+  assert.deepEqual(f.map(x => `${x.rule}:${x.subject}`), ['target-spacing:Multi-day switch x Multi-day row']);
+  assert.equal(f[0].geometry.gap, 4);
+  assert.deepEqual(findTightTargets([box(0, 'a', 0, 0, 44, 44), box(1, 'b', 30, 30, 44, 44)]), [], 'overlap is control-overlap\'s job');
+  assert.equal(PLATFORM_MIN_TARGET.android.width, 48);
+});
+
+test('gate: observed viewport that disagrees with the declared device is INVALID (never trust profile names)', () => {
+  const s = {...snap('iphone-16-pro', 'home', [box(0, 'ok', 20, 100, 60, 60)]), viewport: {width: 393, height: 852}};
+  const r = runGate({config: {...snapscore, screens: [{id: 'home', devices: ['iphone-16-pro']}]}, snapshots: [s]});
+  assert.equal(r.verdict, 'FAIL');
+  assert.match(r.invalid[0].errors.join(), /observed viewport 393x852 does not match declared iphone-16-pro 402x874/);
+  const ok = runGate({config: {...snapscore, screens: [{id: 'home', devices: ['iphone-16-pro']}]}, snapshots: [{...s, viewport: {width: 402, height: 874}}]});
+  assert.equal(ok.verdict, 'PASS', JSON.stringify(ok.invalid));
+});
+
+test('gate: missing platform evidence cannot be waived', () => {
+  const cfg = {...snapscore, screens: [{id: 'home', devices: ['iphone-se-3', 'android-compact-360']}]};
+  const waiver = {id: 'w', rule: 'missing', subject: 'android-compact-360', ticket: 'AUG-1381', reason: 'no emulator today', approvedBy: 'x', expires: '2099-01-01'};
+  const r = runGate({config: cfg, snapshots: [snap('iphone-se-3', 'home', [box(0, 'ok', 20, 100, 60, 60)])], waivers: {schema: WAIVER_SCHEMA, waivers: [waiver]}});
+  assert.equal(r.verdict, 'FAIL');
+  assert.deepEqual(r.missing, [{device: 'android-compact-360', screen: 'home'}]);
+});
+
+const SHA = 'b'.repeat(40);
+const review = (over = {}) => ({schema: 'device-layout/vision-review/v1', sourceSha: SHA, buildHash: 'build-1', artifactHash: 'sha256:' + 'c'.repeat(64),
+  device: 'iphone-16-pro', flow: 'new-contest', checkpoint: 'step-2', reviewer: {provider: 'openai', model: 'codex', effort: 'high'}, findings: [], verdict: 'pass', ...over});
+const neg = name => review({fixture: 'negative', checkpoint: name, findings: [{rule: 1, severity: 'major', bbox: [0, 0, 10, 10], reason: 'switch over label'}], verdict: 'fail'});
+const required = [{device: 'iphone-16-pro', flow: 'new-contest', checkpoint: 'step-2'}];
+
+test('vision: clean review + both negative fixtures caught -> PASS; minor finding is a non-blocking follow-up', () => {
+  const r = evaluateVision({reviews: [neg('multi-day.png'), neg('team-mode.png'), review({findings: [{rule: 4, severity: 'minor', bbox: [1, 2, 3, 4], reason: 'loose gap'}]})], required, builderProvider: 'anthropic', sourceSha: SHA});
+  assert.equal(r.verdict, 'PASS', JSON.stringify(r));
+  assert.equal(r.followUps.length, 1);
+});
+
+test('vision: major finding, missing checkpoint, self-review, Grok, wrong head, bad record, rubric drift all FAIL', () => {
+  const base = {required, builderProvider: 'anthropic', sourceSha: SHA};
+  const fixtures = [neg('multi-day.png'), neg('team-mode.png')];
+  const v = reviews => evaluateVision({...base, reviews: [...fixtures, ...reviews]});
+  assert.equal(v([review({findings: [{rule: 7, severity: 'major', bbox: [0, 0, 1, 1], reason: 'black pill switch'}], verdict: 'fail'})]).blocking.length, 1);
+  assert.deepEqual(v([]).missing, ['iphone-16-pro::new-contest::step-2']);
+  assert.match(v([review({reviewer: {provider: 'anthropic', model: 'opus', effort: 'high'}})]).invalid[0].errors.join(), /no self-review/);
+  assert.match(v([review({reviewer: {provider: 'xai', model: 'grok', effort: 'high'}})]).invalid[0].errors.join(), /not allowed/);
+  assert.match(v([review({sourceSha: 'd'.repeat(40)})]).invalid[0].errors.join(), /not the gated head/);
+  assert.match(v([review({artifactHash: 'nope', reviewer: {provider: 'openai', model: 'codex', effort: 'low'}})]).invalid[0].errors.join(), /artifactHash.*effort/);
+  for (const r of [v([review({findings: [], verdict: 'fail'})])]) assert.equal(r.verdict, 'FAIL');
+  const drift = evaluateVision({...base, reviews: [review({fixture: 'negative', checkpoint: 'team-mode.png', findings: [{rule: 7, severity: 'minor', bbox: [0, 0, 1, 1], reason: 'meh'}]}), review()]});
+  assert.equal(drift.verdict, 'FAIL');
+  assert.match(drift.drift[0].reason, /negative fixture returned no major/);
+  assert.equal(evaluateVision({...base, reviews: [review()]}).verdict, 'FAIL', 'a run with no negative fixture cannot pass');
+  assert.equal(evaluateVision({...base, reviews: [...fixtures, review(), review({fixture: 'positive', checkpoint: 'fixed.png', verdict: 'fail', findings: [{rule: 1, severity: 'major', bbox: [0, 0, 1, 1], reason: 'x'}]})]}).verdict, 'FAIL', 'over-rejection of a positive fixture');
+  assert.throws(() => evaluateVision({reviews: []}), /builderProvider/);
+  assert.equal(validateVisionReview(review()).length, 0);
+});
+
+test('vision-review JSON schema required keys match the validator', () => {
+  const schema = readJson('schema/vision-review.v1.schema.json');
+  for (const k of schema.required) { const r = review(); delete r[k]; assert.ok(validateVisionReview(r).length > 0, `missing ${k} not caught`); }
 });

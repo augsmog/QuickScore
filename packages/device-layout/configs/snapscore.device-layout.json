@@ -1,11 +1,136 @@
 {
   "schema": "device-layout/v1",
   "product": "snapscore",
-  "units": "css-px",
-  "rules": {"minTarget": {"width": 44, "height": 44}, "subpixelEpsilon": 0.01, "overlapTolerance": 2},
+  "units": "pt",
+  "$comment": "AUG-1373 section A matrix. Logical units: pt on iOS, dp on Android (1:1). Sizes are declared; native snapshots must carry the observed viewport, and a mismatch is INVALID. 402x874 is the iPhone 16 Pro (PR #333's 'iphone-16-plus' label was wrong). Font-scale cadence (AX1/1.3 per PR vs AX3/2.0 per PR) is an open dispute; PR rows carry the Fable split, nightly rows the extremes.",
+  "rules": {
+    "minTarget": {
+      "width": 44,
+      "height": 44
+    },
+    "subpixelEpsilon": 0.01,
+    "overlapTolerance": 1,
+    "minTargetGap": 8
+  },
   "devices": [
-    {"id": "iphone-se", "platform": "ios", "orientation": "portrait", "width": 375, "height": 667, "safeArea": {"top": 20, "bottom": 0}},
-    {"id": "iphone-15-pro", "platform": "ios", "orientation": "portrait", "width": 393, "height": 852, "safeArea": {"top": 59, "bottom": 34}},
-    {"id": "iphone-16-plus", "platform": "ios", "orientation": "portrait", "width": 402, "height": 874, "safeArea": {"top": 62, "bottom": 34}}
+    {
+      "id": "iphone-se-3",
+      "model": "iPhone SE (3rd gen)",
+      "platform": "ios",
+      "orientation": "portrait",
+      "width": 375,
+      "height": 667,
+      "density": 2,
+      "os": "iOS 18.5",
+      "fontScales": [
+        1.0,
+        "AX3"
+      ],
+      "cadence": "pr",
+      "runner": "mac-mini",
+      "safeArea": {
+        "top": 20,
+        "bottom": 0
+      }
+    },
+    {
+      "id": "iphone-16",
+      "model": "iPhone 16",
+      "platform": "ios",
+      "orientation": "portrait",
+      "width": 393,
+      "height": 852,
+      "density": 3,
+      "os": "iOS 26.0",
+      "fontScales": [
+        1.0
+      ],
+      "cadence": "nightly",
+      "runner": "mac-mini",
+      "safeArea": {
+        "top": 59,
+        "bottom": 34
+      }
+    },
+    {
+      "id": "iphone-16-pro",
+      "model": "iPhone 16 Pro",
+      "platform": "ios",
+      "orientation": "portrait",
+      "width": 402,
+      "height": 874,
+      "density": 3,
+      "os": "iOS 26.0",
+      "fontScales": [
+        1.0,
+        "AX1"
+      ],
+      "cadence": "pr",
+      "runner": "mac-mini",
+      "safeArea": {
+        "top": 62,
+        "bottom": 34
+      }
+    },
+    {
+      "id": "iphone-16-pro-max",
+      "model": "iPhone 16 Pro Max",
+      "platform": "ios",
+      "orientation": "portrait",
+      "width": 440,
+      "height": 956,
+      "density": 3,
+      "os": "iOS 26.0",
+      "fontScales": [
+        1.0,
+        "AX3"
+      ],
+      "cadence": "nightly",
+      "runner": "mac-mini",
+      "safeArea": {
+        "top": 62,
+        "bottom": 34
+      }
+    },
+    {
+      "id": "android-compact-360",
+      "model": "compact custom AVD",
+      "platform": "android",
+      "orientation": "portrait",
+      "width": 360,
+      "height": 800,
+      "density": 480,
+      "os": "Android API 35",
+      "fontScales": [
+        1.0,
+        1.3
+      ],
+      "cadence": "pr",
+      "runner": "ubuntu-latest-kvm",
+      "safeArea": {
+        "top": 24,
+        "bottom": 24
+      }
+    },
+    {
+      "id": "android-pixel-pro-448",
+      "model": "Pixel-Pro-class custom AVD",
+      "platform": "android",
+      "orientation": "portrait",
+      "width": 448,
+      "height": 998,
+      "density": 480,
+      "os": "Android API 36",
+      "fontScales": [
+        1.0,
+        2.0
+      ],
+      "cadence": "nightly",
+      "runner": "ubuntu-latest-kvm",
+      "safeArea": {
+        "top": 24,
+        "bottom": 24
+      }
+    }
   ]
 }

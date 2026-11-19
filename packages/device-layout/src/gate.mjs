@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {resolveConfig} from './config.mjs';
-import {evaluateSnapshot, validateSnapshot} from './rules.mjs';
+import {evaluateSnapshot, validateSnapshot, viewportMismatch} from './rules.mjs';
 
 export const WAIVER_SCHEMA = 'device-layout/waiver/v1';
 export const RECEIPT_SCHEMA = 'device-layout/receipt/v1';
@@ -47,6 +47,7 @@ export function runGate({config, snapshots, waivers = {schema: WAIVER_SCHEMA, wa
     const errors = validateSnapshot(snap);
     const device = deviceById.get(snap?.device);
     if (!device) errors.push(`unknown device "${snap?.device}"`);
+    else if (!errors.length) { const m = viewportMismatch(snap, device); if (m) errors.push(m); }
     if (cfg.screens.length && !cfg.screens.some(s => s.id === snap?.screen)) errors.push(`unknown screen "${snap?.screen}"`);
     if (errors.length) { invalid.push({device: snap?.device ?? null, screen: snap?.screen ?? null, errors}); continue; }
     const failures = [], waived = [];
