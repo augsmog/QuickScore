@@ -91,3 +91,15 @@ const ready = replayOutbox(rememberBundle(held.outbox, 'round-local', { round_id
 assert.equal(ready.sent, 1);
 assert.equal(cellKey(waiting.ops[0]).includes('ada'), true);
 `));
+
+test('AUG-1296: restored host with no id_map rows still resolves a score write', () => run(`
+const { mergeSnapshotIds } = plan.default ?? plan;
+const snap = { contest_id: 'c1', id_map: [], rounds: [{ id: 'r-srv', players: [{ id: 'p-srv' }] }] };
+const ids = mergeSnapshotIds(emptyOutbox().ids, snap);
+const op = enqueueScore(emptyOutbox(), { contestId: 'c1', roundLocalId: 'c1', roundNumber: 1, playerLocalId: 'p-srv', hole: 1, strokes: 4 }, 'op-1').ops[0];
+const args = resolveWrite(ids, op);
+assert.ok(args && args.round_id === 'r-srv' && args.player_id === 'p-srv');
+// id_map entries still win over identity fallback
+const ids2 = mergeSnapshotIds(emptyOutbox().ids, { contest_id: 'c1', id_map: [{ kind: 'round', local_id: 'L', server_id: 'r-srv' }, { kind: 'player', local_id: 'PL', server_id: 'p-srv' }], rounds: snap.rounds });
+assert.equal(ids2.rounds.L, 'r-srv'); assert.equal(ids2.players.PL, 'p-srv'); assert.equal(ids2.players['p-srv'], undefined);
+`));
