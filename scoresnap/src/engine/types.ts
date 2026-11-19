@@ -643,6 +643,10 @@ export function validateVariationSetup(groups: {players: Player[]}[], games: Gam
     const teams = [...new Set(group.players.map(p => p.team))];
     if (teams.length !== 2 || teams.some(t => !t || group.players.filter(p => p.team === t).length !== 2)) return "Vegas requires two assigned pairs per group.";
   }
+  if (games.includes("fourball")) for (const group of groups) {
+    const teams = [...new Set(group.players.map(p => p.team))];
+    if (teams.length < 2 || teams.some(t => !t || group.players.filter(p => p.team === t).length !== 2)) return "Four-Ball requires two or more complete two-player teams per group.";
+  }
 }
 
 /** Execute only the selected game's supported rules; unknown saved keys remain stored for audit. */

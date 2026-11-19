@@ -21,6 +21,7 @@ module.exports = {
     '<rootDir>/src/engine/__tests__/stored-flight-rule.test.ts',
     '<rootDir>/src/engine/__tests__/stored-cut-rule.test.ts',
     '<rootDir>/src/engine/__tests__/field-pot.test.ts',
+    '<rootDir>/src/engine/__tests__/fourball-all-teams.test.ts',
   ],
   // expo's babel preset injects `expo/virtual/env` (ESM) into any file reading process.env.EXPO_PUBLIC_*,
   // so modules like src/services/purchases.ts need expo transformed for jest (AUG-538).

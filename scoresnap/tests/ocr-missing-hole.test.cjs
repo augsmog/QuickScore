@@ -9,6 +9,8 @@ function load(file, imports = {}) {
 }
 const parser = load('src/services/score-parser.ts');
 const review = load('src/services/ocr-review.ts');
+const partialImport = load('src/services/partial-import.ts', {'./score-parser':parser,'./ocr-review':review});
+const partialReview = load('src/services/partial-review.ts', {'./score-parser':parser,'./partial-import':partialImport});
 let response, recognized;
 const cloud = load('src/services/claude-ocr.ts', {'../stores/settings-store':{useSettingsStore:{getState:()=>({ocrConsent:true})}},'../stores/scan-store':{useScanStore:{getState:()=>({useScan:()=>true})}},'./ocr-review':review,'expo-file-system/legacy':{EncodingType:{Base64:'base64'},readAsStringAsync:async()=> 'mock'},'../db/supabase':{supabase:{functions:{invoke:async()=>response}}}});
 const ml = load('src/services/ml-kit-ocr.ts', {'./score-parser':parser,'@react-native-ml-kit/text-recognition':{recognize:async()=>recognized}});
@@ -138,7 +140,7 @@ test('actual review screen renders incomplete and corrected states side by side'
  'lucide-react-native':Object.fromEntries(['Check','AlertTriangle','Camera','Edit3','UserCheck','HelpCircle','Delete'].map(n=>[n,()=>null])),
  'expo-haptics':{},'../../src/services/quick-settle-completion-sync':{enqueueQuickSettleCompletion:()=>Promise.resolve(true)},'../../src/stores/auth-store':{useAuthStore:{getState:()=>({session:null,isAnonymous:false})}},'expo-crypto':{randomUUID:()=> '22222222-2222-4222-8222-222222222222'},'../../src/ui/theme':load('src/ui/theme.ts'),
  '../../src/stores/contest-store':{useContestStore:select=>select({contests:[],addContest:()=>{},importScores:()=>{}})},
- '../../src/services/ocr-review':review,'../../src/ui/animations/ConfettiOverlay':{ConfettiOverlay:()=>null},
+ '../../src/services/ocr-review':review,'../../src/services/partial-review':partialReview,'../../src/ui/animations/ConfettiOverlay':{ConfettiOverlay:()=>null},
  '../../src/config/posthog':{posthog:null},'../../src/services/posthog-log':{posthogAppLogger:{scorecardScoresCommitted(){}}},
  }).default;
  const r=raw();r.scores[6]=null;data=JSON.stringify([r]);const incomplete=renderToStaticMarkup(React.createElement(screen));
@@ -218,7 +220,7 @@ for (const partial of [false,true]) test(`real two-group smoke imports and keeps
 
  '../../src/ui/theme':load('src/ui/theme.ts'),
  '../../src/stores/contest-store':{useContestStore:select=>select(store.getState())},
- '../../src/services/ocr-review':review,'../../src/ui/animations/ConfettiOverlay':{ConfettiOverlay:'Confetti'},
+ '../../src/services/ocr-review':review,'../../src/services/partial-review':partialReview,'../../src/ui/animations/ConfettiOverlay':{ConfettiOverlay:'Confetti'},
  '../../src/config/posthog':{posthog:null},'../../src/services/posthog-log':{posthogAppLogger:{scorecardScoresCommitted(){}}},
  }).default;
  let nodes;

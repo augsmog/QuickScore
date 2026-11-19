@@ -118,6 +118,7 @@ test("all native PostHog capture call sites exclude PII keys", () => {
     "subscription_purchase_completed",
     "scorecard_scan_processed",
     "scorecard_imported",
+    "scorecard_partial_imported",
     "quick_settlement_created",
   ].sort();
   const result = inspectPostHogCaptures(nativeCaptureSources());

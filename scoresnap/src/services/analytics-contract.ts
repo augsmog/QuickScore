@@ -113,6 +113,15 @@ const entries: Record<string, { files: string[]; allowedProps: string[] }> = {
       "low_confidence_item_count"
     ]
   },
+  "scorecard_partial_imported": {
+    "files": [
+      "app/scan/review.tsx"
+    ],
+    "allowedProps": [
+      "cell_count",
+      "hole_count"
+    ]
+  },
   "posthogAppLogger.scorecardScoresCommitted": {
     "files": [
       "app/scan/review.tsx"

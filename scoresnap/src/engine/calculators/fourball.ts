@@ -54,15 +54,17 @@ export interface FourBallMatchup {
 }
 
 /**
- * Four-Ball for any number of teams of any size: every pair of teams plays a
- * best-ball match (round robin). Team best per hole = lowest score among all
- * of that team's members.
+ * Four-Ball for any number of two-player teams: every pair of teams plays a
+ * best-ball match (round robin). Team best per hole = lowest score of its two
+ * members. Teams that are not exactly 2 players are not a supported Four-Ball
+ * configuration and are excluded rather than settled; `validateVariationSetup`
+ * is the setup-time check that rejects a malformed roster outright.
  */
 export function calcFourBallAllTeams(
   teams: Map<string, Player[]> | Record<string, Player[]>
 ): FourBallMatchup[] {
   const entries = teams instanceof Map ? Array.from(teams.entries()) : Object.entries(teams);
-  const valid = entries.filter(([, members]) => members.length > 0);
+  const valid = entries.filter(([, members]) => members.length === 2);
   const matchups: FourBallMatchup[] = [];
   for (let a = 0; a < valid.length; a++) {
     for (let b = a + 1; b < valid.length; b++) {
