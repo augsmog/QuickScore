@@ -1,5 +1,6 @@
 import "./create-footer.browser.test.mjs";
 import "./layout-targets.browser.test.mjs";
+import "./settlement-scroll-layout.browser.test.mjs";
 // Render the production export: no substitute HTML or style-source assertions.
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
