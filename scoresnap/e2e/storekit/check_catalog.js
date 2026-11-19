@@ -17,7 +17,6 @@ if (proEnabled && want.length !== 4) errs.push(`expected 4 PLAN_OPTIONS prices, 
 if (!proEnabled && want.length !== 2) errs.push(`expected 2 TD PLAN_OPTIONS prices, parsed ${want.length}`);
 if (JSON.stringify(want) !== JSON.stringify(got)) errs.push(`product set differs: expected ${want} vs storekit ${got}`);
 if (!proEnabled && got.some(id => id.startsWith("snapscore.pro."))) errs.push("shipping catalog must not contain Pro products");
-for (const s of subs) if (s.productID.startsWith("snapscore.td.") && s.introductoryOffer) errs.push(`${s.productID}: Tournament Director has no free trial; introductoryOffer must be null`);
 for (const s of subs) if (fallback[s.productID] !== s.displayPrice)
   errs.push(`${s.productID}: storekit ${s.displayPrice} vs paywall ${fallback[s.productID]}`);
 if (errs.length) { errs.forEach(e => console.error("mismatch:", e)); process.exit(1); }

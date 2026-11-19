@@ -1,12 +1,5 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../src/ui/SafeScreen";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  settingsLayout,
-  SETTINGS_SWITCH_TARGET,
-  SETTINGS_SECTION_HEADER_MARGIN_TOP,
-  SETTINGS_SCORING_HEADER_MARGIN_TOP,
-} from "../src/ui/settings-layout";
 import { useState, useCallback } from "react";
 import {
   View,
@@ -58,7 +51,7 @@ import { SUPPORT_BASE_URL } from "../src/config/support";
 
 // ─── Reusable row components ──────────────────────────────────
 
-function SectionHeader({ title, marginTop = SETTINGS_SECTION_HEADER_MARGIN_TOP }: { title: string; marginTop?: number }) {
+function SectionHeader({ title }: { title: string }) {
   return (
     <Text
       style={{
@@ -67,7 +60,7 @@ function SectionHeader({ title, marginTop = SETTINGS_SECTION_HEADER_MARGIN_TOP }
         color: COLORS.primary,
         letterSpacing: 2,
         textTransform: "uppercase",
-        marginTop,
+        marginTop: 28,
         marginBottom: 10,
         marginLeft: 4,
       }}
@@ -78,14 +71,12 @@ function SectionHeader({ title, marginTop = SETTINGS_SECTION_HEADER_MARGIN_TOP }
 }
 
 function ToggleRow({
-  compact = false,
   icon,
   label,
   sublabel,
   value,
   onToggle,
 }: {
-  compact?: boolean;
   icon: React.ReactNode;
   label: string;
   sublabel?: string;
@@ -98,7 +89,7 @@ function ToggleRow({
         backgroundColor: COLORS.surfaceLow,
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
-        paddingVertical: compact ? 2 : 14,
+        paddingVertical: 14,
         minHeight: 44,
         marginBottom: 6,
         flexDirection: "row",
@@ -125,7 +116,6 @@ function ToggleRow({
         )}
       </View>
       <Switch
-        style={SETTINGS_SWITCH_TARGET}
         accessibilityRole={Platform.OS === "web" ? undefined : "switch"}
         accessibilityLabel={label}
         accessibilityHint={sublabel}
@@ -141,7 +131,6 @@ function ToggleRow({
 }
 
 function PickerRow({
-  compact = false,
   icon,
   label,
   value,
@@ -149,7 +138,6 @@ function PickerRow({
   options,
   onSelect,
 }: {
-  compact?: boolean;
   icon: React.ReactNode;
   label: string;
   value: string;
@@ -182,7 +170,7 @@ function PickerRow({
         backgroundColor: COLORS.surfaceLow,
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
-        paddingVertical: compact ? 8 : 14,
+        paddingVertical: 14,
         minHeight: 44,
         marginBottom: 6,
         flexDirection: "row",
@@ -203,14 +191,12 @@ function PickerRow({
 }
 
 function NumberRow({
-  compact = false,
   icon,
   label,
   sublabel,
   value,
   onPress,
 }: {
-  compact?: boolean;
   icon: React.ReactNode;
   label: string;
   sublabel?: string;
@@ -228,7 +214,7 @@ function NumberRow({
         backgroundColor: COLORS.surfaceLow,
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
-        paddingVertical: compact ? 2 : 14,
+        paddingVertical: 14,
         minHeight: 44,
         marginBottom: 6,
         flexDirection: "row",
@@ -259,8 +245,6 @@ function NumberRow({
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const L = settingsLayout(insets);
   const settings = useSettingsStore();
   const { user, signOut, isAnonymous } = useAuthStore();
   const tier = useScanStore((s) => s.tier);
@@ -360,7 +344,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={L.edges}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
       {/* Header */}
       <View
         style={{
@@ -379,7 +363,7 @@ export default function SettingsScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: L.scrollPaddingBottom }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Account ── */}
@@ -518,8 +502,8 @@ export default function SettingsScreen() {
         )}
 
         <SectionHeader title="Subscription" />
-        {/* Keep plan management for existing subscribers while the Pro upgrade path is dormant. */}
-        {(proEnabled() || tier === "pro" || tier === "td") && (
+        {/* AUG-826: Manage plan is the only route to the Pro paywall here; hidden while pro_enabled is off. Restore purchases below stays for returning buyers. */}
+        {proEnabled() && (
           <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[tier]} onPress={() => router.push("/paywall")} />
         )}
         <AnimatedPressable accessibilityRole="button" accessibilityLabel="Restore purchases" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
@@ -529,12 +513,10 @@ export default function SettingsScreen() {
           <ChevronRight size={14} color={COLORS.textDim} />
         </AnimatedPressable>
 
-        {/* Compact Scoring spacing keeps Distance Unit above the 15 Pro safe-area fold. */}
         {/* ── Scoring ── */}
-        <SectionHeader title="Scoring" marginTop={SETTINGS_SCORING_HEADER_MARGIN_TOP} />
+        <SectionHeader title="Scoring" />
 
         <PickerRow
-          compact
           icon={<Hash size={18} color={COLORS.textDim} />}
           label="Score Display"
           value={settings.scoreFormat}
@@ -548,7 +530,6 @@ export default function SettingsScreen() {
         />
 
         <ToggleRow
-          compact
           icon={<Target size={18} color={COLORS.textDim} />}
           label="Show Net Scores"
           sublabel="Apply handicap strokes to displayed scores"
@@ -558,7 +539,6 @@ export default function SettingsScreen() {
 
         {Platform.OS === "ios" ? (
           <NumberRow
-            compact
             icon={<Gauge size={18} color={COLORS.textDim} />}
             label="Default Unit Amount"
             sublabel="Starting unit amount for new contests"
@@ -571,7 +551,6 @@ export default function SettingsScreen() {
           />
         ) : (
           <NumberRow
-            compact
             icon={<Gauge size={18} color={COLORS.textDim} />}
             label="Default Unit Amount"
             sublabel="Starting unit amount for new contests"
@@ -581,7 +560,6 @@ export default function SettingsScreen() {
         )}
 
         <ToggleRow
-          compact
           icon={<Zap size={18} color={COLORS.textDim} />}
           label="Auto-Complete at 18"
           sublabel="Automatically finalize round after hole 18"
@@ -590,7 +568,7 @@ export default function SettingsScreen() {
         />
 
         {/* ── Course & Play ── */}
-        <SectionHeader title="Course & Play" marginTop={8} />
+        <SectionHeader title="Course & Play" />
 
         <PickerRow
           icon={<Ruler size={18} color={COLORS.textDim} />}

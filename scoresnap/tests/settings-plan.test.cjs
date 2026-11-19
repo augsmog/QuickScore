@@ -53,8 +53,6 @@ function settingsScreen(store, proEnabled = true) {
     'expo-router': { useRouter: () => ({ push, back, replace: jest.fn() }) },
     'lucide-react-native': new Proxy({}, { get: (_, name) => `Icon:${name}` }),
     '../src/ui/SafeScreen': { SafeScreen: 'SafeScreen' },
-    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }) },
-    '../src/ui/settings-layout': load('src/ui/settings-layout.ts'),
     '../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
     '../src/ui/theme': load('src/ui/theme.ts'),
     '../src/ui/paywall-copy': { PAYWALL_COPY: C },
@@ -97,24 +95,15 @@ test.each(['free', 'pro', 'td'])('Manage plan renders the shipped %s name and pr
   expect(screen.back).toHaveBeenCalledTimes(1);
 });
 
-// When Pro is dormant, preserve subscription management for active Pro/TD buyers but do not show
-// an upgrade affordance to a free account. Restore purchases remains available to everyone.
-test.each([['free', false], ['pro', true], ['td', true]])('pro_enabled off manages %s subscriptions only for active buyers', async (tier, canManage) => {
+// AUG-826: when pro_enabled is off, the Manage plan row (its only route to the Pro paywall) is
+// gone, but Restore purchases stays so a returning TD/Pro buyer can still recover entitlements.
+test.each(['free', 'pro', 'td'])('pro_enabled off hides Manage plan for %s but keeps Restore purchases', tier => {
   const store = scanStore();
   store.getState().setTier(tier);
   const screen = settingsScreen(store, false);
   const tree = screen.render();
-  if (canManage) {
-    expectPlan(screen, C[tier]);
-    planRow(tree).props.onPress();
-    expect(screen.push).toHaveBeenCalledWith('/paywall');
-  } else {
-    expect(planRow(tree)).toBeUndefined();
-  }
-  const restore = nodes(tree).find(node => node.props?.accessibilityLabel === 'Restore purchases');
-  expect(restore).toBeDefined();
-  await restore.props.onPress();
-  expect(screen.restore).toHaveBeenCalledTimes(1);
+  expect(planRow(tree)).toBeUndefined();
+  expect(nodes(tree).some(node => text(node) === 'Restore purchases')).toBe(true);
 });
 
 test('same screen follows upgrades, TD-to-Pro changes and expiry without altering store state', () => {

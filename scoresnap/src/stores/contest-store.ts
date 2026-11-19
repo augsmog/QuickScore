@@ -1,5 +1,3 @@
-import type { FlightRule } from "../engine/flights";
-import type { CutRule } from "../engine/cut-line";
 import { useOnlineStore } from './online-store';
 import { completeScores } from "../services/ocr-review";
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
@@ -10,7 +8,6 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CONTEST_STORAGE_KEY, createGatedStorage } from "./persisted-keys";
 import { GameType, GameConfig, Player, Course, HoleInfo, AuxiliaryData } from "../engine/types";
-import type { StartSlot, StartType } from "../engine/group-status";
 import { syncRound, syncRoundGroups, syncContestTournamentMeta, syncScore } from "../services/tournament-sync";
 import type { PartialImportCell } from "../services/partial-import";
 
@@ -31,7 +28,6 @@ export interface ContestGroup {
   id: string;
   name: string;
   players: Player[];
-  startSlot?: StartSlot;
   teeTime?: string; // "10:03" or "10:03 AM"
   externalId?: string; // External group ID (e.g. from GolfGenius)
 }
@@ -42,7 +38,6 @@ export interface RoundInfo {
   name: string;
   date?: string;
   course?: Course; // Each round can have a different course
-  startType?: StartType;
   groups: ContestGroup[];
 }
 
@@ -53,9 +48,6 @@ export interface TeamInfo {
 }
 
 export interface Contest {
-  flightRule?: FlightRule;
-  cutRule?: CutRule;
-  cutAfterRound?: number;
   remoteRestored?: boolean;
   id: string;
   name: string;
@@ -79,7 +71,6 @@ export interface Contest {
   onlineEdits?: Record<string, { token: string; strokes: number }>;
   // Multi-round tournament support
   rounds?: RoundInfo[];
-  startType?: StartType;
   currentRound?: number; // 1-indexed
   isTournament?: boolean;
 }
@@ -183,15 +174,6 @@ export const useContestStore = create<ContestState>()(
           contests: state.contests.map((c) => {
             if (c.id !== contestId) return c;
             validateScoreWrite(c,groupId,playerId,hole,strokes);
-            // Restored single rounds can have an ID distinct from the contest.
-            // Resolve that round through the same ID map used by tournament sync.
-            if (c.remoteRestored && !c.isTournament) {
-              const restoredRound = c.rounds?.find(r => r.number === (c.currentRound ?? 1));
-              if (restoredRound) {
-                roundId = restoredRound.id;
-                roundNumber = restoredRound.number;
-              }
-            }
             if(c.status==="completed") throw new Error("Completed contest scores are locked");
             if(c.gameConfig?.rulesVersion===1 && c.games.some(g=>g==="alternate_shot" || g==="chapman")) {
               const round=c.isTournament?c.rounds?.find(r=>r.number===c.currentRound):undefined;
@@ -555,35 +537,6 @@ export function createSampleContest(): Contest {
 // Helper to generate unique IDs
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-}
-
-/**
- * AUG-1151: rounds for a multi-day contest created in the New Contest wizard.
- * Round 1 uses the configured groups as-is, the same way addRound seeds round 1
- * from contest.groups. Later rounds keep the host's grouping and player IDs, but
- * get fresh group IDs and fresh score arrays, so no two rounds share a group or
- * a score array. addRound puts everyone in one group because it runs mid-event;
- * the wizard instead keeps the grouping the host just set up.
- * Returns undefined for fewer than 2 rounds (a single-round contest is unchanged).
- */
-export function buildTournamentRounds(
-  groups: ContestGroup[],
-  course: Course,
-  roundCount: number,
-  makeId: () => string = generateId,
-): RoundInfo[] | undefined {
-  if (!Number.isInteger(roundCount) || roundCount < 2) return undefined;
-  return Array.from({ length: roundCount }, (_, i) => ({
-    id: makeId(),
-    number: i + 1,
-    name: `Round ${i + 1}`,
-    course,
-    groups: i === 0 ? groups : groups.map((g) => ({
-      ...g,
-      id: makeId(),
-      players: g.players.map((p) => ({ ...p, scores: new Array(course.holes.length).fill(0) })),
-    })),
-  }));
 }
 
 // Default course template (par 72)

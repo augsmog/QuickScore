@@ -6,7 +6,7 @@ The workflow runs a clean `expo prebuild` on a GitHub-hosted macOS runner, which
 
 The shipping `SnapScore.storekit` is the flag-off catalog and contains only Tournament Director (TD) annual ($79.99) and monthly ($12.99) auto-renewables. The separate `SnapScore.pro-enabled.storekit` fixture preserves all four products for a future flag-on run. Use `node e2e/storekit/check_catalog.js` for the shipping catalog, or add `--pro-enabled` to validate the four-product fixture. Flag-on also requires the Pro products to be re-added in App Store Connect before that fixture can represent a live catalog.
 
-What it proves: the local shipping StoreKit catalog loads in the prebuilt app. That covers 2 TD auto-renewables in one group and their prices. Tournament Director has no free trial (owner t1517u), so it also proves neither product carries an introductory offer and that the first TD annual purchase is a plain paid purchase, and that unknown product IDs return nothing.
+What it proves: the local shipping StoreKit catalog loads in the prebuilt app. That covers 2 TD auto-renewables in one group, their prices, and the 7-day free trial on the annual product only. It also proves deterministic trial eligibility (eligible, then ineligible after a purchase, then eligible again after clearing history) and that unknown product IDs return nothing.
 
 What it does not prove: RevenueCat offerings, server-side eligibility, a live sandbox price, or the App Store-signed binary. Those stay separate steps (Tier 3 / later). The shipping catalog mirrors the TD rows of `PLAN_OPTIONS` in `src/services/paywall-plans.ts`; Pro rows remain dormant in app code. If TD prices or IDs change, update the shipping fixture.
 

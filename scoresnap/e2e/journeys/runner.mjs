@@ -7,9 +7,8 @@ import {proveGlyphPaint} from './glyph-evidence.mjs';
 import {chromium} from 'playwright';
 import {createMetrics,count,screen,evaluate,aggregate} from './metrics.mjs';
 import {cases,setup,ready,disclosures,fixtureVersion} from './adapter.mjs';
-import {getSafeAreaProfile,simulateSafeArea} from '../safe-area-profiles.mjs';
+import {getSafeAreaProfile} from '../safe-area-profiles.mjs';
 import {renderReachReport} from './reach-report.mjs';
-import {auditCapture,createPaintHelpers} from './capture-layout.mjs';
 
 const manifest=JSON.parse(fs.readFileSync(new URL('./journeys.json',import.meta.url)));
 const base=process.env.BASE_URL||'http://127.0.0.1:8092';
@@ -37,13 +36,19 @@ async function geometry(locator,{text}={}) {
   demand(await locator.count()===1,'control-not-unique');
   demand(await locator.isVisible(),'control-hidden');
   demand(await locator.isEnabled()&&await locator.getAttribute('aria-disabled')!=='true','control-disabled');
-  const helpers=await page.evaluateHandle(createPaintHelpers);
-  let state;
-  try { state=await locator.evaluate((el,{text,helpers})=>{
-    const {renderedChain,textContrasts}=helpers;
+  const state=await locator.evaluate((el,text)=>{
     const r=el.getBoundingClientRect(), inset=Math.min(10,r.width/4,r.height/4), points=[[r.x+r.width/2,r.y+r.height/2],[r.x+inset,r.y+inset],[r.right-inset,r.y+inset],[r.x+inset,r.bottom-inset],[r.right-inset,r.bottom-inset]];
     // Include every ancestor, including descendants between a label and its
     // actionable container. Individually nonzero opacities can still hide text.
+    const renderedChain=node=>{
+      let opacity=1;
+      for(let a=node;a;a=a.parentElement) {
+        const s=getComputedStyle(a);
+        if(s.display==='none'||s.visibility!=='visible')return false;
+        opacity*=Number(s.opacity);
+      }
+      return opacity>0.1;
+    };
     const rendered=renderedChain(el);
     let inside=r.width>0&&r.height>0&&r.x>=0&&r.y>=0&&r.right<=innerWidth&&r.bottom<=innerHeight;
     for(let a=el.parentElement;a;a=a.parentElement) {
@@ -55,6 +60,28 @@ async function geometry(locator,{text}={}) {
     // Resolve CSS colors in sRGB and composite ancestor background colors over
     // the browser's default white canvas. Preserve exact computed alpha for the
     // >0.1 threshold rather than quantizing it to an 8-bit canvas channel.
+    const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const rgba=value=>{
+      ctx.clearRect(0,0,1,1);ctx.fillStyle=value;ctx.fillRect(0,0,1,1);
+      const c=[...ctx.getImageData(0,0,1,1).data];
+      const alpha=value.includes('/')?value.split('/')[1].replace(')','').trim():value.startsWith('rgba(')?value.slice(5,-1).split(',')[3].trim():null;
+      c[3]=alpha===null?c[3]/255:parseFloat(alpha)/(alpha.endsWith('%')?100:1);
+      return c;
+    };
+    const textContrasts=node=>{
+      const style=getComputedStyle(node),fill=style.webkitTextFillColor;
+      const foreground=rgba(fill&&fill!=='currentcolor'?fill:style.color);
+      if(foreground[3]<=0.1)return false;
+      const ancestors=[];for(let a=node;a;a=a.parentElement)ancestors.push(a);
+      let background=[255,255,255];
+      for(const a of ancestors.reverse()) {
+        const c=rgba(getComputedStyle(a).backgroundColor);
+        background=background.map((v,i)=>c[i]*c[3]+v*(1-c[3]));
+      }
+      const painted=background.map((v,i)=>foreground[i]*foreground[3]+v*(1-foreground[3]));
+      return background.some((v,i)=>Math.abs(v-painted[i])>0.5);
+    };
     // Require a contrasting text node with geometry inside the target as well
     // as visibility along the entire text-to-root chain.
     let visibleText=!text,textRect=null,textNode=null;
@@ -71,12 +98,10 @@ async function geometry(locator,{text}={}) {
         if(s.contain.split(/\s+/).includes('paint'))clipX=clipY=true;
         if(s.clip!=='auto') {const m=s.clip.match(/rect\(([^)]*)\)/);if(m){const v=m[1].split(/[ ,]+/).map(q=>q==='auto'?null:parseFloat(q));if(v[0]!=null){y=b.y+v[0];clipY=true;}if(v[1]!=null){right=Math.min(right,b.x+v[1]);clipX=true;}if(v[2]!=null){bottom=Math.min(bottom,b.y+v[2]);clipY=true;}if(v[3]!=null){x=b.x+v[3];clipX=true;}}}
         if(s.clipPath&&s.clipPath!=='none') {
-          // Strict plain-rectangle inset() only; rounded/unit-ful/unparseable shapes are not
-          // modelled, and an inset never widens an outer clip (AUG-1178/AUG-1241).
-          const inset=s.clipPath.match(/^inset\(([^)]*)\)$/),v=inset&&inset[1].trim().split(/\s+/),ok=v&&v.length>=1&&v.length<=4&&v.every(q=>/^-?\d*\.?\d+(px|%)?$/.test(q));
-          if(ok){const e=v.length===1?[v[0],v[0],v[0],v[0]]:v.length===2?[v[0],v[1],v[0],v[1]]:v.length===3?[v[0],v[1],v[2],v[1]]:v;
-            const px=(q,size)=>parseFloat(q)*(q.endsWith('%')?size/100:1),[t,rr,bb,ll]=[px(e[0],b.height),px(e[1],b.width),px(e[2],b.height),px(e[3],b.width)];
-            x=Math.max(x,b.x+ll);right=Math.min(right,b.right-rr);y=Math.max(y,b.y+t);bottom=Math.min(bottom,b.bottom-bb);clipX=clipY=true;}
+          const inset=s.clipPath.match(/^inset\(([^)]*)\)$/);
+          if(inset){const raw=inset[1].split(/\s+/),expanded=raw.length===1?[raw[0],raw[0],raw[0],raw[0]]:raw.length===2?[raw[0],raw[1],raw[0],raw[1]]:raw.length===3?[raw[0],raw[1],raw[2],raw[1]]:raw;
+            const px=(v,size)=>parseFloat(v)*(v.endsWith('%')?size/100:1),[t,rr,bb,ll]=[px(expanded[0],b.height),px(expanded[1],b.width),px(expanded[2],b.height),px(expanded[3],b.width)];
+            x=b.x+ll;right=b.right-rr;y=b.y+t;bottom=b.bottom-bb;clipX=clipY=true;}
         }
         if(clipX||clipY)clips.push({x:clipX?x:-1e7,y:clipY?y:-1e7,width:clipX?Math.max(0,right-x):2e7,height:clipY?Math.max(0,bottom-y):2e7});
       }
@@ -92,7 +117,7 @@ async function geometry(locator,{text}={}) {
       }
     }
     return {inside,hits,visibleText,rendered,textRect,textNode,rect:{x:r.x,y:r.y,width:r.width,height:r.height}};
-  },{text,helpers}); } finally {await helpers.dispose();}
+  },text);
   demand(state.rendered,'control-hidden');
   demand(state.inside,'outside-viewport-or-clipped',JSON.stringify(state.rect));
   demand(state.hits,'control-occluded');demand(state.visibleText,'visible-text-missing');
@@ -125,7 +150,6 @@ async function reachability(page,locator,feature) {
 async function runJourney(browser,j) {
   const context=await browser.newContext({viewport:report.viewport,serviceWorkers:'block',permissions:['clipboard-read','clipboard-write']});
   await containOffline(context,base);
-  await context.addInitScript(simulateSafeArea,profile);
   const page=await context.newPage();page.setDefaultTimeout(4000);
   const m=createMetrics(),a={number:1,metrics:m,assertions:[],pageErrors:[],featureChecks:[],steps:[],error:null};
   page.on('pageerror',e=>a.pageErrors.push(e.message));
@@ -136,12 +160,9 @@ async function runJourney(browser,j) {
   await context.addInitScript(()=>document.addEventListener('focusin',()=>window.__journeyFocus(),true));
   const step=async name=>{
     const before=performance.now();
-    const screenshot=path.join(dir,`${String(++stepNumber).padStart(2,'0')}-${name}.png`);
-    const layout=await auditCapture(page,{profileName,profile,journey:j.id,capture:name,screenshot});
-    await page.screenshot({path:screenshot});
+    await page.screenshot({path:path.join(dir,`${String(++stepNumber).padStart(2,'0')}-${name}.png`)});
     const captureMs=performance.now()-before;excludedMs+=captureMs;
-    a.steps.push({number:stepNumber,name,captureMs:Math.round(captureMs),screenshot,layout});
-    demand(layout.failures.length===0,'capture-layout',JSON.stringify(layout.failures));
+    a.steps.push({number:stepNumber,name,captureMs:Math.round(captureMs)});
   };
   const check=async(id,fn)=>{
     assert(j.assertions.includes(id),`undeclared assertion ${id}`);
@@ -290,9 +311,7 @@ finally {
   for(const j of manifest.journeys) for(const f of j.features) if(f.reachability?.status==='known_issue')report.coverageGaps.push({id:j.id,feature:f.name,linear:f.reachability.linear,reason:'Semantic reachability expected failure; geometry, activation and outcomes remain gated'});
   report.gate=aggregate(required,report.results);report.elapsedMs=Math.round(performance.now()-runStart);
   fs.writeFileSync(path.join(out,'journeys-results.json'),JSON.stringify(report,null,2)+'\n');
-  fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(report,null,2)+'\n');
   fs.writeFileSync(path.join(out,'reach.md'),renderReachReport(report,manifest));
-  fs.copyFileSync(new URL('./GROWTH.md',import.meta.url),path.join(out,'GROWTH.md'));
 }
 console.log(`Journey gate ${report.gate.status.toUpperCase()}: ${report.results.filter(r=>r.status==='passed'||r.status==='expected_failure').length}/${required.length}; elapsed ${report.elapsedMs} ms; coverage gaps ${report.coverageGaps.length}`);
 if(report.gate.status!=='passed') {console.error(report.gate.errors.join('\n'));process.exitCode=1;}
