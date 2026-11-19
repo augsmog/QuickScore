@@ -49,6 +49,8 @@ import {
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox } from "../../src/ui/tournament-setup-layout";
+import { useScanStore } from "../../src/stores/scan-store";
+import { canCreateContest } from "../../src/services/entitlements";
 import { posthog } from "../../src/config/posthog";
 import { posthogAppLogger } from "../../src/services/posthog-log";
 import { isCompactViewport } from "../../src/ui/compact-viewport";
@@ -72,6 +74,7 @@ export default function NewContestScreen() {
   const router = useRouter();
   const addContest = useContestStore((s) => s.addContest);
   const user = useAuthStore((s) => s.user);
+  const tier = useScanStore((s) => s.tier);
   const compactViewport = isCompactViewport(Dimensions.get("window"));
 
   const [step, setStep] = useState(0);
@@ -323,8 +326,15 @@ export default function NewContestScreen() {
       ...(rounds ? { isTournament: true, rounds, currentRound: 1 } : {}),
     };
 
+    // AUG-1368: gate before save; addContest runs validateHostContest and throws for non-TD multi-round/multi-group.
+    if (!canCreateContest(contest, tier)) { router.push("/paywall?tier=td"); return; }
+    try {
+      addContest(contest);
+    } catch (e) {
+      showAlert("Can't create contest", e instanceof Error ? e.message : "Please try again.");
+      return;
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    addContest(contest);
     posthog?.capture("contest_created", {
       player_count: validPlayers.length,
       group_count: groups.length,

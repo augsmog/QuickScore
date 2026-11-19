@@ -9,6 +9,7 @@ module.exports = {
     '<rootDir>/src/services/__tests__/partial-import-answers.test.ts',
     '<rootDir>/src/services/__tests__/partial-import-queue.test.ts',
     '<rootDir>/src/services/__tests__/analytics-contract.test.ts',
+    '<rootDir>/src/services/__tests__/entitlements-create.test.ts',
     '<rootDir>/src/engine/__tests__/leaderboard-rows.test.ts',
     '<rootDir>/src/engine/__tests__/contest-settlement-16p.test.ts',
     '<rootDir>/src/engine/__tests__/td-readiness-56-player.test.ts',

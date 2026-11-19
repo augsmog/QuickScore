@@ -101,7 +101,7 @@ test('only two numbered steps; Round Settings contains only unit amount and esti
   expect(nodes(settings.children).some(n => n.type === 'Switch')).toBe(false);
   expect(text(settings.children)).not.toMatch(/VARIATIONS|ENTRY FEE|Stroke Play|players|holes/);
   h.press('Back'); expect(h.byId('contest-step-gamemodes')).toBeDefined();
-  expect(fs.readFileSync('app/contest/new.tsx', 'utf8')).not.toMatch(/paywall|openPlan|Upgrade|canUseGame|canHostTournament/);
+  expect(fs.readFileSync('app/contest/new.tsx', 'utf8')).not.toMatch(/openPlan|Upgrade|canUseGame|canHostTournament/); // AUG-1368: the TD-only save gate (canCreateContest -> /paywall?tier=td) is allowed
 });
 
 test('Coming Soon modes remain unavailable without opening a plan', () => {

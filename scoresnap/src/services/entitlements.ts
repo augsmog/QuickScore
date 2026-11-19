@@ -46,6 +46,9 @@ export function canHostTournament(contest: HostDraft, tier: Tier): boolean {
     (contest.numRounds ?? contest.rounds?.length ?? 1) <= 1 &&
     (contest.rounds ?? []).every(r => activeGroups(r.groups) <= 1));
 }
+/** AUG-1368: mirrors validateHostContest so the wizard can route to the paywall instead of throwing. */
+export const canCreateContest = (contest: HostDraft & {games: readonly string[]}, tier: Tier): boolean =>
+  canHostTournament(contest, tier) && contest.games.every(g => canUseGame(g, tier));
 /** #49: call immediately before host publish/share; guests never call this helper. */
 export const canPublishHostedContest = canHostTournament;
 /** AUG-1263: the PRO badge on a game is a Pro-membership affordance; never shown while pro_enabled is off. */
