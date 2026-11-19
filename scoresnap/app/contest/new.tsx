@@ -48,7 +48,7 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
-import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox } from "../../src/ui/tournament-setup-layout";
+import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox, SWITCH_HIT_SLOP } from "../../src/ui/tournament-setup-layout";
 import { posthog } from "../../src/config/posthog";
 import { posthogAppLogger } from "../../src/services/posthog-log";
 import { isCompactViewport } from "../../src/ui/compact-viewport";
@@ -478,7 +478,7 @@ export default function NewContestScreen() {
               <Switch
                 testID="tournament-toggle"
                 accessibilityLabel="Multi-Day Tournament"
-                style={{ width: 44, height: 44 }}
+                hitSlop={SWITCH_HIT_SLOP}
                 value={isTournament}
                 onValueChange={(val) => {
                   setIsTournament(val);
@@ -494,7 +494,7 @@ export default function NewContestScreen() {
             </View>
 
             {isTournament && (
-              <View style={{ marginBottom: 16, paddingLeft: 48 }}>
+              <View style={{ marginBottom: 16 }}>
                 <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 8, fontSize: 11 }}>
                   NUMBER OF ROUNDS
                 </Text>
@@ -599,9 +599,9 @@ export default function NewContestScreen() {
                 testID="team-mode"
                 value={hasTeams}
                 onValueChange={setHasTeams}
-                style={{ width: 44, height: 44 }}
-                trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
-                thumbColor={COLORS.text}
+                hitSlop={SWITCH_HIT_SLOP}
+                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                thumbColor={COLORS.card}
               />
             </View>
 
@@ -717,7 +717,7 @@ export default function NewContestScreen() {
                       marginHorizontal: nameEmpty ? -8 : 0,
                     }}
                   />
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap", rowGap: 4 }}>
                     <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textDim }}>
                       HCP
                     </Text>
