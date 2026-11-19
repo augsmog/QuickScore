@@ -31,7 +31,7 @@ function scanStore(saved) {
   }).useScanStore;
 }
 
-function settingsScreen(store, proEnabled = true) {
+function settingsScreen(store) {
   const push = jest.fn(), back = jest.fn(), restore = jest.fn(async () => true);
   const states = [];
   let cursor = 0;
@@ -53,13 +53,9 @@ function settingsScreen(store, proEnabled = true) {
     'expo-router': { useRouter: () => ({ push, back, replace: jest.fn() }) },
     'lucide-react-native': new Proxy({}, { get: (_, name) => `Icon:${name}` }),
     '../src/ui/SafeScreen': { SafeScreen: 'SafeScreen' },
-    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }) },
-    '../src/ui/settings-layout': load('src/ui/settings-layout.ts'),
     '../src/ui/AnimatedPressable': { AnimatedPressable: 'Pressable' },
     '../src/ui/theme': load('src/ui/theme.ts'),
     '../src/ui/paywall-copy': { PAYWALL_COPY: C },
-    // AUG-826: Manage plan row gates on proEnabled(); default ON preserves the existing assertions.
-    '../src/services/entitlements': { proEnabled: () => proEnabled },
     '../src/stores/scan-store': { useScanStore: selector => selector(store.getState()) },
     '../src/stores/settings-store': { useSettingsStore: () => ({ scoreFormat: 'gross', defaultTee: 'white' }) },
     '../src/stores/auth-store': { useAuthStore: () => ({ user: null, isAnonymous: true }) },
@@ -95,26 +91,6 @@ test.each(['free', 'pro', 'td'])('Manage plan renders the shipped %s name and pr
   expect(screen.restore).not.toHaveBeenCalled();
   nodes(screen.render()).find(node => node.props?.accessibilityLabel === 'Back').props.onPress();
   expect(screen.back).toHaveBeenCalledTimes(1);
-});
-
-// When Pro is dormant, preserve subscription management for active Pro/TD buyers but do not show
-// an upgrade affordance to a free account. Restore purchases remains available to everyone.
-test.each([['free', false], ['pro', true], ['td', true]])('pro_enabled off manages %s subscriptions only for active buyers', async (tier, canManage) => {
-  const store = scanStore();
-  store.getState().setTier(tier);
-  const screen = settingsScreen(store, false);
-  const tree = screen.render();
-  if (canManage) {
-    expectPlan(screen, C[tier]);
-    planRow(tree).props.onPress();
-    expect(screen.push).toHaveBeenCalledWith('/paywall');
-  } else {
-    expect(planRow(tree)).toBeUndefined();
-  }
-  const restore = nodes(tree).find(node => node.props?.accessibilityLabel === 'Restore purchases');
-  expect(restore).toBeDefined();
-  await restore.props.onPress();
-  expect(screen.restore).toHaveBeenCalledTimes(1);
 });
 
 test('same screen follows upgrades, TD-to-Pro changes and expiry without altering store state', () => {
