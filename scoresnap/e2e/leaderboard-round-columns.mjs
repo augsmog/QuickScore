@@ -62,7 +62,7 @@ const contest = {
 };
 
 fs.mkdirSync(OUT, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}) });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
 try {
   await context.route("**/*", (route) => new URL(route.request().url()).origin === new URL(BASE).origin ? route.continue() : route.abort());
@@ -97,11 +97,23 @@ try {
   for (const playerId of ["p3", "p1", "p2"]) {
     assert.equal(await page.getByTestId(`leaderboard-thru-${playerId}`).innerText(), String(R2_PLAYED));
   }
+  assert.equal(await page.getByTestId("leaderboard-topar-Player 03").innerText(), "+7", "Cumulative TO PAR reflects the aggregate card");
+  const cumulativeScreenshot = path.join(OUT, "two-round-16-player-cumulative-390x844.png");
+  await page.screenshot({ path: cumulativeScreenshot });
+  console.log(`PASS cumulative screenshot=${cumulativeScreenshot} sha256=${crypto.createHash("sha256").update(fs.readFileSync(cumulativeScreenshot)).digest("hex")}`);
+
+  await page.getByText("ROUND 2", { exact: true }).click();
+  assert.equal(await page.getByTestId("leaderboard-topar-Player 03").innerText(), "−3", "Daily TO PAR reflects only round 2");
+  assert.equal(await page.getByTestId("leaderboard-r1-p3").innerText(), "70", "R1 stays the completed first round");
+  assert.equal(await page.getByTestId("leaderboard-today-p3").innerText(), "−3", "Today matches round 2 to-par");
+  for (const playerId of ["p3", "p1", "p2"]) {
+    assert.equal(await page.getByTestId(`leaderboard-thru-${playerId}`).innerText(), String(R2_PLAYED), "Daily THRU remains current-round holes, not F");
+  }
+  const dailyScreenshot = path.join(OUT, "two-round-16-player-daily-390x844.png");
+  await page.screenshot({ path: dailyScreenshot });
+  console.log(`PASS daily screenshot=${dailyScreenshot} sha256=${crypto.createHash("sha256").update(fs.readFileSync(dailyScreenshot)).digest("hex")}`);
   assert.deepEqual(errors, [], "no page errors");
-  const screenshot = path.join(OUT, "two-round-16-player-390x844.png");
-  await page.screenshot({ path: screenshot });
-  const sha256 = crypto.createHash("sha256").update(fs.readFileSync(screenshot)).digest("hex");
-  console.log(`PASS screenshot=${screenshot} rows=16 viewport=390x844 sha256=${sha256}`);
+  assert.equal(await rows.count(), 16, "Daily retains the full 16-player field");
 } finally {
   await context.close();
   await browser.close();

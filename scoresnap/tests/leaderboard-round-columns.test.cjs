@@ -156,3 +156,42 @@ test('round columns use effective Gross mode when the current course cannot supp
   expect(r1.rows[0].total).toBe(72);
   expect(buildLeaderboard([roundPlayer(18)], roundCourse(18), current.mode).rows[0].total).toBe(72);
 });
+
+test('cumulative and daily tournament rows keep event, R1, Today, and current-round THRU contracts', () => {
+  const stroke = load('src/engine/calculators/stroke-play.ts', { '../types': {} });
+  const skins = load('src/engine/calculators/skins.ts', { '../types': {} });
+  const net = load('src/engine/calculators/net-stroke-play.ts', {
+    '../types': {}, './stroke-play': stroke, './skins': skins,
+  });
+  const { buildLeaderboard } = load('src/engine/calculators/leaderboard-view.ts', {
+    '../types': {}, './stroke-play': stroke, './net-stroke-play': net,
+  });
+  const course = { name: 'Two Round', holes: Array.from({ length: 18 }, (_, i) => ({ num: i + 1, par: 4, hcp: i + 1 })) };
+  const r1Players = Array.from({ length: 16 }, (_, i) => ({
+    id: `p${i + 1}`, name: `Player ${i + 1}`, handicap: 0,
+    scores: Array.from({ length: 18 }, (_, hole) => hole < (72 - (68 + i)) ? 3 : 4),
+  }));
+  // p3's R1 total is 70. Round 2 has three birdies and 15 unplayed holes.
+  const r2Players = r1Players.map((player) => ({ ...player, scores: Array.from({ length: 18 }, (_, i) => i < 3 ? 3 : 0) }));
+  const eventPlayers = r1Players.map((player, i) => ({ ...player, scores: player.scores.map((score, hole) => score + (r2Players[i].scores[hole] || 0)) }));
+  const cumulative = buildLeaderboard(eventPlayers, course, 'gross').rows;
+  const daily = buildLeaderboard(r2Players, course, 'gross').rows;
+  const r1 = buildLeaderboard(r1Players, course, 'gross').rows;
+  const round2 = buildLeaderboard(r2Players, course, 'gross').rows;
+  const cumulativeRows = buildLeaderboardRows(cumulative, eventPlayers, {
+    holeCount: course.holes.length,
+    roundInfo: { r1, today: round2 },
+  });
+  const dailyRows = buildLeaderboardRows(daily, r2Players, {
+    holeCount: course.holes.length,
+    roundInfo: { r1, today: round2 },
+  });
+  const currentThruByPlayer = new Map(dailyRows.map((row) => [row.playerId, row.thru]));
+  const cP3 = { ...cumulativeRows.find((row) => row.playerId === 'p3'), thru: currentThruByPlayer.get('p3') };
+  const dP3 = dailyRows.find((row) => row.playerId === 'p3');
+  expect(cP3).toMatchObject({ total: 79, r1: { total: 70 }, today: { total: 9, toPar: -3 }, thru: 3 });
+  expect(dP3).toMatchObject({ total: 9, r1: { total: 70 }, today: { total: 9, toPar: -3 }, thru: 3 });
+  // Mutant: substituting event-wide THRU for current-round THRU would incorrectly show F.
+  expect(buildLeaderboardRows(cumulative, eventPlayers, { holeCount: 18 }).find((row) => row.playerId === 'p3').thru).toBe('F');
+  expect(dP3.thru).not.toBe('F');
+});
