@@ -23,13 +23,12 @@ export const setProEnabled = (value: boolean): void => { proMembershipEnabled = 
 export const proEnabled = (): boolean => proMembershipEnabled;
 /**
  * Effective entitlement a given subscription state grants right now. The single policy chokepoint:
- * every Pro gate helper below resolves through it, so there is no per-screen special case. When Pro
- * is dormant, free and Pro accounts resolve to 'pro' so Pro features are free while TD tournament
- * hosting remains reserved for raw TD subscribers;
+ * every gate helper below resolves through it, so there is no per-screen special case. When Pro is
+ * dormant, resolve to 'td' so Pro AND TD features are free and no paywall (Pro or TD) can appear;
  * when enabled, the raw subscription tier passes through unchanged. tierFromCustomerInfo() stays
  * raw on purpose so purchase/restore keep reflecting the real App Store entitlement.
  */
-export const resolveTier = (tier: Tier): Tier => (proEnabled() || tier === 'td' ? tier : 'pro');
+export const resolveTier = (tier: Tier): Tier => (proEnabled() ? tier : 'td');
 
 export function tierFromCustomerInfo(info: {entitlements: {active: Record<string, unknown>}}): Tier {
   return info.entitlements.active[TD_ENTITLEMENT_ID] !== undefined ? 'td' :
@@ -42,14 +41,13 @@ export const canUseGame = (gameId: string, tier: Tier) => {
 type HostDraft = {groups?: readonly {players?: readonly unknown[]; active?: boolean}[]; rounds?: readonly {groups?: readonly {players?: readonly unknown[]; active?: boolean}[]}[]; numGroups?: number; numRounds?: number};
 const activeGroups = (groups: HostDraft['groups']) => groups?.filter(g => g.active !== false && (!g.players || g.players.length > 0)).length ?? 1;
 export function canHostTournament(contest: HostDraft, tier: Tier): boolean {
-  return tier === 'td' || ((contest.numGroups ?? activeGroups(contest.groups)) <= 1 &&
+  const t = resolveTier(tier);
+  return t === 'td' || ((contest.numGroups ?? activeGroups(contest.groups)) <= 1 &&
     (contest.numRounds ?? contest.rounds?.length ?? 1) <= 1 &&
     (contest.rounds ?? []).every(r => activeGroups(r.groups) <= 1));
 }
 /** #49: call immediately before host publish/share; guests never call this helper. */
 export const canPublishHostedContest = canHostTournament;
-/** AUG-1263: the PRO badge on a game is a Pro-membership affordance; never shown while pro_enabled is off. */
-export const showProBadge = (gameId: string): boolean => proEnabled() && !(FREE_GAMES as readonly string[]).includes(gameId);
 export const canSeeSettlement = (tier: Tier) => resolveTier(tier) !== 'free';
 export const canSeeStats = canSeeSettlement;
 export function scanAllowance(tier: Tier, now: Date) {

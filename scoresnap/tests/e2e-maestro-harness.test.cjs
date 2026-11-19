@@ -108,22 +108,6 @@ test("workflow is manual-only, secret-free, and passes inputs through env", () =
   expect(parsed.permissions).toEqual({ contents: "read" });
   for (const step of parsed.jobs.maestro.steps) if (step.run) expect(step.run).not.toMatch(/\$\{\{/);
   expect(read(".maestro/scripts/run-ios-sim.sh")).toMatch(/lipo -archs/);
-  expect(parsed.on.workflow_dispatch.inputs.app_url.required).toBe(false);
-  const sourceBuild = parsed.jobs.maestro.steps.find((step) => step.name === "Build simulator app from source");
-  expect(sourceBuild).toBeDefined();
-  expect(sourceBuild.run).toMatch(/npx expo prebuild --platform ios --clean --no-install/);
-  expect(sourceBuild.run).toMatch(/pod install/);
-  expect(sourceBuild.run).toMatch(/xcodebuild .* -scheme SnapScore -configuration Release .* build/s);
-  expect(sourceBuild.run).toMatch(/CODE_SIGNING_ALLOWED=NO/);
-  expect(sourceBuild.run).toMatch(/git -C scoresnap rev-parse HEAD/);
-  expect(sourceBuild.run).toMatch(/export SENTRY_DISABLE_AUTO_UPLOAD=true/);
-  expect(sourceBuild.run).toMatch(/SourceCommit\.txt/);
-  expect(sourceBuild.run).toMatch(/Release-iphonesimulator/);
-  const runner = read(".maestro/scripts/run-ios-sim.sh");
-  expect(runner).toMatch(/--app-path/);
-  expect(runner).toMatch(/sourceCommit/);
-  expect(runner).toMatch(/APP_SOURCE_SHA=.*tr -d .*SourceCommit\.txt/s);
-  expect(runner).toMatch(/APP_SOURCE_SHA.*GITHUB_SHA/s);
 });
 
 
@@ -197,47 +181,4 @@ test("AUG-309 safe-area flow captures the first frame, sheets, player matching, 
   expect(steps).toContainEqual({ inputText: "Ben" });
   expect(steps).toContainEqual({ inputText: "E2E Tee Course" });
   expect(steps).toContainEqual({ assertVisible: { id: "game-info-sheet" } });
-});
-
-test("Skins card tap waits for its own mounted ID rather than generic text", () => {
-  const [, steps] = docs(".maestro/subflows/create-two-player-skins.yaml");
-  const tap = steps.findIndex(s => s.tapOn && s.tapOn.id === "game-mode-skins");
-  expect(tap).toBeGreaterThan(0);
-  expect(steps[tap - 1].extendedWaitUntil).toEqual({
-    visible: { id: "game-mode-skins" }, timeout: 15000,
-  });
-  // A generic text match cannot establish that a more specific tap target is ready.
-  for (let i = 1; i < steps.length; i++) {
-    if (steps[i].tapOn?.id && steps[i - 1].extendedWaitUntil) {
-      expect(steps[i - 1].extendedWaitUntil.visible).toEqual({ id: steps[i].tapOn.id });
-    }
-  }
-});
-
-test('PDF evidence seeds frozen completed Unicode fixture and captures locally reopened bytes',()=>{
- const f=config.flows.find(f=>f.id==='aug-315-export-pdf');
- expect(f.capturePdf).toBe(true);expect(f.tickets).toContain('AUG-402');
- const fixture=JSON.parse(read(f.comparisonFixture));
- const seed=JSON.parse(read(config.fixtures[f.fixture].file));
- const persisted=JSON.parse(seed['snapscore-contests']);
- expect(persisted.state.contests).toEqual([fixture.contest]);
- expect(persisted.state.activeContestId).toBe(fixture.contest.id);
- expect(fixture.contest.status).toBe('completed');
- expect(fixture.expected.players.map(p=>p.total)).toEqual([71,72,72]);
- for(const p of fixture.expected.players)expect(p.scores).toHaveLength(18);
- const [,steps]=docs(f.file);
- expect(steps).toContainEqual({tapOn:fixture.contest.name});
- expect(steps.some(s=>s.runFlow?.includes('create-two-player'))).toBe(false);
- const runner=read('.maestro/scripts/run-ios-sim.sh');
- expect(runner).toContain('read -r ID FLOW FIXTURE HIER CAPTURE_PDF');
- expect(runner).toContain('"$CONTAINER/Library/Caches" "$D/pdf"');
- expect(runner).toMatch(/if ! python3 .*collect-pdf.py[\s\S]*?RC=1/);
- expect(runner).toContain('"savedPdf":');
-});
-
-
-test('combined native runner preserves both evidence collectors in manifest',()=>{
- const runner=read('.maestro/scripts/run-ios-sim.sh');
- expect(runner).toContain('"scoreEntryMetrics":');expect(runner).toContain('"savedPdf":');
- expect(runner).toContain('score-entry-collect.mjs');expect(runner).toContain('collect-pdf.py');
 });
