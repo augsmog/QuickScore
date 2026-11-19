@@ -1,0 +1,6 @@
+AUG-1021 verify exact head 6c630355906f3fc67651c4186f601a1ed05101f9 in /workspace/aos-work/lanes/pull-ss/aug1021.
+Diff: git diff origin/main...HEAD -- scoresnap/tests/m4a.test.cjs (one test only). No production edits.
+AC: deterministic manually driven interval without real millisecond sleeps; real foregroundSync execution; exact call counts for initial fetch, stale/same/object hints, next revision, duplicate new revision, poll, cleanup, post-stop hint. Global timers restored in isolated subprocess. setImmediate flushes settled async fetches, never triggers an interval.
+Evidence here: baseline.log reproduced expected2 actual3. focused-final.log 13/13PASS. negative-duplicate.log, negative-stop-guard.log, negative-interval-cleanup.log each expectedFAIL (temporary production mutations restored). jest-all.log full Jest and tsc.log TypeScript. Verify production source unchanged.
+Commands (scoresnap): node_modules/.bin/jest tests/m4a.test.cjs --runInBand; node_modules/.bin/jest --runInBand; node_modules/.bin/tsc --noEmit. Avoid duplicating a running full suite; builder evidence is bound to this exact source tree.
+Max2 fix/verify rounds. End with VERDICT: PASS or one FAILING-CHECK: <check> -- <evidence> per failing check.
