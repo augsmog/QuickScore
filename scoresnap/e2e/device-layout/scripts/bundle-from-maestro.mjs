@@ -25,7 +25,7 @@ import { readFileSync, writeFileSync, existsSync, statSync , realpathSync } from
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
-import { normalizeMaestroHierarchy } from '../lib/normalize-maestro.mjs';
+import { normalizeMaestroCapture } from '../lib/normalize-maestro.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = resolve(__dir, '../config/device-layout.config.json');
@@ -117,6 +117,17 @@ export function deriveFooter(nodes, viewport) {
   return null;
 }
 
+// Take the per-edge maximum of the declared profile safe area and the insets measured from the
+// capture's system chrome (status bar / nav taskbar). The declared value is a floor; a real bar
+// that is taller (e.g. the compact AVD's 45dp status bar / 48dp gesture taskbar vs the profile's
+// 24dp) widens the unsafe band so rules 2/5 judge against the true usable viewport.
+export function mergeSafeArea(declared, measured) {
+  const base = declared || { top: 0, bottom: 0, left: 0, right: 0 };
+  if (!measured) return base;
+  const pick = (k) => Math.max(Number(base[k]) || 0, Number(measured[k]) || 0);
+  return { top: pick('top'), bottom: pick('bottom'), left: pick('left'), right: pick('right') };
+}
+
 export function contextForCheckpoint(profile, checkpoint, nodes, overrides = {}) {
   const [w, h] = profile.logicalSize;
   // The emulator/simulator may not be exactly the profile's nominal size; prefer a measured
@@ -125,7 +136,7 @@ export function contextForCheckpoint(profile, checkpoint, nodes, overrides = {})
   const ctx = {
     platform: profile.platform,
     viewport,
-    safeArea: profile.safeArea || null,
+    safeArea: mergeSafeArea(profile.safeArea, overrides.measuredSafeArea),
     fontScale: checkpoint.fontScale ?? profile.fontScale ?? 1.0,
   };
   const footer = deriveFooter(nodes, ctx.viewport);
@@ -171,12 +182,15 @@ export function buildBundle({ manifest, dir }, { platform, profileId, config, so
     }
     const rawRoot = JSON.parse(readFileSync(hierPath, 'utf8'));
     const resourceMeta = buildResourceMeta(rawRoot);
-    const nodes = normalizeMaestroHierarchy(rawRoot, {
+    // The logical viewport lets the normalizer separate the app window from OS status/nav chrome.
+    const vp = viewportOverride || { width: profile.logicalSize[0], height: profile.logicalSize[1] };
+    const { nodes, safeArea: measuredSafeArea } = normalizeMaestroCapture(rawRoot, {
       density,
       resourceMeta,
       scrollState: cp.scrollState ?? null,
+      viewport: vp,
     });
-    const context = contextForCheckpoint(profile, cp, nodes, { viewport: viewportOverride });
+    const context = contextForCheckpoint(profile, cp, nodes, { viewport: viewportOverride, measuredSafeArea });
     // Bind the checkpoint to its screenshot by sha256 (the vision-candidate job rejects a stale or
     // swapped artifact). The path stays relative to the bundle dir so the reviewer resolves it.
     let screenshot = cp.screenshot || null;

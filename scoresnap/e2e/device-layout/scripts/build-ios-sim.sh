@@ -35,6 +35,38 @@ export EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING="${DEVICE_LAYOUT_JOIN_FLAG:+true
 export EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true
 export EXPO_PUBLIC_E2E_COURSE_FIXTURE=true
 
+# --- App-build cache (AUG-1376 round 3) ---------------------------------------------------------
+# The ~15-min cold build (expo prebuild --clean + pod install + xcodebuild Release) only needs to
+# run when the APP source or the build recipe changes. Fingerprint every tracked file under
+# scoresnap EXCEPT e2e/device-layout (the gate's own code) and node_modules, plus the recipe env
+# that alters the binary. A device-layout-only PR (like this one) leaves the app bytes identical, so
+# the cached .app is valid candidate evidence and we skip the rebuild. Fail-safe: ANY miss, empty
+# hash, or missing cached bundle falls through to a full build (today's behavior), so the cache can
+# only speed the build up, never produce a stale or broken one.
+RECIPE="xdev=${DEVICE_LAYOUT_JOIN_FLAG:-};course=1;e2efixture=1;offline=1;nomlkit=1"
+app_source_fingerprint() {
+  ( cd "$ROOT" && git ls-files -s -- scoresnap \
+      ':(exclude)scoresnap/e2e/device-layout' \
+      ':(exclude)scoresnap/node_modules' 2>/dev/null ) | git hash-object --stdin 2>/dev/null
+}
+APP_HASH="$( { printf '%s\n' "$RECIPE"; app_source_fingerprint; } | git hash-object --stdin 2>/dev/null || true )"
+APP_CACHE_DIR="$CACHE/app-build/$APP_HASH"
+CACHED_APP="$APP_CACHE_DIR/SnapScore.app"
+emit_app_provenance() {  # $1 = .app path → rebind provenance to the CURRENT candidate SHA
+  local app="$1"
+  printf '%s\n' "$SOURCE_SHA" > "$app/SourceCommit.txt"
+  printf '%s\n' "$app" > "$OUTROOT/ios-app-path.txt"
+  ( cd "$(dirname "$app")" && find "$(basename "$app")" -type f -exec shasum -a 256 {} + | shasum -a 256 | awk '{print $1}' ) > "$OUTROOT/ios-build-hash.txt"
+}
+if [ -n "$APP_HASH" ] && [ -d "$CACHED_APP" ] && [ -x "$CACHED_APP/SnapScore" ]; then
+  echo "device-layout: reusing cached iOS app build (app-hash ${APP_HASH:0:12}; app source + recipe unchanged — skipping prebuild/pod/xcodebuild)"
+  emit_app_provenance "$CACHED_APP"
+  echo "device-layout: cached $CACHED_APP (hash $(cat "$OUTROOT/ios-build-hash.txt"))"
+  exit 0
+fi
+echo "device-layout: no cached build for app-hash ${APP_HASH:-<none>} — cold build"
+# -----------------------------------------------------------------------------------------------
+
 cd "$ROOT/scoresnap"
 if [ ! -d node_modules ]; then
   npm ci
@@ -77,8 +109,20 @@ echo "device-layout: xcodebuild done in ${waited}s"
 
 APP_PATH="$(find "$DERIVED/Build/Products/Release-iphonesimulator" -maxdepth 2 -type d -name 'SnapScore.app' -print -quit)"
 test -n "$APP_PATH" && test -d "$APP_PATH"
-printf '%s\n' "$SOURCE_SHA" > "$APP_PATH/SourceCommit.txt"
-printf '%s\n' "$APP_PATH" > "$OUTROOT/ios-app-path.txt"
-# A build hash over the app bundle, recorded in the capture manifest for provenance.
-( cd "$(dirname "$APP_PATH")" && find "$(basename "$APP_PATH")" -type f -exec shasum -a 256 {} + | shasum -a 256 | awk '{print $1}' ) > "$OUTROOT/ios-build-hash.txt"
+emit_app_provenance "$APP_PATH"
 echo "device-layout: built $APP_PATH (hash $(cat "$OUTROOT/ios-build-hash.txt"))"
+
+# Populate the app-build cache for the next run (this PR re-pushes / the next device-layout PR reuses
+# it). Keep only the two most recent entries so the persistent runner's inode/byte use stays bounded.
+if [ -n "$APP_HASH" ]; then
+  mkdir -p "$APP_CACHE_DIR"
+  rm -rf "$APP_CACHE_DIR/SnapScore.app.tmp"
+  if cp -R "$APP_PATH" "$APP_CACHE_DIR/SnapScore.app.tmp" 2>/dev/null; then
+    rm -rf "$CACHED_APP"; mv "$APP_CACHE_DIR/SnapScore.app.tmp" "$CACHED_APP"
+    echo "device-layout: cached app build under $APP_CACHE_DIR"
+    ls -1dt "$CACHE/app-build"/*/ 2>/dev/null | tail -n +3 | xargs -r rm -rf
+  else
+    rm -rf "$APP_CACHE_DIR/SnapScore.app.tmp"
+    echo "::warning::could not populate app-build cache (continuing)"
+  fi
+fi
