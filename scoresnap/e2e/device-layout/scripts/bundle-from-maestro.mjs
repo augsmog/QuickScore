@@ -152,7 +152,7 @@ export function loadCaptureManifest(input) {
   return { manifest, dir };
 }
 
-export function buildBundle({ manifest, dir }, { platform, profileId, config, sourceSha, now = new Date() }) {
+export function buildBundle({ manifest, dir }, { platform, profileId, config, sourceSha, configSha256 = null, now = new Date() }) {
   const profile = profileById(config, profileId || manifest.profile);
   if (platform && profile.platform !== platform) {
     throw new Error(`profile "${profile.id}" is ${profile.platform}, but --platform ${platform} was requested`);
@@ -208,6 +208,8 @@ export function buildBundle({ manifest, dir }, { platform, profileId, config, so
     profile: profile.id,
     platform: profile.platform,
     fontScale: manifest.fontScale ?? profile.fontScale ?? 1.0,
+    // Binds this evidence to the exact gate config (run-geometry validateBundle, AUG-1392).
+    configSha256,
     generatedAt: now.toISOString(),
     checkpoints,
   };
@@ -229,9 +231,11 @@ function main() {
   const profileId = flag(args, '--profile');
   const sourceSha = flag(args, '--source-sha');
   const outPath = flag(args, '--out');
-  const config = JSON.parse(readFileSync(CONFIG_PATH, 'utf8'));
+  const configText = readFileSync(CONFIG_PATH, 'utf8');
+  const config = JSON.parse(configText);
+  const configSha256 = createHash('sha256').update(configText).digest('hex');
   const cap = loadCaptureManifest(input);
-  const bundle = buildBundle(cap, { platform, profileId, sourceSha, config });
+  const bundle = buildBundle(cap, { platform, profileId, sourceSha, config, configSha256 });
   if (bundle.checkpoints.length === 0) {
     console.error('FAIL: capture produced no checkpoints (missing flow evidence)');
     process.exit(1);
