@@ -34,6 +34,8 @@ import {
   ContestGroup,
 } from "../../src/stores/contest-store";
 import { useAuthStore } from "../../src/stores/auth-store";
+import { useScanStore } from "../../src/stores/scan-store";
+import { newContestPaywallRoute } from "../../src/services/entitlements";
 import CourseSearch from "../../src/ui/CourseSearch";
 import type { Course } from "../../src/engine/types";
 import type { TeeBox } from "../../src/services/course-api";
@@ -270,6 +272,9 @@ export default function NewContestScreen() {
     if (REAL_AUTH_CONFIGURED && (useAuthStore.getState().isAnonymous || !useAuthStore.getState().session)) {
       router.push("/auth/sign-in"); return;
     }
+
+    const tdRoute = newContestPaywallRoute({ isTournament, numRounds, numGroups }, useScanStore.getState().tier);
+    if (tdRoute) { router.push(tdRoute as never); return; }
 
     const course = selectedCourse || defaultCourse(courseName || "My Course");
     const autoName = courseName

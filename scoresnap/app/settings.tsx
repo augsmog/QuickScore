@@ -506,6 +506,10 @@ export default function SettingsScreen() {
         {(proEnabled() || tier === "pro" || tier === "td") && (
           <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[tier]} onPress={() => router.push("/paywall")} />
         )}
+        {/* AUG-1369: Tournament Director is always purchasable, even with Pro dormant. */}
+        {!proEnabled() && tier !== "td" && (
+          <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Tournament Director" value="Multi-day & multi-group" onPress={() => router.push("/paywall?tier=td")} />
+        )}
         <AnimatedPressable accessibilityRole="button" accessibilityLabel="Restore purchases" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
           style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
           <RotateCcw size={18} color={COLORS.textDim} />

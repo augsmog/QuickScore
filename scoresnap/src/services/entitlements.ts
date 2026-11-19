@@ -46,6 +46,14 @@ export function canHostTournament(contest: HostDraft, tier: Tier): boolean {
     (contest.numRounds ?? contest.rounds?.length ?? 1) <= 1 &&
     (contest.rounds ?? []).every(r => activeGroups(r.groups) <= 1));
 }
+/**
+ * AUG-1369: New Contest wizard gate. Multi-day (rounds > 1) or multi-group setups need Tournament
+ * Director; returns the TD paywall route when the tier cannot host the draft, else null. Independent
+ * of the Pro flag (TD IAP is live either way).
+ */
+export const TD_PAYWALL_ROUTE = '/paywall?tier=td';
+export const newContestPaywallRoute = (draft: {isTournament: boolean; numRounds: number; numGroups: number}, tier: Tier): string | null =>
+  canHostTournament({numGroups: draft.numGroups, numRounds: draft.isTournament ? draft.numRounds : 1}, tier) ? null : TD_PAYWALL_ROUTE;
 /** #49: call immediately before host publish/share; guests never call this helper. */
 export const canPublishHostedContest = canHostTournament;
 export const canSeeSettlement = (tier: Tier) => resolveTier(tier) !== 'free';
