@@ -1,0 +1,4 @@
+{
+  "description": "device-layout gate waivers. Each entry suppresses ONE (ruleId, screen, device/state) finding until it expires. Must be attributed to a named independent approver + ticket and must expire (≤14 days; tighten to ≤7 if owner picks). Missing-platform evidence can NEVER be waived. Validated by lib/waivers.mjs; expired/unattributed/malformed waivers fail CI.",
+  "waivers": []
+}
