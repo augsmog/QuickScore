@@ -5,10 +5,11 @@
 # Needs: macOS with Xcode simulators, python3, maestro on PATH. Uses no credentials.
 set -euo pipefail
 
-CONFIG=".maestro/e2e.config.json"; FLOWS="all"; BUILD_ID=""; OUT="e2e-out"; APP_URL=""; APP_PATH=""; BUILD=""
+CONFIG=".maestro/e2e.config.json"; FLOWS="all"; BUILD_ID=""; OUT="e2e-out"; APP_URL=""; APP_PATH=""; BUILD=""; METRIC_PROFILE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --config) CONFIG="$2"; shift 2;;
+    --metric-profile) METRIC_PROFILE="$2"; shift 2;;
     --app-url) APP_URL="$2"; shift 2;;
     --app-path) APP_PATH="$2"; shift 2;;
     --build) BUILD="$2"; shift 2;;
@@ -24,6 +25,14 @@ ROOT="$(pwd)"; CONFIG="$ROOT/$CONFIG"; mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)
 cfg() { python3 -c "import json,sys;c=json.load(open('$CONFIG'));print(eval(sys.argv[1]))" "$1"; }
 APP_ID="$(cfg "c['appId']")"; PRODUCT="$(cfg "c['product']")"
 DEVICE_TYPE="$(cfg "c['device']['type']")"
+if [ -n "$METRIC_PROFILE" ]; then
+  case "$METRIC_PROFILE" in small|large) ;; *) echo "unknown metric profile" >&2; exit 2;; esac
+  DEVICE_TYPE="$(cfg "c['metricProfiles']['$METRIC_PROFILE']['type']")"
+fi
+
+# Reject pinned-flow source builds and mismatched artifacts before any external work.
+EXPECTED_SHA="$(python3 "$(dirname "$0")/validate-existing-binary.py" --config "$CONFIG" \
+  --build "$BUILD" --flows "$FLOWS" --app-url "$APP_URL" --app-path "$APP_PATH" --build-id "$BUILD_ID")"
 
 # 1. Select a source-built app or fetch the supplied build, then prove its architecture.
 WORK="$(mktemp -d)"; APP_SOURCE="eas-artifact"; APP_SOURCE_SHA=""
@@ -41,6 +50,9 @@ if [ -n "$APP_PATH" ]; then
 else
   curl -fsSL -o "$WORK/app.tar.gz" "$APP_URL"
   SHA="$(shasum -a 256 "$WORK/app.tar.gz" | awk '{print $1}')"
+  if [ -n "$EXPECTED_SHA" ] && [ "$EXPECTED_SHA" != "$SHA" ]; then
+    echo "existing-binary artifact SHA256 mismatch; refusing extraction/install" >&2; exit 2
+  fi
   mkdir -p "$WORK/x"; tar -xzf "$WORK/app.tar.gz" -C "$WORK/x"
   APP="$(find "$WORK/x" -maxdepth 3 -name '*.app' -type d | head -1)"
 fi
@@ -66,7 +78,7 @@ for f in c["flows"]:
     if f["build"]!=sys.argv[2] or (ids is not None and f["id"] not in ids): continue
     if ids is None and f.get("skipInAll"): continue  # opt-in only; reason lives in the config
     fx=c["fixtures"][f["fixture"]]["file"] if f.get("fixture") else "-"
-    print("\t".join([f["id"],f["file"],fx,"1" if f.get("captureHierarchy") else "0"]))
+    print("\t".join([f["id"],f["file"],fx,"1" if f.get("captureHierarchy") else "0","1" if f.get("capturePdf") else "0"]))
 PY
 [ -s "$WORK/flows.tsv" ] || { echo "no flows match build=$BUILD flows=$FLOWS" >&2; exit 2; }
 
@@ -77,16 +89,26 @@ seed_asyncstorage() { # $1 fixture json (key -> string value), written as RN Asy
 }
 
 : > "$WORK/results.tsv"; FAILED=0
-while IFS=$'\t' read -r ID FLOW FIXTURE HIER; do
+while IFS=$'\t' read -r ID FLOW FIXTURE HIER CAPTURE_PDF; do
   D="$OUT/flows/$ID"; mkdir -p "$D"
   xcrun simctl terminate "$UDID" "$APP_ID" 2>/dev/null || true
   xcrun simctl uninstall "$UDID" "$APP_ID" 2>/dev/null || true
   xcrun simctl install "$UDID" "$APP"
   [ "$FIXTURE" = "-" ] || seed_asyncstorage "$FIXTURE"
   START=$(date +%s); set +e
-  (cd "$D" && maestro --device "$UDID" test --format junit --output "$D/junit.xml" \
-      --test-output-dir "$D" --debug-output "$D/debug" "$ROOT/$FLOW") > "$D/maestro.log" 2>&1
+  if [ "$ID" = "aug-325-score-entry" ] && [ -n "$METRIC_PROFILE" ]; then
+    node "$ROOT/scoresnap/e2e/score-entry-collect.mjs" "$ROOT" "$D" "$UDID" "$METRIC_PROFILE" "$APP_SOURCE_SHA" "${GITHUB_RUN_ID:-local}-$UDID" > "$D/maestro.log" 2>&1
+  else
+    (cd "$D" && maestro --device "$UDID" test --format junit --output "$D/junit.xml" \
+        --test-output-dir "$D" --debug-output "$D/debug" "$ROOT/$FLOW") > "$D/maestro.log" 2>&1
+  fi
   RC=$?; set -e
+  if [ "$CAPTURE_PDF" = "1" ] && [ "$RC" -eq 0 ]; then
+    CONTAINER="$(xcrun simctl get_app_container "$UDID" "$APP_ID" data)"
+    if ! python3 "$ROOT/.maestro/scripts/collect-pdf.py" "$CONTAINER/Library/Caches" "$D/pdf" > "$D/pdf-collection.log" 2>&1; then
+      RC=1
+    fi
+  fi
   [ "$HIER" = "1" ] && maestro --device "$UDID" hierarchy > "$D/hierarchy.json" 2>/dev/null || true
   [ $RC -eq 0 ] || { FAILED=1; maestro --device "$UDID" hierarchy > "$D/hierarchy-at-failure.json" 2>/dev/null || true; }
   # Maestro writes takeScreenshot files under its timestamped run dir; lift them to the flow dir for the manifest.
@@ -105,11 +127,15 @@ for line in open(res):
     flows.append({"id":i,"file":f,"tickets":byid[i]["tickets"],"status":"passed" if rc=="0" else "failed","exitCode":int(rc),"seconds":int(secs),
       "fixture":byid[i].get("fixture"),"partial":byid[i].get("partial"),"liveWrite":byid[i].get("liveWrite"),
       "screenshots":sorted(os.path.basename(p) for p in glob.glob(os.path.join(d,"*.png"))),
+      "scoreEntryMetrics":json.load(open(os.path.join(d,"metrics.json"))) if os.path.exists(os.path.join(d,"metrics.json")) else None,
+      "savedPdf":json.load(open(os.path.join(d,"pdf","receipt.json"))) if os.path.exists(os.path.join(d,"pdf","receipt.json")) else None,
+      "comparisonFixture":byid[i].get("comparisonFixture"),
       "hierarchy":os.path.exists(os.path.join(d,"hierarchy.json"))})
 json.dump({"schema":"aos-e2e/v1","product":c["product"],"repo":c["repo"],"appId":c["appId"],
   "gitSha":os.environ.get("GITHUB_SHA",""),"ghRunId":os.environ.get("GITHUB_RUN_ID",""),
   "build":{"key":"$BUILD","source":"$APP_SOURCE","sourceCommit":"$APP_SOURCE_SHA","easProfile":c["builds"]["$BUILD"]["easProfile"],"easBuildId":"$BUILD_ID","url":"$APP_URL","sha256":"$SHA",
            "executable":"$EXE","lipoArchs":"$ARCHS","file":"""$FILE_OUT"""},
+  "metricProfile":"$METRIC_PROFILE",
   "device":{"type":"$DEVICE_TYPE","runtime":"$RUNTIME","iosVersion":"$OS_VERSION","udid":"$UDID"},
   "maestroVersion":"""$MAESTRO_VERSION""","flows":flows},open(os.path.join(out,"manifest.json"),"w"),indent=2)
 PY

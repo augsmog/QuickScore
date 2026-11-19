@@ -1,6 +1,7 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { isCompactViewport } from "../../../src/ui/compact-viewport";
+import { allScoredOnHole as computeAllScoredOnHole, playersNeedingPar } from "../../../src/ui/hole-nav";
 import { onlineEnabled } from '../../../src/services/cross-device';
 import { useOnlineStore } from '../../../src/stores/online-store';
 import { overlayScorecard } from '../../../src/services/scorecard-overlay';
@@ -79,6 +80,8 @@ export default function ScorecardScreen() {
   const sharedCard=contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot" || g==="chapman");
   const auxiliary=scopedAuxiliary(contest,group.id,activeRound?.id);
   const displayPlayers=sharedCard?group.players.filter((p,i,all)=>all.findIndex(q=>q.team===p.team)===i).map(p=>({...p,name:`Team ${p.team}`,scores:course.holes.map((_,i)=>auxiliary.teamCards?.[i+1]?.[p.team!]??0)})):group.players;
+  // Check if all players on current hole have scores
+  const allScoredOnHole = computeAllScoredOnHole(displayPlayers, currentHole);
   const holeData = course.holes[currentHole - 1];
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
@@ -229,13 +232,39 @@ export default function ScorecardScreen() {
   const handleNextHole = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Check if Tier 2 games need aux input before advancing
-    if (contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games.filter(g=>g!=="wolf" || !auxiliary.wolf?.[currentHole]), currentHoleInfo, currentPlayerScores)) {
-      setShowAuxPrompt(true);
-    } else {
-      advanceToNextHole();
+    const proceed = () => {
+      // Check if Tier 2 games need aux input before advancing
+      if (contest.gameConfig?.junkNassau || needsAuxiliaryPrompt(contest.games.filter(g=>g!=="wolf" || !auxiliary.wolf?.[currentHole]), currentHoleInfo, currentPlayerScores)) {
+        setShowAuxPrompt(true);
+      } else {
+        advanceToNextHole();
+      }
+    };
+
+    // Save pars skips the per-score bisque/joker/wolf declaration gates (adjustScore/
+    // setToPar): it is an explicit "take par for the rest" shortcut, not a manual entry,
+    // so it must not re-surface a declaration prompt for players the scorer is skipping.
+    const saveParsAndProceed = () => {
+      for (const p of playersNeedingPar(displayPlayers, currentHole)) {
+        updateScore(contest.id, group.id, p.id, currentHole, par);
+      }
+      proceed();
+    };
+
+    if (!allScoredOnHole) {
+      showAlert(
+        "Confirmation required",
+        "Not every player has a score for this hole yet. Save par for the rest, or keep scoring.",
+        [
+          { text: "Stay", style: "cancel" },
+          { text: "Save pars", onPress: saveParsAndProceed },
+        ]
+      );
+      return;
     }
-  }, [contest.games, contest.gameConfig, auxiliary, currentHole, currentHoleInfo, currentPlayerScores, advanceToNextHole]);
+
+    proceed();
+  }, [contest.id, contest.games, contest.gameConfig, auxiliary, currentHole, currentHoleInfo, currentPlayerScores, advanceToNextHole, allScoredOnHole, displayPlayers, group.id, par, updateScore]);
 
   const handlePrevHole = useCallback(() => {
     if (currentHole > 1) {
@@ -345,11 +374,6 @@ export default function ScorecardScreen() {
   const totalExpected = allPlayers.length * 18;
   const percentComplete =
     totalExpected > 0 ? Math.round((totalScores / totalExpected) * 100) : 0;
-
-  // Check if all players on current hole have scores
-  const allScoredOnHole = displayPlayers.every(
-    (p) => (p.scores[currentHole - 1] || 0) > 0
-  );
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
