@@ -50,7 +50,14 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
-import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox, switchTapSlot } from "../../src/ui/tournament-setup-layout";
+import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox, switchTapSlot, SETUP_MIN_TARGET_PX } from "../../src/ui/tournament-setup-layout";
+
+// AUG-1367: a native iOS UISwitch has a fixed intrinsic size and overflows a
+// forced 44pt frame (the overlap bug), so native relies on the centered
+// `switchTapSlot` wrapper for its >=44pt tap target. On web the switch honours an
+// explicit box, so size it to 44x44 there to keep the real hit region >=44 (the
+// capture-layout target-size sweep measures the control itself, not the wrapper).
+const switchWebTarget = Platform.OS === "web" ? { width: SETUP_MIN_TARGET_PX, height: SETUP_MIN_TARGET_PX } : undefined;
 import { posthog } from "../../src/config/posthog";
 import { posthogAppLogger } from "../../src/services/posthog-log";
 import { isCompactViewport } from "../../src/ui/compact-viewport";
@@ -505,6 +512,7 @@ export default function NewContestScreen() {
                 <Switch
                   testID="tournament-toggle"
                   accessibilityLabel="Multi-Day Tournament"
+                  style={switchWebTarget}
                   value={isTournament}
                   onValueChange={(val) => {
                     setIsTournament(val);
@@ -625,6 +633,8 @@ export default function NewContestScreen() {
               <View style={switchTapSlot}>
                 <Switch
                   testID="team-mode"
+                  accessibilityLabel="Team Mode"
+                  style={switchWebTarget}
                   value={hasTeams}
                   onValueChange={setHasTeams}
                   trackColor={{ false: COLORS.border, true: COLORS.primary }}
