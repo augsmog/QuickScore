@@ -8,8 +8,10 @@ appId: com.scoresnap.app
     permissions: { all: allow }
 - runFlow: ../../../subflows/finish-onboarding.yaml
 - openLink: "snapscore://paywall?tier=td"
+# Wait on the paywall's own close control by testID (Maestro selectors take id/text, not
+# accessibilityLabel — the old `accessibilityLabel:` key is an Unknown Property parse error).
 - extendedWaitUntil:
     visible:
-      accessibilityLabel: "Close"
+      id: "paywall-close"
     timeout: 12000
 - takeScreenshot: device-layout-paywall-00-tier-td

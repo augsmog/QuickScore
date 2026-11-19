@@ -180,7 +180,10 @@ jobs:
     # Every PR: iPhone 16 Pro (402x874) + iPhone SE 3 (375x667); AX3 text when the run stays < 15 min.
     if: needs.changes.outputs.native == 'true'
     runs-on: [self-hosted, ios-sim]
-    timeout-minutes: 45
+    # Target is both profiles <= 25 min on a warm Mac (parallel sims + in-flow screenshot lift, see
+    # run-ios-sim.sh). Cap raised 45→60 as a safety net while the per-phase timings from this run
+    # confirm the real cost; it is a ceiling, not the expected wall time (AUG-1376 round 2).
+    timeout-minutes: 60
     steps:
       # Self-hosted Mac mini has a persistent workspace. The repo carries a dangling gitlink
       # (`august-industries-site`, mode 160000, no .gitmodules entry), so checkout's default clean /

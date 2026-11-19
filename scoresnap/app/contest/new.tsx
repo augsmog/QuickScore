@@ -898,6 +898,8 @@ export default function NewContestScreen() {
             })}
 
             <AnimatedPressable
+              testID="add-player"
+              accessibilityLabel="Add player"
               onPress={addPlayer}
               style={{
                 borderRadius: RADII.lg,

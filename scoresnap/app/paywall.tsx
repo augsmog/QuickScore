@@ -48,7 +48,7 @@ export default function PaywallScreen() {
   return <SafeScreen style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>
       <View style={s.top}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
+        <Pressable testID="paywall-close" accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
         <Pressable accessibilityRole="button" disabled={busy} style={s.topLink} onPress={() => act(async () => {
           const restored = await restorePurchases();
           showAlert(C.restore, restored ? C.restored : C.nothing);
