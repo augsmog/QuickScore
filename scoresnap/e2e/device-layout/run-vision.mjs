@@ -24,7 +24,7 @@
 //   node run-vision.mjs --self-check --reviews ./reviews
 //   node run-vision.mjs --review-cmd "$VISION_CMD" --reviews ./out  (produces + self-checks)
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
@@ -181,4 +181,4 @@ function flag(args, name) {
   return i >= 0 && i + 1 < args.length ? args[i + 1] : null;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) main();

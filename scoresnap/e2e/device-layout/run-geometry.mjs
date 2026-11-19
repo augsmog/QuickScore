@@ -13,7 +13,7 @@
 // omitted expected checkpoint fails the gate before geometry is judged.
 // The rule engine itself is covered by lib/geometry-rules.test.mjs (node --test).
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -192,4 +192,4 @@ function flag(args, name) {
   return i >= 0 && i + 1 < args.length ? args[i + 1] : null;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) main();
