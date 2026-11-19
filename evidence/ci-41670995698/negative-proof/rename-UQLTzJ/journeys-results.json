@@ -1,0 +1,286 @@
+{
+  "sha": "47ad1b367b02fcfbc6908529dc39de64f6ed4c74",
+  "platform": "web-offline",
+  "flags": {
+    "EXPO_PUBLIC_OFFLINE_MODE": true,
+    "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+  },
+  "fixtureVersion": "two-player-empty-v1",
+  "deviceProfile": "iphone-15-pro",
+  "safeArea": {
+    "width": 393,
+    "height": 852,
+    "top": 59,
+    "bottom": 34
+  },
+  "viewport": {
+    "width": 393,
+    "height": 852
+  },
+  "startedAt": "2026-11-03T16:17:55.518Z",
+  "required": [
+    "J-home-create-cancel"
+  ],
+  "executed": [
+    "J-home-create-cancel"
+  ],
+  "results": [
+    {
+      "id": "J-home-create-cancel",
+      "fixtureVersion": "fresh-context-v1",
+      "status": "failed",
+      "errors": [
+        "Error: create: accessible-name-mismatch",
+        "missing assertion: activation",
+        "missing assertion: destination",
+        "missing assertion: outcome",
+        "create: reachability failed",
+        "missing step capture: create",
+        "missing step capture: edit",
+        "missing step capture: cancel-home"
+      ],
+      "metrics": {
+        "activations": 0,
+        "textEdit": 0,
+        "focus": 0,
+        "scroll": 0,
+        "screens": [
+          "home"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          }
+        ],
+        "actions": [],
+        "reachability": [
+          {
+            "feature": "create",
+            "signature": "accessible-name-mismatch",
+            "status": "failed",
+            "depth": 1,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 20,
+              "y": 166,
+              "width": 353,
+              "height": 52
+            }
+          }
+        ],
+        "durationMs": 169
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 0,
+            "textEdit": 0,
+            "focus": 0,
+            "scroll": 0,
+            "screens": [
+              "home"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              }
+            ],
+            "actions": [],
+            "reachability": [
+              {
+                "feature": "create",
+                "signature": "accessible-name-mismatch",
+                "status": "failed",
+                "depth": 1,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 20,
+                  "y": 166,
+                  "width": 353,
+                  "height": 52
+                }
+              }
+            ],
+            "durationMs": 169
+          },
+          "assertions": [
+            "entry"
+          ],
+          "pageErrors": [],
+          "featureChecks": [
+            "create"
+          ],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 27
+            },
+            {
+              "number": 2,
+              "name": "failed",
+              "captureMs": 29
+            }
+          ],
+          "error": "Error: create: accessible-name-mismatch",
+          "signature": "accessible-name-mismatch"
+        }
+      ]
+    }
+  ],
+  "coverageGaps": [
+    {
+      "id": "J-score-hand",
+      "reason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only"
+    },
+    {
+      "id": "J-create-8p-multiday",
+      "reason": "Multiday creation outside the phase 1 slice"
+    },
+    {
+      "id": "J-join-code",
+      "reason": "Offline error path does not prove successful backend or cross-device join"
+    },
+    {
+      "id": "J-guest-join-web",
+      "reason": "Guest identity and backend joining deferred; existing sharing suites retained"
+    },
+    {
+      "id": "J-reopen-after-crash",
+      "reason": "Reload persistence is gated; process kill/crash recovery is separate coverage"
+    }
+  ],
+  "mutation": "rename",
+  "harnessTree": null,
+  "glyphEvidence": [
+    {
+      "id": 1,
+      "text": "New Contest",
+      "testId": "home-new-contest",
+      "clip": {
+        "x": 165.1875,
+        "y": 183,
+        "width": 88.609375,
+        "height": 18
+      },
+      "node": {
+        "path": [
+          0,
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 11
+      },
+      "captures": {
+        "normal": "glyphs-kxl7CM/001-normal.png",
+        "wrapped-visible": "glyphs-kxl7CM/001-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-kxl7CM/001-glyphs-suppressed.png",
+        "restored": "glyphs-kxl7CM/001-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 485,
+          "significant": 448,
+          "total": 1584
+        },
+        "characters": [
+          [
+            {
+              "significant": 49,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 44,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 67,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 57,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 42,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "gate": {
+    "status": "failed",
+    "errors": [
+      "J-home-create-cancel: failed"
+    ]
+  },
+  "elapsedMs": 1095
+}

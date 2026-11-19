@@ -1,0 +1,167 @@
+{
+  "sha": "47ad1b367b02fcfbc6908529dc39de64f6ed4c74",
+  "platform": "web-offline",
+  "flags": {
+    "EXPO_PUBLIC_OFFLINE_MODE": true,
+    "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+  },
+  "fixtureVersion": "two-player-empty-v1",
+  "deviceProfile": "iphone-15-pro",
+  "safeArea": {
+    "width": 393,
+    "height": 852,
+    "top": 59,
+    "bottom": 34
+  },
+  "viewport": {
+    "width": 393,
+    "height": 852
+  },
+  "startedAt": "2026-11-03T16:18:04.285Z",
+  "required": [
+    "J-home-create-cancel"
+  ],
+  "executed": [
+    "J-home-create-cancel"
+  ],
+  "results": [
+    {
+      "id": "J-home-create-cancel",
+      "fixtureVersion": "fresh-context-v1",
+      "status": "failed",
+      "errors": [
+        "Error: visible-text-missing: insufficient label contrast",
+        "missing assertion: activation",
+        "missing assertion: destination",
+        "missing assertion: outcome",
+        "missing/duplicate feature: create",
+        "missing step capture: create",
+        "missing step capture: edit",
+        "missing step capture: cancel-home"
+      ],
+      "metrics": {
+        "activations": 0,
+        "textEdit": 0,
+        "focus": 0,
+        "scroll": 0,
+        "screens": [
+          "home"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          }
+        ],
+        "actions": [],
+        "reachability": [],
+        "durationMs": 164
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 0,
+            "textEdit": 0,
+            "focus": 0,
+            "scroll": 0,
+            "screens": [
+              "home"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              }
+            ],
+            "actions": [],
+            "reachability": [],
+            "durationMs": 164
+          },
+          "assertions": [
+            "entry"
+          ],
+          "pageErrors": [],
+          "featureChecks": [],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 27
+            },
+            {
+              "number": 2,
+              "name": "failed",
+              "captureMs": 34
+            }
+          ],
+          "error": "Error: visible-text-missing: insufficient label contrast",
+          "signature": "visible-text-missing"
+        }
+      ]
+    }
+  ],
+  "coverageGaps": [
+    {
+      "id": "J-score-hand",
+      "reason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only"
+    },
+    {
+      "id": "J-create-8p-multiday",
+      "reason": "Multiday creation outside the phase 1 slice"
+    },
+    {
+      "id": "J-join-code",
+      "reason": "Offline error path does not prove successful backend or cross-device join"
+    },
+    {
+      "id": "J-guest-join-web",
+      "reason": "Guest identity and backend joining deferred; existing sharing suites retained"
+    },
+    {
+      "id": "J-reopen-after-crash",
+      "reason": "Reload persistence is gated; process kill/crash recovery is separate coverage"
+    }
+  ],
+  "mutation": "opaque-overlay",
+  "harnessTree": null,
+  "glyphEvidence": [
+    {
+      "id": 1,
+      "text": "New Contest",
+      "testId": "home-new-contest",
+      "clip": {
+        "x": 165.1875,
+        "y": 183,
+        "width": 88.609375,
+        "height": 18
+      },
+      "node": {
+        "path": [
+          0,
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 11
+      },
+      "captures": {
+        "normal": "glyphs-gnZHDC/001-normal.png",
+        "wrapped-visible": "glyphs-gnZHDC/001-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-gnZHDC/001-glyphs-suppressed.png",
+        "restored": "glyphs-gnZHDC/001-restored.png"
+      },
+      "proof": {
+        "passed": false,
+        "reason": "insufficient label contrast"
+      }
+    }
+  ],
+  "gate": {
+    "status": "failed",
+    "errors": [
+      "J-home-create-cancel: failed"
+    ]
+  },
+  "elapsedMs": 1077
+}

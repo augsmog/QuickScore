@@ -1,0 +1,6701 @@
+{
+  "sha": "47ad1b367b02fcfbc6908529dc39de64f6ed4c74",
+  "platform": "web-offline",
+  "flags": {
+    "EXPO_PUBLIC_OFFLINE_MODE": true,
+    "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+  },
+  "fixtureVersion": "two-player-empty-v1",
+  "deviceProfile": "iphone-15-pro",
+  "safeArea": {
+    "width": 393,
+    "height": 852,
+    "top": 59,
+    "bottom": 34
+  },
+  "viewport": {
+    "width": 393,
+    "height": 852
+  },
+  "startedAt": "2026-11-03T16:17:00.298Z",
+  "required": [
+    "J-home-create-cancel",
+    "J-home-join-code-error",
+    "J-round-score-settle-reload",
+    "J-invite-from-round",
+    "J-finalize-settle",
+    "J-delete-account",
+    "J-free-paywall-recover",
+    "J-game-rules",
+    "J-settlement-mark-lifecycle",
+    "J-settings-control-inventory",
+    "J-by-game-nine",
+    "J-by-game-pending",
+    "J-settlement-tab-runtime-recalc",
+    "J-trial-preview-unloaded",
+    "J-free-paywall-group-first"
+  ],
+  "executed": [
+    "J-home-create-cancel",
+    "J-home-join-code-error",
+    "J-round-score-settle-reload",
+    "J-invite-from-round",
+    "J-finalize-settle",
+    "J-delete-account",
+    "J-free-paywall-recover",
+    "J-game-rules",
+    "J-settlement-mark-lifecycle",
+    "J-settings-control-inventory",
+    "J-by-game-nine",
+    "J-by-game-pending",
+    "J-settlement-tab-runtime-recalc",
+    "J-trial-preview-unloaded",
+    "J-free-paywall-group-first"
+  ],
+  "results": [
+    {
+      "id": "J-home-create-cancel",
+      "fixtureVersion": "fresh-context-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 2,
+        "textEdit": 1,
+        "focus": 3,
+        "scroll": 0,
+        "screens": [
+          "home",
+          "create"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          },
+          {
+            "from": "home",
+            "to": "create"
+          },
+          {
+            "from": "create",
+            "to": "home"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": "create",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "textEdit"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [
+          {
+            "feature": "create",
+            "signature": null,
+            "status": "passed",
+            "depth": 1,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 20,
+              "y": 166,
+              "width": 353,
+              "height": 52
+            }
+          }
+        ],
+        "durationMs": 956
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 2,
+            "textEdit": 1,
+            "focus": 3,
+            "scroll": 0,
+            "screens": [
+              "home",
+              "create"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              },
+              {
+                "from": "home",
+                "to": "create"
+              },
+              {
+                "from": "create",
+                "to": "home"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": "create",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "textEdit"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [
+              {
+                "feature": "create",
+                "signature": null,
+                "status": "passed",
+                "depth": 1,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 20,
+                  "y": 166,
+                  "width": 353,
+                  "height": 52
+                }
+              }
+            ],
+            "durationMs": 956
+          },
+          "assertions": [
+            "entry",
+            "activation",
+            "destination",
+            "outcome"
+          ],
+          "pageErrors": [],
+          "featureChecks": [
+            "create"
+          ],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 26
+            },
+            {
+              "number": 2,
+              "name": "create",
+              "captureMs": 29
+            },
+            {
+              "number": 3,
+              "name": "edit",
+              "captureMs": 24
+            },
+            {
+              "number": 4,
+              "name": "cancel-home",
+              "captureMs": 34
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-home-join-code-error",
+      "fixtureVersion": "fresh-context-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 3,
+        "textEdit": 2,
+        "focus": 5,
+        "scroll": 0,
+        "screens": [
+          "home",
+          "join-code"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          },
+          {
+            "from": "home",
+            "to": "join-code"
+          },
+          {
+            "from": "join-code",
+            "to": "home"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": "join",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "textEdit"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "textEdit"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [
+          {
+            "feature": "join",
+            "signature": null,
+            "status": "passed",
+            "depth": 1,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 202.5,
+              "y": 230,
+              "width": 170.5,
+              "height": 52
+            }
+          }
+        ],
+        "durationMs": 975
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 3,
+            "textEdit": 2,
+            "focus": 5,
+            "scroll": 0,
+            "screens": [
+              "home",
+              "join-code"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              },
+              {
+                "from": "home",
+                "to": "join-code"
+              },
+              {
+                "from": "join-code",
+                "to": "home"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": "join",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "textEdit"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "textEdit"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [
+              {
+                "feature": "join",
+                "signature": null,
+                "status": "passed",
+                "depth": 1,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 202.5,
+                  "y": 230,
+                  "width": 170.5,
+                  "height": 52
+                }
+              }
+            ],
+            "durationMs": 975
+          },
+          "assertions": [
+            "entry",
+            "activation",
+            "destination",
+            "invalid-code-error",
+            "outcome"
+          ],
+          "pageErrors": [],
+          "featureChecks": [
+            "join"
+          ],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 28
+            },
+            {
+              "number": 2,
+              "name": "join",
+              "captureMs": 25
+            },
+            {
+              "number": 3,
+              "name": "invalid-code",
+              "captureMs": 23
+            },
+            {
+              "number": 4,
+              "name": "error",
+              "captureMs": 17
+            },
+            {
+              "number": 5,
+              "name": "dismiss-home",
+              "captureMs": 36
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-round-score-settle-reload",
+      "fixtureVersion": "two-player-empty-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 5,
+        "textEdit": 0,
+        "focus": 4,
+        "scroll": 0,
+        "screens": [
+          "round-scorecard",
+          "round-settlement",
+          "round-leaderboard"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "round-scorecard"
+          },
+          {
+            "from": "round-scorecard",
+            "to": "round-settlement"
+          },
+          {
+            "from": "round-settlement",
+            "to": "round-leaderboard"
+          },
+          {
+            "from": "round-leaderboard",
+            "to": "round-scorecard"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": "score-Augie",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": "score-Sam",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": "settle",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": "leaderboard",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "action": "reload"
+          }
+        ],
+        "reachability": [
+          {
+            "feature": "score-Augie",
+            "signature": null,
+            "status": "passed",
+            "depth": 1,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 153,
+              "y": 476,
+              "width": 90,
+              "height": 63
+            }
+          },
+          {
+            "feature": "score-Sam",
+            "signature": null,
+            "status": "passed",
+            "depth": 1,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 153,
+              "y": 622,
+              "width": 90,
+              "height": 63
+            }
+          },
+          {
+            "feature": "settle",
+            "signature": null,
+            "status": "passed",
+            "depth": 1,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 282.75,
+              "y": 278,
+              "width": 86.25,
+              "height": 44
+            }
+          },
+          {
+            "feature": "leaderboard",
+            "signature": null,
+            "status": "passed",
+            "depth": 2,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 110.25,
+              "y": 278,
+              "width": 86.25,
+              "height": 44
+            }
+          }
+        ],
+        "durationMs": 2741
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 5,
+            "textEdit": 0,
+            "focus": 4,
+            "scroll": 0,
+            "screens": [
+              "round-scorecard",
+              "round-settlement",
+              "round-leaderboard"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "round-scorecard"
+              },
+              {
+                "from": "round-scorecard",
+                "to": "round-settlement"
+              },
+              {
+                "from": "round-settlement",
+                "to": "round-leaderboard"
+              },
+              {
+                "from": "round-leaderboard",
+                "to": "round-scorecard"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": "score-Augie",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": "score-Sam",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": "settle",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": "leaderboard",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "action": "reload"
+              }
+            ],
+            "reachability": [
+              {
+                "feature": "score-Augie",
+                "signature": null,
+                "status": "passed",
+                "depth": 1,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 153,
+                  "y": 476,
+                  "width": 90,
+                  "height": 63
+                }
+              },
+              {
+                "feature": "score-Sam",
+                "signature": null,
+                "status": "passed",
+                "depth": 1,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 153,
+                  "y": 622,
+                  "width": 90,
+                  "height": 63
+                }
+              },
+              {
+                "feature": "settle",
+                "signature": null,
+                "status": "passed",
+                "depth": 1,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 282.75,
+                  "y": 278,
+                  "width": 86.25,
+                  "height": 44
+                }
+              },
+              {
+                "feature": "leaderboard",
+                "signature": null,
+                "status": "passed",
+                "depth": 2,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 110.25,
+                  "y": 278,
+                  "width": 86.25,
+                  "height": 44
+                }
+              }
+            ],
+            "durationMs": 2741
+          },
+          "assertions": [
+            "entry",
+            "activation",
+            "destination",
+            "leaderboard-totals",
+            "outcome"
+          ],
+          "pageErrors": [],
+          "featureChecks": [
+            "score-Augie",
+            "score-Sam",
+            "settle",
+            "leaderboard"
+          ],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 27
+            },
+            {
+              "number": 2,
+              "name": "score-Augie",
+              "captureMs": 33
+            },
+            {
+              "number": 3,
+              "name": "score-Sam",
+              "captureMs": 32
+            },
+            {
+              "number": 4,
+              "name": "settle",
+              "captureMs": 28
+            },
+            {
+              "number": 5,
+              "name": "leaderboard",
+              "captureMs": 25
+            },
+            {
+              "number": 6,
+              "name": "reload-saved",
+              "captureMs": 26
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-invite-from-round",
+      "fixtureVersion": "two-player-empty-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 1,
+        "textEdit": 0,
+        "focus": 1,
+        "scroll": 0,
+        "screens": [
+          "round-scorecard"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "round-scorecard"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": "invite",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [
+          {
+            "feature": "invite",
+            "signature": null,
+            "status": "passed",
+            "depth": 1,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 20,
+              "y": 112,
+              "width": 353,
+              "height": 44
+            }
+          }
+        ],
+        "durationMs": 601
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 1,
+            "textEdit": 0,
+            "focus": 1,
+            "scroll": 0,
+            "screens": [
+              "round-scorecard"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "round-scorecard"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": "invite",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [
+              {
+                "feature": "invite",
+                "signature": null,
+                "status": "passed",
+                "depth": 1,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 20,
+                  "y": 112,
+                  "width": 353,
+                  "height": 44
+                }
+              }
+            ],
+            "durationMs": 601
+          },
+          "assertions": [
+            "entry",
+            "code-visible",
+            "activation",
+            "destination",
+            "outcome"
+          ],
+          "pageErrors": [],
+          "featureChecks": [
+            "invite"
+          ],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 28
+            },
+            {
+              "number": 2,
+              "name": "invite-copied",
+              "captureMs": 32
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-finalize-settle",
+      "fixtureVersion": "two-player-empty-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 2,
+        "textEdit": 0,
+        "focus": 3,
+        "scroll": 0,
+        "screens": [
+          "round-scorecard"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "round-scorecard"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [],
+        "durationMs": 236
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 2,
+            "textEdit": 0,
+            "focus": 3,
+            "scroll": 0,
+            "screens": [
+              "round-scorecard"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "round-scorecard"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [],
+            "durationMs": 236
+          },
+          "assertions": [
+            "entry",
+            "activation",
+            "confirmation shown",
+            "outcome",
+            "confirmation dismissed"
+          ],
+          "pageErrors": [],
+          "featureChecks": [],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 27
+            },
+            {
+              "number": 2,
+              "name": "finalize-requested",
+              "captureMs": 27
+            },
+            {
+              "number": 3,
+              "name": "confirmation-visible",
+              "captureMs": 28
+            },
+            {
+              "number": 4,
+              "name": "cancelled",
+              "captureMs": 30
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-delete-account",
+      "fixtureVersion": "focused-acceptance-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 3,
+        "textEdit": 0,
+        "focus": 3,
+        "scroll": 0,
+        "screens": [
+          "home",
+          "profile",
+          "settings"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          },
+          {
+            "from": "home",
+            "to": "profile"
+          },
+          {
+            "from": "profile",
+            "to": "settings"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": "delete-account",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [
+          {
+            "feature": "delete-account",
+            "signature": null,
+            "status": "passed",
+            "depth": 3,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 16,
+              "y": 197,
+              "width": 361,
+              "height": 65
+            }
+          }
+        ],
+        "durationMs": 576
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 3,
+            "textEdit": 0,
+            "focus": 3,
+            "scroll": 0,
+            "screens": [
+              "home",
+              "profile",
+              "settings"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              },
+              {
+                "from": "home",
+                "to": "profile"
+              },
+              {
+                "from": "profile",
+                "to": "settings"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": "delete-account",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [
+              {
+                "feature": "delete-account",
+                "signature": null,
+                "status": "passed",
+                "depth": 3,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 16,
+                  "y": 197,
+                  "width": 361,
+                  "height": 65
+                }
+              }
+            ],
+            "durationMs": 576
+          },
+          "assertions": [
+            "settings-reachable",
+            "confirmation-three-taps"
+          ],
+          "pageErrors": [],
+          "featureChecks": [
+            "delete-account"
+          ],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 16
+            },
+            {
+              "number": 2,
+              "name": "settings-two-taps",
+              "captureMs": 31
+            },
+            {
+              "number": 3,
+              "name": "confirmation-stop",
+              "captureMs": 36
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-free-paywall-recover",
+      "fixtureVersion": "paywall-recovery-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 10,
+        "textEdit": 3,
+        "focus": 13,
+        "scroll": 3,
+        "screens": [
+          "home",
+          "create",
+          "recovery-paywall"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          },
+          {
+            "from": "home",
+            "to": "create"
+          },
+          {
+            "from": "create",
+            "to": "recovery-paywall"
+          },
+          {
+            "from": "recovery-paywall",
+            "to": "create"
+          },
+          {
+            "from": "create",
+            "to": "recovery-paywall"
+          },
+          {
+            "from": "recovery-paywall",
+            "to": "create"
+          },
+          {
+            "from": "create",
+            "to": "recovery-paywall"
+          },
+          {
+            "from": "recovery-paywall",
+            "to": "create"
+          },
+          {
+            "from": "create",
+            "to": "recovery-paywall"
+          },
+          {
+            "from": "recovery-paywall",
+            "to": "create"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "textEdit"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "textEdit"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "textEdit"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 0
+            },
+            "after": {
+              "x": 0,
+              "y": 271
+            },
+            "deltaY": 270.5
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 271
+            },
+            "after": {
+              "x": 0,
+              "y": 160
+            },
+            "deltaY": -111.5
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 160
+            },
+            "after": {
+              "x": 0,
+              "y": 271
+            },
+            "deltaY": 110.5
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [],
+        "durationMs": 2424
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 10,
+            "textEdit": 3,
+            "focus": 13,
+            "scroll": 3,
+            "screens": [
+              "home",
+              "create",
+              "recovery-paywall"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              },
+              {
+                "from": "home",
+                "to": "create"
+              },
+              {
+                "from": "create",
+                "to": "recovery-paywall"
+              },
+              {
+                "from": "recovery-paywall",
+                "to": "create"
+              },
+              {
+                "from": "create",
+                "to": "recovery-paywall"
+              },
+              {
+                "from": "recovery-paywall",
+                "to": "create"
+              },
+              {
+                "from": "create",
+                "to": "recovery-paywall"
+              },
+              {
+                "from": "recovery-paywall",
+                "to": "create"
+              },
+              {
+                "from": "create",
+                "to": "recovery-paywall"
+              },
+              {
+                "from": "recovery-paywall",
+                "to": "create"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "textEdit"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "textEdit"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "textEdit"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 0
+                },
+                "after": {
+                  "x": 0,
+                  "y": 271
+                },
+                "deltaY": 270.5
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 271
+                },
+                "after": {
+                  "x": 0,
+                  "y": 160
+                },
+                "deltaY": -111.5
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 160
+                },
+                "after": {
+                  "x": 0,
+                  "y": 271
+                },
+                "deltaY": 110.5
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [],
+            "durationMs": 2424
+          },
+          "assertions": [
+            "entry",
+            "draft-entered",
+            "badge-1",
+            "plans-1",
+            "recovered-1",
+            "badge-2",
+            "plans-2",
+            "recovered-2",
+            "badge-3",
+            "plans-3",
+            "recovered-3",
+            "badge-4",
+            "plans-4",
+            "recovered-4",
+            "outcome"
+          ],
+          "pageErrors": [],
+          "featureChecks": [],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 42
+            },
+            {
+              "number": 2,
+              "name": "draft",
+              "captureMs": 22
+            },
+            {
+              "number": 3,
+              "name": "badge-1",
+              "captureMs": 31
+            },
+            {
+              "number": 4,
+              "name": "paywall-1",
+              "captureMs": 32
+            },
+            {
+              "number": 5,
+              "name": "recovered-1",
+              "captureMs": 25
+            },
+            {
+              "number": 6,
+              "name": "badge-2",
+              "captureMs": 42
+            },
+            {
+              "number": 7,
+              "name": "paywall-2",
+              "captureMs": 20
+            },
+            {
+              "number": 8,
+              "name": "recovered-2",
+              "captureMs": 23
+            },
+            {
+              "number": 9,
+              "name": "badge-3",
+              "captureMs": 38
+            },
+            {
+              "number": 10,
+              "name": "paywall-3",
+              "captureMs": 26
+            },
+            {
+              "number": 11,
+              "name": "recovered-3",
+              "captureMs": 30
+            },
+            {
+              "number": 12,
+              "name": "badge-4",
+              "captureMs": 38
+            },
+            {
+              "number": 13,
+              "name": "paywall-4",
+              "captureMs": 31
+            },
+            {
+              "number": 14,
+              "name": "recovered-4",
+              "captureMs": 37
+            },
+            {
+              "number": 15,
+              "name": "outcome",
+              "captureMs": 34
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-game-rules",
+      "fixtureVersion": "fresh-context-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 3,
+        "textEdit": 0,
+        "focus": 6,
+        "scroll": 1,
+        "screens": [
+          "home"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": "game-library",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 0
+            },
+            "after": {
+              "x": 0,
+              "y": 240
+            },
+            "deltaY": 240
+          },
+          {
+            "kind": "activations",
+            "feature": "skins-rules",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [
+          {
+            "feature": "game-library",
+            "signature": null,
+            "status": "passed",
+            "depth": 1,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 329,
+              "y": 310,
+              "width": 44,
+              "height": 44
+            }
+          },
+          {
+            "feature": "skins-rules",
+            "signature": null,
+            "status": "passed",
+            "depth": 2,
+            "scrolls": 1,
+            "disclosures": [
+              "home-see-all-modes"
+            ],
+            "rect": {
+              "x": 20,
+              "y": 192,
+              "width": 353,
+              "height": 80
+            }
+          }
+        ],
+        "durationMs": 1478
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 3,
+            "textEdit": 0,
+            "focus": 6,
+            "scroll": 1,
+            "screens": [
+              "home"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": "game-library",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 0
+                },
+                "after": {
+                  "x": 0,
+                  "y": 240
+                },
+                "deltaY": 240
+              },
+              {
+                "kind": "activations",
+                "feature": "skins-rules",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [
+              {
+                "feature": "game-library",
+                "signature": null,
+                "status": "passed",
+                "depth": 1,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 329,
+                  "y": 310,
+                  "width": 44,
+                  "height": 44
+                }
+              },
+              {
+                "feature": "skins-rules",
+                "signature": null,
+                "status": "passed",
+                "depth": 2,
+                "scrolls": 1,
+                "disclosures": [
+                  "home-see-all-modes"
+                ],
+                "rect": {
+                  "x": 20,
+                  "y": 192,
+                  "width": 353,
+                  "height": 80
+                }
+              }
+            ],
+            "durationMs": 1478
+          },
+          "assertions": [
+            "entry",
+            "library",
+            "rule",
+            "outcome"
+          ],
+          "pageErrors": [],
+          "featureChecks": [
+            "game-library",
+            "skins-rules"
+          ],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 25
+            },
+            {
+              "number": 2,
+              "name": "game-library",
+              "captureMs": 17
+            },
+            {
+              "number": 3,
+              "name": "game-modes-scroll",
+              "captureMs": 23
+            },
+            {
+              "number": 4,
+              "name": "skins-rules",
+              "captureMs": 31
+            },
+            {
+              "number": 5,
+              "name": "home-restored",
+              "captureMs": 22
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-settlement-mark-lifecycle",
+      "fixtureVersion": "render-acceptance-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 15,
+        "textEdit": 0,
+        "focus": 9,
+        "scroll": 2,
+        "screens": [
+          "home",
+          "acceptance-round",
+          "acceptance-settlement"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          },
+          {
+            "from": "home",
+            "to": "acceptance-round"
+          },
+          {
+            "from": "acceptance-round",
+            "to": "acceptance-settlement"
+          },
+          {
+            "from": "acceptance-settlement",
+            "to": "acceptance-round"
+          },
+          {
+            "from": "acceptance-round",
+            "to": "acceptance-settlement"
+          },
+          {
+            "from": "acceptance-settlement",
+            "to": "acceptance-round"
+          },
+          {
+            "from": "acceptance-round",
+            "to": "acceptance-settlement"
+          },
+          {
+            "from": "acceptance-settlement",
+            "to": "acceptance-round"
+          },
+          {
+            "from": "acceptance-round",
+            "to": "acceptance-settlement"
+          },
+          {
+            "from": "acceptance-settlement",
+            "to": "acceptance-round"
+          },
+          {
+            "from": "acceptance-round",
+            "to": "acceptance-settlement"
+          },
+          {
+            "from": "acceptance-settlement",
+            "to": "acceptance-round"
+          },
+          {
+            "from": "acceptance-round",
+            "to": "acceptance-settlement"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "action": "fixture-route-navigation"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "action": "reload"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "action": "fixture-route-navigation"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "action": "fixture-route-navigation"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "action": "reload"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 0
+            },
+            "after": {
+              "x": 0,
+              "y": 459
+            },
+            "deltaY": 459
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 459
+            },
+            "after": {
+              "x": 0,
+              "y": 583
+            },
+            "deltaY": 124
+          },
+          {
+            "kind": "activations",
+            "action": "fixture-route-navigation"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [],
+        "durationMs": 10509
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 15,
+            "textEdit": 0,
+            "focus": 9,
+            "scroll": 2,
+            "screens": [
+              "home",
+              "acceptance-round",
+              "acceptance-settlement"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              },
+              {
+                "from": "home",
+                "to": "acceptance-round"
+              },
+              {
+                "from": "acceptance-round",
+                "to": "acceptance-settlement"
+              },
+              {
+                "from": "acceptance-settlement",
+                "to": "acceptance-round"
+              },
+              {
+                "from": "acceptance-round",
+                "to": "acceptance-settlement"
+              },
+              {
+                "from": "acceptance-settlement",
+                "to": "acceptance-round"
+              },
+              {
+                "from": "acceptance-round",
+                "to": "acceptance-settlement"
+              },
+              {
+                "from": "acceptance-settlement",
+                "to": "acceptance-round"
+              },
+              {
+                "from": "acceptance-round",
+                "to": "acceptance-settlement"
+              },
+              {
+                "from": "acceptance-settlement",
+                "to": "acceptance-round"
+              },
+              {
+                "from": "acceptance-round",
+                "to": "acceptance-settlement"
+              },
+              {
+                "from": "acceptance-settlement",
+                "to": "acceptance-round"
+              },
+              {
+                "from": "acceptance-round",
+                "to": "acceptance-settlement"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "action": "fixture-route-navigation"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "action": "reload"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "action": "fixture-route-navigation"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "action": "fixture-route-navigation"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "action": "reload"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 0
+                },
+                "after": {
+                  "x": 0,
+                  "y": 459
+                },
+                "deltaY": 459
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 459
+                },
+                "after": {
+                  "x": 0,
+                  "y": 583
+                },
+                "deltaY": 124
+              },
+              {
+                "kind": "activations",
+                "action": "fixture-route-navigation"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [],
+            "durationMs": 10509
+          },
+          "assertions": [
+            "entry",
+            "unmarked",
+            "marked",
+            "reload-persists",
+            "other-contest-unmarked",
+            "other-contest-independent",
+            "undo",
+            "undo-persists",
+            "by-game-values",
+            "outcome"
+          ],
+          "pageErrors": [],
+          "featureChecks": [],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 32
+            },
+            {
+              "number": 2,
+              "name": "unmarked",
+              "captureMs": 35
+            },
+            {
+              "number": 3,
+              "name": "marked",
+              "captureMs": 39
+            },
+            {
+              "number": 4,
+              "name": "reloaded-mark",
+              "captureMs": 24
+            },
+            {
+              "number": 5,
+              "name": "other-unmarked",
+              "captureMs": 24
+            },
+            {
+              "number": 6,
+              "name": "other-marked",
+              "captureMs": 22
+            },
+            {
+              "number": 7,
+              "name": "undone",
+              "captureMs": 25
+            },
+            {
+              "number": 8,
+              "name": "undo-reloaded",
+              "captureMs": 23
+            },
+            {
+              "number": 9,
+              "name": "by-game-0",
+              "captureMs": 36
+            },
+            {
+              "number": 10,
+              "name": "by-game-1",
+              "captureMs": 49
+            },
+            {
+              "number": 11,
+              "name": "other-still-marked",
+              "captureMs": 15
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-settings-control-inventory",
+      "fixtureVersion": "focused-acceptance-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 2,
+        "textEdit": 0,
+        "focus": 2,
+        "scroll": 17,
+        "screens": [
+          "home",
+          "profile",
+          "settings"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          },
+          {
+            "from": "home",
+            "to": "profile"
+          },
+          {
+            "from": "profile",
+            "to": "settings"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 0
+            },
+            "after": {
+              "x": 0,
+              "y": 50
+            },
+            "deltaY": 50
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 50
+            },
+            "after": {
+              "x": 0,
+              "y": 650
+            },
+            "deltaY": 600
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 650
+            },
+            "after": {
+              "x": 0,
+              "y": 1250
+            },
+            "deltaY": 600
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 1250
+            },
+            "after": {
+              "x": 0,
+              "y": 1273
+            },
+            "deltaY": 23
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 1273
+            },
+            "after": {
+              "x": 0,
+              "y": 1372
+            },
+            "deltaY": 99
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 1372
+            },
+            "after": {
+              "x": 0,
+              "y": 1426
+            },
+            "deltaY": 54
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 1426
+            },
+            "after": {
+              "x": 0,
+              "y": 1558
+            },
+            "deltaY": 132
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 1558
+            },
+            "after": {
+              "x": 0,
+              "y": 1614
+            },
+            "deltaY": 56
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 1614
+            },
+            "after": {
+              "x": 0,
+              "y": 1014
+            },
+            "deltaY": -600
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 1014
+            },
+            "after": {
+              "x": 0,
+              "y": 478
+            },
+            "deltaY": -536.5
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 478
+            },
+            "after": {
+              "x": 0,
+              "y": 583
+            },
+            "deltaY": 105.5
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 583
+            },
+            "after": {
+              "x": 0,
+              "y": 674
+            },
+            "deltaY": 90.5
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 674
+            },
+            "after": {
+              "x": 0,
+              "y": 746
+            },
+            "deltaY": 72.5
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 746
+            },
+            "after": {
+              "x": 0,
+              "y": 871
+            },
+            "deltaY": 124.5
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 871
+            },
+            "after": {
+              "x": 0,
+              "y": 943
+            },
+            "deltaY": 72.5
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 943
+            },
+            "after": {
+              "x": 0,
+              "y": 1068
+            },
+            "deltaY": 124.5
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 1068
+            },
+            "after": {
+              "x": 0,
+              "y": 1140
+            },
+            "deltaY": 72.5
+          }
+        ],
+        "reachability": [],
+        "durationMs": 2820
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 2,
+            "textEdit": 0,
+            "focus": 2,
+            "scroll": 17,
+            "screens": [
+              "home",
+              "profile",
+              "settings"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              },
+              {
+                "from": "home",
+                "to": "profile"
+              },
+              {
+                "from": "profile",
+                "to": "settings"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 0
+                },
+                "after": {
+                  "x": 0,
+                  "y": 50
+                },
+                "deltaY": 50
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 50
+                },
+                "after": {
+                  "x": 0,
+                  "y": 650
+                },
+                "deltaY": 600
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 650
+                },
+                "after": {
+                  "x": 0,
+                  "y": 1250
+                },
+                "deltaY": 600
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 1250
+                },
+                "after": {
+                  "x": 0,
+                  "y": 1273
+                },
+                "deltaY": 23
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 1273
+                },
+                "after": {
+                  "x": 0,
+                  "y": 1372
+                },
+                "deltaY": 99
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 1372
+                },
+                "after": {
+                  "x": 0,
+                  "y": 1426
+                },
+                "deltaY": 54
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 1426
+                },
+                "after": {
+                  "x": 0,
+                  "y": 1558
+                },
+                "deltaY": 132
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 1558
+                },
+                "after": {
+                  "x": 0,
+                  "y": 1614
+                },
+                "deltaY": 56
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 1614
+                },
+                "after": {
+                  "x": 0,
+                  "y": 1014
+                },
+                "deltaY": -600
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 1014
+                },
+                "after": {
+                  "x": 0,
+                  "y": 478
+                },
+                "deltaY": -536.5
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 478
+                },
+                "after": {
+                  "x": 0,
+                  "y": 583
+                },
+                "deltaY": 105.5
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 583
+                },
+                "after": {
+                  "x": 0,
+                  "y": 674
+                },
+                "deltaY": 90.5
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 674
+                },
+                "after": {
+                  "x": 0,
+                  "y": 746
+                },
+                "deltaY": 72.5
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 746
+                },
+                "after": {
+                  "x": 0,
+                  "y": 871
+                },
+                "deltaY": 124.5
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 871
+                },
+                "after": {
+                  "x": 0,
+                  "y": 943
+                },
+                "deltaY": 72.5
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 943
+                },
+                "after": {
+                  "x": 0,
+                  "y": 1068
+                },
+                "deltaY": 124.5
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 1068
+                },
+                "after": {
+                  "x": 0,
+                  "y": 1140
+                },
+                "deltaY": 72.5
+              }
+            ],
+            "reachability": [],
+            "durationMs": 2820
+          },
+          "assertions": [
+            "complete-role-name-inventory"
+          ],
+          "pageErrors": [],
+          "featureChecks": [],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 32
+            },
+            {
+              "number": 2,
+              "name": "inventory-complete",
+              "captureMs": 28
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-by-game-nine",
+      "fixtureVersion": "focused-acceptance-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 2,
+        "textEdit": 0,
+        "focus": 1,
+        "scroll": 2,
+        "screens": [
+          "home",
+          "acceptance-round"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          },
+          {
+            "from": "home",
+            "to": "acceptance-round"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "action": "fixture-route-navigation"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 0
+            },
+            "after": {
+              "x": 0,
+              "y": 242
+            },
+            "deltaY": 242
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 242
+            },
+            "after": {
+              "x": 0,
+              "y": 180
+            },
+            "deltaY": -62
+          }
+        ],
+        "reachability": [],
+        "durationMs": 2491
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 2,
+            "textEdit": 0,
+            "focus": 1,
+            "scroll": 2,
+            "screens": [
+              "home",
+              "acceptance-round"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              },
+              {
+                "from": "home",
+                "to": "acceptance-round"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "action": "fixture-route-navigation"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 0
+                },
+                "after": {
+                  "x": 0,
+                  "y": 242
+                },
+                "deltaY": 242
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 242
+                },
+                "after": {
+                  "x": 0,
+                  "y": 180
+                },
+                "deltaY": -62
+              }
+            ],
+            "reachability": [],
+            "durationMs": 2491
+          },
+          "assertions": [
+            "nine-hole-signed-rows",
+            "aggregate-separate"
+          ],
+          "pageErrors": [],
+          "featureChecks": [],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 22
+            },
+            {
+              "number": 2,
+              "name": "nine-hole-rows",
+              "captureMs": 40
+            },
+            {
+              "number": 3,
+              "name": "aggregate",
+              "captureMs": 34
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-by-game-pending",
+      "fixtureVersion": "focused-acceptance-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 2,
+        "textEdit": 0,
+        "focus": 1,
+        "scroll": 0,
+        "screens": [
+          "home",
+          "acceptance-round"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          },
+          {
+            "from": "home",
+            "to": "acceptance-round"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "action": "fixture-route-navigation"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [],
+        "durationMs": 2034
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 2,
+            "textEdit": 0,
+            "focus": 1,
+            "scroll": 0,
+            "screens": [
+              "home",
+              "acceptance-round"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              },
+              {
+                "from": "home",
+                "to": "acceptance-round"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "action": "fixture-route-navigation"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [],
+            "durationMs": 2034
+          },
+          "assertions": [
+            "pending-no-fabricated-money"
+          ],
+          "pageErrors": [],
+          "featureChecks": [],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 14
+            },
+            {
+              "number": 2,
+              "name": "pending-rows",
+              "captureMs": 33
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-settlement-tab-runtime-recalc",
+      "fixtureVersion": "focused-acceptance-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 10,
+        "textEdit": 0,
+        "focus": 7,
+        "scroll": 0,
+        "screens": [
+          "home",
+          "acceptance-round"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          },
+          {
+            "from": "home",
+            "to": "acceptance-round"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "action": "fixture-route-navigation"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "action": "fixture-route-navigation"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "action": "fixture-route-navigation"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [],
+        "durationMs": 2889
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 10,
+            "textEdit": 0,
+            "focus": 7,
+            "scroll": 0,
+            "screens": [
+              "home",
+              "acceptance-round"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              },
+              {
+                "from": "home",
+                "to": "acceptance-round"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "action": "fixture-route-navigation"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "action": "fixture-route-navigation"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "action": "fixture-route-navigation"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [],
+            "durationMs": 2889
+          },
+          "assertions": [
+            "same-contest-tab-retains",
+            "runtime-restart-retains",
+            "recalculation-invalidates"
+          ],
+          "pageErrors": [],
+          "featureChecks": [],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 19
+            },
+            {
+              "number": 2,
+              "name": "marked",
+              "captureMs": 53
+            },
+            {
+              "number": 3,
+              "name": "tab-return",
+              "captureMs": 37
+            },
+            {
+              "number": 4,
+              "name": "runtime-restarted",
+              "captureMs": 40
+            },
+            {
+              "number": 5,
+              "name": "recalculated-unmarked",
+              "captureMs": 13
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-trial-preview-unloaded",
+      "fixtureVersion": "focused-acceptance-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 2,
+        "textEdit": 0,
+        "focus": 1,
+        "scroll": 0,
+        "screens": [
+          "home",
+          "acceptance-round"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          },
+          {
+            "from": "home",
+            "to": "acceptance-round"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "action": "fixture-route-navigation"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [],
+        "durationMs": 846
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 2,
+            "textEdit": 0,
+            "focus": 1,
+            "scroll": 0,
+            "screens": [
+              "home",
+              "acceptance-round"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              },
+              {
+                "from": "home",
+                "to": "acceptance-round"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "action": "fixture-route-navigation"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [],
+            "durationMs": 846
+          },
+          "assertions": [
+            "unloaded-no-trial-promise"
+          ],
+          "pageErrors": [],
+          "featureChecks": [],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 16
+            },
+            {
+              "number": 2,
+              "name": "trial-preview-unloaded",
+              "captureMs": 37
+            }
+          ],
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "J-free-paywall-group-first",
+      "fixtureVersion": "paywall-recovery-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 10,
+        "textEdit": 3,
+        "focus": 13,
+        "scroll": 4,
+        "screens": [
+          "home",
+          "create",
+          "recovery-paywall"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          },
+          {
+            "from": "home",
+            "to": "create"
+          },
+          {
+            "from": "create",
+            "to": "recovery-paywall"
+          },
+          {
+            "from": "recovery-paywall",
+            "to": "create"
+          },
+          {
+            "from": "create",
+            "to": "recovery-paywall"
+          },
+          {
+            "from": "recovery-paywall",
+            "to": "create"
+          },
+          {
+            "from": "create",
+            "to": "recovery-paywall"
+          },
+          {
+            "from": "recovery-paywall",
+            "to": "create"
+          },
+          {
+            "from": "create",
+            "to": "recovery-paywall"
+          },
+          {
+            "from": "recovery-paywall",
+            "to": "create"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "textEdit"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "textEdit"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "textEdit"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 0
+            },
+            "after": {
+              "x": 0,
+              "y": 271
+            },
+            "deltaY": 270.5
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 285
+            },
+            "after": {
+              "x": 0,
+              "y": 160
+            },
+            "deltaY": -125.5
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 160
+            },
+            "after": {
+              "x": 0,
+              "y": 271
+            },
+            "deltaY": 110.5
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 271
+            },
+            "after": {
+              "x": 0,
+              "y": 160
+            },
+            "deltaY": -111.5
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [],
+        "durationMs": 2440
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 10,
+            "textEdit": 3,
+            "focus": 13,
+            "scroll": 4,
+            "screens": [
+              "home",
+              "create",
+              "recovery-paywall"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              },
+              {
+                "from": "home",
+                "to": "create"
+              },
+              {
+                "from": "create",
+                "to": "recovery-paywall"
+              },
+              {
+                "from": "recovery-paywall",
+                "to": "create"
+              },
+              {
+                "from": "create",
+                "to": "recovery-paywall"
+              },
+              {
+                "from": "recovery-paywall",
+                "to": "create"
+              },
+              {
+                "from": "create",
+                "to": "recovery-paywall"
+              },
+              {
+                "from": "recovery-paywall",
+                "to": "create"
+              },
+              {
+                "from": "create",
+                "to": "recovery-paywall"
+              },
+              {
+                "from": "recovery-paywall",
+                "to": "create"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "textEdit"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "textEdit"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "textEdit"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 0
+                },
+                "after": {
+                  "x": 0,
+                  "y": 271
+                },
+                "deltaY": 270.5
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 285
+                },
+                "after": {
+                  "x": 0,
+                  "y": 160
+                },
+                "deltaY": -125.5
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 160
+                },
+                "after": {
+                  "x": 0,
+                  "y": 271
+                },
+                "deltaY": 110.5
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 271
+                },
+                "after": {
+                  "x": 0,
+                  "y": 160
+                },
+                "deltaY": -111.5
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [],
+            "durationMs": 2440
+          },
+          "assertions": [
+            "entry",
+            "draft-entered",
+            "badge-1",
+            "plans-1",
+            "recovered-1",
+            "badge-2",
+            "plans-2",
+            "recovered-2",
+            "badge-3",
+            "plans-3",
+            "recovered-3",
+            "badge-4",
+            "plans-4",
+            "recovered-4",
+            "outcome"
+          ],
+          "pageErrors": [],
+          "featureChecks": [],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 30
+            },
+            {
+              "number": 2,
+              "name": "draft",
+              "captureMs": 25
+            },
+            {
+              "number": 3,
+              "name": "badge-1",
+              "captureMs": 40
+            },
+            {
+              "number": 4,
+              "name": "paywall-1",
+              "captureMs": 50
+            },
+            {
+              "number": 5,
+              "name": "recovered-1",
+              "captureMs": 27
+            },
+            {
+              "number": 6,
+              "name": "badge-2",
+              "captureMs": 43
+            },
+            {
+              "number": 7,
+              "name": "paywall-2",
+              "captureMs": 34
+            },
+            {
+              "number": 8,
+              "name": "recovered-2",
+              "captureMs": 28
+            },
+            {
+              "number": 9,
+              "name": "badge-3",
+              "captureMs": 42
+            },
+            {
+              "number": 10,
+              "name": "paywall-3",
+              "captureMs": 29
+            },
+            {
+              "number": 11,
+              "name": "recovered-3",
+              "captureMs": 27
+            },
+            {
+              "number": 12,
+              "name": "badge-4",
+              "captureMs": 38
+            },
+            {
+              "number": 13,
+              "name": "paywall-4",
+              "captureMs": 17
+            },
+            {
+              "number": 14,
+              "name": "recovered-4",
+              "captureMs": 15
+            },
+            {
+              "number": 15,
+              "name": "outcome",
+              "captureMs": 26
+            }
+          ],
+          "error": null
+        }
+      ]
+    }
+  ],
+  "coverageGaps": [
+    {
+      "id": "J-score-hand",
+      "reason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only"
+    },
+    {
+      "id": "J-create-8p-multiday",
+      "reason": "Multiday creation outside the phase 1 slice"
+    },
+    {
+      "id": "J-join-code",
+      "reason": "Offline error path does not prove successful backend or cross-device join"
+    },
+    {
+      "id": "J-guest-join-web",
+      "reason": "Guest identity and backend joining deferred; existing sharing suites retained"
+    },
+    {
+      "id": "J-reopen-after-crash",
+      "reason": "Reload persistence is gated; process kill/crash recovery is separate coverage"
+    }
+  ],
+  "mutation": null,
+  "harnessTree": null,
+  "glyphEvidence": [
+    {
+      "id": 1,
+      "text": "New Contest",
+      "testId": "home-new-contest",
+      "clip": {
+        "x": 165.1875,
+        "y": 183,
+        "width": 88.609375,
+        "height": 18
+      },
+      "node": {
+        "path": [
+          0,
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 11
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/001-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/001-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/001-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/001-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 485,
+          "significant": 448,
+          "total": 1584
+        },
+        "characters": [
+          [
+            {
+              "significant": 49,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 44,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 67,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 57,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 42,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "text": "New Contest",
+      "testId": "home-new-contest",
+      "clip": {
+        "x": 165.1875,
+        "y": 183,
+        "width": 88.609375,
+        "height": 18
+      },
+      "node": {
+        "path": [
+          0,
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 11
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/002-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/002-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/002-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/002-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 485,
+          "significant": 448,
+          "total": 1584
+        },
+        "characters": [
+          [
+            {
+              "significant": 49,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 44,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 67,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 57,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 42,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "text": "New Contest",
+      "testId": "home-new-contest",
+      "clip": {
+        "x": 165.1875,
+        "y": 183,
+        "width": 88.609375,
+        "height": 18
+      },
+      "node": {
+        "path": [
+          0,
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 11
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/003-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/003-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/003-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/003-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 485,
+          "significant": 448,
+          "total": 1584
+        },
+        "characters": [
+          [
+            {
+              "significant": 49,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 44,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 67,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 57,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 42,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "text": "Join with code",
+      "testId": "home-join-code",
+      "clip": {
+        "x": 249.046875,
+        "y": 247,
+        "width": 103.40625,
+        "height": 18
+      },
+      "node": {
+        "path": [
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 14
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/004-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/004-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/004-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/004-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 528,
+          "significant": 483,
+          "total": 1854
+        },
+        "characters": [
+          [
+            {
+              "significant": 32,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 52,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 18,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 49,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 67,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 20,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 42,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 52,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 44,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "text": "Join with code",
+      "testId": "home-join-code",
+      "clip": {
+        "x": 249.046875,
+        "y": 247,
+        "width": 103.40625,
+        "height": 18
+      },
+      "node": {
+        "path": [
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 14
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/005-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/005-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/005-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/005-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 528,
+          "significant": 483,
+          "total": 1854
+        },
+        "characters": [
+          [
+            {
+              "significant": 32,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 52,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 18,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 49,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 67,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 20,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 42,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 52,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 44,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "text": "Join with code",
+      "testId": "home-join-code",
+      "clip": {
+        "x": 249.046875,
+        "y": 247,
+        "width": 103.40625,
+        "height": 18
+      },
+      "node": {
+        "path": [
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 14
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/006-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/006-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/006-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/006-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 528,
+          "significant": 483,
+          "total": 1854
+        },
+        "characters": [
+          [
+            {
+              "significant": 32,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 52,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 18,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 49,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 67,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 20,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 42,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 52,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 44,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "text": "PAR",
+      "testId": "score-par-Augie",
+      "clip": {
+        "x": 188.5,
+        "y": 524,
+        "width": 19,
+        "height": 15
+      },
+      "node": {
+        "path": [
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 3
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/007-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/007-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/007-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/007-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 127,
+          "significant": 99,
+          "total": 285
+        },
+        "characters": [
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 30,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "text": "PAR",
+      "testId": "score-par-Augie",
+      "clip": {
+        "x": 188.5,
+        "y": 524,
+        "width": 19,
+        "height": 15
+      },
+      "node": {
+        "path": [
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 3
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/008-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/008-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/008-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/008-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 127,
+          "significant": 99,
+          "total": 285
+        },
+        "characters": [
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 30,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "text": "PAR",
+      "testId": "score-par-Augie",
+      "clip": {
+        "x": 188.5,
+        "y": 524,
+        "width": 19,
+        "height": 15
+      },
+      "node": {
+        "path": [
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 3
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/009-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/009-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/009-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/009-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 127,
+          "significant": 99,
+          "total": 285
+        },
+        "characters": [
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 30,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "text": "PAR",
+      "testId": "score-par-Sam",
+      "clip": {
+        "x": 188.5,
+        "y": 670,
+        "width": 19,
+        "height": 15
+      },
+      "node": {
+        "path": [
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 3
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/010-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/010-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/010-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/010-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 116,
+          "significant": 71,
+          "total": 285
+        },
+        "characters": [
+          [
+            {
+              "significant": 20,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 25,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 26,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "text": "PAR",
+      "testId": "score-par-Sam",
+      "clip": {
+        "x": 188.5,
+        "y": 670,
+        "width": 19,
+        "height": 15
+      },
+      "node": {
+        "path": [
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 3
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/011-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/011-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/011-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/011-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 116,
+          "significant": 71,
+          "total": 285
+        },
+        "characters": [
+          [
+            {
+              "significant": 20,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 25,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 26,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "text": "PAR",
+      "testId": "score-par-Sam",
+      "clip": {
+        "x": 188.5,
+        "y": 670,
+        "width": 19,
+        "height": 15
+      },
+      "node": {
+        "path": [
+          1,
+          0
+        ],
+        "start": 0,
+        "end": 3
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/012-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/012-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/012-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/012-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 116,
+          "significant": 71,
+          "total": 285
+        },
+        "characters": [
+          [
+            {
+              "significant": 20,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 25,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 26,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "text": "SETTLEMENT",
+      "testId": "journey-settlement",
+      "clip": {
+        "x": 294.875,
+        "y": 293,
+        "width": 62,
+        "height": 14
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 10
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/013-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/013-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/013-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/013-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 378,
+          "significant": 342,
+          "total": 868
+        },
+        "characters": [
+          [
+            {
+              "significant": 41,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 36,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 28,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 32,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 62,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 47,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "text": "SETTLEMENT",
+      "testId": "journey-settlement",
+      "clip": {
+        "x": 294.875,
+        "y": 293,
+        "width": 62,
+        "height": 14
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 10
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/014-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/014-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/014-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/014-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 378,
+          "significant": 342,
+          "total": 868
+        },
+        "characters": [
+          [
+            {
+              "significant": 41,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 36,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 28,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 32,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 62,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 47,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "text": "SETTLEMENT",
+      "testId": "journey-settlement",
+      "clip": {
+        "x": 294.875,
+        "y": 293,
+        "width": 62,
+        "height": 14
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 10
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/015-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/015-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/015-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/015-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 378,
+          "significant": 342,
+          "total": 868
+        },
+        "characters": [
+          [
+            {
+              "significant": 41,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 36,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 28,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 32,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 35,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 62,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 47,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 16,
+      "text": "LEADERBOARD",
+      "testId": "journey-leaderboard",
+      "clip": {
+        "x": 119.71875,
+        "y": 293,
+        "width": 67.3125,
+        "height": 14
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 11
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/016-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/016-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/016-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/016-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 431,
+          "significant": 402,
+          "total": 938
+        },
+        "characters": [
+          [
+            {
+              "significant": 32,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 46,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 41,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 46,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 47,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 41,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "text": "LEADERBOARD",
+      "testId": "journey-leaderboard",
+      "clip": {
+        "x": 119.71875,
+        "y": 293,
+        "width": 67.3125,
+        "height": 14
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 11
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/017-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/017-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/017-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/017-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 431,
+          "significant": 402,
+          "total": 938
+        },
+        "characters": [
+          [
+            {
+              "significant": 32,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 46,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 41,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 46,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 47,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 41,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "text": "LEADERBOARD",
+      "testId": "journey-leaderboard",
+      "clip": {
+        "x": 119.71875,
+        "y": 293,
+        "width": 67.3125,
+        "height": 14
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 11
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/018-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/018-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/018-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/018-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 431,
+          "significant": 402,
+          "total": 938
+        },
+        "characters": [
+          [
+            {
+              "significant": 32,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 46,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 41,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 46,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 47,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 41,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 7,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 19,
+      "text": "Copy / share local invite",
+      "testId": "journey-invite",
+      "clip": {
+        "x": 20,
+        "y": 126,
+        "width": 148.640625,
+        "height": 16
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 25
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/019-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/019-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/019-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/019-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 999,
+          "significant": 908,
+          "total": 2368
+        },
+        "characters": [
+          [
+            {
+              "significant": 64,
+              "inkHeight": 10,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 52,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 71,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 56,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 63,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 44,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 55,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 43,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 37,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 49,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 32,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 47,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 20,
+      "text": "Copy / share local invite",
+      "testId": "journey-invite",
+      "clip": {
+        "x": 20,
+        "y": 126,
+        "width": 148.640625,
+        "height": 16
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 25
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/020-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/020-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/020-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/020-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 999,
+          "significant": 908,
+          "total": 2368
+        },
+        "characters": [
+          [
+            {
+              "significant": 64,
+              "inkHeight": 10,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 52,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 71,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 56,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 63,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 44,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 55,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 43,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 37,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 49,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 32,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 47,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 21,
+      "text": "Copy / share local invite",
+      "testId": "journey-invite",
+      "clip": {
+        "x": 20,
+        "y": 126,
+        "width": 148.640625,
+        "height": 16
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 25
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/021-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/021-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/021-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/021-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 999,
+          "significant": 908,
+          "total": 2368
+        },
+        "characters": [
+          [
+            {
+              "significant": 64,
+              "inkHeight": 10,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 52,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 71,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 56,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 63,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 44,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 38,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 55,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 43,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 40,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 37,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 51,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 49,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 32,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 39,
+              "inkHeight": 11,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 47,
+              "inkHeight": 8,
+              "requiredInkHeight": 4,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 22,
+      "text": "See All",
+      "testId": "home-see-all-modes",
+      "clip": {
+        "x": 334,
+        "y": 323.5,
+        "width": 34,
+        "height": 17
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 7
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/022-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/022-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/022-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/022-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 209,
+          "significant": 185,
+          "total": 578
+        },
+        "characters": [
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 8,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 23,
+      "text": "See All",
+      "testId": "home-see-all-modes",
+      "clip": {
+        "x": 334,
+        "y": 323.5,
+        "width": 34,
+        "height": 17
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 7
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/023-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/023-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/023-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/023-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 209,
+          "significant": 185,
+          "total": 578
+        },
+        "characters": [
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 8,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 24,
+      "text": "See All",
+      "testId": "home-see-all-modes",
+      "clip": {
+        "x": 334,
+        "y": 323.5,
+        "width": 34,
+        "height": 17
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 7
+      },
+      "captures": {
+        "normal": "glyphs-jA67oG/024-normal.png",
+        "wrapped-visible": "glyphs-jA67oG/024-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-jA67oG/024-glyphs-suppressed.png",
+        "restored": "glyphs-jA67oG/024-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 209,
+          "significant": 185,
+          "total": 578
+        },
+        "characters": [
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 8,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "gate": {
+    "status": "passed",
+    "errors": []
+  },
+  "elapsedMs": 51659
+}

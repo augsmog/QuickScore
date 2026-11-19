@@ -1,0 +1,107 @@
+[
+  {
+    "mutation": "hide",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/hide-4SqiKZ",
+    "exitCode": 1,
+    "signature": "control-hidden",
+    "proved": true
+  },
+  {
+    "mutation": "rename",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/rename-UQLTzJ",
+    "exitCode": 1,
+    "signature": "accessible-name-mismatch",
+    "proved": true
+  },
+  {
+    "mutation": "disable",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/disable-wD9WO1",
+    "exitCode": 1,
+    "signature": "control-disabled",
+    "proved": true
+  },
+  {
+    "mutation": "hide-label",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/hide-label-bzRt9M",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  },
+  {
+    "mutation": "transparent-label",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/transparent-label-Z7pG8b",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  },
+  {
+    "mutation": "label-overflow-clipped",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/label-overflow-clipped-WUF2VJ",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  },
+  {
+    "mutation": "label-clip-path",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/label-clip-path-WCQh6F",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  },
+  {
+    "mutation": "text-fill-transparent",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/text-fill-transparent-HBI8Jn",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  },
+  {
+    "mutation": "opaque-overlay",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/opaque-overlay-qtRxP6",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  },
+  {
+    "mutation": "striped-overlay",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/striped-overlay-Fxc0ii",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  },
+  {
+    "mutation": "pseudo-after-stripes",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/pseudo-after-stripes-t5CBPi",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  },
+  {
+    "mutation": "currentcolor-overlay",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/currentcolor-overlay-uePdHc",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  },
+  {
+    "mutation": "partial-striped-overlay",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/partial-striped-overlay-28qFFt",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  },
+  {
+    "mutation": "sliver-striped-overlay",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/sliver-striped-overlay-mhHqAz",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  },
+  {
+    "mutation": "textured-transparent-label",
+    "out": "/home/runner/work/QuickScore/QuickScore/scoresnap/e2e/journey-screens/negative-proof/textured-transparent-label-Vk3JNg",
+    "exitCode": 1,
+    "signature": "visible-text-missing",
+    "proved": true
+  }
+]

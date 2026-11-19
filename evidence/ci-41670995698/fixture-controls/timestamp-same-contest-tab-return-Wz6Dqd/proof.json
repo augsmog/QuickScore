@@ -1,0 +1,18 @@
+{
+  "transition": "same-contest-tab-return",
+  "expected": "Settled 10:35 AM",
+  "actual": "Settled ",
+  "accessibleName": "Unsettle Sam to Augie",
+  "stored": {
+    "version": 1,
+    "state": {
+      "ledgers": {
+        "synthetic": {
+          "marks": {
+            "stroke": "2026-11-02T10:35:00.000Z"
+          }
+        }
+      }
+    }
+  }
+}

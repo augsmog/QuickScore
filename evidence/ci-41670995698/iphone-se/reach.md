@@ -1,0 +1,20 @@
+# Journey reach depth
+
+Device profile: iphone-se (375×667; bottom inset 0px).
+Source SHA: 47ad1b367b02fcfbc6908529dc39de64f6ed4c74.
+
+| Journey | Persona | Start | Feature | Taps from start | Scrolls | Above fold | Named | Budget | Position (x, y, w, h) | Result |
+|---|---|---|---|---:|---:|---|---|---:|---|---|
+| J-home-create-cancel | New golfer | home | create (New Contest) | 1 | 0 | yes | yes | 2 taps / 0 scrolls | 20, 166, 335, 52 | passed |
+| J-home-join-code-error | New golfer | home | join (Join with code) | 1 | 0 | yes | yes | 2 taps / 0 scrolls | 194, 230, 162, 52 | passed |
+| J-round-score-settle-reload | Round organizer | round | score-Augie (Set Augie score to par) | 1 | 0 | yes | yes | 2 taps / 0 scrolls | 144, 409, 90, 63 | passed |
+| J-round-score-settle-reload | Round organizer | round | score-Sam (Set Sam score to par) | 1 | 0 | yes | yes | 2 taps / 0 scrolls | 144, 507, 90, 63 | passed |
+| J-round-score-settle-reload | Round organizer | round | settle (Settlement) | 1 | 0 | yes | yes | 2 taps / 0 scrolls | 269, 248, 82, 44 | passed |
+| J-round-score-settle-reload | Round organizer | round | leaderboard (Leaderboard) | 2 | 0 | yes | yes | 2 taps / 0 scrolls | 106, 248, 82, 44 | passed |
+| J-invite-from-round | Round organizer | round | invite (Invite players) | 1 | 0 | yes | yes | 2 taps / 0 scrolls | 20, 88, 335, 44 | passed |
+| J-delete-account | Synthetic offline account | home | delete-account (Delete Account) | 3 | 0 | yes | yes | 3 taps / 1 scrolls | 16, 197, 343, 65 | passed |
+| J-game-rules | New golfer | home | game-library (See all game modes) | 1 | 0 | yes | yes | 1 taps / 0 scrolls | 311, 310, 44, 44 | passed |
+| J-game-rules | New golfer | home | skins-rules (Skins) | 2 | 1 | no | yes | 2 taps / 1 scrolls | 20, 192, 335, 80 | passed |
+
+Unmeasured features: 0.
+“Above fold” means the feature was reached with zero scrolls and the full control rectangle ends before the simulated home-indicator inset. “Named” reflects the journey runner exact-role/name check; known issues remain explicit expected failures.

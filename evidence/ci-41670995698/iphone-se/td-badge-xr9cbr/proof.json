@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "reason": "glyph paint changed",
+  "delta": {
+    "changed": 56,
+    "significant": 49,
+    "total": 143
+  },
+  "characters": [
+    [
+      {
+        "significant": 22,
+        "inkHeight": 6,
+        "requiredInkHeight": 4,
+        "passed": true
+      }
+    ],
+    [
+      {
+        "significant": 27,
+        "inkHeight": 6,
+        "requiredInkHeight": 4,
+        "passed": true
+      }
+    ]
+  ]
+}

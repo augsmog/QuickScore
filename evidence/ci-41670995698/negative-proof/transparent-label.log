@@ -1,0 +1,3 @@
+FAILED J-home-create-cancel: activations=0, screens=1, taskMs=19 Error: visible-text-missing; missing assertion: activation; missing assertion: destination; missing assertion: outcome; missing/duplicate feature: create; missing step capture: create; missing step capture: edit; missing step capture: cancel-home
+Journey gate FAILED: 0/1; elapsed 944 ms; coverage gaps 5
+J-home-create-cancel: failed

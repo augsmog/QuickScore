@@ -1,0 +1,4 @@
+{
+  "mutation": "missing",
+  "html": "<div id=\"day\"><div data-testid=\"tournament-toggle\"><input type=\"checkbox\" style=\"\"></div></div><div id=\"group\"><div><button data-testid=\"add-group\">+</button></div></div>"
+}
