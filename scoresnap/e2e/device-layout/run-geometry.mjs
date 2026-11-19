@@ -17,7 +17,7 @@ import { readFileSync, writeFileSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { evaluateCheckpoint } from './lib/geometry-rules.mjs';
+import { evaluateCheckpoint, finiteRect } from './lib/geometry-rules.mjs';
 import { applyWaivers, validateWaivers } from './lib/waivers.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -35,8 +35,48 @@ export function expectedFlows(config, cadence = 'per-pr') {
 
 const nonEmpty = (v) => typeof v === 'string' && v.length > 0;
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
-const validBox = (b) => b && ['left', 'top', 'right', 'bottom'].every((k) => finite(b[k])) &&
-  b.right > b.left && b.bottom > b.top;
+const posFinite = (v) => finite(v) && v > 0;
+const nonNegFinite = (v) => finite(v) && v >= 0;
+// A measured rectangle must be finite with positive area (shared with the rule engine).
+const validBox = (b) => finiteRect(b);
+// An RGB color leaf consumed by rule 7: exactly three finite channels in 0–255.
+const validColor = (c) => Array.isArray(c) && c.length === 3 && c.every((v) => finite(v) && v >= 0 && v <= 255);
+
+// Validate every OPTIONAL measured numeric geometry leaf a rule (1–8) reads off a checkpoint's
+// context or node meta. A malformed leaf (NaN/Infinity/null/string/negative/partial/{}) would make
+// its rule's comparison evade silently, so we reject the bundle here — fail closed before judging.
+// `push(msg)` is the caller's error collector, already prefixed with the checkpoint location.
+function validateGeometryLeaves(cp, push) {
+  const ctx = cp?.context || {};
+  // Rule 2 sticky footer rectangle.
+  if (ctx.footer != null && !validBox(ctx.footer)) {
+    push('malformed context.footer (need finite left/top/right/bottom with positive area)');
+  }
+  // Rule 4 modal header rectangle + content origin.
+  if (ctx.header != null && !validBox(ctx.header.bbox)) push('malformed context.header.bbox');
+  if (ctx.modalOrigin != null && !finite(ctx.modalOrigin)) push('non-finite context.modalOrigin');
+  // Rule 3 font scale.
+  if (ctx.fontScale != null && !posFinite(ctx.fontScale)) push('non-finite/non-positive context.fontScale');
+  // Rule 7 declared switch-contrast minimum.
+  if (ctx.minSwitchContrast != null && !posFinite(ctx.minSwitchContrast)) {
+    push('non-finite/non-positive context.minSwitchContrast');
+  }
+  // Per-node measured geometry leaves (hitRegion, section-grid anchor, switch colors).
+  for (const n of (Array.isArray(cp?.nodes) ? cp.nodes : [])) {
+    if (!n) continue;
+    const nid = nonEmpty(n.id) ? n.id : '?';
+    // Rules 1/5 select the effective rect via rectOf; a non-null hitRegion must be a finite box.
+    if (n.hitRegion != null && !validBox(n.hitRegion)) {
+      push(`node "${nid}" malformed hitRegion (need finite left/top/right/bottom with positive width/height)`);
+    }
+    if (n.meta?.sectionGrid != null && !finite(n.meta.sectionGrid)) {
+      push(`node "${nid}" non-finite meta.sectionGrid anchor`);
+    }
+    for (const key of ['thumbColor', 'trackColor']) {
+      if (n.meta?.[key] != null && !validColor(n.meta[key])) push(`node "${nid}" malformed meta.${key} (need [r,g,b] 0–255)`);
+    }
+  }
+}
 // Measured Android emulator geometry may round (density); iOS simulator logical size is exact.
 const VIEWPORT_TOL = { ios: 1, android: 0.02 };
 
@@ -104,15 +144,17 @@ export function validateBundle(bundle, expect = {}) {
     if (ctx.platform !== undefined && ctx.platform !== cp?.platform) {
       errors.push(`${at} context.platform ${ctx.platform} conflicts with checkpoint platform ${cp?.platform}`);
     }
-    if (!ctx.viewport || !finite(ctx.viewport.width) || !finite(ctx.viewport.height)) {
+    if (!ctx.viewport || !posFinite(ctx.viewport.width) || !posFinite(ctx.viewport.height)) {
       errors.push(`${at} missing measured context.viewport`);
     } else if (prof && !viewportMatches(ctx.viewport, prof.logicalSize, prof.platform)) {
       errors.push(`${at} viewport ${ctx.viewport.width}x${ctx.viewport.height} != declared ${prof.id} ${prof.logicalSize.join('x')}`);
     }
     const sa = ctx.safeArea;
-    if (!sa || !['top', 'bottom', 'left', 'right'].every((k) => finite(sa[k]) && sa[k] >= 0)) {
+    if (!sa || !['top', 'bottom', 'left', 'right'].every((k) => nonNegFinite(sa[k]))) {
       errors.push(`${at} missing measured context.safeArea {top,bottom,left,right}`);
     }
+    // Reject any other malformed measured numeric geometry leaf before the rules run.
+    validateGeometryLeaves(cp, (msg) => errors.push(`${at} ${msg}`));
   });
   for (const f of expect.flows || []) {
     for (const c of f.checkpoints) {
@@ -134,7 +176,20 @@ export function runBundle(bundle, waiverDoc, now = new Date(), expect = {}) {
   }
   for (const cp of bundle.checkpoints) {
     // Platform is bound to the validated checkpoint/bundle platform; context can never override it.
-    const { findings } = evaluateCheckpoint(cp.nodes, { ...cp.context, platform: cp.platform });
+    let findings;
+    try {
+      ({ findings } = evaluateCheckpoint(cp.nodes, { ...cp.context, platform: cp.platform }));
+    } catch (e) {
+      // A malformed geometry leaf that slipped past validateBundle must FAIL the checkpoint, never
+      // silently pass. Record it as an unwaivable kept finding (rule 0 = evaluator integrity).
+      results.push({
+        flow: cp.flow, checkpoint: cp.checkpoint, deviceId: cp.deviceId,
+        kept: [{ rule: 0, severity: 'critical', reason: `geometry evaluation failed closed: ${e.message}` }],
+        waived: [], verdict: 'fail',
+      });
+      kept += 1;
+      continue;
+    }
     const applied = applyWaivers(findings, waiverDoc, {
       screen: cp.screen, deviceId: cp.deviceId, state: cp.state,
     }, now);
