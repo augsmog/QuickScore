@@ -16,11 +16,10 @@ import { skinsLabel } from "../../../src/engine/calculators/skins";
 import { useAuthStore } from "../../../src/stores/auth-store";
 import { useScanStore } from "../../../src/stores/scan-store";
 import { type Contest, useContestStore } from "../../../src/stores/contest-store";
-import { canSeeSettlement, proEnabled } from "../../../src/services/entitlements";
+import { canSeeSettlement } from "../../../src/services/entitlements";
 import { RecapCard } from "../../../src/ui/recap/RecapCard";
 import { buildRecapModel } from "../../../src/ui/recap/model";
 import { liveShareScope, useLiveShareUrl } from "../../../src/services/live-share-url-state";
-import { webAnalytics } from "../../../src/services/analytics";
 import { settlementLeader } from "../../../src/ui/copy";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 
@@ -59,7 +58,7 @@ export default function SettlementScreen() {
   useEffect(() => {
     let live = true;
     setTrialOffer(null);
-    if (authReady && !canSeeSettlement(tier) && proEnabled()) {
+    if (authReady && !canSeeSettlement(tier)) {
       (async () => {
         try {
           const revision = await waitForPurchaseIdentity(purchaseActor);
@@ -74,7 +73,7 @@ export default function SettlementScreen() {
               typeof annual.product.priceString !== 'string' || !annual.product.priceString.trim()) return;
           const eligible = await eligibleAnnualTrials(packages);
           if (live && isPurchaseIdentityCurrent(revision, purchaseActor) && eligible[annual.product.identifier] === true) {
-            const view = buildPaywallView(packages, eligible, tier, { tier: 'pro', period: 'year' }, proEnabled());
+            const view = buildPaywallView(packages, eligible, tier, { tier: 'pro', period: 'year' });
             setTrialOffer({ accountId, isAnonymous, revision, billed: view.billed });
           }
         } catch { /* Keep the existing plans path when purchases are unavailable. */ }
@@ -110,7 +109,7 @@ export default function SettlementScreen() {
       <Text style={{ color: COLORS.textDim, fontSize: 13, textAlign: "center" }}>{trialOffer?.billed}</Text>
       </>}
       {contest && <>
-        <Pressable testID="settle-free-share" accessibilityRole="button" onPress={() => { void webAnalytics.capture("share_tapped"); return Share.share({ message: [contest.name, ...(contest.rounds?.find(r => r.number === contest.currentRound)?.groups ?? contest.groups).flatMap(g => g.players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`))].join("\n") }); }} style={outlinedButton}>
+        <Pressable testID="settle-free-share" accessibilityRole="button" onPress={() => Share.share({ message: [contest.name, ...(contest.rounds?.find(r => r.number === contest.currentRound)?.groups ?? contest.groups).flatMap(g => g.players.map(p => `${p.name}: ${p.scores.filter(s => s > 0).join(", ")}`))].join("\n") })} style={outlinedButton}>
           <Text style={{ color: COLORS.primary, fontFamily: FONTS.semibold }}>Share results (free)</Text>
         </Pressable>
       </>}
@@ -190,7 +189,6 @@ function SettlementScreenContent() {
   };
   const handleShare = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    void webAnalytics.capture("share_tapped");
     try {
       await Share.share({ message: generateShareText(), title: `${contest.name} — Settle up` });
     } catch (error) {

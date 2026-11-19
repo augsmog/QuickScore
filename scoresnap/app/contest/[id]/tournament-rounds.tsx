@@ -12,7 +12,6 @@ import {
   Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { contestBackHref } from "../../../src/ui/contest-back";
 import { Plus, X, Users, Shuffle, Copy, ChevronRight } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, RADII, FONTS } from "../../../src/ui/theme";
@@ -25,7 +24,7 @@ import {
 } from "../../../src/stores/contest-store";
 
 export default function TournamentRoundsScreen() {
-  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const tier = useScanStore(s => s.tier);
   const contest = useContestStore((s) => s.contests.find((c) => c.id === id));
@@ -228,7 +227,7 @@ export default function TournamentRoundsScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCurrentRound(id!, selectedRound);
     updateContest(id!, { currentRound: selectedRound });
-    router.replace(contestBackHref(id!, from) as any);
+    router.back();
   };
 
   return (
@@ -248,8 +247,7 @@ export default function TournamentRoundsScreen() {
         }}
       >
         <AnimatedPressable
-          testID="round-child-back"
-          onPress={() => router.replace(contestBackHref(id!, from) as any)}
+          onPress={() => router.back()}
           style={{
             padding: 6,
             borderRadius: RADII.sm,

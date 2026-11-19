@@ -7,8 +7,9 @@ import XCTest
 
 @available(iOS 17.0, *)
 final class StoreKitProofTests: XCTestCase {
-    static let ids = ["snapscore.td.annual", "snapscore.td.monthly"]
-    static let prices: [String: String] = ["snapscore.td.annual": "79.99", "snapscore.td.monthly": "12.99"]
+    static let ids = ["snapscore.pro.annual", "snapscore.pro.monthly", "snapscore.td.annual", "snapscore.td.monthly"]
+    static let prices: [String: String] = ["snapscore.pro.annual": "24.99", "snapscore.pro.monthly": "3.99",
+                                           "snapscore.td.annual": "79.99", "snapscore.td.monthly": "12.99"]
     var session: SKTestSession!
 
     override func setUpWithError() throws {
@@ -23,7 +24,7 @@ final class StoreKitProofTests: XCTestCase {
         super.tearDown()
     }
 
-    func testTwoShippingProductsLoadWithCatalogPrices() async throws {
+    func testFourProductsLoadWithCatalogPrices() async throws {
         let products = try await Product.products(for: Self.ids)
         XCTAssertEqual(Set(products.map(\.id)), Set(Self.ids))
         for p in products {
@@ -35,48 +36,55 @@ final class StoreKitProofTests: XCTestCase {
         XCTAssertEqual(Set(products.compactMap { $0.subscription?.subscriptionGroupID }).count, 1, "one subscription group")
     }
 
-    // Owner t1517u (Nov 18 2026): Tournament Director has no free trial. No shipping product may carry an intro offer.
-    func testNoShippingProductHasAnIntroductoryOffer() async throws {
+    func testAnnualsHaveSevenDayFreeTrialMonthliesNone() async throws {
         for p in try await Product.products(for: Self.ids) {
-            XCTAssertNil(p.subscription?.introductoryOffer, p.id)
+            let intro = p.subscription?.introductoryOffer
+            if p.id.hasSuffix(".annual") {
+                XCTAssertEqual(intro?.paymentMode, .freeTrial, p.id)
+                XCTAssertEqual(intro?.period.unit, .week, p.id)
+                XCTAssertEqual(intro?.period.value, 1, p.id)
+            } else {
+                XCTAssertNil(intro, p.id)
+            }
         }
     }
 
-    // The first TD annual purchase is a plain paid purchase: no introductory/free-trial offer type.
-    func testFirstTDAnnualPurchaseIsNotATrial() async throws {
-        let loaded = try await Product.products(for: ["snapscore.td.annual"])
+    // Deterministic eligible -> ineligible -> eligible fixture (identity switch analogue: clearing history).
+    func testTrialEligibilityFlipsAfterPurchaseAndResetsOnClear() async throws {
+        let loaded = try await Product.products(for: ["snapscore.pro.annual"])
         let annual = try XCTUnwrap(loaded.first)
+        let group = try XCTUnwrap(annual.subscription?.subscriptionGroupID)
+        let before = await Product.SubscriptionInfo.isEligibleForIntroOffer(for: group)
+        XCTAssertTrue(before, "fresh history is trial-eligible")
+        // Buy through the app-side StoreKit 2 path (dialogs disabled), the same call the app's purchase flow makes.
         let result = try await annual.purchase()
         guard case .success(let verification) = result, case .verified(let txn) = verification else {
             return XCTFail("purchase did not return a verified transaction: \(result)")
         }
-        XCTAssertEqual(txn.productID, "snapscore.td.annual")
-        XCTAssertNil(txn.offerType, "TD annual must be a plain paid purchase, not an introductory offer")
+        XCTAssertEqual(txn.productID, "snapscore.pro.annual")
+        XCTAssertEqual(txn.offerType, .introductory, "first annual purchase used the 1-week intro offer")
         await txn.finish()
-        print("STOREKIT_PROOF td annual offerType=\(String(describing: txn.offerType))")
+        // Eligibility is recomputed by the StoreKit test daemon; poll briefly instead of racing it.
+        var after = true
+        for _ in 0..<20 {
+            after = await Product.SubscriptionInfo.isEligibleForIntroOffer(for: group)
+            if !after { break }
+            try await Task.sleep(nanoseconds: 250_000_000)
+        }
+        XCTAssertFalse(after, "after a subscription in the group, no second trial")
+        session.clearTransactions()
+        // Same bounded poll as above: the daemon recomputes eligibility asynchronously after a clear.
+        var cleared = false
+        for _ in 0..<20 {
+            cleared = await Product.SubscriptionInfo.isEligibleForIntroOffer(for: group)
+            if cleared { break }
+            try await Task.sleep(nanoseconds: 250_000_000)
+        }
+        XCTAssertTrue(cleared, "cleared history must not reuse stale ineligibility")
+        print("STOREKIT_PROOF eligibility before=\(before) after=\(after) cleared=\(cleared)")
     }
 
-    func testRestoreUsesTDAnnualEntitlement() async throws {
-        let products = try await Product.products(for: ["snapscore.td.annual"])
-        let annual = try XCTUnwrap(products.first)
-        let result = try await annual.purchase()
-        guard case .success(let verification) = result, case .verified(let transaction) = verification else {
-            return XCTFail("TD annual purchase did not return a verified transaction: \(result)")
-        }
-        XCTAssertEqual(transaction.productID, "snapscore.td.annual")
-        await transaction.finish()
-
-        try await AppStore.sync()
-        var restored = Set<String>()
-        for await entitlement in Transaction.currentEntitlements {
-            guard case .verified(let transaction) = entitlement else { continue }
-            restored.insert(transaction.productID)
-        }
-        XCTAssertTrue(restored.contains("snapscore.td.annual"), "restore must retain the TD annual entitlement")
-        XCTAssertFalse(restored.contains("snapscore.pro.annual"), "the flag-off fixture must not restore a Pro product")
-    }
-
-    // Unknown IDs return nothing (no phantom product).
+    // Unknown IDs return nothing (no phantom product, so no phantom trial promise).
     func testUnknownProductIdReturnsNoProduct() async throws {
         let products = try await Product.products(for: ["snapscore.pro.lifetime.notreal"])
         XCTAssertTrue(products.isEmpty)

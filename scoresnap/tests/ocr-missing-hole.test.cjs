@@ -136,10 +136,9 @@ test('actual review screen renders incomplete and corrected states side by side'
  'expo-router':{useRouter:()=>({}),useLocalSearchParams:()=>({scanData:data})},
  'react-native-safe-area-context':{SafeAreaView:element('div')},
  'lucide-react-native':Object.fromEntries(['Check','AlertTriangle','Camera','Edit3','UserCheck','HelpCircle','Delete'].map(n=>[n,()=>null])),
- 'expo-haptics':{},'../../src/services/quick-settle-completion-sync':{enqueueQuickSettleCompletion:()=>Promise.resolve(true)},'../../src/stores/auth-store':{useAuthStore:{getState:()=>({session:null,isAnonymous:false})}},'expo-crypto':{randomUUID:()=> '22222222-2222-4222-8222-222222222222'},'../../src/ui/theme':load('src/ui/theme.ts'),
+ 'expo-haptics':{},'../../src/ui/theme':load('src/ui/theme.ts'),
  '../../src/stores/contest-store':{useContestStore:select=>select({contests:[],addContest:()=>{},importScores:()=>{}})},
  '../../src/services/ocr-review':review,'../../src/ui/animations/ConfettiOverlay':{ConfettiOverlay:()=>null},
- '../../src/config/posthog':{posthog:null},'../../src/services/posthog-log':{posthogAppLogger:{scorecardScoresCommitted(){}}},
  }).default;
  const r=raw();r.scores[6]=null;data=JSON.stringify([r]);const incomplete=renderToStaticMarkup(React.createElement(screen));
  expect(incomplete).toContain('Partial: 68');expect(incomplete).toContain('Hole 7 is blank for Player A');
@@ -214,12 +213,9 @@ for (const partial of [false,true]) test(`real two-group smoke imports and keeps
  react:hooks,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':Object.fromEntries(['View','Text','ScrollView','Pressable','TextInput','Modal','Image'].map(n=>[n,n])),
  'expo-router':{useRouter:()=>({replace}),useLocalSearchParams:()=>Object.fromEntries(url.searchParams)},
  'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'lucide-react-native':{},
- 'expo-haptics':{notificationAsync:()=>{},NotificationFeedbackType:{Success:'success'}},'../../src/services/quick-settle-completion-sync':{enqueueQuickSettleCompletion:()=>Promise.resolve(true)},'../../src/stores/auth-store':{useAuthStore:{getState:()=>({session:null,isAnonymous:false})}},'expo-crypto':{randomUUID:()=> '22222222-2222-4222-8222-222222222222'},
-
- '../../src/ui/theme':load('src/ui/theme.ts'),
+ 'expo-haptics':{notificationAsync:()=>{},NotificationFeedbackType:{Success:'success'}},'../../src/ui/theme':load('src/ui/theme.ts'),
  '../../src/stores/contest-store':{useContestStore:select=>select(store.getState())},
  '../../src/services/ocr-review':review,'../../src/ui/animations/ConfettiOverlay':{ConfettiOverlay:'Confetti'},
- '../../src/config/posthog':{posthog:null},'../../src/services/posthog-log':{posthogAppLogger:{scorecardScoresCommitted(){}}},
  }).default;
  let nodes;
  const render=()=>{cursor=0;nodes=[];const walk=n=>{if(!n||typeof n!=='object')return;if(Array.isArray(n)){n.forEach(walk);return;}nodes.push(n);walk(n.props?.children);};walk(screen());};
