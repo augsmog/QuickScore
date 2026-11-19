@@ -1,4 +1,4 @@
-import { buildLeaderboardRows, LeaderboardGroup } from "../leaderboard-rows";
+import { buildLeaderboardRows, findViewerGroupId, LeaderboardGroup } from "../leaderboard-rows";
 import { calcStrokePlay } from "../calculators/stroke-play";
 import { calcNetStrokePlay, NetBreakdown } from "../calculators/net-stroke-play";
 import type { Course, Player, StrokePlayResult } from "../types";
@@ -840,5 +840,25 @@ describe("buildLeaderboardRows — group membership edges (AUG-253r)", () => {
     // Filtering to g1 returns only the real member Alice, not the ghost.
     const g1 = buildLeaderboardRows(results, [], { holeCount: 18, groups, groupId: "g1" });
     expect(g1.map((r) => r.playerId)).toEqual(["a"]);
+  });
+
+  test("viewer group resolves only from an actual listed player; group and search compose with full-field ranks", () => {
+    const groups: LeaderboardGroup[] = [
+      { id: "g1", players: [{ id: "a" }, { id: "b" }] },
+      { id: "g2", players: [{ id: "c" }, { id: "d" }] },
+    ];
+    expect(findViewerGroupId("c", groups)).toBe("g2");
+    expect(findViewerGroupId("missing", groups)).toBeUndefined();
+    expect(findViewerGroupId(null, groups)).toBeUndefined();
+
+    const all = buildLeaderboardRows(results, [], { holeCount: 18, groups });
+    const filtered = buildLeaderboardRows(results, [], {
+      holeCount: 18,
+      groups,
+      groupId: findViewerGroupId("c", groups),
+      query: "car",
+    });
+    expect(all.map((row) => row.playerId)).toEqual(["a", "b", "c", "d"]);
+    expect(filtered.map((row) => [row.playerId, row.rank])).toEqual([["c", 3]]);
   });
 });

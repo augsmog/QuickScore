@@ -107,6 +107,7 @@ test('Gross/Net toggle inside the FlashList header still re-ranks the virtualize
       getTournamentPlayers: () => players,
       getActiveGroups: () => groups,
     },
+    '../../../src/stores/online-store': { useOnlineStore: (selector) => selector({ events: {} }) },
     '../../../src/engine/contest-results': {
       teamCardPlayers: () => players,
       liveRoundCourse: (value) => value.course,

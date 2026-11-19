@@ -114,6 +114,12 @@ export interface BuildLeaderboardRowsOptions {
   roundInfo?: LeaderboardRoundInfo;
 }
 
+/** Resolve a real player to their first listed group; unknown viewers stay ungrouped. */
+export function findViewerGroupId(playerId: string | null | undefined, groups: LeaderboardGroup[]): string | undefined {
+  if (!playerId) return undefined;
+  return groups.find((group) => group.players.some((player) => player.id === playerId))?.id;
+}
+
 /**
  * Build leaderboard rows from `calcStrokePlay(...)` output. Callers must pass
  * results sorted by `total` ascending: ranks use adjacent totals while tie

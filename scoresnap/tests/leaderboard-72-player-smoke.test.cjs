@@ -65,6 +65,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
       getTournamentPlayers: () => players,
       getActiveGroups: () => groups,
     },
+    '../../../src/stores/online-store': { useOnlineStore: (selector) => selector({ events: {} }) },
     '../../../src/engine/contest-results': {
       teamCardPlayers: () => players,
       liveRoundCourse: (value) => value.course,

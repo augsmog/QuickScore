@@ -7,11 +7,12 @@ import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../../src/ui/theme";
 import { useContestStore, getTournamentPlayers, getActiveGroups } from "../../../src/stores/contest-store";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { buildLeaderboard } from "../../../src/engine/calculators/leaderboard-view";
-import { buildLeaderboardRows } from "../../../src/engine/leaderboard-rows";
+import { buildLeaderboardRows, findViewerGroupId } from "../../../src/engine/leaderboard-rows";
 import { getFixtureYouPlayerId } from "../../../src/engine/you-fixture";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
+import { useOnlineStore } from "../../../src/stores/online-store";
 
 export default function LeaderboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -24,6 +25,8 @@ export default function LeaderboardScreen() {
   const [rankMode, setRankMode] = useState<"gross" | "net">("gross");
   // AUG-735 (AUG-253g): case-insensitive name search over the individual field.
   const [playerQuery, setPlayerQuery] = useState("");
+  const [myGroupOnly, setMyGroupOnly] = useState(false);
+  const membership = useOnlineStore((s) => s.events[id ?? ""]?.membership);
 
   if (!contest) return null;
 
@@ -239,10 +242,18 @@ export default function LeaderboardScreen() {
   // (no real user↔player link yet — AUG-254 is out of scope), so it is undefined in
   // production and this is a no-op there: the default view stays pixel-identical.
   const youPlayerId = getFixtureYouPlayerId();
+  // Only an authorized online membership supplies a real player identity. A
+  // missing membership/player/group leaves the control unavailable; never infer
+  // a group from a fixture, account name, or first row.
+  const viewerPlayerId = membership?.status === "approved" ? membership.player_id : null;
+  const viewerGroupId = findViewerGroupId(viewerPlayerId, contest.groups);
+  const myGroupFilter = myGroupOnly ? viewerGroupId : undefined;
   const searchedRows = buildLeaderboardRows(individualResults, allPlayers, {
     holeCount: leaderboardCourse.holes.length,
     query: playerQuery,
     youPlayerId,
+    groupId: myGroupFilter,
+    groups: contest.groups,
   });
   const rankByPlayerId = new Map(
     searchedRows.map((r) => [r.playerId, { rankLabel: r.rankLabel, tied: r.tied, isYou: r.isYou === true }]),
@@ -282,6 +293,23 @@ export default function LeaderboardScreen() {
     </View>
   );
 
+  const myGroupControl = (
+    <View style={{ marginBottom: 12 }}>
+      <AnimatedPressable
+        testID="leaderboard-my-group"
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !viewerGroupId, selected: myGroupOnly && !!viewerGroupId }}
+        disabled={!viewerGroupId}
+        onPress={() => setMyGroupOnly((enabled) => !enabled)}
+        style={{ minHeight: 44, justifyContent: "center", paddingHorizontal: 14, borderRadius: RADII.md, backgroundColor: myGroupOnly && viewerGroupId ? COLORS.primary : COLORS.surfaceMid, opacity: viewerGroupId ? 1 : 0.55 }}
+      >
+        <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: myGroupOnly && viewerGroupId ? COLORS.onPrimary : COLORS.text }}>
+          My group{!viewerGroupId ? " · No group assigned" : ""}
+        </Text>
+      </AnimatedPressable>
+    </View>
+  );
+
   // Individual view: virtualize the ranked rows with FlashList (72+ player fields, AUG-253).
   // The screen owns ranking (buildLeaderboard), the Gross/Net toggle and the search; the
   // list only recycles the already-ranked rows, which stay pixel-identical to the prior
@@ -298,6 +326,7 @@ export default function LeaderboardScreen() {
           <>
             {header}
             {grossNetToggle}
+            {myGroupControl}
             {playerSearch}
           </>
         }

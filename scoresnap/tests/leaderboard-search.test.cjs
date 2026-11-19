@@ -33,7 +33,7 @@ function load(file, deps) {
 // Deterministic 5-player field, distinct totals so ranks are 1..5 in name order:
 // Amy Adams (lowest) ... Eve Evans (highest). 18-hole hcp map so net is available
 // and the Gross/Net toggle renders in the header.
-function buildScreen() {
+function buildScreen(viewerId = 'p3') {
   const roster = [
     { id: 'p1', name: 'Amy Adams', per: 3 },
     { id: 'p2', name: 'Bob Brown', per: 4 },
@@ -47,7 +47,10 @@ function buildScreen() {
     handicap: 0,
     scores: Array(18).fill(r.per),
   }));
-  const groups = [{ id: 'group-1', name: 'Field', players }];
+  const groups = [
+    { id: 'group-1', name: 'North', players: players.slice(0, 2) },
+    { id: 'group-2', name: 'South', players: players.slice(2) },
+  ];
   const contest = {
     id: 'synthetic-search',
     isTournament: true,
@@ -80,6 +83,9 @@ function buildScreen() {
       useContestStore: (selector) => selector({ contests: [contest] }),
       getTournamentPlayers: () => players,
       getActiveGroups: () => groups,
+    },
+    '../../../src/stores/online-store': {
+      useOnlineStore: (selector) => selector({ events: viewerId ? { [contest.id]: { membership: { status: 'approved', player_id: viewerId } } } : {} }),
     },
     '../../../src/engine/contest-results': {
       teamCardPlayers: () => players,
@@ -143,8 +149,8 @@ function search(tree, text) {
   });
 }
 
-async function mount() {
-  const Screen = buildScreen();
+async function mount(viewerId = 'p3') {
+  const Screen = buildScreen(viewerId);
   let tree;
   await act(async () => {
     tree = create(React.createElement(Screen));
@@ -208,6 +214,42 @@ test('Gross/Net toggle and recent-hole strip still render while searching', asyn
     expect(chips.length).toBeGreaterThan(0);
     // Search field remains in the header.
     expect(tree.root.findAll((n) => (n.props.testID || '') === 'leaderboard-search')).toHaveLength(1);
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});
+
+test('My-group toggle filters to the authorized viewer group and composes with search', async () => {
+  const tree = await mount();
+  try {
+    const toggle = tree.root.find((n) => n.props.testID === 'leaderboard-my-group');
+    expect(rowTestIds(tree)).toHaveLength(5); // off is the full field
+    await act(async () => toggle.props.onPress());
+    expect(rowTestIds(tree)).toHaveLength(3); // p3-p5 belong to the approved viewer's group
+    const cara = tree.root.find((n) => n.props.testID === 'leaderboard-player-Cara Cole');
+    const rankText = cara.findAll((n) => typeof n.children?.[0] === 'string')[0];
+    expect(rankText.children[0]).toBe('3'); // full-field rank survives the group filter
+
+    const net = tree.root.find((n) => n.props.testID === 'leaderboard-rank-net');
+    await act(async () => net.props.onPress());
+    expect(rowTestIds(tree)).toHaveLength(3); // Gross/Net selection preserves the active group filter
+
+    search(tree, 'dan');
+    expect(rowTestIds(tree)).toEqual(['leaderboard-player-Dan Diaz']);
+    await act(async () => toggle.props.onPress());
+    expect(rowTestIds(tree)).toEqual(['leaderboard-player-Dan Diaz']); // disabling My-group leaves search active
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});
+
+test('My-group control is disabled with a one-line empty state when viewer has no group', async () => {
+  const tree = await mount('not-in-roster');
+  try {
+    const toggle = tree.root.find((n) => n.props.testID === 'leaderboard-my-group');
+    expect(toggle.props.disabled).toBe(true);
+    expect(toggle.findAll((n) => (n.children || []).some((child) => String(child).includes('No group assigned'))).length).toBeGreaterThan(0);
+    expect(rowTestIds(tree)).toHaveLength(5);
   } finally {
     await act(async () => tree.unmount());
   }
