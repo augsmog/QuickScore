@@ -5,6 +5,7 @@ import { chromium } from 'playwright';
 import { backend, validateFixture, assertScores, assertBinding, assertShare, eventually } from './contract.mjs';
 import { selectHostPlayer } from '../xdevice-host-player.mjs';
 import { readHostScoreState } from './host-score-diagnostic.mjs';
+import { assertScoreControl } from './score-control.mjs';
 const f=JSON.parse(await readFile(process.env.INVITE_FIXTURE,'utf8'));validateFixture(f);
 const mode=process.env.INVITE_ANONYMOUS;assert(['true','false'].includes(mode),'Explicit anonymous mode required');
 const base=process.env.BASE_URL ?? 'http://127.0.0.1:8089';assert.equal(new URL(base).origin,'http://127.0.0.1:8089');
@@ -88,7 +89,7 @@ try {
     await guestContext.setOffline(true);await guestContext.setOffline(false);
     for(const p of [host,guest]) {const s=await freshSnapshot(p,()=>p.reload());assertScores(f,s,{owner:p===host});}
     snapshot=await db.snapshot();assertScores(f,snapshot);
-    for(const p of f.players) assert.equal(await (await selectHostPlayer(host,snapshot.rounds[0],p.name)).innerText(),String(p.score));
+    for(const p of f.players) await assertScoreControl(await selectHostPlayer(host,snapshot.rounds[0],p.name),p.score);
     assert.equal(await card.getByLabel('Journey Round hole 1 strokes').inputValue(),'6');
     const memberships=await db.read(`contest_memberships?contest_id=eq.${f.contestId}&user_id=eq.${request.requester}&select=*`);assert.equal(memberships.length,1);assertBinding(f,memberships[0],request.requester);
     await Promise.all([host.screenshot({path:`${out}/host-persisted.png`,fullPage:true}),guest.screenshot({path:`${out}/guest-rejoined.png`,fullPage:true})]);
