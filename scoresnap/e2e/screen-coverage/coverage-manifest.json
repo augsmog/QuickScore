@@ -1,0 +1,45 @@
+{
+  "ticket": "AUG-1373",
+  "description": "Release-bound route/state coverage registry for SnapScore. Every route file under scoresnap/app/** is listed here and classified. Visual screens are 'covered' (native screenshot + geometry assertions landed) or 'pending' (native coverage tracked by releaseGate.nativeReceiptTicket). Non-visual files (layout/special/dev) are exempt with a reason. check-screen-coverage.mjs fails CI if any route file is unregistered, any entry is stale, or any 'covered' claim lacks real flow/screenshot/device/assertion evidence. Native screenshot execution at the required device sizes with the geometry assertions is built on AUG-1376.",
+  "releaseGate": {
+    "requiredDeviceIds": ["iphone-15-pro", "iphone-16-plus"],
+    "devices": [
+      { "id": "iphone-15-pro", "name": "iPhone 15 Pro", "logicalSize": [393, 852] },
+      { "id": "iphone-16-plus", "name": "iPhone 16 Plus", "logicalSize": [402, 874] }
+    ],
+    "assertionClasses": ["target-size", "collision", "clipping", "occlusion", "reachability"],
+    "nativeReceiptTicket": "AUG-1376"
+  },
+  "screens": [
+    { "file": "app/(tabs)/index.tsx", "route": "/", "name": "Home", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/(tabs)/contests.tsx", "route": "/contests", "name": "Contests tab", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/(tabs)/leagues.tsx", "route": "/leagues", "name": "Leagues tab", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/(tabs)/profile.tsx", "route": "/profile", "name": "Profile tab", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/auth/sign-in.tsx", "route": "/auth/sign-in", "name": "Sign in", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/contest/new.tsx", "route": "/contest/new", "name": "New Contest", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/contest/[id]/index.tsx", "route": "/contest/[id]", "name": "Contest — score entry", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/contest/[id]/scorecard.tsx", "route": "/contest/[id]/scorecard", "name": "Scorecard", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/contest/[id]/edit.tsx", "route": "/contest/[id]/edit", "name": "Edit contest", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/contest/[id]/games.tsx", "route": "/contest/[id]/games", "name": "Contest games", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/contest/[id]/leaderboard.tsx", "route": "/contest/[id]/leaderboard", "name": "Leaderboard", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/contest/[id]/settlement.tsx", "route": "/contest/[id]/settlement", "name": "Settlement", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/contest/[id]/tournament-rounds.tsx", "route": "/contest/[id]/tournament-rounds", "name": "Tournament rounds", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/join/[code].tsx", "route": "/join/[code]", "name": "Join by code", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/onboarding.tsx", "route": "/onboarding", "name": "Onboarding", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/paywall.tsx", "route": "/paywall", "name": "Paywall", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/r/[token].tsx", "route": "/r/[token]", "name": "Share link redeem", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/scan/index.tsx", "route": "/scan", "name": "Scan scorecard", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/scan/review.tsx", "route": "/scan/review", "name": "Scan review", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/scan/partial-review.tsx", "route": "/scan/partial-review", "name": "Scan partial review", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/scan/game-details.tsx", "route": "/scan/game-details", "name": "Scan game details", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/settings.tsx", "route": "/settings", "name": "Settings", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+    { "file": "app/statistics.tsx", "route": "/statistics", "name": "Statistics", "kind": "screen", "coverage": "pending", "trackedBy": "AUG-1376" },
+
+    { "file": "app/_layout.tsx", "kind": "layout", "reason": "Root navigation/providers layout — renders no screen of its own." },
+    { "file": "app/(tabs)/_layout.tsx", "kind": "layout", "reason": "Tab navigator layout — the tab screens are registered individually." },
+    { "file": "app/contest/[id]/_layout.tsx", "kind": "layout", "reason": "Contest stack layout — the contest screens are registered individually." },
+    { "file": "app/+native-intent.tsx", "kind": "special", "reason": "Expo Router deep-link redirect handler (redirectSystemPath) — no rendered UI." },
+    { "file": "app/dev/local-join-banner.tsx", "kind": "dev", "reason": "Developer-only harness screen, not shipped in the release build." },
+    { "file": "app/dev/recap-card.tsx", "kind": "dev", "reason": "Developer-only recap-card preview harness, not shipped in the release build." }
+  ]
+}
