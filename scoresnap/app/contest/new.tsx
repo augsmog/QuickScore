@@ -48,6 +48,7 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
+import { SWITCH_TAP_TARGET, SWITCH_LABEL_GAP, ROUNDS_BLOCK_PADDING_LEFT, SCROLL_END_SPACER } from "../../src/ui/new-contest-layout";
 import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox } from "../../src/ui/tournament-setup-layout";
 import { posthog } from "../../src/config/posthog";
 import { posthogAppLogger } from "../../src/services/posthog-log";
@@ -475,10 +476,10 @@ export default function NewContestScreen() {
 
             {/* Tournament Toggle */}
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: compactViewport ? 4 : 12 }}>
+              <View style={SWITCH_TAP_TARGET}>
               <Switch
                 testID="tournament-toggle"
                 accessibilityLabel="Multi-Day Tournament"
-                style={{ width: 44, height: 44 }}
                 value={isTournament}
                 onValueChange={(val) => {
                   setIsTournament(val);
@@ -487,14 +488,15 @@ export default function NewContestScreen() {
                 trackColor={{ false: COLORS.border, true: COLORS.primary }}
                 thumbColor={COLORS.card}
               />
-              <Text style={{ color: COLORS.text, fontSize: 15, marginLeft: 12 }}>
+              </View>
+              <Text style={{ color: COLORS.text, fontSize: 15, marginLeft: SWITCH_LABEL_GAP, flex: 1 }}>
                 Multi-Day Tournament
               </Text>
 
             </View>
 
             {isTournament && (
-              <View style={{ marginBottom: 16, paddingLeft: 48 }}>
+              <View style={{ marginBottom: 16, paddingLeft: ROUNDS_BLOCK_PADDING_LEFT }}>
                 <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 8, fontSize: 11 }}>
                   NUMBER OF ROUNDS
                 </Text>
@@ -595,14 +597,15 @@ export default function NewContestScreen() {
                   Split players into teams (up to 20)
                 </Text>
               </View>
+              <View style={SWITCH_TAP_TARGET}>
               <Switch
                 testID="team-mode"
                 value={hasTeams}
                 onValueChange={setHasTeams}
-                style={{ width: 44, height: 44 }}
-                trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
-                thumbColor={COLORS.text}
+                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                thumbColor={COLORS.card}
               />
+              </View>
             </View>
 
             {hasTeams && (
@@ -1237,7 +1240,7 @@ export default function NewContestScreen() {
           </View>
         )}
 
-        <View style={{ height: 96 }} />
+        <View style={{ height: SCROLL_END_SPACER }} />
       </ScrollView>
       </KeyboardAvoidingView>
 
