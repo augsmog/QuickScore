@@ -55,7 +55,11 @@ def main() -> None:
          and "invitations: not measured" in r["notes"])
     find("sharing", "confirmed share rate",
          lambda r: number(r, "numerator") == 1 and number(r, "denominator") == 1 and number(r, "rate") == 1)
-    print("PASS: report output has activation 1/1, mature D7 1/1, immature D7 NULL, roster 3/1, confirmed share 1/1")
+    find("joined finish", "joined-round first finishes (registered / anonymous)",
+         lambda r: number(r, "numerator") == 1 and number(r, "denominator") == 0
+         and number(r, "rate") is None
+         and r["notes"] == "Not part of activation; activation definition unchanged.")
+    print("PASS: report output has activation 1/1, mature D7 1/1, immature D7 NULL, roster 3/1, confirmed share 1/1, joined finishes 1/0")
 
 
 if __name__ == "__main__":
