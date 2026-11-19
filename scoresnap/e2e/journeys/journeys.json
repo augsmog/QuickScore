@@ -428,21 +428,28 @@
       "fixture": "fresh-context-v1",
       "features": [],
       "budget": {
-        "activations": 6,
-        "screens": 4,
+        "activations": 17,
+        "screens": 5,
         "timeoutMs": 20000
       },
       "baseline": null,
-      "status": "deferred",
+      "status": "gated",
       "origin": "seed: test-program PM cut 2026-10-31 / AUG-288",
       "assertions": [
         "entry",
-        "activation",
         "destination",
         "outcome"
       ],
-      "deferredReason": "Multiday creation outside the phase 1 slice",
-      "requiredSteps": []
+      "requiredSteps": [
+        "entry",
+        "create",
+        "two-rounds",
+        "eight-players",
+        "two-groups",
+        "modes",
+        "settings",
+        "created"
+      ]
     },
     {
       "id": "J-join-code",

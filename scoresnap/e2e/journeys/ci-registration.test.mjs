@@ -9,7 +9,7 @@ import {cases} from './adapter.mjs';
 const yaml=createRequire(import.meta.url)('js-yaml');
 const manifest=JSON.parse(fs.readFileSync(new URL('./journeys.json',import.meta.url)));
 const workflow=yaml.load(fs.readFileSync(new URL('../../../.github/workflows/web-smoke.yml',import.meta.url),'utf8'));
-const required=['J-delete-account','J-settings-control-inventory','J-by-game-nine','J-by-game-pending','J-settlement-mark-lifecycle','J-settlement-tab-runtime-recalc','J-trial-preview-unloaded'];
+const required=['J-create-8p-multiday','J-delete-account','J-settings-control-inventory','J-by-game-nine','J-by-game-pending','J-settlement-mark-lifecycle','J-settlement-tab-runtime-recalc','J-trial-preview-unloaded'];
 function registered(m,w){
  const steps=w.jobs['browser-flows'].steps;
  const contracts=steps.find(s=>s.name==='Journey contract tests');

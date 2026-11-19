@@ -1,0 +1,36 @@
+✖ all accepted bugs run unfiltered on every device profile in separately bounded CI steps (1.547922ms)
+✔ missing registration, capture, control or filtered execution fails integration contract (11.162618ms)
+✔ contract batches log timings and preserve each failure exit (32.026519ms)
+✔ runner step waits for every profile and runs negative proof only after all pass (29.767869ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 150.754149
+
+✖ failing tests:
+
+test at e2e/journeys/ci-registration.test.mjs:60:1
+✖ all accepted bugs run unfiltered on every device profile in separately bounded CI steps (1.547922ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'deferred'
+  - 'gated'
+  
+      at registered (file:///workspace/aos-work/lanes/aos-ready-2/create-8p/scoresnap/e2e/journeys/ci-registration.test.mjs:33:86)
+      at TestContext.<anonymous> (file:///workspace/aos-work/lanes/aos-ready-2/create-8p/scoresnap/e2e/journeys/ci-registration.test.mjs:60:100)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'deferred',
+    expected: 'gated',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

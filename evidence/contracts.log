@@ -1,0 +1,20 @@
+✔ synthetic fixture never seeds completion marks and preserves later changes on reload (10.787468ms)
+✔ fixture has distinguishable per-game oracle, independent of app settlement code (0.27225ms)
+✔ viewport reveal scroll stops with a small clearance instead of overshooting short screens (0.154485ms)
+✔ new cases are executable and missing assertion/capture/runtime failures remain red (0.743437ms)
+✔ all accepted bugs run unfiltered on every device profile in separately bounded CI steps (1.211827ms)
+✔ missing registration, capture, control or filtered execution fails integration contract (68.587838ms)
+✔ contract batches log timings and preserve each failure exit (182.918386ms)
+✔ runner step waits for every profile and runs negative proof only after all pass (182.594224ms)
+✔ nine-hole completed/pending fixtures and editable recalculation precondition (2.483454ms)
+✔ precondition preserves saved marks and scores across runtime reentry (32.51181ms)
+✔ omitted assertions/screenshots, fourth delete tap and second scroll stay RED (0.878195ms)
+✔ complete named web control inventory has no duplicates or iOS-only control (0.228587ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1009.61084

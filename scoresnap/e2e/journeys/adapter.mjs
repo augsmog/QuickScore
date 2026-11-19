@@ -1,3 +1,4 @@
+import {create8p} from './create-8p.mjs';
 import {paywallSetup,paywallReady,paywallCases} from './paywall-recovery.mjs';
 import {acceptanceSetup,acceptanceReady,acceptanceCases} from './acceptance-cases.mjs';
 // SnapScore web-offline adapter. Fixtures stop before the measured goal.
@@ -68,6 +69,7 @@ async function waitForStableViewportRect(locator) {
   }));
 }
 export const cases={
+  'J-create-8p-multiday':create8p,
   ...paywallCases,
   ...acceptanceCases,
   'J-home-create-cancel':async({page,act,check,step,enter})=>{
