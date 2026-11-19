@@ -1,0 +1,696 @@
+{
+  "base": "http://127.0.0.1:8089",
+  "results": [
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Home screen renders from real web build",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Home has no implicit demo round",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Home See All opens the playable game-mode library",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Skins mode defaults to Net",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins toggle can be selected",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Skins scope defaults to Whole field",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Each group scope can be selected",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "New contest defaults to Scorecard tab (no sample data)",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "New contest starts with no scores (no sample data)",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Empty scorecard text shows error and stays on scan screen",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Parser found exactly 4 players",
+      "detail": "[\"Augie\",\"Sam\",\"Lee\",\"Pat\"]"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "GS-2: all-4s row is parsed as player Sam (18 x 4), not as par",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Augie's real scores parsed (total 81)",
+      "detail": "5,6,4,3,5,4,4,6,5,4,5,3,6,4,5,3,5,4"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "All four players have 18 scored holes",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Review screen shows parsed players",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "GS-1: review shows no old sample players",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Confirm returns to the contest",
+      "detail": "http://127.0.0.1:8089/contest/001888f2-b129-4a93-be08-6827d4acf1dc"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Leaderboard shows all four real totals (81, 72, 90, 108)",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Skins leaderboard contains calculated results",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Nassau leaderboard contains front, back and overall results",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fully reachable: Augie",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fully reachable: Sam",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fully reachable: Lee",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fully reachable: Pat",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement screen shows money results",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Group-of-four Share opens with all four players in results",
+      "detail": "{\"title\":\"Wednesday Round — Settle up\",\"text\":\"Wednesday Round\\nMy Course\\n3 games at $5/unit\\n\\nNet skins · Whole field\\nResults:\\nSam: +$26.25\\nAugie: +$11.25\\nLee: −$3.75\\nPat: −$33.75\\n\\nTransactions:\\n  Augie → Sam: $5.00\\n  Lee → Sam: $5.00\\n  Pat → Sam: $5.00\\n  Sam → Augie: $3.75\\n  Lee → Augie: $13.75\\n  Pat → Augie: $13.75\\n  Augie → Sam: $15.00\\n  Pat → Lee: $15.00\\n\\n— via SnapScore\"}"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fits 390x844: Augie",
+      "detail": "{\"x\":20,\"y\":478,\"width\":350,\"height\":53}"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fits 390x844: Sam",
+      "detail": "{\"x\":20,\"y\":425,\"width\":350,\"height\":53}"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fits 390x844: Lee",
+      "detail": "{\"x\":20,\"y\":531,\"width\":350,\"height\":53}"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fits 390x844: Pat",
+      "detail": "{\"x\":20,\"y\":584,\"width\":350,\"height\":53}"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fits 375x667: Augie",
+      "detail": "{\"x\":20,\"y\":390,\"width\":335,\"height\":53}"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fits 375x667: Sam",
+      "detail": "{\"x\":20,\"y\":337,\"width\":335,\"height\":53}"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fits 375x667: Lee",
+      "detail": "{\"x\":20,\"y\":443,\"width\":335,\"height\":53}"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement row fits 375x667: Pat",
+      "detail": "{\"x\":20,\"y\":496,\"width\":335,\"height\":53}"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Mark Settled is visible in settlement ledger",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Mark Settled target is at least 44px",
+      "detail": "{\"x\":36,\"y\":526,\"width\":108,\"height\":44}"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Mark Settled changes the visible state",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Mark Settled persists after navigating away and back",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Unsettle returns the row to its unsettled state",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement mark and undo do not alter scores",
+      "detail": ""
+    },
+    {
+      "status": "unknown",
+      "ok": null,
+      "name": "Export PDF includes all player names and signed ledger totals",
+      "detail": "pdftotext is unavailable; PDF contents were not checked"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net mode persisted with contest",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Player handicap persists through scorecard import",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Whole field scope persisted",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Creation UI persists two groups",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Games shows Net skins · Whole field",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: Games skin count agrees for Augie",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: Games skin count agrees for Sam",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: Games skin count agrees for Lee",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: Games skin count agrees for Pat",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement shows Net skins · Whole field",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: Settlement amount agrees for Augie",
+      "detail": "+$11.25"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: Settlement amount agrees for Sam",
+      "detail": "+$26.25"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: Settlement amount agrees for Lee",
+      "detail": "$3.75"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: Settlement amount agrees for Pat",
+      "detail": "$33.75"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: player nets sum to zero",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: ledger reconciles for Augie",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: ledger reconciles for Sam",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: ledger reconciles for Lee",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: ledger reconciles for Pat",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: session total equals displayed winners",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: chip graphic removed at 375x667",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: signed amount visible at 375x667",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: chip graphic removed at 1280x800",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Whole field: signed amount visible at 1280x800",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Games shows Gross skins · Whole field",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: Games skin count agrees for Augie",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: Games skin count agrees for Sam",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: Games skin count agrees for Lee",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: Games skin count agrees for Pat",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement shows Gross skins · Whole field",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: Settlement amount agrees for Augie",
+      "detail": "$20.00"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: Settlement amount agrees for Sam",
+      "detail": "+$60.00"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: Settlement amount agrees for Lee",
+      "detail": "$5.00"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: Settlement amount agrees for Pat",
+      "detail": "$35.00"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: player nets sum to zero",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: ledger reconciles for Augie",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: ledger reconciles for Sam",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: ledger reconciles for Lee",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: ledger reconciles for Pat",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: session total equals displayed winners",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: chip graphic removed at 375x667",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: signed amount visible at 375x667",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: chip graphic removed at 1280x800",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Gross skins · Whole field: signed amount visible at 1280x800",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Games shows Net skins · Each group",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: Games skin count agrees for Augie",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: Games skin count agrees for Sam",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: Games skin count agrees for Lee",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: Games skin count agrees for Pat",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement shows Net skins · Each group",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: Settlement amount agrees for Augie",
+      "detail": "$5.00"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: Settlement amount agrees for Sam",
+      "detail": "+$15.00"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: Settlement amount agrees for Lee",
+      "detail": "+$55.00"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: Settlement amount agrees for Pat",
+      "detail": "$65.00"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: player nets sum to zero",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: ledger reconciles for Augie",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: ledger reconciles for Sam",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: ledger reconciles for Lee",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: ledger reconciles for Pat",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: session total equals displayed winners",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: chip graphic removed at 375x667",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: signed amount visible at 375x667",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: chip graphic removed at 1280x800",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Net skins · Each group: signed amount visible at 1280x800",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Scopes produce different skins with two UI-created groups",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Handicaps produce different Net and Gross skins",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "GS-1: no scanData shows error, no sample players",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "GS-1: malformed scanData shows error",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "GS-1: empty player list shows error",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Join UI presence matches EXPECT_CROSS_DEVICE_SHARING=false",
+      "detail": "join code present: false"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Cross-device sharing disabled (feature flag); skipping join code tests",
+      "detail": ""
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "No share/join UI strings visible when flag off",
+      "detail": "clean"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "Settlement recap shows no live-sharing prompt when flag off",
+      "detail": "clean"
+    },
+    {
+      "status": "pass",
+      "ok": true,
+      "name": "No uncaught page errors",
+      "detail": ""
+    }
+  ],
+  "pageErrors": []
+}

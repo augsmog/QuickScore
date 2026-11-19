@@ -1,0 +1,33 @@
+{
+  "required": [
+    "join-empty",
+    "join-invalid",
+    "join-deeplink",
+    "create-cancel",
+    "review-error"
+  ],
+  "results": [
+    {
+      "id": "join-empty",
+      "status": "failed",
+      "error": "TimeoutError: locator.waitFor: Timeout 6000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Back to home', exact: true }) to be visible\n",
+      "pageErrors": []
+    },
+    {
+      "id": "join-invalid",
+      "status": "passed"
+    },
+    {
+      "id": "join-deeplink",
+      "status": "passed"
+    },
+    {
+      "id": "create-cancel",
+      "status": "passed"
+    },
+    {
+      "id": "review-error",
+      "status": "passed"
+    }
+  ]
+}
