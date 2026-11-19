@@ -2,29 +2,12 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { selectHostPlayer } from './xdevice-host-player.mjs';
-import { isSavedContestPath } from './xdevice-route.mjs';
 import assert from 'node:assert/strict';
-import { ObservationArchive, observeConsumerActions, writeConsumerReport } from './xdevice-consumer-report.mjs';
-import { withTdFixtureEntitlement } from './xdevice-td-fixture.mjs';
 const base = process.env.BASE_URL ?? 'http://127.0.0.1:8089';
 const out = process.env.OUT_DIR ?? '/tmp/xdevice-four-context';
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_BIN ? { executablePath: process.env.CHROME_BIN } : {}) });
-const devices = [
-  { name: 'iPhone SE (375×667)', viewport: { width: 375, height: 667 } },
-  { name: 'iPhone 15 Pro (393×852)', viewport: { width: 393, height: 852 } },
-  { name: 'iPhone 15 Pro Max (430×932)', viewport: { width: 430, height: 932 } },
-  { name: 'iPad representative landscape (1024×768)', viewport: { width: 1024, height: 768 } },
-];
-const contexts = await Promise.all(devices.map(device => browser.newContext({
-  viewport: device.viewport,
-  deviceScaleFactor: 1,
-  isMobile: true,
-  hasTouch: true,
-})));
-for (const context of contexts) await context.addInitScript(observeConsumerActions);
-const observations = new ObservationArchive();
+const contexts = await Promise.all(Array.from({ length: 4 }, () => browser.newContext()));
 const pages = await Promise.all(contexts.map(c => c.newPage()));
 const names = ['Xdev Host', 'Xdev Bravo', 'Xdev Charlie', 'Xdev Delta'];
 const snapshots = new WeakMap();
@@ -40,32 +23,6 @@ function requestContest(r) {
   try { return r.request().postDataJSON()?.contest_id; } catch { return undefined; }
 }
 const text = (p, value) => p.getByText(value, { exact: true }).filter({ visible: true }).first();
-// AUG-291's unscored-player warning can appear after NEXT when the visible
-// group has a hole with no score yet; Save pars so navigation still lands
-// (this host-side par write never touches another player's own queued edit:
-// it only fills the cell the host's screen already shows as unscored).
-// Re-anchor on the host's own card (A, never scored in this fixture) first:
-// callers often leave a *different* player's group selected (selectHostPlayer,
-// used for cell checks), and Save pars would otherwise write a phantom par
-// into that other player's still-in-progress hole instead of A's own gap.
-async function clickHoleNav(p, label) {
-  if (p === pages[0]) await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[0]);
-  await text(p, label).click();
-  const savePars = text(p, 'Save pars');
-  await savePars.waitFor({ timeout: 500 }).catch(() => {});
-  if (await savePars.isVisible().catch(() => false)) await savePars.click();
-}
-// Round status sheet (direction A): sharing, join code and Online sync sit behind the header status chip.
-async function openStatus(p) {
-  if (await p.getByTestId('round-status-sheet').isVisible().catch(() => false)) return;
-  await p.getByTestId('round-status-chip').filter({ visible: true }).first().click();
-  await p.getByTestId('round-status-sheet').waitFor();
-}
-async function closeStatus(p) {
-  if (!await p.getByTestId('round-status-sheet').isVisible().catch(() => false)) return;
-  await p.getByTestId('round-status-done').click();
-  await p.getByTestId('round-status-sheet').waitFor({ state: 'hidden' });
-}
 function configure(p) {
   p.setDefaultTimeout(20000);
   p.on('dialog', d => d.accept());
@@ -130,7 +87,6 @@ async function save(i, hole, value) {
   await text(p, `Save hole ${hole}`).click();
 }
 async function retry(i) {
-  if (i === 0) await openStatus(pages[0]);
   await text(scope(i), i === 0 ? 'Retry sync' : 'Retry queued scores').click();
 }
 async function freshResponse(i, rpc, marker, trigger) {
@@ -165,6 +121,19 @@ async function converge(indices) {
       }
       if (i === 0) {
         if (!await text(panel(), 'Current online snapshot').isVisible()) return 'context 0: host UI missing Current online snapshot';
+        for (const owner of [1, 2, 3]) {
+          const cells = expected.filter(c => c.i === owner);
+          const sum = cells.reduce((n, c) => n + c.value, 0);
+          const info = pages[i].getByText(names[owner], { exact: true }).locator('..');
+          if (sum && !await info.getByText(new RegExp(`^Thru ${cells.length} — ${sum} \\(`)).isVisible()) return `context 0: host total missing for player ${owner}, expected ${sum}`;
+        }
+        const heading = await pages[i].getByText(/^HOLE \d{2}$/).first().allTextContents();
+        const hole = Number(heading.join('').match(/\d+/)?.[0]);
+        if (!hole) return 'context 0: host UI missing hole heading';
+        for (const cell of expected.filter(c => c.hole === hole)) {
+          const displayed = (await pages[i].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
+          if (Number(displayed.trim().split(/\s/)[0]) !== cell.value) return `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
+        }
       }
       // Guests expose confirmed totals for every player, even though only their own cells are editable.
       if (i !== 0) for (const owner of [1, 2, 3]) {
@@ -175,38 +144,22 @@ async function converge(indices) {
     return true;
   });
   if (indices.includes(0)) {
-    // The status assertion above must run while its sheet is open. Scorecard
-    // assertions run after dismissal and select each player's actual group.
-    for (const owner of [1, 2, 3]) {
-      const cells = expected.filter(c => c.i === owner);
-      const sum = cells.reduce((n, c) => n + c.value, 0);
-      await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[owner]);
-      if (sum) await poll(`host total visible for player ${owner}`, async () => {
-        const info = pages[0].getByText(names[owner], { exact: true }).locator('..');
-        return await info.getByText(new RegExp(`^Thru ${cells.length} — ${sum} \\(`)).isVisible()
-          || `context 0: host total missing for player ${owner}, expected ${sum}`;
-      });
-    }
     const current = async () => Number((await pages[0].getByText(/^HOLE \d{2}$/).first().textContent()).match(/\d+/)[0]);
     const original = await current();
     const go = async target => {
       while (await current() !== target) {
         const before = await current();
-        await closeStatus(pages[0]);
-        await clickHoleNav(pages[0], before < target ? 'NEXT' : 'PREV');
+        await text(pages[0], before < target ? 'NEXT' : 'PREV').click();
         await text(pages[0], `HOLE ${String(before + (before < target ? 1 : -1)).padStart(2, '0')}`).waitFor();
       }
     };
     for (const hole of [...new Set(expected.map(c => c.hole))].sort((a, b) => a - b)) {
       await go(hole);
-      for (const cell of expected.filter(c => c.hole === hole)) {
-        await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[cell.i]);
-        await poll('host synchronized cell visible', async () => {
-          const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
-          return Number(displayed.trim().split(/\s/)[0]) === cell.value
-            || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
-        });
-      }
+      for (const cell of expected.filter(c => c.hole === hole)) await poll('host synchronized cell visible', async () => {
+        const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
+        return Number(displayed.trim().split(/\s/)[0]) === cell.value
+          || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
+      });
     }
     await go(original);
   }
@@ -224,35 +177,22 @@ try {
     assert.equal(process.env.XDEV_SIGNIN_ONLY, '1', 'All A–D credentials required; XDEV_SIGNIN_ONLY=1 allows only sign-in smoke');
     console.log('PASS sign-in screen in four isolated contexts; full flow NOT RUN (credentials absent)');
   } else {
-    assert.equal(process.env.XDEV_TEST_TD_HOST, '1', 'The four-player two-group organizer scenario requires the disposable TD test entitlement fixture');
-    assert(['127.0.0.1', 'localhost', '::1'].includes(new URL(base).hostname), 'TD fixture is restricted to a loopback disposable stack');
-    const scanState = await pages[0].evaluate(() => localStorage.getItem('snapscore-scans'));
-    const tdScanState = withTdFixtureEntitlement(scanState);
-    await pages[0].evaluate(value => localStorage.setItem('snapscore-scans', value), tdScanState);
-    await pages[0].reload();
-    await pages[0].waitForURL(u => !u.pathname.includes('/auth/'));
     await step('create four-player contest and enable sharing', async () => {
       const a = pages[0];
       await a.goto(`${base}/contest/new`);
       await a.getByPlaceholder('Your name').fill(names[0]);
       await a.getByPlaceholder('Player 2 name').fill(names[1]);
       for (let i = 2; i < 4; i++) { await text(a, '+ ADD PLAYER').click(); await a.getByPlaceholder(`Player ${i + 1} name`).fill(names[i]); }
-      await a.getByTestId('add-group').click();
-      for (const i of [1, 3]) await a.getByTestId(`player-group-${names[i]}`).click();
-      for (const i of [1, 3]) await a.getByTestId(`player-group-${names[i]}`).getByText('G2').waitFor();
-      await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
-      await a.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});
-      await a.getByText(/^Continue$/i).filter({ visible: true }).last().click();
-      await a.getByTestId('contest-step-round-settings').waitFor({state:'visible'});
-      await a.getByTestId('contest-start').click();
-      await a.waitForURL(url => isSavedContestPath(url.pathname));
+      await a.getByText(/^Next/i).filter({ visible: true }).last().click();
+      await a.getByText(/^Next/i).filter({ visible: true }).last().click();
+      await text(a, /^START CONTEST/i).click();
+      await a.waitForURL(/\/contest\/[^/]+$/);
       contestUrl = a.url(); contestId = new URL(contestUrl).pathname.split('/').pop();
       await text(a, 'Enable online sharing').click();
       const label = await a.getByTestId('organizer-join-code').innerText();
       code = label.match(/Join code: ([A-Z0-9]{6})/)?.[1];
       assert(code, 'Organizer join code available');
       await text(a, 'Online sharing enabled. Share this invite with signed-in players.').waitFor();
-      await openStatus(a);
       await text(a, 'Online sync').click();
     });
     for (let i = 1; i < 4; i++) await step(`request and approve ${'ABCD'[i]} into distinct slot`, async () => {
@@ -275,16 +215,9 @@ try {
     });
     await step('host opens synchronized scoring screen', async () => {
       await pages[0].goto(`${contestUrl}/scorecard`);
-      await openStatus(pages[0]);
       await text(pages[0], 'Online sync').click();
       await retry(0);
       await text(pages[0], 'Current online snapshot').waitFor();
-      const round = snapshot(pages[0])?.rounds[0];
-      assert(round && round.groups.length === 2, 'Server snapshot preserves the two-group fixture');
-      const groupByName = new Map(round.players.map(player => [player.displayName, player.group_id]));
-      assert.equal(groupByName.get(names[0]), groupByName.get(names[2]), 'A and C are assigned to group 1');
-      assert.equal(groupByName.get(names[1]), groupByName.get(names[3]), 'B and D are assigned to group 2');
-      assert.notEqual(groupByName.get(names[0]), groupByName.get(names[1]), 'Each simulated device is associated with the intended group');
     });
     await step('offline drafts visible immediately; reconnect D B C', async () => {
       for (const i of [1, 2, 3]) {
@@ -300,10 +233,9 @@ try {
       await contexts[1].setOffline(true);
       await save(1, 2, 9);
       await guest(1).getByText(/^Hole 2 · current clear · queued 9 · par/).first().waitFor();
-      await closeStatus(pages[0]);
-      await clickHoleNav(pages[0], 'NEXT');
+      await text(pages[0], 'NEXT').click();
       await text(pages[0], 'HOLE 02').waitFor();
-      await (await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[1])).click();
+      await pages[0].getByTestId(`score-par-${names[1]}`).click();
       await poll('host hole two accepted before B reconnects', async () => {
         const cell = snapshot(pages[0])?.rounds[0].players.find(p => p.displayName === names[1])?.cells.find(c => c.hole === 2);
         return cell?.strokes != null || 'context 0: snapshot player 1 hole 2 expected accepted score, actual clear/missing';
@@ -317,53 +249,18 @@ try {
       await poll('conflict removed', async () => (await queueEntries(pages[1])).every(e => e.state !== 'conflict') || 'context 1: durable conflict entry remains');
       await poll('conflict actions gone', async () => (!await guestText(1, 'Keep current').isVisible() && !await guestText(1, 'Use my score').isVisible()) || 'context 1: guest conflict action still visible');
       expectCell(1, 2, current);
-      // C shares the host's scoring group (group 1). If C's hole 2 stayed
-      // unscored, the host's own forced Next-through-hole-2 traversal later
-      // (go(), used by every subsequent converge() to inspect scorecard
-      // cells) would hit the unscored-hole gate while C is still the other
-      // unscored member of that group, and Save pars would silently write a
-      // phantom par into C's hole 2 along with the host's. Score it directly
-      // now, the same way every other tracked cell in this fixture is set,
-      // so the host's own par-skip never has another tracked player to catch.
-      await save(2, 2, 7);
-      expectCell(2, 2, 7);
       await converge([0, 1, 2, 3]);
     });
     await step('host leaves; players continue; host returns without loss or duplicates', async () => {
-      await observations.archive(0, pages[0]);
       await pages[0].close(); await contexts[0].setOffline(true);
       for (const i of [1, 2, 3]) { await save(i, 3, i + 7); expectCell(i, 3, i + 7); }
       await converge([1, 2, 3]);
       await contexts[0].setOffline(false);
       pages[0] = await contexts[0].newPage(); configure(pages[0]);
       await pages[0].goto(`${contestUrl}/scorecard`);
-      await openStatus(pages[0]);
       await text(pages[0], 'Online sync').click();
       await converge([0, 1, 2, 3]);
       for (const i of [1, 2, 3]) assert.equal((await queueEntries(pages[i])).length, 0, 'No duplicated or pending player operations');
-    });
-    await step('owner fresh context discovers scored contest and own-code restores without request', async () => {
-      const fresh = await browser.newContext();
-      try {
-        const page = await fresh.newPage(); configure(page);
-        let joins = 0;
-        page.on('request', r => { if (r.url().endsWith('/rpc/request_join')) joins++; });
-        assert.equal(await signIn(page, 'A'), true);
-        await page.goto(`${base}/contests`);
-        await poll('owner snapshot contains every accepted score', () => {
-          const s = snapshot(page);
-          return !!s && expected.every(cell => s.rounds[0]?.players
-            .find(p => p.displayName === names[cell.i])?.cells
-            .find(c => c.hole === cell.hole)?.strokes === cell.value);
-        });
-        await text(page, snapshot(page).name).waitFor();
-        await page.screenshot({ path: path.join(out, 'owner-fresh-contests.png'), fullPage: true });
-        await page.goto(`${base}/join/${code}`);
-        await page.getByLabel('Join code').fill(code);
-        await page.getByText('Find contest', { exact: true }).click();
-        await page.waitForURL(u => u.pathname === `/contest/${contestId}`);
-        assert.equal(joins, 0, 'Owner creates no pending self-request');
-      } finally { await fresh.close(); }
     });
     await step('host RPC revocation denies queued write and removes roster across reloads', async () => {
       // Freeze D's stale authorized screen, revoke while it is disconnected, then enqueue AFTER revocation.
@@ -411,14 +308,13 @@ try {
       for (let hole = 1; hole <= 4; hole++) {
         await text(pages[0], `HOLE ${String(hole).padStart(2, '0')}`).waitFor();
         for (const cell of expected.filter(c => c.hole === hole)) {
-          await selectHostPlayer(pages[0], snapshot(pages[0]).rounds[0], names[cell.i]);
           await poll('host preserved cell visible', async () => {
             const displayed = (await pages[0].getByTestId(`score-par-${names[cell.i]}`).locator(':scope > :first-child').allTextContents()).join('');
             return Number(displayed.trim().split(/\s/)[0]) === cell.value
               || `context 0: host UI player ${cell.i} hole ${hole} expected ${cell.value}, actual ${JSON.stringify(displayed)}`;
           });
         }
-        if (hole < 4) { await closeStatus(pages[0]); await clickHoleNav(pages[0], 'NEXT'); }
+        if (hole < 4) await text(pages[0], 'NEXT').click();
       }
       const status = await freshResponse(3, 'my_sync_status', sequence, async () => {
         // Reload first: a focus response from the old document can be discarded
@@ -437,7 +333,6 @@ try {
     });
     console.log('PASS four isolated browsers: approve x3, offline reconnect D,B,C, same-hole conflict resolved, host leave/return, removed-phone lockout');
   }
-  await writeConsumerReport({ pages, devices, out, observations });
 } catch (error) {
   for (const [i, p] of pages.entries()) if (!p.isClosed()) await p.screenshot({ path: path.join(out, `failure-${i}.png`), fullPage: true }).catch(() => {});
   throw error;

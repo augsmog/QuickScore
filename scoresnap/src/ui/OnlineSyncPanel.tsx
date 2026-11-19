@@ -1,4 +1,3 @@
-import { showAlert } from "@/services/platform-alert";
 import { TournamentCompletion } from './TournamentCompletion';
 import { hostOrDiscover } from '../services/online-client';
 import { useEffect, useState } from 'react';
@@ -51,7 +50,7 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
     const confirm = () => { void resolveOnlineConflict(entry.id, choice).then(refresh).catch(() => setMessage('Could not save your choice. Try again.')); };
     const warning = 'This cancels later queued edits for this hole. Review and enter those scores again.';
     if (Platform.OS === 'web') { if (globalThis.confirm(`Resolve score conflict? ${warning}`)) confirm(); }
-    else showAlert('Resolve score conflict?', warning, [
+    else Alert.alert('Resolve score conflict?', warning, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Confirm', onPress: confirm },
     ]);
@@ -73,7 +72,7 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
           const approve = () => { void client.decide(request.id, true, player.id).then(refresh).catch(() => setMessage('Approval failed. Try again.')); };
           if (Platform.OS === 'web') {
             if (globalThis.confirm('Approve player transfer? The previous identity will lose access to this slot.')) approve();
-          } else showAlert('Approve player transfer?', 'The previous identity will lose access to this slot.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Approve', onPress: approve }]);
+          } else Alert.alert('Approve player transfer?', 'The previous identity will lose access to this slot.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Approve', onPress: approve }]);
         })}</View>)}
         {button('Reject request', () => { void client.decide(request.id, false, null).then(refresh).catch(() => setMessage('Decision failed. Try again.')); })}
       </View>)}

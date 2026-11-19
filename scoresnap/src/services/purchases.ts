@@ -8,11 +8,10 @@
  * snapscore.td.annual ($79.99/yr), snapscore.td.monthly ($12.99/mo).
  * Entitlements: "SnapScore Pro" and "SnapScore TD" (TD grants both).
  * One SnapScore subscription group: TD level 1, Pro level 2.
- * Tournament Director has no free trial (owner t1517u). Only the dormant Pro annual plan can offer an eligible 7-day trial.
+ * Annual plans offer an eligible 7-day trial, once per Apple ID per group.
  */
 
 import { Platform, NativeModules } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Sentry from "@sentry/react-native";
 import Purchases, {
   PurchasesPackage,
@@ -25,9 +24,6 @@ import { useScanStore } from "../stores/scan-store";
 
 // Entitlement ID configured in RevenueCat dashboard
 import { tierFromCustomerInfo } from "./entitlements";
-import { TD_CONVERSION_SEEN_KEY } from "../stores/persisted-keys";
-import { posthogAppLogger } from "./posthog-log";
-import { tdConversionEvent } from "./td-conversion";
 
 let isConfigured = false;
 
@@ -93,7 +89,7 @@ async function configurePurchases(userId?: string): Promise<void> {
 
     // Check current entitlement status
     const info = await Purchases.getCustomerInfo();
-    await handleCustomerInfoUpdate(info);
+    handleCustomerInfoUpdate(info);
   } catch (e) {
     console.warn("RevenueCat init failed:", e);
   }
@@ -102,20 +98,8 @@ async function configurePurchases(userId?: string): Promise<void> {
 /**
  * Sync Pro status whenever customer info changes.
  */
-let customerInfoUpdateQueue: Promise<void> = Promise.resolve();
-function handleCustomerInfoUpdate(info: CustomerInfo): Promise<void> {
+function handleCustomerInfoUpdate(info: CustomerInfo): void {
   useScanStore.getState().setTier(tierFromCustomerInfo(info));
-  const update = customerInfoUpdateQueue.then(async () => {
-    const previousSeenKey = await AsyncStorage.getItem(TD_CONVERSION_SEEN_KEY);
-    const conversion = tdConversionEvent(previousSeenKey, info);
-    if (!conversion) return;
-    await AsyncStorage.setItem(TD_CONVERSION_SEEN_KEY, conversion.key);
-    posthogAppLogger.tournamentDirectorEntitlementStarted(conversion.event);
-  });
-  customerInfoUpdateQueue = update.catch((error) => {
-    console.warn("Could not record Tournament Director entitlement start:", error);
-  });
-  return customerInfoUpdateQueue;
 }
 
 /**
@@ -146,7 +130,7 @@ export async function getPackages() {
 
 export async function syncProStatus(): Promise<void> {
   const info = await getCustomerInfo();
-  if (info) await handleCustomerInfoUpdate(info);
+  if (info) handleCustomerInfoUpdate(info);
 }
 
 /**
@@ -162,7 +146,7 @@ export async function purchasePackage(
   }
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    await handleCustomerInfoUpdate(customerInfo);
+    handleCustomerInfoUpdate(customerInfo);
     return tierFromCustomerInfo(customerInfo) !== "free";
   } catch (e: any) {
     if (e.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
@@ -185,7 +169,7 @@ export async function restorePurchases(): Promise<boolean> {
   }
   try {
     const info = await Purchases.restorePurchases();
-    await handleCustomerInfoUpdate(info);
+    handleCustomerInfoUpdate(info);
     return tierFromCustomerInfo(info) !== "free";
   } catch (e) {
     console.error("Restore failed:", e);
@@ -201,7 +185,7 @@ export async function checkProStatus(): Promise<boolean> {
   if (!isConfigured) return false;
   try {
     const info = await Purchases.getCustomerInfo();
-    await handleCustomerInfoUpdate(info);
+    handleCustomerInfoUpdate(info);
     return tierFromCustomerInfo(info) !== "free";
   } catch {
     return false;
@@ -226,19 +210,7 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
  */
 let identityQueue: Promise<void> = Promise.resolve();
 let identified: string | null = null;
-// Read-only guard for offer previews; never reuse eligibility across account changes.
-let identityRevision = 0;
-let settledIdentityRevision = -1;
-export async function waitForPurchaseIdentity(expectedActor: string | null): Promise<number | null> {
-  const revision = identityRevision;
-  await identityQueue;
-  return isPurchaseIdentityCurrent(revision, expectedActor) ? revision : null;
-}
-export function isPurchaseIdentityCurrent(revision: number, expectedActor: string | null): boolean {
-  return isConfigured && identified === expectedActor && revision === identityRevision && revision === settledIdentityRevision;
-}
 function changeIdentity(userId: string | null): Promise<void> {
-  const revision = ++identityRevision;
   const pending = identityQueue.then(async () => {
     await initPurchases();
     if (!isConfigured) return;
@@ -246,17 +218,17 @@ function changeIdentity(userId: string | null): Promise<void> {
       if (identified === userId) return;
       const { customerInfo } = await Purchases.logIn(userId);
       identified = userId;
-      await handleCustomerInfoUpdate(customerInfo);
+      handleCustomerInfoUpdate(customerInfo);
     } else {
       // RevenueCat rejects logging out an already anonymous SDK identity.
       if (!await Purchases.isAnonymous()) {
         const info = await Purchases.logOut();
-        await handleCustomerInfoUpdate(info);
+        handleCustomerInfoUpdate(info);
       }
       identified = null;
     }
   });
-  identityQueue = pending.then(() => { settledIdentityRevision = revision; }).catch(e => { console.warn("Could not update purchase account:", e); });
+  identityQueue = pending.catch(e => { console.warn("Could not update purchase account:", e); });
   return identityQueue;
 }
 export function identifyUser(userId: string): Promise<void> { return changeIdentity(userId); }

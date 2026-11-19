@@ -1,8 +1,8 @@
-import { SafeScreen } from "../src/ui/SafeScreen";
 import { OFFLINE_MODE } from "../src/config/offline";
 import { useRef, useEffect } from "react";
-import { View, Text, Pressable, Dimensions, useWindowDimensions } from "react-native";
+import { View, Text, Pressable, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
   type SharedValue,
   useSharedValue,
@@ -16,9 +16,8 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { COLORS } from "../src/ui/theme";
 import { useOnboardingStore } from "../src/stores/onboarding-store";
-import { SettlementScene } from "../src/ui/animations/SettlementScene";
-import { ManualScoreScene } from "../src/ui/animations/ManualScoreScene";
-import { CROSS_DEVICE_SHARING_ENABLED } from "../src/config/features";
+import { GolfBallScene } from "../src/ui/animations/GolfBallScene";
+import { ScanBeamScene } from "../src/ui/animations/ScanBeamScene";
 import { LeaderboardScene } from "../src/ui/animations/LeaderboardScene";
 import { AnimatedPageDots } from "../src/ui/animations/AnimatedPageDots";
 import { StaggeredText } from "../src/ui/animations/StaggeredText";
@@ -34,24 +33,24 @@ interface SlideData {
 
 const slides: SlideData[] = [
   {
-    id: "settle",
-    title: "See Who Owes What",
+    id: "scan",
+    title: "Snap Your Scorecard",
     subtitle:
-      "Skins, Nassau, Stableford and more, calculated for your group. This example has 12 players.",
-    accent: COLORS.gold,
-  },
-  {
-    id: "score",
-    title: "Score However You Like",
-    subtitle:
-      "Enter scores hole by hole, or scan a printed card and check what it reads.",
+      "Point your camera at any handwritten or printed golf scorecard. AI reads every score in seconds.",
     accent: COLORS.accent,
   },
   {
-    id: "track",
-    title: "Keep Your Rounds",
+    id: "settle",
+    title: "See Who Owes What",
     subtitle:
-      "Leaderboards, round results and shareable scorecards in one place.",
+      "Skins, Nassau, Stableford, and more game modes calculated automatically. No more bar napkin math.",
+    accent: COLORS.gold,
+  },
+  {
+    id: "compete",
+    title: "Track Every Round",
+    subtitle:
+      "Leaderboards, settlement history, and shareable scorecards. Know who owes who — always.",
     accent: COLORS.blue,
   },
 ];
@@ -60,7 +59,6 @@ const ACCENT_COLORS = slides.map((s) => s.accent);
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const compact = useWindowDimensions().height < 700;
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
   const scrollRef = useRef<Animated.ScrollView>(null);
   const scrollX = useSharedValue(0);
@@ -136,7 +134,7 @@ export default function OnboardingScreen() {
   }));
 
   return (
-    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
       {/* Skip button */}
       <Animated.View
         style={[
@@ -173,7 +171,7 @@ export default function OnboardingScreen() {
               flex: 1,
               justifyContent: "center",
               alignItems: "center",
-              paddingHorizontal: compact ? 24 : 40,
+              paddingHorizontal: 40,
             }}
           >
             {/* Animated illustration */}
@@ -193,7 +191,7 @@ export default function OnboardingScreen() {
               <Text
                 style={{
                   color: COLORS.text,
-                  fontSize: compact ? 24 : 28,
+                  fontSize: 28,
                   fontWeight: "800",
                   textAlign: "center",
                   marginBottom: 12,
@@ -212,8 +210,8 @@ export default function OnboardingScreen() {
               pageWidth={SCREEN_WIDTH}
               style={{
                 color: COLORS.textDim,
-                fontSize: compact ? 14 : 16,
-                lineHeight: compact ? 20 : 24,
+                fontSize: 16,
+                lineHeight: 24,
                 textAlign: "center",
               }}
             />
@@ -222,24 +220,9 @@ export default function OnboardingScreen() {
       </Animated.ScrollView>
 
       {/* Bottom: Dots + CTA */}
-      <View style={{ paddingHorizontal: 24, paddingBottom: compact ? 8 : 20, alignItems: "center" }}>
-        {CROSS_DEVICE_SHARING_ENABLED && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Join a group"
-            onPress={() => {
-              completeOnboarding();
-              router.replace("/join/enter");
-            }}
-            style={{ padding: compact ? 8 : 16, marginBottom: compact ? 4 : 8 }}
-          >
-            <Text style={{ color: COLORS.text, fontSize: 17, fontWeight: "700" }}>
-              Join a group
-            </Text>
-          </Pressable>
-        )}
+      <View style={{ paddingHorizontal: 24, paddingBottom: 20, alignItems: "center" }}>
         {/* Animated page dots */}
-        <View style={{ marginBottom: compact ? 12 : 24 }}>
+        <View style={{ marginBottom: 24 }}>
           <AnimatedPageDots
             scrollX={scrollX}
             pageWidth={SCREEN_WIDTH}
@@ -295,7 +278,7 @@ export default function OnboardingScreen() {
           </Animated.View>
         </Pressable>
       </View>
-    </SafeScreen>
+    </SafeAreaView>
   );
 }
 
@@ -309,7 +292,7 @@ function SlideIllustration({
   scrollX: SharedValue<number>;
   pageWidth: number;
 }) {
-  const scenes = [SettlementScene, ManualScoreScene, LeaderboardScene];
+  const scenes = [GolfBallScene, ScanBeamScene, LeaderboardScene];
   const Scene = scenes[index];
   return <Scene scrollX={scrollX} pageIndex={index} pageWidth={pageWidth} />;
 }

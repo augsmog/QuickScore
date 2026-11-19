@@ -1,5 +1,3 @@
-import type { FlightRule } from "../engine/flights";
-import type { CutRule } from "../engine/cut-line";
 import { useOnlineStore } from './online-store';
 import { completeScores } from "../services/ocr-review";
 import { REAL_AUTH_CONFIGURED } from "../config/auth";
@@ -10,9 +8,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CONTEST_STORAGE_KEY, createGatedStorage } from "./persisted-keys";
 import { GameType, GameConfig, Player, Course, HoleInfo, AuxiliaryData } from "../engine/types";
-import type { StartSlot, StartType } from "../engine/group-status";
 import { syncRound, syncRoundGroups, syncContestTournamentMeta, syncScore } from "../services/tournament-sync";
-import type { PartialImportCell } from "../services/partial-import";
 
 // Track local edits even before the first authorized snapshot (for example after an offline restart).
 function tracksOnlineEdits(contestId: string): boolean {
@@ -31,7 +27,6 @@ export interface ContestGroup {
   id: string;
   name: string;
   players: Player[];
-  startSlot?: StartSlot;
   teeTime?: string; // "10:03" or "10:03 AM"
   externalId?: string; // External group ID (e.g. from GolfGenius)
 }
@@ -42,7 +37,6 @@ export interface RoundInfo {
   name: string;
   date?: string;
   course?: Course; // Each round can have a different course
-  startType?: StartType;
   groups: ContestGroup[];
 }
 
@@ -53,10 +47,6 @@ export interface TeamInfo {
 }
 
 export interface Contest {
-  flightRule?: FlightRule;
-  cutRule?: CutRule;
-  cutAfterRound?: number;
-  remoteRestored?: boolean;
   id: string;
   name: string;
   course: Course;
@@ -79,7 +69,6 @@ export interface Contest {
   onlineEdits?: Record<string, { token: string; strokes: number }>;
   // Multi-round tournament support
   rounds?: RoundInfo[];
-  startType?: StartType;
   currentRound?: number; // 1-indexed
   isTournament?: boolean;
 }
@@ -109,13 +98,6 @@ interface ContestState {
     contestId: string,
     groupId: string,
     playerScores: { source?: "paste" | "ocr"; playerId: string; scores: (number | null)[] }[]
-  ) => void;
-
-  applyReviewedPartialImport: (
-    contestId: string,
-    roundId: string | null,
-    groupId: string,
-    patch: readonly PartialImportCell[]
   ) => void;
 
   completeContest: (id: string) => void;
@@ -183,15 +165,6 @@ export const useContestStore = create<ContestState>()(
           contests: state.contests.map((c) => {
             if (c.id !== contestId) return c;
             validateScoreWrite(c,groupId,playerId,hole,strokes);
-            // Restored single rounds can have an ID distinct from the contest.
-            // Resolve that round through the same ID map used by tournament sync.
-            if (c.remoteRestored && !c.isTournament) {
-              const restoredRound = c.rounds?.find(r => r.number === (c.currentRound ?? 1));
-              if (restoredRound) {
-                roundId = restoredRound.id;
-                roundNumber = restoredRound.number;
-              }
-            }
             if(c.status==="completed") throw new Error("Completed contest scores are locked");
             if(c.gameConfig?.rulesVersion===1 && c.games.some(g=>g==="alternate_shot" || g==="chapman")) {
               const round=c.isTournament?c.rounds?.find(r=>r.number===c.currentRound):undefined;
@@ -290,80 +263,12 @@ export const useContestStore = create<ContestState>()(
           { ...c, ...(tracking ? { onlineEdits } : {}), rounds: c.rounds!.map(r => r.id === round.id ? { ...r, groups } : r) } : { ...c, ...(tracking ? { onlineEdits } : {}), groups }) }));
       },
 
-      applyReviewedPartialImport: (contestId, roundId, groupId, patch) => {
-        const contest = get().contests.find(c => c.id === contestId);
-        if (!contest) throw new Error("Contest not found");
-        let round: RoundInfo | undefined;
-        if (contest.isTournament) {
-          round = contest.rounds?.find(r => r.id === roundId);
-          if (!round || round.number !== contest.currentRound) throw new Error("Reviewed import round is no longer active");
-        } else if (roundId !== null) {
-          throw new Error("Reviewed import round does not match contest context");
-        }
-        const groups = round?.groups ?? contest.groups;
-        const group = groups.find(g => g.id === groupId);
-        const course = round?.course ?? contest.course;
-        if (!group || !Array.isArray(patch)) throw new Error("Invalid reviewed import group or patch");
-        if (contest.status === "completed") throw new Error("Completed scorecards are locked");
-        if (![9, 18].includes(course.holes.length) || course.holes.some(h => !Number.isInteger(h.num) || h.num < 1 || h.num > 18) ||
-            new Set(course.holes.map(h => h.num)).size !== course.holes.length) throw new Error("Course hole mapping requires manual entry");
-
-        const seen = new Set<string>();
-        const cells = patch.map(cell => {
-          if (!cell || typeof cell.playerId !== "string" || !cell.playerId || !Number.isInteger(cell.hole) ||
-              typeof cell.strokes !== "number" || !Number.isSafeInteger(cell.strokes) || cell.strokes < 1 || cell.strokes > 99) {
-            throw new Error("Invalid reviewed import cell");
-          }
-          const playerMatches = group.players.filter(p => p.id === cell.playerId);
-          const holeIndex = course.holes.findIndex(h => h.num === cell.hole);
-          if (playerMatches.length !== 1 || holeIndex < 0) throw new Error("Reviewed import cell is outside the selected group or course");
-          const key = JSON.stringify([cell.playerId, cell.hole]);
-          if (seen.has(key)) throw new Error("Reviewed import patch contains duplicate cells");
-          seen.add(key);
-          const player = playerMatches[0];
-          const existing = player.scores[holeIndex];
-          if (existing !== undefined && existing !== null && existing !== 0 && existing !== cell.strokes) {
-            throw new Error("Reviewed import conflicts with an existing score");
-          }
-          validateScoreWrite(contest, groupId, cell.playerId, holeIndex + 1, cell.strokes);
-          return { playerId: cell.playerId, holeIndex, strokes: cell.strokes };
-        });
-        if (!cells.some(cell => group.players.find(p => p.id === cell.playerId)?.scores[cell.holeIndex] !== cell.strokes)) return;
-
-        const updatedGroups = groups.map(g => g.id !== groupId ? g : ({
-          ...g,
-          players: g.players.map(p => {
-            const changes = cells.filter(cell => cell.playerId === p.id && p.scores[cell.holeIndex] !== cell.strokes);
-            if (!changes.length) return p;
-            const scores = [...p.scores];
-            for (const cell of changes) scores[cell.holeIndex] = cell.strokes;
-            return { ...p, scores };
-          }),
-        }));
-        set(state => ({ contests: state.contests.map(c => c.id !== contestId ? c : round
-          ? { ...c, rounds: c.rounds!.map(r => r.id === round!.id ? { ...r, groups: updatedGroups } : r) }
-          : { ...c, groups: updatedGroups }) }));
-      },
-
-      completeContest: (id) => {
-        let completed: Contest | undefined;
+      completeContest: (id) =>
         set((state) => ({
           contests: state.contests.map((c) =>
-            c.id === id ? (()=>{if(c.gameConfig?.rulesVersion===1 && calculateContestSettlement(c).pending) throw new Error("Confirm every score and required side-game input before completing");completed={...c,status:"completed" as const};return completed;})() : c
+            c.id === id ? (()=>{if(c.gameConfig?.rulesVersion===1 && calculateContestSettlement(c).pending) throw new Error("Confirm every score and required side-game input before completing");return {...c,status:"completed" as const};})() : c
           ),
-        }));
-        // Gap 2 (AUG-744): a finished round must reach Supabase so activation (first_round_finishes)
-        // counts it, even when Live Share was never toggled. Enqueue a one-shot completed snapshot for
-        // an authenticated, non-anonymous owner (same guard as the organize path above). The Live Share
-        // on-path already republishes via the subscribe below when liveShareEnabled, so fill only the
-        // off-path here to avoid a double publish. Offline/RPC failures are swallowed like that path;
-        // local scoring is unaffected.
-        if (!completed || completed.liveShareEnabled) return;
-        const auth = useAuthStore.getState();
-        if (!REAL_AUTH_CONFIGURED || !auth.session || auth.isAnonymous || !/^[0-9a-f-]{36}$/i.test(auth.user?.id || "")) return;
-        const expectedActorId = auth.user?.id ?? auth.remoteUserId ?? null;
-        void import('../services/live-share').then(m => m.publishSnapshot(completed!, expectedActorId)).catch(() => {});
-      },
+        })),
 
       updateAuxiliaryData: (contestId, gameKey, hole, data, groupId) =>
         set((state) => ({
@@ -557,35 +462,6 @@ export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
-/**
- * AUG-1151: rounds for a multi-day contest created in the New Contest wizard.
- * Round 1 uses the configured groups as-is, the same way addRound seeds round 1
- * from contest.groups. Later rounds keep the host's grouping and player IDs, but
- * get fresh group IDs and fresh score arrays, so no two rounds share a group or
- * a score array. addRound puts everyone in one group because it runs mid-event;
- * the wizard instead keeps the grouping the host just set up.
- * Returns undefined for fewer than 2 rounds (a single-round contest is unchanged).
- */
-export function buildTournamentRounds(
-  groups: ContestGroup[],
-  course: Course,
-  roundCount: number,
-  makeId: () => string = generateId,
-): RoundInfo[] | undefined {
-  if (!Number.isInteger(roundCount) || roundCount < 2) return undefined;
-  return Array.from({ length: roundCount }, (_, i) => ({
-    id: makeId(),
-    number: i + 1,
-    name: `Round ${i + 1}`,
-    course,
-    groups: i === 0 ? groups : groups.map((g) => ({
-      ...g,
-      id: makeId(),
-      players: g.players.map((p) => ({ ...p, scores: new Array(course.holes.length).fill(0) })),
-    })),
-  }));
-}
-
 // Default course template (par 72)
 export function defaultCourse(name: string = "My Course"): Course {
   const defaultHoles: HoleInfo[] = [
@@ -657,9 +533,7 @@ export function getTournamentPlayers(contest: Contest): Player[] {
 useContestStore.subscribe((state, previous) => {
   for (const contest of state.contests) {
     if (contest.liveShareEnabled && contest !== previous.contests.find(c => c.id === contest.id)) {
-      const auth = useAuthStore.getState();
-      const expectedActorId = auth.user?.id ?? auth.remoteUserId ?? null;
-      void import('../services/live-share').then(m => m.publishSnapshot(contest, expectedActorId)).catch(() => {
+      void import('../services/live-share').then(m => m.publishSnapshot(contest)).catch(() => {
         // Local scoring remains available. Organizer can retry with Share.
       });
     }

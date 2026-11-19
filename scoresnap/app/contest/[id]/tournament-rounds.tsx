@@ -1,5 +1,3 @@
-import { showAlert } from "@/services/platform-alert";
-import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { useScanStore } from "../../../src/stores/scan-store";
 import { canUseGame, canHostTournament } from "../../../src/services/entitlements";
 import { useState } from "react";
@@ -12,7 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { contestBackHref } from "../../../src/ui/contest-back";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, X, Users, Shuffle, Copy, ChevronRight } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, RADII, FONTS } from "../../../src/ui/theme";
@@ -25,7 +23,7 @@ import {
 } from "../../../src/stores/contest-store";
 
 export default function TournamentRoundsScreen() {
-  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const tier = useScanStore(s => s.tier);
   const contest = useContestStore((s) => s.contests.find((c) => c.id === id));
@@ -82,7 +80,7 @@ export default function TournamentRoundsScreen() {
   const handleCopyPreviousRound = () => {
     if (selectedRound <= 1) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    showAlert(
+    Alert.alert(
       "Copy Previous Round",
       `Copy player pairings from Round ${selectedRound - 1}?`,
       [
@@ -159,7 +157,7 @@ export default function TournamentRoundsScreen() {
     const otherGroups = currentRound.groups.filter((g) => g.id !== fromGroupId);
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    showAlert(
+    Alert.alert(
       player.name,
       `HCP ${player.handicap} · ${player.status || 'Active'}`,
       [
@@ -168,7 +166,7 @@ export default function TournamentRoundsScreen() {
         ...(otherGroups.length > 0 ? [{
           text: "Move to another group",
           onPress: () => {
-            showAlert(
+            Alert.alert(
               `Move ${player.name}`,
               "Select destination group:",
               [
@@ -228,11 +226,11 @@ export default function TournamentRoundsScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCurrentRound(id!, selectedRound);
     updateContest(id!, { currentRound: selectedRound });
-    router.replace(contestBackHref(id!, from) as any);
+    router.back();
   };
 
   return (
-    <SafeScreen
+    <SafeAreaView
       style={{ flex: 1, backgroundColor: COLORS.bg }}
       edges={["top", "bottom"]}
     >
@@ -248,8 +246,7 @@ export default function TournamentRoundsScreen() {
         }}
       >
         <AnimatedPressable
-          testID="round-child-back"
-          onPress={() => router.replace(contestBackHref(id!, from) as any)}
+          onPress={() => router.back()}
           style={{
             padding: 6,
             borderRadius: RADII.sm,
@@ -622,6 +619,6 @@ export default function TournamentRoundsScreen() {
           </AnimatedPressable>
         </View>
       )}
-    </SafeScreen>
+    </SafeAreaView>
   );
 }

@@ -1,11 +1,6 @@
-// Start local settlement invalidation before any score-edit route can mount.
-import "../src/stores/settlement-store";
 import { useContestStore } from "../src/stores/contest-store";
-import { AccountHandoffPanel } from '../src/ui/AccountHandoffPanel';
-import { finishAccountHandoff } from '../src/services/account-handoff';
 import { AppState, Platform } from "react-native";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../src/config/features";
-import { isAppReadyForSession } from "../src/services/onboarding-gate";
 import { REAL_AUTH_CONFIGURED } from "../src/config/auth";
 import { supabase } from "../src/db/supabase";
 import { authLifecycle } from "../src/services/auth-lifecycle";
@@ -26,19 +21,11 @@ import { ErrorBoundary } from "../src/ui/ErrorBoundary";
 import { useOnboardingStore } from "../src/stores/onboarding-store";
 import { useAuthStore } from "../src/stores/auth-store";
 import { initPurchases } from "../src/services/purchases";
-// AUG-817: establish the reversible pro_enabled flag from its build-time source at startup,
-// before any gating runs. Default false keeps SnapScore Pro dormant / all features free.
-import "../src/config/pro-membership";
-import { flushQuickSettleCompletionOutbox } from "../src/services/quick-settle-completion-sync";
 import { COLORS } from "../src/ui/theme";
 import "../global.css";
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { assertNoDefaultPii, assertReplayMask, scrubSentryEvent, sentryReplayMask, sentrySendDefaultPii } from "../src/config/sentry-privacy";
-import { PostHogAppProvider } from "../src/config/posthog";
-import { screenNameFromSegments } from "../src/services/analytics-screen";
-import { webAnalytics } from "../src/services/analytics";
-import { shouldShowAccountHandoff } from "../src/services/account-handoff-screen";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -117,15 +104,7 @@ function useProtectedRoute() {
     const inOnboarding = segments[0] === "onboarding";
     const inAuth = segments[0] === "auth";
 
-    if (CROSS_DEVICE_SHARING_ENABLED && inAuth && (!session || isAnonymous)) return;
-
-    const ready = isAppReadyForSession({
-      hasCompletedOnboarding,
-      crossDeviceSharingEnabled: CROSS_DEVICE_SHARING_ENABLED,
-      hasSession: !!session,
-      isAnonymous,
-      remoteUserId,
-    });
+    const ready = hasCompletedOnboarding || (CROSS_DEVICE_SHARING_ENABLED && isAnonymous && !!remoteUserId);
     if (!ready && !inOnboarding) {
       router.replace("/onboarding");
     } else if (ready && !session && !inAuth && !OFFLINE_MODE) {
@@ -152,12 +131,11 @@ export default Sentry.wrap(function RootLayout() {
     if (!CROSS_DEVICE_SHARING_ENABLED || !REAL_AUTH_CONFIGURED) return;
     const report = () => useOnlineStore.setState({ error: "Online sync paused. Your queued scores remain on this device." });
     let polling: ReturnType<typeof foregroundSync> | undefined;
-    const refreshOnline = rootRefresh(async () => {
+    const refresh = rootRefresh(async () => {
       const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
       return data.session?.user.id ?? null;
     }, () => Object.entries(useOnlineStore.getState().events).filter(([, e]) => e.membership.role === 'host').map(([id]) => id), client, replayOnlineScores);
-    const refresh = async () => { await finishAccountHandoff(); return refreshOnline(); };
     const lifecycle = authLifecycle(supabase.auth, initialize, report);
     const change = (state: string) => {
       polling?.stop(); polling = undefined;
@@ -166,21 +144,15 @@ export default Sentry.wrap(function RootLayout() {
     };
     const subscription = AppState.addEventListener("change", change);
     let actor: string | null | undefined;
-    let signInRefresh: ReturnType<typeof setTimeout> | undefined;
     const auth = supabase.auth.onAuthStateChange((_event, session) => {
       const next = session?.user.id ?? null;
-      if (actor !== next) {
-        client.invalidate(); useOnlineStore.getState().reset();
-        if (signInRefresh) clearTimeout(signInRefresh);
-        // Leave Supabase's auth callback before asking it for the current session.
-        if (next) signInRefresh = setTimeout(() => { void refresh().catch(report); }, 0);
-      }
+      if (actor !== next) { client.invalidate(); useOnlineStore.getState().reset(); }
       actor = next;
     }).data.subscription;
     const online = () => { if (AppState.currentState === "active") void refresh().catch(report); };
     if (Platform.OS === "web") globalThis.addEventListener?.("online", online);
     change(AppState.currentState ?? "active");
-    return () => { if (signInRefresh) clearTimeout(signInRefresh); subscription.remove(); auth.unsubscribe(); if (Platform.OS === "web") globalThis.removeEventListener?.("online", online); polling?.stop(); lifecycle.stop(); };
+    return () => { subscription.remove(); auth.unsubscribe(); if (Platform.OS === "web") globalThis.removeEventListener?.("online", online); polling?.stop(); lifecycle.stop(); };
   }, [initialize]);
 
 
@@ -196,7 +168,6 @@ export default Sentry.wrap(function RootLayout() {
 
   useEffect(() => {
     initialize().catch((e) => Sentry.captureException(e, { tags: { init: "auth" } }));
-    flushQuickSettleCompletionOutbox().catch((e) => Sentry.captureException(e, { tags: { init: "quick-settle-outbox" } }));
     initPurchases().catch((e) => Sentry.captureException(e, { tags: { init: "purchases" } }));
     const t = setTimeout(() => setHydrated(true), 100);
     return () => clearTimeout(t);
@@ -229,27 +200,12 @@ export default Sentry.wrap(function RootLayout() {
 
 function RootLayoutNav() {
   useProtectedRoute();
-  const segments = useSegments();
-  const reportedAppOpen = useRef(false);
-  const screenName = screenNameFromSegments(segments);
-
-  useEffect(() => {
-    if (Platform.OS !== "web" || reportedAppOpen.current) return;
-    reportedAppOpen.current = true;
-    void webAnalytics.capture("app_opened");
-  }, []);
-
-  useEffect(() => {
-    if (Platform.OS === "web") void webAnalytics.capture("screen_viewed", { screen_name: screenName });
-  }, [screenName]);
 
   return (
-    <PostHogAppProvider>
-      <ErrorBoundary>
-        <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+    <ErrorBoundary>
+      <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
         <StatusBar style="dark" />
         {CAPTCHA_MODE !== "off" && <TurnstileHost />}
-        {CROSS_DEVICE_SHARING_ENABLED && shouldShowAccountHandoff(segments) && <AccountHandoffPanel />}
         <Stack
           screenOptions={{
             headerShown: false,
@@ -293,8 +249,7 @@ function RootLayoutNav() {
             }}
           />
         </Stack>
-        </View>
-      </ErrorBoundary>
-    </PostHogAppProvider>
+      </View>
+    </ErrorBoundary>
   );
 }

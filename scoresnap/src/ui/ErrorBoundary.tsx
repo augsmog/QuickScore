@@ -1,4 +1,3 @@
-import { SafeScreen } from "./SafeScreen";
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { AlertTriangle, RotateCcw } from "lucide-react-native";
@@ -38,7 +37,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <SafeScreen
+        <View
           style={{
             flex: 1,
             backgroundColor: COLORS.bg,
@@ -128,7 +127,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
               Try Again
             </Text>
           </Pressable>
-        </SafeScreen>
+        </View>
       );
     }
 

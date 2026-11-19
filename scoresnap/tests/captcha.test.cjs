@@ -9,7 +9,6 @@ function load(file, imports, globals = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   vm.runInNewContext(source, { exports, require(name) {
-    if (name.endsWith("/ui/SafeScreen")) return { SheetSurface: "View", FullScreenSheet: "Modal" };
     if (!(name in imports)) throw new Error(`Unexpected import ${name}`);
     return imports[name];
   }, setTimeout, clearTimeout, Date, console, URL, ...globals }, { filename });
@@ -24,7 +23,7 @@ function auth(captcha, real = true) {
   const api = { signUp: jest.fn().mockResolvedValue(response), signInWithPassword: jest.fn().mockResolvedValue(response) };
   const create = () => initializer => {
     state = initializer(patch => Object.assign(state, patch), () => state);
-    return { getState: () => state, subscribe: () => () => {} };
+    return { getState: () => state };
   };
   load('src/stores/auth-store.ts', {
     '../services/purchases': { identifyUser: async () => {}, logOutPurchases: async () => {} },
@@ -32,8 +31,6 @@ function auth(captcha, real = true) {
     '@react-native-async-storage/async-storage': {}, '../config/auth': { REAL_AUTH_CONFIGURED: real },
     '../config/features': { CROSS_DEVICE_SHARING_ENABLED: false },
     '../services/auth-session': load('src/services/auth-session.ts', {}),
-    '../config/posthog': { posthog: null },
-    '../services/posthog-identity': { identifyAnonymousOnly: () => 'anonymous-test-id' },
     '../db/supabase': { supabase: { auth: api } }, '../services/captcha': captcha,
     './persisted-keys': {
       AUTH_STORAGE_KEY: 'snapscore-auth',
@@ -359,12 +356,10 @@ function restoredAuth(sourceFile = process.env.M4A_AUTH_BASELINE || 'src/stores/
   const store = load(sourceFile, {
     '../services/purchases': purchases,
     './persisted-keys': keys,
-    zustand: { create: () => initializer => { state = initializer(p => { Object.assign(state, p); if (!keys.persistGate.suppressed) writes.push(p); }, () => state); return {getState: () => state, subscribe: () => () => {}}; } },
+    zustand: { create: () => initializer => { state = initializer(p => { Object.assign(state, p); if (!keys.persistGate.suppressed) writes.push(p); }, () => state); return {getState: () => state}; } },
     'zustand/middleware': {persist: fn => fn, createJSONStorage: () => ({})},
     '@react-native-async-storage/async-storage': {},
     '../config/auth': {REAL_AUTH_CONFIGURED: true}, '../config/features': {CROSS_DEVICE_SHARING_ENABLED: true},
-    '../config/posthog': { posthog: null },
-    '../services/posthog-identity': { identifyAnonymousOnly: () => 'anonymous-test-id' },
     '../services/auth-session': load('src/services/auth-session.ts', {}),
     '../db/supabase': {supabase: {auth: {getSession: async () => ({data: {session}, error: null}), onAuthStateChange: cb => {listener = cb; return {data: {subscription: {unsubscribe: () => unsubscribed++}}};}}}},
     '../services/captcha': {},

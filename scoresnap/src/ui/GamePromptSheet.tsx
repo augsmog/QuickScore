@@ -1,9 +1,9 @@
-import { SheetSurface, FullScreenSheet } from "./SafeScreen";
 import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
   Pressable,
+  Modal,
   ScrollView,
   Dimensions,
 } from "react-native";
@@ -172,7 +172,7 @@ function SkipLink({ onPress }: { onPress: () => void }) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onPress();
       }}
-      style={{ minHeight: 44, alignItems: "center", justifyContent: "center", marginTop: 4 }}
+      style={{ alignItems: "center", paddingVertical: 12, marginTop: 4 }}
     >
       <Text
         style={{
@@ -750,21 +750,20 @@ export function GamePromptSheet({
   };
 
   return (
-    <FullScreenSheet
+    <Modal
       visible={visible}
       animationType="slide"
       transparent
       onRequestClose={onClose}
     >
-      <View testID="game-prompt-scrim" style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" }}>
+      <View style={{ flex: 1, justifyContent: "flex-end" }}>
         {/* Backdrop */}
         <Pressable
-          testID="game-prompt-backdrop"
-          style={{ flex: 1 }}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)" }}
           onPress={onClose}
         />
         {/* Sheet */}
-        <SheetSurface testID="game-prompt-sheet"
+        <View
           style={{
             backgroundColor: COLORS.surfaceMid,
             borderTopLeftRadius: RADII.xl,
@@ -782,9 +781,9 @@ export function GamePromptSheet({
           >
             {renderContent()}
           </ScrollView>
-        </SheetSurface>
+        </View>
       </View>
-    </FullScreenSheet>
+    </Modal>
   );
 }
 

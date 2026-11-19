@@ -1,5 +1,3 @@
-import { showAlert } from "@/services/platform-alert";
-import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { useScanStore } from "../../../src/stores/scan-store";
 import { canUseGame, canHostTournament } from "../../../src/services/entitlements";
 import { useState, useMemo } from "react";
@@ -13,7 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { contestBackHref } from "../../../src/ui/contest-back";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, Minus, X, Check } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, RADII } from "../../../src/ui/theme";
@@ -27,7 +25,7 @@ import { ALL_GAMES, GameType, isGameImplemented } from "../../../src/engine/type
 const BET_UNITS = [1, 2, 5, 10, 20];
 
 export default function EditContestScreen() {
-  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const tier = useScanStore(s => s.tier);
   const contest = useContestStore((s) =>
@@ -57,7 +55,7 @@ export default function EditContestScreen() {
 
   if (!contest) {
     return (
-      <SafeScreen
+      <SafeAreaView
         style={{ flex: 1, backgroundColor: COLORS.bg }}
         edges={["top"]}
       >
@@ -72,7 +70,7 @@ export default function EditContestScreen() {
             Contest not found.
           </Text>
         </View>
-      </SafeScreen>
+      </SafeAreaView>
     );
   }
 
@@ -150,16 +148,16 @@ export default function EditContestScreen() {
       groups: updatedGroups,
       games: enabledGames,
       betUnit,
-    }); } catch(error){showAlert("Review contest changes",String(error));return;}
+    }); } catch(error){Alert.alert("Review contest changes",String(error));return;}
 
-    router.replace(contestBackHref(id!, from) as any);
+    router.back();
   };
 
   // Saved premium games remain readable; only adding a game requires Pro.
   const contestGameInfos = ALL_GAMES.filter(g => isGameImplemented(g.id) || contest.games.includes(g.id));
 
   return (
-    <SafeScreen
+    <SafeAreaView
       style={{ flex: 1, backgroundColor: COLORS.bg }}
       edges={["top", "bottom"]}
     >
@@ -179,8 +177,7 @@ export default function EditContestScreen() {
           }}
         >
           <AnimatedPressable
-            testID="round-child-back"
-            onPress={() => router.replace(contestBackHref(id!, from) as any)}
+            onPress={() => router.back()}
             style={{
               padding: 6,
               borderRadius: RADII.sm,
@@ -509,6 +506,6 @@ export default function EditContestScreen() {
           </AnimatedPressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeScreen>
+    </SafeAreaView>
   );
 }

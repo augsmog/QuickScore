@@ -12,7 +12,6 @@ import { resetOnlineQueues, replayOnlineScores, remoteIdentity, queueSnapshotSco
 import { CROSS_DEVICE_SHARING_ENABLED } from '../config/features';
 import { REAL_AUTH_CONFIGURED } from '../config/auth';
 import { supabase } from '../db/supabase';
-import { useContestStore } from '../stores/contest-store';
 import type { Contest, ContestGroup, RoundInfo } from '../stores/contest-store';
 import {
   emptyOutbox,
@@ -81,7 +80,7 @@ export async function syncRound(contestId: string, round: RoundInfo): Promise<vo
   if (!current(epoch)) return;
   const { data, error } = await supabase.rpc('sync_round_bundle', {
     contest_id: contestId,
-    payload: roundPayload(round, useContestStore.getState().contests.find(c => c.id === contestId)),
+    payload: roundPayload(round),
   });
   if (!current(epoch)) return;
   if (error || !data?.round_id) throw new Error(error?.message || 'Failed to sync round.');

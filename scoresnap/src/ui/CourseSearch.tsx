@@ -1,4 +1,3 @@
-import { SheetSurface, FullScreenSheet } from "./SafeScreen";
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
@@ -8,6 +7,7 @@ import {
   ActivityIndicator,
   FlatList,
   ScrollView,
+  Modal,
   Platform,
   Keyboard,
   Linking,
@@ -255,17 +255,17 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
       </Pressable>
 
       {/* Search Modal */}
-      <FullScreenSheet
+      <Modal
         visible={showModal}
         animationType="slide"
         transparent
         onRequestClose={() => setShowModal(false)}
       >
-        <View testID="course-search-scrim" style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" }}>
-          <Pressable style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setShowModal(false)} />
-          <SheetSurface testID="course-search-sheet"
+        <View style={{ flex: 1, justifyContent: "flex-end" }}>
+          <Pressable style={{ flex: 0.15 }} onPress={() => setShowModal(false)} />
+          <View
             style={{
-              height: "85%",
+              flex: 0.85,
               backgroundColor: COLORS.bg,
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
@@ -405,7 +405,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                   keyboardDismissMode="on-drag"
                   contentContainerStyle={{
                     paddingHorizontal: 20,
-                    paddingBottom: selectedTee ? 88 : 40,
+                    paddingBottom: 40,
                   }}
                   ListEmptyComponent={
                     query.length >= 3 && !loading ? (
@@ -441,7 +441,6 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                   }
                   renderItem={({ item }) => (
                     <Pressable
-                      testID="course-search-result"
                       onPress={() => handleSelectCourse(item)}
                       style={{
                         flexDirection: "row",
@@ -521,10 +520,9 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
               </View>
             ) : (
               /* ── Tee Box Selection View ── */
-              <View style={{ flex: 1 }}>
               <ScrollView
                 style={{ flex: 1 }}
-                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: selectedTee ? 88 : 40 }}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
                 nestedScrollEnabled
                 keyboardShouldPersistTaps="handled"
               >
@@ -574,7 +572,6 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                     return (
                       <Pressable
                         key={ti}
-                        testID={ti === selectedCourse.teeBoxes.length - 1 ? "course-tee-last" : "course-tee-row"}
                         onPress={() => setSelectedTee(tee)}
                         style={{
                           flexDirection: "row",
@@ -645,6 +642,25 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                   </View>
                 )}
 
+                {/* Confirm */}
+                <Pressable
+                  onPress={handleConfirmTee}
+                  style={{
+                    backgroundColor: COLORS.accent,
+                    borderRadius: 14,
+                    paddingVertical: 14,
+                    alignItems: "center",
+                    marginTop: 12,
+                  }}
+                >
+                  <Text
+                    style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 15 }}
+                  >
+                    {selectedTee && teeBoxToCourse(selectedCourse.name, selectedTee)
+                      ? `Select ${selectedTee.name} Tees`
+                      : `Use ${selectedCourse.name}`}
+                  </Text>
+                </Pressable>
 
                 <Pressable
                   onPress={() => {
@@ -662,30 +678,10 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
                   </Text>
                 </Pressable>
               </ScrollView>
-              {selectedTee && <View style={{ paddingHorizontal: 20, paddingBottom: 12, backgroundColor: COLORS.bg }}>
-                <Pressable testID="confirm-tees"
-                  onPress={handleConfirmTee}
-                  style={{
-                    backgroundColor: COLORS.accent,
-                    borderRadius: 14,
-                    paddingVertical: 14,
-                    alignItems: "center",
-                    marginTop: 12,
-                  }}
-                >
-                  <Text
-                    style={{ color: COLORS.onPrimary, fontWeight: "700", fontSize: 15 }}
-                  >
-                    Confirm tees
-                  </Text>
-                </Pressable>
-
-              </View>}
-              </View>
             )}
-          </SheetSurface>
+          </View>
         </View>
-      </FullScreenSheet>
+      </Modal>
     </View>
   );
 }
