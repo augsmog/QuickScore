@@ -32,9 +32,9 @@ export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
   const modeChipWidth = Math.max(44, (width - 48) / 2);
   const insets = useSafeAreaInsets();
-  // Match the Tabs navigator's own tabBarStyle height exactly (tab-bar-metrics.ts):
-  // useBottomTabBarHeight() can under-report on web before the absolute-positioned
-  // bar's onLayout settles, letting scroll content paint underneath it.
+  // Match the Tabs navigator's own tabBarStyle height exactly (tab-bar-metrics.ts).
+  // The bottom-tabs package's own height hook can under-report on web before the
+  // absolute-positioned bar's onLayout settles, letting scroll content paint underneath it.
   const bottomTabBarHeight = tabBarHeight(insets.bottom);
   const tier = useScanStore(s => s.tier);
   const storedContests = useContestStore((s) => s.contests);
