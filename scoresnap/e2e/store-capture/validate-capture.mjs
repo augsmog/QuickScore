@@ -1,5 +1,5 @@
 // Static validation of the eight-frame x two-target store capture config + output manifest (AUG-1279). No device, network or ASC access.
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import zlib from 'node:zlib';
 import { join } from 'node:path';
@@ -187,38 +187,66 @@ export function validateManifest(m, c = loadConfig(), accepted = loadAcceptedRel
   return errs;
 }
 
-// PNG dimension decode by walking the real chunk stream, not just sniffing the signature + IHDR
-// tag: a signature plus a 24-byte IHDR header with no CRC, no IDAT pixel data and no IEND
-// terminator is not a decodable image, it is a crafted header that happens to pass a byte-offset
-// check. Every chunk's declared length must fit the remaining buffer (no claiming data that isn't
-// there) and its CRC-32 (over type+data, the same algorithm PNG itself specifies) must match the
-// declared CRC, so a truncated or hand-edited chunk is rejected rather than silently accepted.
+// Capture PNGs support non-interlaced 8-bit RGB/RGBA only. Other modes fail closed
+// rather than claiming dimensions without establishing that the pixels are decodable.
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const MAX_PNG_BYTES = 64 * 1024 * 1024;
+const MAX_PIXEL_BYTES = 128 * 1024 * 1024;
+const MAX_DIMENSION = 8192;
 export function decodePngDimensions(buf) {
-  if (buf.length < 8 || !buf.subarray(0, 8).equals(PNG_SIGNATURE)) return null;
+  if (buf.length < 8 || buf.length > MAX_PNG_BYTES || !buf.subarray(0, 8).equals(PNG_SIGNATURE)) return null;
   let offset = 8;
   let ihdr = null;
-  let sawIDAT = false;
+  let stride = 0;
+  let expectedBytes = 0;
+  const idat = [];
+  let dataEnded = false;
+  let sawPalette = false;
+  let chunks = 0;
   while (offset < buf.length) {
-    if (offset + 12 > buf.length) return null;
+    if (++chunks > 4096 || offset + 12 > buf.length) return null;
     const length = buf.readUInt32BE(offset);
-    const type = buf.toString('ascii', offset + 4, offset + 8);
+    const type = buf.toString('latin1', offset + 4, offset + 8);
+    if (!/^[A-Za-z]{2}[A-Z][A-Za-z]$/.test(type)) return null;
     const dataStart = offset + 8;
     const dataEnd = dataStart + length;
     const crcEnd = dataEnd + 4;
-    if (dataEnd > buf.length || crcEnd > buf.length) return null;
-    const declaredCrc = buf.readUInt32BE(dataEnd);
-    const actualCrc = zlib.crc32(buf.subarray(offset + 4, dataEnd));
-    if (actualCrc !== declaredCrc) return null;
+    if (crcEnd > buf.length) return null;
+    if (zlib.crc32(buf.subarray(offset + 4, dataEnd)) !== buf.readUInt32BE(dataEnd)) return null;
+    if (!ihdr && type !== 'IHDR') return null;
     if (type === 'IHDR') {
       if (ihdr || length !== 13) return null;
-      ihdr = { width: buf.readUInt32BE(dataStart), height: buf.readUInt32BE(dataStart + 4) };
+      const width = buf.readUInt32BE(dataStart), height = buf.readUInt32BE(dataStart + 4);
+      const depth = buf[dataStart + 8], color = buf[dataStart + 9];
+      if (!width || !height || width > MAX_DIMENSION || height > MAX_DIMENSION) return null;
+      if (depth !== 8 || ![2, 6].includes(color) || buf[dataStart + 10] !== 0 ||
+          buf[dataStart + 11] !== 0 || buf[dataStart + 12] !== 0) return null;
+      stride = width * (color === 6 ? 4 : 3) + 1;
+      expectedBytes = stride * height;
+      if (expectedBytes > MAX_PIXEL_BYTES) return null;
+      ihdr = { width, height };
+    } else if (type === 'PLTE') {
+      if (sawPalette || idat.length || !length || length > 768 || length % 3 !== 0) return null;
+      sawPalette = true;
     } else if (type === 'IDAT') {
-      if (!ihdr || length === 0) return null;
-      sawIDAT = true;
+      if (dataEnded) return null;
+      idat.push(buf.subarray(dataStart, dataEnd));
     } else if (type === 'IEND') {
-      if (!ihdr || !sawIDAT) return null;
-      return ihdr;
+      if (!idat.length || length !== 0 || crcEnd !== buf.length) return null;
+      try {
+        const compressed = Buffer.concat(idat);
+        // maxOutputLength bounds allocation even for a hostile compression bomb. info
+        // exposes consumed input so extra streams/garbage cannot hide behind valid pixels.
+        const decoded = zlib.inflateSync(compressed, { maxOutputLength: expectedBytes, info: true });
+        if (decoded.engine.bytesWritten !== compressed.length || decoded.buffer.length !== expectedBytes) return null;
+        // For RGB/RGBA every byte value is a valid sample. With complete row lengths
+        // and filter types 0..4, inverse filtering is defined for every pixel byte.
+        for (let row = 0; row < ihdr.height; row++) if (decoded.buffer[row * stride] > 4) return null;
+        return ihdr;
+      } catch { return null; }
+    } else {
+      if (type[0] === type[0].toUpperCase()) return null; // unknown critical chunk
+      if (idat.length) dataEnded = true;
     }
     offset = crcEnd;
   }
@@ -237,6 +265,8 @@ export function validateManifestFiles(m, baseDir) {
   for (const e of m?.entries ?? []) {
     const p = join(baseDir, e.file);
     if (!existsSync(p)) { errs.push(`entry ${e.target}/${e.frame}: file not found at ${p}`); continue; }
+    // Refuse oversized files before loading bytes or hashing/inflating them.
+    if (statSync(p).size > MAX_PNG_BYTES) { errs.push(`entry ${e.target}/${e.frame}: PNG exceeds byte limit`); continue; }
     const bytes = readFileSync(p);
     const actual = createHash('sha256').update(bytes).digest('hex');
     if (actual !== e.sha256) { errs.push(`entry ${e.target}/${e.frame}: sha256 mismatch (declared ${e.sha256}, actual ${actual})`); continue; }

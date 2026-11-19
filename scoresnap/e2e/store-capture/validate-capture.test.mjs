@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, truncateSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -27,18 +27,18 @@ function pngChunk(type, data) {
   crcBuf.writeUInt32BE(zlib.crc32(Buffer.concat([typeBuf, data])), 0);
   return Buffer.concat([lenBuf, typeBuf, data, crcBuf]);
 }
-// A structurally real PNG: signature + IHDR (correct length/CRC) + a non-empty IDAT + IEND, each
-// chunk's CRC-32 computed the same way the decoder verifies it. Pixel bytes are stubbed (this is
-// a fixture, not a renderer) but the chunk structure itself is genuine, not just header-shaped.
-function fakePng(width, height) {
+// Synthetic, genuinely decodable non-interlaced 8-bit RGBA pixels; no creative asset.
+function fakePng(width, height, options = {}) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  ihdr[8] = options.depth ?? 8; ihdr[9] = options.color ?? 6; ihdr[10] = options.compression ?? 0; ihdr[11] = options.filterMethod ?? 0; ihdr[12] = options.interlace ?? 0;
+  const raw = options.raw ?? Buffer.alloc((width * 4 + 1) * height);
+  if (options.marker) raw[1] = options.marker;
   return Buffer.concat([
     PNG_SIGNATURE,
     pngChunk('IHDR', ihdr),
-    pngChunk('IDAT', Buffer.from('stub-pixel-data')),
+    pngChunk('IDAT', options.idat ?? zlib.deflateSync(raw)),
     pngChunk('IEND', Buffer.alloc(0)),
   ]);
 }
@@ -226,4 +226,94 @@ test('validateOverlayBinding binds staged overlay paths/digests per frame', () =
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// These CRC-valid containers passed the previous header/chunk-only decoder.
+test('PNG decoder rejects corrupt compressed pixels and wrong decoded length', () => {
+  for (const options of [
+    { idat: Buffer.from('not-a-zlib-stream') },
+    { raw: Buffer.alloc(5) },
+    { raw: Buffer.alloc(2 * (2 * 4 + 1) + 1) },
+    { raw: Buffer.alloc(2 * (2 * 4 + 1), 5) },
+    { idat: Buffer.concat([zlib.deflateSync(Buffer.alloc(18)), Buffer.from('trailing')]) },
+  ]) assert.equal(decodePngDimensions(fakePng(2, 2, options)), null);
+  assert.equal(decodePngDimensions(fakePng(1320, 2868, { raw: Buffer.alloc(5) })), null);
+});
+
+test('PNG decoder rejects unsupported modes and unsafe dimensions before decoding', () => {
+  for (const options of [
+    { depth: 16 }, { color: 3 }, { color: 0 }, { color: 5 },
+    { compression: 1 }, { filterMethod: 1 }, { interlace: 1 },
+  ]) assert.equal(decodePngDimensions(fakePng(1, 1, options)), null);
+  for (const [w, h] of [[0, 1], [1, 0], [0xffffffff, 1], [8192, 8192]])
+    assert.equal(decodePngDimensions(fakePng(w, h, { raw: Buffer.alloc(5) })), null);
+  // Expands far beyond the one pixel declared: maxOutputLength must bound inflation.
+  assert.equal(decodePngDimensions(fakePng(1, 1, { raw: Buffer.alloc(1024 * 1024) })), null);
+});
+
+test('PNG decoder enforces chunk ordering and terminal structure', () => {
+  const p = fakePng(1, 1);
+  const header = p.subarray(8, 33), data = p.subarray(33, -12), end = p.subarray(-12);
+  const joinChunks = (...chunks) => Buffer.concat([PNG_SIGNATURE, ...chunks]);
+  for (const bytes of [
+    joinChunks(data, header, end),
+    joinChunks(header, data, pngChunk('IEND', Buffer.from('x'))),
+    Buffer.concat([p, Buffer.from('trailing')]),
+    joinChunks(header, pngChunk('ABCD', Buffer.alloc(0)), data, end),
+    joinChunks(header, data, pngChunk('tEXt', Buffer.from('x')), data, end),
+    joinChunks(header, data, pngChunk('PLTE', Buffer.from([0, 0, 0])), end),
+    joinChunks(header, pngChunk('PLTE', Buffer.from([0])), data, end),
+  ]) assert.equal(decodePngDimensions(bytes), null);
+  assert.deepEqual(decodePngDimensions(p), { width: 1, height: 1 });
+});
+
+test('manifest pipeline rejects all sixteen CRC-valid corrupt IDAT files and accepts real pixels', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'aug1303-pixels-'));
+  try {
+    for (const mode of ['corrupt', 'short', 'valid']) {
+      const m = goodManifest();
+      m.entries.forEach((e, i) => {
+        const options = mode === 'corrupt' ? { idat: Buffer.from(`not-a-zlib-stream-${e.target}-${e.frame}`) }
+          : mode === 'short' ? { raw: Buffer.from([0, i, 0, 0, 0]) } : { marker: i + 1 };
+        const bytes = fakePng(e.width, e.height, options);
+        writeFileSync(join(dir, e.file), bytes);
+        e.sha256 = createHash('sha256').update(bytes).digest('hex');
+      });
+      // Metadata is intentionally valid; file validation must still fail closed.
+      assert.deepEqual(validateManifestAccepted(m), []);
+      const errors = validateManifestFiles(m, dir);
+      if (mode === 'valid') assert.deepEqual(errors, []);
+      else assert.equal(errors.filter(e => e.includes('is not a PNG')).length, 16);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('PNG decoder accepts supported RGB/RGBA filters and contiguous split IDAT', () => {
+  for (const color of [2, 6]) for (let filter = 0; filter <= 4; filter++) {
+    const row = Buffer.alloc((color === 6 ? 4 : 3) + 1, 123);
+    row[0] = filter;
+    const p = fakePng(1, 1, { color, raw: row });
+    assert.deepEqual(decodePngDimensions(p), { width: 1, height: 1 });
+    const compressed = zlib.deflateSync(row);
+    const split = Buffer.concat([p.subarray(0, 33),
+      pngChunk('IDAT', compressed.subarray(0, 3)), pngChunk('IDAT', Buffer.alloc(0)),
+      pngChunk('IDAT', compressed.subarray(3)), p.subarray(-12)]);
+    assert.deepEqual(decodePngDimensions(split), { width: 1, height: 1 });
+  }
+});
+
+test('PNG decoder bounds compressed input, chunk count and on-disk reads', () => {
+  const tooLarge = Buffer.alloc(64 * 1024 * 1024 + 1);
+  PNG_SIGNATURE.copy(tooLarge);
+  assert.equal(decodePngDimensions(tooLarge), null);
+  const p = fakePng(1, 1);
+  assert.equal(decodePngDimensions(Buffer.concat([p.subarray(0, 33),
+    ...Array.from({ length: 4096 }, () => pngChunk('teSt', Buffer.alloc(0))), p.subarray(33)])), null);
+  const dir = mkdtempSync(join(tmpdir(), 'aug1303-limit-'));
+  try {
+    const file = join(dir, 'oversized.png');
+    writeFileSync(file, Buffer.alloc(0));
+    truncateSync(file, tooLarge.length); // sparse, no large disk output
+    assert.match(validateManifestFiles({ entries: [{ file: 'oversized.png' }] }, dir)[0], /byte limit/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
