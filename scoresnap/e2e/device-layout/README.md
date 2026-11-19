@@ -81,3 +81,25 @@ sets repo variable `DEVICE_LAYOUT_NATIVE=true`; iOS rows land on the Mac mini ru
 `config/device-layout.config.json` is a `device-layout/v1` instance. The same geometry engine +
 vision rubric + waiver format are reused across stacks via per-stack adapters (Maestro here;
 Godot `Control`-tree adapter for LRD, RN/Expo for the parents' game) — tracked by **AUG-1381**.
+
+## Native evidence contract (AUG-1376 harness must satisfy this)
+
+Added after the Codex astra/high check on `7116885` (three findings, all fixed):
+
+1. **Paths.** `scripts/run-android-compact.sh` / `scripts/run-ios-sim.sh` resolve everything from the
+   module dir (`$DL`) and repo root (`$ROOT`); `lib/native-scripts.test.mjs` runs the real scripts
+   against a stub repo to prove it.
+2. **Candidate-bound, complete bundles.** The harness provides `scripts/build-android.sh`,
+   `scripts/build-ios-sim.sh` and `scripts/bundle-from-maestro.mjs <maestro-debug-dir> --platform
+   <ios|android> --profile <id> --source-sha <sha> --out <bundle.json>`. A bundle carries
+   `sourceSha, buildHash, profile, platform` and, per checkpoint, `flow, checkpoint, deviceId
+   (== profile), platform, nodes[] (non-empty), screenshot (relative path), screenshotSha256`.
+   `run-geometry.mjs --expect-sha <checked-out sha> --profile <id>` fails on missing metadata, empty
+   node trees, stale SHA, or any omitted checkpoint of the per-PR flows in `config` (rule 8).
+3. **Candidate vision.** The `vision-candidate` job (Mac runner) downloads every native bundle and
+   runs `run-vision.mjs --candidate`: a fresh live self-check on the owner negative fixtures with
+   the same reviewer, then a sha256-bound review of every candidate screenshot (verdict pass, no
+   major finding, bound to sourceSha/buildHash/flow/checkpoint). The reviewer is
+   `DEVICE_LAYOUT_VISION_CMD`, configured runner-side, batch contract `cmd <manifest.json>` -> JSON array of reviews (reference: `scripts/review-codex.sh`, Codex
+   gpt-6-astra/high; never Grok). Unset or failing reviewer => FAIL. The aggregate
+   `device-layout-gate` requires `vision-candidate` success whenever native evidence is required.

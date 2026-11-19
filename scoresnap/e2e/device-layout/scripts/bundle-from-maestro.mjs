@@ -22,6 +22,7 @@
 // Covered by lib/bundle-from-maestro.test.mjs (node --test).
 
 import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { normalizeMaestroHierarchy } from '../lib/normalize-maestro.mjs';
@@ -151,11 +152,14 @@ export function loadCaptureManifest(input) {
   return { manifest, dir };
 }
 
-export function buildBundle({ manifest, dir }, { platform, profileId, config, now = new Date() }) {
+export function buildBundle({ manifest, dir }, { platform, profileId, config, sourceSha, now = new Date() }) {
   const profile = profileById(config, profileId || manifest.profile);
   if (platform && profile.platform !== platform) {
     throw new Error(`profile "${profile.id}" is ${profile.platform}, but --platform ${platform} was requested`);
   }
+  // Candidate SHA: an explicit --source-sha (checked-out HEAD) wins over the captured manifest's,
+  // so the bundle is always bound to the SHA the orchestrator is gating.
+  const resolvedSourceSha = sourceSha || manifest.sourceSha || null;
   // Prefer a measured device density (Android `wm density`/160); else the profile's nominal density.
   const density = manifest.density != null ? manifest.density : densityFor(profile);
   const viewportOverride = manifest.viewport && typeof manifest.viewport === 'object' ? manifest.viewport : null;
@@ -173,6 +177,15 @@ export function buildBundle({ manifest, dir }, { platform, profileId, config, no
       scrollState: cp.scrollState ?? null,
     });
     const context = contextForCheckpoint(profile, cp, nodes, { viewport: viewportOverride });
+    // Bind the checkpoint to its screenshot by sha256 (the vision-candidate job rejects a stale or
+    // swapped artifact). The path stays relative to the bundle dir so the reviewer resolves it.
+    let screenshot = cp.screenshot || null;
+    let screenshotSha256 = null;
+    if (screenshot) {
+      const shotPath = resolve(dir, screenshot);
+      if (existsSync(shotPath)) screenshotSha256 = createHash('sha256').update(readFileSync(shotPath)).digest('hex');
+      else screenshot = null; // never reference a screenshot that is not on disk
+    }
     checkpoints.push({
       flow: cp.flow || manifest.flow,
       checkpoint: cp.checkpoint,
@@ -180,7 +193,8 @@ export function buildBundle({ manifest, dir }, { platform, profileId, config, no
       deviceId: profile.id,
       state: cp.state || 'default',
       platform: profile.platform,
-      screenshot: cp.screenshot || null,
+      screenshot,
+      screenshotSha256,
       context,
       nodes,
     });
@@ -188,7 +202,7 @@ export function buildBundle({ manifest, dir }, { platform, profileId, config, no
   return {
     schema: 'device-layout/v1',
     product: config.product,
-    sourceSha: manifest.sourceSha || null,
+    sourceSha: resolvedSourceSha,
     buildHash: manifest.buildHash || null,
     device: profile.name,
     profile: profile.id,
@@ -207,16 +221,17 @@ function flag(args, name) {
 function main() {
   const args = process.argv.slice(2);
   if (args.length === 0 || args.includes('--help')) {
-    console.error('usage: node bundle-from-maestro.mjs <captureDir|capture-manifest.json> --platform <ios|android> --profile <id> --out <bundle.json>');
+    console.error('usage: node bundle-from-maestro.mjs <captureDir|capture-manifest.json> --platform <ios|android> --profile <id> --source-sha <sha> --out <bundle.json>');
     process.exit(2);
   }
   const input = args[0];
   const platform = flag(args, '--platform');
   const profileId = flag(args, '--profile');
+  const sourceSha = flag(args, '--source-sha');
   const outPath = flag(args, '--out');
   const config = JSON.parse(readFileSync(CONFIG_PATH, 'utf8'));
   const cap = loadCaptureManifest(input);
-  const bundle = buildBundle(cap, { platform, profileId, config });
+  const bundle = buildBundle(cap, { platform, profileId, sourceSha, config });
   if (bundle.checkpoints.length === 0) {
     console.error('FAIL: capture produced no checkpoints (missing flow evidence)');
     process.exit(1);

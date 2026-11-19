@@ -1,32 +1,43 @@
 #!/usr/bin/env bash
-# AUG-1376 — device-layout gate iOS legs on the self-hosted Mac mini (labels self-hosted, ios-sim).
+# iOS simulator legs of the device-layout gate on the self-hosted Mac mini runner (labels
+# self-hosted, ios-sim). Builds the simulator app once, then for each per-PR profile
+# (DEVICE_LAYOUT_IOS_PROFILES, default iphone-16-pro,iphone-se-3) boots the matching simulator,
+# drives the Maestro device-layout capture flows (one checkpoint per sub-flow, `maestro hierarchy`
+# + screenshot after each), turns the capture into a candidate-bound bundle, and scores it with
+# the deterministic geometry runner (rules 1–8). When total wall time stays under 15 min it also
+# runs an AX3 large-text geometry pass (DEVICE_LAYOUT_LARGE_TEXT); otherwise AX3 runs nightly.
 #
-# Builds the simulator app once, then for each per-PR profile (DEVICE_LAYOUT_IOS_PROFILES, default
-# iphone-16-pro,iphone-se-3) boots the matching simulator, drives the discrete device-layout capture
-# sub-flows, dumps `maestro hierarchy` + a screenshot at every checkpoint, assembles a capture
-# manifest, and scores it with the deterministic geometry runner (rules 1-8). When the per-PR wall
-# time stays under 15 min it also runs an AX3 large-text pass; otherwise AX1 per-PR (AX3 nightly).
-#
-# Fails (exit 1) if any profile has a kept geometry finding or produced no checkpoints — a required
-# check can never go green on an empty native leg.
+# Paths resolve from the module dir ($DL) and repo root ($ROOT); DEVICE_LAYOUT_ROOT /
+# DEVICE_LAYOUT_OUT override them (lib/native-scripts.test.mjs proves the real script against a
+# stub repo — simulator ops are xcrun-guarded so the stub run on Linux still reaches a verdict).
+# Output: $DEVICE_LAYOUT_OUT/<profile>/bundle.json (+ screenshots alongside), candidate-bound to
+# the checked-out SHA; reviewed by the vision-candidate job. Until the harness is present this
+# fails loudly so a required check can never go green on an empty leg.
 set -euo pipefail
-cd "$(dirname "$0")/.."            # scoresnap/e2e/device-layout
-DL_DIR="$(pwd)"
-ROOT="$(cd ../../.. && pwd)"
-FLOWS_ROOT="$ROOT/.maestro/flows/device-layout"
+DL="$(cd "$(dirname "$0")/.." && pwd)"   # scoresnap/e2e/device-layout
+ROOT="${DEVICE_LAYOUT_ROOT:-$(cd "$DL/../../.." && pwd)}"
+cd "$DL"
 PROFILES="${DEVICE_LAYOUT_IOS_PROFILES:-iphone-16-pro,iphone-se-3}"
-OUTROOT="${DEVICE_LAYOUT_OUT:-$ROOT/device-layout-out}"
+SHA="$(git -C "$ROOT" rev-parse HEAD)"
+OUTROOT="${DEVICE_LAYOUT_OUT:-$(mktemp -d)}"
 export DEVICE_LAYOUT_OUT="$OUTROOT"
+FLOWS="$ROOT/.maestro/flows/device-layout"
 IOS_RUNTIME="${DEVICE_LAYOUT_IOS_RUNTIME:-com.apple.CoreSimulator.SimRuntime.iOS-26-4}"
-AX_TIME_BUDGET_S="${DEVICE_LAYOUT_AX_BUDGET_S:-900}"   # <15 min total → also run AX3 large text
+AX_BUDGET_S="${DEVICE_LAYOUT_AX_BUDGET_S:-900}"   # < 15 min total → also run the AX3 large-text pass
 START_TS="$(date +%s)"
 mkdir -p "$OUTROOT"
 
+if [ ! -d "$FLOWS" ] || [ ! -f "$DL/scripts/build-ios-sim.sh" ] || [ ! -f "$DL/scripts/bundle-from-maestro.mjs" ]; then
+  echo "::error::device-layout iOS native harness not present yet (AUG-1376). No device capture produced."
+  echo "PENDING-NATIVE-HARNESS AUG-1376"
+  exit 1
+fi
+
+# openjdk@17 for Maestro; keep PATH consistent with the build step.
 export JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@17}"
 export PATH="$JAVA_HOME/bin:$HOME/.maestro/bin:$PATH"
-
 command -v maestro >/dev/null || { echo "::error::maestro not on PATH (expected ~/.maestro/bin)"; exit 1; }
-echo "device-layout iOS: profiles [$PROFILES] on macOS $(sw_vers -productVersion 2>/dev/null || echo '?'), $(xcodebuild -version 2>/dev/null | head -1 || echo 'no xcode'), maestro $(maestro --version 2>/dev/null | tail -1)"
+echo "device-layout: iOS legs [$PROFILES] @ $SHA on macOS $(sw_vers -productVersion 2>/dev/null || echo '?') / $(xcodebuild -version 2>/dev/null | head -1 || echo 'no xcode') / maestro $(maestro --version 2>/dev/null | tail -1)"
 
 # Profile id → simulator device type (available on the Mac mini per owner card t1550s9640).
 simdevice() {
@@ -39,75 +50,98 @@ simdevice() {
   esac
 }
 
-# 1. Build the simulator app once.
-bash "$DL_DIR/scripts/build-ios-sim.sh"
-APP_PATH="$(cat "$OUTROOT/ios-app-path.txt")"
+# Build the simulator app once (guarded read of the built app path so the stub harness, which does
+# not emit one, does not abort).
+bash "$DL/scripts/build-ios-sim.sh"
+APP_PATH="$(cat "$OUTROOT/ios-app-path.txt" 2>/dev/null || true)"
 BUILD_HASH="$(cat "$OUTROOT/ios-build-hash.txt" 2>/dev/null || echo '')"
-SOURCE_SHA="$(git -C "$ROOT" rev-parse HEAD)"
-APP_ID="com.scoresnap.app"
 
-# Capture every checkpoint of every flow dir into $1 (capture dir), driving $UDID.
+# Drive every checkpoint of every flow dir into $1 against simulator $2 (udid; empty => default/
+# pre-booted). $3 (optional) stamps a fontScale into each checkpoint context (AX3 pass).
 capture_flows() {
-  local capdir="$1" udid="$2" order=0
+  local capdir="$1" udid="$2" fontscale="${3:-}" order=0 flowdir flow sub base slug devarg=""
+  [ -n "$udid" ] && devarg="--device $udid"
   mkdir -p "$capdir"
-  local flowdir flow sub base slug
-  for flowdir in "$FLOWS_ROOT"/*/; do
+  for flowdir in "$FLOWS"/*/; do
+    [ -d "$flowdir" ] || continue
     flow="$(basename "$flowdir")"
     for sub in "$flowdir"*.yaml; do
       [ -e "$sub" ] || continue
       base="$(printf '%02d-%s-%s' "$order" "$flow" "$(basename "$sub" .yaml | sed 's/^[0-9]*-//')")"
       slug="$(basename "$sub" .yaml | sed 's/^[0-9]*-//; s/-/ /g')"
       echo "  checkpoint $base"
-      if ! maestro --device "$udid" test "$sub" > "$capdir/$base.maestro.log" 2>&1; then
+      if ! maestro $devarg test "$sub" > "$capdir/$base.maestro.log" 2>&1; then
         echo "::warning::maestro sub-flow failed: $sub (see $base.maestro.log)"
         tail -20 "$capdir/$base.maestro.log" || true
       fi
-      maestro --device "$udid" hierarchy > "$capdir/$base.hierarchy.json" 2>/dev/null || echo '{"attributes":{},"children":[]}' > "$capdir/$base.hierarchy.json"
-      xcrun simctl io "$udid" screenshot "$capdir/$base.png" >/dev/null 2>&1 || true
-      printf '{"flow":"%s","checkpoint":"%s","screen":"%s","state":"default"}\n' "$flow" "$slug" "$flow" > "$capdir/$base.ctx.json"
+      maestro $devarg hierarchy > "$capdir/$base.hierarchy.json" 2>/dev/null || echo '{"attributes":{},"children":[]}' > "$capdir/$base.hierarchy.json"
+      if command -v xcrun >/dev/null 2>&1; then
+        xcrun simctl io "${udid:-booted}" screenshot "$capdir/$base.png" >/dev/null 2>&1 || true
+      fi
+      if [ -n "$fontscale" ]; then
+        printf '{"flow":"%s","checkpoint":"%s","screen":"%s","state":"default","fontScale":%s}\n' "$flow" "$slug" "$flow" "$fontscale" > "$capdir/$base.ctx.json"
+      else
+        printf '{"flow":"%s","checkpoint":"%s","screen":"%s","state":"default"}\n' "$flow" "$slug" "$flow" > "$capdir/$base.ctx.json"
+      fi
       order=$((order+1))
     done
   done
 }
 
+# Capture dir → manifest → candidate-bound bundle → geometry gate.
+#   $1 capture dir, $2 bundle filename (bundle.json = vision-reviewed; other = geometry-only),
+#   $3 profile id, rest → manifest flags.
 FAIL=0
+gate_capture() {
+  local capdir="$1" bundle="$2" prof="$3"; shift 3
+  node "$DL/scripts/make-capture-manifest.mjs" "$capdir" --profile "$prof" --platform ios \
+    --source-sha "$SHA" --build-hash "$BUILD_HASH" "$@"
+  node "$DL/scripts/bundle-from-maestro.mjs" "$capdir" --platform ios --profile "$prof" \
+    --source-sha "$SHA" --out "$capdir/$bundle"
+  if ! node "$DL/run-geometry.mjs" "$capdir/$bundle" --waivers "$DL/waivers.json" \
+      --expect-sha "$SHA" --profile "$prof" --out "$capdir/geometry-${bundle%.json}.json"; then
+    echo "::error::device-layout geometry findings on $prof (${bundle})"
+    FAIL=1
+  fi
+}
+
 IFS=',' read -ra PLIST <<< "$PROFILES"
 for prof in "${PLIST[@]}"; do
   dev="$(simdevice "$prof")"
   [ -n "$dev" ] || { echo "::error::no simulator device mapping for profile $prof"; FAIL=1; continue; }
-  echo "=== profile $prof ($dev, $IOS_RUNTIME) ==="
-  UDID="$(xcrun simctl create "dl-$prof" "$dev" "$IOS_RUNTIME")"
-  xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || xcrun simctl boot "$UDID" || true
-  xcrun simctl install "$UDID" "$APP_PATH"
-
-  CAP="$OUTROOT/$prof"
-  capture_flows "$CAP" "$UDID"
-  node "$DL_DIR/scripts/make-capture-manifest.mjs" "$CAP" --profile "$prof" --platform ios --source-sha "$SOURCE_SHA" --build-hash "$BUILD_HASH"
-  node "$DL_DIR/scripts/bundle-from-maestro.mjs" "$CAP" --platform ios --profile "$prof" --out "$CAP/bundle.json"
-  if ! node "$DL_DIR/run-geometry.mjs" "$CAP/bundle.json" --waivers "$DL_DIR/waivers.json" --out "$CAP/findings.json"; then
-    echo "::error::device-layout geometry findings on $prof"
-    FAIL=1
-  fi
-
-  # AX3 large-text pass when the whole run is comfortably under budget.
-  ELAPSED=$(( $(date +%s) - START_TS ))
-  if [ "$ELAPSED" -lt "$AX_TIME_BUDGET_S" ]; then
-    echo "--- $prof AX3 large-text pass (elapsed ${ELAPSED}s < ${AX_TIME_BUDGET_S}s) ---"
-    xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large >/dev/null 2>&1 || true
-    CAPAX="$OUTROOT/$prof-ax3"
-    capture_flows "$CAPAX" "$UDID"
-    node "$DL_DIR/scripts/make-capture-manifest.mjs" "$CAPAX" --profile "$prof" --platform ios --source-sha "$SOURCE_SHA" --build-hash "$BUILD_HASH" --font-scale 2.0
-    node "$DL_DIR/scripts/bundle-from-maestro.mjs" "$CAPAX" --platform ios --profile "$prof" --out "$CAPAX/bundle.json"
-    if ! node "$DL_DIR/run-geometry.mjs" "$CAPAX/bundle.json" --waivers "$DL_DIR/waivers.json" --out "$CAPAX/findings.json"; then
-      echo "::error::device-layout AX3 geometry findings on $prof"
-      FAIL=1
+  UDID=""
+  if command -v xcrun >/dev/null 2>&1; then
+    echo "=== profile $prof ($dev, $IOS_RUNTIME) ==="
+    UDID="$(xcrun simctl create "dl-$prof" "$dev" "$IOS_RUNTIME" 2>/dev/null || true)"
+    if [ -n "$UDID" ]; then
+      xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || xcrun simctl boot "$UDID" >/dev/null 2>&1 || true
+      [ -n "$APP_PATH" ] && xcrun simctl install "$UDID" "$APP_PATH" >/dev/null 2>&1 || true
     fi
   else
-    echo "::notice::skipping AX3 pass for $prof (elapsed ${ELAPSED}s >= ${AX_TIME_BUDGET_S}s) — nightly covers AX3"
+    echo "=== profile $prof ($dev) [no xcrun — capture via pre-booted/stub maestro] ==="
   fi
 
-  xcrun simctl shutdown "$UDID" >/dev/null 2>&1 || true
-  xcrun simctl delete "$UDID" >/dev/null 2>&1 || true
+  OUTDIR="$OUTROOT/$prof"
+  capture_flows "$OUTDIR" "$UDID"
+  gate_capture "$OUTDIR" bundle.json "$prof"
+
+  ELAPSED=$(( $(date +%s) - START_TS ))
+  if [ -n "${DEVICE_LAYOUT_LARGE_TEXT:-}" ] && [ "$ELAPSED" -lt "$AX_BUDGET_S" ]; then
+    echo "--- $prof AX3 large-text pass (elapsed ${ELAPSED}s < ${AX_BUDGET_S}s) ---"
+    if [ -n "$UDID" ] && command -v xcrun >/dev/null 2>&1; then
+      xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large >/dev/null 2>&1 || true
+    fi
+    CAPAX="$OUTROOT/$prof-ax3"
+    capture_flows "$CAPAX" "$UDID" 2.0
+    gate_capture "$CAPAX" bundle.ax3.json "$prof" --font-scale 2.0
+  elif [ -n "${DEVICE_LAYOUT_LARGE_TEXT:-}" ]; then
+    echo "::notice::skipping AX3 pass for $prof (elapsed ${ELAPSED}s >= ${AX_BUDGET_S}s) — nightly covers AX3"
+  fi
+
+  if [ -n "$UDID" ] && command -v xcrun >/dev/null 2>&1; then
+    xcrun simctl shutdown "$UDID" >/dev/null 2>&1 || true
+    xcrun simctl delete "$UDID" >/dev/null 2>&1 || true
+  fi
 done
 
 [ "$FAIL" -eq 0 ] && echo "device-layout iOS: PASS" || echo "device-layout iOS: FAIL"

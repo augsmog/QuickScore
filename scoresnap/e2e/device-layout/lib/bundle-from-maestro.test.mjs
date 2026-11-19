@@ -94,6 +94,7 @@ test('footer synthesized from the CTA anchor; a player row behind it fails rule 
   ]);
   const manifest = {
     flow: 'new-contest', profile: 'iphone-16-pro', platform: 'ios',
+    sourceSha: 'a'.repeat(40), buildHash: 'app-sha256:1',
     checkpoints: [{ checkpoint: 'last player above footer', hierarchy: 'c0.json' }],
   };
   const dir = writeCapture(manifest, { 'c0.json': root });
@@ -118,6 +119,7 @@ test('bundle feeds run-geometry: clean passes, clipped fails', () => {
   ]);
   const manifest = {
     flow: 'new-contest', profile: 'iphone-16-pro', platform: 'ios',
+    sourceSha: 'a'.repeat(40), buildHash: 'app-sha256:1',
     checkpoints: [{ checkpoint: 'empty wizard', hierarchy: 'c0.json' }],
   };
   const dir = writeCapture(manifest, { 'c0.json': clean });
