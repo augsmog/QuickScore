@@ -54,8 +54,8 @@ test('a selection pointed at a hidden plan falls back instead of throwing', () =
 // The vault sweep (customer-desk-nopro-sweep-2026-11-11.md item 3) named four exact leftover
 // strings reachable at /paywall?tier=td while pro_enabled is off: the "SNAPSCORE PRO" eyebrow, the
 // Free row's "3 scans a month" cap (scanning is actually unlimited once Pro is free), the
-// Tournament Director body still reading "Everything in Pro," and "One trial per Apple ID across
-// Pro and Tournament Director." None may survive in the built view when the flag is off.
+// Tournament Director body still reading "Everything in Pro," and the Pro-on trial line
+// (now "One Pro trial per Apple ID."). None may survive in the built view when the flag is off.
 const LEFTOVERS = [copy.PAYWALL_COPY.eyebrow, copy.PAYWALL_COPY.freeBody, copy.PAYWALL_COPY.tdBody, copy.PAYWALL_COPY.oneTrial];
 function strings(v) {
   return [v.eyebrow, v.oneTrial, ...v.rows.map(r => r.body)].filter(Boolean);
@@ -75,6 +75,15 @@ test('none of the four named Pro-era leftover strings survive in the built view 
 test('flag on keeps the original Pro-era strings byte-exact (figma fixture contract unaffected)', () => {
   const v = view('free', true);
   for (const leftover of LEFTOVERS) expect(strings(v)).toContain(leftover);
+});
+// t1517u follow-up: there is no Tournament Director trial anywhere, including dormant Pro-on copy.
+test('Pro-on trial line is Pro-only and never mentions Tournament Director', () => {
+  expect(copy.PAYWALL_COPY.oneTrial).toBe('One Pro trial per Apple ID.');
+  expect(copy.PAYWALL_COPY.oneTrial).not.toMatch(/Tournament Director/i);
+  const src = require('fs').readFileSync(require('path').join(process.cwd(), 'src/ui/paywall-copy.ts'), 'utf8');
+  expect(src).not.toMatch(/One trial per Apple ID across Pro and Tournament Director/);
+  const v = view('free', true);
+  expect(v.oneTrial).toBe('One Pro trial per Apple ID.');
 });
 
 // Mount the actual app/paywall.tsx screen (same idiom as AC-PW tests in
