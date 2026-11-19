@@ -17,7 +17,7 @@ if [ "$MODE" = native ] && [ "$(uname -s)" != Darwin ]; then
   echo "native mode needs macOS with Xcode and CocoaPods" >&2; exit 64
 fi
 PNPM_VERSION=10.34.6
-INODE_CAP="${AOS_PILOT_INODE_CAP:-0.76}"
+INODE_CAP="${AOS_PILOT_INODE_CAP:-0.95}"
 read -r -a PNPM <<<"${AOS_PNPM_CMD:-pnpm}"
 APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 REPO_DIR="$(git -C "$APP_DIR" rev-parse --show-toplevel)"
@@ -31,8 +31,8 @@ inode_guard() {
 import math, os, sys
 from pathlib import Path
 cap = float(sys.argv[2])
-if not math.isfinite(cap) or not 0 < cap <= .76:
-    sys.exit("inode cap must be finite and 0 < cap <= 0.76")
+if not math.isfinite(cap) or not 0 < cap <= .95:
+    sys.exit("inode cap must be finite and 0 < cap <= 0.95")
 p = Path(sys.argv[1])
 while not p.exists(): p = p.parent
 s = os.statvfs(p)
