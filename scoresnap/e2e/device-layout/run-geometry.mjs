@@ -14,6 +14,7 @@
 // The rule engine itself is covered by lib/geometry-rules.test.mjs (node --test).
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { evaluateCheckpoint } from './lib/geometry-rules.mjs';
@@ -33,6 +34,22 @@ export function expectedFlows(config, cadence = 'per-pr') {
 }
 
 const nonEmpty = (v) => typeof v === 'string' && v.length > 0;
+const finite = (v) => typeof v === 'number' && Number.isFinite(v);
+const validBox = (b) => b && ['left', 'top', 'right', 'bottom'].every((k) => finite(b[k])) &&
+  b.right > b.left && b.bottom > b.top;
+// Measured Android emulator geometry may round (density); iOS simulator logical size is exact.
+const VIEWPORT_TOL = { ios: 1, android: 0.02 };
+
+function viewportMatches(vp, size, platform) {
+  if (!vp || !finite(vp.width) || !finite(vp.height) || !Array.isArray(size)) return false;
+  const tol = VIEWPORT_TOL[platform] ?? 1;
+  const ok = (got, want) => (tol < 1 ? Math.abs(got - want) <= want * tol : Math.abs(got - want) <= tol);
+  return ok(vp.width, size[0]) && ok(vp.height, size[1]);
+}
+
+export function configSha256(text) {
+  return createHash('sha256').update(text).digest('hex');
+}
 
 // Candidate-bound evidence check. A bundle must carry its source SHA, build hash, profile and
 // platform; every checkpoint must name its flow/checkpoint/device, match the bundle's profile
@@ -50,6 +67,19 @@ export function validateBundle(bundle, expect = {}) {
   if (expect.profile && bundle.profile !== expect.profile) {
     errors.push(`bundle profile ${bundle.profile} != expected ${expect.profile}`);
   }
+  if (expect.buildHash && bundle.buildHash !== expect.buildHash) {
+    errors.push(`bundle buildHash ${bundle.buildHash} != candidate build ${expect.buildHash}`);
+  }
+  if (expect.configSha256 && bundle.configSha256 !== expect.configSha256) {
+    errors.push(`bundle configSha256 ${bundle.configSha256} != gate config ${expect.configSha256} (stale/mismatched config)`);
+  }
+  // Declared device profile: the bundle must be for a configured profile on its platform.
+  let prof = null;
+  if (expect.config) {
+    prof = (expect.config.profiles || []).find((p) => p.id === bundle.profile) || null;
+    if (!prof) errors.push(`profile ${bundle.profile} is not declared in the gate config`);
+    else if (prof.platform !== bundle.platform) errors.push(`bundle platform ${bundle.platform} != declared ${prof.platform} for ${prof.id}`);
+  }
   const cps = Array.isArray(bundle.checkpoints) ? bundle.checkpoints : [];
   if (cps.length === 0) errors.push('no checkpoints — missing flow evidence');
   cps.forEach((cp, i) => {
@@ -63,7 +93,23 @@ export function validateBundle(bundle, expect = {}) {
     if (nonEmpty(cp?.platform) && nonEmpty(bundle.platform) && cp.platform !== bundle.platform) {
       errors.push(`${at} platform ${cp.platform} != bundle platform ${bundle.platform}`);
     }
-    if (!Array.isArray(cp?.nodes) || cp.nodes.length === 0) errors.push(`${at} has no captured nodes`);
+    if (!Array.isArray(cp?.nodes) || cp.nodes.length === 0) {
+      errors.push(`${at} has no captured nodes`);
+    } else {
+      const bad = cp.nodes.filter((n) => !n || !nonEmpty(n.id) || !validBox(n.bbox));
+      if (bad.length) errors.push(`${at} has ${bad.length} node(s) without an id and finite measured bbox`);
+    }
+    // Device geometry context is mandatory: rules 2/5 judge against the real viewport + insets.
+    const ctx = cp?.context || {};
+    if (!ctx.viewport || !finite(ctx.viewport.width) || !finite(ctx.viewport.height)) {
+      errors.push(`${at} missing measured context.viewport`);
+    } else if (prof && !viewportMatches(ctx.viewport, prof.logicalSize, prof.platform)) {
+      errors.push(`${at} viewport ${ctx.viewport.width}x${ctx.viewport.height} != declared ${prof.id} ${prof.logicalSize.join('x')}`);
+    }
+    const sa = ctx.safeArea;
+    if (!sa || !['top', 'bottom', 'left', 'right'].every((k) => finite(sa[k]) && sa[k] >= 0)) {
+      errors.push(`${at} missing measured context.safeArea {top,bottom,left,right}`);
+    }
   });
   for (const f of expect.flows || []) {
     for (const c of f.checkpoints) {
@@ -112,12 +158,7 @@ function main() {
   const waiverDoc = JSON.parse(readFileSync(waiverPath, 'utf8'));
   const wv = validateWaivers(waiverDoc);
   if (!wv.ok) { console.error('FAIL waivers.json invalid:', wv.errors.join('; ')); process.exit(1); }
-  const cadence = flag(args, '--cadence') || 'per-pr';
-  const expect = {
-    sourceSha: flag(args, '--expect-sha') || undefined,
-    profile: flag(args, '--profile') || undefined,
-    flows: cadence === 'none' ? [] : expectedFlows(JSON.parse(readFileSync(CONFIG, 'utf8')), cadence),
-  };
+  const expect = expectFromArgs(args);
   const out = runBundle(bundle, waiverDoc, new Date(), expect);
   if (outPath) writeFileSync(outPath, JSON.stringify(out, null, 2));
   if (out.error) console.error(`FAIL: ${out.error}`);
@@ -128,6 +169,22 @@ function main() {
   }
   console.log(out.ok ? 'GEOMETRY GATE: PASS' : `GEOMETRY GATE: FAIL (${out.keptCount} finding(s))`);
   process.exit(out.ok ? 0 : 1);
+}
+
+// Shared by run-geometry and run-vision: bind evidence to the candidate SHA/build, the declared
+// profile, the exact gate config (sha256) and the full expected checkpoint set.
+export function expectFromArgs(args) {
+  const cadence = flag(args, '--cadence') || 'per-pr';
+  const text = readFileSync(CONFIG, 'utf8');
+  const config = JSON.parse(text);
+  return {
+    sourceSha: flag(args, '--expect-sha') || undefined,
+    buildHash: flag(args, '--expect-build') || undefined,
+    profile: flag(args, '--profile') || undefined,
+    config,
+    configSha256: configSha256(text),
+    flows: cadence === 'none' ? [] : expectedFlows(config, cadence),
+  };
 }
 
 function flag(args, name) {

@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reviewCandidate, sha256 } from './vision-candidate.mjs';
+import { reviewCandidate, sha256, reviewerPolicyErrors } from './vision-candidate.mjs';
+
+const policy = { provider: 'openai', model: 'gpt-6-astra', effort: 'high' };
 
 const IMG = Buffer.from('png-bytes');
 const H = sha256(IMG);
@@ -26,7 +28,7 @@ test('candidate vision: reviewer unavailable fails closed', () => {
 });
 
 test('candidate vision: clean hash-bound review passes', () => {
-  assert.equal(reviewCandidate(bundle(), { readFile, review: (_p, m) => goodReview(m) }).ok, true);
+  assert.equal(reviewCandidate(bundle(), { readFile, policy, review: (_p, m) => goodReview(m) }).ok, true);
 });
 
 test('candidate vision: major finding, stale hash, unbound review, missing screenshot all fail', () => {
@@ -40,4 +42,17 @@ test('candidate vision: major finding, stale hash, unbound review, missing scree
   const b = bundle(); delete b.checkpoints[0].screenshot;
   assert.match(reviewCandidate(b, { readFile, review: (_p, m) => goodReview(m) }).results[0].errors.join(), /missing screenshot/);
   assert.equal(reviewCandidate(bundle({ checkpoints: [] }), { readFile, review: (_p, m) => goodReview(m) }).ok, false);
+});
+
+// Codex check on 79a87a2: wrong device and a Grok/low-effort reviewer were accepted.
+test('candidate vision: reviewer policy and device binding are enforced', () => {
+  const wrong = reviewCandidate(bundle(), { readFile, policy, review: (_p, m) => goodReview(m, {
+    device: 'wrong-device', reviewer: { provider: 'xai', model: 'grok', effort: 'low' } }) });
+  assert.equal(wrong.ok, false);
+  const e = wrong.results[0].errors.join();
+  assert.match(e, /Grok/);
+  assert.match(e, /device/);
+  assert.match(e, /effort/);
+  assert.equal(reviewCandidate(bundle(), { readFile, review: (_p, m) => goodReview(m) }).ok, false, 'no policy => fail closed');
+  assert.match(reviewerPolicyErrors(goodReview({}, { reviewer: { provider: 'openai', model: 'gpt-6-luna', effort: 'high' } }), policy).join(), /model/);
 });
