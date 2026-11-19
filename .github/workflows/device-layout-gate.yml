@@ -36,6 +36,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       ui: ${{ steps.filter.outputs.ui }}
+      native: ${{ steps.filter.outputs.native }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,20 +54,24 @@ jobs:
           # UI-affecting: app routes, shared UI/theme/assets, native/config/deps, flows, the gate
           # itself, and the device-layout module. Unknown-impact (non doc-only) runs the gate.
           ui=false
+          native=false
           while IFS= read -r f; do
             [ -z "$f" ] && continue
             case "$f" in
               scoresnap/app/**|scoresnap/src/ui/**|scoresnap/src/**/*.tsx|scoresnap/assets/**|\
               scoresnap/app.json|scoresnap/app.config.*|scoresnap/package.json|scoresnap/package-lock.json|\
-              .maestro/**|scoresnap/e2e/device-layout/**|.github/workflows/device-layout-gate.yml)
-                ui=true ;;
+              .maestro/**)
+                ui=true; native=true ;;  # app UI: full native evidence on BOTH platforms (owner card t1550s9640)
+              scoresnap/e2e/device-layout/**|.github/workflows/device-layout-gate.yml)
+                ui=true ;;  # the gate's own code: layers 1-2 (unit tests + rubric self-check)
               *.md|docs/**|**/*.md|LICENSE|.gitignore)
                 : ;;  # doc-only candidate
               *)
-                ui=true ;;  # unknown impact → run the gate (fail safe)
+                ui=true; native=true ;;  # unknown impact → run the full gate (fail safe)
             esac
           done <<< "$files"
           echo "ui=$ui" >> "$GITHUB_OUTPUT"
+          echo "native=$native" >> "$GITHUB_OUTPUT"
           if [ "$ui" = "false" ]; then
             echo "Doc-only change — device-layout gate exempt (explicit success)."
           fi
@@ -120,7 +125,8 @@ jobs:
     # Native layer: runs only when the AUG-1376 Maestro device-layout harness is wired AND the
     # owner enables it (repo variable DEVICE_LAYOUT_NATIVE == 'true'). Until then the per-PR
     # required surface is layers 1–2; this keeps hosted minutes at zero on a not-yet-wired build.
-    if: needs.changes.outputs.ui == 'true' && vars.DEVICE_LAYOUT_NATIVE == 'true'
+    # Owner card t1550s9640 (Nov 19 2026): both platforms, full native evidence; no enablement variable.
+    if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -140,3 +146,47 @@ jobs:
           # Compact custom AVD geometry (≈360x800dp @ 480dpi) is applied by the harness config.
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: bash scoresnap/e2e/device-layout/scripts/run-android-compact.sh
+
+  ios-sim:
+    needs: [changes, deterministic, vision-selfcheck]
+    # iOS rows on the self-hosted Mac mini runner (labels self-hosted, ios-sim), owner card t1550s9640.
+    # Every PR: iPhone 16 Pro (402x874) + iPhone SE 3 (375x667); AX3 text when the run stays < 15 min.
+    if: needs.changes.outputs.native == 'true'
+    runs-on: [self-hosted, ios-sim]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: iOS simulator legs (iPhone 16 Pro, iPhone SE 3)
+        env:
+          DEVICE_LAYOUT_IOS_PROFILES: iphone-16-pro,iphone-se-3
+        run: bash scoresnap/e2e/device-layout/scripts/run-ios-sim.sh
+
+  device-layout-gate:
+    # The ONE aggregate status check. Its name is the contract: branch protection on main and
+    # augie-os-control safe_merge.py both require a check named exactly `device-layout-gate`.
+    # Always runs and always reports, so doc-only PRs are not blocked.
+    if: always()
+    needs: [changes, deterministic, vision-selfcheck, android-compact, ios-sim]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Aggregate verdict
+        env:
+          UI: ${{ needs.changes.outputs.ui }}
+          NATIVE: ${{ needs.changes.outputs.native }}
+          R_CHANGES: ${{ needs.changes.result }}
+          R_DET: ${{ needs.deterministic.result }}
+          R_VIS: ${{ needs.vision-selfcheck.result }}
+          R_AND: ${{ needs.android-compact.result }}
+          R_IOS: ${{ needs.ios-sim.result }}
+        run: |
+          set -u
+          echo "changes=$R_CHANGES deterministic=$R_DET vision-selfcheck=$R_VIS android-compact=$R_AND ios-sim=$R_IOS ui=$UI native=$NATIVE"
+          [ "$R_CHANGES" = success ] || { echo "::error::changes job $R_CHANGES"; exit 1; }
+          if [ "$UI" != true ]; then echo "Doc-only change: exempt (success)."; exit 0; fi
+          { [ "$R_DET" = success ] && [ "$R_VIS" = success ]; } || { echo "::error::layer 1/2 not green"; exit 1; }
+          if [ "$NATIVE" = true ]; then
+            [ "$R_AND" = success ] || { echo "::error::Android native leg $R_AND (full native evidence required)"; exit 1; }
+            [ "$R_IOS" = success ] || { echo "::error::iOS native leg $R_IOS (full native evidence required)"; exit 1; }
+          fi
+          echo "device-layout-gate: PASS"
