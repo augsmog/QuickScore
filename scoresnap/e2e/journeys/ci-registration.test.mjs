@@ -23,7 +23,7 @@ function registered(m,w){
   assert.equal(step['continue-on-error'],undefined);
  }
  assert.equal((contracts.run.match(/node --test /g)||[]).length,4);
- for(const file of ['metrics','glyph-evidence','glyph-evidence.browser','paywall-recovery','reach-report','paywall-badge.browser','acceptance-fixtures','offline-containment','punctuation-reference','probe-target','settlement-row-contract','text-fragments','focused-fixtures','fixture-origin','game-rules','ci-registration','punctuation-reference.browser','review-negative.browser','value-dom-regressions.browser','settled-timestamp.browser'])assert(contracts.run.includes(`${file}.test.mjs`),file);
+ for(const file of ['metrics','glyph-evidence','glyph-evidence.browser','paywall-recovery','reach-report','paywall-badge.browser','acceptance-fixtures','offline-containment','punctuation-reference','probe-target','settlement-row-contract','text-fragments','focused-fixtures','fixture-origin','game-rules','ci-registration','layout-targets','punctuation-reference.browser','review-negative.browser','value-dom-regressions.browser','settled-timestamp.browser'])assert(contracts.run.includes(`${file}.test.mjs`),file);
  const browser=contracts.run.split('\n').find(line=>line.includes('fixture-controls'));
  assert(browser,'browser contract command');
  for(const file of ['capture-layout.browser.test.mjs','home-rank-layout.browser.test.mjs'])assert(browser.includes(file),`missing strict geometry or product regression: ${file}`);

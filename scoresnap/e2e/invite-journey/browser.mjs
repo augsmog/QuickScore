@@ -4,6 +4,8 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { backend, validateFixture, assertScores, assertBinding, assertShare, eventually } from './contract.mjs';
 import { selectHostPlayer } from '../xdevice-host-player.mjs';
+import { readHostScoreState } from './host-score-diagnostic.mjs';
+import { assertScoreControl } from './score-control.mjs';
 const f=JSON.parse(await readFile(process.env.INVITE_FIXTURE,'utf8'));validateFixture(f);
 const mode=process.env.INVITE_ANONYMOUS;assert(['true','false'].includes(mode),'Explicit anonymous mode required');
 const base=process.env.BASE_URL ?? 'http://127.0.0.1:8089';assert.equal(new URL(base).origin,'http://127.0.0.1:8089');
@@ -56,13 +58,38 @@ try {
     await card.getByLabel('Journey Round hole 1 strokes').fill('6');await text(card,'Save hole 1').click();
     await host.goto(`${base}/contest/${f.contestId}/scorecard`);
     let snapshot=await freshSnapshot(host,()=>host.reload());
-    const score=await selectHostPlayer(host,snapshot.rounds[0],f.players[0].name);await score.click();
+    const score=await selectHostPlayer(host,snapshot.rounds[0],f.players[0].name);
+    // Save only allowlisted synthetic score state, including on the failing path.
+    const hostRequests={total:0,target:0};
+    host.on('request',r=>{
+      if(r.url()!==`${f.api}/rest/v1/rpc/write_score` || r.method()!=='POST') return;
+      hostRequests.total++;
+      try {if(r.postDataJSON()?.player_id===f.players[0].id) hostRequests.target++;} catch {}
+    });
+    const diagnostic=async phase=>{
+      const state=await host.evaluate(readHostScoreState,{contestId:f.contestId,playerId:f.players[0].id,playerName:f.players[0].name,hole:f.hole});
+      state.at=new Date().toISOString();
+      state.requests={...hostRequests};
+      const observed=await db.snapshot();
+      const cell=observed.rounds.find(r=>r.id===f.roundId)?.players.find(p=>p.id===f.players[0].id)?.cells.find(c=>c.hole===f.hole);
+      state.backendStrokes=Number.isFinite(cell?.strokes)?cell.strokes:null;
+      const values=await score.innerText();
+      state.controlScores=values.match(/\b\d+\b/g)?.map(Number)??[];
+      await writeFile(`${out}/host-score-${phase}.json`,JSON.stringify(state,null,2));
+    };
+    await diagnostic('before-click');
+    const hostWrite=host.waitForResponse(r=>r.url()===`${f.api}/rest/v1/rpc/write_score` && r.request().method()==='POST' && r.request().postDataJSON()?.player_id===f.players[0].id);
+    hostWrite.catch(()=>{});
+    try {
+      await score.click();
+      assert((await hostWrite).ok(),'Host write_score RPC succeeded');
+    } finally { await diagnostic('after-click'); }
     await eventually(async()=>assertScores(f,await db.snapshot()));
     // Reconnect then cold pages retain the actual sessions and approved identity.
     await guestContext.setOffline(true);await guestContext.setOffline(false);
     for(const p of [host,guest]) {const s=await freshSnapshot(p,()=>p.reload());assertScores(f,s,{owner:p===host});}
     snapshot=await db.snapshot();assertScores(f,snapshot);
-    for(const p of f.players) assert.equal(await (await selectHostPlayer(host,snapshot.rounds[0],p.name)).innerText(),String(p.score));
+    for(const p of f.players) await assertScoreControl(await selectHostPlayer(host,snapshot.rounds[0],p.name),p.score);
     assert.equal(await card.getByLabel('Journey Round hole 1 strokes').inputValue(),'6');
     const memberships=await db.read(`contest_memberships?contest_id=eq.${f.contestId}&user_id=eq.${request.requester}&select=*`);assert.equal(memberships.length,1);assertBinding(f,memberships[0],request.requester);
     await Promise.all([host.screenshot({path:`${out}/host-persisted.png`,fullPage:true}),guest.screenshot({path:`${out}/guest-rejoined.png`,fullPage:true})]);

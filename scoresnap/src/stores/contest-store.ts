@@ -183,6 +183,15 @@ export const useContestStore = create<ContestState>()(
           contests: state.contests.map((c) => {
             if (c.id !== contestId) return c;
             validateScoreWrite(c,groupId,playerId,hole,strokes);
+            // Restored single rounds can have an ID distinct from the contest.
+            // Resolve that round through the same ID map used by tournament sync.
+            if (c.remoteRestored && !c.isTournament) {
+              const restoredRound = c.rounds?.find(r => r.number === (c.currentRound ?? 1));
+              if (restoredRound) {
+                roundId = restoredRound.id;
+                roundNumber = restoredRound.number;
+              }
+            }
             if(c.status==="completed") throw new Error("Completed contest scores are locked");
             if(c.gameConfig?.rulesVersion===1 && c.games.some(g=>g==="alternate_shot" || g==="chapman")) {
               const round=c.isTournament?c.rounds?.find(r=>r.number===c.currentRound):undefined;

@@ -48,6 +48,7 @@ export function backend(f) {
 }
 export async function eventually(check) {
   const end=Date.now()+30000;
-  do {try {return await check();}catch{} await new Promise(r=>setTimeout(r,250));}while(Date.now()<end);
-  throw Error('Journey assertion did not converge within 30s');
+  let last;
+  do {try {return await check();}catch(e){last=e;} await new Promise(r=>setTimeout(r,250));}while(Date.now()<end);
+  throw new Error('Journey assertion did not converge within 30s: '+(last?.message??'unknown'),{cause:last});
 }
