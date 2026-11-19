@@ -22,7 +22,6 @@ export const PAYWALL_COPY = {
   "tdBodyNoPro": "Host multiple groups and rounds. Players join and score for free.",
   "startTrial": "Start 7-day free trial",
   "oneTrial": "One trial per Apple ID across Pro and Tournament Director.",
-  "oneTrialNoPro": "One trial per Apple ID for Tournament Director.",
   "legal": "Payment is charged to your Apple Account at confirmation of purchase, or after any eligible trial. Subscription auto-renews unless cancelled at least 24 hours before the end of the period. Manage or cancel in Account Settings.",
   "terms": "Terms of Use",
   "dot": "\u00b7",

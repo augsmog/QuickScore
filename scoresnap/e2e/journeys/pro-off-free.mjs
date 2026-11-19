@@ -154,6 +154,7 @@ try {
   assert.doesNotMatch(paywallText, /Core games.{0,3}3 scans a month/, 'paywall must not claim an enforced scan cap while pro_enabled is off');
   assert.doesNotMatch(paywallText, /Everything in Pro/, 'paywall must not describe Tournament Director relative to Pro while pro_enabled is off');
   assert.doesNotMatch(paywallText, /across Pro and Tournament Director/, 'paywall trial line must not reference Pro while pro_enabled is off');
+  assert.doesNotMatch(paywallText, /free trial|7-day|one trial/i, 'Tournament Director has no free trial: no trial tag, CTA or line may render (t1517u)');
   assert.match(paywallText, /Tournament Director/);
   assert.match(paywallText, /\$79\.99|\$12\.99/, 'Tournament Director purchase path must still work');
   await page.screenshot({ path: path.join(out, 'paywall-td-only.png'), fullPage: true });

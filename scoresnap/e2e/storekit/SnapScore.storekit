@@ -23,12 +23,7 @@
           "familyShareable": false,
           "groupNumber": 1,
           "internalID": "6700000010",
-          "introductoryOffer": {
-            "internalID": "67000000101",
-            "numberOfPeriods": 1,
-            "paymentMode": "free",
-            "subscriptionPeriod": "P1W"
-          },
+          "introductoryOffer": null,
           "localizations": [
             {
               "description": "SnapScore Tournament Director (annual)",

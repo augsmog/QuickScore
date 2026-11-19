@@ -37,7 +37,7 @@ export async function syncProStatus(){}
   let plans=await readFile(path.join(root,'src/services/paywall-plans.ts'),'utf8');
   const start=plans.indexOf('export async function eligibleAnnualTrials');
   const end=plans.indexOf("\nimport { PAYWALL_COPY",start);
-  plans=plans.slice(0,start)+"export async function eligibleAnnualTrials(){return {'pro-year':true,'td-year':true};}\n"+plans.slice(end);
+  plans=plans.slice(0,start)+"export async function eligibleAnnualTrials(){return {'pro-year':true,'td-year':false};}\n"+plans.slice(end);
   plans=plans.replace("import Purchases, { INTRO_ELIGIBILITY_STATUS, type PurchasesPackage } from 'react-native-purchases';","import type { PurchasesPackage } from 'react-native-purchases';");
   await writeFile(path.join(scratch,'src/services/paywall-plans.ts'),plans);
   await run([path.join(root,'node_modules/expo/bin/cli'),'export','--platform','web','--output-dir','dist']);

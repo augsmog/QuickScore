@@ -3,14 +3,21 @@ export const PLAN_OPTIONS = [
   {tier:'pro', name:'Pro', features:'Games and variants · Unlimited cloud scans · Settlement · Statistics', options:[{key:'annual',fallback:'$24.99',period:'year'},{key:'monthly',fallback:'$3.99',period:'month'}]},
   {tier:'td', name:'Tournament Director', features:'Everything in Pro · Host multiple groups and rounds · Players always join and score free', options:[{key:'td_annual',fallback:'$79.99',period:'year'},{key:'td_monthly',fallback:'$12.99',period:'month'}]},
 ] as const;
+/**
+ * AUG-1263 (owner t1517u, Nov 18 2026): Tournament Director has NO free trial. Only the Pro annual
+ * product can ever be reported trial-eligible, and Pro is dormant while pro_enabled is off. The TD
+ * annual package is never queried and is always reported false, even if a stale App Store Connect
+ * or RevenueCat intro offer still exists on it.
+ */
 export async function eligibleAnnualTrials(packages: Record<string, PurchasesPackage | null>): Promise<Record<string, boolean>> {
-  const annuals = [packages.annual, packages.td_annual].filter((p): p is PurchasesPackage => !!p);
-  if (!annuals.length) return {};
+  const annuals = [packages.annual].filter((p): p is PurchasesPackage => !!p);
+  const td: Record<string, boolean> = packages.td_annual ? {[packages.td_annual.product.identifier]: false} : {};
+  if (!annuals.length) return td;
   try {
     const result = await Purchases.checkTrialOrIntroductoryPriceEligibility(annuals.map(p=>p.product.identifier));
-    return Object.fromEntries(annuals.map(p=>[p.product.identifier,
+    return {...td, ...Object.fromEntries(annuals.map(p=>[p.product.identifier,
       result[p.product.identifier]?.status === INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_ELIGIBLE &&
-      p.product.introPrice?.price === 0 && p.product.introPrice?.periodUnit === 'DAY' && p.product.introPrice?.periodNumberOfUnits === 7]));
+      p.product.introPrice?.price === 0 && p.product.introPrice?.periodUnit === 'DAY' && p.product.introPrice?.periodNumberOfUnits === 7]))};
   } catch { return {}; }
 }
 
@@ -39,7 +46,7 @@ export function buildPaywallView(packages: Record<string, PurchasesPackage | nul
         tag: tier === plan.tier ? C.current : plan.tier === 'pro' ? C.recommended : '',
         alternate: format(C.alternate, packages?.[other.key]?.product.priceString || other.fallback, other.period),
         price: format(C.price, pkg?.product.priceString || option.fallback, period),
-        trial: period === 'year' && pkg && eligible[pkg.product.identifier] === true ? C.trial : '',
+        trial: plan.tier === 'pro' && period === 'year' && pkg && eligible[pkg.product.identifier] === true ? C.trial : '',
         key: option.key, selected: selection.tier === plan.tier };
     }),
   ];
@@ -58,5 +65,5 @@ export function buildPaywallView(packages: Record<string, PurchasesPackage | nul
     { icon: 'live' as const, title: C.liveTitle, body: C.liveBody },
   ];
   return { restore: C.restore, eyebrow: proEnabledNow ? C.eyebrow : C.eyebrowNoPro, headline: C.headline, values, scans: C.scans, rows, cta, billed,
-    oneTrial: proEnabledNow ? C.oneTrial : C.oneTrialNoPro, legal: C.legal, terms: C.terms, dot: C.dot, privacy: C.privacy, disabled, package: pkg };
+    oneTrial: proEnabledNow ? C.oneTrial : '', legal: C.legal, terms: C.terms, dot: C.dot, privacy: C.privacy, disabled, package: pkg };
 }

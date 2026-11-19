@@ -59,7 +59,7 @@ export default function SettlementScreen() {
   useEffect(() => {
     let live = true;
     setTrialOffer(null);
-    if (authReady && !canSeeSettlement(tier)) {
+    if (authReady && !canSeeSettlement(tier) && proEnabled()) {
       (async () => {
         try {
           const revision = await waitForPurchaseIdentity(purchaseActor);

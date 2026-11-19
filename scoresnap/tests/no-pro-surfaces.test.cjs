@@ -66,7 +66,11 @@ test('none of the four named Pro-era leftover strings survive in the built view 
   expect(v.eyebrow).toBe(copy.PAYWALL_COPY.eyebrowNoPro);
   expect(v.rows.find(r => r.tier === 'free').body).toBe(copy.PAYWALL_COPY.freeBodyNoPro);
   expect(v.rows.find(r => r.tier === 'td').body).toBe(copy.PAYWALL_COPY.tdBodyNoPro);
-  expect(v.oneTrial).toBe(copy.PAYWALL_COPY.oneTrialNoPro);
+  // t1517u: Tournament Director has no free trial, so no trial line renders at all while the flag is off.
+  expect(v.oneTrial).toBe('');
+  expect(copy.PAYWALL_COPY.oneTrialNoPro).toBeUndefined();
+  expect(v.rows.every(r => !r.trial)).toBe(true);
+  expect(v.cta).not.toMatch(/trial/i);
 });
 test('flag on keeps the original Pro-era strings byte-exact (figma fixture contract unaffected)', () => {
   const v = view('free', true);
@@ -105,7 +109,8 @@ test('the actual mounted /paywall?tier=td screen renders none of the four leftov
   for (const leftover of LEFTOVERS) expect(rendered).not.toContain(leftover);
   expect(rendered).toContain(copy.PAYWALL_COPY.eyebrowNoPro);
   expect(rendered).toContain(copy.PAYWALL_COPY.tdBodyNoPro);
-  expect(rendered).toContain(copy.PAYWALL_COPY.oneTrialNoPro);
+  // The unchanged, already-approved legal boilerplate still says "after any eligible trial"; no trial offer, tag or line renders.
+  expect(rendered).not.toMatch(/free trial|7-day|one trial|try .* free/i);
   expect(rendered).toContain('Tournament Director');
 });
 test('the actual mounted /paywall screen keeps every leftover string when the flag is on', () => {
@@ -121,4 +126,17 @@ test('the real screens wire the live flag through, not a hardcoded default', () 
   expect(paywallScreen).toMatch(/target === ['"]td['"]\s*\|\|\s*!proEnabled\(\)\s*\?\s*['"]td['"]\s*:\s*['"]pro['"]/);
   const settlementScreen = read('app/contest/[id]/settlement.tsx');
   expect(settlementScreen).toContain('buildPaywallView(packages, eligible, tier, { tier: \'pro\', period: \'year\' }, proEnabled())');
+});
+
+// t1517u: Tournament Director has no free trial. Even a stale App Store Connect / RevenueCat intro
+// offer that reported the TD annual product as trial-eligible must never reach the paywall view.
+test('TD never shows or offers a trial even when a caller reports its annual product eligible', () => {
+  const eligible = { 'td-annual-id': true };
+  const packages = { td_annual: { product: { identifier: 'td-annual-id', priceString: '$79.99' } }, td_monthly: null };
+  for (const proEnabledNow of [false, true]) {
+    const v = plans.buildPaywallView(packages, eligible, 'free', { tier: 'td', period: 'year' }, proEnabledNow);
+    expect(v.rows.find(r => r.tier === 'td').trial).toBe('');
+    expect(v.cta).not.toMatch(/trial/i);
+    expect(v.billed).not.toMatch(/^Then/);
+  }
 });

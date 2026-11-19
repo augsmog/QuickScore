@@ -73,7 +73,7 @@ export default function PaywallScreen() {
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || v.disabled }} disabled={busy || v.disabled} style={[s.cta, (busy || v.disabled) && { opacity: 0.55 }]}
           onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); posthog?.capture('subscription_purchase_completed', { selected_tier: selection.tier, billing_period: selection.period }); router.back(); } })}><Text style={s.ctaText}>{v.cta}</Text></Pressable>
         {!!v.billed && <Text style={s.billed}>{v.billed}</Text>}
-        <Text style={s.small}>{v.oneTrial}</Text>
+        {!!v.oneTrial && <Text style={s.small}>{v.oneTrial}</Text>}
       </View>
       <Text style={[s.small, { lineHeight: 15 }]}>{v.legal}</Text>
       <View style={s.footer}>
