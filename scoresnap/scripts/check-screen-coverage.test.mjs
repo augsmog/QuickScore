@@ -2,14 +2,16 @@
 // Run: node --test scripts/check-screen-coverage.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
-import { validateCoverage } from './check-screen-coverage.mjs';
+import {
+  validateCoverage,
+  loadFlowIds,
+  DEFAULT_MAESTRO_CONFIG,
+} from './check-screen-coverage.mjs';
 
-const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'check-screen-coverage.mjs');
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
 const REQUIRED = ['iphone-15-pro', 'iphone-16-plus'];
 const FLOWS = new Set(['aug-270-home-subhead', 'aug-271-paywall']);
@@ -160,43 +162,30 @@ test('flow ids unknown (no maestro config) skips flow-ref check but still requir
   assert.equal(r.ok, true, JSON.stringify(r.errors));
 });
 
-// CLI regression: the default --maestro-config path must resolve to the real repo-root
-// .maestro/e2e.config.json so a 'covered' claim with a bogus flow id is rejected, not
-// silently skipped. (Caught by Codex astra verify of PR #333.)
-test('CLI default maestro-config path validates flow ids against the real config', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'cov-cli-'));
-  try {
-    mkdirSync(join(dir, 'app'));
-    writeFileSync(join(dir, 'app', 'x.tsx'), '');
-    const manifest = {
-      releaseGate: {
-        requiredDeviceIds: ['iphone-15-pro', 'iphone-16-plus'],
-        devices: [{ id: 'iphone-15-pro' }, { id: 'iphone-16-plus' }],
-        assertionClasses: ['target-size'],
-      },
-      screens: [
-        {
-          file: 'app/x.tsx', name: 'X', kind: 'screen', coverage: 'covered',
-          flows: ['definitely-not-a-real-flow'], screenshots: ['x-01'],
-          devices: ['iphone-15-pro', 'iphone-16-plus'], assertions: ['target-size'],
-        },
-      ],
-    };
-    const mPath = join(dir, 'm.json');
-    writeFileSync(mPath, JSON.stringify(manifest));
-    let exit = 0;
-    let out = '';
-    try {
-      // No --maestro-config: forces use of the default (repo-root) path.
-      out = execFileSync('node', [SCRIPT, '--manifest', mPath, '--app-dir', join(dir, 'app')],
-        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-    } catch (e) {
-      exit = e.status;
-      out = `${e.stdout || ''}${e.stderr || ''}`;
-    }
-    assert.equal(exit, 1, `expected exit 1, got ${exit}:\n${out}`);
-    assert.match(out, /not defined in \.maestro\/e2e\.config\.json/);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+// Regression (Codex astra verify of PR #333): the default maestro-config path must point at
+// the real repo-root .maestro/e2e.config.json. The earlier default (scoresnap/.maestro/...)
+// did not exist, so loadFlowIds returned null and flow-id validation was silently skipped,
+// letting a 'covered' claim reference a nonexistent flow. These are in-process (no child
+// process spawn) so they run in restricted sandboxes too.
+test('DEFAULT_MAESTRO_CONFIG resolves to the real repo-root config that exists on disk', () => {
+  assert.ok(existsSync(DEFAULT_MAESTRO_CONFIG), `default config missing: ${DEFAULT_MAESTRO_CONFIG}`);
+  // The old, wrong default location must NOT be where we look.
+  const wrong = resolve(SCRIPT_DIR, '..', '.maestro', 'e2e.config.json');
+  assert.notEqual(DEFAULT_MAESTRO_CONFIG, wrong);
+  assert.equal(existsSync(wrong), false, 'test assumes scoresnap/.maestro does not exist');
+});
+
+test('loadFlowIds on the default config returns real flow ids; a covered bogus flow is rejected', () => {
+  const flowIds = loadFlowIds(DEFAULT_MAESTRO_CONFIG);
+  assert.ok(flowIds instanceof Set && flowIds.size > 0, 'expected a non-empty flow id set');
+  assert.ok(flowIds.has('aug-270-home-subhead'), 'expected a known flow id from e2e.config.json');
+
+  const r = validateCoverage({
+    manifest: { ...baseGate(), screens: [{ ...coveredScreen('app/x.tsx'), flows: ['definitely-not-a-real-flow'] }] },
+    routeFiles: ['app/x.tsx'],
+    flowIds,
+    requiredDeviceIds: REQUIRED,
+  });
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('not defined in .maestro/e2e.config.json')));
 });

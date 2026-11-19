@@ -26,12 +26,16 @@ const REPO_APP_ROOT = resolve(__dirname, '..'); // scoresnap/
 const VALID_KINDS = new Set(['screen', 'layout', 'special', 'dev']);
 const VALID_COVERAGE = new Set(['covered', 'pending']);
 
+// .maestro lives at the repo root, one level above scoresnap/.
+export const DEFAULT_APP_DIR = resolve(REPO_APP_ROOT, 'app');
+export const DEFAULT_MANIFEST = resolve(REPO_APP_ROOT, 'e2e/screen-coverage/coverage-manifest.json');
+export const DEFAULT_MAESTRO_CONFIG = resolve(REPO_APP_ROOT, '../.maestro/e2e.config.json');
+
 function parseArgs(argv) {
   const opts = {
-    manifest: resolve(REPO_APP_ROOT, 'e2e/screen-coverage/coverage-manifest.json'),
-    appDir: resolve(REPO_APP_ROOT, 'app'),
-    // .maestro lives at the repo root, one level above scoresnap/.
-    maestroConfig: resolve(REPO_APP_ROOT, '../.maestro/e2e.config.json'),
+    manifest: DEFAULT_MANIFEST,
+    appDir: DEFAULT_APP_DIR,
+    maestroConfig: DEFAULT_MAESTRO_CONFIG,
     json: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -60,7 +64,7 @@ function discoverRouteFiles(appDir, baseForRel) {
   return out;
 }
 
-function loadFlowIds(maestroConfigPath) {
+export function loadFlowIds(maestroConfigPath) {
   if (!existsSync(maestroConfigPath)) return null; // treat as unknown, don't hard-fail flow refs
   try {
     const cfg = JSON.parse(readFileSync(maestroConfigPath, 'utf8'));

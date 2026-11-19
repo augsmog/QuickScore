@@ -1,0 +1,29 @@
+VERIFY BRIEF R2 — AUG-1373 screen coverage gate (QuickScore PR #333, head 5f99cb65bb8cef43acc03950a25bfa9dfbbd1254)
+
+Round 1 (head 5108034) PASSED checks 1-4,6,7 and raised ONE failing check:
+  FAILING-CHECK 5: default --maestro-config resolved to scoresnap/.maestro/e2e.config.json
+  (nonexistent; .maestro is at repo root), so flow-id validation was silently skipped.
+
+FIX APPLIED at this head:
+- scripts/check-screen-coverage.mjs: default maestroConfig now resolve(REPO_APP_ROOT,'../.maestro/e2e.config.json').
+- .github/workflows/screen-coverage-gate.yml: path filter now '.maestro/e2e.config.json'.
+- scripts/check-screen-coverage.test.mjs: added a CLI regression test (now 16 cases) that
+  runs the script WITHOUT --maestro-config and asserts a covered screen with a bogus flow id
+  exits 1 with "not defined in .maestro/e2e.config.json".
+
+CONFIRM ONLY:
+1. node --test scripts/check-screen-coverage.test.mjs -> 16/16 pass.
+2. With the default path, a covered screen claiming an unknown flow id now FAILS (exit 1).
+   You may reason from the source (parseArgs default + loadFlowIds + the flows loop) since the
+   worktree is read-only; or create a temp manifest+app-dir in writable scratch and run the
+   script WITHOUT --maestro-config.
+3. node scripts/check-screen-coverage.mjs on the real tree still exits 0 (all 23 screens pending).
+4. No regression to the round-1 passing checks.
+
+Commands (from <worktree>/scoresnap):
+  node --test scripts/check-screen-coverage.test.mjs ; echo exit=$?
+  node scripts/check-screen-coverage.mjs ; echo exit=$?
+
+END YOUR REPLY WITH EXACTLY ONE OF:
+  VERDICT: PASS
+  or:  FAILING-CHECK: <check> -- <evidence>
