@@ -13,7 +13,6 @@ import {
   Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { contestBackHref } from "../../../src/ui/contest-back";
 import { Plus, Minus, X, Check } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { COLORS, RADII } from "../../../src/ui/theme";
@@ -27,7 +26,7 @@ import { ALL_GAMES, GameType, isGameImplemented } from "../../../src/engine/type
 const BET_UNITS = [1, 2, 5, 10, 20];
 
 export default function EditContestScreen() {
-  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const tier = useScanStore(s => s.tier);
   const contest = useContestStore((s) =>
@@ -152,7 +151,7 @@ export default function EditContestScreen() {
       betUnit,
     }); } catch(error){showAlert("Review contest changes",String(error));return;}
 
-    router.replace(contestBackHref(id!, from) as any);
+    router.back();
   };
 
   // Saved premium games remain readable; only adding a game requires Pro.
@@ -179,8 +178,7 @@ export default function EditContestScreen() {
           }}
         >
           <AnimatedPressable
-            testID="round-child-back"
-            onPress={() => router.replace(contestBackHref(id!, from) as any)}
+            onPress={() => router.back()}
             style={{
               padding: 6,
               borderRadius: RADII.sm,

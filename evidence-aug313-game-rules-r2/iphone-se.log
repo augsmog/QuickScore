@@ -1,0 +1,3 @@
+FAILED J-game-rules: activations=1, screens=1, taskMs=1318 Error: feature-activation-budget; missing assertion: rule; missing assertion: outcome; missing/duplicate feature: skins-rules; missing step capture: skins-rules; missing step capture: home-restored
+Journey gate FAILED: 0/1; elapsed 2537 ms; coverage gaps 10
+J-game-rules: failed

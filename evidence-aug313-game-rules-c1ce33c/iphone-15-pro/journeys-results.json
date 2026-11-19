@@ -1,0 +1,582 @@
+{
+  "sha": "c1ce33c9a96606cafc87536e35e598b0e99c4f8e",
+  "platform": "web-offline",
+  "flags": {
+    "EXPO_PUBLIC_OFFLINE_MODE": true,
+    "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+  },
+  "fixtureVersion": "two-player-empty-v1",
+  "deviceProfile": "iphone-15-pro",
+  "safeArea": {
+    "width": 393,
+    "height": 852,
+    "top": 59,
+    "bottom": 34
+  },
+  "viewport": {
+    "width": 393,
+    "height": 852
+  },
+  "startedAt": "2026-11-03T15:27:07.634Z",
+  "required": [
+    "J-game-rules"
+  ],
+  "executed": [
+    "J-game-rules"
+  ],
+  "results": [
+    {
+      "id": "J-game-rules",
+      "fixtureVersion": "fresh-context-v1",
+      "status": "passed",
+      "errors": [],
+      "metrics": {
+        "activations": 3,
+        "textEdit": 0,
+        "focus": 6,
+        "scroll": 1,
+        "screens": [
+          "home"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": "game-library",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "scroll",
+            "before": {
+              "x": 0,
+              "y": 0
+            },
+            "after": {
+              "x": 0,
+              "y": 240
+            },
+            "deltaY": 240
+          },
+          {
+            "kind": "activations",
+            "feature": "skins-rules",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "focus"
+          },
+          {
+            "kind": "activations",
+            "feature": null,
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [
+          {
+            "feature": "game-library",
+            "signature": null,
+            "status": "passed",
+            "depth": 1,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 329,
+              "y": 310,
+              "width": 44,
+              "height": 44
+            }
+          },
+          {
+            "feature": "skins-rules",
+            "signature": null,
+            "status": "passed",
+            "depth": 2,
+            "scrolls": 1,
+            "disclosures": [
+              "home-see-all-modes"
+            ],
+            "rect": {
+              "x": 20,
+              "y": 192,
+              "width": 353,
+              "height": 80
+            }
+          }
+        ],
+        "durationMs": 1573
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 3,
+            "textEdit": 0,
+            "focus": 6,
+            "scroll": 1,
+            "screens": [
+              "home"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": "game-library",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "scroll",
+                "before": {
+                  "x": 0,
+                  "y": 0
+                },
+                "after": {
+                  "x": 0,
+                  "y": 240
+                },
+                "deltaY": 240
+              },
+              {
+                "kind": "activations",
+                "feature": "skins-rules",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "focus"
+              },
+              {
+                "kind": "activations",
+                "feature": null,
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [
+              {
+                "feature": "game-library",
+                "signature": null,
+                "status": "passed",
+                "depth": 1,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 329,
+                  "y": 310,
+                  "width": 44,
+                  "height": 44
+                }
+              },
+              {
+                "feature": "skins-rules",
+                "signature": null,
+                "status": "passed",
+                "depth": 2,
+                "scrolls": 1,
+                "disclosures": [
+                  "home-see-all-modes"
+                ],
+                "rect": {
+                  "x": 20,
+                  "y": 192,
+                  "width": 353,
+                  "height": 80
+                }
+              }
+            ],
+            "durationMs": 1573
+          },
+          "assertions": [
+            "entry",
+            "library",
+            "rule",
+            "outcome"
+          ],
+          "pageErrors": [],
+          "featureChecks": [
+            "game-library",
+            "skins-rules"
+          ],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 30
+            },
+            {
+              "number": 2,
+              "name": "game-library",
+              "captureMs": 25
+            },
+            {
+              "number": 3,
+              "name": "game-modes-scroll",
+              "captureMs": 22
+            },
+            {
+              "number": 4,
+              "name": "skins-rules",
+              "captureMs": 28
+            },
+            {
+              "number": 5,
+              "name": "home-restored",
+              "captureMs": 14
+            }
+          ],
+          "error": null
+        }
+      ]
+    }
+  ],
+  "coverageGaps": [
+    {
+      "id": "J-score-hand",
+      "reason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only"
+    },
+    {
+      "id": "J-create-8p-multiday",
+      "reason": "Multiday creation outside the phase 1 slice"
+    },
+    {
+      "id": "J-join-code",
+      "reason": "Offline error path does not prove successful backend or cross-device join"
+    },
+    {
+      "id": "J-guest-join-web",
+      "reason": "Guest identity and backend joining deferred; existing sharing suites retained"
+    },
+    {
+      "id": "J-reopen-after-crash",
+      "reason": "Reload persistence is gated; process kill/crash recovery is separate coverage"
+    },
+    {
+      "id": "J-round-score-settle-reload",
+      "feature": "score-Augie",
+      "linear": "AUG-306",
+      "reason": "Semantic reachability expected failure; geometry, activation and outcomes remain gated"
+    },
+    {
+      "id": "J-round-score-settle-reload",
+      "feature": "score-Sam",
+      "linear": "AUG-306",
+      "reason": "Semantic reachability expected failure; geometry, activation and outcomes remain gated"
+    },
+    {
+      "id": "J-round-score-settle-reload",
+      "feature": "settle",
+      "linear": "AUG-306",
+      "reason": "Semantic reachability expected failure; geometry, activation and outcomes remain gated"
+    },
+    {
+      "id": "J-round-score-settle-reload",
+      "feature": "leaderboard",
+      "linear": "AUG-306",
+      "reason": "Semantic reachability expected failure; geometry, activation and outcomes remain gated"
+    },
+    {
+      "id": "J-invite-from-round",
+      "feature": "invite",
+      "linear": "AUG-306",
+      "reason": "Semantic reachability expected failure; geometry, activation and outcomes remain gated"
+    }
+  ],
+  "mutation": null,
+  "harnessTree": "a5a1ec33833fa1d1185ac80a05de27207f89805d",
+  "glyphEvidence": [
+    {
+      "id": 1,
+      "text": "See All",
+      "testId": "home-see-all-modes",
+      "clip": {
+        "x": 334,
+        "y": 323.5,
+        "width": 34,
+        "height": 17
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 7
+      },
+      "captures": {
+        "normal": "glyphs-39kQNp/001-normal.png",
+        "wrapped-visible": "glyphs-39kQNp/001-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-39kQNp/001-glyphs-suppressed.png",
+        "restored": "glyphs-39kQNp/001-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 209,
+          "significant": 185,
+          "total": 578
+        },
+        "characters": [
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 8,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "text": "See All",
+      "testId": "home-see-all-modes",
+      "clip": {
+        "x": 334,
+        "y": 323.5,
+        "width": 34,
+        "height": 17
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 7
+      },
+      "captures": {
+        "normal": "glyphs-39kQNp/002-normal.png",
+        "wrapped-visible": "glyphs-39kQNp/002-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-39kQNp/002-glyphs-suppressed.png",
+        "restored": "glyphs-39kQNp/002-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 209,
+          "significant": 185,
+          "total": 578
+        },
+        "characters": [
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 8,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "text": "See All",
+      "testId": "home-see-all-modes",
+      "clip": {
+        "x": 334,
+        "y": 323.5,
+        "width": 34,
+        "height": 17
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 7
+      },
+      "captures": {
+        "normal": "glyphs-39kQNp/003-normal.png",
+        "wrapped-visible": "glyphs-39kQNp/003-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-39kQNp/003-glyphs-suppressed.png",
+        "restored": "glyphs-39kQNp/003-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 209,
+          "significant": 185,
+          "total": 578
+        },
+        "characters": [
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 8,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "gate": {
+    "status": "passed",
+    "errors": []
+  },
+  "elapsedMs": 2598
+}

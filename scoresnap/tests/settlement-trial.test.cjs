@@ -35,9 +35,8 @@ function screen(packages = { annual: annual() }, status = 1) {
     'services/purchases': { getPackages, waitForPurchaseIdentity, isPurchaseIdentityCurrent: r => current && r === revision },
     'services/paywall-plans': plans, 'services/scorecard-pdf-font':{},'services/scorecard-pdf': {}, 'services/share-scorecard-pdf': {}, 'services/live-share-url-state': { liveShareScope: (actor, id) => JSON.stringify([actor, id]), useLiveShareUrl: () => undefined }, 'engine/contest-results': {}, 'engine/calculators/skins': {},
     'stores/auth-store': { useAuthStore: f => f(auth) }, 'stores/scan-store': { useScanStore: f => f(scan) },
-    'stores/contest-store': { useContestStore: f => f({ contests: [] }) }, 'services/entitlements': { canSeeSettlement: tier => tier !== 'free', proEnabled: () => true },
+    'stores/contest-store': { useContestStore: f => f({ contests: [] }) }, 'services/entitlements': { canSeeSettlement: tier => tier !== 'free' },
     'ui/recap/RecapCard': {}, 'ui/recap/model': {}, 'ui/LiveShare': {}, 'ui/copy': {}, 'ui/theme': { COLORS: {}, FONTS: {}, TYPOGRAPHY: {}, RADII: {} },
-    'services/analytics': { webAnalytics: { capture: jest.fn(async () => undefined) } },
   };
   for (const [k, v] of Object.entries(extras)) deps['../../../src/' + k] = v;
   deps.zustand = { useStore: (store, selector) => selector(store.getState()) };

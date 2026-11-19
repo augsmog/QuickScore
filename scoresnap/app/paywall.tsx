@@ -6,21 +6,18 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { getPackages, purchasePackage, restorePurchases, syncProStatus } from '../src/services/purchases';
 import { eligibleAnnualTrials, buildPaywallView, type PaywallSelection } from '../src/services/paywall-plans';
-import { proEnabled } from '../src/services/entitlements';
 import { useScanStore } from '../src/stores/scan-store';
 import { PRIVACY_URL, TERMS_URL } from '../src/config/support';
 import { PAYWALL as P } from '../src/ui/paywall-tokens';
 import { PAYWALL_COPY as C } from '../src/ui/paywall-copy';
 import { PaywallIcon, PaywallRadio } from '../src/ui/paywall-icons';
-import { posthog } from '../src/config/posthog';
 
 export default function PaywallScreen() {
   const router = useRouter();
   const { tier: target } = useLocalSearchParams<{ tier?: string }>();
   const tier = useScanStore(s => s.tier);
   useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
-  // AUG-1263: the Pro row is hidden while pro_enabled is off (below), so never default-select it.
-  const [selection, setSelection] = useState<PaywallSelection>({ tier: target === 'td' || !proEnabled() ? 'td' : 'pro', period: 'year' });
+  const [selection, setSelection] = useState<PaywallSelection>({ tier: target === 'td' ? 'td' : 'pro', period: 'year' });
   const [packages, setPackages] = useState<Awaited<ReturnType<typeof getPackages>>>({ annual: null, monthly: null, td_annual: null, td_monthly: null });
   const [eligible, setEligible] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
@@ -43,7 +40,7 @@ export default function PaywallScreen() {
     catch (e: unknown) { showAlert(C.subscription, e instanceof Error ? e.message || C.retry : C.retry); }
     finally { setBusy(false); }
   }
-  const v = buildPaywallView(packages, eligible, tier, selection, proEnabled());
+  const v = buildPaywallView(packages, eligible, tier, selection);
   const tag = (label: string) => <Text style={[s.tag, label === C.current && s.current]}>{label}</Text>;
   return <SafeScreen style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>
@@ -71,9 +68,9 @@ export default function PaywallScreen() {
       </Pressable>)}</View>
       <View style={{ gap: 6, alignItems: 'center' }}>
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || v.disabled }} disabled={busy || v.disabled} style={[s.cta, (busy || v.disabled) && { opacity: 0.55 }]}
-          onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); posthog?.capture('subscription_purchase_completed', { selected_tier: selection.tier, billing_period: selection.period }); router.back(); } })}><Text style={s.ctaText}>{v.cta}</Text></Pressable>
+          onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); router.back(); } })}><Text style={s.ctaText}>{v.cta}</Text></Pressable>
         {!!v.billed && <Text style={s.billed}>{v.billed}</Text>}
-        {!!v.oneTrial && <Text style={s.small}>{v.oneTrial}</Text>}
+        <Text style={s.small}>{v.oneTrial}</Text>
       </View>
       <Text style={[s.small, { lineHeight: 15 }]}>{v.legal}</Text>
       <View style={s.footer}>

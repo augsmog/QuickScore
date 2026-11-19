@@ -1,0 +1,473 @@
+{
+  "sha": "aad018d78cc237790b55528a3c0dd5b8401ecf20",
+  "platform": "web-offline",
+  "flags": {
+    "EXPO_PUBLIC_OFFLINE_MODE": true,
+    "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true
+  },
+  "fixtureVersion": "two-player-empty-v1",
+  "deviceProfile": "iphone-se",
+  "safeArea": {
+    "width": 375,
+    "height": 667,
+    "top": 20,
+    "bottom": 0
+  },
+  "viewport": {
+    "width": 375,
+    "height": 667
+  },
+  "startedAt": "2026-11-03T15:22:39.406Z",
+  "required": [
+    "J-game-rules"
+  ],
+  "executed": [
+    "J-game-rules"
+  ],
+  "results": [
+    {
+      "id": "J-game-rules",
+      "fixtureVersion": "fresh-context-v1",
+      "status": "failed",
+      "errors": [
+        "Error: {\"x\":20,\"y\":859.4851684570312,\"width\":335,\"height\":80}",
+        "missing assertion: rule",
+        "missing assertion: outcome",
+        "missing/duplicate feature: skins-rules",
+        "missing step capture: skins-rules",
+        "missing step capture: home-restored"
+      ],
+      "metrics": {
+        "activations": 1,
+        "textEdit": 0,
+        "focus": 1,
+        "scroll": 0,
+        "screens": [
+          "home"
+        ],
+        "transitions": [
+          {
+            "from": null,
+            "to": "home"
+          }
+        ],
+        "actions": [
+          {
+            "kind": "activations",
+            "feature": "game-library",
+            "disclosure": null
+          },
+          {
+            "kind": "focus"
+          }
+        ],
+        "reachability": [
+          {
+            "feature": "game-library",
+            "signature": null,
+            "status": "passed",
+            "depth": 1,
+            "scrolls": 0,
+            "disclosures": [],
+            "rect": {
+              "x": 311,
+              "y": 310,
+              "width": 44,
+              "height": 44
+            }
+          }
+        ],
+        "durationMs": 716
+      },
+      "attempts": [
+        {
+          "number": 1,
+          "metrics": {
+            "activations": 1,
+            "textEdit": 0,
+            "focus": 1,
+            "scroll": 0,
+            "screens": [
+              "home"
+            ],
+            "transitions": [
+              {
+                "from": null,
+                "to": "home"
+              }
+            ],
+            "actions": [
+              {
+                "kind": "activations",
+                "feature": "game-library",
+                "disclosure": null
+              },
+              {
+                "kind": "focus"
+              }
+            ],
+            "reachability": [
+              {
+                "feature": "game-library",
+                "signature": null,
+                "status": "passed",
+                "depth": 1,
+                "scrolls": 0,
+                "disclosures": [],
+                "rect": {
+                  "x": 311,
+                  "y": 310,
+                  "width": 44,
+                  "height": 44
+                }
+              }
+            ],
+            "durationMs": 716
+          },
+          "assertions": [
+            "entry",
+            "library"
+          ],
+          "pageErrors": [],
+          "featureChecks": [
+            "game-library"
+          ],
+          "steps": [
+            {
+              "number": 1,
+              "name": "entry",
+              "captureMs": 35
+            },
+            {
+              "number": 2,
+              "name": "game-library",
+              "captureMs": 26
+            },
+            {
+              "number": 3,
+              "name": "failed",
+              "captureMs": 19
+            }
+          ],
+          "error": "Error: {\"x\":20,\"y\":859.4851684570312,\"width\":335,\"height\":80}",
+          "signature": "outside-viewport-or-clipped"
+        }
+      ]
+    }
+  ],
+  "coverageGaps": [
+    {
+      "id": "J-score-hand",
+      "reason": "AUG-291: full-18 navigation cost; phase 1 gates hole 1 only"
+    },
+    {
+      "id": "J-create-8p-multiday",
+      "reason": "Multiday creation outside the phase 1 slice"
+    },
+    {
+      "id": "J-join-code",
+      "reason": "Offline error path does not prove successful backend or cross-device join"
+    },
+    {
+      "id": "J-guest-join-web",
+      "reason": "Guest identity and backend joining deferred; existing sharing suites retained"
+    },
+    {
+      "id": "J-reopen-after-crash",
+      "reason": "Reload persistence is gated; process kill/crash recovery is separate coverage"
+    },
+    {
+      "id": "J-round-score-settle-reload",
+      "feature": "score-Augie",
+      "linear": "AUG-306",
+      "reason": "Semantic reachability expected failure; geometry, activation and outcomes remain gated"
+    },
+    {
+      "id": "J-round-score-settle-reload",
+      "feature": "score-Sam",
+      "linear": "AUG-306",
+      "reason": "Semantic reachability expected failure; geometry, activation and outcomes remain gated"
+    },
+    {
+      "id": "J-round-score-settle-reload",
+      "feature": "settle",
+      "linear": "AUG-306",
+      "reason": "Semantic reachability expected failure; geometry, activation and outcomes remain gated"
+    },
+    {
+      "id": "J-round-score-settle-reload",
+      "feature": "leaderboard",
+      "linear": "AUG-306",
+      "reason": "Semantic reachability expected failure; geometry, activation and outcomes remain gated"
+    },
+    {
+      "id": "J-invite-from-round",
+      "feature": "invite",
+      "linear": "AUG-306",
+      "reason": "Semantic reachability expected failure; geometry, activation and outcomes remain gated"
+    }
+  ],
+  "mutation": null,
+  "harnessTree": null,
+  "glyphEvidence": [
+    {
+      "id": 1,
+      "text": "See All",
+      "testId": "home-see-all-modes",
+      "clip": {
+        "x": 316,
+        "y": 323.5,
+        "width": 34,
+        "height": 17
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 7
+      },
+      "captures": {
+        "normal": "glyphs-JZDqgQ/001-normal.png",
+        "wrapped-visible": "glyphs-JZDqgQ/001-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-JZDqgQ/001-glyphs-suppressed.png",
+        "restored": "glyphs-JZDqgQ/001-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 209,
+          "significant": 185,
+          "total": 578
+        },
+        "characters": [
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 8,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "text": "See All",
+      "testId": "home-see-all-modes",
+      "clip": {
+        "x": 316,
+        "y": 323.5,
+        "width": 34,
+        "height": 17
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 7
+      },
+      "captures": {
+        "normal": "glyphs-JZDqgQ/002-normal.png",
+        "wrapped-visible": "glyphs-JZDqgQ/002-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-JZDqgQ/002-glyphs-suppressed.png",
+        "restored": "glyphs-JZDqgQ/002-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 209,
+          "significant": 185,
+          "total": 578
+        },
+        "characters": [
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 8,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "text": "See All",
+      "testId": "home-see-all-modes",
+      "clip": {
+        "x": 316,
+        "y": 323.5,
+        "width": 34,
+        "height": 17
+      },
+      "node": {
+        "path": [
+          0,
+          0
+        ],
+        "start": 0,
+        "end": 7
+      },
+      "captures": {
+        "normal": "glyphs-JZDqgQ/003-normal.png",
+        "wrapped-visible": "glyphs-JZDqgQ/003-wrapped-visible.png",
+        "glyphs-suppressed": "glyphs-JZDqgQ/003-glyphs-suppressed.png",
+        "restored": "glyphs-JZDqgQ/003-restored.png"
+      },
+      "proof": {
+        "passed": true,
+        "reason": "glyph paint changed",
+        "delta": {
+          "changed": 209,
+          "significant": 185,
+          "total": 578
+        },
+        "characters": [
+          [
+            {
+              "significant": 35,
+              "inkHeight": 9,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 31,
+              "inkHeight": 7,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 34,
+              "inkHeight": 8,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ],
+          [
+            {
+              "significant": 27,
+              "inkHeight": 10,
+              "requiredInkHeight": 5,
+              "passed": true
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "gate": {
+    "status": "failed",
+    "errors": [
+      "J-game-rules: failed"
+    ]
+  },
+  "elapsedMs": 3631
+}

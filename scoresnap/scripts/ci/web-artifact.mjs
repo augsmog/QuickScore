@@ -39,40 +39,20 @@ export function createManifest(root, identity) {
   return { schema: 1, identity, files: inventory(root) };
 }
 
-// Hosted jobs in one run may land on different runner image revisions while GitHub rolls out
-// images. setup-node can also resolve different patches from each image's tool cache. Keep
-// those values in the manifest for audit, while binding provenance to every other field and
-// the Node major version.
-const IDENTITY_KEYS = ['run', 'attempt', 'commit', 'tree', 'workflow', 'lock', 'node', 'imageOS', 'imageVersion', 'expo', 'playwright', 'flags'].sort();
-const nodeMajor = version => typeof version === 'string'
-  ? /^v?(\d+)\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.exec(version)?.[1] ?? null
-  : null;
-export function provenanceKey(identity) {
-  if (!identity || typeof identity !== 'object') return null;
-  const keys = Object.keys(identity).sort();
-  if (keys.length !== IDENTITY_KEYS.length || keys.some((key, index) => key !== IDENTITY_KEYS[index])) return null;
-  const { imageVersion, node, ...strict } = identity;
-  const major = nodeMajor(node);
-  if (major === null) return null;
-  return JSON.stringify({ ...strict, nodeMajor: major });
-}
-
 export function verifyManifest(root, identity, manifest) {
   if (manifest?.schema !== 1) throw new Error('Unsupported artifact manifest');
-  if (typeof manifest.identity?.imageVersion !== 'string' || !manifest.identity.imageVersion) throw new Error('Artifact provenance mismatch');
-  const key = provenanceKey(identity);
-  if (key === null || provenanceKey(manifest.identity) !== key) throw new Error('Artifact provenance mismatch');
+  if (JSON.stringify(manifest.identity) !== JSON.stringify(identity)) throw new Error('Artifact provenance mismatch');
   if (JSON.stringify(manifest.files) !== JSON.stringify(inventory(root))) throw new Error('Artifact content mismatch');
 }
 
 export function currentIdentity(cwd = process.cwd(), env = process.env) {
   const required = ['GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA', 'ImageOS', 'ImageVersion'];
   for (const key of required) if (!env[key]) throw new Error(`Missing CI identity: ${key}`);
-  const git = (...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  const git = (...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
   const commit = git('rev-parse', 'HEAD');
   if (commit !== env.GITHUB_SHA) throw new Error('Checkout does not match the workflow commit');
   const repo = git('rev-parse', '--show-toplevel');
-  execFileSync('git', ['diff', '--exit-code', 'HEAD', '--', '.'], { cwd: repo, stdio: ['ignore', 'pipe', 'pipe'] });
+  execFileSync('git', ['diff', '--exit-code', 'HEAD', '--', '.'], { cwd: repo, stdio: 'pipe' });
   const lockBytes = fs.readFileSync(path.join(cwd, 'package-lock.json'));
   const lock = JSON.parse(lockBytes);
   return {
