@@ -262,7 +262,9 @@ function SettlementScreenContent() {
         <Text testID="settlement-session-total" style={{ fontFamily: FONTS.score, fontSize: 24, color: COLORS.primary }}>{formatMoney(sessionTotal)}</Text>
       </View>
 
-      <View style={{ marginBottom: 24 }}>
+      {/* Leave a full action-height of separation before the read-only breakdown.
+          Otherwise revealing BY GAME can leave the last action clipped at scroll-top. */}
+      <View style={{ marginBottom: 48 }}>
         <Text style={sectionLabel}>WHO OWES WHAT</Text>
         {settlement.transactions.map((t, i) => {
           const transactionKey = transactionKeys[i];

@@ -136,3 +136,5 @@ questions and explicit empty/no answers; incomplete cached facts remain pending,
 rejects wrong-game/overwrite/incomplete answers, unsupported press history stays pending.
 Focused Jest: 6 suites / 65 tests PASS; TypeScript clean. This is pure code evidence only;
 photo-to-active-scoring and account-linked continuation acceptance remain open on AUG-348.
+
+| 2026-11-19 | J-settlement-mark-lifecycle | WHO OWES WHAT actions clear scroll-top when revealing BY GAME on SE and Pro Max | AUG-1374, strict rendered 21px/13px fragments | settlement-scroll-layout.browser.test.mjs runs the persisted mark/undo/isolation lifecycle on all three safe-area profiles, audits every capture for overlaps and visible targets >=44x44, and retains screenshots/geometry; registered through home-rank-layout.browser.test.mjs | pull-ss | AUG-1374 |
