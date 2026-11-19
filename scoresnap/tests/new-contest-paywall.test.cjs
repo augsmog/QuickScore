@@ -23,7 +23,10 @@ function harness(initialTier = 'free', {comingSoon = false, validate} = {}) {
     '../../src/ui/compact-viewport': {isCompactViewport: () => true},
     '../../src/stores/scan-store': {useScanStore: select => select({tier})},
     '../../src/stores/auth-store': {useAuthStore},
-    '../../src/stores/contest-store': {generateId: () => `p${++id}`, useContestStore: select => select({addContest}), defaultCourse: name => ({name, holes: []}), buildTournamentRounds: () => undefined},
+    // AUG-1368: buildTournamentRounds now yields a shaped rounds array so the contest
+    // the wizard constructs has the same multi-round geometry the real store would see,
+    // and the real canHostTournament gate (imported unmocked by new.tsx) runs for real.
+    '../../src/stores/contest-store': {generateId: () => `p${++id}`, useContestStore: select => select({addContest}), defaultCourse: name => ({name, holes: []}), buildTournamentRounds: (groups, course, numRounds) => Number.isInteger(numRounds) && numRounds > 1 ? Array.from({length: numRounds}, (_, i) => ({id: `r${i + 1}`, number: i + 1, name: `Round ${i + 1}`, course, groups})) : undefined},
     '../../src/config/features': {COURSE_SEARCH_ENABLED: false}, '../../src/config/auth': {REAL_AUTH_CONFIGURED: false},
     '../../src/config/posthog': {posthog: null},
     '../../src/services/posthog-log': {posthogAppLogger: {contestCreated() {}}},
@@ -49,18 +52,69 @@ function harness(initialTier = 'free', {comingSoon = false, validate} = {}) {
 }
 const gameCard = (h, name) => h.find(n => n.type === 'Pressable' && nodes(n).some(c => c.type === 'Text' && text(c).replace('🔒 ', '') === name));
 
-test('free tier selects modes and hosting without any paywall route, preserving player entry', () => {
-  const h = harness(); h.seed(4); const before = structuredClone(h.players());
-  h.byId('add-group').onPress(); h.byId('tournament-toggle').onValueChange(true);
+// AUG-1368: a free (non-TD) user who turns on Multi-Day Tournament must be routed to the
+// TD paywall from Start, not crash on the store validator throw. The wizard draft is
+// preserved (no contest is created, player entry is untouched) so the user can return.
+const toStart = (h, {rounds} = {}) => {
+  act(() => h.byId('tournament-toggle').onValueChange(true));
+  if (rounds) act(() => h.byId(`rounds-${rounds}`).onPress());
+  h.press('Continue'); h.press('Continue');
+  expect(text(h.render())).toContain('Step 2/2');
+};
+
+test('free tier multi-day routes to the TD paywall and creates nothing, preserving entry', () => {
+  const h = harness('free'); h.seed(4); const before = structuredClone(h.players());
+  toStart(h);
+  h.press('Start');
+  expect(h.push).toHaveBeenCalledWith('/paywall?tier=td');
+  expect(h.addContest).not.toHaveBeenCalled();
+  // Draft preserved: the wizard stays mounted; stepping back to Players shows the same entry.
+  h.press('Back'); h.press('Back');
+  expect(h.players().map(p => p.name)).toEqual(before.map(p => p.name));
+});
+
+test('Pro (Pro-dormant) tier is still not a TD host: multi-day routes to the TD paywall', () => {
+  const h = harness('pro'); h.seed(4);
+  toStart(h, {rounds: 3});
+  h.press('Start');
+  expect(h.push).toHaveBeenCalledWith('/paywall?tier=td');
+  expect(h.addContest).not.toHaveBeenCalled();
+});
+
+test('TD tier creates a 2/3/4-round tournament once with no paywall route', () => {
+  for (const rounds of [2, 3, 4]) {
+    const h = harness('td'); h.seed(4);
+    toStart(h, {rounds});
+    h.press('Start');
+    expect(h.push).not.toHaveBeenCalled();
+    expect(h.addContest).toHaveBeenCalledTimes(1);
+    const saved = h.addContest.mock.calls[0][0];
+    expect(saved.isTournament).toBe(true);
+    expect(saved.rounds).toHaveLength(rounds);
+  }
+});
+
+test('single-round free contest still creates without a paywall route', () => {
+  const h = harness('free'); h.seed(4); const before = structuredClone(h.players());
   h.press('Continue'); act(() => gameCard(h, 'Skins').onPress());
-  expect(text(h.render())).toContain('Step 1/2');
-  expect(h.byId('contest-step-gamemodes')).toBeDefined();
-  expect(nodes(h.render()).some(n => n.type === 'Switch')).toBe(true);
-  h.press('Continue'); expect(text(h.render())).toContain('Step 2/2');
-  h.press('Start'); expect(h.push).not.toHaveBeenCalled();
+  h.press('Continue'); h.press('Start');
+  expect(h.push).not.toHaveBeenCalled();
   expect(h.addContest).toHaveBeenCalledTimes(1);
   expect(h.addContest.mock.calls[0][0].games).toContain('skins');
   expect(h.addContest.mock.calls[0][0].groups[0].players.map(p => p.name)).toEqual(before.map(p => p.name));
+});
+
+test('free->TD retry after the paywall creates exactly one tournament', () => {
+  const h = harness('free'); h.seed(4);
+  toStart(h, {rounds: 2});
+  h.press('Start');
+  expect(h.push).toHaveBeenCalledWith('/paywall?tier=td');
+  expect(h.addContest).not.toHaveBeenCalled();
+  // User purchases TD and returns to the preserved wizard; a second Start now creates once.
+  h.tier('td');
+  h.press('Start');
+  expect(h.addContest).toHaveBeenCalledTimes(1);
+  expect(h.addContest.mock.calls[0][0].rounds).toHaveLength(2);
 });
 
 test('game mode cards expose stable selected state and save Skins toggle semantics', () => {
@@ -101,7 +155,12 @@ test('only two numbered steps; Round Settings contains only unit amount and esti
   expect(nodes(settings.children).some(n => n.type === 'Switch')).toBe(false);
   expect(text(settings.children)).not.toMatch(/VARIATIONS|ENTRY FEE|Stroke Play|players|holes/);
   h.press('Back'); expect(h.byId('contest-step-gamemodes')).toBeDefined();
-  expect(fs.readFileSync('app/contest/new.tsx', 'utf8')).not.toMatch(/paywall|openPlan|Upgrade|canUseGame|canHostTournament/);
+  // AUG-1368: the Round Settings step must still carry no per-game upsell, but the wizard
+  // now routes unentitled tournament hosts to the TD paywall before save (crash gate).
+  const src = fs.readFileSync('app/contest/new.tsx', 'utf8');
+  expect(src).not.toMatch(/openPlan|Upgrade|canUseGame/);
+  expect(src).toMatch(/canHostTournament\(contest, tier\)/);
+  expect(src).toMatch(/paywall\?tier=td/);
 });
 
 test('Coming Soon modes remain unavailable without opening a plan', () => {
