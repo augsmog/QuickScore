@@ -1,0 +1,11 @@
+{
+  "profile": "iphone-15-pro",
+  "id": "J-game-rules",
+  "observations": [
+    "entry",
+    "library",
+    "rule",
+    "overlap-negative-rejected",
+    "outcome"
+  ]
+}
