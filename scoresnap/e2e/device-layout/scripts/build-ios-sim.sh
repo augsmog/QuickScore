@@ -49,9 +49,31 @@ pod install
 
 xcodebuild -version
 DERIVED="$CACHE/DerivedData"
+# xcodebuild can sit silent for many minutes on a cold Release build; stream it to a log we upload
+# and print a heartbeat every 30s, under a hard 20-min cap so a wedged build fails fast with a tail
+# instead of silently burning the 45-min job. (The earlier run printed nothing for ~25 min.)
+BUILD_LOG="$OUTROOT/ios-xcodebuild.log"
+BUILD_TIMEOUT_S="${DEVICE_LAYOUT_IOS_BUILD_TIMEOUT_S:-1200}"
+echo "device-layout: xcodebuild Release (simulator) → $BUILD_LOG (cap ${BUILD_TIMEOUT_S}s)"
+set +e
 xcodebuild -workspace SnapScore.xcworkspace -scheme SnapScore -configuration Release \
   -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DERIVED" \
-  CODE_SIGNING_ALLOWED=NO build
+  CODE_SIGNING_ALLOWED=NO build > "$BUILD_LOG" 2>&1 &
+XPID=$!
+waited=0
+while kill -0 "$XPID" 2>/dev/null; do
+  sleep 30; waited=$((waited+30))
+  echo "device-layout: xcodebuild running ${waited}s … $(tail -1 "$BUILD_LOG" 2>/dev/null)"
+  if [ "$waited" -ge "$BUILD_TIMEOUT_S" ]; then
+    echo "::error::xcodebuild exceeded ${BUILD_TIMEOUT_S}s — killing; last 60 log lines:"
+    kill -9 "$XPID" 2>/dev/null; wait "$XPID" 2>/dev/null
+    tail -60 "$BUILD_LOG"; exit 1
+  fi
+done
+wait "$XPID"; RC=$?
+set -e
+if [ "$RC" -ne 0 ]; then echo "::error::xcodebuild failed rc=$RC; last 80 log lines:"; tail -80 "$BUILD_LOG"; exit 1; fi
+echo "device-layout: xcodebuild done in ${waited}s"
 
 APP_PATH="$(find "$DERIVED/Build/Products/Release-iphonesimulator" -maxdepth 2 -type d -name 'SnapScore.app' -print -quit)"
 test -n "$APP_PATH" && test -d "$APP_PATH"

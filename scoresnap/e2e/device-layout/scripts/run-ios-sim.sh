@@ -39,6 +39,18 @@ export PATH="$JAVA_HOME/bin:$HOME/.maestro/bin:$PATH"
 command -v maestro >/dev/null || { echo "::error::maestro not on PATH (expected ~/.maestro/bin)"; exit 1; }
 echo "device-layout: iOS legs [$PROFILES] @ $SHA on macOS $(sw_vers -productVersion 2>/dev/null || echo '?') / $(xcodebuild -version 2>/dev/null | head -1 || echo 'no xcode') / maestro $(maestro --version 2>/dev/null | tail -1)"
 
+# Portable per-flow + boot hard caps so a hung flow/boot fails fast (with its log) instead of eating
+# the 45-min job timeout. macOS ships no `timeout`; prefer coreutils `gtimeout` if brew-installed.
+FLOW_TIMEOUT_S="${DEVICE_LAYOUT_FLOW_TIMEOUT_S:-150}"
+BOOT_TIMEOUT_S="${DEVICE_LAYOUT_BOOT_TIMEOUT_S:-180}"
+if command -v timeout >/dev/null 2>&1; then TIMEOUT_BIN=timeout
+elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_BIN=gtimeout
+else TIMEOUT_BIN=""; fi
+with_timeout() { local secs="$1"; shift
+  if [ -n "$TIMEOUT_BIN" ]; then "$TIMEOUT_BIN" "${secs}s" "$@"
+  else "$@"; fi; }
+flow_test() { local log="$1"; shift; with_timeout "$FLOW_TIMEOUT_S" "$@" > "$log" 2>&1; }
+
 # Profile id → simulator device type (available on the Mac mini per owner card t1550s9640).
 simdevice() {
   case "$1" in
@@ -70,8 +82,8 @@ capture_flows() {
       base="$(printf '%02d-%s-%s' "$order" "$flow" "$(basename "$sub" .yaml | sed 's/^[0-9]*-//')")"
       slug="$(basename "$sub" .yaml | sed 's/^[0-9]*-//; s/-/ /g')"
       echo "  checkpoint $base"
-      if ! maestro $devarg test "$sub" > "$capdir/$base.maestro.log" 2>&1; then
-        echo "::warning::maestro sub-flow failed: $sub (see $base.maestro.log)"
+      if ! flow_test "$capdir/$base.maestro.log" maestro $devarg test "$sub"; then
+        echo "::warning::maestro sub-flow failed or timed out (>${FLOW_TIMEOUT_S}s): $sub (see $base.maestro.log)"
         tail -20 "$capdir/$base.maestro.log" || true
       fi
       maestro $devarg hierarchy > "$capdir/$base.hierarchy.json" 2>/dev/null || echo '{"attributes":{},"children":[]}' > "$capdir/$base.hierarchy.json"
@@ -116,7 +128,10 @@ for prof in "${PLIST[@]}"; do
     echo "=== profile $prof ($dev, $IOS_RUNTIME) ==="
     UDID="$(xcrun simctl create "dl-$prof" "$dev" "$IOS_RUNTIME" 2>/dev/null || true)"
     if [ -n "$UDID" ]; then
-      xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || xcrun simctl boot "$UDID" >/dev/null 2>&1 || true
+      # Bounded boot wait: bootstatus -b blocks until booted; cap it so a wedged simulator fails
+      # fast instead of hanging the job (the silent-hang mode the executor observed).
+      with_timeout "$BOOT_TIMEOUT_S" xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 \
+        || xcrun simctl boot "$UDID" >/dev/null 2>&1 || true
       [ -n "$APP_PATH" ] && xcrun simctl install "$UDID" "$APP_PATH" >/dev/null 2>&1 || true
     fi
   else

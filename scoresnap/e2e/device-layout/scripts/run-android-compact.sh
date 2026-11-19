@@ -38,6 +38,17 @@ export JAVA_HOME="${JAVA_HOME:-${JAVA_HOME_17_X64:-}}"
 export PATH="$HOME/.maestro/bin:$PATH"
 command -v maestro >/dev/null || { curl -fsSL "https://get.maestro.mobile.dev" | bash; export PATH="$HOME/.maestro/bin:$PATH"; }
 
+# Portable per-flow hard cap: a hung Maestro flow fails fast (with its log) instead of eating the
+# 30-min job timeout. 120s is comfortably above a healthy flow (~20s) and the onboarding sub-flow's
+# own 45s+30s waits, so it only trips on a true hang.
+FLOW_TIMEOUT_S="${DEVICE_LAYOUT_FLOW_TIMEOUT_S:-120}"
+if command -v timeout >/dev/null 2>&1; then TIMEOUT_BIN=timeout
+elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_BIN=gtimeout
+else TIMEOUT_BIN=""; fi
+flow_test() { local log="$1"; shift
+  if [ -n "$TIMEOUT_BIN" ]; then "$TIMEOUT_BIN" "${FLOW_TIMEOUT_S}s" "$@" > "$log" 2>&1
+  else "$@" > "$log" 2>&1; fi; }
+
 adb wait-for-device
 SERIAL="$(adb devices | awk '/emulator|device$/{print $1; exit}')"
 [ -n "$SERIAL" ] || { echo "::error::no adb device"; exit 1; }
@@ -76,8 +87,8 @@ capture_flows() {
       base="$(printf '%02d-%s-%s' "$order" "$flow" "$(basename "$sub" .yaml | sed 's/^[0-9]*-//')")"
       slug="$(basename "$sub" .yaml | sed 's/^[0-9]*-//; s/-/ /g')"
       echo "  checkpoint $base"
-      if ! maestro --device "$SERIAL" test "$sub" > "$capdir/$base.maestro.log" 2>&1; then
-        echo "::warning::maestro sub-flow failed: $sub"
+      if ! flow_test "$capdir/$base.maestro.log" maestro --device "$SERIAL" test "$sub"; then
+        echo "::warning::maestro sub-flow failed or timed out (>${FLOW_TIMEOUT_S}s): $sub"
         tail -20 "$capdir/$base.maestro.log" || true
       fi
       maestro --device "$SERIAL" hierarchy > "$capdir/$base.hierarchy.json" 2>/dev/null || echo '{"attributes":{},"children":[]}' > "$capdir/$base.hierarchy.json"

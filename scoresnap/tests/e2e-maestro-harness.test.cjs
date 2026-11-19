@@ -27,9 +27,15 @@ test("config shape, app id and build profiles match the app", () => {
   expect(eas.build[config.builds.offline.easProfile].env.EXPO_PUBLIC_OFFLINE_MODE).toBe("true");
 });
 
+// The device-layout capture flows are a SEPARATE contract (device-layout/v1), asserted below;
+// they are intentionally not part of the aos-e2e/v1 flow registry.
+const DEVICE_LAYOUT_SUBDIR = `${path.sep}flows${path.sep}device-layout${path.sep}`;
+
 test("every flow is listed once, exists, targets the app and names its ticket", () => {
   const listed = config.flows.map((f) => path.join(repo, f.file)).sort();
-  const onDisk = walk(path.join(dir, "flows")).filter((f) => f.endsWith(".yaml")).sort();
+  const onDisk = walk(path.join(dir, "flows"))
+    .filter((f) => f.endsWith(".yaml") && !f.includes(DEVICE_LAYOUT_SUBDIR))
+    .sort();
   expect(listed).toEqual(onDisk);
   expect(new Set(config.flows.map((f) => f.id)).size).toBe(config.flows.length);
   for (const f of config.flows) {
@@ -93,9 +99,14 @@ test("selectors used by flows exist in the app source", () => {
     for (const m of fs.readFileSync(file, "utf8").matchAll(/id:\s*"([^"]+)"/g)) ids.add(m[1]);
   }
   for (const id of ids) {
-    const literal = src.includes(`testID="${id}"`) || (["course-tee-last", "course-tee-row"].includes(id) && src.includes('testID={ti === selectedCourse.teeBoxes.length - 1 ? "course-tee-last"'));
+    const literal = src.includes(`testID="${id}"`)
+      || (["course-tee-last", "course-tee-row"].includes(id) && src.includes('testID={ti === selectedCourse.teeBoxes.length - 1 ? "course-tee-last"'))
+      // New Contest sticky footer CTA (device-layout flows tap/anchor on this): one conditional testID.
+      || (["contest-continue", "contest-start"].includes(id) && src.includes('testID={step === 2 ? "contest-start" : "contest-continue"}'));
     const templ = (/^score-(minus|par|plus)-/.test(id) && src.includes(`testID={\`score-${id.split("-")[1]}-\${player.name}\`}`))
-      || (/^game-mode-/.test(id) && src.includes("testID={`game-mode-${game.id}`}"));
+      || (/^game-mode-/.test(id) && src.includes("testID={`game-mode-${game.id}`}"))
+      // Round-count chips in the New Contest wizard are rendered [2,3,4].map((n) => <... testID={`rounds-${n}`}>.
+      || (/^rounds-\d+$/.test(id) && src.includes("testID={`rounds-${n}`}"));
     expect([id, literal || templ]).toEqual([id, true]);
   }
 });
@@ -240,4 +251,51 @@ test('combined native runner preserves both evidence collectors in manifest',()=
  const runner=read('.maestro/scripts/run-ios-sim.sh');
  expect(runner).toContain('"scoreEntryMetrics":');expect(runner).toContain('"savedPdf":');
  expect(runner).toContain('score-entry-collect.mjs');expect(runner).toContain('collect-pdf.py');
+});
+
+// --- device-layout/v1 capture contract (separate from aos-e2e/v1 above) ---
+// The .maestro/flows/device-layout/** sub-flows are per-checkpoint capture flows for the
+// device-layout-gate native legs. They are NOT in e2e.config.json; their contract is the
+// per-PR flow + checkpoint list in e2e/device-layout/config/device-layout.config.json. Each
+// sub-flow drives one checkpoint and takes exactly one screenshot named
+// device-layout-<flow>-<NN>-<checkpoint-slug>; the native orchestrators dump a paired
+// `maestro hierarchy` after each (asserted in e2e/device-layout/lib/native-scripts.test.mjs).
+const dlConfig = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "e2e/device-layout/config/device-layout.config.json"), "utf8"));
+const dlDir = path.join(dir, "flows", "device-layout");
+const kebab = (s) => s.trim().split(/\s+/).join("-");
+
+test("device-layout capture flows cover exactly the per-PR checkpoints in device-layout.config.json", () => {
+  expect(dlConfig.schema).toBe("device-layout/v1");
+  expect(dlConfig.adapter).toBe("maestro");
+  // Only per-PR flows have committed capture sub-flows; nightly flows (e.g. leagues) are not built yet.
+  const perPr = dlConfig.flows.filter((f) => f.cadence === "per-pr");
+  const dirsOnDisk = fs.readdirSync(dlDir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
+  expect(dirsOnDisk).toEqual(perPr.map((f) => f.id).sort());
+
+  for (const flow of perPr) {
+    const files = fs.readdirSync(path.join(dlDir, flow.id)).filter((f) => f.endsWith(".yaml")).sort();
+    // One capture sub-flow per checkpoint, in checkpoint order.
+    expect(files.length).toBe(flow.checkpoints.length);
+    files.forEach((file, i) => {
+      const idx = String(i).padStart(2, "0");
+      const slug = kebab(flow.checkpoints[i]);
+      expect(file).toBe(`${idx}-${slug}.yaml`);
+      const rel = path.join(".maestro", "flows", "device-layout", flow.id, file);
+      const [header, steps] = docs(rel);
+      expect(header.appId).toBe(config.appId);
+      expect(Array.isArray(steps)).toBe(true);
+      // Exactly one screenshot, named to the checkpoint so screenshot + hierarchy stay paired.
+      const shots = steps.filter((s) => s && s.takeScreenshot).map((s) => s.takeScreenshot);
+      expect(shots).toEqual([`device-layout-${flow.id}-${idx}-${slug}`]);
+    });
+  }
+});
+
+test("device-layout capture flows carry no credentials and no banned copy", () => {
+  for (const file of walk(dlDir).filter((f) => f.endsWith(".yaml"))) {
+    const text = fs.readFileSync(file, "utf8");
+    expect(text).not.toMatch(/(password|secret|token|api[_-]?key|service_role|eyJ[a-zA-Z0-9]{10,})\s*[:=]/i);
+    const lines = text.split("\n").filter((l) => !/assertNotVisible/.test(l));
+    expect(lines.join("\n")).not.toMatch(/\b(bet|bets|betting|wager|wagers|gamble|gambling|payout|payouts|unlock)\b/i);
+  }
 });
