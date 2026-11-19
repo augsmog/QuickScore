@@ -34,11 +34,11 @@ export function validateWaivers(doc, now = new Date()) {
     const exp = parseDate(w.expires);
     if (!exp) { errors.push(`${at}.expires must be YYYY-MM-DD`); return; }
     if (exp.getTime() <= now.getTime()) errors.push(`${at} expired on ${w.expires}`);
-    const created = parseDate(w.created || w.expires);
-    if (created) {
-      const span = (exp - created) / 86400000;
-      if (span > MAX_WAIVER_DAYS) errors.push(`${at} window ${span}d exceeds ${MAX_WAIVER_DAYS}d max`);
-    }
+    // A missing `created` cannot bypass the cap: treat it as "created now", so a far-future
+    // expiry is measured from today and still fails the max-window check.
+    const created = parseDate(w.created) || now;
+    const span = (exp - created) / 86400000;
+    if (span > MAX_WAIVER_DAYS) errors.push(`${at} window ${span.toFixed(0)}d exceeds ${MAX_WAIVER_DAYS}d max`);
     // Missing-platform evidence can never be waived.
     if (/missing[-\s]?(platform|evidence|ios|android)/i.test(`${w.reason} ${w.ruleId}`)) {
       errors.push(`${at} attempts to waive missing-platform evidence (never allowed)`);

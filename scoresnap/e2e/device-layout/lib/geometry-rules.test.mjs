@@ -64,6 +64,15 @@ test('rule 2: content outside safe area flagged', () => {
   assert.equal(ruleClipping(indexTree(nodes), ctx).length, 1);
 });
 
+test('rule 2: content outside the HORIZONTAL safe area / viewport flagged', () => {
+  // bbox extends past the right edge of a 402-wide viewport.
+  const nodes = [ctrl('x', bb(380, 100, 440, 160), { required: true })];
+  const ctx = { safeArea: { top: 0, bottom: 0, left: 0, right: 0 }, viewport: { width: 402, height: 874 } };
+  const f = ruleClipping(indexTree(nodes), ctx);
+  assert.equal(f.length, 1);
+  assert.match(f[0].reason, /right>/);
+});
+
 test('rule 3: essential label truncation at AX1', () => {
   const nodes = [txt('lbl', bb(0, 0, 120, 20), 'Number of…',
     { essential: true, expectedText: 'Number of Rounds', ellipsized: true })];

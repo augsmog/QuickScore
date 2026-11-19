@@ -127,6 +127,14 @@ test('applyWaivers suppresses only the matching finding', () => {
   assert.equal(r.waived.length, 1);
 });
 
+test('waiver with missing created cannot bypass the 14-day cap', () => {
+  const farFuture = { waivers: [{ ruleId: 2, screen: 'New Contest', deviceId: 'android-compact', reason: 'x', evidence: 'e', approvedBy: 'Astra', ticket: 'AUG-1380', expires: '2099-12-31' }] };
+  assert.equal(validateWaivers(farFuture, NOW).ok, false);
+  // A ≤14-day waiver with no created date is still allowed (measured from now).
+  const shortNoCreated = { waivers: [{ ruleId: 2, screen: 'New Contest', deviceId: 'android-compact', reason: 'x', evidence: 'e', approvedBy: 'Astra', ticket: 'AUG-1380', expires: '2026-11-26' }] };
+  assert.equal(validateWaivers(shortNoCreated, NOW).ok, true);
+});
+
 test('committed waivers.json validates (empty is fine)', () => {
   const doc = JSON.parse(readFileSync(resolve(__dir, '../waivers.json'), 'utf8'));
   assert.equal(validateWaivers(doc, NOW).ok, true);

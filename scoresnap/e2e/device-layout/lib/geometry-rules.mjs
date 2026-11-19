@@ -121,10 +121,15 @@ export function ruleClipping(tree, ctx) {
       continue;
     }
     if (safe && vp) {
-      if (r.top < safe.top - 1 || r.bottom > vp.height - safe.bottom + 1) {
+      const over = [];
+      if (r.top < (safe.top ?? 0) - 1) over.push(`top<${safe.top ?? 0}`);
+      if (r.bottom > vp.height - (safe.bottom ?? 0) + 1) over.push(`bottom>${vp.height - (safe.bottom ?? 0)}`);
+      if (r.left < (safe.left ?? 0) - 1) over.push(`left<${safe.left ?? 0}`);
+      if (r.right > vp.width - (safe.right ?? 0) + 1) over.push(`right>${vp.width - (safe.right ?? 0)}`);
+      if (over.length) {
         findings.push({
           rule: 2, severity: 'major', bbox: bboxArr(r), nodes: [n.id],
-          reason: `"${n.text || n.id}" extends outside the safe area (top ${safe.top}, bottom inset ${safe.bottom}).`,
+          reason: `"${n.text || n.id}" extends outside the safe area / viewport (${over.join(', ')}).`,
         });
       }
     }

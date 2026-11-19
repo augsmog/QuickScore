@@ -20,7 +20,13 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 export function runBundle(bundle, waiverDoc, now = new Date()) {
   const results = [];
   let kept = 0;
-  for (const cp of bundle.checkpoints || []) {
+  const checkpoints = bundle.checkpoints || [];
+  // Missing checkpoints = missing flow evidence; the gate must not pass on an empty bundle
+  // (rule 8 / RECONCILED-PLAN "missing checkpoint fails").
+  if (checkpoints.length === 0) {
+    return { ok: false, keptCount: 0, results, error: 'no checkpoints — missing flow evidence' };
+  }
+  for (const cp of checkpoints) {
     const { findings } = evaluateCheckpoint(cp.nodes, { platform: cp.platform, ...cp.context });
     const applied = applyWaivers(findings, waiverDoc, {
       screen: cp.screen, deviceId: cp.deviceId, state: cp.state,
@@ -50,6 +56,7 @@ function main() {
   if (!wv.ok) { console.error('FAIL waivers.json invalid:', wv.errors.join('; ')); process.exit(1); }
   const out = runBundle(bundle, waiverDoc);
   if (outPath) writeFileSync(outPath, JSON.stringify(out, null, 2));
+  if (out.error) console.error(`FAIL: ${out.error}`);
   for (const r of out.results) {
     const tag = r.verdict === 'pass' ? 'PASS' : 'FAIL';
     console.log(`[${tag}] ${r.flow} / ${r.checkpoint} (${r.deviceId}) — ${r.kept.length} finding(s)`);
