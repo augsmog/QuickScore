@@ -37,16 +37,24 @@ export async function checkGap01Routes(page, contestUrl) {
     await page.waitForURL(url => url.pathname === `${root}/tournament-rounds`);
     await page.getByText('Tournament Rounds', {exact: true}).waitFor();
     assert.equal(await page.getByTestId('contest-header').count(), 0);
-    // Back-navigation from here is covered separately: after this specific
-    // reload-then-push sequence, a single browser back can mis-resolve through
-    // a framework-internal (expo-router/react-navigation web history) self
-    // correction that lands on the wrong tab even though the URL briefly shows
-    // the right one. That's a distinct, deeper bug from GAP-01 (which this file
-    // exists to cover: round edit / Add a game / tournament rounds all OPEN
-    // correctly, confirmed above and by the assertions earlier in this
-    // function). Tracked as its own follow-up rather than blocking this file.
-    await page.goBack();
-    await page.waitForURL(url => url.pathname === `${root}/games`);
+    // One user Back must remain on Games after reload; catch a delayed second popstate.
+    for (const nested of ['tournament-rounds', 'edit']) {
+      if (nested === 'edit') {
+        await page.reload();
+        await selected('Games').waitFor();
+        await page.getByTestId('round-edit').click();
+        await page.getByText('Edit Contest', {exact: true}).waitFor();
+      }
+      await page.evaluate(() => {
+        window.__gap01Pops = 0;
+        window.addEventListener('popstate', () => window.__gap01Pops++);
+      });
+      await page.goBack();
+      await selected('Games').waitFor();
+      await page.waitForTimeout(750);
+      assert.equal(new URL(page.url()).pathname, `${root}/games`);
+      assert.equal(await page.evaluate(() => window.__gap01Pops), 1);
+    }
   } catch (error) {
     console.error('GAP01 tournament return', page.url(), await page.locator('body').innerText());
     throw error;

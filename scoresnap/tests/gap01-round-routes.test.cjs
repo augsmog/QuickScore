@@ -84,3 +84,16 @@ test.each(['/edit','/tournament-rounds'])('nested route %s has no duplicate roun
  expect(nodes(tree).filter(n=>n.props?.testID==='contest-header')).toHaveLength(0);
  expect(types(tree).filter(t=>t==='Slot')).toHaveLength(1);
 });
+
+const outletPath=(tree,path=[])=>{
+ if(!tree||typeof tree!=='object')return null;
+ if(tree.type==='Slot')return path;
+ const children=Array.isArray(tree.props?.children)?tree.props.children:[tree.props?.children];
+ for(let i=0;i<children.length;i++){const found=outletPath(children[i],[...path,tree.type,i]);if(found)return found;}
+ return null;
+};
+test('one persistent route outlet occupies the same position across tab and nested navigation',()=>{
+ const paths=['/games','/edit','/tournament-rounds','/scorecard'].map(s=>outletPath(render('/contest/c'+s)));
+ expect(paths[0]).not.toBeNull();
+ for(const p of paths)expect(p).toEqual(paths[0]);
+});
