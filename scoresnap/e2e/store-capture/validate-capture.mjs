@@ -14,15 +14,18 @@ export const loadListing = () => readFileSync(here('../../docs/APP_STORE_LISTING
 // frame id (e.g. to "unrelated-screen-1") drops it out of this registry and fails validateConfig;
 // verifyScreenAnchorsExist additionally greps the live source file to catch the registry itself
 // drifting from the real screen (anchor renamed/removed in the app without updating this map).
+// `caption` is the canonical caption for this id, independent of list position -- this is what
+// catches two ids being swapped in capture-config.json while their captions stay in place (the
+// positional listing check alone can't see that; see validateConfig's anchor-caption check below).
 export const SCREEN_ANCHORS = {
-  'setup-round': { testID: 'contest-step-setup', file: '../../app/contest/new.tsx' },
-  'add-group': { testID: 'add-group', file: '../../app/contest/new.tsx' },
-  'game-modes': { testID: 'contest-step-gamemodes', file: '../../app/contest/new.tsx' },
-  'score-hole': { testID: 'score-prev-hole', file: '../../app/contest/[id]/index.tsx' },
-  'leaderboard': { testID: 'leaderboard-round-columns', file: '../../src/components/LeaderboardResultsList.tsx' },
-  'side-games': { testID: 'settlement-skins-mode', file: '../../app/contest/[id]/settlement.tsx' },
-  'settle-up': { testID: 'settlement-session-total', file: '../../app/contest/[id]/settlement.tsx' },
-  'scan-card': { testID: 'parse-scorecard-button', file: '../../app/scan/index.tsx' },
+  'setup-round': { testID: 'contest-step-setup', file: '../../app/contest/new.tsx', caption: 'Set up your round' },
+  'add-group': { testID: 'add-group', file: '../../app/contest/new.tsx', caption: 'Add your group' },
+  'game-modes': { testID: 'contest-step-gamemodes', file: '../../app/contest/new.tsx', caption: '50+ game modes' },
+  'score-hole': { testID: 'score-prev-hole', file: '../../app/contest/[id]/index.tsx', caption: 'Score hole by hole' },
+  'leaderboard': { testID: 'leaderboard-round-columns', file: '../../src/components/LeaderboardResultsList.tsx', caption: "See who's leading" },
+  'side-games': { testID: 'settlement-skins-mode', file: '../../app/contest/[id]/settlement.tsx', caption: 'Your side games, tracked' },
+  'settle-up': { testID: 'settlement-session-total', file: '../../app/contest/[id]/settlement.tsx', caption: 'See who owes what' },
+  'scan-card': { testID: 'parse-scorecard-button', file: '../../app/scan/index.tsx', caption: 'Got a paper card?' },
 };
 
 export function verifyScreenAnchorsExist(anchors = SCREEN_ANCHORS) {
@@ -65,7 +68,11 @@ export function validateConfig(c, listingMd = loadListing()) {
   if (fs.length !== 8) errs.push('exactly eight frames');
   if (!fs.every((f, i) => f.n === i + 1)) errs.push('frames must be numbered 1..8 in order');
   if (new Set(fs.map(f => f.id)).size !== fs.length) errs.push('frame ids unique');
-  fs.forEach(f => { if (!SCREEN_ANCHORS[f.id]) errs.push(`frame ${f.n} id "${f.id}" is not a known screen anchor`); });
+  fs.forEach(f => {
+    const anchor = SCREEN_ANCHORS[f.id];
+    if (!anchor) { errs.push(`frame ${f.n} id "${f.id}" is not a known screen anchor`); return; }
+    if (anchor.caption !== f.caption) errs.push(`frame ${f.n} caption "${f.caption}" does not match the canonical caption for id "${f.id}" ("${anchor.caption}")`);
+  });
   const approved = listingFrames(listingMd);
   if (approved.length !== 8) errs.push('listing must define eight frames');
   fs.forEach((f, i) => { if (approved[i] && approved[i].caption !== f.caption) errs.push(`frame ${f.n} caption differs from approved listing`); });
@@ -76,7 +83,57 @@ export function validateConfig(c, listingMd = loadListing()) {
   return errs;
 }
 
-export function validateManifest(m, c = loadConfig()) {
+// The record of which build/source this harness is currently accepted to capture against.
+// Nobody has accepted a capture build yet (AUG-399: "no accepted capture build mapping is
+// currently recorded"), so this file does not exist in the repo and loadAcceptedRelease()
+// returns null -- validateManifest then fails closed instead of silently passing a manifest
+// whose buildId/sourceSha only *look* right (format-valid but unbound, e.g. an invented buildId
+// or an all-zero sourceSha, both of which are valid-looking 40-hex-char strings). Whoever accepts
+// a capture build (the AUG-399 device-evidence owner) stages this file; this ticket only wires
+// the binding and tests it with fixtures.
+export const loadAcceptedRelease = () => {
+  const p = here('./accepted-release.json');
+  if (!existsSync(p)) return null;
+  return JSON.parse(readFileSync(p, 'utf8'));
+};
+
+export function validateAcceptedReleaseBinding(m, accepted) {
+  if (!accepted) return ['no accepted-release record staged; provenance cannot be bound to a real accepted build'];
+  const errs = [];
+  if (m?.provenance?.buildId !== accepted.buildId) errs.push(`provenance.buildId does not match the accepted release build (${accepted.buildId})`);
+  if (m?.provenance?.sourceSha !== accepted.sourceSha) errs.push(`provenance.sourceSha does not match the accepted release source (${accepted.sourceSha})`);
+  if (accepted.simulatorRuntime && m?.provenance?.simulatorRuntime !== accepted.simulatorRuntime) errs.push(`provenance.simulatorRuntime does not match the accepted release runtime (${accepted.simulatorRuntime})`);
+  return errs;
+}
+
+// The record of where DotBot already staged each frame's overlay (path + sha256), so the harness
+// can bind to the real staged files instead of just declaring provider/mode strings. DotBot's
+// overlays are not staged in this repo yet (AUG-399: "use the already-prepared DotBot overlays
+// as provided; do not create or rewrite creative assets" -- this ticket creates no creative
+// asset), so this file does not exist and loadOverlayManifest() returns null. validateOverlayBinding
+// then fails closed by name instead of silently passing an unstaged overlay set.
+export const loadOverlayManifest = () => {
+  const p = here('./overlays-manifest.json');
+  if (!existsSync(p)) return null;
+  return JSON.parse(readFileSync(p, 'utf8'));
+};
+
+export function validateOverlayBinding(c, overlayManifest, overlaysBaseDir) {
+  if (c?.overlays?.provider !== 'DotBot' || c?.overlays?.mode !== 'reuse-staged-unchanged') return ['overlays must reuse staged DotBot unchanged'];
+  if (!overlayManifest) return ['no overlay manifest staged; provider/mode cannot be bound to real staged paths/digests'];
+  const errs = [];
+  for (const f of c?.frames ?? []) {
+    const entry = overlayManifest?.[f.id];
+    if (!entry?.path || !entry?.sha256) { errs.push(`overlay for frame ${f.n} ("${f.id}") missing staged path/digest`); continue; }
+    const p = join(overlaysBaseDir, entry.path);
+    if (!existsSync(p)) { errs.push(`overlay for frame ${f.n} ("${f.id}"): staged file not found at ${p}`); continue; }
+    const actual = createHash('sha256').update(readFileSync(p)).digest('hex');
+    if (actual !== entry.sha256) errs.push(`overlay for frame ${f.n} ("${f.id}"): sha256 mismatch (declared ${entry.sha256}, actual ${actual})`);
+  }
+  return errs;
+}
+
+export function validateManifest(m, c = loadConfig(), accepted = loadAcceptedRelease()) {
   const errs = [];
   const reqProv = new Set([...MIN_REQUIRED_PROVENANCE, ...(c.manifest.requiredProvenance ?? [])]);
   for (const k of reqProv) if (!m?.provenance?.[k]) errs.push(`provenance.${k} missing`);
@@ -89,10 +146,12 @@ export function validateManifest(m, c = loadConfig()) {
     const actual = createHash('sha256').update(configBytes).digest('hex');
     if (actual !== m.provenance.configSha256) errs.push('provenance.configSha256 does not match capture-config.json on disk');
   }
+  errs.push(...validateAcceptedReleaseBinding(m, accepted));
   const reqEntry = new Set([...MIN_REQUIRED_ENTRY_FIELDS, ...(c.manifest.requiredEntryFields ?? [])]);
   const es = m?.entries ?? [];
   if (es.length !== c.targets.length * c.frames.length) errs.push(`expected ${c.targets.length * c.frames.length} entries`);
   const seen = new Set();
+  const seenContent = new Set();
   for (const e of es) {
     for (const k of reqEntry) if (e[k] === undefined || e[k] === '') errs.push(`entry ${e.target}/${e.frame}: ${k} missing`);
     const t = c.targets.find(x => x.id === e.target);
@@ -103,29 +162,65 @@ export function validateManifest(m, c = loadConfig()) {
     const key = `${e.target}/${e.frame}`;
     if (seen.has(key)) errs.push(`duplicate ${key}`);
     seen.add(key);
+    // Each frame captures a visually distinct screen -- identical bytes across different
+    // frames means at least one of them is not a real, distinct per-frame capture.
+    if (e.sha256) {
+      if (seenContent.has(e.sha256)) errs.push(`entry ${e.target}/${e.frame}: identical file content (sha256) reused from another entry`);
+      seenContent.add(e.sha256);
+    }
   }
   for (const t of c.targets) for (const f of c.frames) if (!seen.has(`${t.id}/${f.n}`)) errs.push(`missing ${t.id}/${f.n}`);
   return errs;
 }
 
+// Minimal PNG dimension decode: signature + IHDR width/height only, no CRC/chunk validation --
+// enough to bind a declared entry.width/height to what the file bytes actually are, and to reject
+// a non-PNG file (e.g. a text file with a declared width/height and a real hash of its own bytes).
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+export function decodePngDimensions(buf) {
+  if (buf.length < 24 || !buf.subarray(0, 8).equals(PNG_SIGNATURE) || buf.toString('ascii', 12, 16) !== 'IHDR') return null;
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
+
 // Byte-level binding for the real output manifest the E2E harness produces once a captured frame
-// actually exists on disk: every declared file must exist under baseDir and its sha256 must match
-// what's on disk, not just look hash-shaped. No device/asset work happens here -- this only proves
-// the check rejects a manifest claiming files that don't exist or don't match, same class of gap
-// the checker named ("entries pointing to /nonexistent/identical.png with arbitrary hashes").
+// actually exists on disk: every declared file must exist under baseDir, its sha256 must match
+// what's on disk (not just look hash-shaped), and its decoded PNG dimensions must match the
+// declared width/height. No device/asset work happens here -- this only proves the check rejects
+// a manifest claiming files that don't exist, don't match, or aren't even images, same class of
+// gap the checker named ("sixteen references to one unrelated text file with declared dimensions
+// and a real hash of the text").
 export function validateManifestFiles(m, baseDir) {
   const errs = [];
   for (const e of m?.entries ?? []) {
     const p = join(baseDir, e.file);
     if (!existsSync(p)) { errs.push(`entry ${e.target}/${e.frame}: file not found at ${p}`); continue; }
-    const actual = createHash('sha256').update(readFileSync(p)).digest('hex');
-    if (actual !== e.sha256) errs.push(`entry ${e.target}/${e.frame}: sha256 mismatch (declared ${e.sha256}, actual ${actual})`);
+    const bytes = readFileSync(p);
+    const actual = createHash('sha256').update(bytes).digest('hex');
+    if (actual !== e.sha256) { errs.push(`entry ${e.target}/${e.frame}: sha256 mismatch (declared ${e.sha256}, actual ${actual})`); continue; }
+    const dims = decodePngDimensions(bytes);
+    if (!dims) { errs.push(`entry ${e.target}/${e.frame}: file at ${p} is not a PNG`); continue; }
+    if (dims.width !== e.width || dims.height !== e.height) errs.push(`entry ${e.target}/${e.frame}: decoded PNG is ${dims.width}x${dims.height}, declared ${e.width}x${e.height}`);
   }
   return errs;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const errs = [...validateConfig(loadConfig()), ...verifyScreenAnchorsExist()];
+  const args = process.argv.slice(2);
+  const flag = name => { const i = args.indexOf(name); return i === -1 ? undefined : args[i + 1]; };
+  const manifestPath = flag('--manifest');
+  let errs = [...validateConfig(loadConfig()), ...verifyScreenAnchorsExist()];
+  if (manifestPath) {
+    const dir = flag('--dir') ?? '.';
+    const overlaysDir = flag('--overlays-dir') ?? dir;
+    const config = loadConfig();
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    errs = [
+      ...errs,
+      ...validateManifest(manifest, config),
+      ...validateManifestFiles(manifest, dir),
+      ...validateOverlayBinding(config, loadOverlayManifest(), overlaysDir),
+    ];
+  }
   if (errs.length) { console.error(errs.join('\n')); process.exit(1); }
-  console.log('store capture config valid');
+  console.log(manifestPath ? 'store capture config and manifest valid' : 'store capture config valid');
 }
