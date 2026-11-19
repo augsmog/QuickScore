@@ -23,8 +23,26 @@ const HEADER_MAX_OFFSET = 32; // rule 4 header ≤32pt below modal content origi
 const IOS_MIN_TARGET = 44; // rule 5
 const ANDROID_MIN_TARGET = 48; // rule 5
 
+// A finite, non-degenerate measured rectangle: all four edges finite and positive area. Shared
+// by the evaluator and run-geometry's validateBundle so no malformed geometry reaches a rule.
+export function finiteRect(r) {
+  return !!r && typeof r === 'object' &&
+    ['left', 'top', 'right', 'bottom'].every((k) => Number.isFinite(r[k])) &&
+    r.right > r.left && r.bottom > r.top;
+}
+
+// The effective (tap/paint) rectangle a rule compares: the measured hit region when present,
+// else the painted bbox. Fails CLOSED — a present-but-malformed hitRegion (or a bbox that is
+// {}/partial/non-finite) throws rather than yielding NaN dimensions that silently pass every
+// comparison (Codex AUG-1400: `{}` hitRegion evaded rule 5 on 17 checkpoints).
 export function rectOf(node) {
-  return node.hitRegion || node.bbox;
+  const r = node.hitRegion != null ? node.hitRegion : node.bbox;
+  if (!finiteRect(r)) {
+    throw new Error(`node "${node?.id ?? '?'}" has a malformed effective rect ` +
+      `(${node.hitRegion != null ? 'hitRegion' : 'bbox'} must have finite left/top/right/bottom ` +
+      `with positive width/height); geometry evaluation fails closed`);
+  }
+  return r;
 }
 
 function bboxArr(r) {
