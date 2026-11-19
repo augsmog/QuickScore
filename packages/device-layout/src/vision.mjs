@@ -38,8 +38,18 @@ export function validateVisionReview(r) {
 
 // reviews: vision-review/v1 records. required: [{device, flow, checkpoint}] that must
 // be reviewed. builderProvider: who built the change (reviewer must differ).
-export function evaluateVision({reviews, required = [], builderProvider, bannedProviders = ['xai', 'grok'], sourceSha = null}) {
+// Required checkpoints for a config: every device x flow x checkpoint.
+export function requiredCheckpoints(config) {
+  return config.devices.flatMap(d => config.flows.flatMap(f => f.checkpoints.map(checkpoint => ({device: d.id, flow: f.id, checkpoint}))));
+}
+
+// policy: the config's reviewerPolicy ({builder, reviewer:{provider, model, effort}, banned}).
+// fixtures: the config's fixtures ({negative:[{image, artifactHash}], positive}); every
+// declared negative must come back reviewed (matched by artifactHash) with a major finding.
+export function evaluateVision({reviews, required = [], builderProvider, bannedProviders = ['xai', 'grok'], sourceSha = null, policy = null, fixtures = null}) {
+  if (policy) { builderProvider = policy.builder; bannedProviders = policy.banned ?? bannedProviders; }
   if (!builderProvider) throw new Error('builderProvider required: the gate must know who built the change');
+  const requiredProvider = policy?.reviewer?.provider?.toLowerCase() ?? null;
   const blocking = [], followUps = [], invalid = [], drift = [];
   const seen = new Set();
   reviews.forEach((r, i) => {
@@ -47,6 +57,7 @@ export function evaluateVision({reviews, required = [], builderProvider, bannedP
     const provider = String(r?.reviewer?.provider ?? '').toLowerCase();
     if (provider && provider === String(builderProvider).toLowerCase()) errors.push(`reviewer provider "${provider}" built the change (no self-review)`);
     if (bannedProviders.includes(provider)) errors.push(`reviewer provider "${provider}" is not allowed`);
+    else if (requiredProvider && provider && provider !== requiredProvider) errors.push(`reviewer provider "${provider}" is not the policy reviewer "${requiredProvider}"`);
     if (sourceSha && r?.sourceSha !== sourceSha && r?.fixture === undefined) errors.push(`review is for ${r?.sourceSha}, not the gated head ${sourceSha}`);
     if (errors.length) { invalid.push({index: i, checkpoint: r ? key(r) : null, errors}); return; }
     const major = r.findings.filter(f => BLOCKING.has(f.severity));
@@ -64,6 +75,11 @@ export function evaluateVision({reviews, required = [], builderProvider, bannedP
     for (const f of r.findings.filter(f => f.severity === 'minor')) followUps.push({checkpoint: key(r), ...f});
   });
   const missing = required.filter(c => !seen.has(key(c))).map(key);
+  for (const f of fixtures?.negative ?? []) {
+    if (f.artifactHash === null) { drift.push({checkpoint: f.image, reason: `negative fixture ${f.image} not committed yet (${f.pendingTicket})`}); continue; }
+    const hit = reviews.find(r => r?.fixture === 'negative' && r.artifactHash === f.artifactHash);
+    if (!hit) drift.push({checkpoint: f.image, reason: `declared negative fixture ${f.image} was not reviewed this run`});
+  }
   const negatives = reviews.filter(r => r?.fixture === 'negative').length;
   if (negatives === 0) drift.push({checkpoint: null, reason: 'no negative fixture reviewed this run (rubric-drift check skipped)'});
   const verdict = blocking.length || invalid.length || missing.length || drift.length ? 'FAIL' : 'PASS';

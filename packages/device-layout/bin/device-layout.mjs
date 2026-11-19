@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // device-layout check --config <cfg.json> --snapshots <dir|file...> [--adapter snapshot|godot]
-//                     [--waivers <w.json>] [--sha <sha>] [--out <receipt.json>]
+//                     [--waivers <w.json>] --source-sha <40hex> --build-hash <id> [--out <receipt.json>]
+// Snapshots must carry provenance equal to {source-sha, build-hash, configHash(config)}.
 // Exit 0 = PASS, 1 = FAIL (receipt still written), 2 = usage/config error.
 import {readFileSync, readdirSync, statSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -44,7 +45,7 @@ try {
     throw new Error(`unknown adapter "${adapter}"`);
   });
   const waivers = opt('waivers') ? readJson(opt('waivers')) : undefined;
-  const receipt = runGate({config, snapshots, waivers, sha: opt('sha') ?? null});
+  const receipt = runGate({config, snapshots, waivers, provenance: {sourceSha: opt('source-sha') ?? opt('sha') ?? null, buildHash: opt('build-hash') ?? null}});
   if (opt('out')) writeFileSync(opt('out'), JSON.stringify(receipt, null, 2) + '\n');
   console.log(summarize(receipt));
   process.exit(receipt.verdict === 'PASS' ? 0 : 1);

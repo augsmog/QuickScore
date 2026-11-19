@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {validateConfig, resolveConfig} from '../src/config.mjs';
 import {evaluateSnapshot, findOverlaps, SNAPSHOT_SCHEMA} from '../src/rules.mjs';
-import {runGate, validateWaivers, WAIVER_SCHEMA} from '../src/gate.mjs';
+import {runGate, validateWaivers, WAIVER_SCHEMA, configHash} from '../src/gate.mjs';
 import {fromGodotDump} from '../adapters/godot.mjs';
 import {fromCaptureAudit, profileToDevice} from '../adapters/snapscore.mjs';
 import {fromParentsGame} from '../adapters/parents-game.mjs';
@@ -20,6 +20,10 @@ const snapscore = readJson('configs/snapscore.device-layout.json');
 const dump = readJson('test/fixtures/lrd-main-menu.iphone-15-pro-landscape.json');
 const box = (id, name, left, top, w, h, extra = {}) => ({id, name, left, top, right: left + w, bottom: top + h, ...extra});
 const snap = (device, screen, targets, texts = []) => ({schema: SNAPSHOT_SCHEMA, device, screen, targets, texts});
+// Gated run provenance; gate() stamps snapshots that carry none (provenance itself is tested separately).
+const RUN = {sourceSha: 'e'.repeat(40), buildHash: 'build-42'};
+const stamp = (config, s) => (s && typeof s === 'object' && !s.provenance ? {...s, provenance: {...RUN, configHash: configHash(config)}} : s);
+const gate = ({config, snapshots, ...rest}) => runGate({config, snapshots: snapshots.map(s => stamp(config, s)), provenance: RUN, ...rest});
 
 test('shipped configs validate', () => {
   for (const c of [lrd, snapscore]) assert.deepEqual(validateConfig(c), {ok: true, errors: []});
@@ -110,7 +114,7 @@ test('snapscore adapter round-trips a capture audit and profile', () => {
   assert.deepEqual(device.safeArea, {top: 59, right: 0, bottom: 34, left: 0});
   const layout = {targets: [{id: 0, name: 'Save', left: 20, top: 100, right: 120, bottom: 140, raw: {}, size: {width: 100, height: 44}, backdrop: false}], texts: [{name: 'Save', left: 30, top: 110, right: 60, bottom: 130, owners: [0]}]};
   const s = fromCaptureAudit(layout, {device: 'iphone-16', screen: 'settings'});
-  const r = runGate({config: snapscore, snapshots: [s]});
+  const r = gate({config: snapscore, snapshots: [s]});
   assert.equal(r.verdict, 'PASS', JSON.stringify(r.results));
   assert.equal(r.results[0].failures.length, 0);
 });
@@ -118,20 +122,20 @@ test('snapscore adapter round-trips a capture audit and profile', () => {
 test('gate: missing required screen/device and empty snapshot fail', () => {
   const cfg = resolveConfig(lrd);
   const dev = cfg.devices.find(d => d.id === 'iphone-15-pro-landscape');
-  const r = runGate({config: lrd, snapshots: [fromGodotDump(dump, dev), snap('iphone-se-landscape', 'main-menu', [], [])]});
+  const r = gate({config: lrd, snapshots: [fromGodotDump(dump, dev), snap('iphone-se-landscape', 'main-menu', [], [])]});
   assert.equal(r.verdict, 'FAIL');
   assert.equal(r.invalid.length, 1);
   assert.equal(r.missing.length, 4 * 3 - 1);
-  assert.equal(runGate({config: snapscore, snapshots: []}).verdict, 'FAIL', 'zero snapshots can never pass');
+  assert.equal(gate({config: snapscore, snapshots: []}).verdict, 'FAIL', 'zero snapshots can never pass');
 });
 
 test('waivers: ticketed waiver moves a failure to waived; expired waiver fails gate; bad waiver rejected', () => {
   const s = snap('iphone-se-3', 'home', [box(0, 'tiny', 10, 30, 30, 30)]);
   const waiver = {id: 'w1', rule: 'target-size', subject: 'tiny', device: 'iphone-se-3', ticket: 'AUG-1381', reason: 'fixture exception for test', approvedBy: 'checker', expires: '2099-01-01'};
-  const ok = runGate({config: snapscore, snapshots: [s], waivers: {schema: WAIVER_SCHEMA, waivers: [waiver]}});
+  const ok = gate({config: snapscore, snapshots: [s], waivers: {schema: WAIVER_SCHEMA, waivers: [waiver]}});
   assert.equal(ok.verdict, 'PASS');
   assert.equal(ok.results[0].waived[0].ticket, 'AUG-1381');
-  const old = runGate({config: snapscore, snapshots: [s], waivers: {schema: WAIVER_SCHEMA, waivers: [{...waiver, expires: '2020-01-01'}]}, today: '2026-11-19'});
+  const old = gate({config: snapscore, snapshots: [s], waivers: {schema: WAIVER_SCHEMA, waivers: [{...waiver, expires: '2020-01-01'}]}, today: '2026-11-19'});
   assert.equal(old.verdict, 'FAIL');
   assert.equal(old.results[0].failures.length, 1);
   assert.deepEqual(old.expiredWaivers.map(w => w.id), ['w1']);
@@ -139,7 +143,7 @@ test('waivers: ticketed waiver moves a failure to waived; expired waiver fails g
 });
 
 test('receipt carries schema, digest, devices and pending vision rubric', () => {
-  const r = runGate({config: snapscore, snapshots: [snap('iphone-se-3', 'home', [box(0, 'ok', 10, 30, 50, 50)])], sha: 'a'.repeat(40)});
+  const r = gate({config: snapscore, snapshots: [snap('iphone-se-3', 'home', [box(0, 'ok', 10, 30, 50, 50)])], sha: 'a'.repeat(40)});
   const schema = readJson('schema/receipt.v1.schema.json');
   for (const k of schema.required) assert.ok(k in r, `receipt missing ${k}`);
   assert.match(r.configDigest, /^sha256:[0-9a-f]{64}$/);
@@ -155,12 +159,13 @@ test('CLI: godot adapter PASS on fixture-only matrix, FAIL exit 1 on full matrix
   const one = {...lrd, devices: [lrd.devices[1]], screens: [{id: 'main-menu'}]};
   writeFileSync(join(dir, 'one.json'), JSON.stringify(one));
   mkdirSync(join(dir, 'dumps'));
-  writeFileSync(join(dir, 'dumps', 'a.json'), JSON.stringify(dump));
+  writeFileSync(join(dir, 'dumps', 'a.json'), JSON.stringify({...dump, provenance: {...RUN, configHash: configHash(one)}}));
   const cli = (...a) => spawnSync(process.execPath, [join(pkg, 'bin/device-layout.mjs'), ...a], {encoding: 'utf8'});
-  const pass = cli('check', '--config', join(dir, 'one.json'), '--adapter', 'godot', '--snapshots', join(dir, 'dumps'), '--out', join(dir, 'r.json'));
+  const prov = ['--source-sha', RUN.sourceSha, '--build-hash', RUN.buildHash];
+  const pass = cli('check', '--config', join(dir, 'one.json'), '--adapter', 'godot', '--snapshots', join(dir, 'dumps'), ...prov, '--out', join(dir, 'r.json'));
   assert.equal(pass.status, 0, pass.stdout + pass.stderr);
   assert.equal(JSON.parse(readFileSync(join(dir, 'r.json'), 'utf8')).verdict, 'PASS');
-  const fail = cli('check', '--config', join(pkg, 'configs/lrd.device-layout.json'), '--adapter', 'godot', '--snapshots', join(dir, 'dumps'));
+  const fail = cli('check', '--config', join(pkg, 'configs/lrd.device-layout.json'), '--adapter', 'godot', '--snapshots', join(dir, 'dumps'), ...prov);
   assert.equal(fail.status, 1, fail.stdout + fail.stderr);
   assert.match(fail.stdout, /MISSING ipad-mini-landscape \/ pause-menu/);
   writeFileSync(join(dir, 'bad.json'), '{"schema":"nope"}');
@@ -215,17 +220,21 @@ test('rules: target-spacing flags <8pt sibling gap (switch vs label control), no
 
 test('gate: observed viewport that disagrees with the declared device is INVALID (never trust profile names)', () => {
   const s = {...snap('iphone-16-pro', 'home', [box(0, 'ok', 20, 100, 60, 60)]), viewport: {width: 393, height: 852}};
-  const r = runGate({config: {...snapscore, screens: [{id: 'home', devices: ['iphone-16-pro']}]}, snapshots: [s]});
+  const r = gate({config: {...snapscore, screens: [{id: 'home', devices: ['iphone-16-pro']}]}, snapshots: [s]});
   assert.equal(r.verdict, 'FAIL');
   assert.match(r.invalid[0].errors.join(), /observed viewport 393x852 does not match declared iphone-16-pro 402x874/);
-  const ok = runGate({config: {...snapscore, screens: [{id: 'home', devices: ['iphone-16-pro']}]}, snapshots: [{...s, viewport: {width: 402, height: 874}}]});
+  const ok = gate({config: {...snapscore, screens: [{id: 'home', devices: ['iphone-16-pro']}]}, snapshots: [{...s, viewport: {width: 402, height: 874}}]});
   assert.equal(ok.verdict, 'PASS', JSON.stringify(ok.invalid));
 });
 
 test('gate: missing platform evidence cannot be waived', () => {
   const cfg = {...snapscore, screens: [{id: 'home', devices: ['iphone-se-3', 'android-compact-360']}]};
   const waiver = {id: 'w', rule: 'missing', subject: 'android-compact-360', ticket: 'AUG-1381', reason: 'no emulator today', approvedBy: 'x', expires: '2099-01-01'};
-  const r = runGate({config: cfg, snapshots: [snap('iphone-se-3', 'home', [box(0, 'ok', 20, 100, 60, 60)])], waivers: {schema: WAIVER_SCHEMA, waivers: [waiver]}});
+  const shots = [snap('iphone-se-3', 'home', [box(0, 'ok', 20, 100, 60, 60)])];
+  // AUG-1384: a coverage waiver is rejected outright, not silently ignored.
+  assert.throws(() => gate({config: cfg, snapshots: shots, waivers: {schema: WAIVER_SCHEMA, waivers: [waiver]}}), /missing-platform evidence can never be waived/);
+  assert.throws(() => gate({config: cfg, snapshots: shots, waivers: {schema: WAIVER_SCHEMA, waivers: [{...waiver, rule: 'target-size', reason: 'missing android emulator evidence'}]}}), /never be waived/);
+  const r = gate({config: cfg, snapshots: shots});
   assert.equal(r.verdict, 'FAIL');
   assert.deepEqual(r.missing, [{device: 'android-compact-360', screen: 'home'}]);
 });
@@ -265,4 +274,90 @@ test('vision: major finding, missing checkpoint, self-review, Grok, wrong head, 
 test('vision-review JSON schema required keys match the validator', () => {
   const schema = readJson('schema/vision-review.v1.schema.json');
   for (const k of schema.required) { const r = review(); delete r[k]; assert.ok(validateVisionReview(r).length > 0, `missing ${k} not caught`); }
+});
+
+// --- AUG-1384: one reconciled v1 contract (PR #341 package + PR #342 behaviour) ---
+import {fromMaestroHierarchy, parseBounds} from '../adapters/rn-maestro.mjs';
+import {requiredCheckpoints} from '../src/vision.mjs';
+
+test('contract: config must declare adapter, provenance, flows, reviewer policy, fixtures, retention', () => {
+  const {ok, errors} = validateConfig({...snapscore, adapter: 'flutter', provenance: {required: ['sourceSha']}, flows: [], reviewerPolicy: {builder: 'anthropic', reviewer: {provider: 'anthropic', model: 'x', effort: 'low'}}, fixtures: {negative: []}, retention: {passDays: 7, failDays: 1}});
+  assert.equal(ok, false);
+  for (const re of [/\$\.adapter/, /provenance\.required/, /\$\.flows/, /must differ from the builder/, /effort/, /negative fixture/, /retention/]) assert.ok(errors.some(e => re.test(e)), `${re} not reported: ${errors.join(' | ')}`);
+  const noKeys = {...snapscore}; for (const k of ['adapter', 'provenance', 'flows', 'reviewerPolicy', 'fixtures', 'retention']) delete noKeys[k];
+  assert.ok(validateConfig(noKeys).errors.length >= 6);
+  const badFixture = {...snapscore, fixtures: {negative: [{image: 'a.png', artifactHash: null, expectDefect: 'x'}]}};
+  assert.ok(validateConfig(badFixture).errors.some(e => /pendingTicket/.test(e)), 'uncommitted fixture needs a ticket');
+});
+
+test('provenance: snapshot and receipt share {sourceSha, buildHash, configHash}; stale or missing hashes are INVALID', () => {
+  const good = {...snap('iphone-se-3', 'home', [box(0, 'ok', 10, 30, 50, 50)]), provenance: {...RUN, configHash: configHash(snapscore)}};
+  const ok = runGate({config: snapscore, snapshots: [good], provenance: RUN});
+  assert.equal(ok.verdict, 'PASS', JSON.stringify(ok.invalid));
+  assert.deepEqual({s: ok.provenance.sourceSha, b: ok.provenance.buildHash, c: ok.provenance.configHash}, {s: good.provenance.sourceSha, b: good.provenance.buildHash, c: good.provenance.configHash});
+  assert.equal(ok.configDigest, ok.provenance.configHash);
+  const cases = {
+    sourceSha: {...good, provenance: {...good.provenance, sourceSha: 'f'.repeat(40)}},
+    buildHash: {...good, provenance: {...good.provenance, buildHash: 'build-41'}},
+    configHash: {...good, provenance: {...good.provenance, configHash: configHash({...snapscore, product: 'edited'})}},
+  };
+  for (const [k, s] of Object.entries(cases)) {
+    const r = runGate({config: snapscore, snapshots: [s], provenance: RUN});
+    assert.equal(r.verdict, 'FAIL'); assert.match(r.invalid[0].errors.join(), new RegExp(`stale ${k}`));
+  }
+  const bare = {...good}; delete bare.provenance;
+  assert.match(runGate({config: snapscore, snapshots: [bare], provenance: RUN}).invalid[0].errors.join(), /provenance missing/);
+  const noRun = runGate({config: snapscore, snapshots: [good]});
+  assert.equal(noRun.verdict, 'FAIL', 'a run without its own provenance can never pass');
+  assert.ok(noRun.provenance.errors.length >= 2);
+});
+
+test('geometry: invalid geometry (non-finite, negative extent) is INVALID, never evaluated', () => {
+  const r = gate({config: snapscore, snapshots: [snap('iphone-se-3', 'home', [box(0, 'nan', NaN, 0, 50, 50), {id: 1, name: 'inv', left: 50, top: 50, right: 10, bottom: 60}])]});
+  assert.equal(r.verdict, 'FAIL');
+  assert.match(r.invalid[0].errors.join(), /finite.*negative extent/);
+});
+
+test('rn-maestro adapter (ported from PR #342): bounds/density, nesting, text owners; fixture transform only', () => {
+  assert.deepEqual(parseBounds('[0,0][90,30]', 3), {left: 0, top: 0, right: 30, bottom: 10});
+  assert.equal(parseBounds('garbage'), null);
+  const tree = {attributes: {bounds: '[0,0][1080,2400]'}, children: [
+    {attributes: {'resource-id': 'start-button', bounds: '[60,300][1020,450]', clickable: 'true'}, children: [{attributes: {text: 'Start', bounds: '[400,330][680,420]'}}]},
+    {attributes: {'resource-id': 'teams-switch', bounds: '[60,500][150,560]'}},
+    {attributes: {text: 'Team Mode', bounds: '[120,500][600,560]'}},
+  ]};
+  const s = fromMaestroHierarchy(tree, {device: 'android-compact-360', screen: 'home', density: 3, viewport: {width: 360, height: 800}, provenance: {...RUN, configHash: configHash(snapscore)}});
+  assert.equal(s.targets.length, 2);
+  assert.deepEqual(s.texts.find(t => t.name === 'Start').owners, [0]);
+  const r = runGate({config: snapscore, snapshots: [s], provenance: RUN});
+  const rules = r.results[0].failures.map(f => f.rule);
+  assert.ok(rules.includes('target-size'), '30x20dp switch fails the 48dp floor');
+  assert.ok(rules.includes('text-over-control'), 'Team Mode label collides with the switch');
+  assert.throws(() => fromMaestroHierarchy(null, {device: 'x', screen: 'y'}), /must be an object/);
+});
+
+test('vision: config reviewerPolicy + declared fixtures drive the cross-company and rubric-drift checks', () => {
+  const policy = snapscore.reviewerPolicy;
+  const H1 = 'sha256:' + '1'.repeat(64), H2 = 'sha256:' + '2'.repeat(64);
+  const fixtures = {negative: [{image: 'multi-day.png', artifactHash: H1, expectDefect: 'x'}, {image: 'team-mode.png', artifactHash: H2, expectDefect: 'y'}]};
+  const negs = [review({...neg('multi-day.png'), artifactHash: H1}), review({...neg('team-mode.png'), artifactHash: H2})];
+  const reviewer = {provider: 'openai', model: 'gpt-6-astra', effort: 'high'};
+  const base = {required, sourceSha: SHA, policy, fixtures};
+  assert.equal(evaluateVision({...base, reviews: [...negs, review({reviewer})]}).verdict, 'PASS');
+  // Policy names openai; an unlisted third provider is rejected even though it is not the builder.
+  assert.match(evaluateVision({...base, reviews: [...negs, review({reviewer: {...reviewer, provider: 'google'}})]}).invalid[0].errors.join(), /not the policy reviewer/);
+  assert.match(evaluateVision({...base, reviews: [...negs, review({reviewer: {...reviewer, provider: 'anthropic'}})]}).invalid[0].errors.join(), /no self-review/);
+  assert.match(evaluateVision({...base, reviews: [...negs, review({reviewer: {...reviewer, provider: 'grok'}})]}).invalid[0].errors.join(), /not allowed/);
+  // A declared negative fixture that was skipped, or one not yet committed, is rubric drift.
+  assert.match(evaluateVision({...base, reviews: [negs[0], review({reviewer})]}).drift.map(d => d.reason).join(), /team-mode.png was not reviewed/);
+  const shipped = evaluateVision({...base, fixtures: snapscore.fixtures, reviews: [...negs, review({reviewer})]});
+  assert.equal(shipped.verdict, 'FAIL', 'shipped fixtures are pending until AUG-1385 commits them');
+  assert.match(shipped.drift.map(d => d.reason).join(), /not committed yet \(AUG-1385\)/);
+});
+
+test('requiredCheckpoints expands devices x flows x checkpoints from the config', () => {
+  const cps = requiredCheckpoints(snapscore);
+  const perDevice = snapscore.flows.reduce((n, f) => n + f.checkpoints.length, 0);
+  assert.equal(cps.length, snapscore.devices.length * perDevice);
+  assert.deepEqual(cps[0], {device: snapscore.devices[0].id, flow: snapscore.flows[0].id, checkpoint: snapscore.flows[0].checkpoints[0]});
 });

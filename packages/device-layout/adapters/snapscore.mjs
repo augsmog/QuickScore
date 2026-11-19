@@ -17,13 +17,14 @@ export function profileToDevice(id, profile, {platform = 'ios'} = {}) {
 
 const rect = r => ({left: r.left, top: r.top, right: r.right, bottom: r.bottom});
 
-export function fromCaptureAudit(layout, {device, screen, screenshot = null}) {
+export function fromCaptureAudit(layout, {device, screen, screenshot = null, provenance = undefined}) {
   return {
     schema: SNAPSHOT_SCHEMA,
     device,
     screen,
     screenshot,
     source: 'snapscore/capture-layout',
+    ...(provenance ? {provenance} : {}),
     targets: layout.targets.map(t => ({
       id: t.id, name: t.name, ...rect(t),
       ...(t.size ? {size: {width: t.size.width, height: t.size.height}} : {}),

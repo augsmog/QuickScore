@@ -13,6 +13,7 @@
     "./rules": "./src/rules.mjs",
     "./adapters/snapscore": "./adapters/snapscore.mjs",
     "./adapters/godot": "./adapters/godot.mjs",
+    "./adapters/rn-maestro": "./adapters/rn-maestro.mjs",
     "./vision": "./src/vision.mjs"
   },
   "scripts": {

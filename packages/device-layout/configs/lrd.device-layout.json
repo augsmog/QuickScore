@@ -2,16 +2,122 @@
   "schema": "device-layout/v1",
   "product": "lrd",
   "units": "pt",
-  "rules": {"minTarget": {"width": 44, "height": 44}, "subpixelEpsilon": 0.01, "overlapTolerance": 2},
+  "adapter": "godot",
+  "provenance": {
+    "required": [
+      "sourceSha",
+      "buildHash",
+      "configHash"
+    ],
+    "$comment": "Every snapshot and the receipt carry {sourceSha, buildHash, configHash}. configHash = sha256 of this file's JSON (configHash() in src/gate.mjs). A snapshot whose hashes differ from the gated run is INVALID (stale)."
+  },
+  "reviewerPolicy": {
+    "builder": "anthropic",
+    "reviewer": {
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "effort": "high"
+    },
+    "banned": [
+      "xai",
+      "grok"
+    ]
+  },
+  "retention": {
+    "passDays": 7,
+    "failDays": 14
+  },
+  "rules": {
+    "minTarget": {
+      "width": 44,
+      "height": 44
+    },
+    "subpixelEpsilon": 0.01,
+    "overlapTolerance": 2
+  },
   "devices": [
-    {"id": "iphone-se-landscape", "platform": "ios", "orientation": "landscape", "width": 667, "height": 375, "safeArea": {}},
-    {"id": "iphone-15-pro-landscape", "platform": "ios", "orientation": "landscape", "width": 852, "height": 393, "safeArea": {"left": 59, "right": 59, "bottom": 21}},
-    {"id": "ipad-mini-landscape", "platform": "ios", "orientation": "landscape", "width": 1133, "height": 744, "safeArea": {"top": 24, "bottom": 20}},
-    {"id": "pixel-7-landscape", "platform": "android", "orientation": "landscape", "width": 915, "height": 412, "safeArea": {"left": 32, "bottom": 24}, "minTarget": {"width": 48, "height": 48}}
+    {
+      "id": "iphone-se-landscape",
+      "platform": "ios",
+      "orientation": "landscape",
+      "width": 667,
+      "height": 375,
+      "safeArea": {}
+    },
+    {
+      "id": "iphone-15-pro-landscape",
+      "platform": "ios",
+      "orientation": "landscape",
+      "width": 852,
+      "height": 393,
+      "safeArea": {
+        "left": 59,
+        "right": 59,
+        "bottom": 21
+      }
+    },
+    {
+      "id": "ipad-mini-landscape",
+      "platform": "ios",
+      "orientation": "landscape",
+      "width": 1133,
+      "height": 744,
+      "safeArea": {
+        "top": 24,
+        "bottom": 20
+      }
+    },
+    {
+      "id": "pixel-7-landscape",
+      "platform": "android",
+      "orientation": "landscape",
+      "width": 915,
+      "height": 412,
+      "safeArea": {
+        "left": 32,
+        "bottom": 24
+      },
+      "minTarget": {
+        "width": 48,
+        "height": 48
+      }
+    }
   ],
   "screens": [
-    {"id": "main-menu"},
-    {"id": "battle-hud"},
-    {"id": "pause-menu"}
-  ]
+    {
+      "id": "main-menu"
+    },
+    {
+      "id": "battle-hud"
+    },
+    {
+      "id": "pause-menu"
+    }
+  ],
+  "flows": [
+    {
+      "id": "play",
+      "states": [
+        "menu",
+        "in-battle",
+        "paused"
+      ],
+      "checkpoints": [
+        "main-menu",
+        "battle-hud",
+        "pause-menu"
+      ]
+    }
+  ],
+  "fixtures": {
+    "negative": [
+      {
+        "image": "lrd-notch-band-button.png",
+        "artifactHash": null,
+        "pendingTicket": "AUG-1386",
+        "expectDefect": "pause button inside the landscape notch band"
+      }
+    ],
+    "positive": []
+  }
 }

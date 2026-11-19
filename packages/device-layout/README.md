@@ -7,6 +7,8 @@ repo can vendor this directory as-is.
 | Piece | File | Notes |
 |---|---|---|
 | Config schema (device matrix + rules) | `schema/device-layout.v1.schema.json`, `src/config.mjs` | portrait/landscape, per-side safe area, per-device min target (44pt iOS, 48dp Android) |
+| v1 contract fields (AUG-1384) | `src/config.mjs` | `adapter`, `provenance.required`, `flows[{id,states,checkpoints}]`, `reviewerPolicy`, `fixtures` (negative/positive, `artifactHash` or `null`+`pendingTicket`), `retention`. See `RECONCILE.md` |
+| Provenance | `src/gate.mjs` (`configHash`) | snapshots and receipt share `{sourceSha, buildHash, configHash}`; stale or missing = INVALID |
 | Snapshot (adapter output) | `src/rules.mjs` (`device-layout/snapshot/v1`) | rects in logical units, origin top-left |
 | Rules | `src/rules.mjs` | `target-size` (platform floor 44pt iOS / 48dp Android), `target-spacing` (>= 8pt/dp sibling edge gap, rule 5), `safe-area`, `offscreen`, `control-overlap`, `text-over-control`, `unsupported-geometry` (same semantics as `scoresnap/e2e/journeys/capture-layout.mjs`) |
 | Receipt schema | `schema/receipt.v1.schema.json`, `src/gate.mjs` | config sha256 digest, per device×screen results, missing coverage, verdict |

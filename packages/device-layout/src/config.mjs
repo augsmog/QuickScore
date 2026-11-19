@@ -11,6 +11,12 @@ const CADENCES = ['pr', 'nightly'];
 const PLATFORMS = ['ios', 'android', 'web'];
 const ORIENTATIONS = ['portrait', 'landscape'];
 const SIDES = ['top', 'right', 'bottom', 'left'];
+// AUG-1384 contract fields (one v1 contract, reconciled from PR #341 + PR #342).
+export const ADAPTERS = ['snapshot', 'snapscore-capture', 'rn-maestro', 'godot'];
+export const PROVENANCE_KEYS = ['sourceSha', 'buildHash', 'configHash'];
+export const PROVIDERS = ['anthropic', 'openai'];
+export const BANNED_PROVIDERS = ['xai', 'grok'];
+const SHA256 = /^sha256:[0-9a-f]{64}$/;
 
 const DEFAULT_RULES = Object.freeze({
   minTarget: {width: 44, height: 44},
@@ -82,7 +88,56 @@ export function validateConfig(config) {
       });
     }
   }
+  validateContract(config, err);
   return {ok: errors.length === 0, errors};
+}
+
+// Contract fields every v1 config must declare (AUG-1384 acceptance 2): adapter,
+// provenance requirement, flows/states/checkpoints, reviewer policy, fixtures and
+// retention. Waivers live in a separate device-layout/waiver/v1 document.
+function validateContract(config, err) {
+  if (!ADAPTERS.includes(config.adapter)) err('$.adapter', `must be one of ${ADAPTERS.join(', ')}`);
+  const prov = config.provenance;
+  if (!prov || !Array.isArray(prov.required) || !PROVENANCE_KEYS.every(k => prov.required.includes(k))) {
+    err('$.provenance.required', `must list ${PROVENANCE_KEYS.join(', ')} (snapshots and the receipt share them)`);
+  }
+  if (!Array.isArray(config.flows) || config.flows.length === 0) err('$.flows', 'must be a non-empty array');
+  else {
+    const seen = new Set();
+    config.flows.forEach((f, i) => {
+      const p = `$.flows[${i}]`;
+      if (!isId(f?.id)) return err(`${p}.id`, 'must be a lowercase id');
+      if (seen.has(f.id)) err(`${p}.id`, `duplicate flow "${f.id}"`);
+      seen.add(f.id);
+      if (f.states !== undefined && !(Array.isArray(f.states) && f.states.every(isId))) err(`${p}.states`, 'must be an array of ids');
+      if (!Array.isArray(f.checkpoints) || f.checkpoints.length === 0) err(`${p}.checkpoints`, 'must be a non-empty array');
+      else f.checkpoints.forEach((c, j) => { if (!isId(c)) err(`${p}.checkpoints[${j}]`, 'must be an id'); });
+    });
+  }
+  const rp = config.reviewerPolicy;
+  if (!rp || typeof rp !== 'object') err('$.reviewerPolicy', 'required');
+  else {
+    if (!PROVIDERS.includes(rp.builder)) err('$.reviewerPolicy.builder', `must be one of ${PROVIDERS.join(', ')}`);
+    if (!PROVIDERS.includes(rp.reviewer?.provider)) err('$.reviewerPolicy.reviewer.provider', `must be one of ${PROVIDERS.join(', ')}`);
+    else if (rp.reviewer.provider === rp.builder) err('$.reviewerPolicy.reviewer.provider', 'must differ from the builder (cross-company review)');
+    if (typeof rp.reviewer?.model !== 'string' || !rp.reviewer.model) err('$.reviewerPolicy.reviewer.model', 'required');
+    if (rp.reviewer?.effort !== 'high') err('$.reviewerPolicy.reviewer.effort', 'must be "high"');
+  }
+  const fx = config.fixtures;
+  if (!fx || !Array.isArray(fx.negative) || fx.negative.length === 0) err('$.fixtures.negative', 'needs at least one negative fixture (rubric-drift check)');
+  else for (const kind of ['negative', 'positive']) (fx[kind] ?? []).forEach((f, i) => {
+    const p = `$.fixtures.${kind}[${i}]`;
+    if (typeof f?.image !== 'string' || !f.image) err(`${p}.image`, 'required');
+    // A fixture not yet committed may be declared with artifactHash null + a pending
+    // ticket; evaluateVision then fails closed (rubric drift) until it is committed.
+    if (f?.artifactHash === null) { if (!/^AUG-\d+$/.test(f?.pendingTicket ?? '')) err(`${p}.pendingTicket`, 'required (AUG-<n>) when artifactHash is null'); }
+    else if (!SHA256.test(f?.artifactHash ?? '')) err(`${p}.artifactHash`, 'must be sha256:<64 hex> or null with pendingTicket');
+    if (kind === 'negative' && (typeof f?.expectDefect !== 'string' || !f.expectDefect)) err(`${p}.expectDefect`, 'required');
+  });
+  const ret = config.retention;
+  if (!ret || !Number.isInteger(ret.passDays) || ret.passDays < 1 || !Number.isInteger(ret.failDays) || ret.failDays < ret.passDays) {
+    err('$.retention', 'needs integer passDays >= 1 and failDays >= passDays');
+  }
 }
 
 // Resolve defaults so the rules engine never sees an undefined field.

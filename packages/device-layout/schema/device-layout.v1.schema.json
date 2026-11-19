@@ -6,7 +6,13 @@
   "required": [
     "schema",
     "product",
-    "devices"
+    "adapter",
+    "provenance",
+    "devices",
+    "flows",
+    "reviewerPolicy",
+    "fixtures",
+    "retention"
   ],
   "properties": {
     "schema": {
@@ -183,6 +189,197 @@
               "type": "string"
             }
           }
+        }
+      }
+    },
+    "adapter": {
+      "enum": [
+        "snapshot",
+        "snapscore-capture",
+        "rn-maestro",
+        "godot"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "required"
+      ],
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "sourceSha",
+              "buildHash",
+              "configHash"
+            ]
+          },
+          "minItems": 3
+        }
+      }
+    },
+    "flows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "checkpoints"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "states": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "checkpoints": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "reviewerPolicy": {
+      "type": "object",
+      "required": [
+        "builder",
+        "reviewer"
+      ],
+      "properties": {
+        "builder": {
+          "enum": [
+            "anthropic",
+            "openai"
+          ]
+        },
+        "reviewer": {
+          "type": "object",
+          "required": [
+            "provider",
+            "model",
+            "effort"
+          ],
+          "properties": {
+            "provider": {
+              "enum": [
+                "anthropic",
+                "openai"
+              ]
+            },
+            "model": {
+              "type": "string"
+            },
+            "effort": {
+              "const": "high"
+            }
+          }
+        },
+        "banned": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "fixtures": {
+      "type": "object",
+      "required": [
+        "negative"
+      ],
+      "properties": {
+        "negative": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "image",
+              "artifactHash"
+            ],
+            "properties": {
+              "image": {
+                "type": "string"
+              },
+              "artifactHash": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pendingTicket": {
+                "type": "string",
+                "pattern": "^AUG-[0-9]+$"
+              },
+              "expectDefect": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "positive": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "image",
+              "artifactHash"
+            ],
+            "properties": {
+              "image": {
+                "type": "string"
+              },
+              "artifactHash": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pendingTicket": {
+                "type": "string",
+                "pattern": "^AUG-[0-9]+$"
+              },
+              "expectDefect": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "required": [
+        "passDays",
+        "failDays"
+      ],
+      "properties": {
+        "passDays": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "failDays": {
+          "type": "integer",
+          "minimum": 1
         }
       }
     }

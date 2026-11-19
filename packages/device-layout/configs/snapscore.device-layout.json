@@ -2,6 +2,31 @@
   "schema": "device-layout/v1",
   "product": "snapscore",
   "units": "pt",
+  "adapter": "snapscore-capture",
+  "provenance": {
+    "required": [
+      "sourceSha",
+      "buildHash",
+      "configHash"
+    ],
+    "$comment": "Every snapshot and the receipt carry {sourceSha, buildHash, configHash}. configHash = sha256 of this file's JSON (configHash() in src/gate.mjs). A snapshot whose hashes differ from the gated run is INVALID (stale)."
+  },
+  "reviewerPolicy": {
+    "builder": "anthropic",
+    "reviewer": {
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "effort": "high"
+    },
+    "banned": [
+      "xai",
+      "grok"
+    ]
+  },
+  "retention": {
+    "passDays": 7,
+    "failDays": 14
+  },
   "$comment": "AUG-1373 section A matrix. Logical units: pt on iOS, dp on Android (1:1). Sizes are declared; native snapshots must carry the observed viewport, and a mismatch is INVALID. 402x874 is the iPhone 16 Pro (PR #333's 'iphone-16-plus' label was wrong). Font-scale cadence (AX1/1.3 per PR vs AX3/2.0 per PR) is an open dispute; PR rows carry the Fable split, nightly rows the extremes.",
   "rules": {
     "minTarget": {
@@ -132,5 +157,66 @@
         "bottom": 24
       }
     }
-  ]
+  ],
+  "flows": [
+    {
+      "id": "new-contest",
+      "states": [
+        "empty",
+        "named",
+        "multi-day",
+        "teams",
+        "combined-stress"
+      ],
+      "checkpoints": [
+        "entry",
+        "name-keyboard",
+        "rounds-scroll",
+        "teams-on",
+        "last-player-above-footer",
+        "start"
+      ]
+    },
+    {
+      "id": "join",
+      "states": [
+        "invalid-code",
+        "valid-code",
+        "pending",
+        "bound"
+      ],
+      "checkpoints": [
+        "entry",
+        "invalid",
+        "bound"
+      ]
+    },
+    {
+      "id": "paywall",
+      "states": [
+        "plans"
+      ],
+      "checkpoints": [
+        "entry",
+        "cta-above-fold"
+      ]
+    }
+  ],
+  "fixtures": {
+    "negative": [
+      {
+        "image": "multi-day.png",
+        "artifactHash": null,
+        "pendingTicket": "AUG-1385",
+        "expectDefect": "switch/label collision; rounds picker loses 'Number of Rounds'"
+      },
+      {
+        "image": "team-mode.png",
+        "artifactHash": null,
+        "pendingTicket": "AUG-1385",
+        "expectDefect": "Team Mode switch renders as an unlabeled black pill"
+      }
+    ],
+    "positive": []
+  }
 }

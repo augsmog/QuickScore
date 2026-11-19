@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {resolveConfig} from './config.mjs';
+import {resolveConfig, CHECKS} from './config.mjs';
 import {evaluateSnapshot, validateSnapshot, viewportMismatch} from './rules.mjs';
 
 export const WAIVER_SCHEMA = 'device-layout/waiver/v1';
@@ -19,6 +19,10 @@ export function validateWaivers(doc) {
     else if (seen.has(w.id)) errors.push(`${p}.id duplicate "${w.id}"`);
     seen.add(w?.id);
     if (typeof w?.rule !== 'string') errors.push(`${p}.rule required`);
+    // Coverage is not a rule: missing-platform/device/screen evidence can never be
+    // waived (ported from PR #342 policy.waiverErrors).
+    else if (!CHECKS.includes(w.rule)) errors.push(`${p}.rule "${w.rule}" is not a waivable check (missing-platform evidence can never be waived)`);
+    if (/\bmissing\b.*\b(platform|evidence|ios|android|device)\b|\bno (ios|android|emulator|simulator)\b/i.test(`${w?.reason ?? ''} ${w?.evidence ?? ''}`)) errors.push(`${p}: missing-platform evidence can never be waived`);
     if (typeof w?.subject !== 'string' || !w.subject) errors.push(`${p}.subject required (exact failure subject)`);
     if (!/^AUG-\d+$/.test(w?.ticket ?? '')) errors.push(`${p}.ticket must be AUG-<n>`);
     if (typeof w?.reason !== 'string' || w.reason.length < 10) errors.push(`${p}.reason must explain the exception`);
@@ -28,12 +32,23 @@ export function validateWaivers(doc) {
   return errors;
 }
 
+// configHash: the provenance hash a snapshot must carry for this exact config.
+export const configHash = config => 'sha256:' + createHash('sha256').update(JSON.stringify(config)).digest('hex');
+
+// Snapshot provenance must equal the gated run's {sourceSha, buildHash, configHash}.
+// Anything else is stale evidence (old build, other head, edited config) -> INVALID.
+function provenanceErrors(snap, run) {
+  const p = snap?.provenance;
+  if (!p || typeof p !== 'object') return ['snapshot provenance missing (sourceSha, buildHash, configHash)'];
+  return ['sourceSha', 'buildHash', 'configHash'].filter(k => p[k] !== run[k]).map(k => `stale ${k}: snapshot ${p[k] ?? 'none'} != run ${run[k]}`);
+}
+
 const scoped = (value, actual) => value === undefined || value === '*' || value === actual;
 const matches = (w, device, screen, f) =>
   w.rule === f.rule && w.subject === f.subject && scoped(w.device, device) && scoped(w.screen, screen);
 
 // snapshots: normalized device-layout/snapshot/v1 objects (from an adapter).
-export function runGate({config, snapshots, waivers = {schema: WAIVER_SCHEMA, waivers: []}, sha = null, today = new Date().toISOString().slice(0, 10)}) {
+export function runGate({config, snapshots, waivers = {schema: WAIVER_SCHEMA, waivers: []}, provenance = null, sha = null, today = new Date().toISOString().slice(0, 10)}) {
   const cfg = resolveConfig(config);
   const waiverErrors = validateWaivers(waivers);
   if (waiverErrors.length) throw new Error(`invalid waivers:\n  ${waiverErrors.join('\n  ')}`);
@@ -42,6 +57,10 @@ export function runGate({config, snapshots, waivers = {schema: WAIVER_SCHEMA, wa
   const expired = waivers.waivers.filter(w => w.expires < today).map(w => ({id: w.id, ticket: w.ticket, expires: w.expires}));
   const used = new Set();
   const results = [], invalid = [];
+  const run = {sourceSha: provenance?.sourceSha ?? sha, buildHash: provenance?.buildHash ?? null, configHash: configHash(config)};
+  const provenanceGaps = [];
+  if (!/^[0-9a-f]{40}$/.test(run.sourceSha ?? '')) provenanceGaps.push('run sourceSha must be a 40-hex commit');
+  if (typeof run.buildHash !== 'string' || !run.buildHash) provenanceGaps.push('run buildHash required');
 
   for (const snap of snapshots) {
     const errors = validateSnapshot(snap);
@@ -49,6 +68,7 @@ export function runGate({config, snapshots, waivers = {schema: WAIVER_SCHEMA, wa
     if (!device) errors.push(`unknown device "${snap?.device}"`);
     else if (!errors.length) { const m = viewportMismatch(snap, device); if (m) errors.push(m); }
     if (cfg.screens.length && !cfg.screens.some(s => s.id === snap?.screen)) errors.push(`unknown screen "${snap?.screen}"`);
+    if (!provenanceGaps.length) errors.push(...provenanceErrors(snap, run));
     if (errors.length) { invalid.push({device: snap?.device ?? null, screen: snap?.screen ?? null, errors}); continue; }
     const failures = [], waived = [];
     for (const f of evaluateSnapshot(snap, device, cfg.rules)) {
@@ -64,13 +84,17 @@ export function runGate({config, snapshots, waivers = {schema: WAIVER_SCHEMA, wa
   if (!cfg.screens.length && results.length === 0) missing.push({device: '*', screen: '*'});
 
   const failureCount = results.reduce((n, r) => n + r.failures.length, 0);
-  const verdict = failureCount === 0 && missing.length === 0 && invalid.length === 0 && expired.length === 0 ? 'PASS' : 'FAIL';
+  const verdict = failureCount === 0 && missing.length === 0 && invalid.length === 0 && expired.length === 0 && provenanceGaps.length === 0 ? 'PASS' : 'FAIL';
   return {
     schema: RECEIPT_SCHEMA,
     product: cfg.product,
-    sha,
+    sha: run.sourceSha,
+    adapter: cfg.adapter,
+    provenance: {...run, errors: provenanceGaps},
+    reviewerPolicy: cfg.reviewerPolicy,
+    retention: cfg.retention,
     generatedAt: new Date().toISOString(),
-    configDigest: 'sha256:' + createHash('sha256').update(JSON.stringify(config)).digest('hex'),
+    configDigest: run.configHash,
     units: cfg.units,
     devices: cfg.devices.map(d => ({id: d.id, platform: d.platform, orientation: d.orientation, width: d.width, height: d.height, safeArea: d.safeArea, minTarget: d.minTarget})),
     rules: cfg.rules,
@@ -92,6 +116,7 @@ export function summarize(receipt) {
   for (const r of receipt.results) for (const f of r.failures) lines.push(`  FAIL ${r.device} / ${r.screen}: ${f.rule} — ${f.subject}`);
   for (const m of receipt.missing) lines.push(`  MISSING ${m.device} / ${m.screen}`);
   for (const i of receipt.invalid) lines.push(`  INVALID ${i.device} / ${i.screen}: ${i.errors.join('; ')}`);
+  for (const e of receipt.provenance?.errors ?? []) lines.push(`  PROVENANCE ${e}`);
   for (const w of receipt.expiredWaivers) lines.push(`  EXPIRED waiver ${w.id} (${w.ticket}, ${w.expires})`);
   return lines.join('\n');
 }

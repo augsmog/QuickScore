@@ -39,5 +39,5 @@ export function fromGodotDump(dump, device) {
     .filter(n => !n.interactive && typeof n.text === 'string' && n.text.trim())
     .map(n => ({name: n.text.trim().slice(0, 80), ...toRect(n.rect), owners: ancestorTargets(n.path), unsupported: Boolean(n.rotated)}));
 
-  return {schema: SNAPSHOT_SCHEMA, device: device.id, screen: dump.screen, screenshot: dump.screenshot ?? null, source: 'godot/dump_layout.gd', targets, texts};
+  return {schema: SNAPSHOT_SCHEMA, device: device.id, screen: dump.screen, screenshot: dump.screenshot ?? null, source: 'godot/dump_layout.gd', ...(dump.provenance ? {provenance: dump.provenance} : {}), targets, texts};
 }
