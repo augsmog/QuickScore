@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const REQUIRED_WEB_JOBS = ['build-standard', 'browser-flows', 'browser-matrix'];
+export const REQUIRED_WEB_JOBS = ['build-standard', 'browser-flows', 'browser-matrix', 'flag-off-free-journey'];
 export function assertWebGate(needs) {
   if (!needs || typeof needs !== 'object' || Array.isArray(needs)) throw new Error('Missing required job results');
   if (Object.keys(needs).sort().join(',') !== [...REQUIRED_WEB_JOBS].sort().join(',')) throw new Error('Required job inventory changed');

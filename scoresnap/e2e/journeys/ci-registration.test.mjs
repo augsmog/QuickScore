@@ -18,6 +18,7 @@ function registered(m,w){
  const upload=steps[steps.indexOf(gate)+1];assert.equal(upload.name,'Upload journey screenshots');assert.equal(upload.if,'always()');assert.equal(upload.with.path,'scoresnap/e2e/journey-screens');
  for(const id of required){const j=m.journeys.find(j=>j.id===id);assert(j,id);assert.equal(j.status,'gated');assert.equal(typeof cases[id],'function');assert(j.assertions.length>0);assert(j.requiredSteps.length>0);assert.equal(new Set(j.requiredSteps).size,j.requiredSteps.length);}
  assert(w.jobs['build-standard'].steps.some(s=>s.run==='npm test -- --runInBand'));
+ const freeJob=w.jobs['flag-off-free-journey'];assert(freeJob,'flag-off free browser journey job');assert.equal(freeJob.env.EXPO_PUBLIC_PRO_ENABLED,'false');assert(freeJob.steps.some(s=>(s.run||'').includes('pro-off-free.mjs')));
 }
 test('all accepted bugs run unfiltered on every device profile in existing two-minute CI step',()=>registered(manifest,workflow));
 test('missing registration, capture, control or filtered execution fails integration contract',()=>{
