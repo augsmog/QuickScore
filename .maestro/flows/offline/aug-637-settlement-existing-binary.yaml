@@ -1,0 +1,17 @@
+# AUG-637: settlement Skins-step recovery on the pinned existing EAS artifact
+# 6a97486c-6f45-42cd-ad09-27d959395fb4 (no new build, no new spend). Grades only reaching
+# Settlement past the Skins setup step; later settlement acceptance stays with AUG-586/AUG-396.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: false
+    permissions: { all: allow }
+- runFlow: ../../subflows/finish-onboarding.yaml
+- runFlow: ../../subflows/create-two-player-skins-existing-binary.yaml
+- runFlow: ../../subflows/score-18-holes.yaml
+- tapOn: "Settlement"
+- extendedWaitUntil:
+    visible:
+      id: "settlement-scroll"
+    timeout: 15000
+- takeScreenshot: aug-637-01-settlement-skins-recovered

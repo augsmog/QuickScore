@@ -30,6 +30,10 @@ if [ -n "$METRIC_PROFILE" ]; then
   DEVICE_TYPE="$(cfg "c['metricProfiles']['$METRIC_PROFILE']['type']")"
 fi
 
+# Reject pinned-flow source builds and mismatched artifacts before any external work.
+EXPECTED_SHA="$(python3 "$(dirname "$0")/validate-existing-binary.py" --config "$CONFIG" \
+  --build "$BUILD" --flows "$FLOWS" --app-url "$APP_URL" --app-path "$APP_PATH" --build-id "$BUILD_ID")"
+
 # 1. Select a source-built app or fetch the supplied build, then prove its architecture.
 WORK="$(mktemp -d)"; APP_SOURCE="eas-artifact"; APP_SOURCE_SHA=""
 if [ -n "$APP_PATH" ]; then
@@ -46,6 +50,9 @@ if [ -n "$APP_PATH" ]; then
 else
   curl -fsSL -o "$WORK/app.tar.gz" "$APP_URL"
   SHA="$(shasum -a 256 "$WORK/app.tar.gz" | awk '{print $1}')"
+  if [ -n "$EXPECTED_SHA" ] && [ "$EXPECTED_SHA" != "$SHA" ]; then
+    echo "existing-binary artifact SHA256 mismatch; refusing extraction/install" >&2; exit 2
+  fi
   mkdir -p "$WORK/x"; tar -xzf "$WORK/app.tar.gz" -C "$WORK/x"
   APP="$(find "$WORK/x" -maxdepth 3 -name '*.app' -type d | head -1)"
 fi

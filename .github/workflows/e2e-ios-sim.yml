@@ -43,6 +43,8 @@ jobs:
           if [ -n "$APP_URL" ]; then
             case "$APP_URL" in https://expo.dev/artifacts/eas/*|https://*.expo.dev/*) ;; *) echo "app_url must be an EAS artifact URL"; exit 1;; esac
           fi
+          python3 .maestro/scripts/validate-existing-binary.py --config .maestro/e2e.config.json \
+            --build "$BUILD_KEY" --flows "$FLOWS" --app-url "$APP_URL" --build-id "$EAS_BUILD_ID"
       - uses: actions/setup-node@v4
         if: ${{ inputs.app_url == '' }}
         with:
