@@ -1,0 +1,32 @@
+{
+ "schema": "aos-closeout/1",
+ "at": "2026-11-12T13:16:33-08:00",
+ "project": "snapscore",
+ "ticket": "AUG-1047",
+ "owner": "claude-ss",
+ "kind": "code",
+ "status": "done",
+ "evidence": {
+  "pr": "https://github.com/augsmog/QuickScore/pull/239",
+  "head_sha": "d1663f57ae58a35c96e95176841859fc5761dad6",
+  "merge_sha": "914bc8588c2a8b62289f1f9f22b3d29e1b6c228b",
+  "ci": "https://github.com/augsmog/QuickScore/actions/runs/43305154892",
+  "tests": "npx jest tests/ -> 143/143 suites, 1377/1377 pass; npx jest src/engine -> 14/14 suites, 145/145 pass; npx tsc --noEmit clean; new tests/pot-entry-fee.test.cjs 22/22"
+ },
+ "verifier": {
+  "by": "openai/codex-high (gpt-6-astra, cross-company verify_run)",
+  "independent": true,
+  "verdict": "PASS",
+  "sha": "d1663f57ae58a35c96e95176841859fc5761dad6"
+ },
+ "roles": {
+  "builder": "anthropic/claude-code",
+  "checker": "openai/codex-high"
+ },
+ "advisor": {
+  "calls": 0,
+  "triggers": []
+ },
+ "skills": [],
+ "summary": "Reserved field-pot entry fee metadata (potEntryFee) on GameConfig + validator; unconsumed AUG-258 scaffolding slice, pure-engine-first pattern"
+}
