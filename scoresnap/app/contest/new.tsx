@@ -35,6 +35,8 @@ import {
   ContestGroup,
 } from "../../src/stores/contest-store";
 import { useAuthStore } from "../../src/stores/auth-store";
+import { useScanStore } from "../../src/stores/scan-store";
+import { canHostTournament } from "../../src/services/entitlements";
 import CourseSearch from "../../src/ui/CourseSearch";
 import type { Course } from "../../src/engine/types";
 import type { TeeBox } from "../../src/services/course-api";
@@ -72,6 +74,10 @@ export default function NewContestScreen() {
   const router = useRouter();
   const addContest = useContestStore((s) => s.addContest);
   const user = useAuthStore((s) => s.user);
+  // AUG-1368: raw subscription tier, matching the store-level host validator
+  // (contest-store.ts injects useScanStore.getState().tier), so the wizard gate
+  // agrees with the mutation boundary that would otherwise throw on save.
+  const tier = useScanStore((s) => s.tier);
   const compactViewport = isCompactViewport(Dimensions.get("window"));
 
   const [step, setStep] = useState(0);
@@ -323,8 +329,28 @@ export default function NewContestScreen() {
       ...(rounds ? { isTournament: true, rounds, currentRound: 1 } : {}),
     };
 
+    // AUG-1368: Tournament hosting (multi-day rounds and/or multiple groups) is a
+    // Tournament Director entitlement. Pre-gate before the store mutation so a non-TD
+    // user is routed to the TD paywall instead of crashing on the validator throw at
+    // contest-store.ts -> contest-validation.ts. Covers both axes (rounds AND groups),
+    // mirroring tournament-rounds.tsx:75 and edit.tsx:147. The wizard draft is preserved
+    // across the paywall because we return without mutating any wizard state.
+    if (!canHostTournament(contest, tier)) {
+      router.push("/paywall?tier=td");
+      return;
+    }
+
+    // AUG-1368: crash backstop. Even if a future config slips past the pre-gate, a
+    // validation throw must never escape this press handler as a fatal JS error.
+    // Success feedback (haptics, analytics, navigation) fires only after the contest
+    // actually persists.
+    try {
+      addContest(contest);
+    } catch (error) {
+      showAlert("Review contest setup", String(error));
+      return;
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    addContest(contest);
     posthog?.capture("contest_created", {
       player_count: validPlayers.length,
       group_count: groups.length,
