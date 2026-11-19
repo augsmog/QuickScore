@@ -8,13 +8,14 @@ import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
 import { localDate } from "../../src/utils/local-date";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useAuthStore } from "../../src/stores/auth-store";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { View, Text, ScrollView, Pressable, FlatList, Alert, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Camera, ChevronRight, X, Users, Plus, Hash } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../src/ui/theme";
+import { tabBarHeight, maxFullRowsAboveBottomChrome } from "../../src/ui/tab-bar-metrics";
 import {
   useContestStore,
   generateId,
@@ -28,9 +29,13 @@ import { useOnboardingStore } from "../../src/stores/onboarding-store";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const modeChipWidth = Math.max(44, (width - 48) / 2);
-  const bottomTabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
+  // Match the Tabs navigator's own tabBarStyle height exactly (tab-bar-metrics.ts):
+  // useBottomTabBarHeight() can under-report on web before the absolute-positioned
+  // bar's onLayout settles, letting scroll content paint underneath it.
+  const bottomTabBarHeight = tabBarHeight(insets.bottom);
   const tier = useScanStore(s => s.tier);
   const storedContests = useContestStore((s) => s.contests);
   const demoMode = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
@@ -45,6 +50,12 @@ export default function HomeScreen() {
   const completedContests = contests.filter((c) => c.status === "completed");
   const [showGameLibrary, setShowGameLibrary] = useState(false);
   const [selectedGame, setSelectedGame] = useState<GameTypeInfo | null>(null);
+  // Only full recent-round cards may render on first paint: a card the
+  // bottom tab bar's reserved margin would cut mid-row is unreachable and
+  // fails the strict visible-target-size audit. Start at 1 (always safe)
+  // and grow once the list's own top position is measured.
+  const [recentRoundsListTop, setRecentRoundsListTop] = useState<number | null>(null);
+  const recentRoundsListMarkerRef = useRef<View>(null);
   const hasSeenDemo = useOnboardingStore((s) => s.hasSeenDemo);
   const markDemoSeen = useOnboardingStore((s) => s.markDemoSeen);
 
@@ -102,6 +113,11 @@ export default function HomeScreen() {
 
   // Flatten all game names for horizontal scroll
   const allGameNames = ALL_GAMES.map((g) => ({ id: g.id, name: g.name, icon: g.icon }));
+
+  // A card is only safe to show if it fits entirely above the reserved tab
+  // bar margin; a card that would be cut mid-row must not render at all.
+  const maxFullRecentRounds = maxFullRowsAboveBottomChrome(recentRoundsListTop, height, bottomTabBarHeight, 68, 8);
+  const visibleRecentRounds = completedContests.slice(0, Math.min(3, maxFullRecentRounds));
 
   return (
     <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
@@ -518,7 +534,16 @@ export default function HomeScreen() {
               RECENT ROUNDS
             </Text>
 
-            {completedContests.slice(0, 3).map((contest) => {
+            <View
+              ref={recentRoundsListMarkerRef}
+              onLayout={() => {
+                // onLayout's own y is parent-relative; measureInWindow gives
+                // the viewport-relative top this budget needs (scrollY is 0
+                // on first paint, so window-relative == content-relative).
+                recentRoundsListMarkerRef.current?.measureInWindow((_x, y) => setRecentRoundsListTop(y));
+              }}
+            />
+            {visibleRecentRounds.map((contest) => {
               const playerCount = contest.groups.reduce(
                 (s, g) => s + g.players.length,
                 0
