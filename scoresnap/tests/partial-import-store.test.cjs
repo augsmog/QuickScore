@@ -122,3 +122,17 @@ test('existing full-card importScores still replaces the target player card as b
   assert.deepEqual(store.getState().contests[0].groups[0].players[0].scores, imported);
   assert.deepEqual(store.getState().contests[0].groups[0].players[1].scores, Array(18).fill(0));
 `));
+
+ test('continued scoring after a back-nine import updates the numbered hole at its course position', () => check(`
+  const contest = fixture();
+  contest.rounds[0].course = { name: 'Back nine', holes: holes.slice(9) };
+  install(contest);
+  const action = store.getState().updateScore;
+  action('contest-1', 'group-1', 'p0', 12, 6);
+  const scores = store.getState().contests[0].rounds[0].groups[0].players[0].scores;
+  assert.equal(scores[2], 6);
+  assert.equal(scores[11], 0);
+  const before = structuredClone(store.getState().contests[0]);
+  assert.throws(() => action('contest-1', 'group-1', 'p0', 1, 5), /Invalid score entry/);
+  assert.deepEqual(store.getState().contests[0], before);
+`));

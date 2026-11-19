@@ -60,7 +60,7 @@ function scanRow(name, matchedPlayerId, hole2Confidence = 0.95) {
   return { name, source: 'ocr', requiredHoles: Array.from({ length: 18 }, (_, i) => i + 1), scores, confidence, nameConfidence: 0.95, matchedPlayerId };
 }
 
-function mountScreen({ contestId = 'c1', groupId, scanData, contest, back = () => {}, applyReviewedPartialImport, isAnonymous = true, live = {} }) {
+function mountScreen({ contestId = 'c1', groupId, scanData, contest, back = () => {}, replace = () => {}, applyReviewedPartialImport, isAnonymous = true, live = {} }) {
   const element = (tag) => (props) => React.createElement(tag, props, props.children);
   const canonical = () => ({ contests: [live.contest ?? contest], applyReviewedPartialImport });
   const authState = () => live.auth ?? { session: null, isAnonymous };
@@ -72,7 +72,7 @@ function mountScreen({ contestId = 'c1', groupId, scanData, contest, back = () =
       View: element('View'), Text: element('Text'), ScrollView: element('ScrollView'),
       Pressable: element('Pressable'), TextInput: element('TextInput'),
     },
-    'expo-router': { useRouter: () => ({ back }), useLocalSearchParams: () => ({ contestId, groupId, scanData, sourceContext: JSON.stringify([isAnonymous?'anonymous':'signed-out',contestId,contest.isTournament?contest.rounds.find(r=>r.number===contest.currentRound)?.id??null:null]) }) },
+    'expo-router': { useRouter: () => ({ back, replace }), useLocalSearchParams: () => ({ contestId, groupId, scanData, sourceContext: JSON.stringify([isAnonymous?'anonymous':'signed-out',contestId,contest.isTournament?contest.rounds.find(r=>r.number===contest.currentRound)?.id??null:null]) }) },
     'lucide-react-native': Object.fromEntries(['X', 'Check', 'AlertTriangle'].map((n) => [n, () => null])),
     '../../src/ui/theme': theme,
     '../../src/stores/contest-store': {
@@ -102,6 +102,7 @@ function group4() {
 }
 
 test('blocks confirm until the uncertain hole-2 cell is resolved, then saves exactly 8 reviewed cells once', () => {
+  const replaced = jest.fn();
   const group = group4();
   const contest = { id: 'c1', name: 'Test', course: COURSE, status: 'active', groups: [group], isTournament: false };
   const scanData = JSON.stringify([
@@ -113,7 +114,7 @@ test('blocks confirm until the uncertain hole-2 cell is resolved, then saves exa
   const calls = [];
   const tree = mountScreen({
     groupId: 'g1', scanData, contest,
-    applyReviewedPartialImport: (...args) => calls.push(args),
+    replace: replaced, applyReviewedPartialImport: (...args) => calls.push(args),
   });
   try {
     const confirmBtn = () => tree.root.find((n) => n.props.testID === 'partial-confirm');
@@ -128,6 +129,7 @@ test('blocks confirm until the uncertain hole-2 cell is resolved, then saves exa
 
     press(tree, 'partial-confirm');
     expect(calls).toHaveLength(1);
+    expect(replaced).toHaveBeenCalledWith({ pathname: '/contest/[id]', params: { id: 'c1', groupId: 'g1', resumeImport: expect.any(String) } });
     const [cId, roundId, groupId, patch] = calls[0];
     expect(cId).toBe('c1');
     expect(roundId).toBeNull();
@@ -147,9 +149,9 @@ test('Cancel never writes to the store', () => {
   const scanData = JSON.stringify([
     scanRow('Alice', null), scanRow('Bob', null), scanRow('Cara', null), scanRow('Dana', null, 0.4),
   ]);
-  const calls = [];
+  const calls = [], replaced = jest.fn();
   let backCalled = false;
-  const tree = mountScreen({
+  const tree = mountScreen({ replace: replaced,
     groupId: 'g1', scanData, contest, back: () => { backCalled = true; },
     applyReviewedPartialImport: (...args) => calls.push(args),
   });
@@ -158,6 +160,7 @@ test('Cancel never writes to the store', () => {
     press(tree, 'partial-cancel');
     expect(backCalled).toBe(true);
     expect(calls).toHaveLength(0);
+    expect(replaced).not.toHaveBeenCalled();
   } finally {
     act(() => tree.unmount());
   }
@@ -221,8 +224,8 @@ for (const replacement of ['0', '-1', 'NaN', '2.5', '', '9007199254740992']) {
 test('a rejected write retains edits and cannot immediately repeat the same write', () => {
   const group = group4();
   const contest = { id: 'c1', course: COURSE, status: 'active', groups: [group], isTournament: false };
-  const calls = [];
-  const tree = mountScreen({ contest, scanData: JSON.stringify([
+  const calls = [], replaced = jest.fn();
+  const tree = mountScreen({ replace: replaced, contest, scanData: JSON.stringify([
     scanRow('Alice', null), scanRow('Bob', null), scanRow('Cara', null), scanRow('Dana', null, 0.4),
   ]), applyReviewedPartialImport: (...args) => { calls.push(args); throw new Error('denied'); } });
   try {
@@ -230,6 +233,7 @@ test('a rejected write retains edits and cannot immediately repeat the same writ
     press(tree, 'partial-confirm');
     press(tree, 'partial-confirm');
     expect(calls).toHaveLength(1);
+    expect(replaced).not.toHaveBeenCalled();
     expect(tree.root.find(n => n.type === 'TextInput' && n.props.testID === 'partial-cell-input-3:2').props.value).toBe('6');
   } finally { act(() => tree.unmount()); }
 });
@@ -238,8 +242,8 @@ for (const change of ['account', 'round', 'completed', 'conflict']) {
   test(`a stale event cannot write after ${change} changes`, () => {
     const group = group4();
     const contest = { id: 'c1', course: COURSE, status: 'active', groups: [group], isTournament: false };
-    const calls = [], live = {};
-    const tree = mountScreen({ contest, live, scanData: JSON.stringify([
+    const calls = [], live = {}, replaced = jest.fn();
+    const tree = mountScreen({ replace: replaced, contest, live, scanData: JSON.stringify([
       scanRow('Alice', null), scanRow('Bob', null), scanRow('Cara', null), scanRow('Dana', null),
     ]), applyReviewedPartialImport: (...args) => calls.push(args) });
     try {
@@ -249,6 +253,7 @@ for (const change of ['account', 'round', 'completed', 'conflict']) {
       if (change === 'conflict') live.contest = { ...contest, groups:[{...group, players:group.players.map((p,i)=>i===0?{...p,scores:[7,...p.scores.slice(1)]}:p)}] };
       press(tree, 'partial-confirm');
       expect(calls).toHaveLength(0);
+    expect(replaced).not.toHaveBeenCalled();
     } finally { act(() => tree.unmount()); }
   });
 }

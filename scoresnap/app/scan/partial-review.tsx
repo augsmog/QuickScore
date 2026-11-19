@@ -283,6 +283,10 @@ export default function ScanPartialReviewScreen() {
     router.back();
   }
 
+  function resumeScoring() {
+    router.replace({ pathname: "/contest/[id]", params: { id: contestId!, groupId: group!.id, resumeImport: String(Date.now()) } });
+  }
+
   function handleConfirm() {
     if (!canConfirm || !draftKey || !contestId || !group || !result || !result.ok || !result.complete) return;
     // Read canonical identity/context at the event boundary: render closures may be stale.
@@ -317,7 +321,7 @@ export default function ScanPartialReviewScreen() {
     session.setAccount(accountId);
     if (session.getState().status === "confirmed") {
       setSaved(true);
-      router.back();
+      resumeScoring();
       return;
     }
     const token = session.beginReview(accountId, context);
@@ -335,7 +339,7 @@ export default function ScanPartialReviewScreen() {
       setSaveError(null);
       setSaved(true);
       draftsByKey.delete(draftKey);
-      router.back();
+      resumeScoring();
       return;
     }
     setSaveError(COPY.failure);
