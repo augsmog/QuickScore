@@ -200,8 +200,41 @@ export function normalizeMaestroCapture(root, options = {}) {
   walk(root, null, 0, null, false);
 
   const { kept, chrome, safeArea } = stripSystemChrome(nodes, childrenOf, viewport);
+  pairSwitchSlots(kept);
   for (const n of kept) { delete n.meta.systemPackage; delete n.meta.keyboardNode; } // internal markers
   return { nodes: kept, chrome, safeArea };
+}
+
+// Reconcile each switch tap slot with the native switch it wraps. React Native FLATTENS the
+// `<View switchSlot><Switch/></View>` nesting on device: Android promotes the native Switch to a
+// sibling of the (now empty) 48dp slot ViewGroup, and iOS likewise reports the switch as a sibling
+// of the 44pt slot — so the structural `insideSwitchSlot` propagation in `walk` never sees the
+// switch as the slot's descendant, the switch keeps `tappable` (rule 5 scores its fixed 47×27 /
+// 63×28 intrinsic size), and rule 1 scores the slot as overlapping its own switch. The slot and its
+// switch carry the SAME `meta.control` id in SNAPSCORE_META (the app's declared pairing contract —
+// `tournament-toggle-slot`/`tournament-toggle` → "multi-day", etc.), so we pair them by that id:
+// the switch is the state indicator, not an independent tap target → non-tappable (the >=48dp/44pt
+// slot is the measured tap target, rule 5), and we re-parent the switch under its slot so rule 1
+// does not score the slot as overlapping the switch it owns. No geometry is invented; rule 7 still
+// scores the switch's own colors (it keeps `isSwitch`).
+function pairSwitchSlots(list) {
+  const slots = new Map();      // control id -> slot node
+  const switchesBy = new Map(); // control id -> switch nodes
+  for (const n of list) {
+    const c = n.meta?.control;
+    if (!c) continue;
+    if (n.meta.switchSlot) slots.set(c, n);
+    else if (n.meta.isSwitch) {
+      if (!switchesBy.has(c)) switchesBy.set(c, []);
+      switchesBy.get(c).push(n);
+    }
+  }
+  for (const [c, slot] of slots) {
+    for (const sw of switchesBy.get(c) || []) {
+      sw.meta.tappable = false; // indicator, not an independent tap target (slot is the target)
+      sw.parentId = slot.id;    // the switch is the slot's child — rule 1 skips own-child overlap
+    }
+  }
 }
 
 // Decide which top-level survivors are the app window(s) and drop the rest (system chrome).
@@ -247,6 +280,41 @@ function stripSystemChrome(nodes, childrenOf, viewport) {
   }
   for (const n of nodes) if (n.meta.keyboardNode && !drop.has(n)) markInto(n, keyboard);
 
+  // (1b) iOS nests the soft keyboard in an UNTAGGED full-width, bottom-anchored CONTAINER. Its main
+  // layout layer carries a `UIKeyboard*` id (tagged + stripped above), but the bottom key row (Emoji
+  // / space / return) are SIBLINGS of that layer under the untagged container, so they are not inside
+  // any tagged node and leak as app text that "paints over" the sticky footer (rule 1). Strip the
+  // whole keyboard container: a node pinned to the bottom edge, spanning the full viewport width,
+  // sitting in the lower portion of the screen, whose subtree contains a detected keyboard node. The
+  // app window spans full width too but starts at the top (top≈0), so it is never matched; the footer
+  // and app content are separate subtrees with no keyboard node, so they are never stripped.
+  if (viewport && Number.isFinite(viewport.width) && Number.isFinite(viewport.height) && keyboard.length) {
+    const TOL = 2;
+    // The top of the actual keyboard KEYS = the highest already-tagged keyboard node (the
+    // `UIKeyboard*` layout layer). We only strip containers at or below this line, so the floating
+    // predictive-suggestion strip that sits ABOVE the keys (content legitimately reflows beneath it)
+    // is never folded into the keyboard inset — otherwise the usable viewport would shrink to the
+    // strip top and flag content under it.
+    const keysTop = Math.min(...keyboard.map((k) => k.bbox.top));
+    const subtreeHasKeyboard = (root) => {
+      const stack = [root];
+      while (stack.length) {
+        const n = stack.pop();
+        if (n.meta.keyboardNode) return true;
+        for (const c of childrenOf.get(n) || []) stack.push(c);
+      }
+      return false;
+    };
+    for (const n of nodes) {
+      if (drop.has(n)) continue;
+      const fullWidth = n.bbox.left <= TOL &&
+        Math.abs((n.bbox.right - n.bbox.left) - viewport.width) <= TOL;
+      const bottomAnchored = n.bbox.bottom >= viewport.height - TOL;
+      const atKeysLine = n.bbox.top >= keysTop - TOL;
+      if (fullWidth && bottomAnchored && atKeysLine && subtreeHasKeyboard(n)) markInto(n, keyboard);
+    }
+  }
+
   // (2) System bars (status / nav / launcher) → chrome, via the app-window test over the remaining
   // (non-keyboard) top-level survivors.
   const appTops = tops.filter((t) => !keyboardWindows.has(t));
@@ -279,7 +347,18 @@ function stripSystemChrome(nodes, childrenOf, viewport) {
       const spansViewport =
         Math.abs((n.bbox.right - n.bbox.left) - viewport.width) <= TOL &&
         Math.abs((n.bbox.bottom - n.bbox.top) - viewport.height) <= TOL;
-      if (spansViewport) {
+      // A TEXT node that runs edge-to-edge across the FULL viewport width, pinned to the absolute
+      // left edge (x≈0, outside the app's content inset), is a structural band — the iOS UIScrollView
+      // scroll-position indicator (reported with an accessibility `value` like "0%") or the soft
+      // keyboard's "Typing Predictions" strip — never a readable point label. Real app labels are
+      // inset from the edges; nothing the app paints reaches x=0..viewport.width. Scored as text it
+      // "paints over" every row it crosses (rule 1 text-over-control false positives). Demote it to a
+      // structural container (horizontal analog of the full-viewport backdrop above) so the rules
+      // skip it. Controls are never demoted — a real control overlap is never hidden.
+      const spansFullWidthBand =
+        n.role === 'text' && n.bbox.left <= TOL &&
+        Math.abs((n.bbox.right - n.bbox.left) - viewport.width) <= TOL;
+      if (spansViewport || spansFullWidthBand) {
         n.role = 'container';
         n.meta.backdrop = true;
       }

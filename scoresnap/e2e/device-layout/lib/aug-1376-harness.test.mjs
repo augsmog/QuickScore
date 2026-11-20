@@ -158,3 +158,143 @@ test('switch-slot: rule 5 scores the >=48dp slot, not the 63x28 switch', () => {
     .filter((f) => f.rule === 5 && f.nodes.includes('tournament-toggle-slot'));
   assert.ok(smallHits.length >= 1, 'an undersized slot is flagged (proves the slot is the measured target)');
 });
+
+// ───────────── 4b. Switch tap slot FLATTENED to siblings (the real device shape, round 6) ─────────────
+// On device React Native flattens `<View slot><Switch/></View>`: the Switch is promoted to a SIBLING
+// of the (empty) slot ViewGroup — both direct children of the row. The structural `insideSwitchSlot`
+// walk can't see the switch as the slot's child, so without the `control`-key pairing the switch kept
+// `tappable` (rule 5 scored its 47x27 / 63x28) and rule 1 scored the slot as overlapping its switch.
+function switchSiblingOfSlot(slotBounds, switchBounds, switchValue = '1') {
+  return node('[0,0][360,800]', { 'resource-id': 'app-window' }, [
+    node('[0,200][360,280]', {}, [ // row: slot and switch are SIBLINGS (flattened), plus the label
+      node(slotBounds, { 'resource-id': 'tournament-toggle-slot' }),
+      node(switchBounds, { 'resource-id': 'tournament-toggle', value: switchValue, checked: 'true' }),
+      node('[100,210][340,238]', { text: 'Multi-Day Tournament' }),
+    ]),
+  ]);
+}
+
+test('switch-slot (flattened siblings): the switch is paired to its slot by control id → non-tappable, re-parented', () => {
+  const viewport = { width: 360, height: 800 };
+  // Android: 48dp slot [20,200][68,248], sibling switch [21,210][68,237] (47x27) overlapping it.
+  const { nodes } = normalizeMaestroCapture(switchSiblingOfSlot('[20,200][68,248]', '[21,210][68,237]'), {
+    density: 1, viewport, resourceMeta: SNAPSCORE_META,
+  });
+  const slot = nodes.find((n) => n.id === 'tournament-toggle-slot');
+  const sw = nodes.find((n) => n.id === 'tournament-toggle');
+  assert.equal(sw.meta.tappable, false, 'the sibling switch is paired to its slot by control id and marked non-tappable');
+  assert.equal(sw.parentId, slot.id, 'the switch is re-parented under its slot so rule 1 skips the own-child pair');
+  assert.equal(sw.meta.isSwitch, true, 'the switch keeps isSwitch (rule 7 contrast still scores it)');
+  const { findings } = evaluateCheckpoint(nodes, { platform: 'android', viewport });
+  const pairHits = findings.filter((f) =>
+    (f.rule === 1 && f.nodes.includes('tournament-toggle-slot') && f.nodes.includes('tournament-toggle')) ||
+    (f.rule === 5 && f.nodes.includes('tournament-toggle')));
+  assert.equal(pairHits.length, 0, `no slot↔switch overlap and no switch tap-target finding: ${JSON.stringify(pairHits)}`);
+  // The slot itself is still the measured target: shrink it and rule 5 fires on the slot.
+  const small = normalizeMaestroCapture(switchSiblingOfSlot('[20,200][60,240]', '[21,210][68,237]'), {
+    density: 1, viewport, resourceMeta: SNAPSCORE_META,
+  });
+  const slotHit = evaluateCheckpoint(small.nodes, { platform: 'android', viewport }).findings
+    .filter((f) => f.rule === 5 && f.nodes.includes('tournament-toggle-slot'));
+  assert.ok(slotHit.length >= 1, 'an undersized slot still fails rule 5 — the gate is not weakened');
+});
+
+// ───────────── 5. iOS full-viewport-width accessibility band (scroll indicator "0%") ─────────────
+// iOS exposes the UIScrollView scroll-position indicator (and the keyboard "Typing Predictions"
+// strip) as a text element spanning the FULL viewport width (x=0..width, outside the app's content
+// inset), reported with an accessibility value like "0%". Scored as text it "paints over" every row
+// it crosses. It must be demoted to a structural band (never scored); real controls are never touched.
+test('full-width band: an edge-to-edge "0%" scroll indicator is demoted and never paints over a row', () => {
+  const viewport = { width: 402, height: 874 };
+  const meta = { ...SNAPSCORE_META, 'player-row': { role: 'control', meta: { tappable: true } } };
+  const cap = node('[0,0][402,874]', { 'resource-id': 'app-window' }, [
+    node('[79,709][369,753]', { 'resource-id': 'player-row', text: 'Ava' }),
+    node('[0,717][402,747]', { value: '0%', text: '0%' }), // full-width scroll indicator
+  ]);
+  const { nodes } = normalizeMaestroCapture(cap, { density: 1, viewport, resourceMeta: meta });
+  const band = nodes.find((n) => (n.text || '') === '0%');
+  assert.ok(band && band.role !== 'text', 'the full-width "0%" band is demoted out of the text role');
+  const { findings } = evaluateCheckpoint(nodes, { platform: 'ios', viewport });
+  const overRow = findings.filter((f) => f.rule === 1 && /0%/.test(f.reason));
+  assert.equal(overRow.length, 0, `the demoted band must not paint over any control: ${JSON.stringify(overRow)}`);
+  // A normal inset label that genuinely overlaps a control is still flagged (not weakened).
+  const real = node('[0,0][402,874]', { 'resource-id': 'app-window' }, [
+    node('[79,709][369,753]', { 'resource-id': 'player-row', text: 'Ava' }),
+    node('[90,720][300,745]', { text: 'overlaps' }),
+  ]);
+  const realHits = evaluateCheckpoint(
+    normalizeMaestroCapture(real, { density: 1, viewport, resourceMeta: meta }).nodes,
+    { platform: 'ios', viewport },
+  ).findings.filter((f) => f.rule === 1 && /overlaps/.test(f.reason));
+  assert.ok(realHits.length >= 1, 'a genuine inset text-over-control overlap is still flagged');
+});
+
+// ───────────── 6. A container-text (iOS window root "SnapScore") never paints over its descendants ──
+test('ancestor text: the iOS "SnapScore" window root does not paint over the controls it wraps', () => {
+  const viewport = { width: 402, height: 874 };
+  const cap = node('[0,0][0,0]', {}, [ // structural root wrapper (dropped)
+    node('[0,0][375,667]', { accessibilityText: 'SnapScore' }, [ // window root, labelled, NOT full-viewport
+      node('[20,186][355,238]', { 'resource-id': 'home-new-contest', text: 'New Contest' }),
+    ]),
+  ]);
+  const { nodes } = normalizeMaestroCapture(cap, { density: 1, viewport, resourceMeta: SNAPSCORE_META });
+  const root = nodes.find((n) => (n.text || '') === 'SnapScore');
+  assert.ok(root, 'the "SnapScore" container survives (it is 375x667, not the 402x874 viewport, so not a backdrop)');
+  const { findings } = evaluateCheckpoint(nodes, { platform: 'ios', viewport });
+  const snapHits = findings.filter((f) => f.rule === 1 && /SnapScore/.test(f.reason));
+  assert.equal(snapHits.length, 0, `the ancestor container must not "paint over" its descendant control: ${JSON.stringify(snapHits)}`);
+});
+
+// ───────────── 7. iOS keyboard container (leaked bottom-row key) + sticky-footer exemption ─────────
+// iOS nests the keyboard in an untagged full-width bottom-anchored container; its main layer carries a
+// UIKeyboard* id but the bottom key row ("Emoji") are SIBLINGS that leak as app text over the footer.
+function iosKeyboardOverFooter() {
+  return node('[0,0][0,0]', {}, [
+    node('[0,0][402,874]', { accessibilityText: 'SnapScore' }, [
+      node('[20,762][382,816]', { 'resource-id': 'contest-continue', text: 'Continue' }), // sticky CTA
+      node('[0,583][402,874]', {}, [ // keyboard container (untagged, bottom-anchored, full width)
+        node('[0,583][402,816]', { 'resource-id': 'UIKeyboardLayoutStar Preview' }, [
+          node('[20,600][60,640]', { text: 'Q' }),
+        ]),
+        node('[8,805][76,874]', { text: 'Emoji' }), // leaked bottom-row key (sibling of the layout layer)
+      ]),
+    ]),
+  ]);
+}
+test('iOS keyboard: the whole keyboard container is stripped (leaked "Emoji" key gone) and folds the bottom inset', () => {
+  const viewport = { width: 402, height: 874 };
+  const { nodes, safeArea } = normalizeMaestroCapture(iosKeyboardOverFooter(), { density: 1, viewport, resourceMeta: SNAPSCORE_META });
+  const texts = new Set(nodes.map((n) => (n.text || '').trim()));
+  assert.ok(!texts.has('Emoji') && !texts.has('Q'), 'no keyboard key survives into app geometry');
+  assert.ok(nodes.find((n) => n.id === 'contest-continue'), 'the sticky footer CTA (separate subtree) is kept');
+  assert.ok(safeArea && safeArea.bottom > 0, 'the keyboard folds into the bottom safe-area inset');
+  const { findings } = evaluateCheckpoint(nodes, { platform: 'ios', viewport });
+  assert.equal(findings.filter((f) => f.rule === 1 && /Emoji/.test(f.reason)).length, 0, 'no keyboard-key-over-CTA finding');
+  // Rule 2: the footer CTA sits behind the keyboard-raised inset but is EXEMPT (pinned chrome); content
+  // hidden behind the footer is still caught separately.
+  assert.equal(findings.filter((f) => f.rule === 2 && f.nodes.includes('contest-continue')).length, 0,
+    'the sticky footer CTA is exempt from the content safe-area check (transient keyboard covers it)');
+});
+
+// ───────────── 8. Rule 5 edge-gap uses the PAINTED rect (scroll-clipped row vs fixed chrome) ──────
+test('rule 5 edge-gap: a row clipped at the scroll edge is not "jammed" against the fixed footer', () => {
+  const viewport = { width: 375, height: 667 };
+  const meta = {
+    'app-window': { role: 'container', meta: {} },
+    'contest-scroll': { role: 'container', meta: { scrollClip: true } },
+    'last-row': { role: 'control', meta: { tappable: true } },
+    'contest-continue': { role: 'control', meta: { tappable: true, footerAnchor: true, cta: true } },
+  };
+  // last-row raw bottom 589 touches the footer top (0pt), but the scroll viewport ends at 577 so its
+  // PAINTED bottom is 577 → a real 12pt gap. Rule 5 must use the painted extent and NOT flag it.
+  const cap = node('[0,0][375,667]', { 'resource-id': 'app-window' }, [
+    node('[0,122][375,577]', { 'resource-id': 'contest-scroll' }, [
+      node('[79,545][342,589]', { 'resource-id': 'last-row', checked: 'true' }),
+    ]),
+    node('[20,589][355,643]', { 'resource-id': 'contest-continue', text: 'Continue', checked: 'true' }),
+  ]);
+  const { nodes } = normalizeMaestroCapture(cap, { density: 1, viewport, resourceMeta: meta });
+  const { findings } = evaluateCheckpoint(nodes, { platform: 'ios', viewport });
+  const gapHits = findings.filter((f) => f.rule === 5 && f.nodes.includes('last-row') && f.nodes.includes('contest-continue'));
+  assert.equal(gapHits.length, 0, `scroll-clipped row must not jam against the fixed footer: ${JSON.stringify(gapHits)}`);
+});

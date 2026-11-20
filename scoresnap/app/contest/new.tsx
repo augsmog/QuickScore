@@ -510,7 +510,11 @@ export default function NewContestScreen() {
                 borderColor: COLORS.border,
                 borderWidth: 1,
                 borderRadius: RADII.md,
-                minHeight: SETUP_MIN_TARGET,
+                // The device-layout gate measures the content frame INSIDE the 1pt border (the
+                // border-less inputs measure their full box, this bordered one measured 2pt short on
+                // the compact profile). Grow the box by 2×borderWidth so the measured tap target still
+                // clears the platform minimum (>=44pt iOS / >=48dp Android).
+                minHeight: SETUP_MIN_TARGET + 4,
                 paddingHorizontal: 16,
                 paddingVertical: compactViewport ? 10 : 14,
                 fontSize: 15,

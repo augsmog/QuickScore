@@ -117,6 +117,11 @@ export function ruleOverlap(tree) {
       // A label painted inside its own control is distinguished explicitly.
       if (text.meta?.owners?.includes(control.id)) continue;
       if (isAncestor(tree, control.id, text.id)) continue;
+      // A text node that is an ANCESTOR of the control is a container the control is drawn within
+      // (iOS tags window/section containers with an accessibility name — e.g. the app root reports
+      // "SnapScore" over the whole screen and wraps every control). A container cannot "paint over"
+      // its own descendant control, so this is never a real text-over-control collision.
+      if (isAncestor(tree, text.id, control.id)) continue;
       const { width, height } = intersect(paintedRect(text), paintedRect(control));
       if (width > TEXT_OVERLAP_TOL && height > TEXT_OVERLAP_TOL) {
         findings.push({
@@ -160,7 +165,15 @@ export function ruleClipping(tree, ctx) {
       });
       continue;
     }
-    if (safe && vp) {
+    // The sticky footer bar IS the bottom boundary chrome — it is pinned to the screen bottom by
+    // design (SafeScreen edges), so judging it against the content safe area is out of scope: its
+    // bottom edge legitimately sits in the home-indicator inset (owned by SafeScreen + the AUG-1164
+    // jest guard), and when the soft keyboard is up the keyboard-raised bottom inset transiently
+    // covers it (expected iOS behaviour — the user dismisses the keyboard to tap it). Content hidden
+    // BEHIND the footer is still caught by the footer-clip sub-checks above; this only exempts the
+    // footer node itself from the content-safe-area edge check.
+    const isFooterChrome = n.meta?.footerAnchor || n.meta?.footer || n.meta?.cta;
+    if (safe && vp && !isFooterChrome) {
       const over = [];
       if (r.top < (safe.top ?? 0) - 1) over.push(`top<${safe.top ?? 0}`);
       if (r.bottom > vp.height - (safe.bottom ?? 0) + 1) over.push(`bottom>${vp.height - (safe.bottom ?? 0)}`);
@@ -266,28 +279,36 @@ export function ruleTapTargets(tree, ctx) {
     for (let j = i + 1; j < targets.length; j++) {
       const a = targets[i], b = targets[j];
       if (isAncestor(tree, a.id, b.id) || isAncestor(tree, b.id, a.id)) continue;
-      const gx = horizontalGap(rectOf(a), rectOf(b));
+      // Compare PAINTED rects (clipped to the scroll viewport), consistent with rules 1 & 2. The
+      // edge-gap check catches two independent sibling targets jammed together in the same layout
+      // flow. A row scrolled to the top/bottom edge of a ScrollView has its RAW frame reported
+      // reaching the fixed header/footer, but its PAINTED (visible, tappable) extent stops at the
+      // scroll viewport edge — so the raw gap to the fixed Back header or sticky Continue footer is
+      // a scroll artifact, not a sibling jam. (The undersize check above still uses the raw rect with
+      // a per-edge clipped-dimension skip, so a genuinely small clipped control is still measured.)
+      const ra = paintedRect(a), rb = paintedRect(b);
+      const gx = horizontalGap(ra, rb);
       const gy = horizontalGap(
-        { left: rectOf(a).top, right: rectOf(a).bottom },
-        { left: rectOf(b).top, right: rectOf(b).bottom },
+        { left: ra.top, right: ra.bottom },
+        { left: rb.top, right: rb.bottom },
       );
       // Edge gap applies only to siblings sharing a row or column.
       const sharesRow = intersect(
-        { left: rectOf(a).top, right: rectOf(a).bottom, top: 0, bottom: 1 },
-        { left: rectOf(b).top, right: rectOf(b).bottom, top: 0, bottom: 1 },
+        { left: ra.top, right: ra.bottom, top: 0, bottom: 1 },
+        { left: rb.top, right: rb.bottom, top: 0, bottom: 1 },
       ).width > 0;
       const sharesCol = intersect(
-        { left: rectOf(a).left, right: rectOf(a).right, top: 0, bottom: 1 },
-        { left: rectOf(b).left, right: rectOf(b).right, top: 0, bottom: 1 },
+        { left: ra.left, right: ra.right, top: 0, bottom: 1 },
+        { left: rb.left, right: rb.right, top: 0, bottom: 1 },
       ).width > 0;
       if (sharesRow && gx >= 0 && gx < MIN_SPACING - 0.5) {
         findings.push({
-          rule: 5, severity: 'major', bbox: bboxArr(rectOf(a)), nodes: [a.id, b.id],
+          rule: 5, severity: 'major', bbox: bboxArr(ra), nodes: [a.id, b.id],
           reason: `Sibling tap targets "${a.text || a.id}" and "${b.text || b.id}" are ${gx.toFixed(1)}pt apart (< ${MIN_SPACING}pt edge gap).`,
         });
       } else if (sharesCol && gy >= 0 && gy < MIN_SPACING - 0.5) {
         findings.push({
-          rule: 5, severity: 'major', bbox: bboxArr(rectOf(a)), nodes: [a.id, b.id],
+          rule: 5, severity: 'major', bbox: bboxArr(ra), nodes: [a.id, b.id],
           reason: `Stacked tap targets "${a.text || a.id}" and "${b.text || b.id}" are ${gy.toFixed(1)}pt apart (< ${MIN_SPACING}pt edge gap).`,
         });
       }

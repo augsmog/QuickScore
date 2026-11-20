@@ -23,8 +23,11 @@ function blockAfter(marker, end = '</Switch>') {
   return src.slice(start - 200, start + 600);
 }
 
-test('switchTapSlot is imported from the shared pure layout module', () => {
-  assert.match(src, /import\s*\{[^}]*\bswitchTapSlot\b[^}]*\}\s*from\s*"\.\.\/\.\.\/src\/ui\/tournament-setup-layout"/);
+test('switchTapSlot comes from the shared platform-aware setupTargets(Platform.OS)', () => {
+  // AUG-1376: the slot is the platform-aware tap target (>=48dp Android / 44pt iOS), so it is
+  // destructured from setupTargets(Platform.OS) rather than imported as a fixed-44 constant.
+  assert.match(src, /import\s*\{[^}]*\bsetupTargets\b[^}]*\}\s*from\s*"\.\.\/\.\.\/src\/ui\/tournament-setup-layout"/);
+  assert.match(src, /\bswitchTapSlot\b[\s\S]{0,300}=\s*setupTargets\(Platform\.OS\)/);
 });
 
 test('no native Switch is forced into a width/height-constrained box', () => {
@@ -33,11 +36,13 @@ test('no native Switch is forced into a width/height-constrained box', () => {
 });
 
 test('Multi-Day Tournament switch sits in a switchTapSlot (no overlap with its label)', () => {
-  const block = blockAfter('testID="tournament-toggle"');
-  // The switch must be preceded by a switchTapSlot wrapper and not carry a forced box.
-  const wrapIdx = src.indexOf('<View style={switchTapSlot}>', src.indexOf('Tournament Toggle'));
-  const toggleIdx = src.indexOf('testID="tournament-toggle"');
-  assert.ok(wrapIdx > 0 && wrapIdx < toggleIdx, 'tournament toggle must be wrapped in switchTapSlot');
+  // AUG-1376: the slot wrapper carries its OWN `*-slot` testID (the measured >=48dp/44pt tap
+  // target); the Switch keeps testID="tournament-toggle" and must sit inside that slot. Anchor on
+  // the slot <View> (unique in source, not referenced verbatim in the comments) and look forward.
+  const wrapIdx = src.indexOf('<View testID="tournament-toggle-slot" style={switchTapSlot}>');
+  assert.ok(wrapIdx > 0, 'tournament toggle must be wrapped in its switchTapSlot');
+  const block = src.slice(wrapIdx, wrapIdx + 600);
+  assert.match(block, /<Switch[\s\S]*?testID="tournament-toggle"/);
   assert.doesNotMatch(block, /width:\s*44,\s*height:\s*44/);
 });
 
@@ -47,18 +52,17 @@ test('rounds picker is no longer hard-indented 48pt', () => {
 });
 
 test('Team Mode switch has a contrasting off-state (not a dark pill) and a tap slot', () => {
-  const start = src.indexOf('testID="team-mode"');
-  assert.ok(start > 0);
-  const block = src.slice(start - 120, start + 400);
+  // AUG-1376: anchor on the team-mode slot <View> (unique; comments don't contain it verbatim).
+  const wrapIdx = src.indexOf('<View testID="team-mode-slot" style={switchTapSlot}>');
+  assert.ok(wrapIdx > 0, 'team-mode switch must be wrapped in its switchTapSlot');
+  const block = src.slice(wrapIdx, wrapIdx + 600);
+  assert.match(block, /<Switch[\s\S]*?testID="team-mode"/);
   // Off-track must not be surfaceHighest (which blends into the card) and the thumb
   // must be the light card color, not the near-black text color.
   assert.doesNotMatch(block, /false:\s*COLORS\.surfaceHighest/);
   assert.doesNotMatch(block, /thumbColor=\{COLORS\.text\}/);
   assert.match(block, /false:\s*COLORS\.border/);
   assert.match(block, /thumbColor=\{COLORS\.card\}/);
-  // Wrapped in the shared tap slot, no forced box.
-  assert.ok(src.lastIndexOf('<View style={switchTapSlot}>', start) > start - 200,
-    'team-mode switch must be wrapped in switchTapSlot');
 });
 
 test('player card stacks identity and controls on separate rows (no single cramped row)', () => {
@@ -76,11 +80,11 @@ test('player card stacks identity and controls on separate rows (no single cramp
   assert.match(card.slice(nameIdx, nameIdx + 500), /flex:\s*1/);
 });
 
-test('player-team chips still meet the 44x44 tap target (AUG-1164 regression guard)', () => {
+test('player-team chips still meet the platform tap target (AUG-1164 regression guard)', () => {
   const start = src.indexOf('onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}');
   assert.ok(start > 0);
   const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
-  assert.match(block, /minWidth:\s*44,/);
-  assert.match(block, /minHeight:\s*44,/);
+  // AUG-1376: the chip uses the shared platform-aware teamChipStyle (square >= SETUP_MIN_TARGET).
+  assert.match(block, /\.\.\.teamChipStyle,/);
   assert.doesNotMatch(block, /\bheight:\s*28,/);
 });
