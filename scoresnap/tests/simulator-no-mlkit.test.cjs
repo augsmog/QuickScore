@@ -59,15 +59,17 @@ test("simulator-offline is a local-only E2E fixture build, never production env"
   }
 });
 
-test("production and TestFlight profiles are byte-for-byte what they were", () => {
+// AUG-1370: #338 explicitly enables sharing in these profiles. Keep the full
+// profile contract pinned; native association readiness has its own guard.
+test("production and TestFlight retain the approved release profile contract", () => {
   expect(eas.build.production).toEqual({
     autoIncrement: true, channel: "production", environment: "production",
-    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_PRO_ENABLED: "false" },
+    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: "true", EXPO_PUBLIC_PRO_ENABLED: "false" },
   });
   expect(eas.build.testflight).toEqual({
     distribution: "store", ios: { buildConfiguration: "Release" }, autoIncrement: true,
     channel: "testflight", environment: "production",
-    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_PRO_ENABLED: "false" },
+    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: "true", EXPO_PUBLIC_PRO_ENABLED: "false" },
   });
 });
 
