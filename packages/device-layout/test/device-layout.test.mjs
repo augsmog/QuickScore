@@ -245,15 +245,18 @@ const review = (over = {}) => ({schema: 'device-layout/vision-review/v1', source
   device: 'iphone-16-pro', flow: 'new-contest', checkpoint: 'step-2', reviewer: {provider: 'openai', model: 'codex', effort: 'high'}, findings: [], verdict: 'pass', ...over});
 const neg = name => review({fixture: 'negative', checkpoint: name, findings: [{rule: 1, severity: 'major', bbox: [0, 0, 10, 10], reason: 'switch over label'}], verdict: 'fail'});
 const required = [{device: 'iphone-16-pro', flow: 'new-contest', checkpoint: 'step-2'}];
+// Candidate (non-fixture) reviews are mandatorily bound to the gated build + captured artifact
+// (AUG-1430). These match the default review()'s buildHash/artifactHash for the default checkpoint.
+const CAND = {buildHash: 'build-1', artifacts: {'iphone-16-pro::new-contest::step-2': 'sha256:' + 'c'.repeat(64)}};
 
 test('vision: clean review + both negative fixtures caught -> PASS; minor finding is a non-blocking follow-up', () => {
-  const r = evaluateVision({reviews: [neg('multi-day.png'), neg('team-mode.png'), review({findings: [{rule: 4, severity: 'minor', bbox: [1, 2, 3, 4], reason: 'loose gap'}]})], required, builderProvider: 'anthropic', sourceSha: SHA});
+  const r = evaluateVision({reviews: [neg('multi-day.png'), neg('team-mode.png'), review({findings: [{rule: 4, severity: 'minor', bbox: [1, 2, 3, 4], reason: 'loose gap'}]})], required, builderProvider: 'anthropic', sourceSha: SHA, ...CAND});
   assert.equal(r.verdict, 'PASS', JSON.stringify(r));
   assert.equal(r.followUps.length, 1);
 });
 
 test('vision: major finding, missing checkpoint, self-review, Grok, wrong head, bad record, rubric drift all FAIL', () => {
-  const base = {required, builderProvider: 'anthropic', sourceSha: SHA};
+  const base = {required, builderProvider: 'anthropic', sourceSha: SHA, ...CAND};
   const fixtures = [neg('multi-day.png'), neg('team-mode.png')];
   const v = reviews => evaluateVision({...base, reviews: [...fixtures, ...reviews]});
   assert.equal(v([review({findings: [{rule: 7, severity: 'major', bbox: [0, 0, 1, 1], reason: 'black pill switch'}], verdict: 'fail'})]).blocking.length, 1);
@@ -344,7 +347,7 @@ test('vision: config reviewerPolicy + declared fixtures drive the cross-company 
   const fixtures = {negative: [{image: 'multi-day.png', artifactHash: H1, expectDefect: 'x'}, {image: 'team-mode.png', artifactHash: H2, expectDefect: 'y'}]};
   const reviewer = {provider: 'openai', model: 'gpt-6-astra', effort: 'high'};
   const negs = [review({...neg('multi-day.png'), artifactHash: H1, reviewer}), review({...neg('team-mode.png'), artifactHash: H2, reviewer})];
-  const base = {required, sourceSha: SHA, policy, fixtures};
+  const base = {required, sourceSha: SHA, policy, fixtures, ...CAND};
   assert.equal(evaluateVision({...base, reviews: [...negs, review({reviewer})]}).verdict, 'PASS');
   // Policy names openai; an unlisted third provider is rejected even though it is not the builder.
   assert.match(evaluateVision({...base, reviews: [...negs, review({reviewer: {...reviewer, provider: 'google'}})]}).invalid[0].errors.join(), /not the policy reviewer/);
@@ -413,4 +416,28 @@ test('vision (AUG-1384): reviewer model, the gated buildHash and the captured ar
   assert.match(evaluateVision({...base, reviews: [negHit, review({reviewer, buildHash: BUILD, artifactHash: 'sha256:' + 'f'.repeat(64)})]}).invalid[0].errors.join(), /not the captured artifact/);
   // A checkpoint with no captured artifact bound cannot pass on an asserted hash.
   assert.match(evaluateVision({...base, reviews: [negHit, review({reviewer, buildHash: BUILD, artifactHash: ART, checkpoint: 'ghost'})]}).invalid[0].errors.join(), /no captured artifact bound/);
+});
+
+test('vision (AUG-1430): buildHash + artifacts bindings are MANDATORY for a candidate review (no opt-out bypass)', () => {
+  const policy = snapscore.reviewerPolicy; // reviewer openai / gpt-6-astra / high
+  const reviewer = {provider: 'openai', model: 'gpt-6-astra', effort: 'high'};
+  const H1 = 'sha256:' + '1'.repeat(64);
+  const fixtures = {negative: [{image: 'm.png', artifactHash: H1, expectDefect: 'x'}]};
+  const negHit = review({...neg('m.png'), artifactHash: H1, reviewer});
+  const BUILD = 'build-candidate', ART = 'sha256:' + 'a'.repeat(64);
+  const cp = {device: 'iphone-16-pro', flow: 'new-contest', checkpoint: 'step-2'};
+  const artifacts = {[`${cp.device}::${cp.flow}::${cp.checkpoint}`]: ART};
+  const cand = review({reviewer, buildHash: BUILD, artifactHash: ART});
+  // Fully bound -> PASS (control).
+  assert.equal(evaluateVision({required: [cp], sourceSha: SHA, policy, fixtures, buildHash: BUILD, artifacts, reviews: [negHit, cand]}).verdict, 'PASS');
+  // The pre-fix bypass: omitting the artifacts map let a candidate (even a foreign artifactHash) pass. Now INVALID.
+  const noArtifacts = evaluateVision({required: [cp], sourceSha: SHA, policy, fixtures, buildHash: BUILD, reviews: [negHit, cand]});
+  assert.equal(noArtifacts.verdict, 'FAIL');
+  assert.match(noArtifacts.invalid[0].errors.join(), /requires a captured artifact binding/);
+  // Omitting the gated buildHash let a stale/foreign build pass. Now INVALID.
+  const noBuild = evaluateVision({required: [cp], sourceSha: SHA, policy, fixtures, artifacts, reviews: [negHit, cand]});
+  assert.equal(noBuild.verdict, 'FAIL');
+  assert.match(noBuild.invalid[0].errors.join(), /requires the gated buildHash/);
+  // Fixtures stay exempt: a negative fixture needs no build/artifact binding (it references a committed baseline).
+  assert.equal(evaluateVision({required: [], sourceSha: SHA, policy, fixtures, reviews: [negHit]}).invalid.length, 0);
 });

@@ -48,9 +48,13 @@ export function requiredCheckpoints(config) {
 // declared negative must come back reviewed (matched by artifactHash) with a major finding.
 // buildHash: the gated run's build hash. Every candidate review must carry it, or it
 // is evidence from another build (stale), the same failure class as a stale sourceSha.
-// artifacts: optional {`device::flow::checkpoint` -> sha256} of the screenshots actually
-// captured this run. A candidate review's artifactHash must equal the captured one, so a
-// reviewer cannot pass by scoring an arbitrary/foreign screenshot.
+// artifacts: {`device::flow::checkpoint` -> sha256} of the screenshots actually captured
+// this run. A candidate review's artifactHash must equal the captured one, so a reviewer
+// cannot pass by scoring an arbitrary/foreign screenshot.
+// buildHash and artifacts are MANDATORY for candidate (non-fixture) reviews: a candidate
+// review certifies a real captured screenshot, so an unanchored one (no gated build or no
+// captured artifact binding) is unverifiable evidence and fails closed (AUG-1430). Only
+// calibration fixtures (r.fixture !== undefined) are exempt, like sourceSha.
 export function evaluateVision({reviews, required = [], builderProvider, bannedProviders = ['xai', 'grok'], sourceSha = null, buildHash = null, policy = null, fixtures = null, artifacts = null}) {
   if (policy) { builderProvider = policy.builder; bannedProviders = policy.banned ?? bannedProviders; }
   if (!builderProvider) throw new Error('builderProvider required: the gate must know who built the change');
@@ -68,11 +72,15 @@ export function evaluateVision({reviews, required = [], builderProvider, bannedP
     // model from the right company is still off-policy (AUG-1384).
     if (requiredModel && r?.reviewer?.model !== requiredModel) errors.push(`reviewer model "${r?.reviewer?.model ?? ''}" is not the policy reviewer model "${requiredModel}"`);
     if (sourceSha && r?.sourceSha !== sourceSha && r?.fixture === undefined) errors.push(`review is for ${r?.sourceSha}, not the gated head ${sourceSha}`);
-    // Bind build + captured artifact for candidate (non-fixture) reviews. Calibration
-    // fixtures reference committed baseline images, so they are exempt (like sourceSha).
+    // Bind build + captured artifact for candidate (non-fixture) reviews. These bindings are
+    // mandatory, not opt-in: a missing buildHash or artifacts map is not "skip the check", it
+    // means the evidence is unanchored (a foreign/stale screenshot would pass), so fail closed
+    // (AUG-1430). Calibration fixtures reference committed baseline images, so they are exempt.
     if (r && r.fixture === undefined) {
-      if (buildHash && r.buildHash !== buildHash) errors.push(`review build "${r.buildHash ?? ''}" is not the gated build "${buildHash}"`);
-      if (artifacts) {
+      if (!buildHash) errors.push('candidate review requires the gated buildHash (none provided)');
+      else if (r.buildHash !== buildHash) errors.push(`review build "${r.buildHash ?? ''}" is not the gated build "${buildHash}"`);
+      if (!artifacts) errors.push('candidate review requires a captured artifact binding (none provided)');
+      else {
         const expected = artifacts[key(r)];
         if (!expected) errors.push(`no captured artifact bound for checkpoint ${key(r)}`);
         else if (r.artifactHash !== expected) errors.push(`artifactHash ${r.artifactHash ?? 'none'} is not the captured artifact ${expected} for ${key(r)}`);
