@@ -61,6 +61,28 @@ function systemPackage(resourceId) {
   return SYSTEM_UI_PACKAGES.has(i >= 0 ? resourceId.slice(0, i) : resourceId);
 }
 
+// Soft keyboard / IME. On Android the keyboard window and its keys carry `inputmethod` in the
+// resource-id package (`com.android.inputmethod.*`, `com.google.android.inputmethod.*`) or in the key
+// class (`com.android.inputmethod.keyboard.Key`); on iOS the keyboard container is `UIKeyboard*` and
+// there is a separate `dictation` button. A keyboard is OS chrome, like the status bar — its nodes
+// must never score as app geometry, and its top edge is folded into the usable viewport's bottom
+// inset so the engine judges the app against the region above the keyboard (AUG-1376 decision 2).
+function isKeyboardNode(resourceId, cls) {
+  const hay = `${resourceId || ''} ${cls || ''}`;
+  if (/inputmethod/i.test(hay)) return true;
+  if (/^UIKeyboard/i.test(resourceId || '')) return true;
+  if (resourceId === 'dictation') return true;
+  return false;
+}
+
+// Native switch widgets (`android.widget.Switch`, iOS `UISwitch`) have a fixed intrinsic size
+// (~47x27dp / ~63x28pt) the app cannot grow to the min tap target. The app instead wraps the switch
+// in a tap slot it sizes to the platform minimum, tagged `switchSlot` (its own `*-slot` testID). The
+// Switch inside keeps its OWN testID (runtime + web resolve it by id) but is the visual indicator,
+// not an independent tap target — so rule 5 scores the slot and the enclosed switch is marked
+// non-tappable. Detected structurally (any control whose ancestor is a `switchSlot`), not by class —
+// the iOS switch reports an empty class, and the switch keeps a testID of its own.
+
 function visibleText(a) {
   return (a.text || a.title || a.value || a.accessibilityText || '').trim();
 }
@@ -101,13 +123,16 @@ export function normalizeMaestroCapture(root, options = {}) {
   // Flatten, dropping structural wrappers (no positive-area bounds) and re-parenting their
   // children onto the nearest measured ancestor. `depth` is carried through skipped wrappers so
   // the first real measured node keeps depth 0 (anchors the checkpoint scrollState).
-  function walk(raw, parentNode, depth) {
+  //  `scrollClip`      — the nearest scrollable ancestor's measured rect (clips descendants), or null.
+  //  `insideSwitchSlot`— true once an ancestor is a switch tap slot (`switchSlot` meta).
+  function walk(raw, parentNode, depth, scrollClip, insideSwitchSlot) {
     const a = raw.attributes || {};
     const resourceId = a['resource-id'] || '';
+    const cls = a.class || a.className || '';
     const bounds = scale(parseBounds(a.bounds));
     if (!positiveRect(bounds)) {
       // Structural wrapper — not a measured element. Re-parent its children, do not emit it.
-      for (const child of raw.children || []) walk(child, parentNode, depth);
+      for (const child of raw.children || []) walk(child, parentNode, depth, scrollClip, insideSwitchSlot);
       return null;
     }
     const override = resourceMeta[resourceId] || {};
@@ -124,55 +149,121 @@ export function normalizeMaestroCapture(root, options = {}) {
       checked: a.checked === 'true' || a.checked === true,
       focused: a.focused === 'true' || a.focused === true,
       parentId: parentNode ? parentNode.id : null,
-      meta: { depth, resourceId, systemPackage: systemPackage(resourceId), ...override.meta },
+      meta: { depth, resourceId, systemPackage: systemPackage(resourceId), keyboardNode: isKeyboardNode(resourceId, cls), ...override.meta },
     };
+    // Any control inside a switch tap slot is the native switch indicator, not an independent tap
+    // target — the slot is the tap target (rule 5). The Switch keeps its own testID (AUG-1376:
+    // runtime + web resolve it by id), so this is detected structurally (ancestor is a `switchSlot`)
+    // rather than by the switch having no testID. Rule 7 still scores the switch's colors.
+    if (insideSwitchSlot && role === 'control') node.meta.tappable = false;
+    // Clip to the nearest scroll viewport. Maestro reports every descendant's frame in raw screen
+    // coordinates WITHOUT the ScrollView's masking, so a row scrolled past the viewport is reported
+    // where it is not painted (it is clipped by the ScrollView). Record which edges are clamped
+    // (rule 5 skips the clipped dimension's size check — a clipped fragment isn't the true target)
+    // and the visible painted rect (`clipRect`) rules 1/2 compare instead of the raw frame; a fully
+    // masked node is flagged `clippedOut` and dropped from those painted-overlap/visibility checks.
+    if (scrollClip) {
+      const TOL = 1;
+      if (bounds.top <= scrollClip.top + TOL) node.meta.clipTop = true;
+      if (bounds.bottom >= scrollClip.bottom - TOL) node.meta.clipBottom = true;
+      if (bounds.left <= scrollClip.left + TOL) node.meta.clipLeft = true;
+      if (bounds.right >= scrollClip.right - TOL) node.meta.clipRight = true;
+      const vis = {
+        left: Math.max(bounds.left, scrollClip.left),
+        top: Math.max(bounds.top, scrollClip.top),
+        right: Math.min(bounds.right, scrollClip.right),
+        bottom: Math.min(bounds.bottom, scrollClip.bottom),
+      };
+      if (vis.right - vis.left > 0.5 && vis.bottom - vis.top > 0.5) {
+        // Only record when masking actually changes the rect (keeps fully-visible nodes untouched).
+        if (vis.left > bounds.left + 0.5 || vis.top > bounds.top + 0.5 ||
+            vis.right < bounds.right - 0.5 || vis.bottom < bounds.bottom - 0.5) {
+          node.meta.clipRect = vis;
+        }
+      } else {
+        node.meta.clippedOut = true;
+      }
+    }
     nodes.push(node);
     childrenOf.set(node, []);
     childrenOf.get(parentNode).push(node);
-    for (const child of raw.children || []) walk(child, node, depth + 1);
+    // A scroll container establishes the clip for its subtree. Android Maestro reports `scrollable`;
+    // iOS reports neither a class nor a `scrollable` flag, so the app tags its ScrollView with a
+    // testID carrying `scrollClip` meta (SNAPSCORE_META['contest-scroll']).
+    const scrollable = a.scrollable === 'true' || a.scrollable === true || override.meta?.scrollClip === true;
+    const childClip = scrollable ? bounds : scrollClip;
+    // A `switchSlot` wrapper marks its subtree as inside a switch slot (its Switch child → indicator).
+    const childSwitch = insideSwitchSlot || override.meta?.switchSlot === true;
+    for (const child of raw.children || []) walk(child, node, depth + 1, childClip, childSwitch);
     return node;
   }
-  walk(root, null, 0);
+  walk(root, null, 0, null, false);
 
   const { kept, chrome, safeArea } = stripSystemChrome(nodes, childrenOf, viewport);
-  for (const n of kept) delete n.meta.systemPackage; // internal marker, not part of the schema
+  for (const n of kept) { delete n.meta.systemPackage; delete n.meta.keyboardNode; } // internal markers
   return { nodes: kept, chrome, safeArea };
 }
 
 // Decide which top-level survivors are the app window(s) and drop the rest (system chrome).
 // Top-level = parentId null. App window = covers the full viewport width and ≥70% of its height
 // (the OS status/nav bars are thin edge strips, well under that). Every other top-level survivor
-// — and its whole subtree — is system chrome. With no viewport we can't locate the app window, so
-// we fall back to dropping only subtrees rooted at a known Android system-UI package.
+// — and its whole subtree — is system chrome. The soft keyboard is removed too (its own window on
+// Android, a nested subtree on iOS) and its top edge folded into the bottom safe-area inset. With no
+// viewport we fall back to dropping subtrees rooted at a known Android system-UI/IME package.
 function stripSystemChrome(nodes, childrenOf, viewport) {
   const drop = new Set();
   const chrome = [];
-  const markChrome = (root) => {
+  const keyboard = [];
+  const markInto = (root, sink) => {
     const stack = [root];
     while (stack.length) {
       const n = stack.pop();
       if (drop.has(n)) continue;
       drop.add(n);
-      chrome.push({ id: n.id, bbox: n.bbox });
+      sink.push({ id: n.id, bbox: n.bbox });
       for (const c of childrenOf.get(n) || []) stack.push(c);
     }
   };
 
   const tops = childrenOf.get(null) || [];
+
+  // (1) Soft keyboard / IME → chrome. A top-level survivor that contains keyboard nodes and NO app
+  // content of its own is a dedicated keyboard window (Android) → drop it whole. A keyboard nested
+  // inside the app window (iOS) is dropped as each keyboard node's subtree. Either way the keyboard
+  // never scores; its top edge becomes the bottom inset below.
+  const keyboardWindows = new Set();
+  for (const top of tops) {
+    let hasKeyboard = false;
+    let hasAppContent = false;
+    const stack = [[top, false]];
+    while (stack.length) {
+      const [n, inKb] = stack.pop();
+      const kb = inKb || n.meta.keyboardNode;
+      if (n.meta.keyboardNode) hasKeyboard = true;
+      else if (!kb && (n.text || n.role === 'control')) hasAppContent = true;
+      for (const c of childrenOf.get(n) || []) stack.push([c, kb]);
+    }
+    if (hasKeyboard && !hasAppContent) { keyboardWindows.add(top); markInto(top, keyboard); }
+  }
+  for (const n of nodes) if (n.meta.keyboardNode && !drop.has(n)) markInto(n, keyboard);
+
+  // (2) System bars (status / nav / launcher) → chrome, via the app-window test over the remaining
+  // (non-keyboard) top-level survivors.
+  const appTops = tops.filter((t) => !keyboardWindows.has(t));
   if (viewport && Number.isFinite(viewport.width) && Number.isFinite(viewport.height)) {
     const TOL = 2;
     const isAppWindow = (n) =>
       Math.abs((n.bbox.right - n.bbox.left) - viewport.width) <= TOL &&
       (n.bbox.bottom - n.bbox.top) >= viewport.height * 0.7;
-    const appWindows = tops.filter(isAppWindow);
+    const appWindows = appTops.filter(isAppWindow);
     // Only strip when we actually found an app window — otherwise keep everything rather than risk
     // nuking real content on an unexpected shape.
     if (appWindows.length) {
-      for (const t of tops) if (!appWindows.includes(t)) markChrome(t);
+      for (const t of appTops) if (!appWindows.includes(t)) markInto(t, chrome);
     }
   } else {
     // No viewport: still drop Android OS chrome identified by resource-id package anywhere in tree.
-    for (const n of nodes) if (n.meta.systemPackage) markChrome(n);
+    for (const n of nodes) if (n.meta.systemPackage && !drop.has(n)) markInto(n, chrome);
   }
 
   let kept = nodes.filter((n) => !drop.has(n));
@@ -194,7 +285,7 @@ function stripSystemChrome(nodes, childrenOf, viewport) {
       }
     }
   }
-  const safeArea = measuredSafeArea(chrome, viewport);
+  const safeArea = withKeyboardInset(measuredSafeArea(chrome, viewport), keyboardBottomInset(keyboard, viewport));
   return { kept, chrome, safeArea };
 }
 
@@ -212,6 +303,41 @@ function measuredSafeArea(chrome, viewport) {
   }
   if (top === 0 && bottom === 0) return null;
   return { top, bottom, left: 0, right: 0 };
+}
+
+// The usable viewport while the soft keyboard is up ends at the top of the keyboard KEYS. Measure it
+// from the removed keyboard nodes, ignoring the transparent full-height window container (spans the
+// screen but draws nothing) and any stray node in the top half — the keyboard is anchored to the
+// bottom. The predictive / autocomplete suggestion strip is a thin band the IME FLOATS above the
+// keys; the OS reflows app content to the keys, not below the strip, so a sticky CTA can legitimately
+// sit beneath the floating strip. We therefore advance past a leading suggestion strip, folding only
+// the solid keyboard into the reachability inset (a CTA behind the actual keys is still flagged).
+// Returns 0 when no keyboard is present.
+const SUGGESTION_STRIP_RE = /suggestion|candidate|predict|emoji[_-]?strip|toolbar/i;
+function keyboardBottomInset(keyboard, viewport) {
+  if (!viewport || !keyboard.length || !Number.isFinite(viewport.height)) return 0;
+  const vh = viewport.height;
+  const frames = keyboard.filter(({ bbox }) =>
+    (bbox.bottom - bbox.top) < vh * 0.7 && bbox.bottom >= vh * 0.5);
+  if (!frames.length) return 0;
+  let keyboardTop = Math.min(...frames.map((f) => f.bbox.top));
+  const stripBottoms = frames
+    .filter((f) => SUGGESTION_STRIP_RE.test(f.id) && f.bbox.top <= keyboardTop + 1)
+    .map((f) => f.bbox.bottom);
+  if (stripBottoms.length) {
+    const stripBottom = Math.max(...stripBottoms);
+    // Only advance by a thin strip (guard against a mis-tagged large node collapsing the inset).
+    if (stripBottom > keyboardTop && stripBottom < keyboardTop + vh * 0.25) keyboardTop = stripBottom;
+  }
+  return Math.max(0, vh - keyboardTop);
+}
+
+// Raise the bottom safe-area inset to cover the keyboard (whichever is larger). Returns the original
+// safe area when the keyboard is down (inset 0).
+function withKeyboardInset(safeArea, kbBottom) {
+  if (!kbBottom) return safeArea;
+  const base = safeArea || { top: 0, bottom: 0, left: 0, right: 0 };
+  return { ...base, bottom: Math.max(base.bottom || 0, kbBottom) };
 }
 
 // Backward-compatible flat-array entry point (callers that only need the node list).

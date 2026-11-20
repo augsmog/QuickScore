@@ -50,13 +50,26 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
-import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox, switchTapSlot, SETUP_MIN_TARGET_PX } from "../../src/ui/tournament-setup-layout";
+import { setupTargets, SETUP_MIN_TARGET_PX } from "../../src/ui/tournament-setup-layout";
+
+// AUG-1376: platform-aware setup tap-target styles. Android widens every control to 48dp
+// (device-layout gate rule 5); iOS/web keep the 44pt baseline. Built once at module scope.
+const {
+  minTarget: SETUP_MIN_TARGET,
+  roundCountPillStyle,
+  groupChipStyle,
+  teamChipStyle,
+  switchTapSlot,
+  nameInputMinHeight,
+  handicapInputBox,
+} = setupTargets(Platform.OS);
 
 // AUG-1367: a native iOS UISwitch has a fixed intrinsic size and overflows a
 // forced 44pt frame (the overlap bug), so native relies on the centered
-// `switchTapSlot` wrapper for its >=44pt tap target. On web the switch honours an
-// explicit box, so size it to 44x44 there to keep the real hit region >=44 (the
-// capture-layout target-size sweep measures the control itself, not the wrapper).
+// `switchTapSlot` wrapper for its tap target; AUG-1376 gives that wrapper its own
+// `*-slot` testID so the gate measures the >=48dp slot, while the Switch keeps its
+// own testID for runtime/web. On web the switch honours an explicit box, so size it
+// there to keep the real hit region >=44 (the sweep measures the control itself).
 const switchWebTarget = Platform.OS === "web" ? { width: SETUP_MIN_TARGET_PX, height: SETUP_MIN_TARGET_PX } : undefined;
 import { posthog } from "../../src/config/posthog";
 import { posthogAppLogger } from "../../src/services/posthog-log";
@@ -393,7 +406,7 @@ export default function NewContestScreen() {
           paddingVertical: 10,
           paddingHorizontal: 14,
           marginBottom: 8,
-          minHeight: 44,
+          minHeight: SETUP_MIN_TARGET,
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
@@ -428,8 +441,8 @@ export default function NewContestScreen() {
           style={{
             backgroundColor: COLORS.surfaceMid,
             borderRadius: RADII.md,
-            minWidth: 44,
-            minHeight: 44,
+            minWidth: SETUP_MIN_TARGET,
+            minHeight: SETUP_MIN_TARGET,
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -465,6 +478,7 @@ export default function NewContestScreen() {
         keyboardVerticalOffset={60}
       >
       <ScrollView
+        testID="contest-scroll"
         nestedScrollEnabled
         style={{ flex: 1, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
@@ -496,7 +510,7 @@ export default function NewContestScreen() {
                 borderColor: COLORS.border,
                 borderWidth: 1,
                 borderRadius: RADII.md,
-                minHeight: 44,
+                minHeight: SETUP_MIN_TARGET,
                 paddingHorizontal: 16,
                 paddingVertical: compactViewport ? 10 : 14,
                 fontSize: 15,
@@ -508,7 +522,13 @@ export default function NewContestScreen() {
 
             {/* Tournament Toggle */}
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: compactViewport ? 4 : 12 }}>
-              <View style={switchTapSlot}>
+              {/* AUG-1376: the slot carries its OWN `*-slot` testID so the native gate measures
+                  the >=48dp tap slot (the switch's fixed 47x27 intrinsic size cannot grow), and
+                  the testID also keeps RN from flattening the slot out of the view tree. The
+                  Switch KEEPS `testID="tournament-toggle"` — runtime (byId(...).onValueChange)
+                  and the web journeys (getByTestId(...).getByRole('switch') / .click()) resolve
+                  the switch by that id — and stays centered in the slot so a tap lands on it. */}
+              <View testID="tournament-toggle-slot" style={switchTapSlot}>
                 <Switch
                   testID="tournament-toggle"
                   accessibilityLabel="Multi-Day Tournament"
@@ -590,7 +610,7 @@ export default function NewContestScreen() {
                     borderColor: COLORS.border,
                     borderWidth: 1,
                     borderRadius: RADII.md,
-                    minHeight: 44,
+                    minHeight: SETUP_MIN_TARGET,
                     paddingHorizontal: 16,
                     paddingVertical: 14,
                     fontSize: 15,
@@ -630,7 +650,9 @@ export default function NewContestScreen() {
                   Split players into teams (up to 20)
                 </Text>
               </View>
-              <View style={switchTapSlot}>
+              {/* AUG-1376: slot gets its own `*-slot` testID for the >=48dp measured target;
+                  the Switch keeps `testID="team-mode"` (see tournament-toggle above). */}
+              <View testID="team-mode-slot" style={switchTapSlot}>
                 <Switch
                   testID="team-mode"
                   accessibilityLabel="Team Mode"
@@ -657,7 +679,7 @@ export default function NewContestScreen() {
                         flex: 1,
                         backgroundColor: COLORS.surfaceLow,
                         borderRadius: RADII.md,
-                        minHeight: 44,
+                        minHeight: SETUP_MIN_TARGET,
                         paddingHorizontal: 12,
                         paddingVertical: 8,
                         fontSize: 14,
@@ -666,7 +688,7 @@ export default function NewContestScreen() {
                       }}
                     />
                     {teams.length > 2 && (
-                      <AnimatedPressable onPress={() => removeTeam(t.id)} style={{ padding: 4 }}>
+                      <AnimatedPressable onPress={() => removeTeam(t.id)} accessibilityLabel={`Remove team ${t.id}`} style={{ minWidth: SETUP_MIN_TARGET, minHeight: SETUP_MIN_TARGET, alignItems: "center", justifyContent: "center" }}>
                         <X size={14} color={COLORS.textDim} />
                       </AnimatedPressable>
                     )}
@@ -680,7 +702,7 @@ export default function NewContestScreen() {
                       alignItems: "center",
                       justifyContent: "center",
                       gap: 6,
-                      minHeight: 44,
+                      minHeight: SETUP_MIN_TARGET,
                       paddingVertical: 10,
                       borderRadius: RADII.md,
                       backgroundColor: COLORS.surfaceLow,
@@ -762,7 +784,7 @@ export default function NewContestScreen() {
                       testID={`remove-player-${player.name}`}
                       accessibilityLabel={`Remove ${player.name || "player"}`}
                       onPress={() => removePlayer(player.id)}
-                      style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
+                      style={{ minWidth: SETUP_MIN_TARGET, minHeight: SETUP_MIN_TARGET, alignItems: "center", justifyContent: "center" }}
                     >
                       <X size={16} color={COLORS.textDim} />
                     </AnimatedPressable>
@@ -836,7 +858,8 @@ export default function NewContestScreen() {
                   )}
 
                   {hasTeams && teams.length <= 4 && (
-                    <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+                    // AUG-1376: >=8dp edge gap between the A/B team chips (rule 5 sibling spacing).
+                    <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
                       {teams.map((t) => {
                         const isActive = player.team === t.id;
                         return (
@@ -845,12 +868,8 @@ export default function NewContestScreen() {
                             testID={`player-team-${player.name}-${t.id}`}
                             onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}
                             style={{
-                              minWidth: 44,
-                              minHeight: 44,
+                              ...teamChipStyle,
                               borderRadius: RADII.md,
-                              alignItems: "center",
-                              justifyContent: "center",
-                              paddingHorizontal: 6,
                               backgroundColor: isActive ? COLORS.primary : COLORS.surfaceHighest,
                             }}
                           >
@@ -872,8 +891,8 @@ export default function NewContestScreen() {
                         updatePlayer(player.id, "team", nextTeam);
                       }}
                       style={{
-                        minWidth: 44,
-                        minHeight: 44,
+                        minWidth: SETUP_MIN_TARGET,
+                        minHeight: SETUP_MIN_TARGET,
                         borderRadius: RADII.md,
                         alignItems: "center",
                         justifyContent: "center",
@@ -938,8 +957,8 @@ export default function NewContestScreen() {
                     }
                   }}
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: SETUP_MIN_TARGET,
+                    height: SETUP_MIN_TARGET,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",
@@ -958,8 +977,8 @@ export default function NewContestScreen() {
                     setNumGroups(numGroups + 1);
                   }}
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: SETUP_MIN_TARGET,
+                    height: SETUP_MIN_TARGET,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",
@@ -995,7 +1014,7 @@ export default function NewContestScreen() {
                       aria-checked={(gameConfig.skinsMode ?? "net") === mode}
                       accessibilityState={{ checked: (gameConfig.skinsMode ?? "net") === mode }}
                       onPress={() => setGameConfig((prev) => ({ ...prev, skinsMode: mode }))}
-                      style={{ padding: 12, minHeight: 44, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsMode ?? "net") === mode ? COLORS.primary : COLORS.surfaceMid }}>
+                      style={{ padding: 12, minHeight: SETUP_MIN_TARGET, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsMode ?? "net") === mode ? COLORS.primary : COLORS.surfaceMid }}>
                       <Text style={{ color: COLORS.text }}>{mode === "net" ? "Net" : "Gross"}</Text>
                     </AnimatedPressable>
                   ))}
@@ -1008,7 +1027,7 @@ export default function NewContestScreen() {
                       aria-checked={(gameConfig.skinsScope ?? "field") === scope}
                       accessibilityState={{ checked: (gameConfig.skinsScope ?? "field") === scope }}
                       onPress={() => setGameConfig(prev => ({ ...prev, skinsScope: scope }))}
-                      style={{ padding: 12, minHeight: 44, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsScope ?? "field") === scope ? COLORS.primary : COLORS.surfaceMid }}>
+                      style={{ padding: 12, minHeight: SETUP_MIN_TARGET, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsScope ?? "field") === scope ? COLORS.primary : COLORS.surfaceMid }}>
                       <Text style={{ color: COLORS.text }}>{scope === "field" ? "Whole field" : "Each group"}</Text>
                     </AnimatedPressable>
                   ))}
@@ -1255,7 +1274,7 @@ export default function NewContestScreen() {
                 style={{
                   fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                   fontSize: 40,
-                  minHeight: 44,
+                  minHeight: SETUP_MIN_TARGET,
                   color: COLORS.text,
                   minWidth: 60,
                 }}

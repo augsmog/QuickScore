@@ -49,6 +49,21 @@ function bboxArr(r) {
   return [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)];
 }
 
+// The PAINTED rectangle for overlap / visibility rules (1, 2): the node's effective rect clipped to
+// its scroll viewport. Maestro reports a scrolled descendant's frame in raw screen coordinates
+// without the enclosing ScrollView's masking, so a row scrolled past the viewport is reported where
+// it is NOT painted. normalize-maestro records the visible portion as `meta.clipRect` (and flags a
+// fully-masked node `meta.clippedOut`). Nodes with no scroll ancestor are unaffected (raw rect).
+export function paintedRect(node) {
+  if (node.meta?.clipRect && finiteRect(node.meta.clipRect)) return node.meta.clipRect;
+  return rectOf(node);
+}
+// True when the node is entirely masked by its scroll viewport — not painted anywhere, so it cannot
+// overlap or clip another control at this scroll position (reachable by scrolling; rule 2 territory).
+function isClippedOut(node) {
+  return node.meta?.clippedOut === true;
+}
+
 function intersect(a, b) {
   const width = Math.min(a.right, b.right) - Math.max(a.left, b.left);
   const height = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
@@ -78,31 +93,34 @@ export function indexTree(nodes) {
 // 1pt; a control and an un-owned text label must not collide (switch/label collision).
 export function ruleOverlap(tree) {
   const findings = [];
-  const controls = tree.controls;
+  // Compare PAINTED rects (scroll-masked portions excluded) and ignore fully-masked nodes — a row
+  // scrolled behind the fixed header/footer is not painted there, so it is not a real overlap.
+  const controls = tree.controls.filter((n) => !isClippedOut(n));
   for (let i = 0; i < controls.length; i++) {
     for (let j = i + 1; j < controls.length; j++) {
       const a = controls[i];
       const b = controls[j];
       // A control nested inside another (its own handler) is not an ambiguous sibling.
       if (isAncestor(tree, a.id, b.id) || isAncestor(tree, b.id, a.id)) continue;
-      const { width, height } = intersect(rectOf(a), rectOf(b));
+      const { width, height } = intersect(paintedRect(a), paintedRect(b));
       if (width > OVERLAP_TOL && height > OVERLAP_TOL) {
         findings.push({
-          rule: 1, severity: 'major', bbox: bboxArr(rectOf(a)), nodes: [a.id, b.id],
+          rule: 1, severity: 'major', bbox: bboxArr(paintedRect(a)), nodes: [a.id, b.id],
           reason: `Controls "${a.text || a.id}" and "${b.text || b.id}" overlap by ${width.toFixed(1)}×${height.toFixed(1)}pt (> ${OVERLAP_TOL}pt).`,
         });
       }
     }
   }
   for (const text of tree.texts) {
+    if (isClippedOut(text)) continue;
     for (const control of controls) {
       // A label painted inside its own control is distinguished explicitly.
       if (text.meta?.owners?.includes(control.id)) continue;
       if (isAncestor(tree, control.id, text.id)) continue;
-      const { width, height } = intersect(text.bbox, rectOf(control));
+      const { width, height } = intersect(paintedRect(text), paintedRect(control));
       if (width > TEXT_OVERLAP_TOL && height > TEXT_OVERLAP_TOL) {
         findings.push({
-          rule: 1, severity: 'major', bbox: bboxArr(text.bbox), nodes: [text.id, control.id],
+          rule: 1, severity: 'major', bbox: bboxArr(paintedRect(text)), nodes: [text.id, control.id],
           reason: `Text "${text.text}" paints over unrelated control "${control.text || control.id}" by ${width.toFixed(1)}×${height.toFixed(1)}pt.`,
         });
       }
@@ -121,7 +139,11 @@ export function ruleClipping(tree, ctx) {
   const vp = ctx.viewport; // {width,height}
   const required = tree.nodes.filter((n) => n.meta?.required || n.role === 'control');
   for (const n of required) {
-    const r = n.bbox;
+    // A node fully masked by its scroll viewport is not painted at this scroll position (it is
+    // reachable by scrolling) — reachability at scroll-end, not z-order against fixed chrome, is the
+    // genuine concern, so skip it here. Partially-masked nodes are judged by their painted portion.
+    if (isClippedOut(n)) continue;
+    const r = paintedRect(n);
     // Partially behind the sticky footer = clipped / not operable.
     if (footer && r.bottom > footer.top + 1 && r.top < footer.top - 1 &&
         intersect(r, footer).width > 1) {
@@ -220,12 +242,20 @@ function horizontalGap(a, b) {
 export function ruleTapTargets(tree, ctx) {
   const findings = [];
   const min = (ctx.platform === 'android') ? ANDROID_MIN_TARGET : IOS_MIN_TARGET;
-  const targets = tree.controls.filter((n) => n.meta?.tappable !== false);
+  // Fully scroll-masked controls aren't painted (reachable by scroll, rule 2's concern); the
+  // clipped-dimension skip below handles partially-masked ones.
+  const targets = tree.controls.filter((n) => n.meta?.tappable !== false && !isClippedOut(n));
   for (const t of targets) {
     const r = rectOf(t);
     const w = r.right - r.left;
     const h = r.bottom - r.top;
-    if (w < min - 0.5 || h < min - 0.5) {
+    // A control clipped by a scrollable viewport edge is captured as a fragment, not at its full
+    // size, and is reachable by scrolling (rule 2 enforces reachability). Skip the size check on the
+    // clipped dimension only — the unclipped dimension is still measured, so a genuinely undersized
+    // control is still flagged. This corrects a measurement artifact; it is not a threshold change.
+    const heightClipped = t.meta?.clipTop || t.meta?.clipBottom;
+    const widthClipped = t.meta?.clipLeft || t.meta?.clipRight;
+    if ((w < min - 0.5 && !widthClipped) || (h < min - 0.5 && !heightClipped)) {
       findings.push({
         rule: 5, severity: 'major', bbox: bboxArr(r), nodes: [t.id],
         reason: `Tap target "${t.text || t.id}" effective size ${w.toFixed(0)}×${h.toFixed(0)} < ${min}×${min}.`,

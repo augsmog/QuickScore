@@ -1,36 +1,54 @@
-/** Touch-target rules for the multi-day tournament setup controls (AUG-1165). Pure so it can be tested. */
-export const SETUP_MIN_TARGET_PX = 44;
+/** Touch-target rules for the multi-day tournament setup controls (AUG-1165). Pure so it can be tested.
+ *
+ * AUG-1165 established a 44pt baseline (iOS/web). AUG-1376's device-layout gate adds the Android
+ * contract: Android Material tap targets must be >=48dp. So the minimum is platform-aware —
+ * 48dp on Android, 44pt otherwise — expressed via `setupTargets(Platform.OS)` so this module stays
+ * React-Native-free (it is imported by node:test suites that cannot resolve `react-native`).
+ */
+export const SETUP_MIN_TARGET_PX = 44; // iOS / web baseline (pt)
+export const SETUP_MIN_TARGET_ANDROID_PX = 48; // Android (dp) — device-layout gate rule 5
 
-export const roundCountPillStyle = {
-  minWidth: SETUP_MIN_TARGET_PX,
-  minHeight: SETUP_MIN_TARGET_PX,
-  paddingHorizontal: 16,
+/** Platform-aware minimum tap-target edge: 48dp on Android, else 44pt. */
+export function setupMinTargetPx(platformOS?: string): number {
+  return platformOS === 'android' ? SETUP_MIN_TARGET_ANDROID_PX : SETUP_MIN_TARGET_PX;
+}
+
+const square = (px: number) => ({
+  minWidth: px,
+  minHeight: px,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
-};
-
-export const nameInputMinHeight = SETUP_MIN_TARGET_PX;
-export const handicapInputBox = {minHeight: SETUP_MIN_TARGET_PX, width: 60};
+});
 
 /**
- * Tap slot for a native `Switch` (AUG-1367). A native iOS UISwitch has a fixed
- * intrinsic size (~51x31pt); forcing it into `style={{ width: 44, height: 44 }}`
- * does not shrink it — the switch overflows the 44pt box and draws on top of its
- * adjacent label (the Multi-Day toggle/label overlap in the owner smoke test).
- * Instead we wrap the switch in a centered slot that guarantees a >=44pt tap
- * target while letting the switch keep its intrinsic size, so it never overflows
- * into neighbouring content.
+ * All setup-control tap-target styles built for a platform. Android widens every target to 48dp;
+ * other platforms keep the 44pt baseline. `new.tsx` builds these once from `Platform.OS`.
+ *
+ * `switchTapSlot` is the tap slot for a native `Switch` (AUG-1367 / AUG-1376). A native switch has a
+ * fixed intrinsic size (iOS ~51x31pt, Android ~47x27dp) that `style={{width,height}}` cannot shrink,
+ * and plain wrapper Views are flattened out of the native view tree — so the gate measured the bare
+ * 47x27 switch. The slot therefore carries the control's testID (which also prevents RN view
+ * flattening), guaranteeing a measured >=48dp tap target that centers the switch so it never
+ * overflows its adjacent label.
  */
-export const switchTapSlot = {
-  minWidth: SETUP_MIN_TARGET_PX,
-  minHeight: SETUP_MIN_TARGET_PX,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
-};
-export const groupChipStyle = {
-  minWidth: SETUP_MIN_TARGET_PX,
-  minHeight: SETUP_MIN_TARGET_PX,
-  paddingHorizontal: 8,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
-};
+export function setupTargets(platformOS?: string) {
+  const px = setupMinTargetPx(platformOS);
+  return {
+    minTarget: px,
+    roundCountPillStyle: { ...square(px), paddingHorizontal: 16 },
+    groupChipStyle: { ...square(px), paddingHorizontal: 8 },
+    teamChipStyle: { ...square(px), paddingHorizontal: 6 },
+    switchTapSlot: square(px),
+    nameInputMinHeight: px,
+    handicapInputBox: { minHeight: px, width: 60 },
+  };
+}
+
+// Back-compatible 44pt baseline styles (existing imports / AUG-1165 tests). The screen uses the
+// platform-aware `setupTargets()` variants above; these remain the documented baseline contract.
+const baseline = setupTargets();
+export const roundCountPillStyle = baseline.roundCountPillStyle;
+export const groupChipStyle = baseline.groupChipStyle;
+export const switchTapSlot = baseline.switchTapSlot;
+export const nameInputMinHeight = baseline.nameInputMinHeight;
+export const handicapInputBox = baseline.handicapInputBox;

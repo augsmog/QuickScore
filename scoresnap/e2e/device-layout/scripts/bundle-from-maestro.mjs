@@ -26,6 +26,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { normalizeMaestroCapture } from '../lib/normalize-maestro.mjs';
+import { finiteRect } from '../lib/geometry-rules.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = resolve(__dir, '../config/device-layout.config.json');
@@ -35,9 +36,19 @@ const CONFIG_PATH = resolve(__dir, '../config/device-layout.config.json');
 // into the geometry engine. We only assert what the app actually renders — unknown ids fall back
 // to attribute-based role inference.
 export const SNAPSCORE_META = {
-  // New Contest — switches (rule 7 state legibility + rule 5 tap target)
+  // New Contest — switches (AUG-1376). The native `*-slot` wrapper View is the real tap target
+  // (sized >=48dp/44pt, rule 5); the Switch inside it is the state indicator (rule 7 legibility),
+  // marked non-tappable by normalize-maestro so its fixed 47x27 intrinsic size never scores rule 5.
+  'tournament-toggle-slot': { role: 'control', meta: { switchSlot: true, tappable: true, control: 'multi-day' } },
+  'team-mode-slot': { role: 'control', meta: { switchSlot: true, tappable: true, control: 'team-mode' } },
   'tournament-toggle': { role: 'control', meta: { isSwitch: true, tappable: true, control: 'multi-day' } },
   'team-mode': { role: 'control', meta: { isSwitch: true, tappable: true, control: 'team-mode' } },
+  // The New Contest scroll container (AUG-1376). Maestro reports every descendant's frame in raw
+  // screen coordinates without applying this ScrollView's clipping, so a row scrolled above/below
+  // the viewport is reported at an off-frame position it is NOT painted at (it is masked by the
+  // ScrollView). Tagging the container lets normalize clip descendant rects to the real visible
+  // viewport so rule 1 stops reporting scrolled content as overlapping the fixed header / footer.
+  'contest-scroll': { role: 'container', meta: { scrollClip: true } },
   // Round-count segmented chips — a horizontal row (rule 6 vertical-center alignment + rule 5 size)
   'rounds-2': { role: 'control', meta: { tappable: true, rowGroup: 'rounds' } },
   'rounds-3': { role: 'control', meta: { tappable: true, rowGroup: 'rounds' } },
@@ -102,17 +113,29 @@ export function densityFor(profile) {
 }
 
 // Derive the sticky-footer rect from the capture. Prefer an explicit footer container
-// (meta.footer); otherwise synthesize the bar from the primary CTA's top (meta.footerAnchor)
-// spanning full width to the viewport bottom. Returns null when neither is present.
+// (meta.footer); otherwise synthesize the bar from the primary CTA (meta.footerAnchor) spanning
+// full width from the CTA's top down to at least the viewport bottom. Returns null when neither
+// is present (and null for a degenerate explicit container so the gate never aborts on bad geometry).
+//
+// AUG-1376: the span must stay well-formed. On a short device a checkpoint captured mid-transition
+// can report the CTA's top at/below the viewport bottom (iPhone SE-3 empty-wizard reported the
+// Continue bar at top=762 on a 667pt screen — a stale pre-settle frame; every settled checkpoint
+// on that device reads 589). Spanning [762, 667] would be a negative-area rect that fails
+// validateBundle and aborts the WHOLE profile. We instead take the bottom as max(viewport bottom,
+// CTA bottom) so the bar always covers the CTA and is never inverted. Rule 2 still flags any
+// in-viewport content that runs behind footer.top, so genuine footer clips are not hidden.
 export function deriveFooter(nodes, viewport) {
   const explicit = nodes.find((n) => n.meta?.footer);
   if (explicit) {
     const b = explicit.bbox;
-    return { left: b.left, top: b.top, right: b.right, bottom: b.bottom };
+    const rect = { left: b.left, top: b.top, right: b.right, bottom: b.bottom };
+    return finiteRect(rect) ? rect : null;
   }
   const anchor = nodes.find((n) => n.meta?.footerAnchor);
   if (anchor && viewport) {
-    return { left: 0, top: anchor.bbox.top, right: viewport.width, bottom: viewport.height };
+    const b = anchor.bbox;
+    const rect = { left: 0, top: b.top, right: viewport.width, bottom: Math.max(viewport.height, b.bottom) };
+    return finiteRect(rect) ? rect : null;
   }
   return null;
 }
