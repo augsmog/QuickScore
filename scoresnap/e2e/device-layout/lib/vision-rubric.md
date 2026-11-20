@@ -17,7 +17,15 @@ gpt-6-astra, effort high**. OpenAI-built work is reviewed by Claude. Never Grok.
    the **sticky footer** (the pinned "Continue"/primary button). **Explicitly check the LAST
    visible row/card: is any field, label, HCP row, or player card hard-cut or concealed behind
    the sticky footer?** A player card bisected by the Continue bar, or an HCP/score row hidden
-   under it, is a **major** rule-2 finding. An ordinary scroll-edge fragment alone is not.
+   under it, is a **major** rule-2 finding **only when the footer OVERLAYS the content** — i.e. the
+   footer is painted ON TOP of a card so part of the card is concealed *beneath* an opaque bar, or
+   a focused input is covered by the footer/keyboard and cannot be seen or tapped.
+   **Scroll-edge exemption (NOT a finding):** when the content sits in a scrollable list and the
+   sticky footer is a *separate opaque bar below/after that list* (the list simply ends at its own
+   bottom edge, above the footer), a card merely cut off at the scroll edge is an ordinary
+   scroll-edge fragment the user reaches by scrolling — do **not** flag it. The tell: if the cut
+   card would come fully into view by scrolling and nothing is painted on top of it, it is exempt.
+   Only flag when content is genuinely concealed *under* the footer or an input is unreachable.
 3. **Truncation / context** — essential labels must not truncate (ellipsis) at font scale
    ≤ AX1; visible choices must retain their section context. Flag ambiguous unlabeled controls
    (e.g. "2 / 3 / 4" round buttons with no visible "NUMBER OF ROUNDS" label after scrolling).
@@ -35,7 +43,10 @@ gpt-6-astra, effort high**. OpenAI-built work is reviewed by Claude. Never Grok.
    row siblings' vertical centers within 2pt. (minor unless it breaks meaning.)
 7. **State legibility / affordance** — on/off states must be visually distinct. Flag a switch
    rendering as an **unlabeled dark/black pill** (thumb indistinguishable from track), unclear
-   selection, hidden actions, or misleading disabled states.
+   selection, hidden actions, or misleading disabled states. **Check the Team Mode switch
+   specifically:** when it reads as a solid dark/black pill whose thumb is indistinct from the
+   track (whether the switch is on or off), that is a **major** rule-7 finding — the user cannot
+   tell the control's state.
 8. **Flow completion** — the screen must be usable: a new user can read every label, reach
    every required control above the footer, and tell what each control does.
 

@@ -971,7 +971,7 @@ export default function NewContestScreen() {
                 >
                   <Minus size={16} color={COLORS.text} />
                 </AnimatedPressable>
-                <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 20, color: COLORS.text, width: 24, textAlign: "center" }}>
+                <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 20, color: COLORS.text, minWidth: 24, paddingHorizontal: 4, textAlign: "center" }}>
                   {numGroups}
                 </Text>
                 <AnimatedPressable

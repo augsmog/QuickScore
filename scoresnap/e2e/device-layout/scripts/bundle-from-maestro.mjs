@@ -105,6 +105,50 @@ export function profileById(config, profileId) {
   return p;
 }
 
+// The captured app WINDOW for a normalized checkpoint tree: the top-level survivor (parentId null)
+// with the largest painted area. On both iOS and Android the OS window spans the full screen, so
+// this node's width/height ARE the captured device's logical viewport. Returns null for an empty
+// tree (other validation handles empty captures).
+export function captureWindow(nodes) {
+  let best = null;
+  let bestArea = -1;
+  for (const n of nodes) {
+    if (n.parentId != null) continue; // only top-level survivors are OS windows
+    const b = n.bbox;
+    if (!b) continue;
+    const area = (b.right - b.left) * (b.bottom - b.top);
+    if (area > bestArea) { bestArea = area; best = n; }
+  }
+  if (!best) return null;
+  return {
+    id: best.id,
+    width: Math.round(best.bbox.right - best.bbox.left),
+    height: Math.round(best.bbox.bottom - best.bbox.top),
+  };
+}
+
+// AUG-1376 (round 7): assert a checkpoint's captured window matches its PROFILE's viewport, so a
+// hierarchy dumped from the WRONG simulator can never be scored against this profile's rules. On the
+// Mac mini both iOS legs (iphone-16-pro 402x874, iphone-se-3 375x667) boot concurrently and Maestro's
+// shared iOS driver can return the OTHER leg's hierarchy for a checkpoint (observed at 433f1f8a: the
+// SE-3 "empty wizard" tree was 402x874, the 16-pro "join" tree was 375x667). Every profile in the
+// gate has a DISTINCT width, and the OS window is full-bleed horizontally, so a width mismatch is an
+// unambiguous cross; a window TALLER than the profile cannot be this device either. A window merely
+// SHORTER than the profile (Android status/nav bars inset the content window) is legitimate and not
+// flagged. Returns a human-readable mismatch string (profile + root + expected) or null.
+export function windowViewportMismatch(nodes, profile) {
+  const win = captureWindow(nodes);
+  if (!win) return null;
+  const [pw, ph] = profile.logicalSize;
+  const WIDTH_TOL = 2;    // full-bleed width should equal the viewport within rounding
+  const HEIGHT_OVER = 2;  // a window taller than the screen is impossible → cross
+  const tooWide = Math.abs(win.width - pw) > WIDTH_TOL;
+  const tooTall = win.height > ph + HEIGHT_OVER;
+  if (!tooWide && !tooTall) return null;
+  return `captured window ${win.width}x${win.height} (node "${win.id}") does not match profile ` +
+    `"${profile.id}" viewport ${pw}x${ph}`;
+}
+
 // Logical density for normalize-maestro: iOS Maestro bounds are already in points (1); Android
 // bounds are in pixels → density = dpi / 160.
 export function densityFor(profile) {
@@ -213,6 +257,14 @@ export function buildBundle({ manifest, dir }, { platform, profileId, config, so
       scrollState: cp.scrollState ?? null,
       viewport: vp,
     });
+    // Fail CLOSED on a crossed-leg capture: a hierarchy dumped from the wrong simulator is a hard
+    // harness error (named profile + root + expected), never a bogus product finding (AUG-1376 r7).
+    const mismatch = windowViewportMismatch(nodes, profile);
+    if (mismatch) {
+      throw new Error(`device-layout harness error: checkpoint "${cp.flow || manifest.flow}/${cp.checkpoint}" ` +
+        `${mismatch} — hierarchy dump not tied to the profile's simulator (crossed iOS leg / wrong-sim capture). ` +
+        `Fix the capture, do not score this tree.`);
+    }
     const context = contextForCheckpoint(profile, cp, nodes, { viewport: viewportOverride, measuredSafeArea });
     // Bind the checkpoint to its screenshot by sha256 (the vision-candidate job rejects a stale or
     // swapped artifact). The path stays relative to the bundle dir so the reviewer resolves it.

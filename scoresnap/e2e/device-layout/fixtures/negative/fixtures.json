@@ -20,8 +20,8 @@
       "sha256": "d5795f73b94c3e28cb792072512d526f291f72e154fefc708e9cbc33584101e8",
       "pixelSize": [1206, 2622],
       "checkpoint": "Multi-day on",
-      "requiredRuleGroups": [[1], [2], [4, 6], [7]],
-      "alsoExpected": [6],
+      "requiredRuleGroups": [[1], [2], [4, 6]],
+      "alsoExpected": [6, 7],
       "annotatedDefects": [
         "Rule 1: the Multi-Day green switch's right edge/thumb touches and overlaps the 'Multi-Day Tournament' label.",
         "Rule 2: player card #1 ('Your name') is bisected / hard-clipped by the sticky Continue footer (run 1 MISSED this).",
@@ -36,8 +36,8 @@
       "sha256": "b163566b8e93e302e59cf5c86fadc2e5332916ae17efd0433edc7166405e9a24",
       "pixelSize": [1206, 2622],
       "checkpoint": "Scrolled with team mode on",
-      "requiredRuleGroups": [[2], [3], [4, 6]],
-      "alsoExpected": [5, 7],
+      "requiredRuleGroups": [[2], [3], [4, 6], [7]],
+      "alsoExpected": [5],
       "annotatedDefects": [
         "Rule 2: the 'Augi' player card with its HCP row is hard-clipped by the sticky Continue footer (run 1 MISSED this).",
         "Rule 3: the 2/3/4 round buttons have lost the 'NUMBER OF ROUNDS' label after scrolling.",

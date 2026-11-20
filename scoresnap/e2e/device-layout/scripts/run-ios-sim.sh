@@ -83,7 +83,7 @@ BUILD_HASH="$(cat "$OUTROOT/ios-build-hash.txt" 2>/dev/null || echo '')"
 # pre-booted). $3 (optional) stamps a fontScale into each checkpoint context (AX3 pass).
 # Per checkpoint we time three phases and write them to <capdir>/phase-timings.tsv.
 capture_flows() {
-  local capdir="$1" udid="$2" fontscale="${3:-}" order=0 flowdir flow sub base slug devarg=""
+  local capdir="$1" udid="$2" fontscale="${3:-}" prof="${4:-}" order=0 flowdir flow sub base slug devarg=""
   local shotname dbg lifted t0 t1 t2 t3
   [ -n "$udid" ] && devarg="--device $udid"
   mkdir -p "$capdir"
@@ -108,8 +108,25 @@ capture_flows() {
       fi
       # Phase 2 — the live view hierarchy for the geometry engine (the one unavoidable per-checkpoint
       # maestro call: geometry needs the element tree at THIS state).
+      #
+      # AUG-1376 (round 7): two iOS legs boot concurrent simulators on one Mac and Maestro's shared
+      # iOS driver can return the OTHER leg's hierarchy. We verify each dump against THIS profile's
+      # viewport and re-dump on a cross (up to 2 retries); a persistent cross is left for the hard
+      # assertion in bundle-from-maestro.mjs to fail loudly. assert-capture-device.mjs: exit 3 = wrong
+      # device (re-dump), exit 2 = inconclusive (accept), exit 0 = ok.
       t1="$(date +%s)"
       maestro $devarg hierarchy > "$capdir/$base.hierarchy.json" 2>/dev/null || echo '{"attributes":{},"children":[]}' > "$capdir/$base.hierarchy.json"
+      if [ -n "$prof" ]; then
+        local redump rc3
+        for redump in 1 2; do
+          rc3=0
+          node "$DL/scripts/assert-capture-device.mjs" "$capdir/$base.hierarchy.json" --profile "$prof" >/dev/null 2>&1 || rc3=$?
+          [ "$rc3" = "3" ] || break
+          echo "::warning::cross-device hierarchy on $base (profile $prof, attempt $redump) — re-dumping"
+          sleep 3
+          maestro $devarg hierarchy > "$capdir/$base.hierarchy.json" 2>/dev/null || echo '{"attributes":{},"children":[]}' > "$capdir/$base.hierarchy.json"
+        done
+      fi
       # Phase 3 — screenshot: prefer the PNG Maestro already wrote; fall back to a time-boxed simctl
       # screenshot only if it is missing (never let a hung xcrun eat the job).
       t2="$(date +%s)"
@@ -184,7 +201,7 @@ run_profile() {
   fi
 
   local OUTDIR="$OUTROOT/$prof"
-  capture_flows "$OUTDIR" "$UDID"
+  capture_flows "$OUTDIR" "$UDID" "" "$prof"
   gate_capture "$OUTDIR" bundle.json "$prof" || pfail=1
   print_timing_summary "$prof" "$OUTDIR"
 
@@ -195,7 +212,7 @@ run_profile() {
       xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large >/dev/null 2>&1 || true
     fi
     CAPAX="$OUTROOT/$prof-ax3"
-    capture_flows "$CAPAX" "$UDID" 2.0
+    capture_flows "$CAPAX" "$UDID" 2.0 "$prof"
     gate_capture "$CAPAX" bundle.ax3.json "$prof" --font-scale 2.0 || pfail=1
     print_timing_summary "$prof-ax3" "$CAPAX"
   elif [ -n "${DEVICE_LAYOUT_LARGE_TEXT:-}" ]; then
@@ -209,26 +226,55 @@ run_profile() {
   return "$pfail"
 }
 
+# Report-only profiles (owner decision t1557u, Nov 20 2026): iphone-se-3 is NOT launch-blocking
+# until 1.0.2 — it is still captured, scored and reported, but a failure on it does not fail the
+# required gate. The launch-blocking iOS profile is iphone-16-pro. Comma-separated; override via
+# DEVICE_LAYOUT_REPORT_ONLY_PROFILES.
+REPORT_ONLY="${DEVICE_LAYOUT_REPORT_ONLY_PROFILES:-iphone-se-3}"
+is_report_only() { case ",$REPORT_ONLY," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
+
+# Emit a per-profile verdict line to the GitHub job summary (REQUIRED vs REPORT-ONLY, PASS/FAIL) so
+# SE-3 findings stay visible even when they do not block. Falls back to stdout off-CI.
+summary() {
+  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then echo "$1" >> "$GITHUB_STEP_SUMMARY"; else echo "$1"; fi
+}
+
 IFS=',' read -ra PLIST <<< "$PROFILES"
 PARALLEL="${DEVICE_LAYOUT_IOS_PARALLEL:-1}"
 FAIL=0
 if [ "$PARALLEL" = "1" ] && [ "${#PLIST[@]}" -gt 1 ]; then
   echo "device-layout: running ${#PLIST[@]} iOS profiles in parallel on distinct simulators (DEVICE_LAYOUT_IOS_PARALLEL=0 to serialize)."
   pids=()
+  stagger=0
   for prof in "${PLIST[@]}"; do
+    # Offset each leg's start so the two legs' cold app launches (where Maestro's shared iOS driver
+    # crossed hierarchies at 433f1f8a) do not land on the same checkpoint simultaneously. Only when
+    # real simulators are present (xcrun) — the Linux stub harness must not sleep.
+    if command -v xcrun >/dev/null 2>&1 && [ "$stagger" -gt 0 ]; then sleep "$stagger"; fi
     ( if run_profile "$prof"; then rc=0; else rc=$?; fi; echo "$rc" > "$OUTROOT/$prof.status" ) &
     pids+=("$!")
+    stagger="${DEVICE_LAYOUT_IOS_STAGGER_S:-20}"
   done
   for pid in "${pids[@]}"; do wait "$pid" || true; done
-  for prof in "${PLIST[@]}"; do
-    st="$(cat "$OUTROOT/$prof.status" 2>/dev/null || echo 1)"
-    [ "$st" = "0" ] || { echo "::error::profile $prof reported failure (status $st)"; FAIL=1; }
-  done
 else
   for prof in "${PLIST[@]}"; do
-    run_profile "$prof" || FAIL=1
+    ( if run_profile "$prof"; then rc=0; else rc=$?; fi; echo "$rc" > "$OUTROOT/$prof.status" ) || true
   done
 fi
 
-[ "$FAIL" -eq 0 ] && echo "device-layout iOS: PASS" || echo "device-layout iOS: FAIL"
+summary "### device-layout iOS legs"
+for prof in "${PLIST[@]}"; do
+  st="$(cat "$OUTROOT/$prof.status" 2>/dev/null || echo 1)"
+  if is_report_only "$prof"; then
+    if [ "$st" = "0" ]; then summary "- **$prof** (REPORT-ONLY, not blocking until 1.0.2): PASS"
+    else summary "- **$prof** (REPORT-ONLY, not blocking until 1.0.2): FAIL — see annotations/artifacts"
+         echo "::notice::profile $prof reported failure (status $st) — REPORT-ONLY (owner t1557u), not failing the gate"; fi
+  else
+    if [ "$st" = "0" ]; then summary "- **$prof** (REQUIRED): PASS"
+    else summary "- **$prof** (REQUIRED): FAIL"
+         echo "::error::profile $prof reported failure (status $st)"; FAIL=1; fi
+  fi
+done
+
+[ "$FAIL" -eq 0 ] && echo "device-layout iOS: PASS (report-only: $REPORT_ONLY)" || echo "device-layout iOS: FAIL"
 exit "$FAIL"

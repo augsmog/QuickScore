@@ -198,6 +198,10 @@ jobs:
       - name: iOS simulator legs (iPhone 16 Pro, iPhone SE 3)
         env:
           DEVICE_LAYOUT_IOS_PROFILES: iphone-16-pro,iphone-se-3
+          # Owner decision t1557u (Nov 20 2026): iphone-se-3 is NOT launch-blocking until 1.0.2 —
+          # still captured, scored and printed to the job summary, but it does not fail the required
+          # device-layout-gate. Launch-blocking iOS profile: iphone-16-pro (+ android-compact 1.0/1.3).
+          DEVICE_LAYOUT_REPORT_ONLY_PROFILES: iphone-se-3
           DEVICE_LAYOUT_OUT: ${{ runner.temp }}/device-layout-out
           DEVICE_LAYOUT_LARGE_TEXT: "true"
         run: |
@@ -233,6 +237,10 @@ jobs:
           pattern: device-layout-*
           path: ${{ runner.temp }}/device-layout-candidate
       - name: Candidate vision review (all native bundles, both platforms)
+        # iphone-se-3 vision findings are produced and printed to the summary but do not block the
+        # required gate until 1.0.2 (owner t1557u); iphone-16-pro + android-compact stay blocking.
+        env:
+          DEVICE_LAYOUT_REPORT_ONLY_PROFILES: iphone-se-3
         run: bash scoresnap/e2e/device-layout/scripts/run-vision-candidate.sh "${{ runner.temp }}/device-layout-candidate"
 
   device-layout-gate:

@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { normalizeMaestroCapture } from './normalize-maestro.mjs';
 import { evaluateCheckpoint, finiteRect } from './geometry-rules.mjs';
-import { deriveFooter, SNAPSCORE_META } from '../scripts/bundle-from-maestro.mjs';
+import { deriveFooter, SNAPSCORE_META, windowViewportMismatch, captureWindow, profileById } from '../scripts/bundle-from-maestro.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const fx = (f) => JSON.parse(readFileSync(resolve(__dir, 'fixtures/native', f), 'utf8'));
@@ -297,4 +297,117 @@ test('rule 5 edge-gap: a row clipped at the scroll edge is not "jammed" against 
   const { findings } = evaluateCheckpoint(nodes, { platform: 'ios', viewport });
   const gapHits = findings.filter((f) => f.rule === 5 && f.nodes.includes('last-row') && f.nodes.includes('contest-continue'));
   assert.equal(gapHits.length, 0, `scroll-clipped row must not jam against the fixed footer: ${JSON.stringify(gapHits)}`);
+});
+
+// ───────────── 9. Cross-leg capture: hierarchy window must match the profile viewport (round 7) ──────
+// On the Mac mini both iOS legs boot concurrently and Maestro's shared iOS driver can return the OTHER
+// leg's hierarchy for a checkpoint (observed at 433f1f8a: SE-3 "empty wizard" tree was 402x874; the
+// 16-pro "join" tree was 375x667). windowViewportMismatch detects it from the normalized tree so the
+// crossed artifact fails as a hard HARNESS error (named profile+root+expected), never a product finding.
+const CFG_PATH = resolve(__dir, '../config/device-layout.config.json');
+const CONFIG = JSON.parse(readFileSync(CFG_PATH, 'utf8'));
+const win = (w, h) => [{ id: 'n0', role: 'text', text: 'SnapScore', bbox: { left: 0, top: 0, right: w, bottom: h }, parentId: null, meta: {} },
+  { id: 'c', role: 'control', text: 'x', bbox: { left: 10, top: 100, right: 100, bottom: 140 }, parentId: 'n0', meta: {} }];
+
+test('cross-leg detector: a correct window matches its profile; a crossed one is a named mismatch', () => {
+  const se = profileById(CONFIG, 'iphone-se-3');
+  const pro = profileById(CONFIG, 'iphone-16-pro');
+  // Correct captures → no mismatch.
+  assert.equal(windowViewportMismatch(win(375, 667), se), null, 'SE-3 window 375x667 matches');
+  assert.equal(windowViewportMismatch(win(402, 874), pro), null, '16-pro window 402x874 matches');
+  // The two real crosses at 433f1f8a → named mismatch (profile + root + expected).
+  const seCross = windowViewportMismatch(win(402, 874), se);
+  assert.ok(seCross && /402x874/.test(seCross) && /iphone-se-3/.test(seCross) && /375x667/.test(seCross), seCross);
+  const proCross = windowViewportMismatch(win(375, 667), pro);
+  assert.ok(proCross && /375x667/.test(proCross) && /iphone-16-pro/.test(proCross) && /402x874/.test(proCross), proCross);
+  // captureWindow picks the largest top-level survivor (the OS window), not a child.
+  assert.deepEqual(captureWindow(win(375, 667)), { id: 'n0', width: 375, height: 667 });
+});
+
+test('cross-leg detector: a window merely SHORTER than the profile (Android bars) is NOT flagged', () => {
+  const android = profileById(CONFIG, 'android-compact'); // 360x800
+  assert.equal(windowViewportMismatch(win(360, 752), android), null, 'a status/nav-bar-inset 360x752 window is legitimate');
+  // ...but a width mismatch (a genuinely different device) still is.
+  assert.ok(windowViewportMismatch(win(375, 752), android), 'a 375-wide window is not android-compact (360)');
+});
+
+test('cross-leg detector: fires on a real normalized crossed capture (SE-3 profile, 402x874 tree)', () => {
+  const viewport = { width: 375, height: 667 }; // SE-3 profile viewport passed to normalize
+  // A capture whose actual window is 402x874 (the 16-pro tree returned on the SE-3 leg).
+  const crossed = node('[0,0][0,0]', {}, [
+    node('[0,0][402,874]', { accessibilityText: 'SnapScore' }, [
+      node('[20,186][355,238]', { 'resource-id': 'home-new-contest', text: 'New Contest' }),
+    ]),
+  ]);
+  const { nodes } = normalizeMaestroCapture(crossed, { density: 1, viewport, resourceMeta: SNAPSCORE_META });
+  const se = profileById(CONFIG, 'iphone-se-3');
+  assert.ok(windowViewportMismatch(nodes, se), 'the 402x874 window on the SE-3 leg is detected as crossed');
+});
+
+// ───────────── 10. Footer bisection: scroll-edge clip EXEMPT; real overlay / keyboard-hidden FAIL ──
+// new.tsx: the Continue footer is a flow sibling AFTER the KeyboardAvoidingView/ScrollView (verified in
+// code) and the ScrollView ends with a 96pt spacer. A card merely cut by the scroll edge (painted
+// bottom clamped to the scroll viewport, which ends at/above the footer top) is a plain scroll-edge
+// fragment — NOT a footer bisection. A footer that OVERLAYS content, or an input hidden by the
+// keyboard, still fails rule 2.
+const rowNode = (id, bbox, meta = {}) => ({ id, role: 'control', text: id, bbox, hitRegion: bbox, parentId: 'app', meta: { required: true, ...meta } });
+
+test('footer rule: a card cut at the scroll edge (footer is a flow sibling below) is EXEMPT from rule 2', () => {
+  const viewport = { width: 375, height: 667 };
+  // Card raw bottom 560 reaches the footer, but it is scroll-clipped to the viewport bottom 520 (the
+  // footer sits BELOW the scroll area) → painted bottom 520 == footer.top → not a bisection.
+  const nodes = [
+    { id: 'app', role: 'container', bbox: { left: 0, top: 0, right: 375, bottom: 667 }, parentId: null, meta: {} },
+    rowNode('player-2', { left: 79, top: 480, right: 342, bottom: 560 },
+      { clipBottom: true, clipRect: { left: 79, top: 480, right: 342, bottom: 520 } }),
+  ];
+  const ctx = { platform: 'ios', viewport, safeArea: { top: 20, bottom: 0 }, footer: { left: 0, top: 520, right: 375, bottom: 667 } };
+  const hits = evaluateCheckpoint(nodes, ctx).findings.filter((f) => f.rule === 2 && f.nodes.includes('player-2'));
+  assert.equal(hits.length, 0, `scroll-edge-clipped card must be exempt: ${JSON.stringify(hits)}`);
+});
+
+test('footer rule: a footer that OVERLAYS content (card painted under it, not scroll-clipped) still FAILS', () => {
+  const viewport = { width: 375, height: 667 };
+  // Card is NOT scroll-clipped: its painted bottom 560 runs behind the footer top 520 → real overlay.
+  const nodes = [
+    { id: 'app', role: 'container', bbox: { left: 0, top: 0, right: 375, bottom: 667 }, parentId: null, meta: {} },
+    rowNode('player-2', { left: 79, top: 480, right: 342, bottom: 560 }),
+  ];
+  const ctx = { platform: 'ios', viewport, safeArea: { top: 20, bottom: 0 }, footer: { left: 0, top: 520, right: 375, bottom: 667 } };
+  const hits = evaluateCheckpoint(nodes, ctx).findings.filter((f) => f.rule === 2 && f.nodes.includes('player-2'));
+  assert.ok(hits.length >= 1, 'content painted behind an overlapping footer is still a rule-2 finding');
+});
+
+test('footer rule: a focused input hidden by the keyboard-raised inset still FAILS rule 2', () => {
+  const viewport = { width: 375, height: 667 };
+  // No footer; the keyboard raised the bottom safe-area inset to 120 → usable bottom 547. The focused
+  // input runs to 660, below that line → unreachable/covered → rule 2 fires (not footer chrome).
+  const nodes = [
+    { id: 'app', role: 'container', bbox: { left: 0, top: 0, right: 375, bottom: 667 }, parentId: null, meta: {} },
+    rowNode('name-input', { left: 20, top: 610, right: 355, bottom: 660 }, { focused: true }),
+  ];
+  const ctx = { platform: 'ios', viewport, safeArea: { top: 20, bottom: 120 } };
+  const hits = evaluateCheckpoint(nodes, ctx).findings.filter((f) => f.rule === 2 && f.nodes.includes('name-input'));
+  assert.ok(hits.length >= 1, 'a keyboard-hidden focused input is still flagged');
+});
+
+test('footer rule (integration): a real contest-scroll card + flow-sibling footer is exempt', () => {
+  const viewport = { width: 375, height: 667 };
+  const meta = {
+    'app-window': { role: 'container', meta: {} },
+    'contest-scroll': { role: 'container', meta: { scrollClip: true } },
+    'player-2': { role: 'control', meta: { tappable: true, required: true } },
+    'contest-continue': { role: 'control', meta: { tappable: true, footerAnchor: true, cta: true } },
+  };
+  // ScrollView [0,122][375,520]; the last card raw-reaches 560 but is masked to 520; footer below it.
+  const cap = node('[0,0][375,667]', { 'resource-id': 'app-window' }, [
+    node('[0,122][375,520]', { 'resource-id': 'contest-scroll' }, [
+      node('[79,480][342,560]', { 'resource-id': 'player-2', checked: 'true' }),
+    ]),
+    node('[20,520][355,574]', { 'resource-id': 'contest-continue', text: 'Continue', checked: 'true' }),
+  ]);
+  const { nodes } = normalizeMaestroCapture(cap, { density: 1, viewport, resourceMeta: meta });
+  const hits = evaluateCheckpoint(nodes, { platform: 'ios', viewport }).findings
+    .filter((f) => f.rule === 2 && f.nodes.includes('player-2'));
+  assert.equal(hits.length, 0, `real scroll-edge card must not be flagged as footer-bisected: ${JSON.stringify(hits)}`);
 });

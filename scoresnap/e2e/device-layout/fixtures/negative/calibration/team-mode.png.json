@@ -76,6 +76,17 @@
         580
       ],
       "reason": "The rounds picker begins at x=159 while the visible section grid begins at x=47, an approximately 48pt indent exceeding the 4pt alignment tolerance."
+    },
+    {
+      "rule": 7,
+      "severity": "major",
+      "bbox": [
+        963,
+        1155,
+        1150,
+        1229
+      ],
+      "reason": "The enabled Team Mode switch reads as a solid dark/black pill: its thumb is indistinct from the track, so the on state is not clearly communicated."
     }
   ],
   "verdict": "fail"
