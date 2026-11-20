@@ -46,10 +46,16 @@ export function requiredCheckpoints(config) {
 // policy: the config's reviewerPolicy ({builder, reviewer:{provider, model, effort}, banned}).
 // fixtures: the config's fixtures ({negative:[{image, artifactHash}], positive}); every
 // declared negative must come back reviewed (matched by artifactHash) with a major finding.
-export function evaluateVision({reviews, required = [], builderProvider, bannedProviders = ['xai', 'grok'], sourceSha = null, policy = null, fixtures = null}) {
+// buildHash: the gated run's build hash. Every candidate review must carry it, or it
+// is evidence from another build (stale), the same failure class as a stale sourceSha.
+// artifacts: optional {`device::flow::checkpoint` -> sha256} of the screenshots actually
+// captured this run. A candidate review's artifactHash must equal the captured one, so a
+// reviewer cannot pass by scoring an arbitrary/foreign screenshot.
+export function evaluateVision({reviews, required = [], builderProvider, bannedProviders = ['xai', 'grok'], sourceSha = null, buildHash = null, policy = null, fixtures = null, artifacts = null}) {
   if (policy) { builderProvider = policy.builder; bannedProviders = policy.banned ?? bannedProviders; }
   if (!builderProvider) throw new Error('builderProvider required: the gate must know who built the change');
   const requiredProvider = policy?.reviewer?.provider?.toLowerCase() ?? null;
+  const requiredModel = policy?.reviewer?.model ?? null;
   const blocking = [], followUps = [], invalid = [], drift = [];
   const seen = new Set();
   reviews.forEach((r, i) => {
@@ -58,7 +64,20 @@ export function evaluateVision({reviews, required = [], builderProvider, bannedP
     if (provider && provider === String(builderProvider).toLowerCase()) errors.push(`reviewer provider "${provider}" built the change (no self-review)`);
     if (bannedProviders.includes(provider)) errors.push(`reviewer provider "${provider}" is not allowed`);
     else if (requiredProvider && provider && provider !== requiredProvider) errors.push(`reviewer provider "${provider}" is not the policy reviewer "${requiredProvider}"`);
+    // Policy binds the exact reviewer model, not just the provider: a cheaper/weaker
+    // model from the right company is still off-policy (AUG-1384).
+    if (requiredModel && r?.reviewer?.model !== requiredModel) errors.push(`reviewer model "${r?.reviewer?.model ?? ''}" is not the policy reviewer model "${requiredModel}"`);
     if (sourceSha && r?.sourceSha !== sourceSha && r?.fixture === undefined) errors.push(`review is for ${r?.sourceSha}, not the gated head ${sourceSha}`);
+    // Bind build + captured artifact for candidate (non-fixture) reviews. Calibration
+    // fixtures reference committed baseline images, so they are exempt (like sourceSha).
+    if (r && r.fixture === undefined) {
+      if (buildHash && r.buildHash !== buildHash) errors.push(`review build "${r.buildHash ?? ''}" is not the gated build "${buildHash}"`);
+      if (artifacts) {
+        const expected = artifacts[key(r)];
+        if (!expected) errors.push(`no captured artifact bound for checkpoint ${key(r)}`);
+        else if (r.artifactHash !== expected) errors.push(`artifactHash ${r.artifactHash ?? 'none'} is not the captured artifact ${expected} for ${key(r)}`);
+      }
+    }
     if (errors.length) { invalid.push({index: i, checkpoint: r ? key(r) : null, errors}); return; }
     const major = r.findings.filter(f => BLOCKING.has(f.severity));
     if (r.fixture === 'negative') {

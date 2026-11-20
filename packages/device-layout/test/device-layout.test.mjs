@@ -114,7 +114,7 @@ test('snapscore adapter round-trips a capture audit and profile', () => {
   assert.deepEqual(device.safeArea, {top: 59, right: 0, bottom: 34, left: 0});
   const layout = {targets: [{id: 0, name: 'Save', left: 20, top: 100, right: 120, bottom: 140, raw: {}, size: {width: 100, height: 44}, backdrop: false}], texts: [{name: 'Save', left: 30, top: 110, right: 60, bottom: 130, owners: [0]}]};
   const s = fromCaptureAudit(layout, {device: 'iphone-16', screen: 'settings'});
-  const r = gate({config: snapscore, snapshots: [s]});
+  const r = gate({config: {...snapscore, screens: [{id: 'settings', devices: ['iphone-16']}]}, snapshots: [s]});
   assert.equal(r.verdict, 'PASS', JSON.stringify(r.results));
   assert.equal(r.results[0].failures.length, 0);
 });
@@ -130,12 +130,13 @@ test('gate: missing required screen/device and empty snapshot fail', () => {
 });
 
 test('waivers: ticketed waiver moves a failure to waived; expired waiver fails gate; bad waiver rejected', () => {
+  const cfg = {...snapscore, screens: [{id: 'home', devices: ['iphone-se-3']}]};
   const s = snap('iphone-se-3', 'home', [box(0, 'tiny', 10, 30, 30, 30)]);
   const waiver = {id: 'w1', rule: 'target-size', subject: 'tiny', device: 'iphone-se-3', ticket: 'AUG-1381', reason: 'fixture exception for test', approvedBy: 'checker', expires: '2099-01-01'};
-  const ok = gate({config: snapscore, snapshots: [s], waivers: {schema: WAIVER_SCHEMA, waivers: [waiver]}});
+  const ok = gate({config: cfg, snapshots: [s], waivers: {schema: WAIVER_SCHEMA, waivers: [waiver]}});
   assert.equal(ok.verdict, 'PASS');
   assert.equal(ok.results[0].waived[0].ticket, 'AUG-1381');
-  const old = gate({config: snapscore, snapshots: [s], waivers: {schema: WAIVER_SCHEMA, waivers: [{...waiver, expires: '2020-01-01'}]}, today: '2026-11-19'});
+  const old = gate({config: cfg, snapshots: [s], waivers: {schema: WAIVER_SCHEMA, waivers: [{...waiver, expires: '2020-01-01'}]}, today: '2026-11-19'});
   assert.equal(old.verdict, 'FAIL');
   assert.equal(old.results[0].failures.length, 1);
   assert.deepEqual(old.expiredWaivers.map(w => w.id), ['w1']);
@@ -291,23 +292,24 @@ test('contract: config must declare adapter, provenance, flows, reviewer policy,
 });
 
 test('provenance: snapshot and receipt share {sourceSha, buildHash, configHash}; stale or missing hashes are INVALID', () => {
-  const good = {...snap('iphone-se-3', 'home', [box(0, 'ok', 10, 30, 50, 50)]), provenance: {...RUN, configHash: configHash(snapscore)}};
-  const ok = runGate({config: snapscore, snapshots: [good], provenance: RUN});
+  const cfg = {...snapscore, screens: [{id: 'home', devices: ['iphone-se-3']}]};
+  const good = {...snap('iphone-se-3', 'home', [box(0, 'ok', 10, 30, 50, 50)]), provenance: {...RUN, configHash: configHash(cfg)}};
+  const ok = runGate({config: cfg, snapshots: [good], provenance: RUN});
   assert.equal(ok.verdict, 'PASS', JSON.stringify(ok.invalid));
   assert.deepEqual({s: ok.provenance.sourceSha, b: ok.provenance.buildHash, c: ok.provenance.configHash}, {s: good.provenance.sourceSha, b: good.provenance.buildHash, c: good.provenance.configHash});
   assert.equal(ok.configDigest, ok.provenance.configHash);
   const cases = {
     sourceSha: {...good, provenance: {...good.provenance, sourceSha: 'f'.repeat(40)}},
     buildHash: {...good, provenance: {...good.provenance, buildHash: 'build-41'}},
-    configHash: {...good, provenance: {...good.provenance, configHash: configHash({...snapscore, product: 'edited'})}},
+    configHash: {...good, provenance: {...good.provenance, configHash: configHash({...cfg, product: 'edited'})}},
   };
   for (const [k, s] of Object.entries(cases)) {
-    const r = runGate({config: snapscore, snapshots: [s], provenance: RUN});
+    const r = runGate({config: cfg, snapshots: [s], provenance: RUN});
     assert.equal(r.verdict, 'FAIL'); assert.match(r.invalid[0].errors.join(), new RegExp(`stale ${k}`));
   }
   const bare = {...good}; delete bare.provenance;
-  assert.match(runGate({config: snapscore, snapshots: [bare], provenance: RUN}).invalid[0].errors.join(), /provenance missing/);
-  const noRun = runGate({config: snapscore, snapshots: [good]});
+  assert.match(runGate({config: cfg, snapshots: [bare], provenance: RUN}).invalid[0].errors.join(), /provenance missing/);
+  const noRun = runGate({config: cfg, snapshots: [good]});
   assert.equal(noRun.verdict, 'FAIL', 'a run without its own provenance can never pass');
   assert.ok(noRun.provenance.errors.length >= 2);
 });
@@ -340,8 +342,8 @@ test('vision: config reviewerPolicy + declared fixtures drive the cross-company 
   const policy = snapscore.reviewerPolicy;
   const H1 = 'sha256:' + '1'.repeat(64), H2 = 'sha256:' + '2'.repeat(64);
   const fixtures = {negative: [{image: 'multi-day.png', artifactHash: H1, expectDefect: 'x'}, {image: 'team-mode.png', artifactHash: H2, expectDefect: 'y'}]};
-  const negs = [review({...neg('multi-day.png'), artifactHash: H1}), review({...neg('team-mode.png'), artifactHash: H2})];
   const reviewer = {provider: 'openai', model: 'gpt-6-astra', effort: 'high'};
+  const negs = [review({...neg('multi-day.png'), artifactHash: H1, reviewer}), review({...neg('team-mode.png'), artifactHash: H2, reviewer})];
   const base = {required, sourceSha: SHA, policy, fixtures};
   assert.equal(evaluateVision({...base, reviews: [...negs, review({reviewer})]}).verdict, 'PASS');
   // Policy names openai; an unlisted third provider is rejected even though it is not the builder.
@@ -360,4 +362,55 @@ test('requiredCheckpoints expands devices x flows x checkpoints from the config'
   const perDevice = snapscore.flows.reduce((n, f) => n + f.checkpoints.length, 0);
   assert.equal(cps.length, snapscore.devices.length * perDevice);
   assert.deepEqual(cps[0], {device: snapscore.devices[0].id, flow: snapscore.flows[0].id, checkpoint: snapscore.flows[0].checkpoints[0]});
+});
+
+// --- AUG-1384 round 2: close the three checker FAILING-CHECK lines ---
+
+test('gate (AUG-1384): a config with no declared screens fails closed; a declared matrix rejects missing coverage', () => {
+  // snapscore declares 6 devices + 3 flows but no screens. A single valid snapshot
+  // must NOT certify the whole matrix (the pre-fix bug: PASS with missing=[]).
+  const r = gate({config: snapscore, snapshots: [snap('iphone-se-3', 'home', [box(0, 'ok', 10, 30, 50, 50)])]});
+  assert.equal(r.verdict, 'FAIL', 'no capture contract -> fail closed, not PASS');
+  assert.ok(r.missing.length > 0, 'missing coverage must be reported, not an empty missing[]');
+  assert.deepEqual(r.missing, [{device: '*', screen: '*'}]);
+  // Once a screens coverage contract exists, every declared device must be covered.
+  const cfg = {...snapscore, screens: [{id: 'home', devices: ['iphone-se-3', 'iphone-16']}]};
+  const partial = gate({config: cfg, snapshots: [snap('iphone-se-3', 'home', [box(0, 'ok', 10, 30, 50, 50)])]});
+  assert.equal(partial.verdict, 'FAIL');
+  assert.deepEqual(partial.missing, [{device: 'iphone-16', screen: 'home'}]);
+});
+
+test('geometry (AUG-1384): a target whose declared size is empty/non-finite is INVALID, not silently sized', () => {
+  const cfg = {...snapscore, screens: [{id: 'home', devices: ['iphone-se-3']}]};
+  // 1x1 control that previously PASSed only because size:{} hid its true geometry.
+  const bad = gate({config: cfg, snapshots: [snap('iphone-se-3', 'home', [box(0, 'pill', 10, 30, 1, 1, {size: {}})])]});
+  assert.equal(bad.verdict, 'FAIL');
+  assert.match(bad.invalid[0].errors.join(), /size must have finite positive/);
+  assert.match(gate({config: cfg, snapshots: [snap('iphone-se-3', 'home', [box(0, 'pill', 10, 30, 60, 60, {size: {width: 0, height: 44}})])]}).invalid[0].errors.join(), /size must have finite positive/);
+  // The same 1x1 control with no size field is a target-size FAILURE (evaluated), not INVALID.
+  const noSize = gate({config: cfg, snapshots: [snap('iphone-se-3', 'home', [box(0, 'pill', 10, 30, 1, 1)])]});
+  assert.equal(noSize.invalid.length, 0);
+  assert.ok(noSize.results[0].failures.some(f => f.rule === 'target-size'));
+});
+
+test('vision (AUG-1384): reviewer model, the gated buildHash and the captured artifactHash are bound, not just provider', () => {
+  const policy = snapscore.reviewerPolicy; // reviewer openai / gpt-6-astra / high
+  const reviewer = {provider: 'openai', model: 'gpt-6-astra', effort: 'high'};
+  const H1 = 'sha256:' + '1'.repeat(64);
+  const fixtures = {negative: [{image: 'm.png', artifactHash: H1, expectDefect: 'x'}]};
+  const negHit = review({...neg('m.png'), artifactHash: H1, reviewer});
+  const BUILD = 'build-candidate', ART = 'sha256:' + 'a'.repeat(64);
+  const cp = {device: 'iphone-16-pro', flow: 'new-contest', checkpoint: 'step-2'};
+  const artifacts = {[`${cp.device}::${cp.flow}::${cp.checkpoint}`]: ART};
+  const base = {required: [cp], sourceSha: SHA, policy, fixtures, buildHash: BUILD, artifacts};
+  // A candidate bound to the gated build + captured artifact + policy model -> PASS.
+  assert.equal(evaluateVision({...base, reviews: [negHit, review({reviewer, buildHash: BUILD, artifactHash: ART})]}).verdict, 'PASS');
+  // Right provider, cheaper/weaker model -> off-policy, INVALID.
+  assert.match(evaluateVision({...base, reviews: [negHit, review({reviewer: {provider: 'openai', model: 'gpt-6.1-sol', effort: 'high'}, buildHash: BUILD, artifactHash: ART})]}).invalid[0].errors.join(), /is not the policy reviewer model/);
+  // Current sourceSha paired with a stale build -> INVALID.
+  assert.match(evaluateVision({...base, reviews: [negHit, review({reviewer, buildHash: 'build-stale', artifactHash: ART})]}).invalid[0].errors.join(), /not the gated build/);
+  // An arbitrary screenshot artifactHash that is not the captured one -> INVALID.
+  assert.match(evaluateVision({...base, reviews: [negHit, review({reviewer, buildHash: BUILD, artifactHash: 'sha256:' + 'f'.repeat(64)})]}).invalid[0].errors.join(), /not the captured artifact/);
+  // A checkpoint with no captured artifact bound cannot pass on an asserted hash.
+  assert.match(evaluateVision({...base, reviews: [negHit, review({reviewer, buildHash: BUILD, artifactHash: ART, checkpoint: 'ghost'})]}).invalid[0].errors.join(), /no captured artifact bound/);
 });

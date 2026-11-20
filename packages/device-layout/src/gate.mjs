@@ -81,7 +81,11 @@ export function runGate({config, snapshots, waivers = {schema: WAIVER_SCHEMA, wa
   const covered = new Set(results.map(r => `${r.device}::${r.screen}`));
   const missing = [];
   for (const s of cfg.screens) if (s.required) for (const d of s.devices) if (!covered.has(`${d}::${s.id}`)) missing.push({device: d, screen: s.id});
-  if (!cfg.screens.length && results.length === 0) missing.push({device: '*', screen: '*'});
+  // No declared screens means no capture contract to measure coverage against. A
+  // single snapshot must not certify a whole device/flow matrix, so the gate fails
+  // closed (one '*'/'*' coverage gap) until screens are declared. Acknowledging the
+  // gap in a doc does not satisfy "reject missing coverage" (AUG-1384 acceptance 1/3).
+  if (!cfg.screens.length) missing.push({device: '*', screen: '*'});
 
   const failureCount = results.reduce((n, r) => n + r.failures.length, 0);
   const verdict = failureCount === 0 && missing.length === 0 && invalid.length === 0 && expired.length === 0 && provenanceGaps.length === 0 ? 'PASS' : 'FAIL';

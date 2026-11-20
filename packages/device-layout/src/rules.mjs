@@ -55,6 +55,10 @@ export function validateSnapshot(snapshot) {
     snapshot[key].forEach((r, i) => {
       if (!['left', 'top', 'right', 'bottom'].every(k => Number.isFinite(r?.[k]))) errors.push(`${key}[${i}] needs finite left/top/right/bottom`);
       else if (r.right < r.left || r.bottom < r.top) errors.push(`${key}[${i}] has negative extent`);
+      // A declared `size` overrides the rect for target-size (scroll-clipped controls).
+      // An empty or non-finite size silently bypasses the size check, so reject it here
+      // rather than letting evaluateSnapshot compare against undefined (AUG-1384).
+      if (r?.size !== undefined && !(Number.isFinite(r.size?.width) && r.size.width > 0 && Number.isFinite(r.size?.height) && r.size.height > 0)) errors.push(`${key}[${i}] size must have finite positive width and height`);
     });
   }
   if (Array.isArray(snapshot?.targets) && snapshot.targets.length === 0 && Array.isArray(snapshot?.texts) && snapshot.texts.length === 0) {
