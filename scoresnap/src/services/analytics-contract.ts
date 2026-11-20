@@ -113,6 +113,15 @@ const entries: Record<string, { files: string[]; allowedProps: string[] }> = {
       "low_confidence_item_count"
     ]
   },
+  "posthogAppLogger.roundFinished": {
+    "files": [
+      "app/contest/[id]/index.tsx"
+    ],
+    "allowedProps": [
+      "playerCount",
+      "isTournament"
+    ]
+  },
   "posthogAppLogger.scorecardScoresCommitted": {
     "files": [
       "app/scan/review.tsx"
@@ -150,6 +159,15 @@ const entries: Record<string, { files: string[]; allowedProps: string[] }> = {
     "allowedProps": [
       "player_count",
       "has_contest_context"
+    ]
+  },
+  "round finished": {
+    "files": [
+      "src/services/posthog-log.ts"
+    ],
+    "allowedProps": [
+      "player_count",
+      "is_tournament"
     ]
   },
   "scorecard scores committed": {
