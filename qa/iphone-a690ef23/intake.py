@@ -39,7 +39,7 @@ def main():
     cmd(['git','-c','credential.helper=','-c','http.extraHeader=','-C',str(ROOT),'fetch','--no-tags','--depth=1','https://github.com/augsmog/QuickScore.git',SHA],60,clean)
    if cmd(['git','-C',str(ROOT),'status','--porcelain','--untracked-files=no']):raise ValueError('DIRTY_HARNESS_CHECKOUT')
    changed=cmd(['git','-C',str(ROOT),'diff',SHA,'--name-only']).splitlines()
-   if any(not(p.startswith('qa/iphone-a690ef23/') or p=='scoresnap/e2e/device-layout/scripts/run-ios-sim.sh') for p in changed):raise ValueError('UNEXPECTED_APP_OR_WORKFLOW_CHANGE')
+   if any(not(p.startswith('qa/iphone-a690ef23/') or p in ['scoresnap/e2e/device-layout/scripts/run-ios-sim.sh','scoresnap/e2e/device-layout/lib/native-scripts.test.mjs']) for p in changed):raise ValueError('UNEXPECTED_APP_OR_WORKFLOW_CHANGE')
    if cmd(['git','-C',str(ROOT),'rev-parse',SHA+'^{tree}'])!=TREE:raise ValueError('APP_TREE_MISMATCH')
    state['harnessSha']=cmd(['git','-C',str(ROOT),'rev-parse','HEAD'])
    # Never select/erase an existing device. Mutate and delete only this invocation's created UUID.

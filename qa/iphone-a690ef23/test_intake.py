@@ -20,5 +20,5 @@ class Intake(unittest.TestCase):
   root=pathlib.Path(__file__).resolve().parents[2]
   with tempfile.TemporaryDirectory() as d:
    env={'PATH':os.environ['PATH'],'DEVICE_LAYOUT_OUT':d}
-   r=subprocess.run(['bash',str(root/'scoresnap/e2e/device-layout/scripts/run-ios-sim.sh')],env=env,capture_output=True)
+   r=subprocess.run(['python3',str(root/'qa/iphone-a690ef23/intake.py')],env=env,capture_output=True)
    self.assertEqual(r.returncode,78);self.assertEqual(list(pathlib.Path(d).iterdir()),[])
