@@ -81,7 +81,7 @@ test('Gross/Net toggle inside the FlashList header still re-ranks the virtualize
     TYPOGRAPHY: { caption: {} },
     RADII: new Proxy({}, { get: () => 8 }),
   };
-  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput' };
+  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput', Pressable: 'Pressable' };
   // AnimatedPressable as a real passthrough so onPress is reachable on a tree node.
   const AnimatedPressable = (props) => React.createElement('Pressable', props, props.children);
 
@@ -126,6 +126,7 @@ test('Gross/Net toggle inside the FlashList header still re-ranks the virtualize
     '../../../src/utils/formatters': { formatToPar: (value) => (value === 0 ? 'E' : String(value)) },
     '../../../src/ui/AnimatedPressable': { AnimatedPressable },
     '../../../src/components/LeaderboardResultsList': { LeaderboardResultsList },
+    '../../../src/components/PlayerScorecardSheet': { PlayerScorecardSheet: () => null },
   };
 
   const Screen = load('app/contest/[id]/leaderboard.tsx', deps).default;

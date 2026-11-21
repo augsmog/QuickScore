@@ -12,6 +12,7 @@ import { getFixtureYouPlayerId } from "../../../src/engine/you-fixture";
 import { formatToPar } from "../../../src/utils/formatters";
 import { AnimatedPressable } from "../../../src/ui/AnimatedPressable";
 import { useOnlineStore } from "../../../src/stores/online-store";
+import { PlayerScorecardSheet } from "../../../src/components/PlayerScorecardSheet";
 import { LeaderboardResultsList } from "../../../src/components/LeaderboardResultsList";
 
 export default function LeaderboardScreen() {
@@ -26,6 +27,8 @@ export default function LeaderboardScreen() {
   // AUG-735 (AUG-253g): case-insensitive name search over the individual field.
   const [playerQuery, setPlayerQuery] = useState("");
   const [myGroupOnly, setMyGroupOnly] = useState(false);
+  // AUG-707: player whose full-round scorecard sheet is open.
+  const [scorecardPlayerId, setScorecardPlayerId] = useState<string | null>(null);
   const membership = useOnlineStore((s) => s.events[id ?? ""]?.membership);
 
   if (!contest) return null;
@@ -398,12 +401,14 @@ export default function LeaderboardScreen() {
   // ScrollView when the search is empty.
   if (viewMode === "individual") {
     return (
+      <>
       <LeaderboardResultsList
         results={visibleRows}
         rankByPlayerId={rankByPlayerId}
         allPlayers={allPlayers}
         recentPlayers={recentPlayers}
         contest={contest}
+        onPlayerPress={setScorecardPlayerId}
         ListHeaderComponent={
           <>
             {header}
@@ -414,6 +419,12 @@ export default function LeaderboardScreen() {
         }
         ListFooterComponent={<View style={{ height: 16 }} />}
       />
+      <PlayerScorecardSheet
+        player={allPlayers.find((p) => p.id === scorecardPlayerId) ?? null}
+        course={leaderboardCourse}
+        onClose={() => setScorecardPlayerId(null)}
+      />
+      </>
     );
   }
 

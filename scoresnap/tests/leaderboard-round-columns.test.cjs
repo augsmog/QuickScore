@@ -43,7 +43,7 @@ const { LeaderboardResultsList } = load('src/components/LeaderboardResultsList.t
   react: React,
   'react/jsx-runtime': require('react/jsx-runtime'),
   '@shopify/flash-list': { FlashList: passthroughFlashList },
-  'react-native': { View: 'View', Text: 'Text' },
+  'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable' },
   '../ui/theme': theme,
   '../utils/formatters': { formatToPar: (value) => value === 0 ? 'E' : value > 0 ? `+${value}` : `${value}` },
   '../ui/leaderboard-hole-strip': { lastThreePlayedHoleChips: () => [] },

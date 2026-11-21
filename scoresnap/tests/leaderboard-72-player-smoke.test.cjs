@@ -46,7 +46,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
       holes: Array.from({ length: 18 }, (_, index) => ({ num: index + 1, par: 4 })),
     },
   };
-  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput' };
+  const rn = { View: 'View', Text: 'Text', ScrollView: 'ScrollView', TextInput: 'TextInput', Pressable: 'Pressable' };
   const theme = {
     COLORS: new Proxy({}, { get: (_, key) => String(key) }),
     FONTS: new Proxy({}, { get: (_, key) => String(key) }),
@@ -118,6 +118,7 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     '../ui/leaderboard-hole-strip': load('src/ui/leaderboard-hole-strip.ts', {}),
   });
   deps['../../../src/components/LeaderboardResultsList'] = { LeaderboardResultsList };
+  deps['../../../src/components/PlayerScorecardSheet'] = { PlayerScorecardSheet: () => null };
   const Screen = load('app/contest/[id]/leaderboard.tsx', deps).default;
   let tree;
   try {
