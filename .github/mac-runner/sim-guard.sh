@@ -65,7 +65,7 @@ dedupe_runtimes() {
   xcrun simctl runtime list -j 2>/dev/null | /usr/bin/python3 -c '
 import json,sys
 d=json.load(sys.stdin); rts=list(d.values()) if isinstance(d,dict) else d; g={}
-for r in rts: g.setdefault((r.get("platformIdentifier"),r.get("version")),[]).append(r)
+for r in rts: g.setdefault((r.get("platformIdentifier"),".".join(str(r.get("version","")).split(".")[:2])),[]).append(r)  # 26.4 and 26.4.1 are duplicates
 for rs in g.values():
     rs.sort(key=lambda r:(r.get("lastUsedAt") or "", r.get("build") or ""), reverse=True)
     for r in rs[1:]:
@@ -96,7 +96,10 @@ floor_check() {
 }
 
 case "$MODE" in
-  pre)   shutdown_sims 0; f=$(free_gb); [ "${f:-0}" -lt "$MIN_FREE_GB" ] && clean; floor_check ;;
+  pre)   shutdown_sims 0; f=$(free_gb); [ "${f:-0}" -lt "$MIN_FREE_GB" ] && clean
+         # The hygiene workflow is the repair path: never refuse it, or a low disk could lock the runner for good.
+         if [ "${GITHUB_WORKFLOW:-}" = "mac-runner-hygiene" ]; then floor_check || log "hygiene job allowed below floor"; exit 0; fi
+         floor_check ;;
   post)  shutdown_sims 0; delete_job_sims
          [ -d "$RUNNER_ROOT/_work/_temp" ] && find "$RUNNER_ROOT/_work/_temp" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null
          log "post: free $(free_gb) GB"; exit 0 ;;
