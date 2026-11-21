@@ -10,13 +10,19 @@ on:
       - '.github/workflows/schema-drift.yml'
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'scoresnap/docs/**'
+      - 'reports/**'
+      - 'review/**'
+      - 'evidence-*/**'
   workflow_dispatch:
 permissions:
   contents: read
   packages: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true  # superseded main runs cancel too (Actions minutes, repo private Nov 5)
 # Avoid public.ecr.aws anonymous pull throttling on shared GitHub runners.
 env:
   SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
