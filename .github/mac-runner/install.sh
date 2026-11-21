@@ -6,7 +6,7 @@
 #      com.augieos.mac-watchdog   every 2 min: runner service + remote-access app (KEEP_APPS) kept running, heartbeat
 #      com.augieos.mac-sim-guard  every 30 min: stale sims/emulators stopped, proactive disk cleanup
 #  - the runner's own launchd plist gets RunAtLoad + KeepAlive (restart on crash); runner restart only while idle
-#  - pmset sleep 0 / autorestart 1 (power-failure restart) when passwordless sudo exists; otherwise recorded in
+#  - pmset sleep 0 / autorestart 1 (power-failure restart) when passwordless sudo exists; otherwise recorded locally in
 #    capabilities.json as an owner-only item (never prompts, never pages)
 set -uo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)"
@@ -76,9 +76,9 @@ if sudo -n true 2>/dev/null; then
   sudo -n pmset -a sleep 0 disksleep 0 autorestart 1 womp 1 powernap 0 && pm=applied || pm=failed
 fi
 rm -f "$HOME_DIR/capabilities.json"; /bin/bash "$HOME_DIR/sim-guard.sh" watchdog >/dev/null 2>&1 || true
-echo "mac guard installed: runner_restart_pending=$([ -f "$HOME_DIR/restart-runner.pending" ] && echo yes || echo no) pmset=$pm"
+echo "$(date '+%FT%T%z') pmset=$pm" > "$HOME_DIR/pmset-result.txt"   # local only: job logs are public
+echo "mac guard installed: runner_restart_pending=$([ -f "$HOME_DIR/restart-runner.pending" ] && echo yes || echo no)"
 for l in com.augieos.mac-awake com.augieos.mac-watchdog com.augieos.mac-sim-guard; do
   echo "$l: $(launchctl print "gui/$UIDN/$l" 2>/dev/null | awk -F'= ' '/^\tstate =/{s=$2} /^\tpid =/{p=$2} END{print "state=" s " pid=" p}')"
 done
-cat "$HOME_DIR/capabilities.json" 2>/dev/null
 exit 0

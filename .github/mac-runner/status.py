@@ -5,7 +5,7 @@
   status.py watch     (GitHub-hosted) marks the board OFFLINE when the heartbeat is older than STALE_HOURS
 
 State is carried by labels on that issue so anything can query it: mac-runner-ok, mac-runner-alert,
-mac-runner-offline, mac-runner-needs-owner. Edits and label changes don't email anyone, by design (no paging).
+mac-runner-offline. Edits and label changes don't email anyone, by design (no paging).
 Never fails the job: problems are written to the board, not to a red run.
 """
 import json, os, re, sys, time, urllib.request
@@ -16,7 +16,7 @@ TITLE = "Mac runner status (johns-mac-mini-ios-sim)"
 STALE_H = float(os.environ.get("STALE_HOURS", "3"))
 STATE = os.path.expanduser(os.environ.get("AOS_MAC_HYGIENE_HOME", "~/aos-mac-hygiene"))
 LABELS = {"mac-runner-ok": "0e8a16", "mac-runner-alert": "d93f0b", "mac-runner-offline": "b60205",
-          "mac-runner-needs-owner": "fbca04", "mac-runner-status": "5319e7"}
+          "mac-runner-status": "5319e7"}
 
 
 def api(method, path, body=None):
@@ -59,47 +59,33 @@ def set_labels(iss, on):
 
 
 def publish():
+    # PUBLIC repo: publish only operational numbers. Host/security posture (FileVault, auto-login, sudo, pmset,
+    # hostname, uptime) stays in ~/aos-mac-hygiene/capabilities.json on the Mac and goes to private Linear, never here.
     iss = board()
-    hb, caps, cl, alert = load("heartbeat.json"), load("capabilities.json"), load("last-cleanup.json"), load("alert-disk.json")
+    hb, cl, alert = load("heartbeat.json") or {}, load("last-cleanup.json"), load("alert-disk.json")
     epoch = int(time.time())
-    owner, alerts = [], []
+    alerts = []
     if alert:
         alerts.append(f"Disk: {alert['free_gb']} GB free after full escalating cleanup (floor {alert['floor_gb']} GB). Jobs still run.")
-    if hb and hb.get("runner_service") not in ("running", None):
-        alerts.append(f"Runner service state: {hb.get('runner_service')} (watchdog is restarting it).")
-    if caps:
-        fv = caps.get("filevault", "")
-        if "On" in fv:
-            owner.append("FileVault is on, so after any reboot or power cut the Mac waits at the login screen and no service "
-                         "(runner, Cursor, watchdog) starts until someone logs in. Unattended fix needs the owner: turn FileVault "
-                         "off and enable automatic login for this user (System Settings > Users & Groups).")
-        elif not caps.get("auto_login_user"):
-            owner.append("Automatic login is off, so after a reboot user-session services (runner, Cursor) wait for a login. "
-                         "Owner fix: enable automatic login for this user.")
-        if str(caps.get("pmset_autorestart")) != "1" or str(caps.get("pmset_sleep")) != "0":
-            if not caps.get("passwordless_sudo"):
-                owner.append(f"Power settings need an admin password: autorestart={caps.get('pmset_autorestart')} (want 1, restart after "
-                             f"power failure), sleep={caps.get('pmset_sleep')} (want 0). caffeinate keeps it awake meanwhile. Owner fix: "
-                             "`sudo pmset -a sleep 0 autorestart 1`.")
+    if hb.get("runner_service") not in ("running", None):
+        alerts.append(f"Runner service was {hb.get('runner_service')}; watchdog restarting it.")
     on = {"mac-runner-alert"} if alerts else {"mac-runner-ok"}
-    if owner:
-        on.add("mac-runner-needs-owner")
+    pub = {k: hb.get(k) for k in ("at", "free_gb", "floor_gb", "runner_service", "job_running")}
+    clean = {k: (cl or {}).get(k) for k in ("at", "before_gb", "after_gb", "levels")}
     body = "\n".join([
         f"<!-- hb:{epoch} -->",
-        "Automation-maintained status board for the Mac mini self-hosted runner (AUG-1484). Edited in place; no pings.",
-        f"Last heartbeat from the Mac: **{time.strftime('%Y-%m-%d %H:%M %Z', time.localtime(epoch))}** (hygiene job, hourly).",
+        "Automation-maintained status board for the Mac self-hosted runner (AUG-1484). Edited in place; no pings.",
+        f"Last heartbeat: **{time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(epoch))}** (hygiene job, hourly).",
         "", "## Alerts", *(f"- {a}" for a in alerts or ["none"]),
-        "", "## Owner-only items (recorded once, not paged)", *(f"- {o}" for o in owner or ["none"]),
-        "", "## Heartbeat", "```json", json.dumps(hb, indent=1), "```",
-        "## Last cleanup", "```json", json.dumps(cl, indent=1), "```",
-        "## Reboot/power capabilities", "```json", json.dumps(caps, indent=1), "```",
+        "", "## Status", "```json", json.dumps(pub, indent=1), "```",
+        "## Last cleanup", "```json", json.dumps(clean, indent=1), "```",
     ])
     api("PATCH", f"/repos/{REPO}/issues/{iss['number']}", {"body": body})
     set_labels(iss, on)
-    print(f"status board #{iss['number']} updated: labels={sorted(on)} alerts={len(alerts)} owner_items={len(owner)}")
+    print(f"status board #{iss['number']} updated: labels={sorted(on)} alerts={len(alerts)}")
     summ = os.environ.get("GITHUB_STEP_SUMMARY")
     if summ:
-        open(summ, "a").write(f"Status board #{iss['number']}: {sorted(on)}; cleanup {json.dumps(cl)}\n")
+        open(summ, "a").write(f"Status board #{iss['number']}: {sorted(on)}; cleanup {json.dumps(clean)}\n")
 
 
 def watch():
