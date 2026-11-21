@@ -1,0 +1,101 @@
+name: mac-runner-hygiene
+# Keeps the Mac mini self-hosted runner (self-hosted, ios-sim) from filling its disk.
+# Augie t1585u (Nov 21 2026): clearing old simulators and duplicate runtimes is routine and needs no approval.
+# Root cause: device-layout-gate run 44705203332 attempt 2 failed on the Mac with "No space left on device".
+# Runs every 3 hours, on demand, and on PRs that change it. Fails loudly when free space stays under 25 GB.
+# No checkout on purpose: a full disk can break checkout itself, so the cleanup is inline.
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/mac-runner-hygiene.yml
+permissions:
+  contents: read
+concurrency:
+  group: mac-runner-hygiene
+  cancel-in-progress: false
+jobs:
+  hygiene:
+    runs-on: [self-hosted, ios-sim]
+    timeout-minutes: 20
+    steps:
+      - name: Clean simulators, duplicate runtimes, DerivedData and runner caches; fail if disk stays low
+        shell: bash
+        env:
+          MIN_FREE_GB: "25"
+        run: |
+          # Mac mini self-hosted runner disk hygiene (labels: self-hosted, ios-sim).
+          # Augie t1585u (Nov 21 2026): clearing old simulators and duplicate runtimes is routine; no approval needed.
+          # Root cause it prevents: run 44705203332 attempt 2, ios-sim leg died with "No space left on device".
+          #
+          # Deletes ONLY regenerable developer state:
+          #   - simulator devices whose runtime is gone (simctl delete unavailable)
+          #   - older duplicate simulator runtimes (same platform + version, older build); the newest build is kept
+          #   - Xcode DerivedData, CoreSimulator caches, Xcode/expo/metro caches
+          #   - this runner's _work/_temp and runner _diag logs older than 7 days
+          # Never touches user files, the newest runtime per version, or the runner install.
+          # Runs between jobs (the runner executes one job at a time), so shutting down leftover sims is safe.
+          # Exits 1 with a clear ::error:: when free space stays below MIN_FREE_GB.
+          set -uo pipefail
+          MIN_FREE_GB="${MIN_FREE_GB:-25}"
+          DRY_RUN="${DRY_RUN:-0}"
+          RUNNER_ROOT="${RUNNER_ROOT:-$HOME/actions-runner-quickscore}"
+
+          free_gb() { df -g /System/Volumes/Data 2>/dev/null | awk 'NR==2{print $4}'; }
+          tdu() { perl -e 'alarm shift; exec @ARGV' 60 du -sh "$@" 2>/dev/null; }
+          run() { echo "+ $*"; [ "$DRY_RUN" = 1 ] || "$@"; }
+
+          before=$(free_gb)
+          echo "== free before: ${before} GB (min ${MIN_FREE_GB} GB)"
+          echo "== usage before"
+          tdu "$HOME/Library/Developer/CoreSimulator/Devices" "$HOME/Library/Developer/CoreSimulator/Caches" \
+              "$HOME/Library/Developer/Xcode/DerivedData" "$HOME/Library/Caches" "$RUNNER_ROOT/_work" "$RUNNER_ROOT/_diag" \
+              /Library/Developer/CoreSimulator/Volumes /Library/Developer/CoreSimulator/Images
+          xcrun simctl runtime list 2>&1 | head -20
+
+          echo "== shut down leftover simulators"
+          run xcrun simctl shutdown all || true
+
+          echo "== delete unavailable simulator devices"
+          run xcrun simctl delete unavailable || true
+
+          echo "== delete older duplicate runtimes (keep newest build per platform+version)"
+          xcrun simctl runtime list -j 2>/dev/null | /usr/bin/python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)
+          rts = list(d.values()) if isinstance(d, dict) else d
+          groups = {}
+          for r in rts:
+              key = (r.get("platformIdentifier"), r.get("version"))
+              groups.setdefault(key, []).append(r)
+          for key, rs in groups.items():
+              if len(rs) < 2:
+                  continue
+              rs.sort(key=lambda r: (r.get("lastUsedAt") or "", r.get("build") or ""), reverse=True)
+              for r in rs[1:]:
+                  if r.get("deletable", True) and r.get("state") != "Unusable-InUse":
+                      print(r["identifier"])
+          ' | while read -r rid; do
+            [ -n "$rid" ] && { run xcrun simctl runtime delete "$rid" || echo "::warning::could not delete runtime $rid"; }
+          done
+
+          echo "== developer caches"
+          run rm -rf "$HOME/Library/Developer/Xcode/DerivedData/"* "$HOME/Library/Developer/CoreSimulator/Caches/"* \
+            "$HOME/Library/Caches/com.apple.dt.Xcode/"* "$HOME/.expo/cache" "$TMPDIR/metro-"* "$TMPDIR/haste-map-"* 2>/dev/null || true
+
+          echo "== runner temp and old diag logs"
+          [ -d "$RUNNER_ROOT/_work/_temp" ] && run find "$RUNNER_ROOT/_work/_temp" -mindepth 1 -maxdepth 1 -mmin +30 -exec rm -rf {} + 2>/dev/null
+          [ -d "$RUNNER_ROOT/_diag" ] && run find "$RUNNER_ROOT/_diag" -type f -mtime +7 -delete 2>/dev/null
+
+          after=$(free_gb)
+          echo "== free after: ${after} GB (was ${before} GB)"
+          echo "mac-runner-hygiene: before=${before}GB after=${after}GB min=${MIN_FREE_GB}GB" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          if [ -n "$after" ] && [ "$after" -lt "$MIN_FREE_GB" ]; then
+            echo "== largest home folders (60 s budget each)"
+            for d in "$HOME"/* "$HOME/Library/Developer" "$HOME/Library/Caches" "$HOME/.gradle" "$HOME/.npm"; do tdu "$d"; done | sort -h | tail -12
+            echo "::error::Mac runner has ${after} GB free after cleanup (< ${MIN_FREE_GB} GB). Native iOS legs will fail with 'No space left on device'. Free space outside developer caches (see the largest folders above)."
+            exit 1
+          fi
+          exit 0
