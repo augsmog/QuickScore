@@ -4,13 +4,137 @@ import { calculateSettlement } from './settlement';
 import { calcMatchPlay } from './calculators/match-play';
 import { calcScopedSkins } from './calculators/skins';
 import { calcStableford } from './calculators/stableford';
+import type { PartialImportCell } from '../services/partial-import';
+import { planPartialImportGames, type PartialImportGameState } from '../services/partial-import-games';
 export const scopeKey=(roundId:string|undefined,groupId:string)=>`${roundId??'default'}/${groupId}`;
+// Lazy require, same as the contest-store wrappers: contest-validation.ts imports scopeKey/
+// scopedAuxiliary from this module, so a static import back here would be circular.
+function validateScoreWrite(...args: Parameters<typeof import('./contest-validation').validateScoreWrite>) {
+  if (args[0].gameConfig?.rulesVersion === 1) return require('./contest-validation').validateScoreWrite(...args);
+}
 export function scopedAuxiliary(contest:Contest,groupId:string,roundId?:string):AuxiliaryData {
   if (contest.gameConfig?.rulesVersion!==1) return contest.auxiliaryData??{};
   const scoped=contest.auxiliaryByScope?.[scopeKey(roundId,groupId)];
   if (scoped) return scoped;
   return !contest.isTournament && contest.groups.length===1 ? contest.auxiliaryData??{} : {};
 }
+/** The explicit reviewed-played scope for a partial import, never inferred from scores. */
+export function confirmedPlayedHoles(contest: Contest, roundId: string | undefined, groupId: string): number[] {
+  return [...(contest.confirmedPlayedHolesByScope?.[scopeKey(roundId, groupId)] ?? [])];
+}
+
+/**
+ * Applies a reviewed partial-import patch (AUG-1172/AUG-1396) and records the explicitly
+ * confirmed played-hole scope for the contest/round/group, even when the patch itself is empty
+ * (every reviewed cell was an identical no-op -- see partial-import.ts). Pure and atomic: throws
+ * before any mutation on an invalid patch/scope, and returns the same `contest` reference when
+ * nothing actually changes so a caller can skip persisting/re-rendering.
+ */
+export function applyReviewedPartialImportToContest(
+  contest: Contest,
+  roundId: string | null,
+  groupId: string,
+  patch: readonly PartialImportCell[],
+  playedHoles: readonly number[]
+): Contest {
+  let round: NonNullable<Contest['rounds']>[number] | undefined;
+  if (contest.isTournament) {
+    round = contest.rounds?.find(r => r.id === roundId);
+    if (!round || round.number !== contest.currentRound) throw new Error("Reviewed import round is no longer active");
+  } else if (roundId !== null) {
+    throw new Error("Reviewed import round does not match contest context");
+  }
+  const groups = round?.groups ?? contest.groups;
+  const group = groups.find(g => g.id === groupId);
+  const course = round?.course ?? contest.course;
+  if (!group || !Array.isArray(patch) || !Array.isArray(playedHoles)) throw new Error("Invalid reviewed import group or patch");
+  if (contest.status === "completed") throw new Error("Completed scorecards are locked");
+  if (![9, 18].includes(course.holes.length) || course.holes.some(h => !Number.isInteger(h.num) || h.num < 1 || h.num > 18) ||
+      new Set(course.holes.map(h => h.num)).size !== course.holes.length) throw new Error("Course hole mapping requires manual entry");
+  const courseHoleNums = new Set(course.holes.map(h => h.num));
+  if (!playedHoles.length || playedHoles.some(h => !Number.isInteger(h) || !courseHoleNums.has(h))) {
+    throw new Error("Reviewed import played holes must be explicitly reviewed course holes");
+  }
+
+  const scope = scopeKey(round?.id, groupId);
+  const existingScope = contest.confirmedPlayedHolesByScope?.[scope] ?? [];
+  const mergedScope = [...new Set([...existingScope, ...playedHoles])].sort((a, b) => a - b);
+  const reviewedHoles = new Set(mergedScope);
+
+  const seen = new Set<string>();
+  const cells = patch.map(cell => {
+    if (!cell || typeof cell.playerId !== "string" || !cell.playerId || !Number.isInteger(cell.hole) ||
+        typeof cell.strokes !== "number" || !Number.isSafeInteger(cell.strokes) || cell.strokes < 1 || cell.strokes > 99) {
+      throw new Error("Invalid reviewed import cell");
+    }
+    const playerMatches = group.players.filter(p => p.id === cell.playerId);
+    const holeIndex = course.holes.findIndex(h => h.num === cell.hole);
+    if (playerMatches.length !== 1 || holeIndex < 0) throw new Error("Reviewed import cell is outside the selected group or course");
+    if (!reviewedHoles.has(cell.hole)) throw new Error("Reviewed import cell is outside the explicitly reviewed played-hole scope");
+    const key = JSON.stringify([cell.playerId, cell.hole]);
+    if (seen.has(key)) throw new Error("Reviewed import patch contains duplicate cells");
+    seen.add(key);
+    const player = playerMatches[0];
+    const existing = player.scores[holeIndex];
+    if (existing !== undefined && existing !== null && existing !== 0 && existing !== cell.strokes) {
+      throw new Error("Reviewed import conflicts with an existing score");
+    }
+    validateScoreWrite(contest, groupId, cell.playerId, holeIndex + 1, cell.strokes);
+    return { playerId: cell.playerId, holeIndex, strokes: cell.strokes };
+  });
+
+  const scopeChanged = mergedScope.length !== existingScope.length;
+  const scoreChanged = cells.some(cell => group.players.find(p => p.id === cell.playerId)?.scores[cell.holeIndex] !== cell.strokes);
+  if (!scoreChanged && !scopeChanged) return contest;
+
+  const updatedGroups = groups.map(g => g.id !== groupId ? g : ({
+    ...g,
+    players: g.players.map(p => {
+      const changes = cells.filter(cell => cell.playerId === p.id && p.scores[cell.holeIndex] !== cell.strokes);
+      if (!changes.length) return p;
+      const scores = [...p.scores];
+      for (const cell of changes) scores[cell.holeIndex] = cell.strokes;
+      return { ...p, scores };
+    }),
+  }));
+
+  const confirmedPlayedHolesByScope = { ...(contest.confirmedPlayedHolesByScope ?? {}), [scope]: mergedScope };
+  return round
+    ? { ...contest, confirmedPlayedHolesByScope, rounds: contest.rounds!.map(r => r.id === round!.id ? { ...r, groups: updatedGroups } : r) }
+    : { ...contest, confirmedPlayedHolesByScope, groups: updatedGroups };
+}
+
+/**
+ * Bridges the persisted confirmed-played scope and canonical scoped auxiliary/team data to the
+ * pure `planPartialImportGames` model, so outstanding side-game history questions (AUG-1397) are
+ * asked only for explicitly confirmed-played holes -- never every course hole.
+ */
+export function planPartialImportGamesForScope(
+  contest: Contest,
+  roundId: string | undefined,
+  groupId: string,
+  games: readonly GameType[] = contest.games
+): PartialImportGameState[] {
+  let round: NonNullable<Contest['rounds']>[number] | undefined;
+  if (contest.isTournament) {
+    round = contest.rounds?.find(r => r.id === roundId);
+    if (!round) throw new Error("Unknown or missing tournament round for partial-import game plan");
+  }
+  const group = (round?.groups ?? contest.groups).find(g => g.id === groupId);
+  if (!group) throw new Error("Unknown group for partial-import game plan");
+  const course = round?.course ?? contest.course;
+  const parByHole = Object.fromEntries(course.holes.map(h => [h.num, h.par]));
+  const teamByPlayer = Object.fromEntries(group.players.map(p => [p.id, p.team ?? null]));
+  return planPartialImportGames({
+    games,
+    playedHoles: confirmedPlayedHoles(contest, roundId, groupId),
+    parByHole,
+    teamByPlayer,
+    playerIds: group.players.map(p => p.id),
+    aux: scopedAuxiliary(contest, groupId, round?.id),
+  });
+}
+
 /** Settle constituent rounds with their own courses/events; never sum unrelated hole cards. */
 export function calculateContestSettlement(contest:Contest,games:GameType[]=contest.games,bet=contest.betUnit):SettlementSummary {
   if(contest.gameConfig?.rulesVersion!==1) return calculateSettlement(contest.groups.flatMap(g=>g.players),contest.course,games,bet,contest.auxiliaryData,contest.gameConfig,contest.groups);

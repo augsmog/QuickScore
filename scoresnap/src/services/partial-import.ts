@@ -19,7 +19,7 @@ export interface PartialImportCell {
 }
 
 export type PartialImportResult =
-  | { ok: true; patch: PartialImportCell[]; complete: boolean }
+  | { ok: true; patch: PartialImportCell[]; complete: boolean; playedHoles: number[] }
   | { ok: false; blockers: string[] };
 
 export interface PartialImportInput {
@@ -129,5 +129,8 @@ export function buildPartialImport(input: PartialImportInput): PartialImportResu
 
   if (blockers.length) return { ok: false, blockers };
   patch.sort((a, b) => a.playerId.localeCompare(b.playerId) || a.hole - b.hole);
-  return { ok: true, patch, complete };
+  // The explicitly reviewed played-hole scope, independent of `patch`: a hole whose reviewed
+  // score matched the existing one produces no patch cell (see the no-op `continue` above) but
+  // was still explicitly confirmed played and must not be lost at the confirm boundary.
+  return { ok: true, patch, complete, playedHoles: [...playedHoles].sort((a, b) => a - b) };
 }
