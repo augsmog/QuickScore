@@ -1,19 +1,18 @@
 name: mac-runner-hygiene
-# AUG-1484. Keeps the Mac mini self-hosted runner (self-hosted, ios-sim) healthy unattended.
-# Augie t1585u (Nov 21 2026): runner hygiene needs no approval. 9:19 AM ET Nov 21: a dozen phone emulators were open
-# after a reboot; "There needs to be better hygiene."
-# Root cause it prevents: device-layout-gate run 44705203332 attempt 2 died with "No space left on device".
-#
-# Each run (every 3 h, on demand, and on PRs that touch it):
-#   1. emergency cleanup BEFORE checkout (a full disk breaks checkout itself)
-#   2. installs/refreshes .github/mac-runner: runner job-started/job-completed hooks (enforced on every job on this
-#      runner: stray sims shut down before, all sims shut down + job sims deleted after, even on cancel/timeout;
-#      jobs refused below the 25 GB floor) and a launchd sweep every 30 min for sims booted outside Actions
-#   3. full cleanup (unavailable sims, duplicate runtimes, DerivedData, caches, runner temp/old logs); fails loudly
-#      if free space stays under the floor.
+# AUG-1484. Keeps the Mac mini self-hosted runner (self-hosted, ios-sim) up and with disk to spare, unattended.
+# Owner: t1585u (no approval needed for runner hygiene), t1589u/t1590u ("Jobs not starting isn't the answer, alerting
+# and freeing up disc space so they can run is"; the system keeps the Mac up without bothering Augie).
+# Hourly on the Mac:
+#   1. emergency cleanup before checkout (a full disk breaks checkout itself)
+#   2. install/refresh .github/mac-runner: runner job hooks (never refuse a job; escalating cleanup below the floor),
+#      caffeinate KeepAlive agent, 2-min watchdog (runner service + remote-access app), 30-min sim/disk sweep,
+#      runner plist RunAtLoad+KeepAlive
+#   3. proactive cleanup (starts at 60 GB free, well before the 25 GB floor)
+#   4. publish heartbeat/cleanup/alerts to the "Mac runner status" issue (edited in place; labels carry state)
+# Never fails on disk: low space is cleaned and recorded, not turned into a red run or a page.
 on:
   schedule:
-    - cron: "17 */3 * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
   pull_request:
     paths:
@@ -21,38 +20,39 @@ on:
       - .github/mac-runner/**
 permissions:
   contents: read
+  issues: write
 concurrency:
   group: mac-runner-hygiene
   cancel-in-progress: false
 jobs:
   hygiene:
     runs-on: [self-hosted, ios-sim]
-    timeout-minutes: 20
-    env:
-      MIN_FREE_GB: "25"
+    timeout-minutes: 30
     steps:
       - name: Emergency cleanup before checkout
         shell: bash
         run: |
-          echo "free before: $(df -g /System/Volumes/Data | awk 'NR==2{print $4}') GB"
-          xcrun simctl shutdown all || true
-          xcrun simctl delete unavailable || true
-          rm -rf "$HOME/Library/Developer/Xcode/DerivedData/"* "$HOME/Library/Developer/CoreSimulator/Caches/"* 2>/dev/null || true
-          echo "free after emergency step: $(df -g /System/Volumes/Data | awk 'NR==2{print $4}') GB"
+          f=$(df -g /System/Volumes/Data | awk 'NR==2{print $4}'); echo "free before: $f GB"
+          if [ "$f" -lt 25 ]; then
+            xcrun simctl shutdown all || true; xcrun simctl delete unavailable || true
+            rm -rf "$HOME/Library/Developer/Xcode/DerivedData/"* "$HOME/Library/Developer/CoreSimulator/Caches/"* 2>/dev/null || true
+            echo "free after emergency step: $(df -g /System/Volumes/Data | awk 'NR==2{print $4}') GB"
+          fi
       # Persistent workspace + dangling gitlink (august-industries-site): skip clean + submodules.
       - uses: actions/checkout@v4
         with:
           clean: false
           submodules: false
           sparse-checkout: .github/mac-runner
-      - name: Install/refresh runner hooks + launchd sweep
+      - name: Install/refresh keep-up + hygiene guard
         shell: bash
         run: bash .github/mac-runner/install.sh
-      - name: Full cleanup; fail if free space stays under the floor
+      - name: Proactive cleanup
         shell: bash
-        run: |
-          before=$(df -g /System/Volumes/Data | awk 'NR==2{print $4}')
-          bash "$HOME/aos-mac-hygiene/sim-guard.sh" clean; rc=$?
-          after=$(df -g /System/Volumes/Data | awk 'NR==2{print $4}')
-          echo "mac-runner-hygiene: free ${before} GB -> ${after} GB (floor ${MIN_FREE_GB} GB)" | tee -a "$GITHUB_STEP_SUMMARY"
-          exit $rc
+        run: bash "$HOME/aos-mac-hygiene/sim-guard.sh" hygiene && bash "$HOME/aos-mac-hygiene/sim-guard.sh" watchdog
+      - name: Publish status board
+        if: always()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: /usr/bin/python3 .github/mac-runner/status.py publish

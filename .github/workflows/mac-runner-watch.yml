@@ -1,0 +1,20 @@
+name: mac-runner-watch
+# AUG-1484. Off-Mac watcher on a GitHub-hosted runner (free on this public repo): if the Mac's hourly heartbeat on the
+# "Mac runner status" issue is older than 3 h, the board is labelled mac-runner-offline (edited in place; no pings).
+on:
+  schedule:
+    - cron: "47 * * * *"
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/mac-runner
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 .github/mac-runner/status.py watch
