@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const path = require('node:path');
 const loadTS = require('./helpers/load-ts.cjs');
 const {act} = require('react-test-renderer');
 const nodes = n => !n || typeof n !== 'object' ? [] : Array.isArray(n) ? n.flatMap(nodes) : [n, ...nodes(n.props?.children)];
@@ -181,4 +182,77 @@ test('variation validation blocks both Continue and Start without losing setting
   validate.mockReturnValue('Invalid setup'); h.press('Start');
   expect(validate).toHaveBeenCalledTimes(3); expect(h.addContest).not.toHaveBeenCalled();
   expect(h.byId('contest-step-round-settings')).toBeDefined();
+});
+
+test('Four-Ball copy describes equal partner balances without restricted wording', () => {
+  const setup = fs.readFileSync(path.resolve(__dirname, '../app/contest/new.tsx'), 'utf8');
+  const catalog = fs.readFileSync(path.resolve(__dirname, '../src/engine/types.ts'), 'utf8');
+  expect(setup).toContain('Partners share each team result equally.');
+  expect(catalog).toContain('Partner balances are divided evenly.');
+  expect(catalog).toContain('Unsupported match format.');
+  expect(`${setup}\n${catalog}`).not.toMatch(/\bwinnings\b/i);
+  expect(`${setup}\n${catalog}`).not.toContain('Choose a supported Four-Ball format.');
+});
+
+const pairUp = (h, names) => names.forEach((name, index) => act(() => h.byId(`player-team-${name}-${['A', 'B', 'C'][Math.floor((index % 6) / 2)]}`).onPress()));
+const pickFourBall = h => { h.press('Continue'); act(() => gameCard(h, 'Four-Ball').onPress()); };
+
+test('Six-player Four-Ball setup saves the explicit round robin and pair-score choice', () => {
+  const h = harness('td'); h.seed(6);
+  act(() => h.byId('team-mode').onValueChange(true));
+  h.press('Add Team (2/20)');
+  pairUp(h, h.players().map(player => player.name));
+
+  pickFourBall(h);
+  expect(h.byId('fourball-scoring-better')['accessibilityState']).toEqual({checked: true});
+  expect(h.byId('fourball-scoring-total')['accessibilityState']).toEqual({checked: false});
+  act(() => h.byId('fourball-scoring-total').onPress());
+  act(() => h.byId('fourball-format-round-robin').onPress());
+  expect(h.byId('fourball-scoring-total')['accessibilityState']).toEqual({checked: true});
+  expect(h.byId('fourball-format-round-robin')['accessibilityState']).toEqual({checked: true});
+
+  h.press('Continue'); h.press('Start');
+  expect(h.addContest).toHaveBeenCalledTimes(1);
+  const saved = h.addContest.mock.calls[0][0];
+  expect(saved.games).toContain('fourball');
+  expect(saved.gameConfig).toMatchObject({rulesVersion: 1, fourBallScoring: 'total', fourBallFormat: 'round_robin'});
+  expect(saved.groups[0].players.map(player => player.team)).toEqual(['A', 'A', 'B', 'B', 'C', 'C']);
+});
+
+test('Six-player round-robin control remains available when every tournament group has three complete pairs', () => {
+  const h = harness('td'); h.seed(12); act(() => h.byId('add-group').onPress());
+  act(() => h.byId('team-mode').onValueChange(true));
+  h.press('Add Team (2/20)');
+  const names = h.players().map(player => player.name);
+  names.slice(6).forEach(name => act(() => h.byId(`player-group-${name}`).onPress()));
+  pairUp(h, names.slice(0, 6)); pairUp(h, names.slice(6));
+
+  pickFourBall(h);
+  act(() => h.byId('fourball-format-round-robin').onPress());
+  h.press('Continue'); h.press('Start');
+
+  expect(h.addContest).toHaveBeenCalledTimes(1);
+  expect(h.addContest.mock.calls[0][0].gameConfig.fourBallFormat).toBe('round_robin');
+  expect(h.addContest.mock.calls[0][0].groups.map(group => group.players.map(player => player.team))).toEqual([
+    ['A', 'A', 'B', 'B', 'C', 'C'], ['A', 'A', 'B', 'B', 'C', 'C'],
+  ]);
+});
+
+test('A selected round robin remains visible to clear after removing a pair', () => {
+  const h = harness('td'); h.seed(6); act(() => h.byId('team-mode').onValueChange(true)); h.press('Add Team (2/20)');
+  const names = h.players().map(player => player.name);
+  pairUp(h, names);
+  pickFourBall(h);
+  act(() => h.byId('fourball-format-round-robin').onPress());
+  h.press('Back');
+  for (const name of names.slice(-2)) act(() => h.byId(`remove-player-${name}`).onPress());
+
+  h.press('Continue');
+  expect(h.byId('fourball-format-round-robin')['accessibilityState']).toEqual({checked: true});
+  act(() => h.byId('fourball-format-round-robin').onPress());
+  expect(nodes(h.render()).some(node => node.props?.testID === 'fourball-format-round-robin')).toBe(false);
+  h.press('Continue'); h.press('Start');
+  expect(h.addContest).toHaveBeenCalledTimes(1);
+  expect(h.addContest.mock.calls[0][0].groups[0].players).toHaveLength(4);
+  expect(h.addContest.mock.calls[0][0].gameConfig.fourBallFormat).toBeUndefined();
 });
