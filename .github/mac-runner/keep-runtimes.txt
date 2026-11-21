@@ -1,0 +1,3 @@
+# Simulator runtimes a workflow uses (never pruned at level 5). The newest runtime per platform is always kept.
+# scoresnap/e2e/device-layout/scripts/run-ios-sim.sh pins iOS-26-4; .maestro/scripts/run-ios-sim.sh uses the newest.
+26.4

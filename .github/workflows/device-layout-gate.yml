@@ -64,6 +64,8 @@ jobs:
                 ui=true; native=true ;;  # app UI: full native evidence on BOTH platforms (owner card t1550s9640)
               scoresnap/e2e/device-layout/**|.github/workflows/device-layout-gate.yml)
                 ui=true ;;  # the gate's own code: layers 1-2 (unit tests + rubric self-check)
+              .github/mac-runner/*|.github/workflows/mac-runner-hygiene.yml|.github/workflows/mac-runner-watch.yml)
+                : ;;  # Mac runner hygiene (AUG-1484): runner ops, not app UI
               *.md|docs/**|**/*.md|LICENSE|.gitignore)
                 : ;;  # doc-only candidate
               *)
