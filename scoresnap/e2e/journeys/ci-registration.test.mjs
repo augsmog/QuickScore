@@ -23,7 +23,7 @@ function registered(m,w){
   assert.equal(step['continue-on-error'],undefined);
  }
  assert.equal((contracts.run.match(/node --test /g)||[]).length,4);
- for(const file of ['metrics','glyph-evidence','glyph-evidence.browser','paywall-recovery','reach-report','paywall-badge.browser','acceptance-fixtures','offline-containment','punctuation-reference','probe-target','settlement-row-contract','text-fragments','focused-fixtures','fixture-origin','game-rules','ci-registration','punctuation-reference.browser','review-negative.browser','value-dom-regressions.browser','settled-timestamp.browser'])assert(contracts.run.includes(`${file}.test.mjs`),file);
+ for(const file of ['metrics','glyph-evidence','glyph-evidence.browser','paywall-recovery','reach-report','paywall-badge.browser','acceptance-fixtures','offline-containment','punctuation-reference','probe-target','settlement-row-contract','text-fragments','focused-fixtures','fixture-origin','game-rules','ci-registration','layout-targets','punctuation-reference.browser','review-negative.browser','value-dom-regressions.browser','settled-timestamp.browser'])assert(contracts.run.includes(`${file}.test.mjs`),file);
  const browser=contracts.run.split('\n').find(line=>line.includes('fixture-controls'));
  assert(browser,'browser contract command');
  for(const file of ['capture-layout.browser.test.mjs','home-rank-layout.browser.test.mjs'])assert(browser.includes(file),`missing strict geometry or product regression: ${file}`);
@@ -47,7 +47,7 @@ function registered(m,w){
  assert.match(proJourney.run,/BASE_URL=http:\/\/127\.0\.0\.1:8094 OUT_DIR=e2e\/journey-screens\/pro-on-negative node e2e\/journeys\/pro-off-free\.mjs/);
  assert.match(proJourney.run,/negative_status=\$\?/);
  assert.match(proJourney.run,/if \[ "\$negative_status" -eq 0 \]; then[\s\S]*?exit 1/);
- assert.match(proJourney.run,/grep -E 'FIRST_PRO_GATE \(skins-create\|settlement\):' e2e\/journey-screens\/pro-on-negative\/run\.log/);
+ assert.match(proJourney.run,/grep -E 'FIRST_PRO_GATE \(skins-create\|settlement\|home-game-info\):' e2e\/journey-screens\/pro-on-negative\/run\.log/);
  const exportIndex=w.jobs['build-standard'].steps.indexOf(exports);
  const journeyIndex=w.jobs['build-standard'].steps.indexOf(proJourney);
  assert(journeyIndex>exportIndex,'journey must run after both isolated exports');

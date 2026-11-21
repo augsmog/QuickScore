@@ -1,0 +1,34 @@
+{
+  "schema": "snapscore-store-capture/1",
+  "ticket": "AUG-1279",
+  "refs": ["AUG-399", "AUG-1265"],
+  "execution": {
+    "target": "existing-accepted-release-mapped-simulator-app",
+    "deviceExecution": false,
+    "newBuild": false,
+    "ascUpload": false,
+    "assetGeneration": false,
+    "copyChanges": false,
+    "listingSource": "docs/APP_STORE_LISTING.md"
+  },
+  "overlays": { "provider": "DotBot", "mode": "reuse-staged-unchanged" },
+  "targets": [
+    { "id": "iphone-6.9", "family": "iPhone", "displayInches": 6.9, "width": 1320, "height": 2868 },
+    { "id": "ipad-13", "family": "iPad", "displayInches": 13, "width": 2064, "height": 2752 }
+  ],
+  "frames": [
+    { "n": 1, "id": "setup-round", "caption": "Set up your round" },
+    { "n": 2, "id": "add-group", "caption": "Add your group" },
+    { "n": 3, "id": "game-modes", "caption": "50+ game modes" },
+    { "n": 4, "id": "score-hole", "caption": "Score hole by hole" },
+    { "n": 5, "id": "leaderboard", "caption": "See who's leading" },
+    { "n": 6, "id": "side-games", "caption": "Your side games, tracked" },
+    { "n": 7, "id": "settle-up", "caption": "See who owes what" },
+    { "n": 8, "id": "scan-card", "caption": "Got a paper card?" }
+  ],
+  "manifest": {
+    "outputFile": "manifest.json",
+    "requiredProvenance": ["buildId", "sourceSha", "configSha256", "simulatorRuntime", "capturedAt"],
+    "requiredEntryFields": ["target", "frame", "file", "width", "height", "sha256"]
+  }
+}

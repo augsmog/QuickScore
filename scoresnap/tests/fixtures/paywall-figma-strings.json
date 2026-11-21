@@ -195,7 +195,7 @@
     "1:239": {
       "id": "1:239",
       "path": "Content > CTA",
-      "characters": "One trial per Apple ID across Pro and Tournament Director.",
+      "characters": "One Pro trial per Apple ID.",
       "font": "Regular",
       "size": 11,
       "fill": "#5b665f"
@@ -416,7 +416,7 @@
     "1:318": {
       "id": "1:318",
       "path": "Content > CTA",
-      "characters": "One trial per Apple ID across Pro and Tournament Director.",
+      "characters": "One Pro trial per Apple ID.",
       "font": "Regular",
       "size": 11,
       "fill": "#5b665f"

@@ -33,6 +33,34 @@ try {
   await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
   trace.push({ type: 'boot', url: page.url(), onboarding: await page.evaluate(() => localStorage.getItem('snapscore-onboarding')) });
   await page.getByTestId('home-new-contest').waitFor({ state: 'visible' });
+
+  // AUG-1263: Home's game-info sheet (reached via "See All" game modes) is the one surface the
+  // Nov 11 no-Pro sweep found still showing a gold PRO badge on a formerly-paid game. Open it on
+  // Skins -- Pro-gated while the flag is on, free while it is off -- before the badge code is
+  // exercised any other way, so a regression here is caught by the actual rendered DOM.
+  await page.getByTestId('home-see-all-modes').click();
+  const gameInfoRow = page.getByTestId('game-mode-row-skins');
+  await gameInfoRow.waitFor({ state: 'visible' });
+  await gameInfoRow.click();
+  const gameInfoSheet = page.getByTestId('game-info-sheet');
+  await gameInfoSheet.waitFor({ state: 'visible' });
+  const gameInfoText = (await gameInfoSheet.innerText()).replace(/\s+/g, ' ').trim();
+  // This same script also runs as the flag-ON negative proof (see web-smoke.yml), where Skins'
+  // PRO badge is expected to render -- follow the same FIRST_PRO_GATE idiom as the skins-create
+  // and settlement gates below instead of a plain assert, so that run still fails at the first
+  // gate (not the first CI-breaking surprise) and the grep for FIRST_PRO_GATE still finds it.
+  if (/\bPRO\b/.test(gameInfoText)) {
+    await page.screenshot({ path: path.join(out, 'first-pro-gate-home-game-info.png'), fullPage: true });
+    trace.push({ type: 'first-pro-gate', screen: 'home-game-info', text: gameInfoText });
+    fs.writeFileSync(path.join(out, 'run-log.json'), JSON.stringify(trace, null, 2));
+    console.error(`FIRST_PRO_GATE home-game-info: ${gameInfoText}`);
+    throw new Error('Flag-on journey stopped at the first Pro gate on the Home game-info sheet');
+  }
+  await page.screenshot({ path: path.join(out, 'home-game-info-skins.png'), fullPage: true });
+  trace.push({ type: 'home-game-info', text: gameInfoText });
+  await page.getByTestId('game-info-close').click();
+  await gameInfoSheet.waitFor({ state: 'hidden' });
+
   await page.getByTestId('home-new-contest').click();
   await page.getByPlaceholder('Your name', { exact: true }).fill('Flag Off Golfer');
   await page.getByPlaceholder('Player 2 name', { exact: true }).fill('Flag Off Partner');
@@ -111,6 +139,27 @@ try {
   assert.match(statsText, /Statistics/);
   await page.screenshot({ path: path.join(out, 'statistics.png'), fullPage: true });
   trace.push({ type: 'statistics', text: statsText.slice(0, 1200) });
+
+  // AUG-1263: the paywall still has to sell Tournament Director while pro_enabled is off (it is
+  // the one surface that stays paid), but the Pro plan row -- unpurchasable while the flag is
+  // off -- must not ride along. Go straight to the TD-upsell route a free user actually lands on.
+  await page.goto(`${base}/paywall?tier=td`, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Tournament Director', { exact: true }).first().waitFor({ state: 'visible' });
+  const paywallText = (await page.locator('body').innerText()).replace(/\s+/g, ' ').trim();
+  assert.doesNotMatch(paywallText, /\$24\.99|\$3\.99|Recommended/, 'Pro plan must not be offered on the paywall while pro_enabled is off');
+  // AUG-1263: the Nov 11 no-Pro sweep named these four exact leftover strings on this screen
+  // (SNAPSCORE PRO eyebrow, the enforced-3-scans free body, "Everything in Pro" TD body, and the
+  // Pro/TD shared-trial line); checking only price/Recommended let all four ride along uncaught.
+  assert.doesNotMatch(paywallText, /SNAPSCORE PRO/, 'paywall must not show the Pro-era eyebrow while pro_enabled is off');
+  assert.doesNotMatch(paywallText, /Core games.{0,3}3 scans a month/, 'paywall must not claim an enforced scan cap while pro_enabled is off');
+  assert.doesNotMatch(paywallText, /Everything in Pro/, 'paywall must not describe Tournament Director relative to Pro while pro_enabled is off');
+  assert.doesNotMatch(paywallText, /across Pro and Tournament Director/, 'paywall trial line must not reference Pro while pro_enabled is off');
+  assert.doesNotMatch(paywallText, /free trial|7-day|one trial/i, 'Tournament Director has no free trial: no trial tag, CTA or line may render (t1517u)');
+  assert.match(paywallText, /Tournament Director/);
+  assert.match(paywallText, /\$79\.99|\$12\.99/, 'Tournament Director purchase path must still work');
+  await page.screenshot({ path: path.join(out, 'paywall-td-only.png'), fullPage: true });
+  trace.push({ type: 'paywall-td-only', text: paywallText.slice(0, 1200) });
+
   assert.deepEqual(trace.filter(x => x.type === 'pageerror'), [], 'page must not report runtime errors');
   fs.writeFileSync(path.join(out, 'run-log.json'), JSON.stringify(trace, null, 2));
   console.log('PRO_OFF_FREE_PASS: skins selected, settlement amount rendered, Statistics opened without a Pro gate');

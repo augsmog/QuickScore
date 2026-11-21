@@ -8,7 +8,7 @@
  * snapscore.td.annual ($79.99/yr), snapscore.td.monthly ($12.99/mo).
  * Entitlements: "SnapScore Pro" and "SnapScore TD" (TD grants both).
  * One SnapScore subscription group: TD level 1, Pro level 2.
- * Annual plans offer an eligible 7-day trial, once per Apple ID per group.
+ * Tournament Director has no free trial (owner t1517u). Only the dormant Pro annual plan can offer an eligible 7-day trial.
  */
 
 import { Platform, NativeModules } from "react-native";

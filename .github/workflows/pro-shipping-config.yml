@@ -22,3 +22,5 @@ jobs:
         run: node --test scoresnap/scripts/ci/pro-enabled-shipping-config.node.cjs
       - name: Verify workflow trigger contract
         run: node --test scoresnap/scripts/ci/pro-enabled-workflow-trigger.node.cjs
+      - name: Validate store-capture config
+        run: node --test scoresnap/e2e/store-capture/validate-capture.test.mjs scoresnap/e2e/store-capture/capture-runner.test.mjs
