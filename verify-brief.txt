@@ -1,0 +1,32 @@
+VERIFY BRIEF — AUG-1373 screen coverage gate (QuickScore PR #333, head 5108034e9daba15847d5f7c6f8460672c47533f5)
+
+WHAT THIS CHANGE IS
+A per-PR CI gate that keeps a release-bound route/state coverage manifest in sync with SnapScore route files, so native visual acceptance coverage of scoresnap/app/** screens cannot silently regress. It is the CODE half of AUG-1373; the native screenshot/geometry-assertion execution half is split to AUG-1376.
+
+FILES (6, +531 lines, all new except package.json):
+- scoresnap/scripts/check-screen-coverage.mjs      (validator; exports validateCoverage)
+- scoresnap/scripts/check-screen-coverage.test.mjs (node:test suite, 15 cases)
+- scoresnap/e2e/screen-coverage/coverage-manifest.json (registry: 23 visual screens pending, 6 exempt)
+- scoresnap/e2e/screen-coverage/README.md
+- .github/workflows/screen-coverage-gate.yml       (ubuntu per-PR gate on app/manifest paths)
+- scoresnap/package.json                            (adds coverage:screens, test:screen-coverage scripts)
+
+ACCEPTANCE CRITERIA TO CONFIRM
+1. node scripts/check-screen-coverage.mjs exits 0 on the current tree and reports every route file registered.
+2. node --test scripts/check-screen-coverage.test.mjs passes all 15 cases.
+3. The gate FAILS (exit 1) when a route file under scoresnap/app/** is not registered in the manifest (the core "missing coverage fails acceptance" behavior). Verify by creating a temp app/*.tsx, running the validator (expect exit 1 + "unregistered route file"), then deleting it.
+4. The validator does not silently skip files: it requires every app/**/*.tsx to be present in the manifest (screen or layout/special/dev with a reason).
+5. coverage-manifest.json is internally consistent: no 'covered' screen claims without flows/screenshots/both required device ids/assertions; flow-id refs would be validated against .maestro/e2e.config.json (today all screens are 'pending', which is honest — no native run at 393x852+402x874 with geometry assertions exists yet).
+6. The workflow YAML is valid and triggers on scoresnap/app/** + manifest + validator paths.
+7. No app runtime/source behavior is changed (only e2e/scripts/workflow/package.json scripts added).
+
+COMMANDS (run from the worktree; it is read-only — create temp files only if needed and clean up, or note you could not):
+  cd <worktree>/scoresnap
+  node scripts/check-screen-coverage.mjs ; echo exit=$?
+  node --test scripts/check-screen-coverage.test.mjs ; echo exit=$?
+  python3 -c "import yaml;yaml.safe_load(open('../.github/workflows/screen-coverage-gate.yml'));print('yaml ok')"
+Note: the worktree is read-only; if you cannot create the temp unregistered-file file, reason about item 3 from the validator source (the final loop over onDisk that pushes "unregistered route file" errors) instead.
+
+END YOUR REPLY WITH EXACTLY ONE OF:
+  VERDICT: PASS
+  or one line per failing check:  FAILING-CHECK: <check> -- <evidence>
