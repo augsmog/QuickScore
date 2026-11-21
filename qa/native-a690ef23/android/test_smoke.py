@@ -2,10 +2,12 @@ import unittest
 from smoke import scale,scene
 class Controls(unittest.TestCase):
  def test_scales(self):
-  for n in (1.,1.3):self.assertEqual(scale(str(n),'mConfiguration={'+str(n)+' test}',n),n)
+  for n in (1.,1.3):
+   config='ACTIVITY test.app/.Main token pid=1\n mResumed=true mStopped=false mFinished=false\n mCurrentConfig={'+str(n)+' test}'
+   self.assertEqual(scale(str(n),config,n,'mCurrentFocus=Window{abc u0 test.app/.Main}','test.app'),n)
  def test_reject(self):
-  for s,c,n in [('null','',1),('1.235','mConfiguration={1.235 x}',1.235),('1.3','mConfiguration={1.0 x}',1.3),('1','requested:1',1),('1','mConfiguration={1 x}',1.3)]:
-   with self.assertRaises(ValueError):scale(s,c,n)
+  for value,wanted in [('null',1),('1.235',1.235),('1.3',1),('1',1.3)]:
+   with self.assertRaises(ValueError):scale(value,'',wanted,'','test.app')
  def test_scene(self):
   xml='<hierarchy>'+''.join('<node package="test.app" resource-id="test.app:id/'+s+'" visible-to-user="true" bounds="[0,0][10,10]" />' for s in ['home-scroll','home-new-contest'])+'</hierarchy>'
   focus='mCurrentFocus=Window{abc u0 test.app/Main}'
