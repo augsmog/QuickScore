@@ -182,6 +182,9 @@ export const useContestStore = create<ContestState>()(
         set((state) => ({
           contests: state.contests.map((c) => {
             if (c.id !== contestId) return c;
+            const scoringRound = c.isTournament ? c.rounds?.find(r => r.number === c.currentRound) : undefined;
+            const scoreIndex = (scoringRound?.course ?? c.course).holes.findIndex(h => h.num === hole);
+            if (scoreIndex < 0) throw new Error("Invalid score entry");
             validateScoreWrite(c,groupId,playerId,hole,strokes);
             // Restored single rounds can have an ID distinct from the contest.
             // Resolve that round through the same ID map used by tournament sync.
@@ -225,7 +228,7 @@ export const useContestStore = create<ContestState>()(
                         players: g.players.map((p) => {
                           if (p.id !== playerId) return p;
                           const newScores = [...p.scores];
-                          newScores[hole - 1] = strokes;
+                          newScores[scoreIndex] = strokes;
                           return { ...p, scores: newScores };
                         }),
                       };
@@ -244,7 +247,7 @@ export const useContestStore = create<ContestState>()(
                   players: g.players.map((p) => {
                     if (p.id !== playerId) return p;
                     const newScores = [...p.scores];
-                    newScores[hole - 1] = strokes;
+                    newScores[scoreIndex] = strokes;
                     return { ...p, scores: newScores };
                   }),
                 };

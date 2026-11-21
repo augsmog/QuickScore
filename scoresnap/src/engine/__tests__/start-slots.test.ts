@@ -17,7 +17,7 @@ function contest({
   groups?: Contest["groups"];
 } = {}): Contest {
   return {
-    id: "c1", name: "Test", course: { holes: Array.from({ length: holes }, (_, i) => ({ number: i + 1 })) } as any,
+    id: "c1", name: "Test", course: { holes: Array.from({ length: holes }, (_, i) => ({ num: i + 1 })) } as any,
     status: "active", betUnit: 0, hasTeams: false, groups, games: [], createdAt: "2026-11-11T00:00:00Z",
     isTournament, rounds,
   };
@@ -38,7 +38,7 @@ describe("contest start slots", () => {
   it("validates each tournament round against that round's course", () => {
     const tournament = contest({ isTournament: true, rounds: [
       { id: "r1", number: 1, name: "18-hole", groups: [{ id: "g1", name: "G1", players: [], startSlot: { hole: 18 } }] },
-      { id: "r2", number: 2, name: "9-hole", course: { holes: Array.from({ length: 9 }, (_, i) => ({ number: i + 1 })) } as any, groups: [{ id: "g2", name: "G2", players: [], startSlot: { hole: 9 } }] },
+      { id: "r2", number: 2, name: "9-hole", course: { holes: Array.from({ length: 9 }, (_, i) => ({ num: i + 1 })) } as any, groups: [{ id: "g2", name: "G2", players: [], startSlot: { hole: 9 } }] },
     ] });
     validateStartSlots(tournament);
     tournament.rounds![1].groups[0].startSlot = { hole: 10 };

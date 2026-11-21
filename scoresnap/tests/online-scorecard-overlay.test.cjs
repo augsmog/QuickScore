@@ -1,7 +1,7 @@
 const fs=require('fs'),ts=require('typescript');
 function load(p,deps={}){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync(p,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(n=>{if(n in deps)return deps[n];throw Error(n)},m,m.exports);return m.exports;}
 const {overlayScorecard}=load('src/services/scorecard-overlay.ts');
-const fixture=()=>{const groups=[{id:'g',players:[{id:'p',scores:[0,8,0]},{id:'q',scores:[3,0,0]}]}];return {id:'c',groups,rounds:[{id:'lr',groups}],onlineEdits:{'["lr","p",2]':{token:'new',strokes:8}}};};
+const fixture=()=>{const groups=[{id:'g',players:[{id:'p',scores:[0,8,0]},{id:'q',scores:[3,0,0]}]}];return {id:'c',course:{holes:[{num:1},{num:2},{num:3}]},groups,rounds:[{id:'lr',groups}],onlineEdits:{'["lr","p",2]':{token:'new',strokes:8}}};};
 const snapshot={contest_id:'c',protocol:1,id_map:[{kind:'round',local_id:'lr',server_id:'sr'},{kind:'player',local_id:'p',server_id:'sp'}],rounds:[{id:'sr',players:[{id:'sp',cells:[{hole:1,strokes:5},{hole:2,strokes:4},{hole:3,strokes:null}]},{id:'q',cells:[{hole:1,strokes:null}]}]}]};
 test('maps round/player IDs, overlays remote cells and clears, preserves pending/conflicted local edit without mutation',()=>{const c=fixture(),before=JSON.stringify(c),out=overlayScorecard(c,snapshot);expect(out.rounds[0].groups[0].players[0].scores).toEqual([5,8,0]);expect(out.rounds[0].groups[0].players[1].scores[0]).toBe(0);expect(JSON.stringify(c)).toBe(before);expect(out.rounds[0].groups[0].players[0].scores.reduce((a,b)=>a+b,0)).toBe(13);});
 test('missing/foreign snapshot and unmapped rounds leave local scores intact; protocol round uses contest ID',()=>{const c=fixture();expect(overlayScorecard(c)).toBe(c);expect(overlayScorecard(c,{...snapshot,contest_id:'other'})).toBe(c);expect(overlayScorecard(c,snapshot).groups).toBe(c.groups);const out=overlayScorecard(c,{...snapshot,rounds:[{...snapshot.rounds[0],id:'c'}]});expect(out.groups[0].players[0].scores).toEqual([5,4,0]);});
@@ -9,7 +9,7 @@ test('use mine retains its marker until acceptance; keep current releases all ca
 test('offline restart edits are protected before a snapshot; settling an older edit cannot release a successor; feature off keeps local shape',()=>{
  let sharing=true,uuid=0;const keys=load('src/stores/persisted-keys.ts');
  const svc=load('src/stores/contest-store.ts',{'./online-store':{useOnlineStore:{getState:()=>({events:{}})}},'../services/ocr-review':{},'../config/auth':{REAL_AUTH_CONFIGURED:true},'../config/features':{get CROSS_DEVICE_SHARING_ENABLED(){return sharing;}},'./auth-store':{},'../services/guest-join':{},zustand:require('zustand'),'zustand/middleware':{persist:f=>f,createJSONStorage:()=>({})},'@react-native-async-storage/async-storage':{},'./persisted-keys':keys,'../services/tournament-sync':{},'expo-crypto':{randomUUID:()=>String(++uuid)}});
- const store=svc.useContestStore,c={id:'c',groups:[{id:'g',players:[{id:'p',scores:[0]}]}]};store.setState({contests:[c]});
+ const store=svc.useContestStore,c={id:'c',course:{holes:[{num:1}]},groups:[{id:'g',players:[{id:'p',scores:[0]}]}]};store.setState({contests:[c]});
  store.getState().updateScore('c','g','p',1,5);const first=store.getState().contests[0].onlineEdits['["c","p",1]'].token;
  store.getState().updateScore('c','g','p',1,6);svc.settleOnlineEdit('c',first);expect(store.getState().contests[0].onlineEdits['["c","p",1]'].strokes).toBe(6);
  const second=store.getState().contests[0].onlineEdits['["c","p",1]'].token;svc.settleOnlineEdit('c',second);expect(store.getState().contests[0].onlineEdits).toEqual({});
@@ -21,4 +21,12 @@ test('interrupted settlement recovers on restart without transmitting an accepte
  const draft={contest_id:'c',round_id:'r',player_id:'p',hole:1,action:'set',strokes:5};
  const box=scoreOutbox(storage,'a',()=> 'op',send,()=>{throw Error('interrupted');});await box.enqueue(draft,0,'token');await expect(box.replay()).rejects.toThrow('interrupted');
  const settled=jest.fn();const restored=scoreOutbox(storage,'a',()=> 'other',send,settled);await restored.replay();expect(sends).toBe(1);expect(settled.mock.calls[0][0][0].localEdit).toBe('token');expect((await restored.inspect()).entries).toEqual([]);
+});
+test('numbered back-nine remote cells and pending local edits overlay their course positions',()=>{
+ const course={holes:Array.from({length:9},(_,i)=>({num:i+10}))};
+ const c={...fixture(),course,rounds:[{...fixture().rounds[0],course}],onlineEdits:{'["lr","p",12]':{token:'new',strokes:7}}};
+ c.rounds[0].groups[0].players[0].scores=Array(9).fill(0);
+ const s={...snapshot,rounds:[{...snapshot.rounds[0],players:[{id:'sp',cells:[{hole:10,strokes:5},{hole:12,strokes:4},{hole:1,strokes:99}]}]}]};
+ const before=JSON.stringify(c),out=overlayScorecard(c,s).rounds[0].groups[0].players[0].scores;
+ expect(out).toEqual([5,0,7,0,0,0,0,0,0]);expect(JSON.stringify(c)).toBe(before);
 });

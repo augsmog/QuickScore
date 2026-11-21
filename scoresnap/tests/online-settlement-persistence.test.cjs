@@ -3,7 +3,7 @@ function load(p,deps={}){const m={exports:{}};new Function('require','module','e
 const {scoreOutbox}=load('src/services/score-outbox.ts');
 const {overlayScorecard}=load('src/services/scorecard-overlay.ts');
 const key='["c","p",1]',draft={contest_id:'c',round_id:'c',player_id:'p',hole:1,action:'set',strokes:5};
-const contest={id:'c',groups:[{id:'g',players:[{id:'p',scores:[5]}]}],onlineEdits:{[key]:{token:'token',strokes:5}}};
+const contest={id:'c',course:{holes:[{num:1}]},groups:[{id:'g',players:[{id:'p',scores:[5]}]}],onlineEdits:{[key]:{token:'token',strokes:5}}};
 const snapshot={protocol:1,contest_id:'c',id_map:[],rounds:[{id:'c',players:[{id:'p',cells:[{hole:1,strokes:7}]}]}]};
 const tick=()=>new Promise(r=>setImmediate(r));
 function storage(){let raw=JSON.stringify({state:{contests:[contest],activeContestId:null},version:0});return {
