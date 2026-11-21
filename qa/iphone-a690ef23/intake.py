@@ -17,6 +17,35 @@ def sanitize(receipt,png):
  build=receipt.get('buildSha256','')
  if not re.fullmatch('[a-f0-9]{64}',build):raise ValueError('BUILD_DIGEST_MISSING')
  return {'sourceSha':SHA,'sourceTree':TREE,'buildSha256':build,'scene':receipt['scene'],'observedSimulatorCategory':category,'stockRNReferenceMultiplier':CATEGORIES[category],'runtimeRNScale':None,'pngSha256':h,'deviceModel':'iPhone 16 Pro','offlineSynthetic':True,'geometryPassed':False,'nativeAcceptance':False,'aggregatePass':False}
+RUNTIME_ID='com.apple.CoreSimulator.SimRuntime.iOS-26-4'
+def select_runtime(inventory):
+ # Only typed, bounded iOS tuples may reach public status; never names/paths/errors.
+ result={'iosRuntimes':[],'selected':None,'reason':'IOS_RUNTIME_INVENTORY_INVALID'}
+ if not isinstance(inventory,dict) or not isinstance(inventory.get('runtimes'),list):return result
+ rows=inventory['runtimes']
+ if len(rows)>128:result['reason']='IOS_RUNTIME_INVENTORY_LIMIT';return result
+ invalid=False
+ for row in rows:
+  if not isinstance(row,dict):invalid=True;continue
+  identifier=row.get('identifier')
+  if not isinstance(identifier,str):invalid=True;continue
+  if not identifier.startswith('com.apple.CoreSimulator.SimRuntime.iOS-'):continue
+  if not re.fullmatch(r'com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9]{1,3}(?:-[0-9]{1,3}){1,2}',identifier):invalid=True;continue
+  version=row.get('version');available=row.get('isAvailable')
+  if not isinstance(version,str) or not re.fullmatch(r'[0-9]{1,3}(?:\.[0-9]{1,3}){1,2}',version):version=None;invalid=True
+  if type(available) is not bool:available=None;invalid=True
+  result['iosRuntimes'].append({'identifier':identifier,'version':version,'isAvailable':available})
+ if len(result['iosRuntimes'])>32:result['iosRuntimes']=[];result['reason']='IOS_RUNTIME_INVENTORY_LIMIT';return result
+ if invalid:return result
+ def exact_version(version):return version in ('26.4','26.4.0')
+ matches=[r for r in result['iosRuntimes'] if r['identifier']==RUNTIME_ID or exact_version(r['version'])]
+ if not matches:result['reason']='IOS_26_4_RUNTIME_MISSING'
+ elif len(matches)!=1:result['reason']='IOS_26_4_RUNTIME_AMBIGUOUS'
+ elif matches[0]['identifier']!=RUNTIME_ID or not exact_version(matches[0]['version']):result['reason']='IOS_26_4_IDENTITY_MISMATCH'
+ elif matches[0]['isAvailable'] is not True:result['reason']='IOS_26_4_RUNTIME_UNAVAILABLE'
+ else:result.update(selected=RUNTIME_ID,reason='SELECTED')
+ return result
+
 def main():
  guard(os.environ) # Must run before any native call, source fetch, output or device mutation.
  for tool in ['xcrun','xcodebuild','node','npm','pod','maestro']:
@@ -30,8 +59,11 @@ def main():
   private=pathlib.Path(private);capture=private/'capture';name='SnapScore-QA-a690ef23-'+uuid.uuid4().hex[:12]
   try:
    if 'Xcode 26.4.1' not in cmd(['xcodebuild','-version']):raise ValueError('XCODE_VERSION_MISMATCH')
-   runtime=[r for r in json.loads(cmd(['xcrun','simctl','list','runtimes','--json']))['runtimes'] if r.get('isAvailable') is True and r.get('version')=='26.4' and r.get('identifier','').startswith('com.apple.CoreSimulator.SimRuntime.iOS-')]
-   if len(runtime)!=1:raise ValueError('INSTALLED_IOS_26_4_RUNTIME_REQUIRED')
+   state['runtimeSelection']={'iosRuntimes':[],'selected':None,'reason':'IOS_RUNTIME_QUERY_FAILED'}
+   try:inventory=json.loads(cmd(['xcrun','simctl','list','runtimes','--json']))
+   except (ValueError,subprocess.SubprocessError):raise ValueError('IOS_RUNTIME_QUERY_FAILED') from None
+   state['runtimeSelection']=select_runtime(inventory)
+   if state['runtimeSelection']['selected'] is None:raise ValueError(state['runtimeSelection']['reason'])
    # Retrieve only fixed public app object when native checkout is shallow; no credential route.
    if subprocess.run(['git','-C',str(ROOT),'cat-file','-e',SHA+'^{commit}'],capture_output=True).returncode:
     publichome=private/'git-home';publichome.mkdir()
@@ -43,7 +75,7 @@ def main():
    if cmd(['git','-C',str(ROOT),'rev-parse',SHA+'^{tree}'])!=TREE:raise ValueError('APP_TREE_MISMATCH')
    state['harnessSha']=cmd(['git','-C',str(ROOT),'rev-parse','HEAD'])
    # Never select/erase an existing device. Mutate and delete only this invocation's created UUID.
-   udid=cmd(['xcrun','simctl','create',name,'com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro',runtime[0]['identifier']])
+   udid=cmd(['xcrun','simctl','create',name,'com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro',state['runtimeSelection']['selected']])
    if not re.fullmatch('[A-Fa-f0-9-]{36}',udid):udid=None;raise ValueError('INVALID_CREATED_UUID')
    cmd(['xcrun','simctl','boot',udid],60);cmd(['xcrun','simctl','bootstatus',udid,'-b'],180)
    run(types.SimpleNamespace(repo=str(ROOT),udid=udid,out=str(capture),device_name=name))
