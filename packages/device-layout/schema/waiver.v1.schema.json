@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "device-layout/waiver/v1",
+  "title": "device-layout/v1 waivers (ticketed, approved, expiring)",
+  "type": "object",
+  "required": ["schema", "waivers"],
+  "properties": {
+    "schema": {"const": "device-layout/waiver/v1"},
+    "waivers": {"type": "array", "items": {
+      "type": "object",
+      "required": ["id", "rule", "subject", "ticket", "reason", "approvedBy", "expires"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "rule": {"type": "string"},
+        "subject": {"type": "string", "minLength": 1, "description": "exact failure subject from a receipt"},
+        "device": {"type": "string", "default": "*"},
+        "screen": {"type": "string", "default": "*"},
+        "ticket": {"type": "string", "pattern": "^AUG-[0-9]+$"},
+        "reason": {"type": "string", "minLength": 10},
+        "approvedBy": {"type": "string", "minLength": 1},
+        "expires": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "expired waivers FAIL the gate"}
+      }
+    }}
+  }
+}

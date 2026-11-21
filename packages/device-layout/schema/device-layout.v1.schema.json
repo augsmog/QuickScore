@@ -1,0 +1,406 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "device-layout/v1",
+  "title": "device-layout/v1 config (device matrix + rules)",
+  "type": "object",
+  "required": [
+    "schema",
+    "product",
+    "adapter",
+    "provenance",
+    "devices",
+    "flows",
+    "reviewerPolicy",
+    "fixtures",
+    "retention"
+  ],
+  "properties": {
+    "schema": {
+      "const": "device-layout/v1"
+    },
+    "product": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "units": {
+      "enum": [
+        "pt",
+        "dp",
+        "css-px"
+      ],
+      "default": "pt"
+    },
+    "rules": {
+      "type": "object",
+      "properties": {
+        "minTarget": {
+          "$ref": "#/$defs/size"
+        },
+        "subpixelEpsilon": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 1,
+          "default": 0.01
+        },
+        "overlapTolerance": {
+          "type": "number",
+          "minimum": 0,
+          "default": 2
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "target-size",
+              "target-spacing",
+              "safe-area",
+              "control-overlap",
+              "text-over-control",
+              "offscreen",
+              "unsupported-geometry"
+            ]
+          }
+        },
+        "minTargetGap": {
+          "type": "number",
+          "minimum": 0,
+          "default": 8,
+          "description": "min edge gap between independent targets (AUG-1373 rule 5)"
+        }
+      }
+    },
+    "devices": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "platform",
+          "orientation",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "platform": {
+            "enum": [
+              "ios",
+              "android",
+              "web"
+            ]
+          },
+          "orientation": {
+            "enum": [
+              "portrait",
+              "landscape"
+            ]
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "height": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "safeArea": {
+            "type": "object",
+            "properties": {
+              "top": {
+                "type": "number",
+                "minimum": 0
+              },
+              "right": {
+                "type": "number",
+                "minimum": 0
+              },
+              "bottom": {
+                "type": "number",
+                "minimum": 0
+              },
+              "left": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          },
+          "minTarget": {
+            "$ref": "#/$defs/size",
+            "description": "never below the platform floor: 44x44 ios, 48x48 android"
+          },
+          "model": {
+            "type": "string",
+            "description": "marketing name; observed viewport in snapshots is authoritative"
+          },
+          "density": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "os": {
+            "type": "string"
+          },
+          "fontScales": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          },
+          "cadence": {
+            "enum": [
+              "pr",
+              "nightly"
+            ]
+          },
+          "runner": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "screens": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean",
+            "default": true
+          },
+          "devices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "adapter": {
+      "enum": [
+        "snapshot",
+        "snapscore-capture",
+        "rn-maestro",
+        "godot"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "required"
+      ],
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "sourceSha",
+              "buildHash",
+              "configHash"
+            ]
+          },
+          "minItems": 3
+        }
+      }
+    },
+    "flows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "checkpoints"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "states": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "checkpoints": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "reviewerPolicy": {
+      "type": "object",
+      "required": [
+        "builder",
+        "reviewer"
+      ],
+      "properties": {
+        "builder": {
+          "enum": [
+            "anthropic",
+            "openai"
+          ]
+        },
+        "reviewer": {
+          "type": "object",
+          "required": [
+            "provider",
+            "model",
+            "effort"
+          ],
+          "properties": {
+            "provider": {
+              "enum": [
+                "anthropic",
+                "openai"
+              ]
+            },
+            "model": {
+              "type": "string"
+            },
+            "effort": {
+              "const": "high"
+            }
+          }
+        },
+        "banned": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "fixtures": {
+      "type": "object",
+      "required": [
+        "negative"
+      ],
+      "properties": {
+        "negative": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "image",
+              "artifactHash"
+            ],
+            "properties": {
+              "image": {
+                "type": "string"
+              },
+              "artifactHash": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pendingTicket": {
+                "type": "string",
+                "pattern": "^AUG-[0-9]+$"
+              },
+              "expectDefect": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "positive": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "image",
+              "artifactHash"
+            ],
+            "properties": {
+              "image": {
+                "type": "string"
+              },
+              "artifactHash": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pendingTicket": {
+                "type": "string",
+                "pattern": "^AUG-[0-9]+$"
+              },
+              "expectDefect": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "required": [
+        "passDays",
+        "failDays"
+      ],
+      "properties": {
+        "passDays": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "failDays": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "size": {
+      "type": "object",
+      "required": [
+        "width",
+        "height"
+      ],
+      "properties": {
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    }
+  }
+}

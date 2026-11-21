@@ -1,0 +1,29 @@
+name: device-layout/v1 package
+on:
+  pull_request:
+    paths:
+      - 'packages/device-layout/**'
+      - 'scoresnap/e2e/interactive-target-geometry.mjs'
+      - '.github/workflows/device-layout-v1.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/device-layout/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  device-layout-v1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate shipped configs
+        run: |
+          node packages/device-layout/bin/device-layout.mjs validate --config packages/device-layout/configs/snapscore.device-layout.json
+          node packages/device-layout/bin/device-layout.mjs validate --config packages/device-layout/configs/lrd.device-layout.json
+      - name: Unit tests
+        run: node --test packages/device-layout/test/*.test.mjs
