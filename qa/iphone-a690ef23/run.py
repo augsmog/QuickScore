@@ -37,7 +37,29 @@ def clean_npm_configs(home):
   with path.open('x'):pass
   path.chmod(0o600)
  return {key:str(path) for key,path in paths.items()}
+PHASES={'preflight','home','setup','scale','restore'}
+STEPS={'prepare','tap','entry','add-third','add-fourth','capture','set-readback','return-home','restore-category'}
+class Progress:
+ def __init__(self):self.failure=None;self.restoreFailed=False
+ def perform(self,phase,step,fn):
+  if phase not in PHASES or step not in STEPS:raise ValueError('INVALID_DIAGNOSTIC_STEP')
+  try:return fn()
+  except Exception:
+   if self.failure is None:self.failure={'phase':phase,'sceneStep':step}
+   if phase=='restore':self.restoreFailed=True
+   raise
+ def receipt(self):return {'failure':self.failure,'restoreFailed':self.restoreFailed}
+
+SETUP_GUARD='- assertVisible:\n    id: "contest-step-setup"\n- assertVisible:\n    id: "new-contest-back"\n- assertNotVisible:\n    id: "home-new-contest"\n'
+def player_flow(index):
+ if index not in (2,3):raise ValueError('INVALID_PLAYER_PROGRESSION')
+ # Exact visible product label, regex-escaped in YAML single quotes. Reacquire each time.
+ return SETUP_GUARD+f'''- assertNotVisible:\n    id: "contest-player-{index}"\n- scrollUntilVisible:\n    element:\n      text: '^\\+ ADD PLAYER$'\n    direction: DOWN\n    timeout: 12000\n    centerElement: true\n- tapOn:\n    text: '^\\+ ADD PLAYER$'\n- scrollUntilVisible:\n    element:\n      id: "contest-player-{index}"\n    direction: DOWN\n    timeout: 12000\n- assertVisible:\n    id: "contest-player-{index}"\n'''+SETUP_GUARD
+
 def run(a):
+ progress=getattr(a,'progress',None) or Progress()
+ return progress.perform('preflight','prepare',lambda:_run(a,progress))
+def _run(a,progress):
  if sys.platform!='darwin':raise ValueError('Mac native executor required; no local emulation')
  needed=['xcrun','xcodebuild','node','npm','pod','maestro']
  tools={k:shutil.which(k) for k in needed}
@@ -109,13 +131,16 @@ def run(a):
   try:
    sim('launch',a.udid,BUNDLE,name='launch')
    for i,category in enumerate(CATEGORIES):
-    sim('ui',a.udid,'content_size',category,name='set-category-'+str(i))
-    category_readback(sim('ui',a.udid,'content_size',name='verify-category-'+str(i)),category)
-    if i:flow('- tapOn:\n    id: "new-contest-back"\n','return-home-'+str(i))
-    shot('home','home-'+category,category,home)
-    flow('- tapOn:\n    id: "home-new-contest"\n- extendedWaitUntil:\n    visible:\n      id: "new-contest-back"\n    timeout: 15000\n- scrollUntilVisible:\n    element:\n      id: "add-player"\n    direction: DOWN\n    timeout: 12000\n- tapOn:\n    id: "add-player"\n- tapOn:\n    id: "add-player"\n- scrollUntilVisible:\n    element:\n      id: "contest-player-3"\n    direction: DOWN\n    timeout: 12000\n','four-players-'+str(i))
-    shot('setup','four-player-'+category,category,setup)
-  finally:sim('ui',a.udid,'content_size',original,name='restore-original-category')
+    progress.perform('scale','set-readback',lambda:sim('ui',a.udid,'content_size',category,name='set-category-'+str(i)))
+    progress.perform('scale','set-readback',lambda:category_readback(sim('ui',a.udid,'content_size',name='verify-category-'+str(i)),category))
+    if i:progress.perform('home','return-home',lambda:flow('- tapOn:\n    id: "new-contest-back"\n','return-home-'+str(i)))
+    progress.perform('home','capture',lambda:shot('home','home-'+category,category,home))
+    progress.perform('home','tap',lambda:flow('- tapOn:\n    id: "home-new-contest"\n','home-tap-'+str(i)))
+    progress.perform('setup','entry',lambda:flow('- extendedWaitUntil:\n    visible:\n      id: "contest-step-setup"\n    timeout: 15000\n'+SETUP_GUARD,'setup-entry-'+str(i)))
+    for index,step in [(2,'add-third'),(3,'add-fourth')]:
+     progress.perform('setup',step,lambda:flow(player_flow(index),step+'-'+str(i)))
+    progress.perform('setup','capture',lambda:shot('setup','four-player-'+category,category,setup))
+  finally:progress.perform('restore','restore-category',lambda:(sim('ui',a.udid,'content_size',original,name='restore-original-category'),category_readback(sim('ui',a.udid,'content_size',name='restored-category'),original)))
   (out/'result.json').write_text(json.dumps({'status':'SUPPLEMENTAL_STOCK_CATEGORY_CAPTURES','aggregatePass':False,'runtimeRNScaleObserved':False,'paywall':'unrun','nativeJoin':'unrun','SE3':'unrun/report-only'})+'\n')
   return 78
 if __name__=='__main__':

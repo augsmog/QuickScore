@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Existing trusted manual intake. Upload only synthetic PNGs and allowlisted receipts."""
 import hashlib,json,os,pathlib,re,shutil,subprocess,sys,tempfile,types,uuid
-from run import run,SHA,TREE,CATEGORIES
+from run import run,SHA,TREE,CATEGORIES,Progress
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 BRANCH='refs/heads/qa/snapscore-a690ef23-iphone-smoke'
 def guard(e):
@@ -54,6 +54,7 @@ def main():
  destination.mkdir(parents=True,exist_ok=False)
  state={'status':'BLOCKED','aggregatePass':False,'captures':0,'runtimeRNScaleObserved':False,'paywall':'unrun','nativeJoin':'unrun','SE3':'unrun/report-only'}
  def cmd(args,timeout=30,env=None):return subprocess.check_output(args,timeout=timeout,stderr=subprocess.PIPE,env=env).decode().strip()
+ progress=Progress()
  udid=None
  with tempfile.TemporaryDirectory(prefix='snapscore-private-iphone-') as private:
   private=pathlib.Path(private);capture=private/'capture';name='SnapScore-QA-a690ef23-'+uuid.uuid4().hex[:12]
@@ -78,7 +79,7 @@ def main():
    udid=cmd(['xcrun','simctl','create',name,'com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro',state['runtimeSelection']['selected']])
    if not re.fullmatch('[A-Fa-f0-9-]{36}',udid):udid=None;raise ValueError('INVALID_CREATED_UUID')
    cmd(['xcrun','simctl','boot',udid],60);cmd(['xcrun','simctl','bootstatus',udid,'-b'],180)
-   run(types.SimpleNamespace(repo=str(ROOT),udid=udid,out=str(capture),device_name=name))
+   run(types.SimpleNamespace(repo=str(ROOT),udid=udid,out=str(capture),device_name=name,progress=progress))
    state['status']='SUPPLEMENTAL_CAPTURE_COMPLETE_GATE_RED'
   except Exception as error:
    if re.fullmatch('[A-Z][A-Z0-9_]{1,80}',str(error)):state['failureCode']=str(error)
@@ -86,6 +87,7 @@ def main():
    # Never print arbitrary tool stderr, paths, environment or application text to public logs.
    state['status']='BLOCKED_OR_PARTIAL_GATE_RED'
   finally:
+   state['phaseDiagnostic']=progress.receipt()
    # Publish only the six allowlisted screenshot/receipt pairs that passed screening.
    for category in CATEGORIES:
     for prefix in ['home','four-player']:
