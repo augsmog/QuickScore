@@ -1,6 +1,7 @@
 """Exact-source disposable Android build/install/smoke; never a full gate pass."""
 import hashlib,json,os,pathlib,re,shutil,signal,subprocess,time
 from smoke import run as smoke
+from provision import ensure
 REQ=['platforms/android-36/android.jar','build-tools/36.0.0/aapt','ndk/27.1.12297006/source.properties','cmake/3.22.1/bin/cmake']
 def preflight(sdk,tools,devices):
  missing=[t for t in ['node','npm','java','adb'] if not tools.get(t)]
@@ -12,6 +13,8 @@ def preflight(sdk,tools,devices):
 def execute(source,out):
  source=pathlib.Path(source);out=pathlib.Path(out);app=source/'scoresnap';out.mkdir(parents=True,exist_ok=True)
  tools={t:shutil.which(t) for t in ['node','npm','java','adb']};sdk=os.environ.get('ANDROID_SDK_ROOT') or os.environ.get('ANDROID_HOME') or '/nonexistent'
+ java_home=ensure(sdk,out,os.environ)
+ tools['java']=str(pathlib.Path(java_home)/'bin/java')
  devices=subprocess.check_output([tools['adb'],'devices'],timeout=15).decode() if tools['adb'] else ''
  serial=preflight(sdk,tools,devices)
  nodeversion=subprocess.check_output([tools['node'],'--version'],timeout=10).decode().strip()
@@ -24,7 +27,7 @@ def execute(source,out):
 
  # Do not inherit account credentials, npmrc, Gradle init scripts, or product environment.
  home=source/'.git/test-home';home.mkdir();env={k:os.environ[k] for k in ['PATH','JAVA_HOME','LANG','TMPDIR'] if k in os.environ}
- env.update(HOME=str(home),ANDROID_HOME=sdk,ANDROID_SDK_ROOT=sdk,GRADLE_USER_HOME=str(home/'gradle'),NPM_CONFIG_USERCONFIG='/dev/null',NPM_CONFIG_GLOBALCONFIG='/dev/null',CI='1',EXPO_NO_TELEMETRY='1',EXPO_OFFLINE='1',SENTRY_DISABLE_AUTO_UPLOAD='true',EXPO_PUBLIC_SIMULATOR_NO_MLKIT='1',EXPO_PUBLIC_OFFLINE_MODE='true',EXPO_PUBLIC_DEMO_MODE='false',EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING='true',EXPO_PUBLIC_FEATURE_LEAGUES='false',EXPO_PUBLIC_FEATURE_NATIVE_LINKS='false')
+ env.update(JAVA_HOME=java_home,HOME=str(home),ANDROID_HOME=sdk,ANDROID_SDK_ROOT=sdk,GRADLE_USER_HOME=str(home/'gradle'),NPM_CONFIG_USERCONFIG='/dev/null',NPM_CONFIG_GLOBALCONFIG='/dev/null',CI='1',EXPO_NO_TELEMETRY='1',EXPO_OFFLINE='1',SENTRY_DISABLE_AUTO_UPLOAD='true',EXPO_PUBLIC_SIMULATOR_NO_MLKIT='1',EXPO_PUBLIC_OFFLINE_MODE='true',EXPO_PUBLIC_DEMO_MODE='false',EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING='true',EXPO_PUBLIC_FEATURE_LEAGUES='false',EXPO_PUBLIC_FEATURE_NATIVE_LINKS='false')
  def cmd(args,phase,timeout=30,cwd=app):
   with (out/(phase+'.log')).open('wb') as log:
    p=subprocess.Popen(args,cwd=cwd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
