@@ -1,0 +1,29 @@
+{
+  "status": "copy pending Copy Chief",
+  "name": "SnapScore",
+  "subtitle": "Golf contests & settlement",
+  "previewHeading": "Build the contest.\nReview settlement.",
+  "previewText": "A deep library of game modes.\nLive tracking wherever you are.",
+  "promotionalText": "Build golf contests and review settlement. Explore a deep library of game modes and track play live, wherever you are. Scan a scorecard when it helps.",
+  "description": [
+    "Build your golf contest, follow results, and review settlement in SnapScore.",
+    "Explore a deep library of game modes for your group. Track scores live wherever you are. Scorecard scanning supports score entry when you need it."
+  ],
+  "keywords": "golf,contest,settlement,scorecard,leaderboard,scoring,tournament,round,results",
+  "whatsNew": "Initial release of SnapScore for golf contest building, settlement review, and live score tracking. Scorecard scanning supports score entry.",
+  "free": "Free includes basic modes and 3 scans a month.",
+  "inAppPurchases": [
+    {"name": "Pro · Annual", "price": "$24.99/yr", "trial": "7-day trial"},
+    {"name": "Pro · Monthly", "price": "$3.99/mo", "trial": "No trial"},
+    {"name": "Tournament Director · Annual", "price": "$79.99/yr", "trial": "7-day trial"},
+    {"name": "Tournament Director · Monthly", "price": "$12.99/mo", "trial": "No trial"}
+  ],
+  "subscriptionTerms": "One trial per Apple ID across Pro and Tournament Director. Payment is charged to your Apple Account at confirmation of purchase. Subscriptions renew automatically unless canceled at least 24 hours before the current period ends. Your account is charged for renewal within 24 hours before the current period ends at the selected plan price. After a trial, the selected annual plan renews at its listed price unless canceled at least 24 hours before the trial ends. Manage or cancel subscriptions in Apple Account settings. Any unused trial portion is forfeited when you purchase a subscription, where applicable.",
+  "restorePurchases": "Restore Purchases is available in the app.",
+  "links": {
+    "terms": "https://snapscore.autumn8.me/terms",
+    "privacy": "https://snapscore.autumn8.me/privacy"
+  },
+  "ageRatingNotes": "Age rating pending the App Store Connect questionnaire. Review contest and settlement language against the questionnaire before submission. No rating is asserted in this mock.",
+  "reviewNotes": "Placeholder-grade listing for review. Brand voice belongs to Copy Chief. Plan prices are supplied facts; currency and storefront presentation need confirmation before submission. Terms and Privacy destinations are copied from this repository and have not been checked online. This mock does not submit metadata or perform purchases."
+}
