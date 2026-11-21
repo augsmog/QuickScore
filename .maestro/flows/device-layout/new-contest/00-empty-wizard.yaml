@@ -1,0 +1,16 @@
+# device-layout New Contest — checkpoint 00: empty wizard (Players & Course step).
+# Only this sub-flow launches; the rest continue in the SAME app session so the orchestrator
+# (run-ios-sim.sh / run-android-compact.sh) can dump `maestro hierarchy` after each checkpoint.
+# AUG-1376.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../../subflows/finish-onboarding.yaml
+- tapOn:
+    id: "home-new-contest"
+- extendedWaitUntil:
+    visible: "Your name"
+    timeout: 15000
+- takeScreenshot: device-layout-new-contest-00-empty-wizard

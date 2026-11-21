@@ -35,7 +35,9 @@ gpt-6-astra, effort high**. OpenAI-built work is reviewed by Claude. Never Grok.
    row siblings' vertical centers within 2pt. (minor unless it breaks meaning.)
 7. **State legibility / affordance** — on/off states must be visually distinct. Flag a switch
    rendering as an **unlabeled dark/black pill** (thumb indistinguishable from track), unclear
-   selection, hidden actions, or misleading disabled states.
+   selection, hidden actions, or misleading disabled states. Inspect every switch: a dark/black
+   pill-shaped thumb or fill against a faint pale track (thumb and track not clearly distinct from
+   each other) is a major rule-7 finding when it hides whether the control is on or off.
 8. **Flow completion** — the screen must be usable: a new user can read every label, reach
    every required control above the footer, and tell what each control does.
 

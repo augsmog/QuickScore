@@ -1,0 +1,18 @@
+# device-layout New Contest — checkpoint 02: Multi-Day Tournament on (defaults to 2 rounds).
+appId: com.scoresnap.app
+---
+# Dismiss the keyboard first (the form uses keyboardShouldPersistTaps="handled").
+- tapOn: "PLAYERS"
+- scrollUntilVisible:
+    element:
+      id: "tournament-toggle"
+    direction: DOWN
+    timeout: 12000
+    centerElement: true
+- tapOn:
+    id: "tournament-toggle"
+- extendedWaitUntil:
+    visible:
+      id: "rounds-2"
+    timeout: 8000
+- takeScreenshot: device-layout-new-contest-02-multi-day-on

@@ -1,0 +1,11 @@
+# device-layout New Contest — checkpoint 01: name entry, keyboard up (crowding under the keyboard).
+appId: com.scoresnap.app
+---
+- assertVisible: "Your name"
+- tapOn:
+    text: "Your name|Golfer.*"
+    index: 0
+- eraseText: 30
+- inputText: "Ava"
+# Capture with the keyboard raised — this is the worst vertical-crowding state on SE.
+- takeScreenshot: device-layout-new-contest-01-name-entry

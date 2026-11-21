@@ -11,10 +11,9 @@ name: device-layout-gate
 #                         come back flagged (rule 2 footer-clip + rule-4/6 alignment family),
 #                         or the gate fails itself.
 #   3. android-compact — Android compact AVD (360x800dp, API 35) on ubuntu-latest KVM, Maestro
-#                        device-layout flows → geometry runner. Gated on the native harness
-#                        (AUG-1376) + owner enablement (variable DEVICE_LAYOUT_NATIVE) so we do
-#                        not burn hosted minutes on a not-yet-wired build. iOS rows land on the
-#                        Mac mini runner under AUG-1376.
+#                        device-layout flows → geometry runner (AUG-1376 native harness).
+#   4. ios-sim         — iPhone 16 Pro + iPhone SE 3 on the self-hosted Mac mini (AUG-1376).
+#   5. vision-candidate — cross-company (Codex astra/high) review of this build's screenshots.
 #
 # Making this a REQUIRED merge-blocking check (branch protection on augsmog/QuickScore main +
 # the safe_merge.py mandatory-named-check change) is an owner-approved control item, tracked in
@@ -124,8 +123,10 @@ jobs:
 
   android-compact:
     needs: [changes, deterministic, vision-selfcheck]
-    # Native layer for app-UI changes (native == true). Fails loudly until the AUG-1376 harness lands.
-    # Owner card t1550s9640 (Nov 19 2026): both platforms, full native evidence; no enablement variable.
+    # Native layer for app-UI changes (native == true). Builds the debug APK from the exact
+    # candidate SHA (Java 17 + npm ci), boots a compact AVD (ubuntu-latest KVM), drives the
+    # Maestro device-layout capture flows → geometry runner. Fails loudly until the AUG-1376
+    # harness lands. Owner card t1550s9640 (Nov 19 2026): both platforms, full native evidence.
     if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -134,6 +135,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: scoresnap/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install app dependencies (npm ci, exact lockfile)
+        run: npm ci --prefix scoresnap
+      - name: Cache Gradle (warm reruns of the Android release build)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('scoresnap/package-lock.json') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
       - name: Enable KVM (hardware accel, ubuntu-latest, 1x quota)
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -143,9 +161,12 @@ jobs:
           api-level: 35
           arch: x86_64
           profile: pixel_5
-          # Compact custom AVD geometry (≈360x800dp @ 480dpi) is applied by the harness config.
+          # Compact custom AVD geometry (≈360x800dp @ 480dpi) is forced by the harness (wm density/size).
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: DEVICE_LAYOUT_OUT="${{ runner.temp }}/device-layout-out" bash scoresnap/e2e/device-layout/scripts/run-android-compact.sh
+          script: >-
+            DEVICE_LAYOUT_OUT="${{ runner.temp }}/device-layout-out"
+            DEVICE_LAYOUT_LARGE_TEXT=true
+            bash scoresnap/e2e/device-layout/scripts/run-android-compact.sh
       - name: Upload Android capture bundle (candidate-bound; reviewed by vision-candidate)
         if: always()
         uses: actions/upload-artifact@v4
@@ -161,13 +182,30 @@ jobs:
     # Every PR: iPhone 16 Pro (402x874) + iPhone SE 3 (375x667); AX3 text when the run stays < 15 min.
     if: needs.changes.outputs.native == 'true'
     runs-on: [self-hosted, ios-sim]
-    timeout-minutes: 45
+    # Target is both profiles <= 25 min on a warm Mac (parallel sims + in-flow screenshot lift, see
+    # run-ios-sim.sh). Cap raised 45→60 as a safety net while the per-phase timings from this run
+    # confirm the real cost; it is a ceiling, not the expected wall time (AUG-1376 round 2).
+    timeout-minutes: 60
     steps:
+      # Self-hosted Mac mini has a persistent workspace. The repo carries a dangling gitlink
+      # (`august-industries-site`, mode 160000, no .gitmodules entry), so checkout's default clean /
+      # submodule phase fails ("no submodule mapping found") and recreates the workspace from scratch
+      # (~7 min/run). Skip clean + submodules to keep the warm workspace; `expo prebuild --clean`
+      # regenerates ios/ anyway. (The gitlink itself is a repo defect — see AUG-1376 report; removing
+      # it with `git rm --cached` needs owner approval and is not done here.)
       - uses: actions/checkout@v4
+        with:
+          clean: false
+          submodules: false
       - name: iOS simulator legs (iPhone 16 Pro, iPhone SE 3)
         env:
           DEVICE_LAYOUT_IOS_PROFILES: iphone-16-pro,iphone-se-3
+          # Owner decision t1557u (Nov 20 2026): iphone-se-3 is NOT launch-blocking until 1.0.2 —
+          # still captured, scored and printed to the job summary, but it does not fail the required
+          # device-layout-gate. Launch-blocking iOS profile: iphone-16-pro (+ android-compact 1.0/1.3).
+          DEVICE_LAYOUT_REPORT_ONLY_PROFILES: iphone-se-3
           DEVICE_LAYOUT_OUT: ${{ runner.temp }}/device-layout-out
+          DEVICE_LAYOUT_LARGE_TEXT: "true"
         run: |
           rm -rf "$DEVICE_LAYOUT_OUT"
           bash scoresnap/e2e/device-layout/scripts/run-ios-sim.sh
@@ -191,12 +229,20 @@ jobs:
     runs-on: [self-hosted, ios-sim]
     timeout-minutes: 30
     steps:
+      # Same persistent-workspace / dangling-gitlink caveat as the ios-sim job above.
       - uses: actions/checkout@v4
+        with:
+          clean: false
+          submodules: false
       - uses: actions/download-artifact@v4
         with:
           pattern: device-layout-*
           path: ${{ runner.temp }}/device-layout-candidate
       - name: Candidate vision review (all native bundles, both platforms)
+        # iphone-se-3 vision findings are produced and printed to the summary but do not block the
+        # required gate until 1.0.2 (owner t1557u); iphone-16-pro + android-compact stay blocking.
+        env:
+          DEVICE_LAYOUT_REPORT_ONLY_PROFILES: iphone-se-3
         run: bash scoresnap/e2e/device-layout/scripts/run-vision-candidate.sh "${{ runner.temp }}/device-layout-candidate"
 
   device-layout-gate:
