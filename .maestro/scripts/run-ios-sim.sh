@@ -65,8 +65,6 @@ case " $ARCHS " in *" arm64 "*) ;; *) echo "build has no arm64 slice ($ARCHS)" >
 # 2. Fresh simulator on the newest installed iOS runtime.
 RUNTIME="$(xcrun simctl list runtimes -j | python3 -c "import json,sys;r=[x for x in json.load(sys.stdin)['runtimes'] if x['platform']=='iOS' and x['isAvailable']];r.sort(key=lambda x:[int(p) for p in x['version'].split('.')]);print(r[-1]['identifier'])")"
 UDID="$(xcrun simctl create "e2e-$PRODUCT" "$DEVICE_TYPE" "$RUNTIME")"
-# AUG-1484: always tear the simulator down, even on failure, timeout or cancel.
-trap 'xcrun simctl shutdown "$UDID" >/dev/null 2>&1 || true; xcrun simctl delete "$UDID" >/dev/null 2>&1 || true' EXIT
 xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b >/dev/null
 OS_VERSION="$(xcrun simctl list devices -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print([k for k,v in d.items() for x in v if x['udid']=='$UDID'][0].split('.')[-1])")"
 MAESTRO_VERSION="$(maestro --version 2>/dev/null | tail -1 || true)"
