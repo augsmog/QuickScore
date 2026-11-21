@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, cpSync, chmodSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, cpSync, chmodSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
@@ -55,6 +55,9 @@ function fakeRepo({ harness = true } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'dl-native-'));
   const dl = join(root, 'scoresnap/e2e/device-layout');
   cpSync(DL_SRC, dl, { recursive: true });
+  // Absence is explicit, independent of installed repository harness files.
+  for (const path of ['scripts/build-android.sh', 'scripts/build-ios-sim.sh', 'scripts/bundle-from-maestro.mjs'])
+    rmSync(join(dl, path), { force: true });
   const bin = join(root, '.stubbin'); mkdirSync(bin);
   for (const [name, body] of Object.entries({
     adb: 'echo "emulator-5554 device"', maestro: 'echo "maestro $*"', sw_vers: 'echo 26.4', xcodebuild: 'echo "Xcode 26.4.1"',
@@ -70,6 +73,9 @@ function fakeRepo({ harness = true } = {}) {
   execFileSync('bash', ['-c', 'git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm stub'], { cwd: root });
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, DEVICE_LAYOUT_OUT: join(root, 'out'),
     CAL_DIR: join(dl, 'fixtures/negative/calibration') };
+  // CI environment must not route synthetic full-gate fixtures into native QA.
+  for (const key of Object.keys(env)) if (key.startsWith('GITHUB_') || key.startsWith('DEVICE_LAYOUT_')) delete env[key];
+  env.DEVICE_LAYOUT_OUT = join(root, 'out');
   return { root, dl, env };
 }
 const run = (script, args, env, cwd) => spawnSync('bash', [script, ...args], { env, cwd, encoding: 'utf8' });
@@ -122,4 +128,32 @@ test('a stale bundle (different SHA) fails the geometry gate', () => {
     '--expect-sha', 'f'.repeat(40), '--profile', 'android-compact'], { encoding: 'utf8' });
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /stale evidence/);
+});
+
+test('manual QA routing stays exact-ref and smoke cannot pass the full gate', () => {
+  const { dl, env, root } = fakeRepo();
+  // Command spy only: no Python adapter, build, native tool or device is executed.
+  const python = join(root, '.stubbin/python3');
+  writeFileSync(python, '#!/usr/bin/env bash\nprintf "QA_ADAPTER %s\\n" "$*"\nexit 78\n');
+  chmodSync(python, 0o755);
+  for (const script of ['run-android-compact.sh', 'run-ios-sim.sh']) {
+    const path = join(dl, 'scripts', script);
+    const body = readFileSync(path, 'utf8');
+    const ref = body.match(/refs\/heads\/(qa\/snapscore-[a-z0-9-]+)/)?.[1];
+    if (!ref) continue; // This branch did not replace this platform's entry.
+    const manual = { ...env, GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch',
+      GITHUB_REPOSITORY: 'augsmog/QuickScore', GITHUB_WORKFLOW: 'device-layout-gate', GITHUB_REF: `refs/heads/${ref}` };
+    const smoke = run(path, [], manual, '/');
+    assert.equal(smoke.status, 78, smoke.stdout + smoke.stderr);
+    assert.match(smoke.stdout, /QA_ADAPTER .*\/qa\/.*(?:intake|entrypoint)\.py/);
+    assert.doesNotMatch(smoke.stdout, /GEOMETRY GATE: PASS|built-/);
+    for (const [key, value] of [['GITHUB_ACTIONS','false'], ['GITHUB_EVENT_NAME','pull_request'],
+      ['GITHUB_EVENT_NAME','push'], ['GITHUB_REF','refs/heads/main'], ['GITHUB_REPOSITORY','fork/QuickScore'],
+      ['GITHUB_WORKFLOW','other']]) {
+      const ordinary = run(path, [], { ...manual, [key]: value }, '/');
+      assert.equal(ordinary.status, 0, ordinary.stdout + ordinary.stderr);
+      assert.match(ordinary.stdout, /GEOMETRY GATE: PASS/); // synthetic full-gate fixture only
+      assert.doesNotMatch(ordinary.stdout, /QA_ADAPTER/);
+    }
+  }
 });

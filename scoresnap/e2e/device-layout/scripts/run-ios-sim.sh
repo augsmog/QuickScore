@@ -9,6 +9,14 @@
 # Output: $DEVICE_LAYOUT_OUT/<profile>/bundle.json (+ screenshots), candidate-bound to the
 # checked-out SHA; reviewed by the vision-candidate job.
 set -euo pipefail
+# Only the existing owner-controlled manual QA ref selects supplemental smoke.
+# The ordinary full-gate path below is unchanged; smoke always exits nonzero.
+if [[ "${GITHUB_ACTIONS:-}" == true && "${GITHUB_EVENT_NAME:-}" == workflow_dispatch &&
+      "${GITHUB_REPOSITORY:-}" == augsmog/QuickScore && "${GITHUB_WORKFLOW:-}" == device-layout-gate &&
+      "${GITHUB_REF:-}" == refs/heads/qa/snapscore-a690ef23-android-smoke ]]; then
+  QA_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+  exec python3 "$QA_ROOT/qa/native-a690ef23/entrypoint.py" ios
+fi
 DL="$(cd "$(dirname "$0")/.." && pwd)"   # scoresnap/e2e/device-layout
 ROOT="${DEVICE_LAYOUT_ROOT:-$(cd "$DL/../../.." && pwd)}"
 cd "$DL"
