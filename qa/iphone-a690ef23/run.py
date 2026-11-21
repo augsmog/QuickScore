@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Supplemental stock-category captures. Never initialized-RN/native gate proof."""
 import argparse,hashlib,json,os,pathlib,re,shutil,signal,struct,subprocess,sys,tempfile,time
-SHA='a690ef23e67a255408028d81e57d40e09778c3eb';TREE='ba833845c2f2cfbacdecc3ee847e74c4fcfd90b7';BUNDLE='com.scoresnap.app'
+SHA='a073d5761b77f3e01610acebaf5d98f76a920fb5';TREE='3cbda6ddde720b614c0ae3c2bccef7948d805e20';BUNDLE='com.scoresnap.app'
 CATEGORIES={'large':1.0,'extra-extra-large':1.235,'extra-extra-extra-large':1.353}
 def sha(b):return hashlib.sha256(b).hexdigest()
 def validate_source(commit,tree,dirty):
@@ -13,14 +13,16 @@ def category_readback(raw,expected=None):
  return value
 
 def screen(tree,scene):
- ids=set()
+ ids=set();texts=set()
  def walk(n):
   a=n.get('attributes',{});rid=a.get('resource-id','')
   if rid:ids.add(rid)
+  texts.update(a.get(k) for k in ('text','label','accessibilityText') if isinstance(a.get(k),str))
   for c in n.get('children',[]):walk(c)
  walk(tree)
- required={'home':{'home-new-contest'},'setup':{'new-contest-back','contest-continue','contest-player-3'},'paywall':{'paywall-close'}}[scene]
+ required={'home':{'home-new-contest'},'setup':{'new-contest-back','contest-continue','contest-player-3'},'paywall':{'paywall-close'},'add-player':{'contest-scroll','contest-footer','contest-continue'}}[scene]
  if not required<=ids or (scene!='home' and 'home-new-contest' in ids):raise ValueError('wrong scene or missing four-player/control identity')
+ if scene=='add-player' and '+ ADD PLAYER' not in texts:raise ValueError('ADD_PLAYER_LABEL_REQUIRED')
  # Hierarchy identity is corroboration, not proof of paint/visibility. Maestro assertVisible must also succeed.
  return sorted(ids)
 def apphash(root):
@@ -37,8 +39,8 @@ def clean_npm_configs(home):
   with path.open('x'):pass
   path.chmod(0o600)
  return {key:str(path) for key,path in paths.items()}
-PHASES={'preflight','home','setup','scale','restore'}
-STEPS={'prepare','tap','entry','add-third','add-fourth','capture','set-readback','return-home','restore-category'}
+PHASES={'preflight','home','setup','scale','restore','cold-home','add-player'}
+STEPS={'prepare','tap','entry','add-third','add-fourth','capture','set-readback','return-home','restore-category','restart','reveal','activate'}
 class Progress:
  def __init__(self):self.failure=None;self.restoreFailed=False
  def perform(self,phase,step,fn):
@@ -56,6 +58,19 @@ def player_flow(index):
  # Exact visible product label, regex-escaped in YAML single quotes. Reacquire each time.
  return SETUP_GUARD+f'''- assertNotVisible:\n    id: "contest-player-{index}"\n- scrollUntilVisible:\n    element:\n      text: '^\\+ ADD PLAYER$'\n    direction: DOWN\n    timeout: 12000\n    centerElement: true\n- tapOn:\n    text: '^\\+ ADD PLAYER$'\n- scrollUntilVisible:\n    element:\n      id: "contest-player-{index}"\n    direction: DOWN\n    timeout: 12000\n- assertVisible:\n    id: "contest-player-{index}"\n'''+SETUP_GUARD
 
+def launch_pid(raw):
+ match=re.fullmatch(re.escape(BUNDLE)+r': ([1-9][0-9]*)',raw.strip())
+ if not match:raise ValueError('LAUNCH_PID_UNVERIFIED')
+ return int(match[1])
+def cold_restart(sim,udid,category,previous):
+ sim('terminate',udid,BUNDLE,name='cold-terminate-'+category)
+ sim('ui',udid,'content_size',category,name='cold-set-'+category)
+ category_readback(sim('ui',udid,'content_size',name='cold-read-'+category),category)
+ pid=launch_pid(sim('launch',udid,BUNDLE,name='cold-launch-'+category))
+ if pid==previous:raise ValueError('COLD_PROCESS_ID_REUSED')
+ return pid
+ADD_VISIBLE="- scrollUntilVisible:\n    element:\n      text: '^\\+ ADD PLAYER$'\n    direction: DOWN\n    timeout: 12000\n    visibilityPercentage: 100\n    centerElement: true\n- assertVisible:\n    text: '^\\+ ADD PLAYER$'\n- assertVisible:\n    id: 'contest-continue'\n- assertNotVisible:\n    id: 'home-new-contest'\n"
+ADD_ACTIVATE="- tapOn:\n    text: '^\\+ ADD PLAYER$'\n- scrollUntilVisible:\n    element:\n      id: 'contest-player-4'\n    direction: DOWN\n    timeout: 12000\n    visibilityPercentage: 100\n- assertVisible:\n    id: 'contest-player-4'\n- assertNotVisible:\n    id: 'contest-player-5'\n"
 def run(a):
  progress=getattr(a,'progress',None) or Progress()
  return progress.perform('preflight','prepare',lambda:_run(a,progress))
@@ -109,7 +124,7 @@ def _run(a,progress):
   def flow(text,name):
    f=tmp/(name+'.yaml');f.write_text('appId: '+BUNDLE+'\n---\n'+text)
    call([tools['maestro'],'--device',a.udid,'test',str(f)],name,120)
-  def shot(scene,label,category,assertions):
+  def shot(scene,label,category,assertions,process_mode='warm'):
    flow(assertions,label+'-visible-before')
    hierarchy=json.loads(call([tools['maestro'],'--device',a.udid,'hierarchy'],label+'-hierarchy',30));screen(hierarchy,scene)
    before=category_readback(sim('ui',a.udid,'content_size',name=label+'-category-before'),category)
@@ -121,7 +136,7 @@ def _run(a,progress):
     hierarchy2=json.loads(call([tools['maestro'],'--device',a.udid,'hierarchy'],label+'-hierarchy-after',30));screen(hierarchy2,scene)
     b=file.read_bytes()
     if not b.startswith(b'\x89PNG\r\n\x1a\n'):raise ValueError('invalid PNG')
-    receipt={**manifest,'scene':scene,'categoryBefore':before,'categoryAfter':after,'stockRNReferenceMultiplier':CATEGORIES[category],'runtimeRNScale':None,'pngSha256':sha(b),'pixelSize':struct.unpack('>II',b[16:24]),'geometryPassed':False,'nativeAcceptance':False}
+    receipt={**manifest,'scene':scene,'categoryBefore':before,'categoryAfter':after,'stockRNReferenceMultiplier':CATEGORIES[category],'runtimeRNScale':None,'pngSha256':sha(b),'pixelSize':struct.unpack('>II',b[16:24]),'geometryPassed':False,'nativeAcceptance':False,'processMode':process_mode,'coldProcessVerified':process_mode=='cold'}
     file.rename(out/(label+'.png'));(out/(label+'.json')).write_text(json.dumps(receipt,indent=2)+'\n')
    except Exception:
     if file.exists():file.rename(out/(label+'.REJECTED.png'))
@@ -129,17 +144,27 @@ def _run(a,progress):
   home='- extendedWaitUntil:\n    visible:\n      id: "home-new-contest"\n    timeout: 30000\n'
   setup='- assertVisible:\n    id: "new-contest-back"\n- assertVisible:\n    id: "contest-player-3"\n- assertVisible:\n    id: "contest-continue"\n- assertNotVisible:\n    id: "home-new-contest"\n'
   try:
-   sim('launch',a.udid,BUNDLE,name='launch')
+   pid=launch_pid(sim('launch',a.udid,BUNDLE,name='launch'))
+   # Complete all Home comparisons before optional setup reachability work.
    for i,category in enumerate(CATEGORIES):
     progress.perform('scale','set-readback',lambda:sim('ui',a.udid,'content_size',category,name='set-category-'+str(i)))
     progress.perform('scale','set-readback',lambda:category_readback(sim('ui',a.udid,'content_size',name='verify-category-'+str(i)),category))
-    if i:progress.perform('home','return-home',lambda:flow('- tapOn:\n    id: "new-contest-back"\n','return-home-'+str(i)))
     progress.perform('home','capture',lambda:shot('home','home-'+category,category,home))
-    progress.perform('home','tap',lambda:flow('- tapOn:\n    id: "home-new-contest"\n','home-tap-'+str(i)))
+   for category in CATEGORIES:
+    pid=progress.perform('cold-home','restart',lambda:cold_restart(sim,a.udid,category,pid))
+    progress.perform('cold-home','capture',lambda:shot('home','home-cold-'+category,category,home,'cold'))
+   for i,category in enumerate(CATEGORIES):
+    progress.perform('scale','set-readback',lambda:sim('ui',a.udid,'content_size',category,name='setup-category-'+str(i)))
+    if i:progress.perform('home','return-home',lambda:flow('- tapOn:\n    id: "new-contest-back"\n','return-home-'+str(i)))
+    progress.perform('home','tap',lambda:flow(home+'- tapOn:\n    id: "home-new-contest"\n','home-tap-'+str(i)))
     progress.perform('setup','entry',lambda:flow('- extendedWaitUntil:\n    visible:\n      id: "contest-step-setup"\n    timeout: 15000\n'+SETUP_GUARD,'setup-entry-'+str(i)))
     for index,step in [(2,'add-third'),(3,'add-fourth')]:
      progress.perform('setup',step,lambda:flow(player_flow(index),step+'-'+str(i)))
-    progress.perform('setup','capture',lambda:shot('setup','four-player-'+category,category,setup))
+    progress.perform('setup','capture',lambda:shot('setup','four-player-'+category,category,setup,'post-cold'))
+    progress.perform('add-player','reveal',lambda:flow(ADD_VISIBLE,'add-visible-'+str(i)))
+    progress.perform('add-player','capture',lambda:shot('add-player','add-player-'+category,category,ADD_VISIBLE,'post-cold'))
+    progress.perform('add-player','activate',lambda:flow(ADD_ACTIVATE,'add-activate-'+str(i)))
+    (out/('add-player-action-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'fourPlayerCheckpointPreserved':True,'fifthPlayerVisibleAfterTap':True,'aggregatePass':False})+'\n')
   finally:progress.perform('restore','restore-category',lambda:(sim('ui',a.udid,'content_size',original,name='restore-original-category'),category_readback(sim('ui',a.udid,'content_size',name='restored-category'),original)))
   (out/'result.json').write_text(json.dumps({'status':'SUPPLEMENTAL_STOCK_CATEGORY_CAPTURES','aggregatePass':False,'runtimeRNScaleObserved':False,'paywall':'unrun','nativeJoin':'unrun','SE3':'unrun/report-only'})+'\n')
   return 78

@@ -1,6 +1,6 @@
 # Trusted standalone iPhone smoke intake — expected gate RED
 
-App SHA a690ef23e67a255408028d81e57d40e09778c3eb; tree ba833845c2f2cfbacdecc3ee847e74c4fcfd90b7. All app/dependency/workflow/permission files unchanged. Only this test directory and existing scoresnap/e2e/device-layout/scripts/run-ios-sim.sh differ. Parent app contains only the separately verified local-invite copy/test correction over580b.
+App SHA a073d5761b77f3e01610acebaf5d98f76a920fb5; tree 3cbda6ddde720b614c0ae3c2bccef7948d805e20. All app/dependency/workflow/permission files unchanged. Only this test directory and existing scoresnap/e2e/device-layout/scripts/run-ios-sim.sh differ. The exported app adds only the Home hero remeasurement change and regression over a690; QA checkout carries the same app delta on the existing smoke ancestry.
 
 The existing device-layout-gate manual workflow invokes the same entrypoint:
 
@@ -37,3 +37,14 @@ Initial standalone input manifest6cb9fc74ac47021cbd66ba13decfc8a6d367cc0889b225d
     PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s qa/iphone-a690ef23 -p 'test_*.py' -v
 
 13 local controls pass. Native build, simulator capture, category readback and cleanup are unrun here; no hardware/native pass. No secrets/personal identities added; service Git metadata only. Source and original Android QA branches remain untouched.
+
+
+## Exact a073 successor (local staging)
+
+App a073d5761b77f3e01610acebaf5d98f76a920fb5 / tree3cbda6ddde720b614c0ae3c2bccef7948d805e20. Historical directory/ref names remain unchanged to preserve the existing narrow manual route. Source is still exported separately; the QA checkout must match this app outside the existing QA allowlist. The exact app object must be readable before a future shallow runner checkout can fetch it. Planned source ref qa/snapscore-home-font-a073 is LOCAL ONLY; publication/dispatch is not performed here.
+
+Capture sequence: three Home warm-process categories first, then three Home cold-process categories, then per-category four-player checkpoint, deliberate Add Player label reveal/capture and fifth-player action verification. Each cold cycle must successfully terminate the app, set/read actual category, and launch a new positive PID different from the previous process. PIDs stay private. No route injection, app data reset, fake text scale or initialized RN claim. Existing capture files remain named home-* and four-player-*; separate home-cold-* and add-player-* names cannot overwrite them. Every screenshot requires before/after category and scene/visibility checks. Receipt labels are cross-checked against scene/process/category during publication.
+
+Add Player uses exact escaped visible text and explicit 100% visibility with centering. This proves label visibility and subsequent control activation if the run succeeds; complete button paint/footer clearance still requires independent screenshot review. Missing scroll reachability stops the setup phase with typed phase/step; already completed Home captures survive. No geometry/native/full-gate success is inferred. Fifth-player success is recorded only after its actual visible assertion, separately from the preserved four-player screenshot.
+
+Output remains exit78 / aggregate false, including successful supplemental captures. Paywall remains unrun. No provider calls or staged paywall code are added. Existing guard, workflow, permissions and runtime/Xcode policy remain unchanged. Stock category is OS evidence only; runtimeRNScale stays null.

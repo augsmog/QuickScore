@@ -11,12 +11,14 @@ def sanitize(receipt,png):
  if receipt.get('sourceSha')!=SHA or receipt.get('sourceTree')!=TREE:raise ValueError('SOURCE_MISMATCH')
  category=receipt.get('categoryBefore')
  if category not in CATEGORIES or receipt.get('categoryAfter')!=category or receipt.get('runtimeRNScale') is not None:raise ValueError('CATEGORY_OR_RUNTIME_CLAIM')
- if receipt.get('scene') not in ['home','setup'] or receipt.get('nativeAcceptance') is not False or receipt.get('geometryPassed') is not False:raise ValueError('INVALID_ACCEPTANCE')
+ if receipt.get('scene') not in ['home','setup','add-player'] or receipt.get('nativeAcceptance') is not False or receipt.get('geometryPassed') is not False:raise ValueError('INVALID_ACCEPTANCE')
+ mode=receipt.get('processMode')
+ if mode not in ('warm','cold','post-cold') or receipt.get('coldProcessVerified') is not (mode=='cold'):raise ValueError('PROCESS_MODE_UNVERIFIED')
  h=hashlib.sha256(png).hexdigest()
  if receipt.get('pngSha256')!=h or not png.startswith(b'\x89PNG\r\n\x1a\n'):raise ValueError('PNG_MISMATCH')
  build=receipt.get('buildSha256','')
  if not re.fullmatch('[a-f0-9]{64}',build):raise ValueError('BUILD_DIGEST_MISSING')
- return {'sourceSha':SHA,'sourceTree':TREE,'buildSha256':build,'scene':receipt['scene'],'observedSimulatorCategory':category,'stockRNReferenceMultiplier':CATEGORIES[category],'runtimeRNScale':None,'pngSha256':h,'deviceModel':'iPhone 16 Pro','offlineSynthetic':True,'geometryPassed':False,'nativeAcceptance':False,'aggregatePass':False}
+ return {'sourceSha':SHA,'sourceTree':TREE,'buildSha256':build,'scene':receipt['scene'],'observedSimulatorCategory':category,'stockRNReferenceMultiplier':CATEGORIES[category],'runtimeRNScale':None,'pngSha256':h,'processMode':mode,'coldProcessVerified':mode=='cold','deviceModel':'iPhone 16 Pro','offlineSynthetic':True,'geometryPassed':False,'nativeAcceptance':False,'aggregatePass':False}
 RUNTIME_ID='com.apple.CoreSimulator.SimRuntime.iOS-26-4'
 def select_runtime(inventory):
  # Only typed, bounded iOS tuples may reach public status; never names/paths/errors.
@@ -88,15 +90,27 @@ def main():
    state['status']='BLOCKED_OR_PARTIAL_GATE_RED'
   finally:
    state['phaseDiagnostic']=progress.receipt()
-   # Publish only the six allowlisted screenshot/receipt pairs that passed screening.
+   # Publish only the twelve allowlisted screenshot/receipt pairs that passed screening.
    for category in CATEGORIES:
-    for prefix in ['home','four-player']:
+    for prefix in ['home','home-cold','four-player','add-player']:
      label=prefix+'-'+category;p=capture/(label+'.png');j=capture/(label+'.json')
      if p.is_file() and j.is_file():
       try:
        b=p.read_bytes();clean=sanitize(json.loads(j.read_text()),b)
+       expected_scene={'home':'home','home-cold':'home','four-player':'setup','add-player':'add-player'}[prefix]
+       expected_mode={'home':'warm','home-cold':'cold','four-player':'post-cold','add-player':'post-cold'}[prefix]
+       if clean['scene']!=expected_scene or clean['processMode']!=expected_mode or clean['observedSimulatorCategory']!=category:raise ValueError('CAPTURE_LABEL_MISMATCH')
        (destination/(label+'.png')).write_bytes(b);(destination/(label+'.json')).write_text(json.dumps(clean,indent=2)+'\n');state['captures']+=1
       except Exception:state['status']='RECEIPT_REJECTED_GATE_RED'
+   state['addPlayerChecks']=[]
+   for category in CATEGORIES:
+    action=capture/('add-player-action-'+category+'.json')
+    if action.is_file():
+     try:
+      r=json.loads(action.read_text())
+      if r=={'sourceSha':SHA,'sourceTree':TREE,'category':category,'fourPlayerCheckpointPreserved':True,'fifthPlayerVisibleAfterTap':True,'aggregatePass':False}:state['addPlayerChecks'].append({'category':category,'fifthPlayerVisibleAfterTap':True,'geometryPassed':False})
+      else:state['status']='RECEIPT_REJECTED_GATE_RED'
+     except Exception:state['status']='RECEIPT_REJECTED_GATE_RED'
    if udid:
     for action in ['shutdown','delete']:
      try:cmd(['xcrun','simctl',action,udid],60)

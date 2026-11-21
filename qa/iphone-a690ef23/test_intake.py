@@ -7,7 +7,7 @@ class Intake(unittest.TestCase):
  def test_no_external_pr_or_wrong_ref(self):
   for k,v in [('GITHUB_EVENT_NAME','pull_request'),('GITHUB_EVENT_NAME','push'),('GITHUB_REF','refs/heads/main'),('GITHUB_REPOSITORY','fork/other'),('RUNNER_OS','Linux'),('GITHUB_ACTIONS','false')]:
    with self.assertRaises(ValueError):guard({**self.env(),k:v})
- def receipt(self,b):return dict(sourceSha=SHA,sourceTree=TREE,categoryBefore='large',categoryAfter='large',runtimeRNScale=None,scene='home',nativeAcceptance=False,geometryPassed=False,pngSha256=hashlib.sha256(b).hexdigest(),buildSha256='a'*64,privatePath='/synthetic/private',environment={'secret':'synthetic-never-export'},binaryUUIDs='path and UUID',device={'extra':'do-not-export'})
+ def receipt(self,b):return dict(sourceSha=SHA,sourceTree=TREE,categoryBefore='large',categoryAfter='large',runtimeRNScale=None,scene='home',processMode='warm',coldProcessVerified=False,nativeAcceptance=False,geometryPassed=False,pngSha256=hashlib.sha256(b).hexdigest(),buildSha256='a'*64,privatePath='/synthetic/private',environment={'secret':'synthetic-never-export'},binaryUUIDs='path and UUID',device={'extra':'do-not-export'})
  def test_allowlist_drops_all_extra_data(self):
   b=b'\x89PNG\r\n\x1a\n';r=sanitize(self.receipt(b),b);serialized=json.dumps(r)
   for forbidden in ['privatePath','environment','secret','binaryUUIDs','do-not-export']:self.assertNotIn(forbidden,serialized)
