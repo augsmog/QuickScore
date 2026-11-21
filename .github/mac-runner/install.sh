@@ -2,8 +2,8 @@
 # Installs/refreshes the Mac keep-up + hygiene guard (AUG-1484). Idempotent; needs no password and no new secrets.
 #  - sim-guard.sh as the GitHub runner job-started/job-completed hooks (every job; never refuses a job)
 #  - launchd agents (user session):
-#      com.augieos.mac-awake      /usr/bin/caffeinate -dimsu, KeepAlive (no idle/system/disk/display sleep)
-#      com.augieos.mac-watchdog   every 2 min: runner service + remote-access app (KEEP_APPS) kept running, heartbeat
+#      com.augieos.mac-awake      keeps exactly one caffeinate -dimsu alive (adopts a hand-started one), KeepAlive
+#      com.augieos.mac-watchdog   every 2 min: runner service + remote-access app (KEEP_APPS, default "Grok Bot") kept running, heartbeat
 #      com.augieos.mac-sim-guard  every 30 min: stale sims/emulators stopped, proactive disk cleanup
 #  - the runner's own launchd plist gets RunAtLoad + KeepAlive (restart on crash); runner restart only while idle
 #  - pmset sleep 0 / autorestart 1 (power-failure restart) when passwordless sudo exists; otherwise recorded locally in
@@ -66,7 +66,7 @@ PLIST
   else rm -f "$pl.new"; launchctl print "gui/$UIDN/$label" >/dev/null 2>&1 || launchctl bootstrap "gui/$UIDN" "$pl"; fi
   launchctl enable "gui/$UIDN/$label" 2>/dev/null || true
 }
-agent com.augieos.mac-awake 0 /usr/bin/caffeinate -dimsu
+agent com.augieos.mac-awake 0 /bin/bash "$HOME_DIR/sim-guard.sh" awake
 agent com.augieos.mac-watchdog 120 /bin/bash "$HOME_DIR/sim-guard.sh" watchdog
 agent com.augieos.mac-sim-guard 1800 /bin/bash "$HOME_DIR/sim-guard.sh" sweep
 

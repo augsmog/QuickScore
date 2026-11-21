@@ -14,6 +14,7 @@
 #             duplicate-runtime prune, proactive cleanup below PROACTIVE_GB. Skips while an Actions job runs.
 #   hygiene   scheduled hygiene workflow: same as sweep, run inside the job.
 #   watchdog  launchd every 2 min: keep the runner service and the remote-access app running, write heartbeat.
+#   awake     launchd KeepAlive: keep exactly one caffeinate -dimsu running (never duplicates a hand-started one).
 #   clean     escalate all levels to TARGET_FREE_GB now.
 # Escalation levels (stop as soon as free >= target):
 #   1 sims: stop, delete unavailable, delete job sims (dl-*, e2e-*)
@@ -34,7 +35,7 @@ STATE="${AOS_MAC_HYGIENE_HOME:-$HOME/aos-mac-hygiene}"
 LOG="$STATE/guard.log"
 mkdir -p "$STATE"
 [ -f "$STATE/keepup.conf" ] && . "$STATE/keepup.conf"   # optional local overrides (KEEP_APPS, thresholds)
-KEEP_APPS="${KEEP_APPS:-Cursor}"
+KEEP_APPS="${KEEP_APPS:-Grok Bot}"   # remote-access app(s), ":"-separated; app names may contain spaces
 log() { echo "$(date '+%Y-%m-%dT%H:%M:%S%z') [$MODE] $*" | tee -a "$LOG"; }
 free_gb() { df -g /System/Volumes/Data 2>/dev/null | awk 'NR==2{print $4}'; }
 etime_min() { ps -o etime= -p "$1" 2>/dev/null | awk '{n=split($1,a,"[-:]"); if(n==4)m=a[1]*1440+a[2]*60+a[3]; else if(n==3)m=a[1]*60+a[2]; else m=a[1]; print m+0}'; }
@@ -149,7 +150,8 @@ maybe_clean() {  # proactive: before the floor is reached
 runner_label() { [ -f "$RUNNER_ROOT/.service" ] && basename "$(cat "$RUNNER_ROOT/.service")" .plist; }
 
 restart_runner_if_pending() {
-  if [ -f "$STATE/restart-runner.pending" ] && ! job_running; then
+  if [ -f "$STATE/restart-runner.pending" ] && ! job_running && mkdir "$STATE/.restart.lock" 2>/dev/null; then
+    trap 'rmdir "$STATE/.restart.lock" 2>/dev/null' RETURN
     (cd "$RUNNER_ROOT" && ./svc.sh stop >/dev/null 2>&1; ./svc.sh start >/dev/null 2>&1) \
       && rm -f "$STATE/restart-runner.pending" && log "runner service restarted to load hooks"
   fi
@@ -174,10 +176,11 @@ watchdog() {
       if throttled runner-kick 5; then launchctl kickstart "gui/$uid/$label" 2>/dev/null && log "runner service state=$st; kickstarted"; fi
     else runner_state=running; fi
   fi
-  for app in $KEEP_APPS; do
+  local IFS_SAVE="$IFS"; IFS=":"; set -f; local apps=($KEEP_APPS); IFS="$IFS_SAVE"; set +f
+  for app in "${apps[@]}"; do
     local up=false
     if [ -d "/Applications/$app.app" ]; then
-      if pgrep -f "/Applications/$app.app/Contents/MacOS/" >/dev/null 2>&1; then up=true
+      if grep -qF "/Applications/$app.app/Contents/MacOS/" <<<"$(ps -axww -o command=)"; then up=true  # no pipe: pipefail+grep -q = false negative
       elif throttled "app-$app" 10; then open -g -j -a "/Applications/$app.app" 2>/dev/null && log "$app was not running; relaunched"; fi
     else up=absent; fi
     apps_json="$apps_json\"$app\":\"$up\","
@@ -223,6 +226,11 @@ case "$MODE" in
             [ -f "$LOG" ] && tail -n 3000 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"
             log "$MODE: free $(free_gb) GB"; exit 0 ;;
   watchdog) watchdog; exit 0 ;;
+  awake)    # launchd KeepAlive: exactly one caffeinate. If one is already running (e.g. started by hand), don't add a
+            # second or touch it; wait until it's gone, then become the persistent one.
+            while pgrep -x caffeinate >/dev/null 2>&1; do sleep 60; done
+            log "no caffeinate running; starting persistent caffeinate -dimsu"
+            exec /usr/bin/caffeinate -dimsu ;;
   clean)    escalate "$TARGET_FREE_GB" 5; exit 0 ;;
   *) echo "usage: sim-guard.sh pre|post|sweep|hygiene|watchdog|clean"; exit 2 ;;
 esac
