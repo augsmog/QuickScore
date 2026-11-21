@@ -46,3 +46,35 @@ export function calcFourBall(
     finalStatus: status,
   };
 }
+
+export interface FourBallMatchup {
+  team1Id: string;
+  team2Id: string;
+  finalStatus: number; // positive = team1 up
+}
+
+/**
+ * Four-Ball for any number of teams of any size: every pair of teams plays a
+ * best-ball match (round robin). Team best per hole = lowest score among all
+ * of that team's members.
+ */
+export function calcFourBallAllTeams(
+  teams: Map<string, Player[]> | Record<string, Player[]>
+): FourBallMatchup[] {
+  const entries = teams instanceof Map ? Array.from(teams.entries()) : Object.entries(teams);
+  const valid = entries.filter(([, members]) => members.length > 0);
+  const matchups: FourBallMatchup[] = [];
+  for (let a = 0; a < valid.length; a++) {
+    for (let b = a + 1; b < valid.length; b++) {
+      let status = 0;
+      for (let i = 0; i < 18; i++) {
+        const t1 = Math.min(...valid[a][1].map((p) => p.scores[i]));
+        const t2 = Math.min(...valid[b][1].map((p) => p.scores[i]));
+        if (t1 < t2) status++;
+        else if (t2 < t1) status--;
+      }
+      matchups.push({ team1Id: valid[a][0], team2Id: valid[b][0], finalStatus: status });
+    }
+  }
+  return matchups;
+}

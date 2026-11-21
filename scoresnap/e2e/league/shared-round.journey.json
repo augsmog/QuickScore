@@ -1,0 +1,63 @@
+{
+  "schema": "snapscore-shared-round-journey/1",
+  "ticket": "AUG-1274",
+  "refs": ["AUG-400", "AUG-1265", "AUG-1273"],
+  "execution": {
+    "target": "existing-sharing-enabled-simulator-app",
+    "physicalPhones": false,
+    "deviceExecutionInThisSlice": false,
+    "productionWrites": false,
+    "newBuild": false,
+    "backend": "disposable-loopback-only",
+    "requiredFlags": { "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": true },
+    "fixtureStack": "e2e/xdevice/four-identities.mts"
+  },
+  "identities": [
+    { "id": "host", "simulator": "sim-1", "role": "organizer", "anonymous": false, "player": null },
+    { "id": "bravo", "simulator": "sim-2", "role": "player", "anonymous": true, "player": "p1" },
+    { "id": "charlie", "simulator": "sim-3", "role": "player", "anonymous": true, "player": "p2" },
+    { "id": "delta", "simulator": "sim-4", "role": "player", "anonymous": true, "player": "p3" }
+  ],
+  "branches": {
+    "shared-round": { "included": true },
+    "tournament": { "included": false, "exclusion": "Candidate covers tournament only via fixture completion proofs (M5); no four-simulator tournament journey in this slice." },
+    "league": { "included": false, "exclusion": "Covered by AUG-1273 four-sim-league.journey.json; not duplicated here." }
+  },
+  "steps": [
+    { "id": "R1-host-join-roster", "phase": "join", "actors": ["host", "bravo", "charlie", "delta"],
+      "actions": ["host-shares-round", "guests-request-join"],
+      "expect": [
+        { "actor": "host", "assert": "pending-requests-listed", "count": 3 },
+        { "actor": "bravo", "assert": "no-roster-visible" }
+      ] },
+    { "id": "R2-approval-roster", "phase": "approval", "actors": ["host"],
+      "actions": ["approve-bravo-as-p1", "approve-charlie-as-p2", "approve-delta-as-p3"],
+      "expect": [
+        { "actor": "host", "assert": "roster-lists-all-players", "count": 3 },
+        { "actor": "bravo", "assert": "member-of-event", "player": "p1" },
+        { "actor": "charlie", "assert": "write-denied", "player": "p1" }
+      ] },
+    { "id": "R3-distinct-player-edits", "phase": "edit", "actors": ["bravo", "charlie", "delta"],
+      "actions": ["bravo-writes-p1-h1", "charlie-writes-p2-h1", "delta-writes-p3-h1"],
+      "expect": [
+        { "actor": "host", "assert": "cell-equals", "player": "p1", "hole": 1 },
+        { "actor": "host", "assert": "cell-equals", "player": "p2", "hole": 1 },
+        { "actor": "host", "assert": "cell-equals", "player": "p3", "hole": 1 },
+        { "actor": "all", "assert": "snapshots-converged" }
+      ] },
+    { "id": "R4-offline-conflict-convergence", "phase": "offline", "actors": ["host", "bravo"],
+      "actions": ["both-go-offline", "host-and-bravo-edit-p1-h2", "go-online", "replay-queues"],
+      "expect": [
+        { "actor": "all", "assert": "conflict-resolved-deterministically" },
+        { "actor": "host", "assert": "score-event-count-delta", "count": 2 },
+        { "actor": "all", "assert": "snapshots-converged" }
+      ] },
+    { "id": "R5-reopen-recovery", "phase": "reopen", "actors": ["bravo", "charlie", "delta"],
+      "actions": ["terminate-app", "relaunch-app"],
+      "expect": [
+        { "actor": "bravo", "assert": "membership-restored", "player": "p1" },
+        { "actor": "all", "assert": "snapshots-converged" }
+      ] }
+  ],
+  "requiredPhases": ["join", "approval", "edit", "offline", "reopen"]
+}

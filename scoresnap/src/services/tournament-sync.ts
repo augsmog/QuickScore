@@ -18,6 +18,7 @@ import {
   emptyOutbox,
   enqueueScore,
   rememberBundle,
+  mergeSnapshotIds,
   resolveWrite,
   roundPayload,
   type Outbox,
@@ -50,10 +51,7 @@ async function load(contestId: string): Promise<{ key: string; outbox: Outbox }>
   const outbox = raw ? JSON.parse(raw) : emptyOutbox();
   if (!outbox.ids?.rounds || !outbox.ids?.players) throw new Error('Online ID map is damaged');
   const snapshot = useOnlineStore.getState().events[contestId]?.snapshot;
-  for (const entry of snapshot?.id_map ?? []) {
-    if (entry.kind === 'round') outbox.ids.rounds[entry.local_id] = entry.server_id;
-    if (entry.kind === 'player') outbox.ids.players[entry.local_id] = entry.server_id;
-  }
+  mergeSnapshotIds(outbox.ids, snapshot);
   return { key, outbox };
 }
 

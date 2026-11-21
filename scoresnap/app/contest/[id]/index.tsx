@@ -48,6 +48,7 @@ import { calcNassauPress } from "../../../src/engine/calculators/nassau-press";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { HOLE_NAV_TARGET, SCORE_STEPPER_TARGET } from "../../../src/ui/score-entry-metrics";
 import { posthog } from "../../../src/config/posthog";
+import { posthogAppLogger } from "../../../src/services/posthog-log";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -357,6 +358,10 @@ export default function ScorecardScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
       completeContest(contest.id);
+      posthogAppLogger.roundFinished({
+        playerCount: activeGroups.reduce((n, g) => n + g.players.length, 0),
+        isTournament: Boolean(contest.isTournament),
+      });
       posthog?.capture("round_finalized", {
         game_ids: contest.games,
         group_count: activeGroups.length,
