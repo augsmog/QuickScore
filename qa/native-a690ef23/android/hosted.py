@@ -10,6 +10,13 @@ def preflight(sdk,tools,devices):
  if len(serials)!=1:missing.append('exactly one booted disposable emulator')
  if missing:raise ValueError('ANDROID_PREFLIGHT_MISSING: '+', '.join(missing))
  return serials[0]
+def clean_npm_configs(home):
+ # Distinct empty files avoid npm double-loading and inherited account config.
+ paths={key:pathlib.Path(home)/name for key,name in [('NPM_CONFIG_USERCONFIG','npm-user.rc'),('NPM_CONFIG_GLOBALCONFIG','npm-global.rc')]}
+ for path in paths.values():
+  with path.open('x'):pass
+  path.chmod(0o600)
+ return {key:str(path) for key,path in paths.items()}
 def execute(source,out):
  source=pathlib.Path(source);out=pathlib.Path(out);app=source/'scoresnap';out.mkdir(parents=True,exist_ok=True)
  tools={t:shutil.which(t) for t in ['node','npm','java','adb']};sdk=os.environ.get('ANDROID_SDK_ROOT') or os.environ.get('ANDROID_HOME') or '/nonexistent'
@@ -27,7 +34,8 @@ def execute(source,out):
 
  # Do not inherit account credentials, npmrc, Gradle init scripts, or product environment.
  home=source/'.git/test-home';home.mkdir();env={k:os.environ[k] for k in ['PATH','JAVA_HOME','LANG','TMPDIR'] if k in os.environ}
- env.update(JAVA_HOME=java_home,HOME=str(home),ANDROID_HOME=sdk,ANDROID_SDK_ROOT=sdk,GRADLE_USER_HOME=str(home/'gradle'),NPM_CONFIG_USERCONFIG='/dev/null',NPM_CONFIG_GLOBALCONFIG='/dev/null',CI='1',EXPO_NO_TELEMETRY='1',EXPO_OFFLINE='1',SENTRY_DISABLE_AUTO_UPLOAD='true',EXPO_PUBLIC_SIMULATOR_NO_MLKIT='1',EXPO_PUBLIC_OFFLINE_MODE='true',EXPO_PUBLIC_DEMO_MODE='false',EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING='true',EXPO_PUBLIC_FEATURE_LEAGUES='false',EXPO_PUBLIC_FEATURE_NATIVE_LINKS='false')
+ env.update(JAVA_HOME=java_home,HOME=str(home),ANDROID_HOME=sdk,ANDROID_SDK_ROOT=sdk,GRADLE_USER_HOME=str(home/'gradle'),CI='1',EXPO_NO_TELEMETRY='1',EXPO_OFFLINE='1',SENTRY_DISABLE_AUTO_UPLOAD='true',EXPO_PUBLIC_SIMULATOR_NO_MLKIT='1',EXPO_PUBLIC_OFFLINE_MODE='true',EXPO_PUBLIC_DEMO_MODE='false',EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING='true',EXPO_PUBLIC_FEATURE_LEAGUES='false',EXPO_PUBLIC_FEATURE_NATIVE_LINKS='false')
+ env.update(clean_npm_configs(home))
  def cmd(args,phase,timeout=30,cwd=app):
   with (out/(phase+'.log')).open('wb') as log:
    p=subprocess.Popen(args,cwd=cwd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
