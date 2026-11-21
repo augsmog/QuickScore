@@ -91,10 +91,12 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
       }
       if (!code) return;
       if (!NATIVE_LINKS_ENABLED) {
-        const invite = `Open SnapScore, tap Join with code, and enter ${code}. The host must approve your request.`;
+        const invite = onlineEnabled
+          ? `Open SnapScore, tap Join with code, and enter ${code}. The host must approve your request.`
+          : `${getLocalJoinLimitation().title} — ${getLocalJoinLimitation().message} Join with code ${code}.`;
         if (Platform.OS === "web" && navigator.clipboard) {
           await navigator.clipboard.writeText(invite);
-          if (current()) setMessage("Join code instructions copied");
+          if (current()) setMessage(onlineEnabled ? "Join code instructions copied" : "Local join code copied · same browser only");
         } else await Share.share({ message: invite });
         return;
       }
