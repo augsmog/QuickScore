@@ -116,7 +116,7 @@ esac
     expect(r.status).not.toBe(0);
     expect(fs.existsSync(env.CALLS)).toBe(false);
   };
-  test.each(['NaN', 'Infinity', '-Infinity', '0.77', '1', '0', '-1', 'bad'])('rejects unsafe inode cap %s before commands', cap => {
+  test.each(['NaN', 'Infinity', '-Infinity', '0.96', '1', '0', '-1', 'bad'])('rejects unsafe inode cap %s before commands', cap => {
     env.AOS_PILOT_INODE_CAP = cap; refusedBeforeCommands();
   });
   test.each(['out-in-source', 'store-in-source', 'source-in-store', 'same', 'store-in-out', 'out-in-store', 'symlink-out', 'symlink-parent', 'existing-out', 'dangling-out'])('rejects %s before commands or source changes', kind => {
