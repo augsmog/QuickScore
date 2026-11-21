@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compatibility adapter: successful smoke ALWAYS remains incomplete for aggregate gate."""
-import importlib.util,json,os,pathlib,subprocess,sys,tempfile,hashlib
+import importlib.util,json,os,pathlib,subprocess,sys,tempfile,hashlib,shutil,time
+from contextlib import contextmanager
 HERE=pathlib.Path(__file__).resolve().parent
 ROOT=HERE.parents[1]
 APP='a690ef23e67a255408028d81e57d40e09778c3eb'
@@ -11,6 +12,21 @@ BRANCH='refs/heads/qa/snapscore-a690ef23-android-smoke'
 def guard(env):
  required={'GITHUB_ACTIONS':'true','GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REPOSITORY':'augsmog/QuickScore','GITHUB_WORKFLOW':'device-layout-gate','GITHUB_REF':BRANCH}
  if any(env.get(k)!=v for k,v in required.items()):raise ValueError('TRUSTED_MANUAL_INTAKE_REQUIRED')
+
+@contextmanager
+def isolated_source(out):
+ td=tempfile.mkdtemp(prefix='snapscore-frozen-app-')
+ try:yield td
+ finally:
+  original_failure=sys.exc_info()[0] is not None
+  cleaned=False
+  for attempt in range(3):
+   try:shutil.rmtree(td);cleaned=True;break
+   except FileNotFoundError:cleaned=True;break
+   except OSError:
+    if attempt<2:time.sleep(0.2)
+  (out/'source-cleanup.json').write_text(json.dumps({'cleaned':cleaned,'attempts':attempt+1,'originalFailurePreserved':original_failure})+'\n')
+  if not cleaned and not original_failure:raise RuntimeError('SOURCE_CLEANUP_INCOMPLETE')
 
 def main(platform):
  guard(os.environ) # Before output creation, source retrieval or any device/build call.
@@ -32,7 +48,7 @@ def main(platform):
   if platform=='ios':raise ValueError('genuine initialized runtime observer unavailable; no capture attempted')
   cfg=json.loads(pathlib.Path(os.environ['DEVICE_LAYOUT_ANDROID_SMOKE_CONFIG']).read_text()) if os.environ.get('DEVICE_LAYOUT_ANDROID_SMOKE_CONFIG') else None
   # Export clean app independently; never build from harness tree or put source into uploaded output.
-  with tempfile.TemporaryDirectory(prefix='snapscore-frozen-app-') as td:
+  with isolated_source(out) as td:
    command('git','init','-q',td)
    command('git','-C',td,'fetch','--quiet','--depth=1',str(ROOT),APP)
    command('git','-C',td,'checkout','--quiet','--detach',APP)

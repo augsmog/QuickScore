@@ -1,7 +1,22 @@
 """Exact-source disposable Android build/install/smoke; never a full gate pass."""
-import hashlib,json,os,pathlib,re,shutil,signal,subprocess,time
+import hashlib,json,os,pathlib,re,shutil,signal,subprocess,time,sys
 from smoke import run as smoke
 from provision import ensure
+GRADLE_JVM='-Xmx3072m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8'
+def gradle_args():
+ return ['bash','./gradlew',':app:assembleRelease','-PreactNativeArchitectures=x86_64','-Pandroid.builder.sdkDownload=false','--no-daemon','--no-build-cache','--max-workers=2','--no-parallel','-Dorg.gradle.jvmargs='+GRADLE_JVM]
+def memory_budget(raw):
+ match=re.search(r'^MemAvailable:\s+(\d+) kB$',raw,re.M)
+ if not match or int(match[1])<8*1024*1024:raise ValueError('ANDROID_BUILD_MEMORY_BUDGET_UNAVAILABLE')
+ return {'heapMiB':3072,'metaspaceMiB':1024,'maxWorkers':2,'parallel':False,'minimumAvailableMiB':8192}
+def run_process(args,env,cwd,log,timeout):
+ p=subprocess.Popen(args,cwd=cwd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+ try:return p.wait(timeout)
+ except subprocess.TimeoutExpired:
+  try:os.killpg(p.pid,signal.SIGKILL)
+  except ProcessLookupError:pass
+  p.wait(timeout=10)
+  raise
 REQ=['platforms/android-36/android.jar','build-tools/36.0.0/aapt','ndk/27.1.12297006/source.properties','cmake/3.22.1/bin/cmake']
 def preflight(sdk,tools,devices):
  missing=[t for t in ['node','npm','java','adb'] if not tools.get(t)]
@@ -17,6 +32,19 @@ def clean_npm_configs(home):
   with path.open('x'):pass
   path.chmod(0o600)
  return {key:str(path) for key,path in paths.items()}
+def build_release(app,out,env,cmd):
+ budget=memory_budget(pathlib.Path('/proc/meminfo').read_text())
+ (out/'build-resource-budget.json').write_text(json.dumps(budget)+'\n')
+ try:cmd(gradle_args(),'gradle-release',1000,app/'android')
+ finally:
+  # --stop sees only daemons registered in this invocation's private GRADLE_USER_HOME.
+  cleanup_ok=False
+  try:
+   with (out/'gradle-stop.log').open('wb') as log:
+    cleanup_ok=run_process(['bash','./gradlew','--stop'],env,app/'android',log,30)==0
+  except Exception:pass
+  (out/'gradle-cleanup.json').write_text(json.dumps({'isolatedHomeOnly':True,'stopSucceeded':cleanup_ok})+'\n')
+  if not cleanup_ok and sys.exc_info()[0] is None:raise RuntimeError('GRADLE_CLEANUP_INCOMPLETE')
 def execute(source,out):
  source=pathlib.Path(source);out=pathlib.Path(out);app=source/'scoresnap';out.mkdir(parents=True,exist_ok=True)
  tools={t:shutil.which(t) for t in ['node','npm','java','adb']};sdk=os.environ.get('ANDROID_SDK_ROOT') or os.environ.get('ANDROID_HOME') or '/nonexistent'
@@ -38,17 +66,15 @@ def execute(source,out):
  env.update(clean_npm_configs(home))
  def cmd(args,phase,timeout=30,cwd=app):
   with (out/(phase+'.log')).open('wb') as log:
-   p=subprocess.Popen(args,cwd=cwd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
-   try:rc=p.wait(timeout)
-   except subprocess.TimeoutExpired:
-    os.killpg(p.pid,signal.SIGKILL);p.wait();raise RuntimeError(phase+' timed out')
+   try:rc=run_process(args,env,cwd,log,timeout)
+   except subprocess.TimeoutExpired:raise RuntimeError(phase+' timed out') from None
    if rc:raise RuntimeError(phase+' failed; see phase log')
  def adb(*args):return subprocess.check_output([tools['adb'],'-s',serial,*args],timeout=30,env=env).decode().strip()
  # Reuse source lockfile; no dependency/version edits. Standard public dependency resolution only.
  lock=hashlib.sha256((app/'package-lock.json').read_bytes()).hexdigest()
  cmd([tools['npm'],'ci','--no-audit','--no-fund'], 'npm-ci',300)
  cmd([tools['node'],str(app/'node_modules/expo/bin/cli'),'prebuild','--platform','android','--no-install'],'expo-prebuild',180)
- cmd(['bash','./gradlew',':app:assembleRelease','-PreactNativeArchitectures=x86_64','-Pandroid.builder.sdkDownload=false','--no-daemon','--no-build-cache'],'gradle-release',1000,app/'android')
+ build_release(app,out,env,cmd)
  if hashlib.sha256((app/'package-lock.json').read_bytes()).hexdigest()!=lock:raise ValueError('lockfile changed')
  dirty=subprocess.check_output(['git','-C',str(source),'diff','--name-only']).decode().strip()
  if dirty:raise ValueError('prebuild changed tracked source/build inputs: '+dirty)
