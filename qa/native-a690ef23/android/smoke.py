@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Local installed-APK smoke; no installs, settings writes, launch or remote calls."""
 import argparse,hashlib,json,pathlib,re,subprocess,time,xml.etree.ElementTree as ET
-SHA='a690ef23e67a255408028d81e57d40e09778c3eb'
-TREE='ba833845c2f2cfbacdecc3ee847e74c4fcfd90b7'
+SHA='a073d5761b77f3e01610acebaf5d98f76a920fb5'
+TREE='3cbda6ddde720b614c0ae3c2bccef7948d805e20'
 def digest(b):return hashlib.sha256(b).hexdigest()
 class ActivityReadbackError(ValueError):
  def __init__(self,reason,blocks=0,targets=0,fields=0):

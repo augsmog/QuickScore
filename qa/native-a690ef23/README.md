@@ -1,6 +1,6 @@
 # Android smoke-only QA adapter
 
-App sourcea690ef23e67a255408028d81e57d40e09778c3eb; app treeba833845c2f2cfbacdecc3ee847e74c4fcfd90b7. Test-only commit; no application, dependency, release config or workflow changes. All inherited paths except the two native test entrypoints and native-scripts.test.mjs must remain exact. App is exported separately; harness HEAD/diff digest and installed APK digest are recorded independently.
+App sourcea073d5761b77f3e01610acebaf5d98f76a920fb5; app tree3cbda6ddde720b614c0ae3c2bccef7948d805e20. Test-only commit; no application, dependency, release config or workflow changes. All inherited paths except the two native test entrypoints and native-scripts.test.mjs must remain exact. App is exported separately; harness HEAD/diff digest and installed APK digest are recorded independently.
 
 Launch (only after separately authorized workflow/manual execution):
 
@@ -25,3 +25,10 @@ Shallow checkout: missing app commit is fetched by exact SHA from fixed public h
 Portable checks: bash qa/native-a690ef23/check.sh. Native build/install/capture UNRUN locally. These controls prove rejection behavior and source isolation, not native success. No complete layout reader imported or checks weakened.
 
 Manual route requires GITHUB_ACTIONS=true, GITHUB_EVENT_NAME=workflow_dispatch, GITHUB_REPOSITORY=augsmog/QuickScore, GITHUB_WORKFLOW=device-layout-gate and GITHUB_REF=refs/heads/qa/snapscore-a690ef23-android-smoke. The adapter independently rejects any mismatch before side effects. check-source validates exact app tree, clean harness, actual checkout root and approved origin before build.
+
+
+## Exact a073 successor (local staging)
+
+Export/build/install identity now binds a073d5761b77f3e01610acebaf5d98f76a920fb5 / tree3cbda6ddde720b614c0ae3c2bccef7948d805e20. Existing historical QA directory/ref and all manual guards stay unchanged. The Home app patch is carried separately in QA ancestry; source validation requires the full app checkout to equal this exact product outside the existing test allowlist. Planned source ref qa/snapscore-home-font-a073 is local only and must become authorized/readable before shallow runner fetch can work. No a690 APK/capture may satisfy these new hashes.
+
+Foreground Activity mCurrentConfig parser remains the separately tested 631f930 implementation: unique focused/resumed Activity block, typed missing/duplicate/stale/format reasons, matching Settings and OS configuration, same Activity identity before/after. Raw dumpsys/XML, device serial, paths and runtime fingerprint are not written to screenshot receipts. No initialized JS/RN scale claim. Native execution, geometry and complete Join/paywall remain unproved. No workflow/trust or app runtime flags changed.

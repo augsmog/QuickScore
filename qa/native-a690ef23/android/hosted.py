@@ -83,7 +83,7 @@ def execute(source,out):
  apk=apks[0];h=hashlib.sha256(apk.read_bytes()).hexdigest()
  package=json.loads((app/'app.json').read_text())['expo']['android']['package']
  if not re.fullmatch('[A-Za-z][A-Za-z0-9_.]+',package):raise ValueError('invalid package')
- manifest={'sourceSha':'a690ef23e67a255408028d81e57d40e09778c3eb','sourceTree':'ba833845c2f2cfbacdecc3ee847e74c4fcfd90b7','apkSha256':h,'variant':'release','offline':True,'recipeSha256':hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),'lockSha256':lock,'nodeVersion':nodeversion,'javaVersion':javaversion.strip(),'flags':{k:v for k,v in env.items() if k.startswith('EXPO_')},'nativeAcceptance':False}
+ manifest={'sourceSha':'a073d5761b77f3e01610acebaf5d98f76a920fb5','sourceTree':'3cbda6ddde720b614c0ae3c2bccef7948d805e20','apkSha256':h,'variant':'release','offline':True,'recipeSha256':hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),'lockSha256':lock,'nodeVersion':nodeversion,'javaVersion':javaversion.strip(),'flags':{k:v for k,v in env.items() if k.startswith('EXPO_')},'nativeAcceptance':False}
  manifestpath=out/'build.json';manifestpath.write_text(json.dumps(manifest,indent=2)+'\n')
  cmd([tools['adb'],'-s',serial,'install','-r',str(apk)],'install',60)
  # No fixtures or permission grants. Offline app completes onboarding through existing product behavior.

@@ -4,7 +4,7 @@ import importlib.util,json,os,pathlib,subprocess,sys,tempfile,hashlib,shutil,tim
 from contextlib import contextmanager
 HERE=pathlib.Path(__file__).resolve().parent
 ROOT=HERE.parents[1]
-APP='a690ef23e67a255408028d81e57d40e09778c3eb'
+APP='a073d5761b77f3e01610acebaf5d98f76a920fb5'
 def conclude(platform,smoke_ok=False,error=None):
  return {'appSourceSha':APP,'platform':platform,'smokePassed':smoke_ok,'status':'INCOMPLETE_REQUIRED_NATIVE_COVERAGE' if smoke_ok else 'BLOCKED','missing':['required-layout-checkpoints','real-runtime-paywall','native-two-client-Join','geometry-and-independent-review']+(['genuine-initialized-iOS-observer'] if platform=='ios' else []),'aggregatePass':False,'error':error},78
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import pathlib,subprocess,json
 root=pathlib.Path(__file__).resolve().parents[2]
-base='a690ef23e67a255408028d81e57d40e09778c3eb'
-tree='ba833845c2f2cfbacdecc3ee847e74c4fcfd90b7'
+base='a073d5761b77f3e01610acebaf5d98f76a920fb5'
+tree='3cbda6ddde720b614c0ae3c2bccef7948d805e20'
 allowed=['scoresnap/e2e/device-layout/lib/native-scripts.test.mjs','scoresnap/e2e/device-layout/scripts/run-android-compact.sh','scoresnap/e2e/device-layout/scripts/run-ios-sim.sh']
 def validate(app_sha,app_tree,changed,dirty,origin,checkout_root):
  if app_sha!=base or app_tree!=tree:raise ValueError('APP_SOURCE_OR_TREE_MISMATCH')

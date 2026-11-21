@@ -3,7 +3,7 @@
 set -euo pipefail
 recipe_path="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 src=${1:?exact isolated checkout}; gradle=${2:?absolute cached trusted Gradle executable}; out=${3:?new absolute output dir}
-[ "$(git -C "$src" rev-parse HEAD)" = a690ef23e67a255408028d81e57d40e09778c3eb ]
+[ "$(git -C "$src" rev-parse HEAD)" = a073d5761b77f3e01610acebaf5d98f76a920fb5 ]
 [ -z "$(git -C "$src" status --porcelain)" ]
 [ -x "$gradle" ] && [ -d "$src/scoresnap/android" ] && [ -d "$src/scoresnap/node_modules" ]
 command -v timeout >/dev/null
@@ -21,5 +21,5 @@ import pathlib,sys,hashlib,json
 src,out,recipe=map(pathlib.Path,sys.argv[1:]);apks=list((src/'scoresnap/android/app/build/outputs/apk/release').glob('*.apk'))
 assert len(apks)==1,'exactly one Release APK required'
 b=apks[0].read_bytes();(out/'candidate.apk').write_bytes(b)
-(out/'build.json').write_text(json.dumps({'sourceSha':'a690ef23e67a255408028d81e57d40e09778c3eb','sourceTree':'ba833845c2f2cfbacdecc3ee847e74c4fcfd90b7','apkSha256':hashlib.sha256(b).hexdigest(),'recipeSha256':hashlib.sha256(recipe.read_bytes()).hexdigest(),'variant':'release','offline':True,'nativeAcceptance':False},indent=2)+'\n')
+(out/'build.json').write_text(json.dumps({'sourceSha':'a073d5761b77f3e01610acebaf5d98f76a920fb5','sourceTree':'3cbda6ddde720b614c0ae3c2bccef7948d805e20','apkSha256':hashlib.sha256(b).hexdigest(),'recipeSha256':hashlib.sha256(recipe.read_bytes()).hexdigest(),'variant':'release','offline':True,'nativeAcceptance':False},indent=2)+'\n')
 PY
