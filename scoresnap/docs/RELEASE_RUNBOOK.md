@@ -33,6 +33,7 @@ Decision (Augie, Oct 21 2026): TestFlight goes through **Expo EAS**, so releases
    ```
    - `--auto-submit` uses `submit.testflight` and the stored ASC API key. Apple processing takes ~5–30 min after upload, then the build shows up in the TestFlight app on Augie's iPhone (internal testers get it with no review).
    - Check status: `eas build:list --platform ios --limit 1` (or the expo.dev build page link).
+   - **From a lane/box runner, use the one entry point `eas_run.sh` instead of calling `eas` directly** (Refs AUG-1357): `/workspace/augie-os-control/scripts/eas_run.sh --worktree <dir> --sha <sha> -- build --platform ios --profile testflight --auto-submit --non-interactive --no-wait`. It resolves the repo-local `scoresnap/node_modules/.bin/eas` from the worktree (`eas` is not on PATH in lanes; falls back to `npx eas-cli@<pinned>`), loads `EXPO_TOKEN` from the box secret store and redacts it from all output, and refuses to start a `build` while a 1.0.x build is already in progress for the same SHA (single-build guard). `EAS_RUN_DRY=1` prints the plan only. Put the exact `eas_run.sh` invocation in the build ticket's `Step:` line.
 4. **JS-only fixes** (no native code or dependency changes): skip the build and ship an over-the-air update to the same channel:
    ```sh
    EXPO_TOKEN=*** eas update --channel testflight --message "<what changed>" --non-interactive
