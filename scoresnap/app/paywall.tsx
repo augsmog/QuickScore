@@ -48,7 +48,7 @@ export default function PaywallScreen() {
   return <SafeScreen style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>
       <View style={s.top}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
+        <Pressable testID="paywall-close" accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
         <Pressable accessibilityRole="button" disabled={busy} style={s.topLink} onPress={() => act(async () => {
           const restored = await restorePurchases();
           showAlert(C.restore, restored ? C.restored : C.nothing);
@@ -56,18 +56,18 @@ export default function PaywallScreen() {
       </View>
       <View style={{ gap: 4 }}><Text style={s.eyebrow}>{v.eyebrow}</Text><Text style={s.headline}>{v.headline}</Text></View>
       <View>{v.values.map((value, i) => <View key={value.icon} style={[s.value, i < 2 && s.rule]}>
-        <PaywallIcon name={value.icon} /><View style={{ flex: 1, gap: 2 }}><Text style={s.valueTitle}>{value.title}</Text>{!!value.body && <Text style={s.body}>{value.body}</Text>}</View>
+        <PaywallIcon name={value.icon} /><View style={{ flex: 1, minWidth: 160, gap: 2 }}><Text style={s.valueTitle}>{value.title}</Text>{!!value.body && <Text style={s.body}>{value.body}</Text>}</View>
       </View>)}</View>
       <Text style={s.body}>{v.scans}</Text>
       <View style={{ gap: 8 }}>{v.rows.map(row => <Pressable key={row.tier} accessibilityRole="radio" accessibilityState={{ checked: row.selected }} aria-checked={row.selected}
         onPress={() => setSelection({ ...selection, tier: row.tier })} style={[s.plan, row.selected && s.selected]}>
         <PaywallRadio selected={row.selected} />
-        <View style={{ flex: 1, gap: 2 }}>
+        <View style={{ flex: 1, minWidth: 160, gap: 2 }}>
           <View style={s.titleRow}><Text style={s.planTitle}>{row.name}</Text>{!!row.tag && tag(row.tag)}</View>
           {!!row.body && <Text style={s.body}>{row.body}</Text>}
           {!!row.alternate && <Pressable accessibilityRole="button" style={s.alternateLink} onPress={event => { event.stopPropagation(); setSelection({ tier: row.tier, period: selection.period === 'year' ? 'month' : 'year' }); }}><Text style={s.body}>{row.alternate}</Text></Pressable>}
         </View>
-        {!!row.price && <View style={{ alignItems: 'flex-end', gap: 4 }}><Text style={s.price}>{row.price}</Text>{!!row.trial && tag(row.trial)}</View>}
+        {!!row.price && <View style={{ alignItems: 'flex-end', gap: 4, flexShrink: 0, maxWidth: '100%' }}><Text style={s.price}>{row.price}</Text>{!!row.trial && tag(row.trial)}</View>}
       </Pressable>)}</View>
       <View style={{ gap: 6, alignItems: 'center' }}>
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || v.disabled }} disabled={busy || v.disabled} style={[s.cta, (busy || v.disabled) && { opacity: 0.55 }]}
@@ -99,16 +99,16 @@ const s = StyleSheet.create({
   rule: { borderBottomColor: P.rule, borderBottomWidth: 1 },
   valueTitle: { fontFamily: P.semibold, fontSize: 15, color: P.ink },
   body: { fontFamily: P.regular, fontSize: 13, lineHeight: 18, color: P.muted },
-  plan: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: P.radius, backgroundColor: P.card, borderColor: P.rule, borderWidth: 1 },
+  plan: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: P.radius, backgroundColor: P.card, borderColor: P.rule, borderWidth: 1 },
   selected: { borderColor: P.green, borderWidth: 2 },
-  titleRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  titleRow: { flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
   planTitle: { fontFamily: P.semibold, fontSize: 16, color: P.ink },
   tag: { fontFamily: P.semibold, fontSize: 11, color: P.green, backgroundColor: P.tint, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
   current: { color: P.muted, backgroundColor: P.neutral },
   price: { fontFamily: P.bold, fontSize: 16, color: P.ink },
-  cta: { height: P.ctaHeight, width: '100%', borderRadius: P.radius, backgroundColor: P.green, alignItems: 'center', justifyContent: 'center' },
-  ctaText: { fontFamily: P.semibold, fontSize: 17, color: P.card },
+  cta: { minHeight: P.ctaHeight, paddingVertical: 12, paddingHorizontal: 16, width: '100%', borderRadius: P.radius, backgroundColor: P.green, alignItems: 'center', justifyContent: 'center' },
+  ctaText: { textAlign: 'center', flexShrink: 1, fontFamily: P.semibold, fontSize: 17, color: P.card },
   billed: { fontFamily: P.medium, fontSize: 13, color: P.ink },
   small: { fontFamily: P.regular, fontSize: 11, color: P.muted },
-  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
+  footer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 8 },
 });

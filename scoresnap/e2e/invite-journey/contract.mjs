@@ -16,9 +16,8 @@ export function assertBinding(f,m,actor) {
   assert.equal(m.user_id,actor); assert.equal(m.player_id,f.players[1].id); assert.equal(m.status,'approved');
 }
 export function assertShare(f,payload) {
-  const urls=payload.match(/(?:snapscore:\/\/|https?:\/\/)[^\s]+/g) ?? [];
-  assert(urls.some(value=>new URL(value).pathname===(value.startsWith('snapscore:')?`/${f.code}`:`/join/${f.code}`) &&
-    (!value.startsWith('snapscore:') || new URL(value).hostname==='join')),'Actual share URL must contain canonical invite');
+  assert.equal(payload,`Open SnapScore, tap Join with code, and enter ${f.code}. The host must approve your request.`,
+    'Actual share must contain only the exact canonical manual-code instructions');
 }
 export function assertScores(f,s,{owner=true}={}) {
   assert.equal(s.contest_id,f.contestId);

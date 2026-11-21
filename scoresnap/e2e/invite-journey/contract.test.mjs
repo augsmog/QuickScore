@@ -23,16 +23,15 @@ test('intended anonymous binding and actual copied payload cannot use substitute
   const m={user_id:'anon',player_id:'guest',status:'approved'};
   assertBinding(fixture(),m,'anon');
   for(const patch of [{user_id:'other'},{player_id:'host'},{status:'pending'}]) assert.throws(()=>assertBinding(fixture(),{...m,...patch},'anon'));
-  assertShare(fixture(),'Sign in. snapscore://join/ABC234');
-  assertShare(fixture(),'http://127.0.0.1:8089/join/ABC234');
-  for(const payload of ['ABC234','snapscore://join/XYZ234','snapscore://join/ABC234extra']) assert.throws(()=>assertShare(fixture(),payload));
+  assertShare(fixture(),'Open SnapScore, tap Join with code, and enter ABC234. The host must approve your request.');
+  for(const payload of ['ABC234','snapscore://join/ABC234','http://127.0.0.1:8089/join/ABC234','Open SnapScore, tap Join with code, and enter XYZ234. The host must approve your request.']) assert.throws(()=>assertShare(fixture(),payload));
 });
 
 test('native artifact requires matching provenance, sharing and disposable backend before execution',async()=>{
   const {validateArtifact}=await import('./native.mjs');
-  const source='a'.repeat(40),meta={schema:'invite-journey-app/1',source_sha:source,api:fixture().api,cross_device_sharing:true,offline:false,executable_sha256:'b'.repeat(64)};
+  const source='a'.repeat(40),meta={schema:'invite-journey-app/1',source_sha:source,api:fixture().api,cross_device_sharing:true,offline:false,native_links:false,leagues:false,executable_sha256:'b'.repeat(64)};
   validateArtifact(meta,fixture(),source);
-  for(const patch of [{source_sha:'c'.repeat(40)},{api:'https://production.invalid'},{cross_device_sharing:false},{offline:true},{executable_sha256:''}]) assert.throws(()=>validateArtifact({...meta,...patch},fixture(),source));
+  for(const patch of [{source_sha:'c'.repeat(40)},{api:'https://production.invalid'},{cross_device_sharing:false},{offline:true},{native_links:true},{native_links:undefined},{leagues:true},{leagues:undefined},{executable_sha256:''}]) assert.throws(()=>validateArtifact({...meta,...patch},fixture(),source));
 });
 
 test('canonical invite is owner-only; guest score proof must not demand or expose it',()=>{

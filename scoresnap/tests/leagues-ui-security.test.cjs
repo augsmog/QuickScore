@@ -9,7 +9,7 @@ function load(file, deps) {
   return m.exports;
 }
 
-function fixture(initialAuth, serviceOverrides = {}) {
+function fixture(initialAuth, serviceOverrides = {}, enabled = true) {
   let auth = initialAuth;
   const subscribers = new Set();
   function useAuthStore(selector = state => state) {
@@ -39,7 +39,7 @@ function fixture(initialAuth, serviceOverrides = {}) {
     '../../src/ui/theme': { COLORS: { bg: 'bg', text: 'text', textDim: 'muted', primary: 'primary', onPrimary: 'on', surface: 'surface', danger: 'danger' }, FONTS: { headline: 'h', bold: 'b', regular: 'r' }, RADII: { md: 4, lg: 8 }, TYPOGRAPHY: { headline: {}, body: {}, label: {} } },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 16 }) },
     '../../src/ui/tab-bar-metrics': { tabBarHeight: bottom => 68 + Math.max(bottom - 8, 0) },
-    '../../src/config/features': { CROSS_DEVICE_SHARING_ENABLED: true },
+    '../../src/config/features': { LEAGUES_ENABLED: enabled },
     '../../src/stores/auth-store': { useAuthStore },
     '../../src/stores/online-store': { useOnlineStore: selector => selector({ events: {} }) },
     '../../src/services/leagues': { leagueService: service },
@@ -173,5 +173,15 @@ test('authorized league event lists per-hole scores', async () => {
   try {
     await act(async () => { tree = create(React.createElement(f.Screen)); });
     expect(flatten(tree.toJSON())).toContain('1:4 2:5');
+  } finally { if (tree) await act(async () => tree.unmount()); }
+});
+
+test('disabled direct League route never loads data or exposes actions', async () => {
+  const f = fixture({ remoteUserId:'account-a', isAnonymous:false }, {}, false);
+  let tree;
+  try {
+    await act(async () => { tree = create(React.createElement(f.Screen)); });
+    expect(flatten(tree.toJSON())).toContain('Leagues are not available in this release.');
+    for (const method of Object.values(f.service)) expect(method).not.toHaveBeenCalled();
   } finally { if (tree) await act(async () => tree.unmount()); }
 });

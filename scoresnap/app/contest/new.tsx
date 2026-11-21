@@ -7,7 +7,7 @@ import { useState, useMemo } from "react";
 import {
   View,
   Text,
-  Dimensions,
+  useWindowDimensions,
   ScrollView,
   TextInput,
   Switch,
@@ -50,10 +50,12 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
-import { roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox } from "../../src/ui/tournament-setup-layout";
+import { setupTargets } from "../../src/ui/tournament-setup-layout";
 import { posthog } from "../../src/config/posthog";
 import { posthogAppLogger } from "../../src/services/posthog-log";
 import { isCompactViewport } from "../../src/ui/compact-viewport";
+
+const { minTarget, roundCountPillStyle, groupChipStyle, nameInputMinHeight, handicapInputBox } = setupTargets(Platform.OS);
 
 interface PlayerInput {
   id: string;
@@ -74,11 +76,9 @@ export default function NewContestScreen() {
   const router = useRouter();
   const addContest = useContestStore((s) => s.addContest);
   const user = useAuthStore((s) => s.user);
-  // AUG-1368: raw subscription tier, matching the store-level host validator
-  // (contest-store.ts injects useScanStore.getState().tier), so the wizard gate
-  // agrees with the mutation boundary that would otherwise throw on save.
+  // Keep main's entitlement input while responding to viewport changes.
   const tier = useScanStore((s) => s.tier);
-  const compactViewport = isCompactViewport(Dimensions.get("window"));
+  const compactViewport = isCompactViewport(useWindowDimensions());
 
   const [step, setStep] = useState(0);
   // Auto-generate contest name
@@ -386,7 +386,7 @@ export default function NewContestScreen() {
           paddingVertical: 10,
           paddingHorizontal: 14,
           marginBottom: 8,
-          minHeight: 44,
+          minHeight: minTarget,
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
@@ -421,8 +421,8 @@ export default function NewContestScreen() {
           style={{
             backgroundColor: COLORS.surfaceMid,
             borderRadius: RADII.md,
-            minWidth: 44,
-            minHeight: 44,
+            minWidth: minTarget,
+            minHeight: minTarget,
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -455,9 +455,11 @@ export default function NewContestScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={60}
+        keyboardVerticalOffset={0}
       >
       <ScrollView
+        testID="contest-scroll"
+        contentContainerStyle={{ paddingBottom: 24 }}
         nestedScrollEnabled
         style={{ flex: 1, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
@@ -489,7 +491,7 @@ export default function NewContestScreen() {
                 borderColor: COLORS.border,
                 borderWidth: 1,
                 borderRadius: RADII.md,
-                minHeight: 44,
+                minHeight: minTarget,
                 paddingHorizontal: 16,
                 paddingVertical: compactViewport ? 10 : 14,
                 fontSize: 15,
@@ -501,26 +503,29 @@ export default function NewContestScreen() {
 
             {/* Tournament Toggle */}
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: compactViewport ? 4 : 12 }}>
+              <View style={{ width: Platform.OS === "web" ? 88 : 56, minHeight: minTarget, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Switch
                 testID="tournament-toggle"
                 accessibilityLabel="Multi-Day Tournament"
-                style={{ width: 44, height: 44 }}
+                style={Platform.OS === "web" ? { width: 88, height: 44 } : undefined}
                 value={isTournament}
                 onValueChange={(val) => {
                   setIsTournament(val);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
+                ios_backgroundColor={COLORS.border}
                 trackColor={{ false: COLORS.border, true: COLORS.primary }}
                 thumbColor={COLORS.card}
               />
-              <Text style={{ color: COLORS.text, fontSize: 15, marginLeft: 12 }}>
+              </View>
+              <Text style={{ color: COLORS.text, fontSize: 15, marginLeft: 12, flex: 1 }}>
                 Multi-Day Tournament
               </Text>
 
             </View>
 
             {isTournament && (
-              <View style={{ marginBottom: 16, paddingLeft: 48 }}>
+              <View testID="contest-rounds" style={{ marginBottom: 16 }}>
                 <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 8, fontSize: 11 }}>
                   NUMBER OF ROUNDS
                 </Text>
@@ -581,7 +586,7 @@ export default function NewContestScreen() {
                     borderColor: COLORS.border,
                     borderWidth: 1,
                     borderRadius: RADII.md,
-                    minHeight: 44,
+                    minHeight: minTarget,
                     paddingHorizontal: 16,
                     paddingVertical: 14,
                     fontSize: 15,
@@ -621,14 +626,18 @@ export default function NewContestScreen() {
                   Split players into teams (up to 20)
                 </Text>
               </View>
+              <View style={{ width: Platform.OS === "web" ? 88 : 56, minHeight: minTarget, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Switch
                 testID="team-mode"
+                accessibilityLabel="Team Mode"
                 value={hasTeams}
                 onValueChange={setHasTeams}
-                style={{ width: 44, height: 44 }}
-                trackColor={{ false: COLORS.surfaceHighest, true: COLORS.primary }}
-                thumbColor={COLORS.text}
+                style={Platform.OS === "web" ? { width: 88, height: 44 } : undefined}
+                ios_backgroundColor={COLORS.border}
+                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                thumbColor={COLORS.card}
               />
+              </View>
             </View>
 
             {hasTeams && (
@@ -645,7 +654,7 @@ export default function NewContestScreen() {
                         flex: 1,
                         backgroundColor: COLORS.surfaceLow,
                         borderRadius: RADII.md,
-                        minHeight: 44,
+                        minHeight: minTarget,
                         paddingHorizontal: 12,
                         paddingVertical: 8,
                         fontSize: 14,
@@ -668,7 +677,7 @@ export default function NewContestScreen() {
                       alignItems: "center",
                       justifyContent: "center",
                       gap: 6,
-                      minHeight: 44,
+                      minHeight: minTarget,
                       paddingVertical: 10,
                       borderRadius: RADII.md,
                       backgroundColor: COLORS.surfaceLow,
@@ -697,6 +706,7 @@ export default function NewContestScreen() {
               return (
               <View
                 key={player.id}
+                testID={`contest-player-${idx}`}
                 style={{
                   backgroundColor: COLORS.surfaceMid,
                   borderColor: nameEmpty ? COLORS.warn + "66" : COLORS.border,
@@ -704,11 +714,11 @@ export default function NewContestScreen() {
                   borderRadius: RADII.lg,
                   padding: 12,
                   marginBottom: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
+                  flexDirection: "column",
                   gap: 10,
                 }}
               >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                 {/* Avatar */}
                 <View
                   style={{
@@ -725,13 +735,14 @@ export default function NewContestScreen() {
                   </Text>
                 </View>
 
-                <View style={{ flex: 1 }}>
                   <TextInput
                     value={player.name}
                     onChangeText={(v) => updatePlayer(player.id, "name", v)}
                     placeholder={idx === 0 ? "Your name" : `Player ${idx + 1} name`}
                     placeholderTextColor={nameEmpty ? COLORS.warn : COLORS.textDim}
                     style={{
+                      flex: 1,
+                      minWidth: 0,
                       fontSize: 15,
                       fontFamily: FONTS.medium,
                       color: COLORS.text,
@@ -740,10 +751,11 @@ export default function NewContestScreen() {
                       minHeight: nameInputMinHeight,
                       paddingHorizontal: nameEmpty ? 8 : 0,
                       paddingVertical: 2,
-                      marginHorizontal: nameEmpty ? -8 : 0,
                     }}
                   />
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                </View>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                     <Text style={{ fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textDim }}>
                       HCP
                     </Text>
@@ -804,10 +816,9 @@ export default function NewContestScreen() {
                       </AnimatedPressable>
                     )}
                   </View>
-                </View>
 
                 {hasTeams && teams.length <= 4 && (
-                  <View style={{ flexDirection: "row", gap: 3, flexWrap: "wrap" }}>
+                  <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
                     {teams.map((t) => {
                       const isActive = player.team === t.id;
                       return (
@@ -816,8 +827,8 @@ export default function NewContestScreen() {
                           testID={`player-team-${player.name}-${t.id}`}
                           onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}
                           style={{
-                            minWidth: 44,
-                            minHeight: 44,
+                            minWidth: minTarget,
+                            minHeight: minTarget,
                             borderRadius: RADII.md,
                             alignItems: "center",
                             justifyContent: "center",
@@ -843,8 +854,8 @@ export default function NewContestScreen() {
                       updatePlayer(player.id, "team", nextTeam);
                     }}
                     style={{
-                      minWidth: 44,
-                      minHeight: 44,
+                      minWidth: minTarget,
+                      minHeight: minTarget,
                       borderRadius: RADII.md,
                       alignItems: "center",
                       justifyContent: "center",
@@ -869,11 +880,12 @@ export default function NewContestScreen() {
                     testID={`remove-player-${player.name}`}
                     accessibilityLabel={`Remove ${player.name || "player"}`}
                     onPress={() => removePlayer(player.id)}
-                    style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
+                    style={{ minWidth: minTarget, minHeight: minTarget, alignItems: "center", justifyContent: "center" }}
                   >
                     <X size={16} color={COLORS.textDim} />
                   </AnimatedPressable>
                 )}
+                </View>
               </View>
             );
             })}
@@ -917,8 +929,8 @@ export default function NewContestScreen() {
                     }
                   }}
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: minTarget,
+                    height: minTarget,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",
@@ -937,8 +949,8 @@ export default function NewContestScreen() {
                     setNumGroups(numGroups + 1);
                   }}
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: minTarget,
+                    height: minTarget,
                     borderRadius: RADII.md,
                     alignItems: "center",
                     justifyContent: "center",
@@ -974,7 +986,7 @@ export default function NewContestScreen() {
                       aria-checked={(gameConfig.skinsMode ?? "net") === mode}
                       accessibilityState={{ checked: (gameConfig.skinsMode ?? "net") === mode }}
                       onPress={() => setGameConfig((prev) => ({ ...prev, skinsMode: mode }))}
-                      style={{ padding: 12, minHeight: 44, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsMode ?? "net") === mode ? COLORS.primary : COLORS.surfaceMid }}>
+                      style={{ padding: 12, minHeight: minTarget, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsMode ?? "net") === mode ? COLORS.primary : COLORS.surfaceMid }}>
                       <Text style={{ color: COLORS.text }}>{mode === "net" ? "Net" : "Gross"}</Text>
                     </AnimatedPressable>
                   ))}
@@ -987,7 +999,7 @@ export default function NewContestScreen() {
                       aria-checked={(gameConfig.skinsScope ?? "field") === scope}
                       accessibilityState={{ checked: (gameConfig.skinsScope ?? "field") === scope }}
                       onPress={() => setGameConfig(prev => ({ ...prev, skinsScope: scope }))}
-                      style={{ padding: 12, minHeight: 44, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsScope ?? "field") === scope ? COLORS.primary : COLORS.surfaceMid }}>
+                      style={{ padding: 12, minHeight: minTarget, justifyContent: "center", borderRadius: 8, backgroundColor: (gameConfig.skinsScope ?? "field") === scope ? COLORS.primary : COLORS.surfaceMid }}>
                       <Text style={{ color: COLORS.text }}>{scope === "field" ? "Whole field" : "Each group"}</Text>
                     </AnimatedPressable>
                   ))}
@@ -1234,7 +1246,7 @@ export default function NewContestScreen() {
                 style={{
                   fontFamily: FONTS.score, fontVariant: ['tabular-nums'],
                   fontSize: 40,
-                  minHeight: 44,
+                  minHeight: minTarget,
                   color: COLORS.text,
                   minWidth: 60,
                 }}
@@ -1263,15 +1275,14 @@ export default function NewContestScreen() {
           </View>
         )}
 
-        <View style={{ height: 96 }} />
       </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* Bottom Navigation */}
+      {/* Footer shares the keyboard-avoiding boundary, outside the scroll content. */}
       <View
+        testID="contest-footer"
         style={{
           paddingHorizontal: 20,
-          paddingBottom: 24,
+          paddingBottom: compactViewport ? 12 : 16,
           paddingTop: 12,
           backgroundColor: COLORS.bg,
           flexDirection: "row",
@@ -1322,6 +1333,7 @@ export default function NewContestScreen() {
           </Text>
         </AnimatedPressable>
       </View>
+      </KeyboardAvoidingView>
     </SafeScreen>
   );
 }

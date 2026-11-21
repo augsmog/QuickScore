@@ -12,7 +12,7 @@ function harness(initialTier = 'free', {comingSoon = false, validate} = {}) {
   const useAuthStore = select => select(auth); useAuthStore.getState = () => auth;
   const mocks = {
     react: React, 'react/jsx-runtime': require('react/jsx-runtime'),
-    'react-native': new Proxy({Platform: {OS: 'web'}, Dimensions: {get: () => ({width: 375, height: 667})}}, {get: (o, k) => o[k] ?? k}),
+    'react-native': new Proxy({Platform: {OS: 'web'}, useWindowDimensions: () => ({width: 375, height: 667})}, {get: (o, k) => o[k] ?? k}),
     'expo-router': {useRouter: () => ({push, replace, back: jest.fn()}), useFocusEffect: callback => {focus = callback;}},
     'lucide-react-native': new Proxy({}, {get: (_, k) => k}),
     'expo-crypto': {randomUUID: () => `contest-${++id}`},
@@ -181,4 +181,28 @@ test('variation validation blocks both Continue and Start without losing setting
   validate.mockReturnValue('Invalid setup'); h.press('Start');
   expect(validate).toHaveBeenCalledTimes(3); expect(h.addContest).not.toHaveBeenCalled();
   expect(h.byId('contest-step-round-settings')).toBeDefined();
+});
+
+for (const tier of ['free', 'pro', 'td']) {
+  test(`${tier} multi-group wizard preserves main hosting entitlement routing`, () => {
+    const h=harness(tier);h.seed(4);
+    act(()=>h.byId('add-group').onPress());
+    act(()=>h.byId('player-group-Name 3').onPress());
+    act(()=>h.byId('player-group-Name 4').onPress());
+    h.press('Continue');h.press('Continue');h.press('Start');
+    if(tier==='td') {
+      expect(h.push).not.toHaveBeenCalled();
+      expect(h.addContest).toHaveBeenCalledTimes(1);
+      expect(h.addContest.mock.calls[0][0].groups).toHaveLength(2);
+    } else {
+      expect(h.push).toHaveBeenCalledWith('/paywall?tier=td');
+      expect(h.addContest).not.toHaveBeenCalled();
+    }
+  });
+}
+test('store validation failure cannot navigate or escape the Start handler',()=>{
+  const h=harness('td');h.seed(4);toStart(h);
+  h.addContest.mockImplementation(()=>{throw new Error('Synthetic store rejection');});
+  expect(()=>h.press('Start')).not.toThrow();
+  expect(h.replace).not.toHaveBeenCalled();
 });

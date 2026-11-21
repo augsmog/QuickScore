@@ -23,7 +23,7 @@ function loadModule(file, overrides) {
 function loadNativeIntent(sharingEnabled) {
   const universalLink = loadModule(path.join(__dirname, '../src/services/universal-link.ts'), {});
   return loadModule(path.join(__dirname, '../app/+native-intent.tsx'), {
-    '../src/config/features': { CROSS_DEVICE_SHARING_ENABLED: sharingEnabled },
+    '../src/config/features': { NATIVE_LINKS_ENABLED: sharingEnabled },
     '../src/services/universal-link': universalLink,
   });
 }
@@ -32,7 +32,7 @@ const WEB_URL = 'https://snapscore.autumn8.me';
 const SCORECARD_TOKEN = 'b'.repeat(64);
 
 describe('AUG-596 cross-device journey: cold/warm deep links', () => {
-  test('cold start and warm start resolve a join-code deep link identically (sharing on)', () => {
+  test('cold start and warm start resolve a join-code deep link identically (future native links on)', () => {
     const intent = loadNativeIntent(true);
     const coldStart = intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial: true });
     const warmStart = intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial: false });
@@ -40,7 +40,7 @@ describe('AUG-596 cross-device journey: cold/warm deep links', () => {
     assert.equal(warmStart, '/join/ABC234');
   });
 
-  test('cold start and warm start resolve a scorecard deep link identically (sharing on)', () => {
+  test('cold start and warm start resolve a scorecard deep link identically (future native links on)', () => {
     const intent = loadNativeIntent(true);
     const coldStart = intent.redirectSystemPath({ path: `${WEB_URL}/r/${SCORECARD_TOKEN}`, initial: true });
     const warmStart = intent.redirectSystemPath({ path: `${WEB_URL}/r/${SCORECARD_TOKEN}`, initial: false });
@@ -48,11 +48,11 @@ describe('AUG-596 cross-device journey: cold/warm deep links', () => {
     assert.equal(warmStart, `/r/${SCORECARD_TOKEN}`);
   });
 
-  test('flag-off regression: both routes pass the raw path through unchanged, cold or warm', () => {
+  test('flag-off regression: both native routes are blocked, cold or warm', () => {
     const intent = loadNativeIntent(false);
     for (const initial of [true, false]) {
-      assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial }), `${WEB_URL}/join/ABC234`);
-      assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/r/${SCORECARD_TOKEN}`, initial }), `${WEB_URL}/r/${SCORECARD_TOKEN}`);
+      assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial }), '/');
+      assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/r/${SCORECARD_TOKEN}`, initial }), '/');
     }
   });
 });
@@ -170,11 +170,11 @@ describe('AUG-84 journey: handoff visibility, second-identity merge, onboarding,
     }), false);
 
     const intent = loadNativeIntent(false);
-    assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial: true }), `${WEB_URL}/join/ABC234`);
+    assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial: true }), '/');
 
     // The handoff/merge fixture itself is flag-agnostic (prepareAccountHandoff/finishAccountHandoff own the
     // onlineEnabled gate in src/services/account-handoff.ts, already covered by tests/account-round-history.test.cjs);
-    // this assertion documents that native-intent and onboarding-gate independently honor the same flag.
+    // this assertion documents that native-intent and onboarding-gate honor their separate release flags.
   });
 });
 

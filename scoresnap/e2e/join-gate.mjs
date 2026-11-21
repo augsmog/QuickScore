@@ -7,7 +7,7 @@ assert(['true', 'false'].includes(process.env.EXPECT_CROSS_DEVICE_SHARING), 'exp
 const sharing = process.env.EXPECT_CROSS_DEVICE_SHARING === 'true';
 let browser;
 try {
-  browser = await chromium.launch();
+  browser = await chromium.launch(process.env.CHROME_BIN ? { executablePath: process.env.CHROME_BIN } : {});
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   // Offline smoke must never reach external services.
   await page.route('**/*', route => {
@@ -35,6 +35,17 @@ try {
     assert.equal(await joins.textContent(), 'Join with code');
     await joins.click();
     await page.getByLabel('Join code', { exact: true }).waitFor();
+    await page.getByLabel('Join code', { exact: true }).fill('bad');
+    await page.getByPlaceholder('Display name').fill('Synthetic visitor');
+    await page.getByText('Find contest', { exact: true }).click();
+    await page.getByText('Enter a valid six-character code.', { exact: true }).waitFor();
+    await page.getByLabel('Join code', { exact: true }).fill('ZZZZZZ');
+    await page.getByText('Find contest', { exact: true }).click();
+    await page.getByText('Contest not found on this device. Offline codes work only in the organizer’s browser.', { exact: true }).waitFor();
+    await page.goto(`${base}/leagues`, { waitUntil: 'networkidle' });
+    await page.getByText('Leagues are not available in this release.', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('tab', { name: 'Leagues', exact: true }).count(), 0);
+    console.log('PASS: manual entry, invalid/unknown offline code negatives, disabled League route and tab');
   } else {
     const wordmark = page.getByText('SNAPSCORE', { exact: true });
     const scroll = page.getByTestId('home-scroll');

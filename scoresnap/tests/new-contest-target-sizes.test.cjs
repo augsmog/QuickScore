@@ -16,15 +16,15 @@ test('Add Team control meets the 44px tap target', () => {
   const start = src.indexOf('onPress={addTeam}');
   assert.ok(start > 0);
   const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
-  assert.match(block, /minHeight: 44,/);
+  assert.match(block, /minHeight: minTarget,/);
 });
 
 test('player-team chips (<=4 teams) meet the 44x44 tap target', () => {
   const start = src.indexOf('onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}');
   assert.ok(start > 0);
   const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
-  assert.match(block, /minWidth: 44,/);
-  assert.match(block, /minHeight: 44,/);
+  assert.match(block, /minWidth: minTarget,/);
+  assert.match(block, /minHeight: minTarget,/);
   assert.doesNotMatch(block, /\bheight: 28,/);
 });
 
@@ -32,8 +32,8 @@ test('player-team chips (>4 teams) meet the 44x44 tap target', () => {
   const start = src.indexOf('const nextTeam = nextIdx === teams.length ? null : teams[nextIdx].id;');
   assert.ok(start > 0);
   const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
-  assert.match(block, /minWidth: 44,/);
-  assert.match(block, /minHeight: 44,/);
+  assert.match(block, /minWidth: minTarget,/);
+  assert.match(block, /minHeight: minTarget,/);
   assert.doesNotMatch(block, /\bheight: 28,/);
 });
 
@@ -44,7 +44,7 @@ test('game-mode picker cards meet the 44px tap target', () => {
   const start = src.indexOf('testID={`game-mode-${game.id}`}');
   assert.ok(start > 0);
   const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
-  assert.match(block, /minHeight: 44,/);
+  assert.match(block, /minHeight: minTarget,/);
 });
 
 // AUG-1155: J-home-create-cancel "edit" capture found the "Number of groups"
@@ -53,8 +53,8 @@ test('number-of-groups stepper minus button meets the 44x44 tap target', () => {
   const start = src.indexOf('if (numGroups > 1) {');
   assert.ok(start > 0);
   const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
-  assert.match(block, /width: 44,/);
-  assert.match(block, /height: 44,/);
+  assert.match(block, /width: minTarget,/);
+  assert.match(block, /height: minTarget,/);
   assert.doesNotMatch(block, /\bwidth: 36,/);
   assert.doesNotMatch(block, /\bheight: 36,/);
 });
@@ -63,8 +63,8 @@ test('number-of-groups stepper add-group button meets the 44x44 tap target', () 
   const start = src.indexOf('testID="add-group" accessibilityLabel="Add group"');
   assert.ok(start > 0);
   const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
-  assert.match(block, /width: 44,/);
-  assert.match(block, /height: 44,/);
+  assert.match(block, /width: minTarget,/);
+  assert.match(block, /height: minTarget,/);
   assert.doesNotMatch(block, /\bwidth: 36,/);
   assert.doesNotMatch(block, /\bheight: 36,/);
 });
@@ -76,14 +76,14 @@ test('skins-mode radio buttons meet the 44px tap target', () => {
   const start = src.indexOf('onPress={() => setGameConfig((prev) => ({ ...prev, skinsMode: mode }))}');
   assert.ok(start > 0);
   const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
-  assert.match(block, /minHeight: 44,/);
+  assert.match(block, /minHeight: minTarget,/);
 });
 
 test('skins-scope radio buttons meet the 44px tap target', () => {
   const start = src.indexOf('onPress={() => setGameConfig(prev => ({ ...prev, skinsScope: scope }))}');
   assert.ok(start > 0);
   const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
-  assert.match(block, /minHeight: 44,/);
+  assert.match(block, /minHeight: minTarget,/);
 });
 
 // AUG-1155: J-create-8p-multiday "eight-players" capture found the remove-player
@@ -92,7 +92,7 @@ test('remove-player button meets the 44x44 tap target', () => {
   const start = src.indexOf('onPress={() => removePlayer(player.id)}');
   assert.ok(start > 0);
   const block = src.slice(start, src.indexOf('</AnimatedPressable>', start));
-  assert.match(block, /minWidth: 44,/);
-  assert.match(block, /minHeight: 44,/);
+  assert.match(block, /minWidth: minTarget,/);
+  assert.match(block, /minHeight: minTarget,/);
   assert.doesNotMatch(block, /padding: 4,/);
 });

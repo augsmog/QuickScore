@@ -2,7 +2,7 @@ import { SafeScreen } from "../../src/ui/SafeScreen";
 import { OnlineGuestScorecard } from "../../src/ui/OnlineGuestScorecard";
 import { onlineEnabled, client, remoteIdentity } from "../../src/services/cross-device";
 import { useEffect, useState } from "react";
-import { ScrollView, Text, TextInput, Pressable, View } from "react-native";
+import { ScrollView, Text, TextInput, Pressable, View, KeyboardAvoidingView, Platform } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useContestStore, type Contest } from "../../src/stores/contest-store";
 import { useGuestStore } from "../../src/stores/guest-store";
@@ -24,7 +24,7 @@ export default function JoinContest() {
   const guest = useGuestStore();
   const binding = guest.bindings.find(b => b.contestId === contestId);
   const player = contest?.groups.flatMap(g => g.players).find(p => p.id === binding?.playerId);
-  const button = (label: string, action: () => void, id?: string) => <Pressable testID={id} onPress={action} style={{ backgroundColor: COLORS.surfaceHigh, padding: 14, borderRadius: 12, marginVertical: 5 }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>{label}</Text></Pressable>;
+  const button = (label: string, action: () => void, id?: string) => <Pressable testID={id} accessibilityRole="button" onPress={action} style={{ minHeight: 48, justifyContent: "center", backgroundColor: COLORS.surfaceHigh, padding: 14, borderRadius: 12, marginVertical: 5 }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>{label}</Text></Pressable>;
   const lookup = async () => {
     try {
       setError("");
@@ -44,15 +44,17 @@ export default function JoinContest() {
   const join = (c: Contest, playerId: string) => {
     try { guest.join(c, playerId, name); setJoined(true); setError(""); } catch (e: any) { setError(e.message); }
   };
-  return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><Pressable testID="join-dismiss" accessibilityRole="button" accessibilityLabel="Back to home" onPress={() => router.replace("/")} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>Back to home</Text></Pressable>{!onlineEnabled && <LocalJoinLimitationBanner actionLabel="Got a different code? Enter it below" onAction={() => setCode("")} />}</View><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
+  return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}><View style={{ paddingHorizontal: 24, paddingTop: 16 }}><Pressable testID="join-dismiss" accessibilityRole="button" accessibilityLabel="Back to home" onPress={() => router.replace("/")} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ fontFamily: FONTS.semibold, color: COLORS.primary }}>Back to home</Text></Pressable>{!onlineEnabled && <LocalJoinLimitationBanner actionLabel="Got a different code? Enter it below" onAction={() => setCode("")} />}</View><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, gap: 12 }}>
     <Text style={{ fontFamily: FONTS.headline, color: COLORS.text, fontSize: 26 }}>Join with code</Text>
-    <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>{onlineEnabled ? 'Sign in with email or Apple to join this round.' : 'Play as a guest. No account needed.'}</Text>
-    {onlineEnabled && <Pressable onPress={() => router.push('/auth/sign-in')}><Text style={{color: COLORS.primary}}>Sign in with email or Apple</Text></Pressable>}
+    <Text style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>{onlineEnabled ? 'Enter the code and request a spot. Your host must approve you.' : 'Play as a guest. No account needed.'}</Text>
+    {onlineEnabled && <Pressable accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center' }} onPress={() => router.push('/auth/sign-in')}><Text style={{color: COLORS.primary}}>Sign in with email or Apple</Text></Pressable>}
     {onlineEnabled && !!claim && <Text accessibilityRole="alert" style={{ color: COLORS.primary }}>{claim}</Text>}
     {onlineEnabled && <OnlineGuestScorecard />}
     {!contest && <>
+      <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold }}>Join code</Text>
       <TextInput accessibilityLabel="Join code" placeholder="Join code" placeholderTextColor={COLORS.textDim} value={code} onChangeText={setCode} autoCapitalize="characters" maxLength={6} style={{ fontFamily: FONTS.regular, color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />
-      <TextInput placeholder="Display name" placeholderTextColor={COLORS.textDim} value={name} onChangeText={setName} style={{ fontFamily: FONTS.regular, color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />
+      <Text style={{ color: COLORS.text, fontFamily: FONTS.semibold }}>Display name</Text>
+      <TextInput accessibilityLabel="Display name" placeholder="Display name" placeholderTextColor={COLORS.textDim} value={name} onChangeText={setName} style={{ fontFamily: FONTS.regular, color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 16 }} />
       {button("Find contest", () => { void lookup(); })}
     </>}
     {!!error && <Text style={{ fontFamily: FONTS.regular, color: COLORS.error }}>{error}</Text>}
@@ -79,5 +81,5 @@ export default function JoinContest() {
         }} style={{ fontFamily: FONTS.score, fontVariant: ["tabular-nums"], color: COLORS.text, backgroundColor: COLORS.surfaceHigh, padding: 12, width: 80 }} />
       </View>)}
     </>}
-  </ScrollView></SafeScreen>;
+  </ScrollView></KeyboardAvoidingView></SafeScreen>;
 }

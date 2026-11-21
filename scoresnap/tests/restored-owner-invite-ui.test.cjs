@@ -73,8 +73,8 @@ test.each(['web', 'ios'])('share rechecks server and uses fresh rotated code, ne
   h.setResponse(snapshot({ invite_code: 'NEW234', revision: 2 }));
   await act(async () => h.shares()[0].props.onPress());
   expect(h.client.rejoinHost).toHaveBeenCalledTimes(2);
-  if (platform === 'web') expect(h.clipboard).toHaveBeenCalledWith('https://local.test/join/NEW234');
-  else expect(h.nativeShare).toHaveBeenCalledWith({ message: 'Sign in with email or Apple. Join with code NEW234: snapscore://join/NEW234' });
+  if (platform === 'web') expect(h.clipboard).toHaveBeenCalledWith('Open SnapScore, tap Join with code, and enter NEW234. The host must approve your request.');
+  else expect(h.nativeShare).toHaveBeenCalledWith({ message: 'Open SnapScore, tap Join with code, and enter NEW234. The host must approve your request.' });
 });
 test('double share while verification is pending produces one request and one copy', async () => {
   const h = await mount(), pending = deferred(); h.setResponse(pending.promise);
@@ -110,7 +110,7 @@ test('local-only new and legacy rounds still allocate and share a local code', a
   expect(code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
   expect(h.codes()[0].props.children).toContain(code);
   await act(async () => h.shares()[0].props.onPress());
-  expect(h.clipboard).toHaveBeenCalledWith(`https://local.test/join/${code}`);
+  expect(h.clipboard).toHaveBeenCalledWith(`Open SnapScore, tap Join with code, and enter ${code}. The host must approve your request.`);
   expect(h.client.rejoinHost).not.toHaveBeenCalled();
 });
 test('new local online round retains enrollment control and no invite until enrollment', async () => {

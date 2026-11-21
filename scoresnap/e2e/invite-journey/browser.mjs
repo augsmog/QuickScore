@@ -25,7 +25,8 @@ async function freshSnapshot(p,trigger){
 try {
   await onboarding(guest);
   const before=await rows();
-  await guest.goto(`${base}/join/${f.code}`);
+  await guest.getByTestId('home-join-code').click();
+  await guest.getByLabel('Join code', {exact:true}).fill(f.code);
   await guest.getByPlaceholder('Display name').fill('Journey Visitor');
   await text(guest,'Find contest').click();
   if(mode==='false') {

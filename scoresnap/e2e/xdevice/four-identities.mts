@@ -92,6 +92,10 @@ INSERT INTO public.round_scorer_scopes(contest_id,round_id,user_id,group_id,stat
   const failures = new Map<number,string>();
   const views = users.map(()=>new Map<string,any>());
   const clients=users.map((_,i)=>onlineClient(async (name:string,args:any)=>{if(failures.get(i)===name)throw Error('injected transport offline');return {data:await rpc(i)(name,args),error:null}},(id:string,member:any,snapshot:any)=>{if(member&&snapshot) views[i].set(id,snapshot);else views[i].delete(id)}));
+  await assert.rejects(clients[2].requestJoin('bad', 'Invalid'), /valid code/);
+  assert.deepEqual(await clients[2].requestJoin('ZZZZZZ', 'Unknown code'), {status:'pending'});
+  assert.equal((await clients[2].discover()).requests.length, 0, 'nonexistent code cannot create a join request');
+  console.log('PASS invalid code rejected; nonexistent valid code stays private and creates no request');
   // Real production enrollment: pending never yields a roster, only the host decides.
   for(let i=1;i<4;i++) {
     assert.deepEqual(await clients[i].requestJoin('R2TEST',`Guest ${i}`),{status:'pending'});

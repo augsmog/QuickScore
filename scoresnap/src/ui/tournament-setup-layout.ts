@@ -18,3 +18,14 @@ export const groupChipStyle = {
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
 };
+
+/** Android uses a 48dp target; retain the established 44pt iOS/web baseline. */
+export function setupTargets(platform?: string) {
+  const minTarget = platform === 'android' ? 48 : SETUP_MIN_TARGET_PX;
+  return { minTarget,
+    roundCountPillStyle: { ...roundCountPillStyle, minWidth: minTarget, minHeight: minTarget },
+    groupChipStyle: { ...groupChipStyle, minWidth: minTarget, minHeight: minTarget },
+    nameInputMinHeight: minTarget,
+    handicapInputBox: { ...handicapInputBox, minHeight: minTarget },
+  };
+}

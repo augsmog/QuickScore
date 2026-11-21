@@ -11,6 +11,7 @@ const appId='com.scoresnap.app';
 export function validateArtifact(meta,f,source) {
   assert.equal(meta.schema,'invite-journey-app/1');assert.equal(meta.source_sha,source);
   assert.equal(meta.api,f.api);assert.equal(meta.cross_device_sharing,true);assert.equal(meta.offline,false);
+  assert.equal(meta.native_links,false);assert.equal(meta.leagues,false);
   assert.match(source,/^[a-f0-9]{40}$/);assert.match(meta.executable_sha256,/^[a-f0-9]{64}$/);
 }
 export async function main(env=process.env) {
@@ -34,6 +35,7 @@ export async function main(env=process.env) {
   const open=link=>[{openLink:link},{tapOn:{text:'Open',optional:true}}];
   const launch={launchApp:{clearState:false,permissions:{all:'allow'}}};
   const cold=udid=>{try{execFileSync('xcrun',['simctl','terminate',udid,appId],{stdio:'pipe'});}catch{} };
+  const manualJoin = () => [...open('snapscore://'),tap({id:'home-join-code'}),tap('Join code'),{inputText:f.code},tap('Display name'),{inputText:'Journey Visitor'},tap('Find contest')];
   let phase=0;
   async function flow(udid,steps) {
     const filename=path.join(work,`phase-${++phase}.yaml`);
@@ -50,19 +52,19 @@ export async function main(env=process.env) {
     await flow(host,[launch,...open(`snapscore://contest/${f.contestId}`),visible(`Join code: ${f.code}`),{assertNotVisible:'Enable online sharing'},tap('Copy / share invite'),tap('Copy')]);
     assertShare(f,execFileSync('xcrun',['simctl','pbpaste',host],{encoding:'utf8'}));
     await shot(host,'restored-canonical-invite');
-    await flow(guest,[launch,{tapOn:{text:'Skip',optional:true}},...open(`snapscore://join/${f.code}`),visible('Join with code'),tap('Display name'),{inputText:'Journey Visitor'},tap('Find contest'),visible('Request sent.*'),{assertNotVisible:'.*Guest sign-in unavailable.*'},{assertNotVisible:'.*Approved online scorecard.*'}]);
+    await flow(guest,[launch,{tapOn:{text:'Skip',optional:true}},...manualJoin(),visible('Request sent.*'),{assertNotVisible:'.*Guest sign-in unavailable.*'},{assertNotVisible:'.*Approved online scorecard.*'}]);
     const request=await eventually(async()=>{const r=await db.read(`contest_join_requests?contest_id=eq.${f.contestId}&status=eq.pending&select=*`);assert.equal(r.length,1);return r[0];});
     const auth=await fetch(`${f.api}/auth/v1/admin/users/${request.requester}`,{headers:{apikey:f.anonKey,Authorization:`Bearer ${f.adminKey}`}});
     assert(auth.ok);assert.equal((await auth.json()).is_anonymous,true);
     await flow(host,[tap({id:'round-status-chip'}),tap('Online sync'),visible('Journey Visitor requests a player slot'),tap(`Approve as ${f.players[1].name}`),tap('Approve')]);
     await eventually(async()=>{const m=await db.read(`contest_memberships?contest_id=eq.${f.contestId}&user_id=eq.${request.requester}&select=*`);assert.equal(m.length,1);assertBinding(f,m[0],request.requester);});
     cold(guest);
-    await flow(guest,[launch,...open(`snapscore://join/${f.code}`),visible('.*Approved online scorecard.*'),tap('Journey Round hole 1 strokes'),{eraseText:2},{inputText:'6'},tap('Save hole 1'),visible('Hole 1 · current 6 · par 4')]);
+    await flow(guest,[launch,...manualJoin(),visible('.*Approved online scorecard.*'),tap('Journey Round hole 1 strokes'),{eraseText:2},{inputText:'6'},tap('Save hole 1'),visible('Hole 1 · current 6 · par 4')]);
     await flow(host,[tap({id:'round-status-done'}),...open(`snapscore://contest/${f.contestId}/scorecard`),tap('Journey Group 1'),tap({id:'score-par-Journey Host'})]);
     await eventually(async()=>assertScores(f,await db.snapshot()));
     // Cold process reconnect, preserving each app installation and its identity.
     for(const udid of [host,guest])cold(udid);
-    await flow(guest,[launch,...open(`snapscore://join/${f.code}`),visible('Hole 1 · current 6 · par 4')]);
+    await flow(guest,[launch,...manualJoin(),visible('Hole 1 · current 6 · par 4')]);
     await flow(host,[launch,...open(`snapscore://contest/${f.contestId}/scorecard`),tap('Journey Group 1'),{assertVisible:{id:'score-par-Journey Host',text:'4'}},tap('Journey Group 2'),{assertVisible:{id:'score-par-Journey Guest',text:'6'}}]);
     assertScores(f,await db.snapshot());
     const m=await db.read(`contest_memberships?contest_id=eq.${f.contestId}&user_id=eq.${request.requester}&select=*`);assert.equal(m.length,1);assertBinding(f,m[0],request.requester);

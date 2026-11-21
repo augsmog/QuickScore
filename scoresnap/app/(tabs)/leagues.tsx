@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SafeScreen } from '../../src/ui/SafeScreen';
 import { COLORS, FONTS, RADII, TYPOGRAPHY } from '../../src/ui/theme';
-import { CROSS_DEVICE_SHARING_ENABLED } from '../../src/config/features';
+import { LEAGUES_ENABLED } from '../../src/config/features';
 import { useAuthStore } from '../../src/stores/auth-store';
 import { useOnlineStore } from '../../src/stores/online-store';
 import { leagueService, type League, type LeagueEvent } from '../../src/services/leagues';
@@ -62,7 +62,7 @@ export default function LeaguesScreen() {
   }, [remoteUserId, isAnonymous, selected]);
 
   const load = useCallback(async () => {
-    if (!CROSS_DEVICE_SHARING_ENABLED || !remoteUserId) return;
+    if (!LEAGUES_ENABLED || !remoteUserId) return;
     const actor = remoteUserId;
     const generation = authGeneration.current;
     setBusy(true); setError(null);
@@ -114,9 +114,9 @@ export default function LeaguesScreen() {
     }
   }
 
-  if (!CROSS_DEVICE_SHARING_ENABLED) return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg, padding: 24 }} edges={['top']}>
+  if (!LEAGUES_ENABLED) return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg, padding: 24 }} edges={['top']}>
     <Text style={{ ...TYPOGRAPHY.headline, color: COLORS.text }}>Leagues</Text>
-    <Text style={{ ...TYPOGRAPHY.body, color: COLORS.textDim, marginTop: 12 }}>Leagues require cross-device sharing to be enabled.</Text>
+    <Text style={{ ...TYPOGRAPHY.body, color: COLORS.textDim, marginTop: 12 }}>Leagues are not available in this release.</Text>
   </SafeScreen>;
 
   return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top']}>
