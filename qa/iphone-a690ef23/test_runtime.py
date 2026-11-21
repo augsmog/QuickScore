@@ -5,7 +5,7 @@ class RuntimeSelection(unittest.TestCase):
  def row(self,**kw):return dict(identifier=intake.RUNTIME_ID,version='26.4',isAvailable=True,**kw)
  def select(self,rows):return intake.select_runtime({'runtimes':rows})
  def test_exact_canonical(self):
-  for version in ['26.4','26.4.0']:
+  for version in ['26.4','26.4.0','26.4.1']:
    row=self.row();row['version']=version
    result=self.select([row]);self.assertEqual(result['selected'],intake.RUNTIME_ID);self.assertEqual(result['reason'],'SELECTED');self.assertEqual(result['iosRuntimes'][0]['version'],version)
  def test_empty(self):self.assertEqual(self.select([])['reason'],'IOS_26_4_RUNTIME_MISSING')
@@ -16,7 +16,7 @@ class RuntimeSelection(unittest.TestCase):
   for second in [self.row(),{**self.row(),'isAvailable':False},{**self.row(),'identifier':intake.RUNTIME_ID+'-0'}]:
    r=self.select([self.row(),second]);self.assertIsNone(r['selected']);self.assertEqual(r['reason'],'IOS_26_4_RUNTIME_AMBIGUOUS')
  def test_identity_mismatch(self):
-  for row in [{**self.row(),'version':'26.4.1'},{**self.row(),'version':'26.3'},{**self.row(),'identifier':intake.RUNTIME_ID+'-0'}]:
+  for row in [{**self.row(),'version':'26.5'},{**self.row(),'version':'26.3'},{**self.row(),'identifier':intake.RUNTIME_ID+'-0'}]:
    self.assertEqual(self.select([row])['reason'],'IOS_26_4_IDENTITY_MISMATCH')
  def test_typed_bounded_private_fields(self):
   row=self.row(name='private-name',bundlePath='/private/path',availabilityError='private-error')

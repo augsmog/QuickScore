@@ -30,6 +30,13 @@ def apphash(root):
   elif p.is_file():rows.append([str(p.relative_to(root)),sha(p.read_bytes())])
  if not rows:raise ValueError('empty app')
  return sha(json.dumps(rows,separators=(',',':')).encode())
+def clean_npm_configs(home):
+ # Distinct empty files avoid npm double-loading and inherited account config.
+ paths={key:pathlib.Path(home)/name for key,name in [('NPM_CONFIG_USERCONFIG','npm-user.rc'),('NPM_CONFIG_GLOBALCONFIG','npm-global.rc')]}
+ for path in paths.values():
+  with path.open('x'):pass
+  path.chmod(0o600)
+ return {key:str(path) for key,path in paths.items()}
 def run(a):
  if sys.platform!='darwin':raise ValueError('Mac native executor required; no local emulation')
  needed=['xcrun','xcodebuild','node','npm','pod','maestro']
@@ -39,7 +46,8 @@ def run(a):
  with tempfile.TemporaryDirectory(prefix='snapscore-iphone-') as tmp:
   tmp=pathlib.Path(tmp);home=tmp/'home';home.mkdir();src=tmp/'source'
   env={k:os.environ[k] for k in ['PATH','JAVA_HOME','LANG','TMPDIR'] if k in os.environ}
-  env.update(HOME=str(home),CP_HOME_DIR=str(home/'pods'),NPM_CONFIG_USERCONFIG='/dev/null',NPM_CONFIG_GLOBALCONFIG='/dev/null',CI='1',EXPO_OFFLINE='1',EXPO_NO_TELEMETRY='1',SENTRY_DISABLE_AUTO_UPLOAD='true',EXPO_PUBLIC_OFFLINE_MODE='true',EXPO_PUBLIC_DEMO_MODE='false',EXPO_PUBLIC_SIMULATOR_NO_MLKIT='1',EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING='true',EXPO_PUBLIC_FEATURE_LEAGUES='false',EXPO_PUBLIC_FEATURE_NATIVE_LINKS='false')
+  env.update(HOME=str(home),CP_HOME_DIR=str(home/'pods'),CI='1',EXPO_OFFLINE='1',EXPO_NO_TELEMETRY='1',SENTRY_DISABLE_AUTO_UPLOAD='true',EXPO_PUBLIC_OFFLINE_MODE='true',EXPO_PUBLIC_DEMO_MODE='false',EXPO_PUBLIC_SIMULATOR_NO_MLKIT='1',EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING='true',EXPO_PUBLIC_FEATURE_LEAGUES='false',EXPO_PUBLIC_FEATURE_NATIVE_LINKS='false')
+  env.update(clean_npm_configs(home))
   def call(args,name,timeout=30,cwd=None,binary=False):
    p=subprocess.Popen(args,cwd=cwd,env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
    try:b,e=p.communicate(timeout=timeout)

@@ -37,7 +37,7 @@ def select_runtime(inventory):
   result['iosRuntimes'].append({'identifier':identifier,'version':version,'isAvailable':available})
  if len(result['iosRuntimes'])>32:result['iosRuntimes']=[];result['reason']='IOS_RUNTIME_INVENTORY_LIMIT';return result
  if invalid:return result
- def exact_version(version):return version in ('26.4','26.4.0')
+ def exact_version(version):return version in ('26.4','26.4.0','26.4.1')
  matches=[r for r in result['iosRuntimes'] if r['identifier']==RUNTIME_ID or exact_version(r['version'])]
  if not matches:result['reason']='IOS_26_4_RUNTIME_MISSING'
  elif len(matches)!=1:result['reason']='IOS_26_4_RUNTIME_AMBIGUOUS'
