@@ -110,7 +110,11 @@ function buildScreen({ multiRound = false, r2Holes = 18, r2TeeTime, myGroup = fa
     '../../../src/engine/contest-results': {
       teamCardPlayers: () => players,
       liveRoundCourse: (value) => value.course,
+      calculateContestSettlement: () => ({ transactions: [], netByPlayer: {} }),
     },
+    // AUG-246: per-game leader rows (real pure helper; stroke-play-only fixtures get no rows).
+    '../../../src/engine/calculators/game-leaders': load('src/engine/calculators/game-leaders.ts', { '../types': {} }),
+    '../../../src/engine/types': { ALL_GAMES: [] },
     '../../../src/engine/calculators/stroke-play': strokePlay,
     '../../../src/engine/calculators/leaderboard-view': load('src/engine/calculators/leaderboard-view.ts', {
       '../types': {},

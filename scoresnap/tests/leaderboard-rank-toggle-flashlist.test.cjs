@@ -111,7 +111,11 @@ test('Gross/Net toggle inside the FlashList header still re-ranks the virtualize
     '../../../src/engine/contest-results': {
       teamCardPlayers: () => players,
       liveRoundCourse: (value) => value.course,
+      calculateContestSettlement: () => ({ transactions: [], netByPlayer: {} }),
     },
+    // AUG-246: per-game leader rows (real pure helper; stroke-play-only fixtures get no rows).
+    '../../../src/engine/calculators/game-leaders': load('src/engine/calculators/game-leaders.ts', { '../types': {} }),
+    '../../../src/engine/types': { ALL_GAMES: [] },
     '../../../src/engine/calculators/stroke-play': { calcStrokePlay: () => grossRows },
     '../../../src/engine/calculators/leaderboard-view': {
       buildLeaderboard: (_players, _course, rankMode) => ({
