@@ -131,11 +131,12 @@ def run(c):
  def write_readiness(row):
   diagnostics.append(row)
   write_status()
- settle_home(adb,package,write_readiness)
+ validator=c.get('_scene',scene)
+ if validator is scene:settle_home(adb,package,write_readiness)
  def observe():
   s=adb('shell','settings','get','system','font_scale');a=adb('shell','dumpsys','activity','top');f=read_focus(adb);x=adb('exec-out','uiautomator','dump','/dev/tty')
-  ids=scene(x,f,package) # Verify target Home before interpreting any Activity scale.
-  return {'timestampMs':int(time.time()*1000),'scale':scale(s,a,expected,f,package),'homeSceneVerified':True,'foregroundActivityVerified':True,'activityIdentitySha256':activity_scale(a,f,package,identity=True),'runtimeRNScale':None}
+  ids=validator(x,f,package) # Verify the exact expected scene before scale.
+  return {'timestampMs':int(time.time()*1000),'scale':scale(s,a,expected,f,package),'homeSceneVerified':validator is scene,'foregroundActivityVerified':True,'activityIdentitySha256':activity_scale(a,f,package,identity=True),'runtimeRNScale':None}
  try:
   capture_state['phase']='before';before=observe()
   capture_state['phase']='screenshot';png=adb('exec-out','screencap','-p',binary=True)
@@ -150,6 +151,7 @@ def run(c):
  out=pathlib.Path(c['out']);out.mkdir(exist_ok=False)
  (out/'home.png').write_bytes(png)
  receipt={'sourceSha':SHA,'tree':TREE,'apkSha256':h,'runtimeRNScale':None,'before':before,'after':after,'pngSha256':digest(png),'scope':'OS Settings + foreground Activity configuration; no initialized RN in-process claim','geometryPassed':False,'nativeAcceptance':False}
+ if validator is not scene:receipt.update(scene=c['_checkpoint'],sceneVerified=True)
  (out/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
 if __name__=='__main__':
  p=argparse.ArgumentParser();p.add_argument('config');a=p.parse_args()

@@ -101,6 +101,8 @@ def execute(source,out):
    # smoke performs bounded read-only Home readiness; capture/scale/provenance failures are never retried.
    smoke(cfg)
    results.append(value)
+   from checkpoints import journey
+   journey(cfg)
  finally:adb('shell','settings','put','system','font_scale',original)
  (out/'smoke-summary.json').write_text(json.dumps({'observedScales':results,'apkSha256':h,'aggregatePass':False,'runtimePaywall':False,'nativeJoin':False},indent=2)+'\n')
  return results
