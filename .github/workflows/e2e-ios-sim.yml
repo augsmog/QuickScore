@@ -1,110 +1,101 @@
-name: E2E iOS simulator
-# Runs .maestro flows (aos-e2e/v1) against a source-built or supplied EAS iOS simulator app.
-# Manual only. No secrets used. Evidence: artifact e2e-<product>-<run_id> (manifest.json + screenshots).
+name: SnapScore a073 iOS compile diagnostic
 on:
   workflow_dispatch:
     inputs:
-      app_url:
-        description: "Optional EAS simulator build artifact URL (.tar.gz); blank builds from this commit"
-        required: false
-        default: ""
-      build:
-        description: "Build key from .maestro/e2e.config.json (online | offline)"
+      expected_harness_sha:
+        description: Exact independently reviewed diagnostic commit
         required: true
-        default: offline
-      flows:
-        description: "Comma-separated flow ids, or all"
+        type: string
+      expected_harness_tree:
+        description: Exact independently reviewed diagnostic tree
         required: true
-        default: all
-      eas_build_id:
-        description: "EAS build id (recorded in manifest)"
-        required: false
-        default: ""
-permissions:
-  contents: read
+        type: string
+permissions: {}
 concurrency:
-  group: e2e-ios-sim-${{ github.ref }}-${{ inputs.build }}
+  group: snapscore-hosted-ios-admission
   cancel-in-progress: false
 jobs:
-  maestro:
-    runs-on: macos-15
-    timeout-minutes: 75
+  compile:
+    if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-a073-hosted-compile-main'
+    runs-on: macos-26
+    timeout-minutes: 40
     env:
-      APP_URL: ${{ inputs.app_url }}
-      BUILD_KEY: ${{ inputs.build }}
-      FLOWS: ${{ inputs.flows }}
-      EAS_BUILD_ID: ${{ inputs.eas_build_id }}
+      EXPECTED_HARNESS_SHA: ${{ inputs.expected_harness_sha }}
+      EXPECTED_HARNESS_TREE: ${{ inputs.expected_harness_tree }}
+      DEVELOPER_DIR: /Applications/Xcode_26.4.1.app/Contents/Developer
     steps:
-      - uses: actions/checkout@v4
-      - name: Validate inputs
+      - name: Anonymous exact Git checkout and isolated compile
+        shell: bash
         run: |
-          case "$BUILD_KEY" in online|offline) ;; *) echo "bad build key"; exit 1;; esac
-          echo "$FLOWS" | grep -Eq '^(all|[a-z0-9,-]+)$' || { echo "bad flows"; exit 1; }
-          if [ -n "$APP_URL" ]; then
-            case "$APP_URL" in https://expo.dev/artifacts/eas/*|https://*.expo.dev/*) ;; *) echo "app_url must be an EAS artifact URL"; exit 1;; esac
-          fi
-          python3 .maestro/scripts/validate-existing-binary.py --config .maestro/e2e.config.json \
-            --build "$BUILD_KEY" --flows "$FLOWS" --app-url "$APP_URL" --build-id "$EAS_BUILD_ID"
-      - uses: actions/setup-node@v4
-        if: ${{ inputs.app_url == '' }}
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: scoresnap/package-lock.json
-      - name: Install app dependencies
-        if: ${{ inputs.app_url == '' }}
-        run: npm ci --prefix scoresnap
-      - name: Build simulator app from source
-        if: ${{ inputs.app_url == '' }}
-        run: |
-          SOURCE_SHA="$(git -C scoresnap rev-parse HEAD)"
-          test "$SOURCE_SHA" = "$GITHUB_SHA"
-          echo "Building QuickScore at source SHA $SOURCE_SHA"
-          export SENTRY_DISABLE_AUTO_UPLOAD=true
-          if [ "$BUILD_KEY" = offline ]; then
-            export EXPO_PUBLIC_SIMULATOR_NO_MLKIT=1
-            export EXPO_PUBLIC_OFFLINE_MODE=true
-            export EXPO_PUBLIC_DEMO_MODE=false
-            export EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=false
-            export EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true
-            export EXPO_PUBLIC_E2E_COURSE_FIXTURE=true
-          else
-            export EXPO_PUBLIC_SIMULATOR_NO_MLKIT=1
-            export EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true
-          fi
-          cd scoresnap
-          npx expo prebuild --platform ios --clean --no-install
-          cd ios
-          pod install
-          xcodebuild -version
-          xcodebuild -workspace SnapScore.xcworkspace -scheme SnapScore -configuration Release \
-            -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/QuickScoreDerivedData" \
-            CODE_SIGNING_ALLOWED=NO build
-          APP_PATH="$(find "$RUNNER_TEMP/QuickScoreDerivedData/Build/Products/Release-iphonesimulator" -maxdepth 2 -type d -name 'SnapScore.app' -print -quit)"
-          test -n "$APP_PATH" && test -d "$APP_PATH"
-          printf '%s\n' "$SOURCE_SHA" > "$APP_PATH/SourceCommit.txt"
-          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
-          echo "Source-built app from $SOURCE_SHA: $APP_PATH"
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - name: Install Maestro
-        run: |
-          curl -fsSL "https://get.maestro.mobile.dev" | bash
-          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
-      - name: Run flows
-        run: |
-          if [ -n "$APP_URL" ]; then
-            .maestro/scripts/run-ios-sim.sh --app-url "$APP_URL" --build "$BUILD_KEY" --flows "$FLOWS" --build-id "$EAS_BUILD_ID" --out e2e-out
-          else
-            .maestro/scripts/run-ios-sim.sh --app-path "$APP_PATH" --build "$BUILD_KEY" --flows "$FLOWS" --out e2e-out
-          fi
-      - name: Upload evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-snapscore-${{ github.run_id }}
-          path: e2e-out
-          retention-days: 7
-          if-no-files-found: warn
+          set -euo pipefail
+          umask 077
+          repo='https://github.com/augsmog/QuickScore.git'
+          expected_parent='5190f43261a42f108d54627c793d5be64046c840'
+          product_sha='a073d5761b77f3e01610acebaf5d98f76a920fb5'
+          product_tree='3cbda6ddde720b614c0ae3c2bccef7948d805e20'
+          blocked() {
+            printf '{"status":"BLOCKED","phase":"anonymous-checkout","reason":"%s"}\n' "$1"
+            exit 78
+          }
+          valid_oid() { [[ "$1" =~ ^[0-9a-f]{40}$ ]]; }
+          [[ "${GITHUB_REPOSITORY:-}" == augsmog/QuickScore &&
+             "${GITHUB_EVENT_NAME:-}" == workflow_dispatch &&
+             "${GITHUB_REF:-}" == refs/heads/qa/snapscore-a073-hosted-compile-main &&
+             "${RUNNER_ENVIRONMENT:-}" == github-hosted &&
+             "${RUNNER_OS:-}" == macOS && "${RUNNER_ARCH:-}" == ARM64 ]] || blocked HOSTED_SCOPE_MISMATCH
+          valid_oid "${EXPECTED_HARNESS_SHA:-}" && valid_oid "${EXPECTED_HARNESS_TREE:-}" &&
+            [[ "${GITHUB_SHA:-}" == "$EXPECTED_HARNESS_SHA" ]] || blocked REVIEWED_HARNESS_SHA_TREE_REQUIRED
+          [[ "${RUNNER_TEMP:-}" == /* && -d "$RUNNER_TEMP" ]] || blocked RUNNER_TEMP_REQUIRED
+          scratch="$(/usr/bin/mktemp -d "$RUNNER_TEMP/snapscore-compile-checkouts.XXXXXXXX")"
+          finish() {
+            primary=$?
+            trap - EXIT
+            if /bin/rm -rf -- "$scratch" && [[ ! -e "$scratch" ]]; then
+              printf '%s\n' '{"phase":"checkout-cleanup","temporaryRootRemoved":true}'
+            else
+              printf '%s\n' '{"phase":"checkout-cleanup","temporaryRootRemoved":false,"status":"BLOCKED"}'
+              exit 78
+            fi
+            exit "$primary"
+          }
+          trap finish EXIT
+          trap 'exit 78' INT TERM
+          git_home="$scratch/git-home"
+          /bin/mkdir -m 700 "$git_home" "$scratch/harness" "$scratch/product"
+          git_clean() {
+            /usr/bin/env -i PATH=/usr/bin:/bin "HOME=$git_home" "XDG_CONFIG_HOME=$git_home" \
+              "DEVELOPER_DIR=$DEVELOPER_DIR" GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null \
+              GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/usr/bin/false SSH_ASKPASS=/usr/bin/false \
+              GIT_ALLOW_PROTOCOL=https /usr/bin/git \
+              -c credential.helper= -c http.extraHeader= -c http.followRedirects=false \
+              -c core.hooksPath=/dev/null -c submodule.recurse=false "$@"
+          }
+          read_checkout() {
+            local dir="$1" sha="$2" tree="$3" depth="$4" lane="$5"
+            git_clean -C "$dir" init -q --template= >/dev/null 2>&1 || blocked "${lane}_INIT"
+            git_clean -C "$dir" fetch --quiet --no-tags --depth="$depth" --no-recurse-submodules "$repo" "$sha" \
+              >/dev/null 2>&1 || blocked "${lane}_FETCH"
+            [[ "$(git_clean -C "$dir" rev-parse FETCH_HEAD 2>/dev/null)" == "$sha" ]] || blocked "${lane}_FETCH_HEAD"
+            git_clean -C "$dir" checkout --quiet --detach --no-recurse-submodules "$sha" \
+              >/dev/null 2>&1 || blocked "${lane}_DETACH"
+            local head actual_tree worktree
+            head="$(git_clean -C "$dir" rev-parse HEAD 2>/dev/null)" || blocked "${lane}_HEAD"
+            actual_tree="$(git_clean -C "$dir" rev-parse 'HEAD^{tree}' 2>/dev/null)" || blocked "${lane}_TREE"
+            worktree="$(git_clean -C "$dir" status --porcelain 2>/dev/null)" || blocked "${lane}_STATUS"
+            [[ "$head" == "$sha" && "$actual_tree" == "$tree" && -z "$worktree" ]] || blocked "${lane}_READBACK"
+          }
+          read_checkout "$scratch/harness" "$EXPECTED_HARNESS_SHA" "$EXPECTED_HARNESS_TREE" 2 HARNESS
+          harness_parents="$(git_clean -C "$scratch/harness" rev-list --parents -n 1 HEAD 2>/dev/null)" || blocked HARNESS_PARENT
+          [[ "$harness_parents" == "$EXPECTED_HARNESS_SHA $expected_parent" ]] || blocked HARNESS_PARENT
+          read_checkout "$scratch/product" "$product_sha" "$product_tree" 1 PRODUCT
+          /usr/bin/env -i "PATH=$PATH" "HOME=$git_home" "XDG_CONFIG_HOME=$git_home" \
+            GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/usr/bin/false \
+            "GITHUB_ACTIONS=$GITHUB_ACTIONS" "GITHUB_REPOSITORY=$GITHUB_REPOSITORY" "GITHUB_EVENT_NAME=$GITHUB_EVENT_NAME" \
+            "GITHUB_REF=$GITHUB_REF" "GITHUB_SHA=$GITHUB_SHA" \
+            "RUNNER_ARCH=$RUNNER_ARCH" "RUNNER_OS=$RUNNER_OS" "RUNNER_ENVIRONMENT=$RUNNER_ENVIRONMENT" \
+            "RUNNER_TEMP=$RUNNER_TEMP" "RUNNER_TOOL_CACHE=${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}" \
+            "EXPECTED_HARNESS_SHA=$EXPECTED_HARNESS_SHA" "EXPECTED_HARNESS_TREE=$EXPECTED_HARNESS_TREE" \
+            "DEVELOPER_DIR=$DEVELOPER_DIR" \
+            python3 -B "$scratch/harness/qa/ios-a073-compile/compile_only.py" \
+              --harness "$scratch/harness" --product "$scratch/product"
+# No checkout/setup action, recursive submodule command, credential, cache, artifact, simulator, backend or deploy.
