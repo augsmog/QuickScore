@@ -31,6 +31,89 @@ def pair(mode='nested'):
  else:button.append(label)
  return r,button
 
+def ownership_fixture(index=0,value='Golfer'):
+ r=ET.Element('hierarchy')
+ def n(key='',bounds='[0,0][600,700]',**kwargs):
+  return node(**{'package':'test.app','resource-id':key,'bounds':bounds,
+                 'class':'android.view.ViewGroup','clickable':'false','enabled':'true',**kwargs})
+ scroll=n('contest-scroll',scrollable='true');setup=n('contest-step-setup')
+ owner=n('', '[10,100][590,650]');card=n('contest-player-'+str(index),'[30,120][550,290]')
+ field=n('', '[100,140][500,190]',focusable='true',text=value,focused='false')
+ field.set('class','android.widget.EditText')
+ r.extend((scroll,n('contest-footer','[0,700][600,800]'),n('new-contest-back','[0,0][100,60]')))
+ scroll.append(setup);setup.append(owner);owner.extend((card,field))
+ return r,owner,card,field
+
+class AndroidOwnership(unittest.TestCase):
+ def driver(self,td):
+  return c.Driver({'out':td+'/test','package':'test.app','serial':'emulator-5554'})
+ def test_flattened_host_readonly_and_draft_exact(self):
+  root,owner,card,field=ownership_fixture()
+  with tempfile.TemporaryDirectory() as td:
+   d=self.driver(td)
+   with patch.object(d,'read',return_value=root),patch.object(d,'adb') as adb:d.prepare_host()
+   adb.assert_not_called()
+   self.assertEqual(d.hostName,'Golfer')
+   self.assertEqual(d.observations[0]['inputOwnership'],'contained-native-sibling')
+   self.assertEqual(d.observations[0]['hierarchyEditInventory']['insideCard'],0)
+   self.assertEqual(d.observations[0]['hierarchyEditInventory']['insideCardBounds'],1)
+   self.assertNotIn('Golfer',json.dumps(d.observations))
+   self.assertNotIn('test.app',json.dumps(d.observations))
+   self.assertIs(c.player_readback(root,0,'Golfer','test.app'),field)
+   field.set('text','something changed')
+   with self.assertRaises(ValueError):c.player_readback(root,0,'Golfer','test.app')
+ def test_ambiguous_nested_never_falls_back_even_with_valid_sibling(self):
+  root,owner,card,field=ownership_fixture()
+  card.extend(ET.fromstring(ET.tostring(field)) for _ in range(2))
+  with tempfile.TemporaryDirectory() as td:
+   d=self.driver(td)
+   with patch.object(d,'read',return_value=root),patch.object(d,'adb') as adb,patch.object(c,'flattened_name') as fallback:
+    with self.assertRaisesRegex(ValueError,'AMBIGUOUS_CONTROL'):d.prepare_host()
+    fallback.assert_not_called();adb.assert_not_called()
+ def test_invalid_flattened_host_never_tapped(self):
+  for fault in ('missing','duplicate','different-parent','wrong-package','wrong-class','not-focusable','disabled','hidden','other-card','outside','footer','handicap','wrong-value','wrong-scene','duplicate-card'):
+   with self.subTest(fault=fault),tempfile.TemporaryDirectory() as td:
+    root,owner,card,field=ownership_fixture()
+    if fault=='missing':owner.remove(field)
+    if fault=='duplicate':owner.append(ET.fromstring(ET.tostring(field)))
+    if fault=='different-parent':owner.remove(field);root.append(field)
+    if fault=='wrong-package':field.set('package','test.other')
+    if fault=='wrong-class':field.set('class','android.widget.TextView')
+    if fault=='not-focusable':field.set('focusable','false')
+    if fault=='disabled':field.set('enabled','false')
+    if fault=='hidden':field.set('visible-to-user','false')
+    if fault=='other-card':
+     competitor=ET.fromstring(ET.tostring(card));competitor.set('resource-id','contest-player-1');owner.append(competitor)
+    if fault=='outside':field.set('bounds','[10,140][500,190]')
+    if fault=='footer':c.one(root,'contest-footer').set('bounds','[0,160][600,800]')
+    if fault=='handicap':field.set('resource-id','player-handicap-canary')
+    if fault=='wrong-value':field.set('text','Not Golfer')
+    if fault=='wrong-scene':root.append(node(**{'resource-id':'contest-step-gamemodes'}))
+    if fault=='duplicate-card':owner.append(ET.fromstring(ET.tostring(card)))
+    d=self.driver(td)
+    with patch.object(d,'read',return_value=root),patch.object(d,'adb') as adb:
+     with self.assertRaises(ValueError):d.prepare_host()
+     adb.assert_not_called()
+ def test_flattened_guest_requires_fresh_focused_ownership_before_typing(self):
+  for fault in (None,'unfocused','not-empty','changed-bounds','wrong-card'):
+   with self.subTest(fault=fault),tempfile.TemporaryDirectory() as td:
+    raw,_,_,_=ownership_fixture(1,'Player 2 name')
+    focused,owner,card,field=ownership_fixture(1,'Player 2 name')
+    field.set('focused','true')
+    if fault=='unfocused':field.set('focused','false')
+    if fault=='not-empty':field.set('text','already present');field.set('hint','Player 2 name')
+    if fault=='changed-bounds':field.set('bounds','[110,140][500,190]')
+    if fault=='wrong-card':card.set('resource-id','contest-player-2')
+    after,_,_,_=ownership_fixture(1,'QAGuest')
+    d=self.driver(td)
+    with patch.object(d,'read',side_effect=[raw,focused,after]),patch.object(d,'adb',return_value='mInputShown=true') as adb,patch.object(c.time,'sleep'):
+     if fault:
+      with self.assertRaises(ValueError):d.fill('Player 2 name','QAGuest')
+      self.assertFalse(any(call.args[:3]==('shell','input','text') for call in adb.call_args_list))
+     else:
+      d.fill('Player 2 name','QAGuest')
+      self.assertIn(('shell','input','text','QAGuest'),[call.args for call in adb.call_args_list])
+
 class Evidence(unittest.TestCase):
  def driver(self,td):
   return c.Driver({'out':td+'/test','package':'test.app','serial':'emulator-5554'})

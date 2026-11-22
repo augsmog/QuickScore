@@ -156,11 +156,87 @@ def host_names(card):
         and (n.get('hint')=='Your name' or n.get('text')=='Golfer')]
  return edits
 
-def host_input(root):
+def node_id(n):return n.get('resource-id','').split(':id/')[-1]
+
+def overlap(a,b):
+ return bool(a and b and max(a[0],b[0])<min(a[2],b[2]) and max(a[1],b[1])<min(a[3],b[3]))
+
+def edit_matches(n,key,host_initial=False):
+ if not name_edit(n):return False
+ if host_initial:return n.get('text')=='Golfer'
+ return key in (n.get('text'),n.get('hint'),n.get('content-desc'))
+
+def flattened_name(root,card,key,package,host_initial=False):
+ # An accessibility sibling is not necessarily an app-owned control. Admit
+ # only the same-package editable under the card's *immediate* native parent,
+ # with exact role/value and exclusive geometry on the verified Setup scene.
+ validate(root,'setup-initial')
+ if not package:return None
+ setup=one(root,'contest-step-setup');footer=one(root,'contest-footer')
+ scroll=one(root,'contest-scroll')
+ if scroll.get('scrollable')!='true':return None
+ parent=parents_of(root);owner=parent.get(card)
+ if (owner is None or owner.tag!='node' or
+     any(x.get('package')!=package for x in (card,owner,setup,footer,scroll)) or
+     not any(x is owner for x in setup.iter('node')) or
+     not any(x is setup for x in scroll.iter('node'))):return None
+ cb=box(card);ob=box(owner);sb=box(setup);vb=box(scroll);fb=box(footer)
+ if not contained(cb,ob) or not contained(cb,sb):return None
+ found=[]
+ for n in root.iter('node'):
+  if n.get('package')!=package or not edit_matches(n,key,host_initial):continue
+  if n.get('enabled')!='true' or n.get('focusable')!='true':continue
+  nb=box(n)
+  if not contained(nb,cb) or not contained(nb,sb) or not contained(nb,vb) or nb[3]>fb[1]:continue
+  a=parent.get(n)
+  while a is not None and a is not owner and a is not card:
+   if (a.tag!='node' or a.get('package')!=package or node_id(a) or
+       a.get('clickable')!='false' or a.get('class') not in ('android.view.View','android.view.ViewGroup','android.widget.LinearLayout','android.widget.FrameLayout') or
+       not contained(nb,box(a)) or not contained(box(a),cb)):break
+   a=parent.get(a)
+  if a is not owner or any(k is n for k in card.iter('node')):continue
+  others=[k for k in root.iter('node') if k is not card and re.fullmatch(r'contest-player-[0-9]+',node_id(k))]
+  if any(overlap(nb,box(k)) for k in others):continue
+  found.append(n)
+ if len(found)>1:raise ValueError('AMBIGUOUS_CONTROL')
+ return found[0] if found else None
+
+def player_name(root,card,key,package=None,host_initial=False):
+ nested=host_names(card) if host_initial else [n for n in card.iter('node') if edit_matches(n,key)]
+ if len(nested)>1:raise ValueError('AMBIGUOUS_CONTROL')
+ if nested:return nested[0],False
+ if not matches(root,'contest-scroll'):return None,False
+ n=flattened_name(root,card,key,package,host_initial)
+ return n,n is not None
+
+def host_input(root,package=None):
  card=one(root,'contest-player-0')
- inputs=host_names(card)
- if len(inputs)!=1:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
- return inputs[0]
+ n,_=player_name(root,card,'Golfer',package,host_initial=True)
+ if n is None:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+ return n
+
+def player_readback(root,index,value,package):
+ card=one(root,'contest-player-'+str(index))
+ field,_=player_name(root,card,value,package)
+ if field is None or field.get('text')!=value or field.get('enabled')!='true' or not contained(box(field),box(card)):
+  raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+ return field
+
+def edit_inventory(root,card,package):
+ # Deliberately record only approved roles and predicates, not raw XML,
+ # text, content descriptions, attribute IDs, or package strings.
+ counts=dict(editTotal=0,appEdit=0,visibleEdit=0,insideCard=0,insideCardBounds=0)
+ if card is None:return counts
+ descendants=set(card.iter('node'))
+ for n in root.iter('node'):
+  if n.get('class')!='android.widget.EditText':continue
+  counts['editTotal']+=1
+  if n.get('package')!=package:continue
+  counts['appEdit']+=1
+  if box(n) is not None:counts['visibleEdit']+=1
+  if n in descendants:counts['insideCard']+=1
+  if contained(box(n),box(card)):counts['insideCardBounds']+=1
+ return {k:min(v,16) for k,v in counts.items()}
 
 def player_card(label):
  m=re.fullmatch(r'Player ([234]) name',label)
@@ -225,7 +301,8 @@ class Driver:
    if card:
     cards=matches(root,card)
     if len(cards)>1:raise ValueError('AMBIGUOUS_CONTROL')
-    found=[n for n in matches(cards[0],key,kind) if name_edit(n)] if cards else []
+    field,_=player_name(root,cards[0],key,self.c['package']) if cards else (None,False)
+    found=[field] if field is not None else []
    else:found=matches(root,key,kind)
    roles={'home-join-code':'home-join','home-new-contest':'home-new-contest','contest-step-setup':'setup-scene','contest-player-0':'host-card','Player 2 name':'guest-player-input'}
    if key in roles and hasattr(self,'observations'):
@@ -270,14 +347,32 @@ class Driver:
   if field is None or field.get('enabled')!='true' or field.get('text','') not in ('',label):
    raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
   self.observations.append({'checkpoint':'input','selectors':[{'role':roles[label],'kind':'input','matches':min(len(matches(root,label,'input')),2)}]})
-  self.tap(label,'input')
+  card=player_card(label)
+  anchor=None
+  if card:
+   anchor=one(root,card)
+   selected,flat=player_name(root,anchor,label,self.c['package'])
+   if selected is not field or not contained(box(field),box(anchor)):
+    raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+  else:flat=False
+  if flat:
+   # Only the same *observed* EditText can receive input. Require fresh,
+   # focused ownership after the tap, with unchanged anchor/field geometry.
+   l,t,r,b=box(field)
+   self.adb('shell','input','tap',str((l+r)//2),str((t+b)//2))
+   fresh=self.read();owner=one(fresh,card)
+   focused,was_flat=player_name(fresh,owner,label,self.c['package'])
+   if (focused is None or not was_flat or focused.get('focused')!='true' or
+       focused.get('text','?') not in ('',label) or box(focused)!=box(field) or box(owner)!=box(anchor)):
+    raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+  else:self.tap(label,'input')
   self.adb('shell','input','text',value)
   ime=self.adb('shell','dumpsys','input_method')
   if not re.search(r'\bmInputShown=true\b',ime):raise ValueError('KEYBOARD_DISMISSAL_UNVERIFIED')
   self.adb('shell','input','keyevent','4');time.sleep(.3)
-  root=self.read();card=player_card(label)
-  observed=one(one(root,card) if card else root,value,'input')
-  if observed.get('text')!=value:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+  root=self.read()
+  if card:player_readback(root,int(card.rsplit('-',1)[1]),value,self.c['package'])
+  elif one(root,value,'input').get('text')!=value:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
  def verify_join_values(self):
   join_form(self.read(),filled=True)
  def guard(self,root,name):
@@ -292,33 +387,42 @@ class Driver:
   try:capture(cfg)
   except Exception:raise CaptureBoundaryFailure('DIAGNOSTIC_CAPTURE_BOUNDARY_FAILED') from None
   self.diagnostic={'scene':'UNIDENTIFIED','captured':True,'sceneVerified':False,'geometryPassed':False,'nativeAcceptance':False}
- def prepare_host(self):
-  root=self.read()
+ def prepare_host(self,root=None):
+  root=self.read() if root is None else root
   cards=matches(root,'contest-player-0')
-  inputs=host_names(cards[0]) if len(cards)==1 else []
-  edits=[{**role_observation(root,n,cards[0]),'nameRole':name_edit(n),
+  card=cards[0] if len(cards)==1 else None
+  edits=[{**role_observation(root,n,card),'nameRole':name_edit(n),
           'observedDefault':n.get('text')=='Golfer','nameHintPresent':n.get('hint')=='Your name'}
-         for n in cards[0].iter('node') if n.get('class')=='android.widget.EditText' and box(n)][:4] if len(cards)==1 else []
-  self.observations.append({'checkpoint':'host-prefill','selectors':[{'role':'host-card','kind':'id','matches':min(len(cards),2)},{'role':'host-name-input','kind':'input','matches':min(len(inputs),2)}],'editRoles':edits})
-  n=host_input(root)
+         for n in card.iter('node') if n.get('class')=='android.widget.EditText' and box(n)][:4] if card is not None else []
+  observation={'checkpoint':'host-prefill','selectors':[{'role':'host-card','kind':'id','matches':min(len(cards),2)},{'role':'host-name-input','kind':'input','matches':0}],'editRoles':edits,
+               'hierarchyEditInventory':edit_inventory(root,card,self.c['package'])}
+  self.observations.append(observation)
+  if card is None:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+  n,flat=player_name(root,card,'Golfer',self.c['package'],host_initial=True)
+  if n is None:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+  observation['selectors'][1]['matches']=1
+  observation['inputOwnership']='contained-native-sibling' if flat else 'native-descendant'
   if n.get('enabled')!='true':raise ValueError('CONTROL_DISABLED')
-  if not contained(box(n),box(cards[0])):raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+  if not contained(box(n),box(card)):raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
   value=n.get('text')
   if value is None:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
   self.hostName=value
-  if value!='':return # Keep observed nonempty value in memory only.
-  if n.get('enabled')!='true':raise ValueError('CONTROL_DISABLED')
+  if value!='':return # Keep observed nonempty value in memory only; never tap.
+  # Only original native-descendant scope can prove and fill an empty host.
+  if flat:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
   l,t,r,b=box(n)
   footer=matches(root,'contest-footer')
   if len(footer)!=1 or b>box(footer[0])[1]:raise ValueError('CONTROL_BEHIND_FOOTER')
   self.adb('shell','input','tap',str((l+r)//2),str((t+b)//2))
-  # Reacquire the exact card and prove empty immediately before text input.
   if host_input(self.read()).get('text')!='':raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
   self.adb('shell','input','text','QAHost')
   if not re.search(r'\bmInputShown=true\b',self.adb('shell','dumpsys','input_method')):raise ValueError('KEYBOARD_DISMISSAL_UNVERIFIED')
   self.adb('shell','input','keyevent','4')
   if host_input(self.read()).get('text')!='QAHost':raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
   self.hostName='QAHost'
+ def verify_draft_name(self,index,value):
+  root,_=self.seek('contest-player-'+str(index))
+  player_readback(root,index,value,self.c['package'])
  def shot(self,name):
   self.phase=name
   root=self.read();self.guard(root,name)
@@ -377,9 +481,9 @@ def journey(c,lane='all'):
     d.report.append({'checkpoint':name,'captured':False,'status':'SECTION_NOT_SAFELY_OBSERVED','geometryPassed':False})
   d.phase='paywall-close';d.tap('paywall-close',direction='up')
   validate(d.read(),'round-settings');d.tap('new-contest-back');validate(d.read(),'games')
-  d.tap('new-contest-back');d.seek('contest-player-0');one(one(d.read(),'contest-player-0'),d.hostName,'input')
+  d.tap('new-contest-back');d.verify_draft_name(0,d.hostName)
   for index,name in [(1,'QAGuest'),(2,'QAThree'),(3,'QAFour')]:
-   d.seek('contest-player-'+str(index));one(one(d.read(),'contest-player-'+str(index)),name,'input')
+   d.verify_draft_name(index,name)
   d.seek('rounds-2',direction='up');validate(d.read(),'rounds')
   d.report.append({'checkpoint':'draft-retained','verified':True})
   d.tap('new-contest-back');d.save('CAPTURED_SUPPLEMENTAL_ONLY')
