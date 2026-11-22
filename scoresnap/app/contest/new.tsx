@@ -904,6 +904,7 @@ export default function NewContestScreen() {
 
               <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <AnimatedPressable
+                  testID="remove-group" accessibilityLabel="Remove group"
                   onPress={() => {
                     if (numGroups > 1) {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

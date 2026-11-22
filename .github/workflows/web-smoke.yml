@@ -192,7 +192,7 @@ jobs:
       - name: Safe-area sheets (iPhone Dynamic Island, 59px top / 34px bottom)
         run: |
           node --test e2e/safe-area-profiles.test.mjs
-          for profile in iphone-se iphone-15-pro iphone-pro-max; do
+          for profile in iphone-se iphone-15-pro iphone-pro-max iphone-13-mini iphone-13-notch iphone-16-pro iphone-16-pro-max; do
             DEVICE_PROFILE="$profile" BASE_URL=http://127.0.0.1:8089 OUT_DIR="e2e/screens/safe-area/$profile" node e2e/safe-area-sheets.mjs
           done
       - name: Missing-dismiss regression proof
