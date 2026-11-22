@@ -28,7 +28,7 @@ import { useOnboardingStore } from "../../src/stores/onboarding-store";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const modeChipWidth = Math.max(44, (width - 48) / 2);
   const bottomTabBarHeight = useBottomTabBarHeight();
   const tier = useScanStore(s => s.tier);
@@ -126,9 +126,10 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* ── Hero Section ── */}
+        {/* Recreate hero text when Dynamic Type changes so native line bounds are remeasured. */}
         <View style={{ paddingHorizontal: 20, marginBottom: 28 }}>
           <Text
+            key={`hero-title-${fontScale}`}
             style={{
               fontFamily: FONTS.headline,
               fontSize: 28,
@@ -140,6 +141,7 @@ export default function HomeScreen() {
             Build contests. Settle up.
           </Text>
           <Text
+            key={`hero-body-${fontScale}`}
             style={{
               fontFamily: FONTS.regular,
               fontSize: 14,
