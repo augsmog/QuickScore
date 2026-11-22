@@ -1,110 +1,86 @@
-name: E2E iOS simulator
-# Runs .maestro flows (aos-e2e/v1) against a source-built or supplied EAS iOS simulator app.
-# Manual only. No secrets used. Evidence: artifact e2e-<product>-<run_id> (manifest.json + screenshots).
+name: E2E iOS simulator capacity readback
 on:
   workflow_dispatch:
-    inputs:
-      app_url:
-        description: "Optional EAS simulator build artifact URL (.tar.gz); blank builds from this commit"
-        required: false
-        default: ""
-      build:
-        description: "Build key from .maestro/e2e.config.json (online | offline)"
-        required: true
-        default: offline
-      flows:
-        description: "Comma-separated flow ids, or all"
-        required: true
-        default: all
-      eas_build_id:
-        description: "EAS build id (recorded in manifest)"
-        required: false
-        default: ""
-permissions:
-  contents: read
-concurrency:
-  group: e2e-ios-sim-${{ github.ref }}-${{ inputs.build }}
-  cancel-in-progress: false
+permissions: {}
 jobs:
-  maestro:
-    runs-on: macos-15
-    timeout-minutes: 75
-    env:
-      APP_URL: ${{ inputs.app_url }}
-      BUILD_KEY: ${{ inputs.build }}
-      FLOWS: ${{ inputs.flows }}
-      EAS_BUILD_ID: ${{ inputs.eas_build_id }}
+  capacity:
+    if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-a073-hosted-capacity'
+    runs-on: macos-26
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - name: Validate inputs
+      - name: Read installed host capacity only
+        shell: bash
         run: |
-          case "$BUILD_KEY" in online|offline) ;; *) echo "bad build key"; exit 1;; esac
-          echo "$FLOWS" | grep -Eq '^(all|[a-z0-9,-]+)$' || { echo "bad flows"; exit 1; }
-          if [ -n "$APP_URL" ]; then
-            case "$APP_URL" in https://expo.dev/artifacts/eas/*|https://*.expo.dev/*) ;; *) echo "app_url must be an EAS artifact URL"; exit 1;; esac
-          fi
-          python3 .maestro/scripts/validate-existing-binary.py --config .maestro/e2e.config.json \
-            --build "$BUILD_KEY" --flows "$FLOWS" --app-url "$APP_URL" --build-id "$EAS_BUILD_ID"
-      - uses: actions/setup-node@v4
-        if: ${{ inputs.app_url == '' }}
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: scoresnap/package-lock.json
-      - name: Install app dependencies
-        if: ${{ inputs.app_url == '' }}
-        run: npm ci --prefix scoresnap
-      - name: Build simulator app from source
-        if: ${{ inputs.app_url == '' }}
-        run: |
-          SOURCE_SHA="$(git -C scoresnap rev-parse HEAD)"
-          test "$SOURCE_SHA" = "$GITHUB_SHA"
-          echo "Building QuickScore at source SHA $SOURCE_SHA"
-          export SENTRY_DISABLE_AUTO_UPLOAD=true
-          if [ "$BUILD_KEY" = offline ]; then
-            export EXPO_PUBLIC_SIMULATOR_NO_MLKIT=1
-            export EXPO_PUBLIC_OFFLINE_MODE=true
-            export EXPO_PUBLIC_DEMO_MODE=false
-            export EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=false
-            export EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true
-            export EXPO_PUBLIC_E2E_COURSE_FIXTURE=true
-          else
-            export EXPO_PUBLIC_SIMULATOR_NO_MLKIT=1
-            export EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true
-          fi
-          cd scoresnap
-          npx expo prebuild --platform ios --clean --no-install
-          cd ios
-          pod install
-          xcodebuild -version
-          xcodebuild -workspace SnapScore.xcworkspace -scheme SnapScore -configuration Release \
-            -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/QuickScoreDerivedData" \
-            CODE_SIGNING_ALLOWED=NO build
-          APP_PATH="$(find "$RUNNER_TEMP/QuickScoreDerivedData/Build/Products/Release-iphonesimulator" -maxdepth 2 -type d -name 'SnapScore.app' -print -quit)"
-          test -n "$APP_PATH" && test -d "$APP_PATH"
-          printf '%s\n' "$SOURCE_SHA" > "$APP_PATH/SourceCommit.txt"
-          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
-          echo "Source-built app from $SOURCE_SHA: $APP_PATH"
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - name: Install Maestro
-        run: |
-          curl -fsSL "https://get.maestro.mobile.dev" | bash
-          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
-      - name: Run flows
-        run: |
-          if [ -n "$APP_URL" ]; then
-            .maestro/scripts/run-ios-sim.sh --app-url "$APP_URL" --build "$BUILD_KEY" --flows "$FLOWS" --build-id "$EAS_BUILD_ID" --out e2e-out
-          else
-            .maestro/scripts/run-ios-sim.sh --app-path "$APP_PATH" --build "$BUILD_KEY" --flows "$FLOWS" --out e2e-out
-          fi
-      - name: Upload evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-snapscore-${{ github.run_id }}
-          path: e2e-out
-          retention-days: 7
-          if-no-files-found: warn
+          set -euo pipefail
+          python3 -B - <<'PY'
+          import json, os, pathlib, platform, re, shutil, subprocess
+          def read(args):
+              try:
+                  r = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10, env={k: os.environ[k] for k in ('PATH', 'HOME', 'TMPDIR') if k in os.environ})
+                  if r.returncode or len(r.stdout) + len(r.stderr) > 2000000:
+                      return None
+                  return (r.stdout + r.stderr).decode('utf-8', 'strict').strip()
+              except (OSError, subprocess.TimeoutExpired, UnicodeError):
+                  return None
+          def version(text, pattern):
+              if text is None:
+                  return None
+              m = re.search(pattern, text)
+              return m.group(1) if m else None
+          expected = {'GITHUB_REPOSITORY': 'augsmog/QuickScore', 'GITHUB_EVENT_NAME': 'workflow_dispatch', 'GITHUB_REF': 'refs/heads/qa/snapscore-a073-hosted-capacity', 'RUNNER_ENVIRONMENT': 'github-hosted', 'RUNNER_OS': 'macOS', 'RUNNER_ARCH': 'ARM64'}
+          if any(os.environ.get(k) != v for k, v in expected.items()) or platform.system() != 'Darwin' or platform.machine() != 'arm64':
+              print('{"status":"BLOCKED","reason":"HOST_CONTEXT_MISMATCH"}')
+              raise SystemExit(78)
+          receipt = {'schema': 1, 'scope': 'installed-host-readback-only', 'budgetPass': None, 'nativeProof': False}
+          ram = read(['/usr/sbin/sysctl', '-n', 'hw.memsize'])
+          receipt['physicalRamBytes'] = int(ram) if ram and re.fullmatch(r'[0-9]{1,20}', ram) else None
+          groups = {}
+          def volume(value):
+              if not value:
+                  return {'status': 'UNAVAILABLE'}
+              p = pathlib.Path(value)
+              if not p.is_absolute():
+                  return {'status': 'UNAVAILABLE'}
+              exact = p.exists()
+              while not p.exists() and p != p.parent:
+                  p = p.parent
+              try:
+                  s = os.statvfs(p)
+                  device = p.stat().st_dev
+                  group = groups.setdefault(device, len(groups) + 1)
+                  return {'status': 'OBSERVED', 'requestedDirectoryExists': exact, 'volumeGroup': group, 'availableBytes': s.f_bavail * s.f_frsize, 'freeBytes': s.f_bfree * s.f_frsize, 'totalBytes': s.f_blocks * s.f_frsize}
+              except OSError:
+                  return {'status': 'UNAVAILABLE'}
+          receipt['volumes'] = {'runnerTemp': volume(os.environ.get('RUNNER_TEMP')), 'simulatorData': volume(str(pathlib.Path.home() / 'Library/Developer/CoreSimulator/Devices')), 'root': volume('/')}
+          selected = read(['/usr/bin/xcode-select', '-p'])
+          safe_path = selected if selected and re.fullmatch(r'/Applications/Xcode(?:_[0-9.]+)?\.app/Contents/Developer', selected) else None
+          receipt['xcode'] = {'selectedAllowlistedPath': safe_path, 'exact2641PathPresent': pathlib.Path('/Applications/Xcode_26.4.1.app/Contents/Developer').is_dir(), 'version': version(read(['/usr/bin/xcodebuild', '-version']), r'Xcode ([0-9.]+)'), 'simulatorSdk': version(read(['/usr/bin/xcrun', '--sdk', 'iphonesimulator', '--show-sdk-version']), r'^([0-9.]+)$')}
+          def inventory(kind, key):
+              raw = read(['/usr/bin/xcrun', 'simctl', 'list', kind, '--json'])
+              try:
+                  rows = json.loads(raw)[key]
+                  return rows if isinstance(rows, list) and len(rows) <= 100 else None
+              except (TypeError, ValueError, KeyError):
+                  return None
+          rows = inventory('runtimes', 'runtimes')
+          receipt['iosRuntimes'] = None if rows is None else [{'identifier': r['identifier'], 'version': r.get('version') if re.fullmatch(r'[0-9.]{1,20}', str(r.get('version', ''))) else None, 'available': r.get('isAvailable') if type(r.get('isAvailable')) is bool else None} for r in rows if re.fullmatch(r'com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]{1,20}', str(r.get('identifier', '')))]
+          rows = inventory('devicetypes', 'devicetypes')
+          receipt['iphone16ProTypeCount'] = None if rows is None else sum(r.get('identifier') == 'com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro' for r in rows)
+          cache = pathlib.Path(os.environ.get('RUNNER_TOOL_CACHE', '/opt/hostedtoolcache'))
+          nodes = []
+          if cache.is_absolute():
+              for arch in ('arm64', 'x64'):
+                  node = cache / 'node/22.23.5' / arch / 'bin/node'
+                  if node.is_file():
+                      nodes.append({'cacheArchitecture': arch, 'version': version(read([str(node), '--version']), r'^(v[0-9.]+)$'), 'actualArchitecture': version(read([str(node), '-p', 'process.arch']), r'^(arm64|x64)$')})
+          receipt['node22235Cache'] = nodes
+          receipt['maestroOnPath'] = shutil.which('maestro') is not None
+          tools = {}
+          for name, args, pattern in [('psql', ['--version'], r'(?:PostgreSQL\)?\s+)([0-9.]+)'), ('java', ['-version'], r'version "([0-9._+]+)"'), ('zstd', ['--version'], r'v([0-9.]+)')]:
+              path = shutil.which(name)
+              tools[name] = {'present': path is not None, 'version': version(read([path, *args]), pattern) if path else None}
+          tools['lsof'] = {'present': pathlib.Path('/usr/sbin/lsof').is_file(), 'version': version(read(['/usr/sbin/lsof', '-v']), r'revision:\s*([0-9.]+)')}
+          receipt['tools'] = tools
+          receipt['status'] = 'READBACK_COMPLETE'
+          print(json.dumps(receipt, sort_keys=True, separators=(',', ':')))
+          PY
