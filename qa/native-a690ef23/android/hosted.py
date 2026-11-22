@@ -2,6 +2,7 @@
 import hashlib,json,os,pathlib,re,shutil,signal,subprocess,time,sys
 from smoke import run as smoke
 from provision import ensure
+from transport import inspect as inspect_transport
 GRADLE_JVM='-Xmx3072m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8'
 def gradle_args():
  return ['bash','./gradlew',':app:assembleRelease','-PreactNativeArchitectures=x86_64','-Pandroid.builder.sdkDownload=false','--no-daemon','--no-build-cache','--max-workers=2','--no-parallel','-Dorg.gradle.jvmargs='+GRADLE_JVM]
@@ -85,6 +86,7 @@ def execute(source,out):
  if not re.fullmatch('[A-Za-z][A-Za-z0-9_.]+',package):raise ValueError('invalid package')
  manifest={'sourceSha':'a073d5761b77f3e01610acebaf5d98f76a920fb5','sourceTree':'3cbda6ddde720b614c0ae3c2bccef7948d805e20','apkSha256':h,'variant':'release','offline':True,'recipeSha256':hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),'lockSha256':lock,'nodeVersion':nodeversion,'javaVersion':javaversion.strip(),'flags':{k:v for k,v in env.items() if k.startswith('EXPO_')},'nativeAcceptance':False}
  manifestpath=out/'build.json';manifestpath.write_text(json.dumps(manifest,indent=2)+'\n')
+ (out/'apk-transport.json').write_text(json.dumps({'sourceSha':manifest['sourceSha'],'sourceTree':manifest['sourceTree'],'apkSha256':h,'aggregatePass':False,**inspect_transport(pathlib.Path(sdk)/'build-tools/36.0.0/aapt',apk)},indent=2)+'\n')
  cmd([tools['adb'],'-s',serial,'install','-r',str(apk)],'install',60)
  # No fixtures or permission grants. Offline app completes onboarding through existing product behavior.
  original=adb('shell','settings','get','system','font_scale')
@@ -96,12 +98,8 @@ def execute(source,out):
    adb('shell','am','force-stop',package)
    adb('shell','monkey','-p',package,'-c','android.intent.category.LAUNCHER','1')
    cfg={'source':str(source),'serial':serial,'package':package,'apk':str(apk),'buildManifest':str(manifestpath),'expectedScale':value,'out':str(out/('scale-'+str(value)))}
-   # Bounded readiness wait; no synthetic selector/data substitution or dialog dismissal.
-   last=None
-   for attempt in range(6):
-    try:smoke(cfg);last=None;break
-    except Exception as e:last=e;time.sleep(2)
-   if last:raise RuntimeError('scale '+str(value)+' failed: '+str(last))
+   # smoke performs bounded read-only Home readiness; capture/scale/provenance failures are never retried.
+   smoke(cfg)
    results.append(value)
  finally:adb('shell','settings','put','system','font_scale',original)
  (out/'smoke-summary.json').write_text(json.dumps({'observedScales':results,'apkSha256':h,'aggregatePass':False,'runtimePaywall':False,'nativeJoin':False},indent=2)+'\n')

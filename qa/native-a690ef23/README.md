@@ -32,3 +32,18 @@ Manual route requires GITHUB_ACTIONS=true, GITHUB_EVENT_NAME=workflow_dispatch, 
 Export/build/install identity now binds a073d5761b77f3e01610acebaf5d98f76a920fb5 / tree3cbda6ddde720b614c0ae3c2bccef7948d805e20. Existing historical QA directory/ref and all manual guards stay unchanged. The Home app patch is carried separately in QA ancestry; source validation requires the full app checkout to equal this exact product outside the existing test allowlist. Planned source ref qa/snapscore-home-font-a073 is local only and must become authorized/readable before shallow runner fetch can work. No a690 APK/capture may satisfy these new hashes.
 
 Foreground Activity mCurrentConfig parser remains the separately tested 631f930 implementation: unique focused/resumed Activity block, typed missing/duplicate/stale/format reasons, matching Settings and OS configuration, same Activity identity before/after. Raw dumpsys/XML, device serial, paths and runtime fingerprint are not written to screenshot receipts. No initialized JS/RN scale claim. Native execution, geometry and complete Join/paywall remain unproved. No workflow/trust or app runtime flags changed.
+
+### Local a073 focus diagnostics
+After exact source/build/installed-APK verification, Home readiness is sampled up
+to six times using read-only pidof, window focus and UI hierarchy queries, with two
+seconds between attempts and existing per-command timeouts. Receipts contain only
+bounded reason/count/presence values; no package/component names, PID, serial,
+window tokens, hierarchy text or raw dumps are exported by this diagnostic.
+Null/unrecognized, foreign and ambiguous focus remain failures. No dialogs are
+acted on and no permissions are granted. Capture then independently rechecks scene,
+Activity configuration/identity and scale before and after; those failures are not
+retried. A readiness success is not a screenshot or native gate pass.
+`scale-<value>-diagnostic.json` records readiness and capture phase even on failure.
+`apk-transport.json` uses existing build-tools aapt read-only against the exact APK;
+unknown/custom policy remains unknown, and no network/runtime acceptance is inferred.
+Build, lint, settings restoration and trusted intake/aggregate exit 78 are unchanged.
