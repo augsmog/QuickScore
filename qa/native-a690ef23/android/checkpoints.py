@@ -69,17 +69,110 @@ def one(root,key,kind='id'):
  if len(found)!=1:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
  return found[0]
 
+FIND='Find contest'
+BUTTON_ROLES={'android.widget.Button','android.view.View','android.view.ViewGroup'}
+DIAGNOSTIC_ROLES=BUTTON_ROLES|{'android.widget.TextView','android.widget.EditText',
+ 'android.widget.FrameLayout','android.widget.LinearLayout','android.widget.ScrollView'}
+
+def parents_of(root):return {c:p for p in root.iter() for c in p}
+
+def contained(inner,outer):
+ return bool(inner and outer and outer[0]<=inner[0] and outer[1]<=inner[1]
+             and inner[2]<=outer[2] and inner[3]<=outer[3])
+
+def visible_button(n):
+ return (bool(box(n)) and n.get('class') in BUTTON_ROLES
+         and n.get('enabled')=='true' and n.get('clickable')=='true')
+
+def find_button(root):
+ hits=matches(root,FIND,'text')
+ actions=[n for n in hits if visible_button(n)]
+ if len(actions)!=1 or len(hits) not in (1,2):raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+ target=actions[0]
+ if len(hits)==1:return target
+ label=next(n for n in hits if n is not target)
+ # The only supported alias: the label of the same Pressable, not two visual
+ # buttons even if their rectangles are identical. The archive did not include XML.
+ if (target.get('content-desc')!=FIND or label.get('text')!=FIND
+     or label.get('class')!='android.widget.TextView' or label.get('clickable')!='false'
+     or label.get('package')!=target.get('package') or not contained(box(label),box(target))):
+  raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+ parents=parents_of(root)
+ a=parents.get(label)
+ while a is not None and a is not target:
+  if a.get('clickable')!='false' or not contained(box(label),box(a)) or not contained(box(a),box(target)):
+   raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+  a=parents.get(a)
+ if a is not target:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+ return target
+
+def role_observation(root,n,anchor=None):
+ parents=parents_of(root)
+ def safe(k):
+  return {'role':k.get('class') if k.get('class') in DIAGNOSTIC_ROLES else 'other',
+          'clickable':k.get('clickable') if k.get('clickable') in ('true','false') else None,
+          'enabled':k.get('enabled') if k.get('enabled') in ('true','false') else None,
+          'boundsPx':box(k)}
+ path=[];a=parents.get(n)
+ for _ in range(4):
+  if a is None or a.tag!='node':break
+  path.append({**safe(a),'isAnchor':a is anchor})
+  if a is anchor:break
+  a=parents.get(a)
+ return {**safe(n),'parentPath':path}
+
+def join_candidates(root):
+ hits=matches(root,FIND,'text')
+ return [{'labelAsText':n.get('text')==FIND,'labelAsDescription':n.get('content-desc')==FIND,
+          **role_observation(root,n,next((m for m in hits if m is not n),None))}
+         for n in hits[:2]]
+
+def join_form(root,filled=False):
+ if filled:
+  code=one(root,'AAAAAA','input');name=one(root,'QAGuest','input')
+  if code.get('text')!='AAAAAA' or name.get('text')!='QAGuest':
+   raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+ else:
+  code=one(root,'Join code','input');name=one(root,'Display name','input')
+ if code is name or code.get('enabled')!='true' or name.get('enabled')!='true':
+  raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+ return find_button(root)
+
+def scene_node(root,key,kind='id'):
+ return find_button(root) if kind=='text' and key==FIND else one(root,key,kind)
+
 def selector_counts(root,name):
  if name not in SCENES:raise ValueError('UNKNOWN_CHECKPOINT')
  return [{'role':key,'kind':kind,'matches':min(len(matches(root,key,kind)),2)}
          for kind,keys in [('id',SCENES[name]),('text',TEXTS.get(name,()))] for key in keys]
 
+def name_edit(n):
+ return (bool(box(n)) and n.get('class')=='android.widget.EditText'
+         and not n.get('resource-id','').split(':id/')[-1].startswith('player-handicap-')
+         and not n.get('content-desc','').startswith('Handicap for '))
+
+def host_names(card):
+ edits=[n for n in card.iter('node') if name_edit(n)
+        and (n.get('hint')=='Your name' or n.get('text')=='Golfer')]
+ return edits
+
 def host_input(root):
  card=one(root,'contest-player-0')
- inputs=[n for n in card.iter('node') if box(n) and n.get('class')=='android.widget.EditText'
-         and n.get('hint')=='Your name']
+ inputs=host_names(card)
  if len(inputs)!=1:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
  return inputs[0]
+
+def player_card(label):
+ m=re.fullmatch(r'Player ([234]) name',label)
+ return 'contest-player-'+str(int(m[1])-1) if m else None
+
+def footer_check(root,n):
+ footer=one(root,'contest-footer')
+ relation=any(k is n for k in footer.iter('node')) and n is not footer
+ enclosed=contained(box(n),box(footer))
+ return {'targetDescendsFooter':relation,'targetInFooterBounds':enclosed,
+         'targetEnabled':n.get('enabled')=='true','targetClickable':n.get('clickable')=='true',
+         'targetBoundsPx':box(n),'footerBoundsPx':box(footer)}
 
 def diagnostic_guard(xml,focus,package):
  target_focus(focus,package)
@@ -104,7 +197,8 @@ def validate(root,name):
   expected=next(i for i in SCENES[name] if i.startswith('contest-step-'))
   if any(i.startswith('contest-step-') and i!=expected for i in ids):raise ValueError('WRONG_STEP')
  for key in SCENES[name]:one(root,key)
- for text in TEXTS.get(name,()):one(root,text,'text')
+ for text in TEXTS.get(name,()):scene_node(root,text,'text')
+ if name in ('entry','entry-invalid'):join_form(root,filled=name=='entry-invalid')
  if name=='paywall-disabled':
   n=one(root,'Currently unavailable','text')
   # Android may expose disabled state on a containing Pressable; require explicit
@@ -125,7 +219,14 @@ class Driver:
   except Exception:raise CaptureBoundaryFailure('FOREGROUND_OR_HIERARCHY_BOUNDARY_FAILED') from None
  def seek(self,key,kind='id',direction='down'):
   for attempt in range(9):
-   root=self.read();found=matches(root,key,kind)
+   root=self.read()
+   if kind=='text' and key==FIND:return root,find_button(root)
+   card=player_card(key) if kind=='input' else None
+   if card:
+    cards=matches(root,card)
+    if len(cards)>1:raise ValueError('AMBIGUOUS_CONTROL')
+    found=[n for n in matches(cards[0],key,kind) if name_edit(n)] if cards else []
+   else:found=matches(root,key,kind)
    roles={'home-join-code':'home-join','home-new-contest':'home-new-contest','contest-step-setup':'setup-scene','contest-player-0':'host-card','Player 2 name':'guest-player-input'}
    if key in roles and hasattr(self,'observations'):
     self.observations.append({'checkpoint':'lookup','selectors':[{'role':roles[key],'kind':kind,'matches':min(len(found),2)}]})
@@ -151,24 +252,38 @@ class Driver:
    if not foot or key in ('contest-continue','contest-start','new-contest-back') or box(n)[3]<=box(foot[0])[1]:break
    self.scroll('down',root);root,n=self.seek(key,kind,direction)
   l,t,r,b=box(n)
-  if n.get('enabled')=='false':raise ValueError('CONTROL_DISABLED')
   footer=matches(root,'contest-footer')
+  if key in ('contest-continue','contest-start'):
+   check=footer_check(root,n)
+   self.observations.append({'checkpoint':'footer-control','control':key,**check})
+   if not check['targetDescendsFooter'] or not check['targetInFooterBounds']:
+    raise ValueError('CONTROL_BEHIND_FOOTER')
+   if not check['targetEnabled'] or not check['targetClickable']:raise ValueError('CONTROL_DISABLED')
+  elif n.get('enabled')=='false':raise ValueError('CONTROL_DISABLED')
   if footer and key not in ('contest-continue','contest-start') and b>box(footer[0])[1]:raise ValueError('CONTROL_BEHIND_FOOTER')
   self.adb('shell','input','tap',str((l+r)//2),str((t+b)//2));time.sleep(.3)
  def fill(self,label,value):
   if value not in ('QAGuest','QAThree','QAFour','AAAAAA'):raise ValueError('NON_SYNTHETIC_INPUT')
   roles={'Join code':'join-code-input','Display name':'guest-display-input','Player 2 name':'guest-player-input','Player 3 name':'third-player-input','Player 4 name':'fourth-player-input'}
   if label not in roles:raise ValueError('NON_SYNTHETIC_INPUT')
-  root,_=self.seek(label,'input')
+  root,field=self.seek(label,'input')
+  if field is None or field.get('enabled')!='true' or field.get('text','') not in ('',label):
+   raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
   self.observations.append({'checkpoint':'input','selectors':[{'role':roles[label],'kind':'input','matches':min(len(matches(root,label,'input')),2)}]})
   self.tap(label,'input')
   self.adb('shell','input','text',value)
   ime=self.adb('shell','dumpsys','input_method')
   if not re.search(r'\bmInputShown=true\b',ime):raise ValueError('KEYBOARD_DISMISSAL_UNVERIFIED')
   self.adb('shell','input','keyevent','4');time.sleep(.3)
-  one(self.read(),value,'input')
+  root=self.read();card=player_card(label)
+  observed=one(one(root,card) if card else root,value,'input')
+  if observed.get('text')!=value:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+ def verify_join_values(self):
+  join_form(self.read(),filled=True)
  def guard(self,root,name):
-  self.observations.append({'checkpoint':name,'selectors':selector_counts(root,name)})
+  proof={'checkpoint':name,'selectors':selector_counts(root,name)}
+  if name in ('entry','entry-invalid'):proof['findContestCandidates']=join_candidates(root)
+  self.observations.append(proof)
   validate(root,name)
  def join_diagnostic(self):
   if not self.joinTapped or self.phase!='join-destination':raise CaptureBoundaryFailure('DIAGNOSTIC_NOT_AFTER_JOIN_TAP')
@@ -180,9 +295,14 @@ class Driver:
  def prepare_host(self):
   root=self.read()
   cards=matches(root,'contest-player-0')
-  inputs=[] if len(cards)!=1 else [n for n in cards[0].iter('node') if box(n) and n.get('class')=='android.widget.EditText' and n.get('hint')=='Your name']
-  self.observations.append({'checkpoint':'host-prefill','selectors':[{'role':'host-card','kind':'id','matches':min(len(cards),2)},{'role':'host-name-input','kind':'input','matches':min(len(inputs),2)}]})
+  inputs=host_names(cards[0]) if len(cards)==1 else []
+  edits=[{**role_observation(root,n,cards[0]),'nameRole':name_edit(n),
+          'observedDefault':n.get('text')=='Golfer','nameHintPresent':n.get('hint')=='Your name'}
+         for n in cards[0].iter('node') if n.get('class')=='android.widget.EditText' and box(n)][:4] if len(cards)==1 else []
+  self.observations.append({'checkpoint':'host-prefill','selectors':[{'role':'host-card','kind':'id','matches':min(len(cards),2)},{'role':'host-name-input','kind':'input','matches':min(len(inputs),2)}],'editRoles':edits})
   n=host_input(root)
+  if n.get('enabled')!='true':raise ValueError('CONTROL_DISABLED')
+  if not contained(box(n),box(cards[0])):raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
   value=n.get('text')
   if value is None:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
   self.hostName=value
@@ -209,10 +329,11 @@ class Driver:
   except Exception:raise CaptureBoundaryFailure('CONTINUATION_CAPTURE_BOUNDARY_FAILED') from None
   # Bounds are observed accessibility bounds, not painted glyph geometry or dp.
   targets=list(SCENES[name])+list(TEXTS.get(name,()))
-  bounds={str(i):box(one(root,k,'id' if k in SCENES[name] else 'text')) for i,k in enumerate(targets)}
+  bounds={str(i):box(scene_node(root,k,'id' if k in SCENES[name] else 'text')) for i,k in enumerate(targets)}
   self.report.append({'checkpoint':name,'captured':True,'observedBoundsPx':bounds,'geometryPassed':False,'visualReviewRequired':True})
  def save(self,status):
-  (self.out/'continuation.json').write_text(json.dumps({'sourceSha':self.c_source(),'status':status,'phase':self.phase,'reason':self.reason,'selectorObservations':self.observations,'diagnosticCapture':self.diagnostic,'checkpoints':self.report,'aggregatePass':False,'runtimeRNScale':None,'nativeJoin':False,'catalog':'offline-fallback-no-provider','blocked':['online-host-approval-binding-score-reconnect','initialized-RN-scale','independent-geometry-review']},indent=2)+'\n')
+  captured=[r['checkpoint'] for r in self.report if r.get('captured')]
+  (self.out/'continuation.json').write_text(json.dumps({'sourceSha':self.c_source(),'status':status,'phase':self.phase,'reason':self.reason,'blockedAfterCapture':status=='BLOCKED' and bool(captured or self.diagnostic),'capturedCheckpoints':captured,'selectorObservations':self.observations,'diagnosticCapture':self.diagnostic,'checkpoints':self.report,'aggregatePass':False,'runtimeRNScale':None,'nativeJoin':False,'catalog':'offline-fallback-no-provider','blocked':['online-host-approval-binding-score-reconnect','initialized-RN-scale','independent-geometry-review']},indent=2)+'\n')
  def c_source(self):
   from smoke import SHA
   return SHA
@@ -226,7 +347,9 @@ def journey(c,lane='all'):
    d.phase='join-home-tap';d.tap('home-join-code');d.joinTapped=True
    d.phase='join-destination';d.guard(d.read(),'entry')
    d.shot('entry')
-   d.phase='join-invalid';d.fill('Join code','AAAAAA');d.fill('Display name','QAGuest');d.tap('Find contest','text')
+   d.phase='join-invalid';d.fill('Join code','AAAAAA');d.fill('Display name','QAGuest')
+   d.verify_join_values()
+   d.tap(FIND,'text')
    d.seek(MISSING,'text');d.shot('entry-invalid');d.tap('join-dismiss')
    if lane=='join':
     d.save('CAPTURED_SUPPLEMENTAL_ONLY');return

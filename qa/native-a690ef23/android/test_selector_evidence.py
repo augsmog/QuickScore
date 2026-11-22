@@ -1,5 +1,5 @@
 """Synthetic portable controls; not native evidence."""
-import pathlib,tempfile,unittest,xml.etree.ElementTree as ET
+import json,pathlib,tempfile,unittest,xml.etree.ElementTree as ET
 from unittest.mock import patch,MagicMock
 import checkpoints as c
 from test_checkpoints import node,fixture
@@ -10,6 +10,27 @@ def host(value='',count=1):
  for n in r:
   if n.get('resource-id')=='contest-footer':n.set('bounds','[0,100][400,200]')
  return r
+
+def pair(mode='nested'):
+ r=fixture('entry')
+ r.remove(next(n for n in r if n.get('text')==c.FIND))
+ button=node(**{'class':'android.widget.Button','clickable':'true','content-desc':c.FIND,
+                'bounds':'[60,150][550,240]'})
+ label=node(**{'class':'android.widget.TextView','clickable':'false','text':c.FIND,
+               'bounds':'[80,170][200,210]'})
+ r.append(button)
+ if mode=='sibling':r.append(label)
+ elif mode=='independent-button':
+  label.set('clickable','true');label.set('class','android.widget.Button');label.set('bounds',button.get('bounds'));r.append(label)
+ elif mode=='outside':
+  label.set('bounds','[10,10][25,25]');button.append(label)
+ elif mode=='foreign':
+  label.set('package','synthetic.foreign');button.append(label)
+ elif mode=='third':
+  button.append(label);r.append(node(text=c.FIND))
+ else:button.append(label)
+ return r,button
+
 class Evidence(unittest.TestCase):
  def driver(self,td):
   return c.Driver({'out':td+'/test','package':'test.app','serial':'emulator-5554'})
@@ -21,6 +42,76 @@ class Evidence(unittest.TestCase):
    rows=d.observations[0]['selectors']
    self.assertEqual([x['matches'] for x in rows],[0,1,1,2])
    self.assertEqual(len(rows),4)
+ def test_one_actionable_parent_and_label_is_one_logical_find(self):
+  r,button=pair()
+  self.assertIs(c.find_button(r),button)
+  self.assertTrue(c.validate(r,'entry'))
+  evidence=c.join_candidates(r)
+  self.assertEqual([e['clickable'] for e in evidence],['true','false'])
+  self.assertTrue(evidence[1]['parentPath'][0]['isAnchor'])
+  self.assertNotIn('test.app',repr(evidence))
+ def test_pair_requires_actionable_same_target_and_contained_label(self):
+  for mode in ('sibling','independent-button','outside','foreign','third'):
+   with self.subTest(mode=mode),self.assertRaises(ValueError):c.find_button(pair(mode)[0])
+  r,button=pair();button.set('enabled','false')
+  with self.assertRaises(ValueError):c.find_button(r)
+ def test_actual_query_must_have_two_distinct_typed_fields_and_offline_error(self):
+  r=fixture('entry-invalid')
+  self.assertTrue(c.validate(r,'entry-invalid'))
+  name=next(n for n in r if n.get('hint')=='Display name')
+  name.set('text','')
+  with self.assertRaises(ValueError):c.validate(r,'entry-invalid')
+  name.set('text','QAGuest')
+  r.remove(next(n for n in r if n.get('text')==c.MISSING))
+  with self.assertRaises(ValueError):c.validate(r,'entry-invalid')
+ def test_no_hint_golfer_preserved_with_handicap_and_duplicate_rejected(self):
+  r=host('Golfer');card=c.one(r,'contest-player-0')
+  card[0].attrib.pop('hint')
+  card.append(node(**{'class':'android.widget.EditText','resource-id':'player-handicap-Golfer',
+                    'content-desc':'Handicap for Golfer','text':'0'}))
+  with tempfile.TemporaryDirectory() as td:
+   d=self.driver(td)
+   with patch.object(d,'read',return_value=r),patch.object(d,'adb') as adb:d.prepare_host()
+   adb.assert_not_called();self.assertEqual(d.hostName,'Golfer')
+   self.assertFalse(d.observations[0]['editRoles'][1]['nameRole'])
+   self.assertNotIn('Handicap for Golfer',repr(d.observations))
+  card.append(ET.fromstring(ET.tostring(card[0])))
+  with self.assertRaises(ValueError):c.host_input(r)
+ def test_player_2_search_scopes_to_card_before_any_edit(self):
+  r=fixture('setup-initial');card=node(**{'resource-id':'contest-player-1'})
+  target=node(**{'class':'android.widget.EditText','hint':'Player 2 name','text':''})
+  card.append(target);r.append(card)
+  r.append(ET.fromstring(ET.tostring(target)))  # unrelated identical name label
+  with tempfile.TemporaryDirectory() as td:
+   d=self.driver(td)
+   with patch.object(d,'read',return_value=r):self.assertIs(d.seek('Player 2 name','input')[1],target)
+   card.append(ET.fromstring(ET.tostring(target)))
+   with patch.object(d,'read',return_value=r),patch.object(d,'adb') as adb:
+    with self.assertRaises(ValueError):d.fill('Player 2 name','QAGuest')
+   adb.assert_not_called()
+ def test_footer_requires_same_observed_container_enabled_and_full_bounds(self):
+  for condition in ('ok','outside','sibling','disabled','not-clickable'):
+   with self.subTest(condition=condition),tempfile.TemporaryDirectory() as td:
+    d=self.driver(td);r=fixture('setup-initial');footer=c.one(r,'contest-footer')
+    footer.set('bounds','[0,700][600,890]')
+    n=node(**{'resource-id':'contest-continue','bounds':'[20,720][580,850]',
+              'clickable':'false' if condition=='not-clickable' else 'true',
+              'enabled':'false' if condition=='disabled' else 'true'})
+    if condition=='outside':n.set('bounds','[20,720][580,900]')
+    (r if condition=='sibling' else footer).append(n)
+    with patch.object(d,'seek',return_value=(r,n)),patch.object(d,'adb') as adb,patch.object(c.time,'sleep'):
+     if condition=='ok':d.tap('contest-continue');adb.assert_called_once()
+     else:
+      with self.assertRaises(ValueError):d.tap('contest-continue')
+      adb.assert_not_called()
+ def test_blocked_after_capture_preserves_checkpoint_without_pass(self):
+  with tempfile.TemporaryDirectory() as td:
+   d=self.driver(td);d.phase='host-prefill';d.reason='CONTROL_MISSING_OR_AMBIGUOUS'
+   d.report=[{'checkpoint':'setup-initial','captured':True}]
+   d.save('BLOCKED')
+   receipt=json.loads((d.out/'continuation.json').read_text())
+   self.assertTrue(receipt['blockedAfterCapture']);self.assertEqual(receipt['capturedCheckpoints'],['setup-initial'])
+   self.assertFalse(receipt['aggregatePass']);self.assertFalse(receipt['nativeJoin'])
  def test_host_nonempty_is_untouched_and_not_logged(self):
   with tempfile.TemporaryDirectory() as td:
    d=self.driver(td)

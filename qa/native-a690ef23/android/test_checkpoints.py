@@ -8,7 +8,12 @@ def node(**a):
 def fixture(name):
  r=ET.Element('hierarchy')
  for key in c.SCENES[name]:r.append(node(**{'resource-id':key}))
- for label in c.TEXTS.get(name,()):r.append(node(text=label,enabled='false' if label=='Currently unavailable' else 'true'))
+ for label in c.TEXTS.get(name,()):
+  attrs={'class':'android.widget.Button','clickable':'true'} if label==c.FIND else {}
+  r.append(node(text=label,enabled='false' if label=='Currently unavailable' else 'true',**attrs))
+ if name in ('entry','entry-invalid'):
+  for label,typed in [('Join code','AAAAAA'),('Display name','QAGuest')]:
+   r.append(node(**{'class':'android.widget.EditText','hint':label,'text':typed if name=='entry-invalid' else ''}))
  return r
 
 class Controls(unittest.TestCase):
@@ -71,7 +76,7 @@ class Controls(unittest.TestCase):
    adb.assert_not_called()
  def test_missing_keyboard_does_not_back_out(self):
   d=self.driver()
-  with patch.object(d,'seek',return_value=(ET.Element('hierarchy'),None)),patch.object(d,'tap'),patch.object(d,'adb',return_value='mInputShown=false') as adb:
+  with patch.object(d,'seek',return_value=(ET.Element('hierarchy'),node(text=''))),patch.object(d,'tap'),patch.object(d,'adb',return_value='mInputShown=false') as adb:
    with self.assertRaises(ValueError):d.fill('Player 2 name','QAGuest')
    self.assertFalse(any('keyevent' in call.args for call in adb.call_args_list))
  def test_capture_reuses_installed_apk_and_scale_checks(self):
