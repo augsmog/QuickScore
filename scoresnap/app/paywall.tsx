@@ -1,7 +1,7 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../src/ui/SafeScreen";
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Alert, Linking, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert, Linking, Platform, StyleSheet, type TextStyle } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { getPackages, purchasePackage, restorePurchases, syncProStatus } from '../src/services/purchases';
@@ -18,7 +18,10 @@ export default function PaywallScreen() {
   const router = useRouter();
   const { tier: target } = useLocalSearchParams<{ tier?: string }>();
   const tier = useScanStore(s => s.tier);
-  useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
+  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
+  // Keep Android text measurable and readable until Inter registers (or if it fails).
+  // Change only the Text style so the scroll position and selection stay intact.
+  const s = Platform.OS === 'android' && !fontsLoaded ? androidSystemStyles : interStyles;
   // AUG-1263: the Pro row is hidden while pro_enabled is off (below), so never default-select it.
   const [selection, setSelection] = useState<PaywallSelection>({ tier: target === 'td' || !proEnabled() ? 'td' : 'pro', period: 'year' });
   const [packages, setPackages] = useState<Awaited<ReturnType<typeof getPackages>>>({ annual: null, monthly: null, td_annual: null, td_monthly: null });
@@ -84,7 +87,8 @@ export default function PaywallScreen() {
     </ScrollView>
   </SafeScreen>;
 }
-const s = StyleSheet.create({
+type FontStyles = Record<'regular' | 'medium' | 'semibold' | 'bold', TextStyle>;
+const createStyles = (fonts: FontStyles) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: P.paper },
   content: { paddingHorizontal: P.padding, paddingBottom: 10, gap: P.gap },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44, marginTop: 2 },
@@ -92,23 +96,37 @@ const s = StyleSheet.create({
   topLink: { minHeight: 44, justifyContent: 'center' },
   footerLink: { minHeight: 44, justifyContent: 'center' },
   alternateLink: { minHeight: 44, justifyContent: 'center' },
-  link: { fontFamily: P.medium, fontSize: 12, color: P.green, textDecorationLine: 'underline' },
-  eyebrow: { fontFamily: P.semibold, fontSize: 12, letterSpacing: 1.2, color: P.muted },
-  headline: { fontFamily: P.bold, fontSize: 28, lineHeight: 32, letterSpacing: -0.6, color: P.ink },
+  link: { ...fonts.medium, fontSize: 12, color: P.green, textDecorationLine: 'underline' },
+  eyebrow: { ...fonts.semibold, fontSize: 12, letterSpacing: 1.2, color: P.muted },
+  headline: { ...fonts.bold, fontSize: 28, lineHeight: 32, letterSpacing: -0.6, color: P.ink },
   value: { flexDirection: 'row', gap: 14, paddingVertical: 7 },
   rule: { borderBottomColor: P.rule, borderBottomWidth: 1 },
-  valueTitle: { fontFamily: P.semibold, fontSize: 15, color: P.ink },
-  body: { fontFamily: P.regular, fontSize: 13, lineHeight: 18, color: P.muted },
+  valueTitle: { ...fonts.semibold, fontSize: 15, color: P.ink },
+  body: { ...fonts.regular, fontSize: 13, lineHeight: 18, color: P.muted },
   plan: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: P.radius, backgroundColor: P.card, borderColor: P.rule, borderWidth: 1 },
   selected: { borderColor: P.green, borderWidth: 2 },
   titleRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  planTitle: { fontFamily: P.semibold, fontSize: 16, color: P.ink },
-  tag: { fontFamily: P.semibold, fontSize: 11, color: P.green, backgroundColor: P.tint, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
+  planTitle: { ...fonts.semibold, fontSize: 16, color: P.ink },
+  tag: { ...fonts.semibold, fontSize: 11, color: P.green, backgroundColor: P.tint, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
   current: { color: P.muted, backgroundColor: P.neutral },
-  price: { fontFamily: P.bold, fontSize: 16, color: P.ink },
+  price: { ...fonts.bold, fontSize: 16, color: P.ink },
   cta: { height: P.ctaHeight, width: '100%', borderRadius: P.radius, backgroundColor: P.green, alignItems: 'center', justifyContent: 'center' },
-  ctaText: { fontFamily: P.semibold, fontSize: 17, color: P.card },
-  billed: { fontFamily: P.medium, fontSize: 13, color: P.ink },
-  small: { fontFamily: P.regular, fontSize: 11, color: P.muted },
+  ctaText: { ...fonts.semibold, fontSize: 17, color: P.card },
+  billed: { ...fonts.medium, fontSize: 13, color: P.ink },
+  small: { ...fonts.regular, fontSize: 11, color: P.muted },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
+});
+
+const interStyles = createStyles({
+  regular: { fontFamily: P.regular },
+  medium: { fontFamily: P.medium },
+  semibold: { fontFamily: P.semibold },
+  bold: { fontFamily: P.bold },
+});
+const androidSystemFont = (fontWeight: TextStyle['fontWeight']): TextStyle => ({ fontFamily: 'sans-serif', fontWeight });
+const androidSystemStyles = createStyles({
+  regular: androidSystemFont('400'),
+  medium: androidSystemFont('500'),
+  semibold: androidSystemFont('600'),
+  bold: androidSystemFont('700'),
 });
