@@ -362,6 +362,125 @@ class AddPlayerControls(unittest.TestCase):
    self.assertTrue(d.observations[-1]['sameActionAliasVerified'])
    with self.assertRaises(ValueError):d.guard(wrong,'players-end')
 
+def tournament_fixture(scale=1.0,on=False,selected=None):
+ # Models the initial Setup/scale geometry, not actual switch class evidence.
+ shift=0 if scale==1.0 else 28
+ footer_y=1993 if scale==1.0 else 1976
+ def n(key='',bounds=(55,345,1025,1900),**kw):
+  return node(**{'package':'test.app','resource-id':key,
+                'bounds':f'[{bounds[0]},{bounds[1]}][{bounds[2]},{bounds[3]}]',**kw})
+ root=ET.Element('hierarchy');scroll=n('contest-scroll',(55,345,1025,footer_y),scrollable='true')
+ setup=n('contest-step-setup',(55,345,1025,footer_y))
+ root.extend((scroll,n('contest-footer',(0,footer_y,1080,2208)),n('new-contest-back',(55,158,187,290))))
+ scroll.append(setup)
+ sw=n(c.ROUND_SWITCH,(58,685+shift,183,785+shift),checkable='true',
+      checked=str(on).lower(),clickable='true',**{'class':'android.widget.Switch','content-desc':c.TOURNAMENT})
+ label=n('',(240,690+shift,1015,780+shift),text=c.TOURNAMENT,clickable='false',**{'class':'android.widget.TextView'})
+ setup.extend((sw,label))
+ if on:
+  group=n(c.ROUND_GROUP,(55,800+shift,1025,1120+shift))
+  group.append(n('',(55,810+shift,600,865+shift),text=c.ROUND_HEADING,clickable='false',**{'class':'android.widget.TextView'}))
+  for k,key in enumerate(c.ROUND_IDS):
+   group.append(n(key,(55+k*321,880+shift,340+k*321,1040+shift),
+                  selected=str(selected==k+2).lower(),clickable='true',**{'class':'android.view.ViewGroup'}))
+  setup.append(group)
+ return root,setup,sw,label
+
+class TournamentControls(unittest.TestCase):
+ def driver(self,td):
+  return c.Driver({'out':td+'/test','package':'test.app','serial':'emulator-5554'})
+ def test_early_switch_toggle_once_and_capture_complete_choices_at_both_scales(self):
+  for scale in (1.0,1.3):
+   with self.subTest(scale=scale),tempfile.TemporaryDirectory() as td:
+    before,_,sw,_=tournament_fixture(scale);after,*_=tournament_fixture(scale,True)
+    d=self.driver(td)
+    def fake_capture(cfg):
+     with patch.object(c,'target_focus'):
+      cfg['_scene'](ET.tostring(after).decode(),'','test.app')
+      with self.assertRaises(ValueError):cfg['_scene'](ET.tostring(before).decode(),'','test.app')
+    with patch.object(d,'read',side_effect=[before,after,after]),patch.object(d,'adb') as adb,patch.object(c,'capture',side_effect=fake_capture),patch.object(c.time,'sleep'):
+     d.enable_tournament();d.shot('rounds')
+    l,t,r,b=c.box(sw);adb.assert_called_once_with('shell','input','tap',str((l+r)//2),str((t+b)//2))
+    self.assertEqual([o['checkpoint'] for o in d.observations[:2]],['round-toggle-before','round-toggle-after'])
+    self.assertEqual([o['switchChecked'] for o in d.observations[:2]],[False,True])
+    self.assertEqual(d.observations[1]['optionIdMatches'],[1,1,1])
+    self.assertIsNone(d.observations[1]['observedSelectedRoundCount'])
+    self.assertEqual(d.report[-1]['checkpoint'],'rounds')
+    self.assertFalse(d.report[-1]['geometryPassed'])
+ def test_missing_id_alias_or_offscreen_ambiguous_type_and_state_never_tap(self):
+  for fault in ('missing','typed-label-no-id','id-wrapper','duplicate-id','hidden','disabled','wrong-package','wrong-role','wrong-label',
+                'off-scene','outside-bounds','checkable-missing','no-checked','already-on','choices-while-off'):
+   with self.subTest(fault=fault),tempfile.TemporaryDirectory() as td:
+    root,setup,sw,label=tournament_fixture(1.3,on=fault=='choices-while-off')
+    if fault=='missing':setup.remove(sw)
+    if fault=='typed-label-no-id':sw.attrib.pop('resource-id')
+    if fault=='id-wrapper':
+     sw.attrib.pop('resource-id')
+     wrapper=node(**{'resource-id':c.ROUND_SWITCH,'class':'android.view.ViewGroup'})
+     setup.remove(sw);wrapper.append(sw);setup.append(wrapper)
+    if fault=='duplicate-id':setup.append(ET.fromstring(ET.tostring(sw)))
+    if fault=='hidden':sw.set('visible-to-user','false')
+    if fault=='disabled':sw.set('enabled','false')
+    if fault=='wrong-package':sw.set('package','test.other')
+    if fault=='wrong-role':sw.set('class','android.widget.TextView')
+    if fault=='wrong-label':sw.set('content-desc','another switch')
+    if fault=='off-scene':setup.set('resource-id','contest-step-gamemodes')
+    if fault=='outside-bounds':sw.set('bounds','[0,350][53,400]')
+    if fault=='checkable-missing':sw.attrib.pop('checkable')
+    if fault=='no-checked':sw.attrib.pop('checked')
+    if fault=='already-on':sw.set('checked','true')
+    if fault=='choices-while-off':sw.set('checked','false')
+    d=self.driver(td)
+    with patch.object(d,'read',return_value=root) as read,patch.object(d,'adb') as adb:
+     with self.assertRaises(ValueError):d.enable_tournament()
+     read.assert_called_once();adb.assert_not_called()
+    if fault=='typed-label-no-id':
+     self.assertEqual(d.observations[0]['switchIdMatches'],0)
+     self.assertEqual(d.observations[0]['nativeSwitchLabelHits'],1)
+    if fault=='duplicate-id':self.assertEqual(d.observations[0]['switchIdMatches'],2)
+ def test_after_tap_incomplete_or_ambiguous_readback_never_retaps(self):
+  for fault in ('still-off','missing-group','missing-option','duplicate-option','no-heading','wrong-heading-type',
+                'overlapping-options','option-outside','disabled-choice','other-count-selected'):
+   with self.subTest(fault=fault),tempfile.TemporaryDirectory() as td:
+    pre,*_=tournament_fixture()
+    post,setup,sw,label=tournament_fixture(1.0,True,3 if fault=='other-count-selected' else None)
+    group=c.one(post,c.ROUND_GROUP);first=c.one(post,'rounds-2')
+    if fault=='still-off':sw.set('checked','false')
+    if fault=='missing-group':group.attrib.pop('resource-id')
+    if fault=='missing-option':group.remove(first)
+    if fault=='duplicate-option':group.append(ET.fromstring(ET.tostring(first)))
+    if fault=='no-heading':group.remove(group[0])
+    if fault=='wrong-heading-type':group[0].set('class','android.view.View')
+    if fault=='overlapping-options':first.set('bounds',c.one(post,'rounds-3').get('bounds'))
+    if fault=='option-outside':first.set('bounds','[55,1940][400,2050]')
+    if fault=='disabled-choice':first.set('enabled','false')
+    d=self.driver(td)
+    with patch.object(d,'read',side_effect=[pre,post]) as read,patch.object(d,'adb') as adb,patch.object(c.time,'sleep'):
+     with self.assertRaises(ValueError):d.enable_tournament()
+     adb.assert_called_once();self.assertEqual(read.call_count,2)
+    self.assertEqual(d.phase,'round-toggle-after')
+ def test_retention_read_only_checked_and_only_explicit_selection(self):
+  with tempfile.TemporaryDirectory() as td:
+   d=self.driver(td);after,*_=tournament_fixture(1.3,True,2)
+   hidden,_,sw,_=tournament_fixture(1.3,True)
+   sw.set('visible-to-user','false')
+   with patch.object(d,'read',side_effect=[hidden,after]),patch.object(d,'adb') as adb,patch.object(c.time,'sleep'):
+    d.verify_tournament_retained()
+   adb.assert_called_once();self.assertEqual(adb.call_args.args[:3],('shell','input','swipe'))
+   self.assertEqual(d.observations[-1]['observedSelectedRoundCount'],2)
+ def test_actual_journey_places_typed_rounds_before_players_and_keeps_four_player_shot(self):
+  d=MagicMock();d.report=[]
+  with patch.object(c,'Driver',return_value=d),patch.object(c,'validate'):c.journey({},lane='wizard')
+  sequence=[(p,args) for p,args,_ in d.mock_calls]
+  toggle=sequence.index(('enable_tournament',()))
+  rounds=sequence.index(('shot',('rounds',)))
+  guest=sequence.index(('fill',('Player 2 name','QAGuest')))
+  four=sequence.index(('fill',('Player 4 name','QAFour')))
+  setup=sequence.index(('shot',('setup',)))
+  self.assertLess(toggle,rounds);self.assertLess(rounds,guest);self.assertLess(guest,four);self.assertLess(four,setup)
+  self.assertNotIn(('tap',('rounds-2',)),sequence)
+  d.verify_tournament_retained.assert_called_once()
+
 class Evidence(unittest.TestCase):
  def driver(self,td):
   return c.Driver({'out':td+'/test','package':'test.app','serial':'emulator-5554'})

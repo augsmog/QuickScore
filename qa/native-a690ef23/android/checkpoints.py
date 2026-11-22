@@ -18,6 +18,8 @@ NAVIGATION_REASONS=frozenset({
  'SCROLL_REGION_AMBIGUOUS','SCROLL_REGION_OCCLUDED','CONTROL_DISABLED',
  'CONTROL_BEHIND_FOOTER','WRONG_SCENE','WRONG_STEP','KEYBOARD_DISMISSAL_UNVERIFIED',
  'ADD_PLAYER_ACTION_UNVERIFIED','ADD_PLAYER_ORDER_UNVERIFIED','ADD_PLAYER_NEXT_CARD_UNVERIFIED',
+ 'ROUND_SWITCH_ID_MISSING','ROUND_SWITCH_ID_AMBIGUOUS','ROUND_SWITCH_TYPE_UNVERIFIED',
+ 'ROUND_SWITCH_STATE_UNVERIFIED','ROUND_OPTIONS_UNVERIFIED','ROUND_SELECTION_MISMATCH',
  'DISABLED_STATE_UNOBSERVED','PLAYER_PAIR_UNVERIFIED','PLAYER_FOCUS_UNVERIFIED','PLAYER_CARD_LOWER_EDGE_CLIPPED',
 })
 def navigation_reason(error):
@@ -25,6 +27,11 @@ def navigation_reason(error):
 
 
 ADD_PLAYER='+ ADD PLAYER'
+TOURNAMENT='Multi-Day Tournament'
+ROUND_HEADING='NUMBER OF ROUNDS'
+ROUND_SWITCH='tournament-toggle'
+ROUND_GROUP='contest-rounds'
+ROUND_IDS=('rounds-2','rounds-3','rounds-4')
 HEADER='Run the game. We do the math.'
 MISSING='Contest not found on this device. Offline codes work only in the organizer’s browser.'
 SCENES={
@@ -40,7 +47,7 @@ SCENES={
  'paywall-free':(), 'paywall-annual':(), 'paywall-disabled':(),
 }
 TEXTS={'entry':('Join with code','Find contest'), 'entry-invalid':('Find contest',MISSING),
- 'rounds':('NUMBER OF ROUNDS',),
+ 'rounds':(ROUND_HEADING,),
  'paywall-top':(HEADER,), 'paywall-free':('Free','Current plan'),
  'paywall-annual':('Tournament Director','$79.99/year'),
  'paywall-disabled':('Currently unavailable','Renews yearly. Cancel anytime.')}
@@ -178,6 +185,60 @@ def add_player_roster(root,index,package,proof,*,action=None):
      any(overlap(box(nxt),box(ns[0])) for i,ns in indexed.items() if i!=index)):
   raise ValueError('ADD_PLAYER_NEXT_CARD_UNVERIFIED')
  return nxt
+
+def tournament_controls(root,package,expected,proof):
+ """Literal native Switch and geographic proof; text is never an action target."""
+ ids=[n for n in root.iter('node') if node_id(n)==ROUND_SWITCH]
+ labels=matches(root,TOURNAMENT,'text')
+ round_group=[n for n in root.iter('node') if node_id(n)==ROUND_GROUP]
+ options=[[n for n in root.iter('node') if node_id(n)==key] for key in ROUND_IDS]
+ heading=matches(root,ROUND_HEADING,'text')
+ proof.update({'switchIdMatches':min(len(ids),3),'visibleSwitchIdMatches':min(sum(bool(box(n)) for n in ids),3),
+  'labelHits':min(len(labels),3),'nativeSwitchLabelHits':min(sum(n.get('package')==package and n.get('class')=='android.widget.Switch' for n in labels),3),
+  'groupIdMatches':min(len(round_group),3),'optionIdMatches':[min(len(a),3) for a in options],
+  'headingHits':min(len(heading),3),'switchChecked':None,'switchCheckable':None,
+  'switchCandidates':[{'nativeSwitch':n.get('class')=='android.widget.Switch',
+                        'sameApp':n.get('package')==package,
+                        'exactLabel':n.get('content-desc')==TOURNAMENT,
+                        **role_observation(root,n)} for n in ids[:3]],
+  'labelCandidates':[{'sameApp':n.get('package')==package,'exactSwitchId':node_id(n)==ROUND_SWITCH,
+                       **role_observation(root,n)} for n in labels[:3]],
+  'observedSelectedRoundCount':None})
+ try:sb,vb,fb=add_player_scope(root,package)
+ except ValueError:raise ValueError('ROUND_SWITCH_TYPE_UNVERIFIED') from None
+ if not ids:raise ValueError('ROUND_SWITCH_ID_MISSING')
+ if len(ids)!=1:raise ValueError('ROUND_SWITCH_ID_AMBIGUOUS')
+ target=ids[0]
+ def scoped(n):
+  b=box(n)
+  return bool(n.get('package')==package and b and contained(b,sb) and contained(b,vb) and b[3]<=fb[1])
+ if (not scoped(target) or target.get('class')!='android.widget.Switch' or
+     target.get('enabled')!='true' or target.get('clickable')!='true' or
+     target.get('content-desc','') not in ('',TOURNAMENT)):
+  raise ValueError('ROUND_SWITCH_TYPE_UNVERIFIED')
+ checkable=target.get('checkable');checked=target.get('checked')
+ proof['switchCheckable']=checkable=='true' if checkable in ('true','false') else None
+ proof['switchChecked']=checked=='true' if checked in ('true','false') else None
+ if checkable!='true' or proof['switchChecked'] is not expected:raise ValueError('ROUND_SWITCH_STATE_UNVERIFIED')
+ if not expected:
+  if round_group or any(options) or heading:raise ValueError('ROUND_OPTIONS_UNVERIFIED')
+  return target,[]
+ if len(round_group)!=1 or any(len(a)!=1 for a in options) or len(heading)!=1:
+  raise ValueError('ROUND_OPTIONS_UNVERIFIED')
+ group=round_group[0];h=heading[0];choices=[a[0] for a in options]
+ gb=box(group);tb=box(target)
+ if (not scoped(group) or tb[3]>gb[1] or not scoped(h) or not contained(box(h),gb) or
+     h.get('class')!='android.widget.TextView' or h.get('text')!=ROUND_HEADING or h.get('clickable')!='false' or
+     any(not scoped(n) or not contained(box(n),gb) or not visible_button(n) or box(h)[3]>box(n)[1] for n in choices) or
+     any(overlap(box(a),box(b)) for i,a in enumerate(choices) for b in choices[i+1:])):
+  raise ValueError('ROUND_OPTIONS_UNVERIFIED')
+ selected=[i+2 for i,n in enumerate(choices) if n.get('selected')=='true' or
+           (n.get('checkable')=='true' and n.get('checked')=='true')]
+ # a073 stores default 2 and encodes selection with color only; no native
+ # affirmative selection is acceptable as *unmeasured*, not a fake 2.
+ if selected and selected!=[2]:raise ValueError('ROUND_SELECTION_MISMATCH')
+ proof['observedSelectedRoundCount']=selected[0] if selected else None
+ return target,[group,h,*choices]
 
 def role_observation(root,n,anchor=None):
  parents=parents_of(root)
@@ -389,6 +450,35 @@ class Driver:
   x=(l+r)//2;y1=t+(b-t)*3//4;y2=t+(b-t)//4
   if direction=='up':y1,y2=y2,y1
   self.adb('shell','input','swipe',str(x),str(y1),str(x),str(y2),'400');time.sleep(.3)
+ def observe_tournament(self,root,expected,checkpoint):
+  proof={'checkpoint':checkpoint}
+  self.observations.append(proof)
+  return tournament_controls(root,self.c['package'],expected,proof)
+ def enable_tournament(self):
+  self.phase='round-toggle-before'
+  target,_=self.observe_tournament(self.read(),False,'round-toggle-before')
+  l,t,r,b=box(target)
+  self.phase='round-toggle-tap'
+  self.adb('shell','input','tap',str((l+r)//2),str((t+b)//2));time.sleep(.3)
+  self.phase='round-toggle-after'
+  self.observe_tournament(self.read(),True,'round-toggle-after')
+ def verify_tournament_retained(self):
+  self.phase='rounds-retained'
+  proof={'checkpoint':'rounds-retained-locate'};self.observations.append(proof)
+  # Search the exact ID read-only after returning from later wizard screens.
+  # Do not navigate past a visible duplicate/missing checked state.
+  for attempt in range(9):
+   root=self.read()
+   try:add_player_scope(root,self.c['package'])
+   except ValueError:raise ValueError('ROUND_SWITCH_TYPE_UNVERIFIED') from None
+   hits=[n for n in root.iter('node') if node_id(n)==ROUND_SWITCH]
+   proof['attempts']=attempt+1
+   proof['lastExactIdMatches']=min(len(hits),3)
+   if len(hits)>1 or any(box(n) for n in hits):
+    self.observe_tournament(root,True,'rounds-retained')
+    return
+   if attempt<8:self.scroll('up',root)
+  raise ValueError('ROUND_SWITCH_ID_MISSING')
  def add_player(self,index):
   if index not in (2,3):raise ValueError('ADD_PLAYER_ORDER_UNVERIFIED')
   root,target=self.seek(ADD_PLAYER,'text')
@@ -469,6 +559,7 @@ class Driver:
   if name in ('entry','entry-invalid'):proof['findContestCandidates']=join_candidates(root)
   self.observations.append(proof)
   validate(root,name)
+  if name=='rounds':self.observe_tournament(root,True,'rounds-capture')
   if name=='players-end':
    if add_player_target(root,self.c['package'],proof) is None:raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
  def join_diagnostic(self):
@@ -502,6 +593,7 @@ class Driver:
   root=self.read();self.guard(root,name)
   def guard(xml,focus,package):
    target_focus(focus,package);native=tree(xml,package);validate(native,name)
+   if name=='rounds':tournament_controls(native,package,True,{})
    if name=='players-end' and add_player_target(native,package,{}) is None:raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
    return []
   cfg={**self.c,'out':str(self.out/name),'_scene':guard,'_checkpoint':name}
@@ -510,6 +602,9 @@ class Driver:
   # Bounds are observed accessibility bounds, not painted glyph geometry or dp.
   targets=list(SCENES[name])+list(TEXTS.get(name,()))
   bounds={str(i):box(scene_node(root,k,'id' if k in SCENES[name] else 'text')) for i,k in enumerate(targets)}
+  if name=='rounds':
+   toggle,rounds=tournament_controls(root,self.c['package'],True,{})
+   bounds['tournament-switch']=box(toggle);bounds['rounds-group']=box(rounds[0])
   if name=='players-end':bounds[str(len(targets))]=box(add_player_target(root,self.c['package'],{}))
   self.report.append({'checkpoint':name,'captured':True,'observedBoundsPx':bounds,'geometryPassed':False,'visualReviewRequired':True})
  def save(self,status):
@@ -538,13 +633,12 @@ def journey(c,lane='all'):
   d.phase='setup-scene';d.seek('contest-step-setup');d.guard(d.read(),'setup-initial')
   d.shot('setup-initial')
   d.phase='host-prefill';d.seek('contest-player-0');d.prepare_host()
+  d.enable_tournament();d.shot('rounds')
   d.phase='guest-entry';d.fill('Player 2 name','QAGuest')
   for number,name in [(3,'QAThree'),(4,'QAFour')]:
    d.phase='add-player';d.add_player(number-1)
    d.phase='player-entry';d.fill('Player '+str(number)+' name',name)
   d.shot('setup')
-  d.phase='round-toggle';d.tap('tournament-toggle',direction='up');d.seek('rounds-2');d.shot('rounds')
-  d.tap('rounds-2')
   # Reach end deliberately, preserve separate pre/end screenshots for rule 2.
   d.phase='players-end';d.seek(ADD_PLAYER,'text');d.shot('players-end')
   d.tap('contest-continue');d.shot('games')
@@ -561,7 +655,7 @@ def journey(c,lane='all'):
   d.tap('new-contest-back');d.verify_draft_name(0,d.hostName)
   for index,name in [(1,'QAGuest'),(2,'QAThree'),(3,'QAFour')]:
    d.verify_draft_name(index,name)
-  d.seek('rounds-2',direction='up');validate(d.read(),'rounds')
+  d.verify_tournament_retained()
   d.report.append({'checkpoint':'draft-retained','verified':True})
   d.tap('new-contest-back');d.save('CAPTURED_SUPPLEMENTAL_ONLY')
  except Exception as error:

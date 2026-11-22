@@ -40,9 +40,10 @@ class ScaleContinuation(unittest.TestCase):
  def test_untyped_failure_stops_loop(self):self.exercise('unexpected')
  def test_success_still_has_no_acceptance(self):self.exercise(None)
  def test_capture_failure_cannot_become_retryable_navigation(self):
-  from test_checkpoints import fixture
-  d=object.__new__(checkpoints.Driver);d.c={};d.out=pathlib.Path('/unused');d.report=[];d.observations=[]
-  with patch.object(d,'read',return_value=fixture('rounds')),patch.object(checkpoints,'capture',side_effect=ValueError('installed APK mismatch')):
+  from test_selector_evidence import tournament_fixture
+  root,*_=tournament_fixture(on=True)
+  d=object.__new__(checkpoints.Driver);d.c={'package':'test.app'};d.out=pathlib.Path('/unused');d.report=[];d.observations=[]
+  with patch.object(d,'read',return_value=root),patch.object(checkpoints,'capture',side_effect=ValueError('installed APK mismatch')):
    with self.assertRaises(checkpoints.CaptureBoundaryFailure):d.shot('rounds')
   self.assertEqual(d.report,[])
  def test_real_journey_optional_capture_failure_is_fatal(self):
