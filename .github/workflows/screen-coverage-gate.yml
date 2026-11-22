@@ -1,0 +1,39 @@
+name: Screen coverage gate
+# AUG-1373: every PR that adds/removes/moves a route under scoresnap/app/** must keep
+# the release-bound route/state coverage manifest in sync. A new screen without a
+# coverage-manifest entry (covered or justified exempt) fails here — "missing coverage
+# fails acceptance". This is the fast manifest-completeness half; the native screenshot +
+# geometry-assertion execution gate is built on AUG-1376.
+on:
+  pull_request:
+    paths:
+      - 'scoresnap/app/**'
+      - 'scoresnap/e2e/screen-coverage/**'
+      - 'scoresnap/scripts/check-screen-coverage.mjs'
+      - 'scoresnap/scripts/check-screen-coverage.test.mjs'
+      - '.maestro/e2e.config.json'
+      - '.github/workflows/screen-coverage-gate.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+jobs:
+  screen-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: scoresnap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Unit-test the coverage validator
+        run: node --test scripts/check-screen-coverage.test.mjs
+      - name: Validate screen coverage manifest
+        run: node scripts/check-screen-coverage.mjs
