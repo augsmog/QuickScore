@@ -458,6 +458,7 @@ export default function NewContestScreen() {
         keyboardVerticalOffset={60}
       >
       <ScrollView
+        testID="contest-scroll"
         nestedScrollEnabled
         style={{ flex: 1, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
@@ -697,6 +698,7 @@ export default function NewContestScreen() {
               return (
               <View
                 key={player.id}
+                testID={`contest-player-${idx}`}
                 style={{
                   backgroundColor: COLORS.surfaceMid,
                   borderColor: nameEmpty ? COLORS.warn + "66" : COLORS.border,
@@ -1269,6 +1271,7 @@ export default function NewContestScreen() {
 
       {/* Bottom Navigation */}
       <View
+        testID="contest-footer"
         style={{
           paddingHorizontal: 20,
           paddingBottom: 24,

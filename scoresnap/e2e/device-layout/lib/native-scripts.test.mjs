@@ -72,6 +72,12 @@ function fakeRepo({ harness = true } = {}) {
     CAL_DIR: join(dl, 'fixtures/negative/calibration') };
   return { root, dl, env };
 }
+
+function emitAndroidFixture(dl, env, root) {
+  const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  execFileSync('node', [join(dl, 'scripts/bundle-from-maestro.mjs'), '--out', join(root, 'out/android-compact/bundle.json'), '--profile', 'android-compact', '--platform', 'android', '--source-sha', sha], { env });
+}
+
 const run = (script, args, env, cwd) => spawnSync('bash', [script, ...args], { env, cwd, encoding: 'utf8' });
 
 test('native scripts fail loudly when the AUG-1376 harness is absent', () => {
@@ -79,16 +85,16 @@ test('native scripts fail loudly when the AUG-1376 harness is absent', () => {
   for (const s of ['run-android-compact.sh', 'run-ios-sim.sh']) {
     const r = run(join(dl, 'scripts', s), [], env, root);
     assert.notEqual(r.status, 0, s);
-    assert.match(r.stdout, /PENDING-NATIVE-HARNESS AUG-1376/);
+    assert.match(r.stdout, s === 'run-android-compact.sh' ? /INCOMPLETE/ : /PENDING-NATIVE-HARNESS AUG-1376/);
   }
 });
 
-test('android + iOS scripts resolve every path and pass a complete candidate-bound bundle', () => {
+test('Android refuses untrusted stub intake; independent fixture pipeline retains complete bundle checks', () => {
   const { dl, env, root } = fakeRepo();
   const a = run(join(dl, 'scripts/run-android-compact.sh'), [], env, '/');
-  assert.equal(a.status, 0, a.stdout + a.stderr);
-  assert.match(a.stdout, /built-android/);
-  assert.match(a.stdout, /GEOMETRY GATE: PASS/);
+  assert.notEqual(a.status, 0);
+  assert.match(a.stdout, /INCOMPLETE/);
+  emitAndroidFixture(dl, env, root); // parser fixture only, never native output
   const i = run(join(dl, 'scripts/run-ios-sim.sh'), [], env, '/');
   assert.equal(i.status, 0, i.stdout + i.stderr);
   assert.equal((i.stdout.match(/GEOMETRY GATE: PASS/g) || []).length, 2);
@@ -117,7 +123,7 @@ test('android + iOS scripts resolve every path and pass a complete candidate-bou
 
 test('a stale bundle (different SHA) fails the geometry gate', () => {
   const { dl, env, root } = fakeRepo();
-  assert.equal(run(join(dl, 'scripts/run-android-compact.sh'), [], env, '/').status, 0);
+  emitAndroidFixture(dl, env, root);
   const r = spawnSync('node', [join(dl, 'run-geometry.mjs'), join(root, 'out/android-compact/bundle.json'),
     '--expect-sha', 'f'.repeat(40), '--profile', 'android-compact'], { encoding: 'utf8' });
   assert.notEqual(r.status, 0);
