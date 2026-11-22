@@ -13,6 +13,8 @@ def category_readback(raw,expected=None):
  return value
 
 def screen(tree,scene):
+ from pricing import SECTIONS,section_scene
+ if scene in SECTIONS:return section_scene(tree,scene)
  if scene=='paywall':
   from paywall import scene as paywall_scene
   paywall_scene(tree)
@@ -169,11 +171,20 @@ def _run(a,progress):
     progress.perform('add-player','activate',lambda:flow(ADD_ACTIVATE,'add-activate-'+str(i)))
     (out/('add-player-action-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'fourPlayerCheckpointPreserved':True,'fifthPlayerVisibleAfterTap':True,'aggregatePass':False})+'\n')
    from paywall import OPEN,CLOSE,VISIBLE,REOPEN
+   from pricing import reveal,visible,RETURN_TOP,optional_sections
    progress.perform('home','return-home',lambda:flow('- tapOn: {id: new-contest-back}\n','paywall-return-home'))
    for i,category in enumerate(CATEGORIES):
     progress.perform('scale','set-readback',lambda:(sim('ui',a.udid,'content_size',category,name='paywall-set-'+str(i)),category_readback(sim('ui',a.udid,'content_size',name='paywall-read-'+str(i)),category)))
     progress.perform('paywall','open',lambda:flow(OPEN if i==0 else REOPEN,'paywall-open-'+str(i)))
     progress.perform('paywall','capture',lambda:shot('paywall','paywall-'+category,category,VISIBLE,'post-cold'))
+    def section_capture(section):
+     flow(RETURN_TOP,section+'-top-'+category)
+     flow(reveal(section),section+'-reveal-'+category)
+     shot(section,section+'-'+category,category,visible(section),'post-cold')
+    sections=optional_sections(section_capture)
+    (out/('paywall-sections-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'sections':sections,'aggregatePass':False})+'\n')
+    # Required recovery even if an optional section was inaccessible. Never tap a hidden Close.
+    progress.perform('paywall','close-draft',lambda:flow(RETURN_TOP,'paywall-return-top-'+str(i)))
     progress.perform('paywall','close-draft',lambda:flow(CLOSE,'paywall-close-draft-'+str(i)))
     (out/('paywall-draft-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'namesRetained':True,'twoRoundControlVisible':True,'aggregatePass':False})+'\n')
   finally:progress.perform('restore','restore-category',lambda:(sim('ui',a.udid,'content_size',original,name='restore-original-category'),category_readback(sim('ui',a.udid,'content_size',name='restored-category'),original)))

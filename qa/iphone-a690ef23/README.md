@@ -64,3 +64,18 @@ ref and aggregate exit 78 remain unchanged. Failure preserves prior screened pai
 Portable checks: `python3 -m unittest discover -s qa/iphone-a690ef23 -p 'test_*.py'`;
 `paywall-route.test.cjs` additionally exercises exact app handlers with repository
 renderer fixtures (not a native navigation result).
+
+### Optional pricing sections on the same offline build
+After each top paywall capture, independently scroll from the verified top to:
+Free + Current plan; Tournament Director + exact `$79.99/year`; Currently unavailable
++ yearly-renewal copy. Full anchored exact labels and foreign-scene exclusion apply
+before and after each screenshot. The disabled section additionally requires an
+explicit false enabled attribute on the same accessibility node bearing the exact
+unavailable copy; copy alone or a noninteractive ancestor is not disabled proof.
+These optional sections may be unavailable on this platform's AX representation.
+Only screened sections are retained; their bounded status does not overwrite top
+captures or grant acceptance. No tier/price/CTA/Restore controls are tapped.
+Each attempt returns to the verified top first. After all attempts, scrolling to the
+actual visible Close and checking the same retained draft is mandatory. Up to 24
+screened pairs can be retained; live pricing/provider, initialized RN and full gate
+credit remain absent. Native execution of this continuation has not occurred here.

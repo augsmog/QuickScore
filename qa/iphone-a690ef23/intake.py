@@ -11,15 +11,15 @@ def sanitize(receipt,png):
  if receipt.get('sourceSha')!=SHA or receipt.get('sourceTree')!=TREE:raise ValueError('SOURCE_MISMATCH')
  category=receipt.get('categoryBefore')
  if category not in CATEGORIES or receipt.get('categoryAfter')!=category or receipt.get('runtimeRNScale') is not None:raise ValueError('CATEGORY_OR_RUNTIME_CLAIM')
- if receipt.get('scene') not in ['home','setup','add-player','paywall'] or receipt.get('nativeAcceptance') is not False or receipt.get('geometryPassed') is not False:raise ValueError('INVALID_ACCEPTANCE')
- if receipt.get('scene')=='paywall' and receipt.get('offline') is not True:raise ValueError('OFFLINE_PAYWALL_REQUIRED')
+ if receipt.get('scene') not in ['home','setup','add-player','paywall','paywall-free','paywall-td','paywall-disabled'] or receipt.get('nativeAcceptance') is not False or receipt.get('geometryPassed') is not False:raise ValueError('INVALID_ACCEPTANCE')
+ if str(receipt.get('scene')).startswith('paywall') and receipt.get('offline') is not True:raise ValueError('OFFLINE_PAYWALL_REQUIRED')
  mode=receipt.get('processMode')
  if mode not in ('warm','cold','post-cold') or receipt.get('coldProcessVerified') is not (mode=='cold'):raise ValueError('PROCESS_MODE_UNVERIFIED')
  h=hashlib.sha256(png).hexdigest()
  if receipt.get('pngSha256')!=h or not png.startswith(b'\x89PNG\r\n\x1a\n'):raise ValueError('PNG_MISMATCH')
  build=receipt.get('buildSha256','')
  if not re.fullmatch('[a-f0-9]{64}',build):raise ValueError('BUILD_DIGEST_MISSING')
- return {'sourceSha':SHA,'sourceTree':TREE,'buildSha256':build,'scene':receipt['scene'],'observedSimulatorCategory':category,'stockRNReferenceMultiplier':CATEGORIES[category],'runtimeRNScale':None,'pngSha256':h,'processMode':mode,'coldProcessVerified':mode=='cold','deviceModel':'iPhone 16 Pro','offlineSynthetic':True,'catalogEvidence':'offline-no-provider-config; fallback-only; price-and-disabled-CTA-unobserved' if receipt['scene']=='paywall' else None,'purchaseRestore':'unrun','geometryPassed':False,'nativeAcceptance':False,'aggregatePass':False}
+ return {'sourceSha':SHA,'sourceTree':TREE,'buildSha256':build,'scene':receipt['scene'],'observedSimulatorCategory':category,'stockRNReferenceMultiplier':CATEGORIES[category],'runtimeRNScale':None,'pngSha256':h,'processMode':mode,'coldProcessVerified':mode=='cold','deviceModel':'iPhone 16 Pro','offlineSynthetic':True,'catalogEvidence':'offline-no-provider-config; fallback-only' if receipt['scene'].startswith('paywall') else None,'annualTDFallbackPriceObserved':receipt['scene']=='paywall-td','disabledPurchasingObserved':receipt['scene']=='paywall-disabled','purchaseRestore':'unrun','geometryPassed':False,'nativeAcceptance':False,'aggregatePass':False}
 RUNTIME_ID='com.apple.CoreSimulator.SimRuntime.iOS-26-4'
 def select_runtime(inventory):
  # Only typed, bounded iOS tuples may reach public status; never names/paths/errors.
@@ -91,15 +91,15 @@ def main():
    state['status']='BLOCKED_OR_PARTIAL_GATE_RED'
   finally:
    state['phaseDiagnostic']=progress.receipt()
-   # Publish only the fifteen allowlisted screenshot/receipt pairs that passed screening.
+   # Publish only the twenty-four allowlisted screenshot/receipt pairs that passed screening.
    for category in CATEGORIES:
-    for prefix in ['home','home-cold','four-player','add-player','paywall']:
+    for prefix in ['home','home-cold','four-player','add-player','paywall','paywall-free','paywall-td','paywall-disabled']:
      label=prefix+'-'+category;p=capture/(label+'.png');j=capture/(label+'.json')
      if p.is_file() and j.is_file():
       try:
        b=p.read_bytes();clean=sanitize(json.loads(j.read_text()),b)
-       expected_scene={'home':'home','home-cold':'home','four-player':'setup','add-player':'add-player','paywall':'paywall'}[prefix]
-       expected_mode={'home':'warm','home-cold':'cold','four-player':'post-cold','add-player':'post-cold','paywall':'post-cold'}[prefix]
+       expected_scene={'home':'home','home-cold':'home','four-player':'setup','add-player':'add-player','paywall':'paywall','paywall-free':'paywall-free','paywall-td':'paywall-td','paywall-disabled':'paywall-disabled'}[prefix]
+       expected_mode={'home':'warm','home-cold':'cold','four-player':'post-cold','add-player':'post-cold','paywall':'post-cold','paywall-free':'post-cold','paywall-td':'post-cold','paywall-disabled':'post-cold'}[prefix]
        if clean['scene']!=expected_scene or clean['processMode']!=expected_mode or clean['observedSimulatorCategory']!=category:raise ValueError('CAPTURE_LABEL_MISMATCH')
        (destination/(label+'.png')).write_bytes(b);(destination/(label+'.json')).write_text(json.dumps(clean,indent=2)+'\n');state['captures']+=1
       except Exception:state['status']='RECEIPT_REJECTED_GATE_RED'
@@ -111,6 +111,22 @@ def main():
       r=json.loads(action.read_text())
       if r=={'sourceSha':SHA,'sourceTree':TREE,'category':category,'fourPlayerCheckpointPreserved':True,'fifthPlayerVisibleAfterTap':True,'aggregatePass':False}:state['addPlayerChecks'].append({'category':category,'fifthPlayerVisibleAfterTap':True,'geometryPassed':False})
       else:state['status']='RECEIPT_REJECTED_GATE_RED'
+     except Exception:state['status']='RECEIPT_REJECTED_GATE_RED'
+   state['paywallSections']=[]
+   from pricing import SECTIONS
+   for category in CATEGORIES:
+    section_file=capture/('paywall-sections-'+category+'.json')
+    if section_file.is_file():
+     try:
+      r=json.loads(section_file.read_text())
+      if r.get('sourceSha')!=SHA or r.get('sourceTree')!=TREE or r.get('category')!=category or r.get('aggregatePass') is not False:raise ValueError('SECTION_RECEIPT_INVALID')
+      rows=r['sections']
+      if len(rows)!=3 or [v['section'] for v in rows]!=list(SECTIONS):raise ValueError('SECTION_RECEIPT_INVALID')
+      for row in rows:
+       expected={'section':row['section'],'status':'captured'} if row.get('status')=='captured' else {'section':row['section'],'status':'unavailable','reason':'SECTION_VISIBILITY_OR_STATE_UNVERIFIED'}
+       if row!=expected:raise ValueError('SECTION_RECEIPT_INVALID')
+       if row['status']=='captured' and not (destination/(row['section']+'-'+category+'.json')).is_file():raise ValueError('SECTION_CAPTURE_MISSING')
+      state['paywallSections'].append({'category':category,'sections':rows})
      except Exception:state['status']='RECEIPT_REJECTED_GATE_RED'
    state['paywallDraftChecks']=[]
    for category in CATEGORIES:
