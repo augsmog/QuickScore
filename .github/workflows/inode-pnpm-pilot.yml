@@ -1,0 +1,24 @@
+name: Inode pnpm pilot
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AOS_PNPM_STORE: ${{ runner.temp }}/inode-pnpm-store
+      AOS_PILOT_OUTPUT: ${{ runner.temp }}/inode-pnpm-output
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global pnpm@10.34.6
+      - run: bash scoresnap/scripts/inode-pnpm-pilot.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inode-pnpm-pilot
+          path: ${{ runner.temp }}/inode-pnpm-output
+          retention-days: 30
