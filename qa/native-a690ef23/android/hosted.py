@@ -38,10 +38,18 @@ def release_progress(log_path,receipt_path):
 
 def run_process(args,env,cwd,log,timeout,progress=None):
  p=subprocess.Popen(args,cwd=cwd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+ # Non-monitored commands retain the original single wait and owned-group cleanup.
+ if progress is None:
+  try:return p.wait(timeout)
+  except subprocess.TimeoutExpired:
+   try:os.killpg(p.pid,signal.SIGKILL)
+   except ProcessLookupError:pass
+   p.wait(timeout=10)
+   raise
  started=time.monotonic()
  while True:
   remaining=max(0,timeout-(time.monotonic()-started))
-  try:rc=p.wait(remaining if progress is None else min(remaining,GRADLE_PROGRESS_INTERVAL_S))
+  try:rc=p.wait(min(remaining,GRADLE_PROGRESS_INTERVAL_S))
   except subprocess.TimeoutExpired as error:
    elapsed=time.monotonic()-started
    if elapsed<timeout:

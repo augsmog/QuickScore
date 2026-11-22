@@ -44,3 +44,20 @@ class ReleaseTimeout(unittest.TestCase):
   self.assertEqual(code,1)
   self.assertEqual(events,[('failed',7,1200)])
   killpg.assert_not_called()
+
+class UnmonitoredWait(unittest.TestCase):
+ def test_single_wait_never_reads_progress_clock(self):
+  proc=Mock(wait=Mock(return_value=0))
+  with patch('hosted.subprocess.Popen',return_value=proc), patch('hosted.time.monotonic',side_effect=AssertionError('unmonitored clock')), patch('hosted.os.killpg') as kill:
+   self.assertEqual(run_process(['synthetic'],{},None,None,17),0)
+  proc.wait.assert_called_once_with(17)
+  kill.assert_not_called()
+
+ def test_timeout_preserves_original_exception_and_owned_cleanup(self):
+  error=subprocess.TimeoutExpired(['synthetic'],17)
+  proc=Mock(pid=42,wait=Mock(side_effect=[error,-9]))
+  with patch('hosted.subprocess.Popen',return_value=proc), patch('hosted.time.monotonic',side_effect=AssertionError('unmonitored clock')), patch('hosted.os.killpg') as kill:
+   with self.assertRaises(subprocess.TimeoutExpired) as caught:run_process(['synthetic'],{},None,None,17)
+  self.assertIs(caught.exception,error)
+  kill.assert_called_once_with(42,signal.SIGKILL)
+  self.assertEqual(proc.wait.call_args_list,[unittest.mock.call(17),unittest.mock.call(timeout=10)])
