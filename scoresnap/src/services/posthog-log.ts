@@ -46,6 +46,19 @@ export const posthogAppLogger = {
     });
   },
 
+  roundFinished({
+    playerCount,
+    isTournament,
+  }: {
+    playerCount: number;
+    isTournament: boolean;
+  }) {
+    posthog?.logger.info("round finished", {
+      player_count: playerCount,
+      is_tournament: isTournament,
+    });
+  },
+
   tournamentDirectorEntitlementStarted({
     period_type,
     product_id,

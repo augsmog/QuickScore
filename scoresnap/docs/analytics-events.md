@@ -17,6 +17,7 @@ Source baseline: QuickScore 501bdae. This static contract changes no emitters or
 | score_snap_completed | `app/scan/index.tsx:201`, `app/scan/index.tsx:206` | duration_ms, success | Scan/import |
 | error_shown | `app/scan/index.tsx:202` | code | Context/log |
 | scorecard_imported | `app/scan/review.tsx:216` | player_count, low_confidence_item_count | Scan/import |
+| posthogAppLogger.roundFinished | `app/contest/[id]/index.tsx` (doFinalize) | playerCount, isTournament | Activation (first `round finished` per person = first round finished; any entry method that reaches finalize) |
 | posthogAppLogger.scorecardScoresCommitted | `app/scan/review.tsx:220`, `app/scan/review.tsx:270` | playerCount, importMode, lowConfidenceItemCount | Context/log |
 | quick_settlement_created | `app/scan/review.tsx:265` | player_count, game_ids, low_confidence_item_count | Creation |
 | contest setup saved | `src/services/posthog-log.ts:13` | player_count, group_count, is_tournament | Context/log |
