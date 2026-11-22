@@ -4,18 +4,37 @@ import run as r
 class Tests(unittest.TestCase):
  def env(self):return {'GITHUB_SHA':'a'*40,'GITHUB_REPOSITORY':'augsmog/QuickScore','GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':r.REF,'GITHUB_JOB':'dual_boot','DEVELOPER_DIR':r.probe.XCODE}
  def exercise(self,fail=False,cleanup_fail=False):
-  def preflight(tmp,marker,minimum,budget,keep):
+  def preflight(tmp,marker,minimum,budget,keep,d):
    self.assertFalse(keep);self.assertEqual(budget,180);self.assertEqual(minimum,12*(1<<30))
-   try:
-    if fail:raise r.probe.GateError('private identity should not leak')
-    return {'status':'PASS','disposition':'deleted-and-verified','xcode':{},'runtime':{},'device_type':r.probe.DEVICE,'devices':{x:{'udid':'private-id','name':'private-name','boot_wait_s':2.5} for x in ('host','guest')},'free_disk_both_booted':{'runner_temp_free_bytes':100}}
-   finally:r.probe.cleanup(None,None)
-  with patch.dict(os.environ,self.env(),clear=True),patch.object(r.probe,'job_context',return_value=(pathlib.Path('/synthetic'),'marker')),patch.object(r.subprocess,'run',return_value=types.SimpleNamespace(stdout=b'7516192768\n')),patch.object(r.probe,'command',side_effect=['26.4','23E240']),patch.object(r.probe,'free_space',return_value={'runner_temp_free_bytes':100}),patch.object(r.probe,'preflight',side_effect=preflight),patch.object(r.probe,'cleanup',side_effect=r.probe.GateError('private path') if cleanup_fail else None):return r.run()
+   print('private raw identity');print('private path',file=__import__('sys').stderr)
+   primary=r.probe.GateError('private primary identity','DUAL_BOOT_FAILED',(
+      ('guest',r.probe.GateError('untrusted stdout','COMMAND_TIMEOUT')),))
+   if fail:
+    d.at('boot');d.record_primary(primary)
+   d.dual_boot_verified=not fail
+   d.cleanup_attempted=True
+   d.cleanup_verified=not cleanup_fail
+   if cleanup_fail:
+    d.cleanup_failures=[r.probe.reason(r.probe.GateError('private path','SHUTDOWN_NOT_VERIFIED'),
+                                       'cleanup-shutdown-readback','host')]
+   if fail:raise primary
+   if cleanup_fail:raise r.probe.CleanupError('private cleanup path','CLEANUP_FAILED')
+   return {'status':'PASS','disposition':'deleted-and-verified','xcode':{},'runtime':{},'device_type':r.probe.DEVICE,'devices':{x:{'udid':'private-id','name':'private-name','boot_wait_s':2.5} for x in ('host','guest')},'free_disk_both_booted':{'runner_temp_free_bytes':100}}
+  with patch.dict(os.environ,self.env(),clear=True),patch.object(r.probe,'job_context',return_value=(pathlib.Path('/synthetic'),'marker')),patch.object(r.subprocess,'run',return_value=types.SimpleNamespace(stdout=b'7516192768\n')),patch.object(r.probe,'command',side_effect=['26.4', '23E252']),patch.object(r.probe,'free_space',return_value={'runner_temp_free_bytes':100}),patch.object(r.probe,'preflight',side_effect=preflight):
+   with contextlib.redirect_stdout(io.StringIO()) as stdout,contextlib.redirect_stderr(io.StringIO()) as stderr:
+    actual=r.run()
+   self.assertEqual(stdout.getvalue()+stderr.getvalue(),'')
+   return actual
  def test_success_redacted_cleanup_required(self):
-  result=self.exercise();self.assertEqual(result['status'],'PASS');self.assertTrue(result['cleanupVerified']);self.assertEqual(result['simulatorSdk']['version'],'26.4');self.assertNotIn('private',json.dumps(result));self.assertIsNone(result['buildBudgetPass'])
- def test_primary_or_cleanup_failure_stays_redacted_red(self):
-  for a,b in ((True,False),(False,True)):
+  result=self.exercise();self.assertEqual(result['status'],'PASS');self.assertTrue(result['cleanupVerified']);self.assertEqual(result['simulatorSdk']['version'],'26.4');self.assertNotIn('private',json.dumps(result));self.assertIsNone(result['buildBudgetPass']);self.assertIsNone(result['primaryFailure']);self.assertEqual(result['cleanupFailures'],[])
+ def test_distinct_primary_and_cleanup_failure_fields(self):
+  for a,b in ((True,False),(False,True),(True,True)):
    result=self.exercise(a,b);self.assertEqual(result['status'],'BLOCKED');self.assertNotIn('private',json.dumps(result))
+   self.assertEqual(result['primaryFailure'],{'stage':'boot','code':'DUAL_BOOT_FAILED','roles':[{'stage':'boot','code':'COMMAND_TIMEOUT','role':'guest'}]} if a else None)
+   self.assertEqual(result['simultaneousBootVerified'],not a)
+   self.assertEqual(result['cleanupFailures'],[{'stage':'cleanup-shutdown-readback','code':'SHUTDOWN_NOT_VERIFIED','role':'host'}] if b else [])
+ def test_reason_never_emits_unknown_untrusted_code_stage_or_role(self):
+  self.assertEqual(r.probe.reason(r.probe.GateError('secret','PRIVATE_STRING'),'secret','secret'),{'stage':'completion','code':'UNKNOWN'})
  def test_wrong_ref_no_command(self):
   with patch.dict(os.environ,self.env()|{'GITHUB_REF':'refs/heads/main'},clear=True),patch.object(r.probe,'job_context') as context:
    with self.assertRaises(r.probe.GateError):r.run()

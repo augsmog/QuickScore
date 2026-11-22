@@ -36,6 +36,13 @@ class Sim:
         self.runtime_available = True
         self.supports = True
         self.delete_fails = set()
+        self.delayed_shutdown = {}
+        self.delayed_delete = {}
+        self.shutdown_delay = False
+        self.delete_delay = False
+        self.delete_reply_lost = False
+        self.shutdown_drift = False
+        self.host_never_shuts = False
 
     def run(self, argv, *, env, timeout, **_):
         assert argv[0] == "/usr/bin/xcrun"
@@ -50,6 +57,16 @@ class Sim:
         if cmd == ["xcodebuild", "-version"]:
             return result("\n".join(subject.XCODE_ID))
         if cmd == ["simctl", "list", "-j"]:
+            for uid in list(self.delayed_shutdown):
+                self.delayed_shutdown[uid] -= 1
+                if self.delayed_shutdown[uid] <= 0:
+                    self.devices[uid]["state"] = "Shutdown"
+                    del self.delayed_shutdown[uid]
+            for uid in list(self.delayed_delete):
+                self.delayed_delete[uid] -= 1
+                if self.delayed_delete[uid] <= 0:
+                    del self.devices[uid]
+                    del self.delayed_delete[uid]
             devices = [dict(d) for d in self.devices.values()]
             supported = subject.DEVICE if self.supports else "wrong-type"
             return result(json.dumps({
@@ -90,12 +107,26 @@ class Sim:
             if uid == GUEST and self.failure == "false-ready":
                 self.devices[uid]["state"] = "Shutdown"
         elif op == "shutdown":
-            self.devices[uid]["state"] = "Shutdown"
+            if self.host_never_shuts and uid == HOST:
+                self.devices[uid]["state"] = "Shutting Down"
+                raise subprocess.TimeoutExpired(argv, timeout)
+            if self.shutdown_delay:
+                self.devices[uid]["state"] = "Shutting Down"
+                self.delayed_shutdown[uid] = 2
+            else:
+                self.devices[uid]["state"] = "Shutdown"
+            if self.shutdown_drift and uid == GUEST:
+                self.devices[uid]["name"] = "Not task-owned any longer"
         elif op == "delete":
             if uid in self.delete_fails:
                 return result(returncode=1)
             assert self.devices[uid]["state"] == "Shutdown"
-            del self.devices[uid]
+            if self.delete_delay:
+                self.delayed_delete[uid] = 2
+            else:
+                del self.devices[uid]
+            if self.delete_reply_lost:
+                raise subprocess.TimeoutExpired(argv, timeout)
         else:
             raise AssertionError(cmd)
         return result()
@@ -115,6 +146,8 @@ class PreflightTests(unittest.TestCase):
         for p in (patch.object(subject.subprocess, "run", side_effect=self.sim.run),
                   patch.object(subject.shutil, "disk_usage",
                                return_value=shutil._ntuple_diskusage(14*subject.GIB, 4*subject.GIB, 10*subject.GIB)),
+                  patch.object(subject, "SETTLE_SECONDS", .06),
+                  patch.object(subject, "POLL_SECONDS", .001),
                   patch.object(subject, "device_home", return_value=self.tmp/"home"/"Library"/"Developer"/"CoreSimulator"/"Devices"),
                   contextlib.redirect_stderr(self.logs)):
             p.__enter__()
@@ -256,6 +289,55 @@ class PreflightTests(unittest.TestCase):
         self.sim.delete_fails.clear()
         self.cleanup(receipt)
         self.only_original()
+
+    def test_async_shutdown_and_delete_wait_for_actual_owned_state(self):
+        self.sim.shutdown_delay = True
+        self.sim.delete_delay = True
+        d = subject.Diagnostic()
+        verdict = subject.preflight(self.tmp, MARK, 4*subject.GIB, 2, False, d)
+        self.assertEqual(verdict["status"], "PASS")
+        self.assertTrue(d.dual_boot_verified)
+        self.assertTrue(d.cleanup_verified)
+        for role in (HOST, GUEST):
+            self.assertEqual(self.sim.mutations().count(("shutdown", role)), 1)
+            self.assertEqual(self.sim.mutations().count(("delete", role)), 1)
+        self.only_original()
+
+    def test_delete_timeout_after_completion_uses_verified_readback(self):
+        self.sim.delete_reply_lost = True
+        verdict = self.probe()
+        self.assertEqual(verdict["disposition"], "deleted-and-verified")
+        for role in (HOST, GUEST):
+            self.assertEqual(self.sim.mutations().count(("delete", role)), 1)
+        self.only_original()
+
+    def test_post_shutdown_identity_drift_prevents_delete_without_primary_failure(self):
+        self.sim.shutdown_drift = True
+        d = subject.Diagnostic()
+        with self.assertRaises(subject.CleanupError):
+            subject.preflight(self.tmp, MARK, 4*subject.GIB, 2, False, d)
+        self.assertTrue(d.dual_boot_verified)
+        self.assertIsNone(d.primary)
+        self.assertIn(("shutdown", GUEST), self.sim.mutations())
+        self.assertNotIn(("delete", GUEST), self.sim.mutations())
+        self.assertIn(("delete", HOST), self.sim.mutations())
+        self.assertEqual(d.cleanup_failures,[{"stage":"cleanup-shutdown-readback","role":"guest","code":"IDENTITY_DRIFT"}])
+
+    def test_boot_timeout_and_owned_cleanup_timeout_preserve_both_causes(self):
+        self.sim.failure = "boot-timeout"
+        self.sim.host_never_shuts = True
+        d = subject.Diagnostic()
+        with self.assertRaisesRegex(subject.GateError, "guest.*deadline"):
+            subject.preflight(self.tmp, MARK, 4*subject.GIB, 2, False, d)
+        self.assertFalse(d.dual_boot_verified)
+        self.assertFalse(d.cleanup_verified)
+        self.assertEqual(d.primary,{"stage":"boot","code":"DUAL_BOOT_FAILED",
+            "roles":[{"stage":"boot","role":"guest","code":"COMMAND_TIMEOUT"}]})
+        self.assertEqual(d.cleanup_failures,[{"stage":"cleanup-shutdown-readback",
+            "role":"host","code":"COMMAND_TIMEOUT","commandFailure":"COMMAND_TIMEOUT"}])
+        self.assertIn(("delete", GUEST), self.sim.mutations())
+        self.assertNotIn(("delete", HOST), self.sim.mutations())
+        self.assertEqual(self.sim.devices[EXISTING],self.sim.original)
 
     def test_host_gate_refuses_non_darwin_with_zero_simctl(self):
         with patch.object(subject.platform, "system", return_value="Linux"):

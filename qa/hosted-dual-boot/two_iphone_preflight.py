@@ -30,10 +30,70 @@ GIB = 1 << 30
 UUID_RE = re.compile(r"[0-9A-F]{8}(?:-[0-9A-F]{4}){3}-[0-9A-F]{12}")
 TOKEN_RE = re.compile(r"[0-9a-f]{32}")
 ROLES = ("host", "guest")
+ROLE_CLEANUP_SECONDS = 35
+SETTLE_SECONDS = 8
+POLL_SECONDS = 0.5
+PRIMARY_STAGES = frozenset(("host-context", "memory-readback", "sdk-readback", "disk-before",
+    "catalog", "journal", "create", "create-readback", "preboot-readback", "boot",
+    "postboot-readback", "disk-both-booted", "completion", "disk-after-cleanup"))
+CLEANUP_STAGES = frozenset(("cleanup-identify", "cleanup-shutdown", "cleanup-shutdown-readback",
+    "cleanup-delete", "cleanup-delete-readback", "cleanup-journal"))
+CODES = frozenset(("HOST_SCOPE", "HOST_CONTEXT", "MEMORY_READBACK_INVALID", "SDK_READBACK_INVALID",
+    "DISK_FLOOR", "XCODE_MISMATCH", "RUNTIME_MISMATCH", "DEVICE_TYPE_MISSING",
+    "RUNTIME_DEVICE_UNSUPPORTED", "INVENTORY_INVALID", "NONCE_COLLISION", "FRESH_UUID_REQUIRED",
+    "IDENTITY_DRIFT", "CREATED_NOT_SHUTDOWN", "PREBOOT_NOT_SHUTDOWN", "DUAL_BOOT_FAILED",
+    "BOOT_DEADLINE", "POSTBOOT_NOT_BOOTED", "COMMAND_TIMEOUT", "COMMAND_NONZERO",
+    "COMMAND_START_FAILED", "SHUTDOWN_NOT_VERIFIED", "DELETE_NOT_VERIFIED",
+    "INTERRUPTED_CREATE_UNOBSERVED", "CLEANUP_DEADLINE", "CLEANUP_FAILED",
+    "COMPLETION_UNVERIFIED", "INTERRUPTED", "LOCAL_IO", "UNKNOWN"))
 
 
 class GateError(RuntimeError):
+    def __init__(self, message, code="UNKNOWN", failures=()):
+        super().__init__(message)  # Private only; never emitted by the hosted wrapper.
+        self.code = code
+        self.failures = failures
+
+
+class CleanupError(GateError):
     pass
+
+
+def reason(error, stage, role=None):
+    """Return structured allowlisted labels only, never raw exception or tool fields."""
+    if stage not in PRIMARY_STAGES | CLEANUP_STAGES:
+        stage = "completion"
+    code = getattr(error, "code", "LOCAL_IO" if isinstance(error, OSError) else "UNKNOWN")
+    return {"stage": stage, "code": code if isinstance(code, str) and code in CODES else "UNKNOWN",
+            **({"role": role} if role in ROLES else {})}
+
+
+class Diagnostic:
+    def __init__(self):
+        self.stage = "host-context"
+        self.role = None
+        self.primary = None
+        self.dual_boot_verified = False
+        self.cleanup_attempted = False
+        self.cleanup_verified = False
+        self.cleanup_failures = []
+
+    def at(self, stage, role=None):
+        self.stage, self.role = stage, role
+
+    def record_primary(self, error):
+        if self.primary is not None or isinstance(error, CleanupError):
+            return
+        self.primary = reason(error, self.stage, self.role)
+        if getattr(error, "code", None) == "DUAL_BOOT_FAILED":
+            self.primary["roles"] = [reason(cause, "boot", role)
+                                     for role, cause in error.failures[:2] if role in ROLES]
+
+    def fields(self):
+        return {"primaryFailure": self.primary, "simultaneousBootVerified": self.dual_boot_verified,
+                "cleanupAttempted": self.cleanup_attempted,
+                "cleanupVerified": self.cleanup_verified, "cleanupFailures": self.cleanup_failures[:3]}
+
 
 
 def job_context():
@@ -41,14 +101,14 @@ def job_context():
                 "RUNNER_ARCH": "ARM64", "RUNNER_ENVIRONMENT": "github-hosted"}
     if (platform.system() != "Darwin" or platform.machine() != "arm64"
             or any(os.environ.get(k) != v for k, v in expected.items())):
-        raise GateError("expected a standard GitHub-hosted macOS arm64 job; no simulator commands ran")
+        raise GateError("expected a standard GitHub-hosted macOS arm64 job; no simulator commands ran", "HOST_CONTEXT")
     fields = [os.environ.get(k, "") for k in ("GITHUB_REPOSITORY", "GITHUB_RUN_ID",
               "GITHUB_RUN_ATTEMPT", "GITHUB_JOB", "RUNNER_NAME", "RUNNER_TEMP")]
     if not all(fields) or not Path(fields[-1]).is_absolute():
-        raise GateError("missing same-job runner identity or absolute RUNNER_TEMP")
+        raise GateError("missing same-job runner identity or absolute RUNNER_TEMP", "HOST_CONTEXT")
     tmp = Path(fields[-1]).resolve(strict=True)
     if not tmp.is_dir():
-        raise GateError("RUNNER_TEMP is not a directory")
+        raise GateError("RUNNER_TEMP is not a directory", "HOST_CONTEXT")
     marker = hashlib.sha256(json.dumps([*fields, str(tmp)]).encode()).hexdigest()
     return tmp, marker
 
@@ -66,18 +126,18 @@ def command(*args, timeout=15):
             ["/usr/bin/xcrun", *args], env=env, timeout=timeout, stdin=subprocess.DEVNULL,
             capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
     except subprocess.TimeoutExpired as exc:
-        raise GateError(f"{label} exceeded its deadline") from exc
+        raise GateError(f"{label} exceeded its deadline", "COMMAND_TIMEOUT") from exc
     except OSError as exc:
-        raise GateError(f"{label} could not start ({type(exc).__name__})") from exc
+        raise GateError(f"{label} could not start ({type(exc).__name__})", "COMMAND_START_FAILED") from exc
     if result.returncode:
         # Suppress raw CoreSimulator output: it can contain unrelated host paths and IDs.
-        raise GateError(f"{label} exited {result.returncode}")
+        raise GateError(f"{label} exited {result.returncode}", "COMMAND_NONZERO")
     return result.stdout.strip()
 
 
-def inventory():
+def inventory(timeout=15):
     try:
-        doc = json.loads(command("simctl", "list", "-j"))
+        doc = json.loads(command("simctl", "list", "-j", timeout=timeout))
         grouped = doc["devices"]
         rows = []
         for runtime, devices in grouped.items():
@@ -86,23 +146,23 @@ def inventory():
             rows.extend((runtime, row) for row in devices)
         return doc, rows
     except (ValueError, KeyError, TypeError, AttributeError) as exc:
-        raise GateError("unsupported simctl JSON inventory") from exc
+        raise GateError("unsupported simctl JSON inventory", "INVENTORY_INVALID") from exc
 
 
 def validate_catalog():
     if tuple(command("xcodebuild", "-version").splitlines()) != XCODE_ID:
-        raise GateError("expected Xcode 26.4.1 (17E202)")
+        raise GateError("expected Xcode 26.4.1 (17E202)", "XCODE_MISMATCH")
     doc, rows = inventory()
     runtimes = [r for r in doc.get("runtimes", []) if r.get("identifier") == RUNTIME]
     if (len(runtimes) != 1 or runtimes[0].get("isAvailable") is not True
             or runtimes[0].get("version") != RUNTIME_VERSION
             or runtimes[0].get("buildversion") != RUNTIME_BUILD):
-        raise GateError("expected installed, available iOS 26.4 runtime version 26.4.1 (23E254a)")
+        raise GateError("expected installed, available iOS 26.4 runtime version 26.4.1 (23E254a)", "RUNTIME_MISMATCH")
     if sum(d.get("identifier") == DEVICE for d in doc.get("devicetypes", [])) != 1:
-        raise GateError("exact iPhone 16 Pro device type unavailable")
+        raise GateError("exact iPhone 16 Pro device type unavailable", "DEVICE_TYPE_MISSING")
     supported = runtimes[0].get("supportedDeviceTypes")
     if supported and not any(d.get("identifier") == DEVICE for d in supported):
-        raise GateError("installed runtime does not advertise support for iPhone 16 Pro")
+        raise GateError("installed runtime does not advertise support for iPhone 16 Pro", "RUNTIME_DEVICE_UNSUPPORTED")
     return rows
 
 
@@ -118,7 +178,7 @@ def free_space(tmp, minimum, phase):
     temp_free, sim_free = (shutil.disk_usage(p).free for p in (tmp, root))
     if min(temp_free, sim_free) < minimum:
         raise GateError(f"{phase} disk floor not met: runner_temp={temp_free}, "
-                        f"simulator_volume={sim_free}, required_each={minimum} bytes")
+                        f"simulator_volume={sim_free}, required_each={minimum} bytes", "DISK_FLOOR")
     return {"runner_temp_free_bytes": temp_free, "simulator_volume_free_bytes": sim_free}
 
 
@@ -182,52 +242,110 @@ def lookup(rows, token, role, uid):
                 and row.get("name") == name and isinstance(actual, str)
                 and UUID_RE.fullmatch(actual) and (uid is None or actual == uid)):
             return row
-    raise GateError(f"{role} simulator ownership/identity drift; no mutation for this role")
+    raise GateError(f"{role} simulator ownership/identity drift; no mutation for this role", "IDENTITY_DRIFT")
 
 
-def cleanup(path, data):
-    """Best-effort for each owned role; never use a broad simctl selector."""
+def remaining_until(deadline, limit):
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise GateError("owned cleanup deadline exhausted", "CLEANUP_DEADLINE")
+    return min(remaining, limit)
+
+
+def fresh_owned(token, role, uid, deadline):
+    _, rows = inventory(timeout=remaining_until(deadline, 6))
+    return lookup(rows, token, role, uid)
+
+
+def settle_owned(token, role, uid, deadline, ready, code, command_error=None):
+    """Only reread; do not repeat a state-changing request or weaken identity checks."""
+    limit = min(deadline, time.monotonic() + SETTLE_SECONDS)
+    consecutive = 0
+    while time.monotonic() < limit:
+        row = fresh_owned(token, role, uid, limit)
+        if ready(row):
+            consecutive += 1
+            if consecutive >= (2 if row is None else 1):
+                return row
+        else:
+            consecutive = 0
+            time.sleep(min(POLL_SECONDS, max(0, limit - time.monotonic())))
+    if command_error:
+        raise command_error
+    raise GateError(f"{role} {code.lower().replace('_', ' ')}", code)
+
+
+def cleanup(path, data, diagnostic=None):
+    """Offer bounded readbacks per exact owned role; never use a broad selector."""
+    d = diagnostic or Diagnostic()
+    d.cleanup_attempted = True
     token = data["token"]
     failures = []
     for role, uid in list(data["records"].items()):
+        deadline = time.monotonic() + ROLE_CLEANUP_SECONDS
+        stage = "cleanup-identify"
+        cmd_error = None
         try:
-            # Re-read per mutation and revalidate UUID + nonce-name + runtime + type.
-            _, rows = inventory()
-            row = lookup(rows, token, role, uid)
+            row = fresh_owned(token, role, uid, deadline)
             if row:
                 confirmed = row["udid"]
                 if uid is None:
-                    # Recover a possibly interrupted create only by the exact planned nonce-name.
+                    stage = "cleanup-journal"
                     data["records"][role] = confirmed
                     write_receipt(path, data)
+                cmd_error = None
                 if row.get("state") != "Shutdown":
-                    try:
-                        command("simctl", "shutdown", confirmed, timeout=15)
-                    except GateError:
-                        # If it completed but the client lost the reply, inventory decides.
-                        pass
-                _, rows = inventory()
-                row = lookup(rows, token, role, confirmed)
+                    stage = "cleanup-shutdown"
+                    if row.get("state") != "Shutting Down":
+                        try:
+                            command("simctl", "shutdown", confirmed, timeout=remaining_until(deadline, 12))
+                        except GateError as exc:
+                            if exc.code == "INTERRUPTED":
+                                raise
+                            cmd_error = exc
+                stage = "cleanup-shutdown-readback"
+                row = settle_owned(token, role, confirmed, deadline,
+                                   lambda r: r is None or r.get("state") == "Shutdown",
+                                   "SHUTDOWN_NOT_VERIFIED", cmd_error)
                 if row:
-                    if row.get("state") != "Shutdown":
-                        raise GateError(f"{role} still not shutdown; refusing to delete it")
-                    command("simctl", "delete", confirmed, timeout=15)
-                    _, rows = inventory()
-                    if lookup(rows, token, role, confirmed) is not None:
-                        raise GateError(f"{role} deletion not verified")
+                    stage = "cleanup-delete"
+                    cmd_error = None
+                    try:
+                        command("simctl", "delete", confirmed, timeout=remaining_until(deadline, 12))
+                    except GateError as exc:
+                        if exc.code == "INTERRUPTED":
+                            raise
+                        cmd_error = exc
+                    stage = "cleanup-delete-readback"
+                    settle_owned(token, role, confirmed, deadline, lambda r: r is None,
+                                 "DELETE_NOT_VERIFIED", cmd_error)
             elif uid is None:
-                # A cancelled/timed-out create may still be finishing within CoreSimulator.
-                # Preserve the journal to permit later exact-name recovery; never claim clean.
-                raise GateError(f"{role} interrupted create is not yet observable; ownership receipt retained")
+                # Late create may still materialize; preserve journal and fail closed.
+                raise GateError(f"{role} interrupted create is not yet observable; ownership receipt retained",
+                                "INTERRUPTED_CREATE_UNOBSERVED")
+            else:
+                stage = "cleanup-delete-readback"
+                settle_owned(token, role, uid, deadline, lambda r: r is None,
+                             "DELETE_NOT_VERIFIED")
+            stage = "cleanup-journal"
             del data["records"][role]
             write_receipt(path, data)
         except (GateError, OSError) as exc:
+            issue = reason(exc, stage, role)
+            if cmd_error is not None:
+                command_stage = ("cleanup-shutdown" if stage.startswith("cleanup-shutdown") else "cleanup-delete")
+                issue["commandFailure"] = reason(cmd_error, command_stage)["code"]
+            d.cleanup_failures.append(issue)
             failures.append(str(exc))
     if failures:
-        raise GateError("; ".join(failures))
-    path.unlink()
-    # Never recursively delete: this directory contains only our receipt.
-    path.parent.rmdir()
+        raise CleanupError("; ".join(failures), "CLEANUP_FAILED")
+    try:
+        path.unlink()
+        path.parent.rmdir()  # Never recursively delete.
+    except OSError as exc:
+        d.cleanup_failures.append(reason(exc, "cleanup-journal"))
+        raise CleanupError(str(exc), "CLEANUP_FAILED") from exc
+    d.cleanup_verified = True
 
 
 def boot_pair(records, budget):
@@ -237,39 +355,51 @@ def boot_pair(records, budget):
         role, uid = item
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise GateError(f"{role} missed dual-boot deadline")
+            raise GateError(f"{role} missed dual-boot deadline", "BOOT_DEADLINE")
         started = time.monotonic()
         try:
             # -b requests boot if necessary and blocks until readiness.
             command("simctl", "bootstatus", uid, "-b", timeout=remaining)
         except GateError as exc:
-            raise GateError(f"{role}: {exc}") from exc
+            raise GateError(f"{role}: {exc}", exc.code) from exc
         if time.monotonic() > deadline:
-            raise GateError(f"{role} missed dual-boot deadline")
+            raise GateError(f"{role} missed dual-boot deadline", "BOOT_DEADLINE")
         return role, round(time.monotonic() - started, 3)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         futures = [pool.submit(boot, item) for item in records.items()]
         timings, failures = {}, []
-        for future in futures:
+        for (role, _), future in zip(records.items(), futures):
             try:
                 role, elapsed = future.result()
                 timings[role] = elapsed
             except GateError as exc:
-                failures.append(str(exc))
+                failures.append((role, exc))
         if failures:
-            raise GateError("; ".join(failures))
+            raise GateError("; ".join(str(exc) for _, exc in failures), "DUAL_BOOT_FAILED", tuple(failures))
     return timings
 
 
-def preflight(tmp, marker, minimum, budget, keep):
+def preflight(tmp, marker, minimum, budget, keep, diagnostic=None):
+    d = diagnostic or Diagnostic()
+    try:
+        return _preflight(tmp, marker, minimum, budget, keep, d)
+    except Exception as exc:
+        d.record_primary(exc)
+        raise
+
+
+def _preflight(tmp, marker, minimum, budget, keep, d):
+    d.at("disk-before")
     before = free_space(tmp, minimum, "before create")
+    d.at("catalog")
     initial = validate_catalog()
     existing_ids = {r.get("udid") for _, r in initial}
     existing_names = {r.get("name") for _, r in initial}
     token = uuid.uuid4().hex
     if any(name_for(token, role) in existing_names for role in ROLES):
-        raise GateError("nonce-name collision before create")
+        raise GateError("nonce-name collision before create", "NONCE_COLLISION")
+    d.at("journal")
     directory = tmp / (PREFIX + token)
     directory.mkdir(mode=0o700)
     receipt = directory / RECEIPT
@@ -279,29 +409,40 @@ def preflight(tmp, marker, minimum, budget, keep):
     success = False
     try:
         for role in ROLES:
+            d.at("journal", role)
             data["records"][role] = None
             write_receipt(receipt, data)  # journal the operation before calling simctl
+            d.at("create", role)
             uid = command("simctl", "create", name_for(token, role), DEVICE, RUNTIME)
             if (not UUID_RE.fullmatch(uid) or uid in existing_ids
                     or uid in data["records"].values()):
-                raise GateError(f"{role} did not return a fresh UUID")
+                raise GateError(f"{role} did not return a fresh UUID", "FRESH_UUID_REQUIRED")
+            d.at("journal", role)
             data["records"][role] = uid
             write_receipt(receipt, data)
+            d.at("create-readback", role)
             _, rows = inventory()
             row = lookup(rows, token, role, uid)
             if not row or row.get("state") != "Shutdown" or row.get("isAvailable") is not True:
-                raise GateError(f"{role} newly created device is unavailable or not Shutdown")
+                raise GateError(f"{role} newly created device is unavailable or not Shutdown", "CREATED_NOT_SHUTDOWN")
+        d.at("preboot-readback")
         _, rows = inventory()
         for role, uid in data["records"].items():
+            d.at(d.stage, role)
             row = lookup(rows, token, role, uid)
             if not row or row.get("state") != "Shutdown" or row.get("isAvailable") is not True:
-                raise GateError(f"{role} not available and Shutdown before dual boot")
+                raise GateError(f"{role} not available and Shutdown before dual boot", "PREBOOT_NOT_SHUTDOWN")
+        d.at("boot")
         timings = boot_pair(data["records"], budget)
+        d.at("postboot-readback")
         _, rows = inventory()
         for role, uid in data["records"].items():
+            d.at(d.stage, role)
             row = lookup(rows, token, role, uid)
             if not row or row.get("state") != "Booted" or row.get("isAvailable") is not True:
-                raise GateError(f"{role} not available and Booted in the same inventory snapshot")
+                raise GateError(f"{role} not available and Booted in the same inventory snapshot", "POSTBOOT_NOT_BOOTED")
+        d.dual_boot_verified = True
+        d.at("disk-both-booted")
         during = free_space(tmp, minimum, "while both booted")
         result = {
             "status": "PASS", "scope": "dual-simulator-only",
@@ -319,10 +460,13 @@ def preflight(tmp, marker, minimum, budget, keep):
         success = True
         keep_owned = keep
         return result
+    except Exception as exc:
+        d.record_primary(exc)
+        raise
     finally:
         if not keep_owned:
             try:
-                cleanup(receipt, data)
+                cleanup(receipt, data, d)
             except (GateError, OSError) as exc:
                 # Report cleanup failure, but preserve a primary preflight error and its cause.
                 print(f"cleanup incomplete: {exc}; same-job receipt: {receipt}", file=sys.stderr)
@@ -331,7 +475,7 @@ def preflight(tmp, marker, minimum, budget, keep):
 
 
 def interrupted(signum, _frame):
-    raise GateError(f"interrupted (signal {signum})")
+    raise GateError(f"interrupted (signal {signum})", "INTERRUPTED")
 
 
 def main():
