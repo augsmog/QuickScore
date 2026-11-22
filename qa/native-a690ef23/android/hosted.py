@@ -4,20 +4,57 @@ from smoke import run as smoke
 from provision import ensure
 from transport import inspect as inspect_transport
 GRADLE_JVM='-Xmx3072m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8'
+# The hosted job still has its independent 30-minute workflow hard stop.
+GRADLE_RELEASE_TIMEOUT_S=1200
+GRADLE_PROGRESS_INTERVAL_S=30
+GRADLE_TASK_RE=re.compile(rb'^> Task (:[A-Za-z0-9_.:\-\[\]]{1,180})(?: (?:UP-TO-DATE|FROM-CACHE|NO-SOURCE|SKIPPED|FAILED))?$')
 def gradle_args():
  return ['bash','./gradlew',':app:assembleRelease','-PreactNativeArchitectures=x86_64','-Pandroid.builder.sdkDownload=false','--no-daemon','--no-build-cache','--max-workers=2','--no-parallel','-Dorg.gradle.jvmargs='+GRADLE_JVM]
 def memory_budget(raw):
  match=re.search(r'^MemAvailable:\s+(\d+) kB$',raw,re.M)
  if not match or int(match[1])<8*1024*1024:raise ValueError('ANDROID_BUILD_MEMORY_BUDGET_UNAVAILABLE')
  return {'heapMiB':3072,'metaspaceMiB':1024,'maxWorkers':2,'parallel':False,'minimumAvailableMiB':8192}
-def run_process(args,env,cwd,log,timeout):
+def release_progress(log_path,receipt_path):
+ def emit(status,elapsed,timeout):
+  tasks=[]
+  try:
+   with log_path.open('rb') as f:
+    size=f.seek(0,2)
+    f.seek(max(0,size-65536))
+    if size>65536:f.readline() # discard possible partial first record
+    for line in f.read(65536).splitlines():
+     task=GRADLE_TASK_RE.fullmatch(line.strip())
+     if task:tasks.append(task[1].decode('ascii'))
+   evidence={'phase':'gradle-release','status':status,'elapsedSeconds':round(elapsed,1),
+             'timeoutSeconds':timeout,'recentTasks':tasks[-8:]}
+   # Avoid partially written receipts if the workflow itself is interrupted.
+   temp=receipt_path.with_suffix('.tmp')
+   temp.write_text(json.dumps(evidence)+'\n')
+   temp.replace(receipt_path)
+   print('android-build: '+json.dumps(evidence),flush=True)
+  except OSError:
+   print('android-build: progress receipt unavailable',flush=True)
+ return emit
+
+def run_process(args,env,cwd,log,timeout,progress=None):
  p=subprocess.Popen(args,cwd=cwd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
- try:return p.wait(timeout)
- except subprocess.TimeoutExpired:
-  try:os.killpg(p.pid,signal.SIGKILL)
-  except ProcessLookupError:pass
-  p.wait(timeout=10)
-  raise
+ started=time.monotonic()
+ while True:
+  remaining=max(0,timeout-(time.monotonic()-started))
+  try:rc=p.wait(remaining if progress is None else min(remaining,GRADLE_PROGRESS_INTERVAL_S))
+  except subprocess.TimeoutExpired as error:
+   elapsed=time.monotonic()-started
+   if elapsed<timeout:
+    if progress:progress('running',elapsed,timeout)
+    continue
+   try:os.killpg(p.pid,signal.SIGKILL)
+   except ProcessLookupError:pass
+   try:p.wait(timeout=10)
+   finally:
+    if progress:progress('timeout',elapsed,timeout)
+   raise subprocess.TimeoutExpired(args,timeout) from error
+  if progress:progress('completed' if rc==0 else 'failed',time.monotonic()-started,timeout)
+  return rc
 REQ=['platforms/android-36/android.jar','build-tools/36.0.0/aapt','ndk/27.1.12297006/source.properties','cmake/3.22.1/bin/cmake']
 def preflight(sdk,tools,devices):
  missing=[t for t in ['node','npm','java','adb'] if not tools.get(t)]
@@ -36,7 +73,7 @@ def clean_npm_configs(home):
 def build_release(app,out,env,cmd):
  budget=memory_budget(pathlib.Path('/proc/meminfo').read_text())
  (out/'build-resource-budget.json').write_text(json.dumps(budget)+'\n')
- try:cmd(gradle_args(),'gradle-release',1000,app/'android')
+ try:cmd(gradle_args(),'gradle-release',GRADLE_RELEASE_TIMEOUT_S,app/'android')
  finally:
   # --stop sees only daemons registered in this invocation's private GRADLE_USER_HOME.
   cleanup_ok=False
@@ -66,8 +103,10 @@ def execute(source,out):
  env.update(JAVA_HOME=java_home,HOME=str(home),ANDROID_HOME=sdk,ANDROID_SDK_ROOT=sdk,GRADLE_USER_HOME=str(home/'gradle'),CI='1',EXPO_NO_TELEMETRY='1',EXPO_OFFLINE='1',SENTRY_DISABLE_AUTO_UPLOAD='true',EXPO_PUBLIC_SIMULATOR_NO_MLKIT='1',EXPO_PUBLIC_OFFLINE_MODE='true',EXPO_PUBLIC_DEMO_MODE='false',EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING='true',EXPO_PUBLIC_FEATURE_LEAGUES='false',EXPO_PUBLIC_FEATURE_NATIVE_LINKS='false')
  env.update(clean_npm_configs(home))
  def cmd(args,phase,timeout=30,cwd=app):
-  with (out/(phase+'.log')).open('wb') as log:
-   try:rc=run_process(args,env,cwd,log,timeout)
+  log_path=out/(phase+'.log')
+  progress=release_progress(log_path,out/'gradle-progress.json') if phase=='gradle-release' else None
+  with log_path.open('wb') as log:
+   try:rc=run_process(args,env,cwd,log,timeout,progress)
    except subprocess.TimeoutExpired:raise RuntimeError(phase+' timed out') from None
    if rc:raise RuntimeError(phase+' failed; see phase log')
  def adb(*args):return subprocess.check_output([tools['adb'],'-s',serial,*args],timeout=30,env=env).decode().strip()
