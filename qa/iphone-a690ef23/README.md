@@ -80,24 +80,24 @@ actual visible Close and checking the same retained draft is mandatory. Up to 24
 screened pairs can be retained; live pricing/provider, initialized RN and full gate
 credit remain absent. Native execution of this continuation has not occurred here.
 
-### Offline host prefill correction
-Exact offline auth supplies Golfer and New Contest initializes Player 1 from it.
-Keep that synthetic value, assert it under contest-player-0 via containsDescendants,
-and fill only Player 2's empty field; assert QA Guest under contest-player-1.
-Close verifies those same card-scoped names. No host-name mutation or placeholder
-fallback. Existing header, optional pricing, recovery and stock-category checks stay.
-Entry failures now expose only bounded enter/host-prefill/guest-entry/tournament-toggle/
-round-count/game-step/round-step/start/appearance steps; no raw user text or paths.
-The previous renderer selected an input by its placeholder prop despite a populated
-value, which cannot validate native placeholder visibility. Updated app-handler test
-leaves Golfer intact; native execution is still required for AX hierarchy confirmation.
+### Active five-player draft continuation (local, native unrun)
 
-Maestro semantics audit: documented containsDescendants traverses nested descendants
-(childOf is direct-parent only); exact text patterns are anchored regexes. No Swift
-application or test-driver change is required. Upstream audited Swift AXElement at
-mobile-dev-inc/maestro d9561331af38c6417ff39ce655251aea898ae3f6 reads value and
-placeholderValue separately from XCTest attributes. That reference is not claimed
-as the installed runner version; actual installed AX flattening is unverified here.
-https://docs.maestro.dev/reference/selectors/relational-selectors
-https://docs.maestro.dev/reference/selectors/core-selectors
-https://github.com/mobile-dev-inc/maestro/blob/d9561331af38c6417ff39ce655251aea898ae3f6/maestro-ios-xctest-runner/maestro-driver-iosUITests/Routes/Models/AXElement.swift
+After the existing Add Player actions, the final five-player setup remains active.
+Do not press the top-level Back or reopen from Home. The continuation requires the
+fifth player, scrolls UP to Player 2's empty input, fills only QA Guest, observes
+literal `2 ready`, enables Multi-Day and rounds-2, then verifies ordinary Continue
+transitions to games and round settings before Start opens the free TD paywall.
+No host mutation or host-descendant assertion is used to enter the paywall.
+
+Each category still requires actual simctl readback and unchanged screenshot/scene
+screening. Paywall failures now carry the last successfully observed approved
+category; failed category changes have no stamped category. Optional pricing,
+no-purchase/no-restore policy and mandatory actual Close remain unchanged.
+
+After Close, two wizard Back steps, visible `2 ready` and another successful
+Continue/back prove functional draft retention. Literal Golfer and QA Guest are
+checked separately by visible text; inaccessible names produce namesRetained=false,
+never an inferred true. The round control must still be visible. Subsequent
+categories reuse that retained setup without typing, toggling or reopening Home.
+All receipts remain supplemental/offline fallback, with initialized RN scale and
+native acceptance unproven. Actual native selector/scroll behavior is UNRUN here.

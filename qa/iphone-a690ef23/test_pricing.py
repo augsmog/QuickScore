@@ -35,7 +35,7 @@ class PricingControls(unittest.TestCase):
  def test_recovery_precedes_close_and_keeps_top_checkpoint(self):
   s=(pathlib.Path(__file__).parent/'run.py').read_text()
   self.assertLess(s.index("shot('paywall','paywall-'"),s.index('sections=optional_sections'))
-  self.assertLess(s.index("flow(RETURN_TOP,'paywall-return-top-'"),s.index("flow(CLOSE,'paywall-close-draft-'"))
+  self.assertLess(s.index("flow(RETURN_TOP,'paywall-return-top-'"),s.index("names_observed=run_close"))
  def test_receipts_distinguish_price_disabled_and_top_no_runtime_claim(self):
   b=b'\x89PNG\r\n\x1a\n'
   for scene in ['paywall',*SECTIONS]:

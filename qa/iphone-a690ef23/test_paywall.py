@@ -1,5 +1,5 @@
 import unittest,pathlib,yaml,hashlib
-from paywall import OPEN,CLOSE,REOPEN,VISIBLE,scene,HEADER
+from paywall import OPEN,CLOSE,REOPEN,VISIBLE,scene,HEADER,NAMES
 from run import screen,SHA,TREE
 from intake import sanitize
 class PaywallControls(unittest.TestCase):
@@ -14,9 +14,9 @@ class PaywallControls(unittest.TestCase):
     if isinstance(command,str):self.assertEqual(command,'hideKeyboard');continue
     self.assertEqual(len(command),1);self.assertIn(next(iter(command)),{'assertVisible','assertNotVisible','tapOn','eraseText','inputText','scrollUntilVisible','extendedWaitUntil'})
     if 'tapOn' in command:self.assertNotRegex(str(command['tapOn']),r'(?i)buy|subscribe|restore|terms|privacy|unavailable|://')
-  self.assertIn('home-new-contest',OPEN);self.assertIn('rounds-2',OPEN);self.assertIn('contest-start',OPEN)
-  self.assertEqual(CLOSE.count('- tapOn: {id: new-contest-back}'),2)
-  self.assertIn("^Golfer$",CLOSE);self.assertIn("^QA Guest$",CLOSE)
+  self.assertIn('contest-player-4',OPEN);self.assertIn('rounds-2',OPEN);self.assertIn('contest-start',OPEN)
+  self.assertEqual(CLOSE.count('- tapOn: {id: new-contest-back}'),3)
+  self.assertIn("^Golfer$",NAMES);self.assertIn("^QA Guest$",NAMES)
  def test_no_source_mutation_before_paywall(self):
   r=pathlib.Path(__file__).resolve().parents[2];s=(r/'scoresnap/app/contest/new.tsx').read_text()
   self.assertLess(s.index('router.push("/paywall?tier=td")'),s.index('addContest(contest)'))
@@ -24,8 +24,8 @@ class PaywallControls(unittest.TestCase):
  def test_supplement_runs_after_proven_checkpoints_and_before_restore(self):
   s=(pathlib.Path(__file__).parent/'run.py').read_text()
   self.assertLess(s.index("lambda:flow(ADD_ACTIVATE"),s.index('from paywall import OPEN'))
-  self.assertLess(s.index("shot('paywall'"),s.index("lambda:flow(CLOSE"))
-  self.assertLess(s.index("lambda:flow(CLOSE"),s.index("finally:progress.perform('restore'"))
+  self.assertLess(s.index("shot('paywall'"),s.index("names_observed=run_close"))
+  self.assertLess(s.index("names_observed=run_close"),s.index("finally:progress.perform('restore'"))
  def test_receipt_remains_fallback_unobserved_runtime_and_gate_red(self):
   png=b'\x89PNG\r\n\x1a\n';r=dict(sourceSha=SHA,sourceTree=TREE,buildSha256='a'*64,categoryBefore='extra-extra-large',categoryAfter='extra-extra-large',runtimeRNScale=None,scene='paywall',offline=True,processMode='post-cold',coldProcessVerified=False,nativeAcceptance=False,geometryPassed=False,pngSha256=hashlib.sha256(png).hexdigest())
   clean=sanitize(r,png);self.assertFalse(clean['aggregatePass']);self.assertEqual(clean['purchaseRestore'],'unrun');self.assertIn('fallback-only',clean['catalogEvidence'])

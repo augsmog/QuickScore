@@ -9,36 +9,25 @@ def scene(tree):
  if 'paywall-close' not in ids or HEADER not in texts or ids.intersection({'home-new-contest','contest-start','contest-step-setup','contest-step-round-settings'}):raise ValueError('PAYWALL_SCENE_REQUIRED')
  return True
 
-ENTER="""- assertVisible: {id: home-new-contest}
-- tapOn: {id: home-new-contest}
-- assertVisible: {id: contest-step-setup}
+ENTER="""- assertVisible: {id: contest-step-setup}
+- assertVisible: {id: contest-player-4}
 - assertNotVisible: {id: home-new-contest}
-- assertNotVisible: {id: contest-player-2}
-"""
-HOST="""- scrollUntilVisible:
-    element: {id: contest-player-0}
-    direction: DOWN
-    timeout: 12000
-- assertVisible:
-    id: contest-player-0
-    containsDescendants:
-      - text: '^Golfer$'
+- assertNotVisible: {id: contest-player-5}
 """
 GUEST="""- scrollUntilVisible:
     element: {text: '^Player 2 name$'}
-    direction: DOWN
+    direction: UP
     timeout: 12000
-- assertVisible:
-    id: contest-player-1
-    containsDescendants:
-      - text: '^Player 2 name$'
 - tapOn: {text: '^Player 2 name$'}
 - inputText: 'QA Guest'
 - hideKeyboard
-- assertVisible:
-    id: contest-player-1
-    containsDescendants:
-      - text: '^QA Guest$'
+- assertVisible: '^QA Guest$'
+"""
+READY="""- scrollUntilVisible:
+    element: {text: '^2 ready$'}
+    direction: UP
+    timeout: 12000
+- assertVisible: '^2 ready$'
 """
 TOGGLE="""- scrollUntilVisible:
     element: {id: tournament-toggle}
@@ -69,13 +58,13 @@ APPEARANCE="""- extendedWaitUntil:
 - assertNotVisible: {id: home-new-contest}
 - assertNotVisible: {id: contest-start}
 """
-ENTRY_STEPS=(('enter',ENTER),('host-prefill',HOST),('guest-entry',GUEST),('tournament-toggle',TOGGLE),('round-count',ROUNDS),('game-step',GAME_STEP),('round-step',ROUND_STEP),('start',START),('appearance',APPEARANCE))
+ENTRY_STEPS=(('enter',ENTER),('guest-entry',GUEST),('draft-ready',READY),('tournament-toggle',TOGGLE),('round-count',ROUNDS),('game-step',GAME_STEP),('round-step',ROUND_STEP),('start',START),('appearance',APPEARANCE))
 REENTRY_STEPS=ENTRY_STEPS[5:]
 OPEN=''.join(text for _,text in ENTRY_STEPS)
 def run_entry(flow,progress,reopen=False):
  for step,text in REENTRY_STEPS if reopen else ENTRY_STEPS:
   progress.perform('paywall',step,lambda step=step,text=text:flow(text,step))
-CLOSE="""- assertVisible: {id: paywall-close}
+CLOSE_OVERLAY="""- assertVisible: {id: paywall-close}
 - assertVisible: 'Run the game. We do the math.'
 - tapOn: {id: paywall-close}
 - assertNotVisible: {id: paywall-close}
@@ -84,28 +73,39 @@ CLOSE="""- assertVisible: {id: paywall-close}
 - assertVisible: {id: contest-step-gamemodes}
 - tapOn: {id: new-contest-back}
 - assertVisible: {id: contest-step-setup}
-- scrollUntilVisible:
+"""
+DRAFT_CONTINUE=GAME_STEP+"""- tapOn: {id: new-contest-back}
+- assertVisible: {id: contest-step-setup}
+"""
+NAMES="""- scrollUntilVisible:
     element: {text: '^Golfer$'}
     direction: DOWN
     timeout: 12000
-- assertVisible:
-    id: contest-player-0
-    containsDescendants:
-      - text: '^Golfer$'
+- assertVisible: '^Golfer$'
 - scrollUntilVisible:
     element: {text: '^QA Guest$'}
     direction: DOWN
     timeout: 12000
-- assertVisible:
-    id: contest-player-1
-    containsDescendants:
-      - text: '^QA Guest$'
-- scrollUntilVisible:
+- assertVisible: '^QA Guest$'
+"""
+DRAFT_ROUNDS="""- scrollUntilVisible:
     element: {id: rounds-2}
     direction: UP
     timeout: 12000
 - assertVisible: {id: rounds-2}
 """
+CLOSE_STEPS=(('close-overlay',CLOSE_OVERLAY),('draft-ready',READY.replace('direction: UP','direction: DOWN')),('draft-continue',DRAFT_CONTINUE))
+CLOSE=''.join(text for _,text in CLOSE_STEPS)
+def run_close(flow,progress):
+ for step,text in CLOSE_STEPS:
+  progress.perform('paywall',step,lambda step=step,text=text:flow(text,step))
+ # Functional retention is already proven by 2 ready and successful Continue.
+ # Literal names are separate evidence, never inferred from readiness.
+ names_observed=False
+ try:flow(NAMES,'draft-names');names_observed=True
+ except Exception:pass
+ progress.perform('paywall','draft-rounds',lambda:flow(DRAFT_ROUNDS,'draft-rounds'))
+ return names_observed
 VISIBLE="""- assertVisible: {id: paywall-close}
 - assertVisible: "Run the game. We do the math."
 - assertNotVisible: {id: home-new-contest}

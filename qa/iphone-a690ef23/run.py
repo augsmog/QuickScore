@@ -45,14 +45,19 @@ def clean_npm_configs(home):
   path.chmod(0o600)
  return {key:str(path) for key,path in paths.items()}
 PHASES={'paywall','preflight','home','setup','scale','restore','cold-home','add-player'}
-STEPS={'enter','host-prefill','guest-entry','tournament-toggle','round-count','game-step','round-step','start','appearance','open','close-draft','prepare','tap','entry','add-third','add-fourth','capture','set-readback','return-home','restore-category','restart','reveal','activate'}
+STEPS={'close-overlay','draft-ready','draft-continue','draft-rounds','enter','host-prefill','guest-entry','tournament-toggle','round-count','game-step','round-step','start','appearance','open','close-draft','prepare','tap','entry','add-third','add-fourth','capture','set-readback','return-home','restore-category','restart','reveal','activate'}
 class Progress:
- def __init__(self):self.failure=None;self.restoreFailed=False
+ def __init__(self):self.failure=None;self.restoreFailed=False;self.category=None
+ def observe_category(self,value):
+  if value not in CATEGORIES:raise ValueError('UNAPPROVED_OBSERVED_CATEGORY')
+  self.category=value
  def perform(self,phase,step,fn):
   if phase not in PHASES or step not in STEPS:raise ValueError('INVALID_DIAGNOSTIC_STEP')
   try:return fn()
   except Exception:
-   if self.failure is None:self.failure={'phase':phase,'sceneStep':step}
+   if self.failure is None:
+    self.failure={'phase':phase,'sceneStep':step}
+    if self.category is not None:self.failure['observedCategory']=self.category
    if phase=='restore':self.restoreFailed=True
    raise
  def receipt(self):return {'failure':self.failure,'restoreFailed':self.restoreFailed}
@@ -170,11 +175,11 @@ def _run(a,progress):
     progress.perform('add-player','capture',lambda:shot('add-player','add-player-'+category,category,ADD_VISIBLE,'post-cold'))
     progress.perform('add-player','activate',lambda:flow(ADD_ACTIVATE,'add-activate-'+str(i)))
     (out/('add-player-action-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'fourPlayerCheckpointPreserved':True,'fifthPlayerVisibleAfterTap':True,'aggregatePass':False})+'\n')
-   from paywall import OPEN,CLOSE,VISIBLE,REOPEN,run_entry
+   from paywall import OPEN,CLOSE,VISIBLE,REOPEN,run_entry,run_close
    from pricing import reveal,visible,RETURN_TOP,optional_sections
-   progress.perform('home','return-home',lambda:flow('- tapOn: {id: new-contest-back}\n','paywall-return-home'))
    for i,category in enumerate(CATEGORIES):
-    progress.perform('scale','set-readback',lambda:(sim('ui',a.udid,'content_size',category,name='paywall-set-'+str(i)),category_readback(sim('ui',a.udid,'content_size',name='paywall-read-'+str(i)),category)))
+    progress.category=None
+    progress.perform('scale','set-readback',lambda:(sim('ui',a.udid,'content_size',category,name='paywall-set-'+str(i)),progress.observe_category(category_readback(sim('ui',a.udid,'content_size',name='paywall-read-'+str(i)),category))))
     run_entry(lambda text,step:flow(text,'paywall-'+step+'-'+str(i)),progress,reopen=i!=0)
     progress.perform('paywall','capture',lambda:shot('paywall','paywall-'+category,category,VISIBLE,'post-cold'))
     def section_capture(section):
@@ -185,8 +190,8 @@ def _run(a,progress):
     (out/('paywall-sections-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'sections':sections,'aggregatePass':False})+'\n')
     # Required recovery even if an optional section was inaccessible. Never tap a hidden Close.
     progress.perform('paywall','close-draft',lambda:flow(RETURN_TOP,'paywall-return-top-'+str(i)))
-    progress.perform('paywall','close-draft',lambda:flow(CLOSE,'paywall-close-draft-'+str(i)))
-    (out/('paywall-draft-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'namesRetained':True,'twoRoundControlVisible':True,'aggregatePass':False})+'\n')
+    names_observed=run_close(lambda text,step:flow(text,'paywall-'+step+'-'+str(i)),progress)
+    (out/('paywall-draft-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'namesRetained':names_observed,'functionalDraftRetained':True,'twoRoundControlVisible':True,'aggregatePass':False})+'\n')
   finally:progress.perform('restore','restore-category',lambda:(sim('ui',a.udid,'content_size',original,name='restore-original-category'),category_readback(sim('ui',a.udid,'content_size',name='restored-category'),original)))
   (out/'result.json').write_text(json.dumps({'status':'SUPPLEMENTAL_STOCK_CATEGORY_CAPTURES','aggregatePass':False,'runtimeRNScaleObserved':False,'paywall':'offline-fallback-header-and-draft-only','nativeJoin':'unrun','SE3':'unrun/report-only'})+'\n')
   return 78

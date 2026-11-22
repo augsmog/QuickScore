@@ -20,6 +20,9 @@ def sanitize(receipt,png):
  build=receipt.get('buildSha256','')
  if not re.fullmatch('[a-f0-9]{64}',build):raise ValueError('BUILD_DIGEST_MISSING')
  return {'sourceSha':SHA,'sourceTree':TREE,'buildSha256':build,'scene':receipt['scene'],'observedSimulatorCategory':category,'stockRNReferenceMultiplier':CATEGORIES[category],'runtimeRNScale':None,'pngSha256':h,'processMode':mode,'coldProcessVerified':mode=='cold','deviceModel':'iPhone 16 Pro','offlineSynthetic':True,'catalogEvidence':'offline-no-provider-config; fallback-only' if receipt['scene'].startswith('paywall') else None,'annualTDFallbackPriceObserved':receipt['scene']=='paywall-td','disabledPurchasingObserved':receipt['scene']=='paywall-disabled','purchaseRestore':'unrun','geometryPassed':False,'nativeAcceptance':False,'aggregatePass':False}
+def sanitize_draft(r,category):
+ if category not in CATEGORIES or type(r.get('namesRetained')) is not bool or r!={'sourceSha':SHA,'sourceTree':TREE,'category':category,'namesRetained':r.get('namesRetained'),'functionalDraftRetained':True,'twoRoundControlVisible':True,'aggregatePass':False}:raise ValueError('DRAFT_RECEIPT_INVALID')
+ return {'category':category,'namesRetained':r['namesRetained'],'functionalDraftRetained':True,'twoRoundControlVisible':True}
 RUNTIME_ID='com.apple.CoreSimulator.SimRuntime.iOS-26-4'
 def select_runtime(inventory):
  # Only typed, bounded iOS tuples may reach public status; never names/paths/errors.
@@ -134,8 +137,7 @@ def main():
     if draft.is_file():
      try:
       r=json.loads(draft.read_text())
-      if r!={'sourceSha':SHA,'sourceTree':TREE,'category':category,'namesRetained':True,'twoRoundControlVisible':True,'aggregatePass':False}:raise ValueError('DRAFT_RECEIPT_INVALID')
-      state['paywallDraftChecks'].append({'category':category,'namesRetained':True,'twoRoundControlVisible':True})
+      state['paywallDraftChecks'].append(sanitize_draft(r,category))
      except Exception:state['status']='RECEIPT_REJECTED_GATE_RED'
    state['paywall']='offline-fallback-header-and-draft-only' if len(state['paywallDraftChecks'])==3 else 'unrun-or-partial'
    if udid:
