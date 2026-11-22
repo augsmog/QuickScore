@@ -20,6 +20,7 @@ NAVIGATION_REASONS=frozenset({
  'ADD_PLAYER_ACTION_UNVERIFIED','ADD_PLAYER_ORDER_UNVERIFIED','ADD_PLAYER_NEXT_CARD_UNVERIFIED',
  'ROUND_SWITCH_ID_MISSING','ROUND_SWITCH_ID_AMBIGUOUS','ROUND_SWITCH_TYPE_UNVERIFIED',
  'ROUND_SWITCH_STATE_UNVERIFIED','ROUND_OPTIONS_UNVERIFIED','ROUND_SELECTION_MISMATCH',
+ 'FOOTER_ACTION_UNVERIFIED','FOOTER_DESTINATION_UNVERIFIED',
  'DISABLED_STATE_UNOBSERVED','PLAYER_PAIR_UNVERIFIED','PLAYER_FOCUS_UNVERIFIED','PLAYER_CARD_LOWER_EDGE_CLIPPED',
 })
 def navigation_reason(error):
@@ -32,6 +33,11 @@ ROUND_HEADING='NUMBER OF ROUNDS'
 ROUND_SWITCH='tournament-toggle'
 ROUND_GROUP='contest-rounds'
 ROUND_IDS=('rounds-2','rounds-3','rounds-4')
+FOOTER_STEPS={
+ 'setup':('contest-continue','Continue','games'),
+ 'games':('contest-continue','Continue','round-settings'),
+ 'round-settings':('contest-start','Start','paywall-top'),
+}
 HEADER='Run the game. We do the math.'
 MISSING='Contest not found on this device. Offline codes work only in the organizer’s browser.'
 SCENES={
@@ -371,13 +377,68 @@ def player_card(label):
  m=re.fullmatch(r'Player ([234]) name',label)
  return 'contest-player-'+str(int(m[1])-1) if m else None
 
-def footer_check(root,n):
- footer=one(root,'contest-footer')
- relation=any(k is n for k in footer.iter('node')) and n is not footer
- enclosed=contained(box(n),box(footer))
- return {'targetDescendsFooter':relation,'targetInFooterBounds':enclosed,
-         'targetEnabled':n.get('enabled')=='true','targetClickable':n.get('clickable')=='true',
-         'targetBoundsPx':box(n),'footerBoundsPx':box(footer)}
+def footer_action(root,before,package,proof):
+ """Source-owned footer includes a flat accessibility action only by proof."""
+ if before not in FOOTER_STEPS:raise ValueError('FOOTER_ACTION_UNVERIFIED')
+ key,label,_=FOOTER_STEPS[before]
+ proof['control']=key
+ ids=[n for n in root.iter('node') if node_id(n)==key]
+ labels=matches(root,label,'text')
+ proof.update({'targetIdMatches':min(3,len(ids)),'semanticLabelHits':min(3,len(labels)),
+               'labelCandidates':[{'sameApp':n.get('package')==package,
+                    'expectedText':n.get('text')==label,'expectedDescription':n.get('content-desc')==label,
+                    **role_observation(root,n)} for n in labels[:3]]})
+ try:
+  validate(root,before)
+  footer=one(root,'contest-footer');scroll=one(root,'contest-scroll')
+  marker=one(root,SCENES[before][0])
+ except ValueError:raise ValueError('FOOTER_ACTION_UNVERIFIED') from None
+ other_id='contest-start' if key=='contest-continue' else 'contest-continue'
+ if len(ids)!=1 or any(node_id(n)==other_id for n in root.iter('node')):
+  raise ValueError('FOOTER_ACTION_UNVERIFIED')
+ target=ids[0];tb,fb,sb,mb=box(target),box(footer),box(scroll),box(marker)
+ action_overlap=[n for n in root.iter('node') if n is not target and overlap(box(n),tb) and
+                 (n.get('clickable')=='true' or n.get('long-clickable')=='true' or
+                  n.get('scrollable')=='true' or n.get('class')=='android.widget.EditText')]
+ proof.update({'targetDescendsFooter':target is not footer and any(n is target for n in footer.iter('node')),
+  'targetInFooterBounds':contained(tb,fb),'targetOverlapsScroll':overlap(tb,sb),
+  'targetOverlapsScene':overlap(tb,mb),'overlappingActionable':min(3,len(action_overlap)),
+  'targetEnabled':target.get('enabled')=='true','targetClickable':target.get('clickable')=='true',
+  'targetNativeAction':target.get('class') in BUTTON_ROLES,'sameApp':bool(package) and
+       all(n.get('package')==package for n in (target,footer,scroll,marker)),
+  'targetBoundsPx':tb,'footerBoundsPx':fb,'scrollBoundsPx':sb})
+ if not proof['sameApp'] or not proof['targetNativeAction'] or scroll.get('scrollable')!='true':
+  raise ValueError('FOOTER_ACTION_UNVERIFIED')
+ if (not proof['targetInFooterBounds'] or proof['targetOverlapsScroll'] or
+     proof['targetOverlapsScene'] or action_overlap):
+  raise ValueError('CONTROL_BEHIND_FOOTER')
+ if not visible_button(target):raise ValueError('CONTROL_DISABLED')
+ own=target in labels;aliases=[n for n in labels if n is not target]
+ opposing='Start' if label=='Continue' else 'Continue'
+ alias=aliases[0] if len(aliases)==1 else None
+ semantic=(not any(v==opposing for v in (target.get('text'),target.get('content-desc'))) and
+    len(aliases)<=1 and (own or alias is not None) and (alias is None or (
+     alias.get('package')==package and alias.get('class')=='android.widget.TextView' and
+     alias.get('text')==label and alias.get('clickable')=='false' and
+     alias.get('long-clickable','false')=='false' and contained(box(alias),tb))))
+ proof['expectedActionLabel']=bool(semantic)
+ if not semantic:raise ValueError('FOOTER_ACTION_UNVERIFIED')
+ return target
+
+def footer_destination(root,before,package,proof):
+ if before not in FOOTER_STEPS:raise ValueError('FOOTER_DESTINATION_UNVERIFIED')
+ expected=FOOTER_STEPS[before][2]
+ missing_source=SCENES[before][0]
+ proof.update({'expectedScene':expected,'priorSceneStillVisible':bool(matches(root,missing_source)),
+               'selectors':selector_counts(root,expected)})
+ try:validate(root,expected)
+ except ValueError:raise ValueError('FOOTER_DESTINATION_UNVERIFIED') from None
+ markers=[scene_node(root,key,'id') for key in SCENES[expected]]
+ markers.extend(scene_node(root,key,'text') for key in TEXTS.get(expected,()))
+ if (proof['priorSceneStillVisible'] or not package or any(n.get('package')!=package for n in markers)
+     or (expected=='paywall-top' and any(box(n) and node_id(n).startswith('contest-step-') for n in root.iter('node')))):
+  raise ValueError('FOOTER_DESTINATION_UNVERIFIED')
+ proof['nextSceneVerified']=True
 
 def diagnostic_guard(xml,focus,package):
  target_focus(focus,package)
@@ -492,23 +553,32 @@ class Driver:
    if add_player_roster(fresh,index,self.c['package'],after) is not None:return
    if attempt<2:self.scroll('down',fresh)
   raise ValueError('ADD_PLAYER_NEXT_CARD_UNVERIFIED')
+ def advance_footer(self,before):
+  if before not in FOOTER_STEPS:raise ValueError('FOOTER_ACTION_UNVERIFIED')
+  key,_,_=FOOTER_STEPS[before]
+  self.phase='footer-'+before+'-action'
+  root=self.read()
+  proof={'checkpoint':'footer-control','beforeScene':before}
+  self.observations.append(proof)
+  n=footer_action(root,before,self.c['package'],proof)
+  l,t,r,b=box(n)
+  self.adb('shell','input','tap',str((l+r)//2),str((t+b)//2));time.sleep(.3)
+  self.phase='footer-'+before+'-destination'
+  after={'checkpoint':'footer-destination','control':key,'beforeScene':before}
+  self.observations.append(after)
+  footer_destination(self.read(),before,self.c['package'],after)
  def tap(self,key,kind='id',direction='down'):
   if key==ADD_PLAYER and kind=='text':raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
+  if key in ('contest-continue','contest-start'):raise ValueError('FOOTER_ACTION_UNVERIFIED')
   root,n=self.seek(key,kind,direction)
   for attempt in range(8):
    foot=matches(root,'contest-footer')
-   if not foot or key in ('contest-continue','contest-start','new-contest-back') or box(n)[3]<=box(foot[0])[1]:break
+   if not foot or key=='new-contest-back' or box(n)[3]<=box(foot[0])[1]:break
    self.scroll('down',root);root,n=self.seek(key,kind,direction)
   l,t,r,b=box(n)
   footer=matches(root,'contest-footer')
-  if key in ('contest-continue','contest-start'):
-   check=footer_check(root,n)
-   self.observations.append({'checkpoint':'footer-control','control':key,**check})
-   if not check['targetDescendsFooter'] or not check['targetInFooterBounds']:
-    raise ValueError('CONTROL_BEHIND_FOOTER')
-   if not check['targetEnabled'] or not check['targetClickable']:raise ValueError('CONTROL_DISABLED')
-  elif n.get('enabled')=='false':raise ValueError('CONTROL_DISABLED')
-  if footer and key not in ('contest-continue','contest-start') and b>box(footer[0])[1]:raise ValueError('CONTROL_BEHIND_FOOTER')
+  if n.get('enabled')=='false':raise ValueError('CONTROL_DISABLED')
+  if footer and b>box(footer[0])[1]:raise ValueError('CONTROL_BEHIND_FOOTER')
   self.adb('shell','input','tap',str((l+r)//2),str((t+b)//2));time.sleep(.3)
  def fill(self,label,value):
   permitted={'Join code':'AAAAAA','Display name':'QAGuest','Player 2 name':'QAGuest',
@@ -641,9 +711,9 @@ def journey(c,lane='all'):
   d.shot('setup')
   # Reach end deliberately, preserve separate pre/end screenshots for rule 2.
   d.phase='players-end';d.seek(ADD_PLAYER,'text');d.shot('players-end')
-  d.tap('contest-continue');d.shot('games')
-  d.tap('contest-continue');d.shot('round-settings')
-  d.phase='paywall-enter';d.tap('contest-start');d.seek('paywall-close');d.shot('paywall-top')
+  d.advance_footer('setup');d.shot('games')
+  d.advance_footer('games');d.shot('round-settings')
+  d.advance_footer('round-settings');d.shot('paywall-top')
   for name,key in [('paywall-free','Free'),('paywall-annual','$79.99/year'),('paywall-disabled','Currently unavailable')]:
    d.phase=name
    try:d.seek(key,'text');d.shot(name)

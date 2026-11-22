@@ -481,6 +481,122 @@ class TournamentControls(unittest.TestCase):
   self.assertNotIn(('tap',('rounds-2',)),sequence)
   d.verify_tournament_retained.assert_called_once()
 
+def footer_fixture(scale=1.0,before='setup',mode='flat-label'):
+ # Exact archived Continue/footer coordinates for Setup at both scales.
+ # Scroll bounds and UIA roles/labels were not retained in the receipt.
+ small=scale==1.0
+ foot_y,act_y,scene_y=(1857,1890,1791) if small else (1840,1873,1785)
+ key,label,_=c.FOOTER_STEPS[before]
+ def n(rid,b,**kw):
+  return node(**{'package':'test.app','resource-id':rid,
+                'bounds':f'[{b[0]},{b[1]}][{b[2]},{b[3]}]',**kw})
+ root=ET.Element('hierarchy');scroll=n('contest-scroll',(55,345,1025,foot_y),scrollable='true')
+ section=n(c.SCENES[before][0],(55,345,1025,scene_y))
+ footer=n('contest-footer',(0,foot_y,1080,2072))
+ back=n('new-contest-back',(55,158,187,290),clickable='true',**{'class':'android.widget.Button'})
+ root.extend((scroll,footer,back));scroll.append(section)
+ a=n(key,(55,act_y,1025,2039),clickable='true',**{'class':'android.view.ViewGroup'})
+ lab=n('',(421,act_y+20,655,act_y+72),text=label,clickable='false',**{'class':'android.widget.TextView'})
+ if mode=='nested':footer.append(a);a.append(lab)
+ else:root.append(a)
+ if mode=='flat-label':root.append(lab)
+ if mode=='own-label':a.set('content-desc',label)
+ return root,scroll,section,footer,a,lab
+
+def footer_next(before):
+ name=c.FOOTER_STEPS[before][2]
+ if name=='paywall-top':
+  root=ET.Element('hierarchy')
+  root.extend((node(**{'resource-id':'paywall-close'}),node(text=c.HEADER)))
+  return root
+ root,*_=footer_fixture(before=name)
+ return root
+
+class FooterTransitionControls(unittest.TestCase):
+ def driver(self,td):
+  return c.Driver({'out':td+'/test','package':'test.app','serial':'emulator-5554'})
+ def test_archive_coordinates_setup_games_settings_paywall_one_click_both_scales(self):
+  for scale in (1.0,1.3):
+   for before in c.FOOTER_STEPS:
+    for mode in ('flat-label','own-label','nested'):
+     with self.subTest(scale=scale,before=before,mode=mode),tempfile.TemporaryDirectory() as td:
+      root,scroll,section,footer,a,lab=footer_fixture(scale,before,mode)
+      after=footer_next(before);d=self.driver(td)
+      with patch.object(d,'read',side_effect=[root,after]) as read,patch.object(d,'adb') as adb,patch.object(c.time,'sleep'):
+       d.advance_footer(before)
+      l,t,r,b=c.box(a);adb.assert_called_once_with('shell','input','tap',str((l+r)//2),str((t+b)//2))
+      self.assertEqual(read.call_count,2)
+      self.assertEqual(d.observations[0]['targetDescendsFooter'],mode=='nested')
+      self.assertFalse(d.observations[0]['targetOverlapsScroll'])
+      self.assertTrue(d.observations[0]['expectedActionLabel'])
+      self.assertEqual(d.observations[-1]['expectedScene'],c.FOOTER_STEPS[before][2])
+      self.assertTrue(d.observations[-1]['nextSceneVerified'])
+      self.assertNotIn('test.app',json.dumps(d.observations))
+ def test_protected_footer_fails_ambiguous_wrong_label_type_scope_and_real_overlap_without_click(self):
+  for fault in ('no-label','duplicate-id','wrong-id','forged-label','clickable-label','foreign-label','label-outside',
+                'multiple-labels','hidden','wrong-package','no-scroll','scroll-overlay','scene-overlay','outside-footer',
+                'actionable-overlay','edit-overlay','long-click-overlay','not-enabled','not-clickable','wrong-role','foreign-footer',
+                'wrong-scene','other-forward-id','opposing-owner-label'):
+   with self.subTest(fault=fault),tempfile.TemporaryDirectory() as td:
+    root,scroll,section,footer,a,lab=footer_fixture(1.3)
+    if fault=='no-label':root.remove(lab)
+    if fault=='duplicate-id':root.append(ET.fromstring(ET.tostring(a)))
+    if fault=='wrong-id':a.set('resource-id','not-the-footer')
+    if fault=='forged-label':lab.set('text','Start')
+    if fault=='clickable-label':lab.set('clickable','true')
+    if fault=='foreign-label':lab.set('package','test.foreign')
+    if fault=='label-outside':lab.set('bounds','[100,1000][500,1050]')
+    if fault=='multiple-labels':root.append(ET.fromstring(ET.tostring(lab)))
+    if fault=='hidden':a.set('visible-to-user','false')
+    if fault=='wrong-package':a.set('package','test.foreign')
+    if fault=='no-scroll':root.remove(scroll)
+    if fault=='scroll-overlay':scroll.set('bounds','[55,345][1025,1945]')
+    if fault=='scene-overlay':section.set('bounds','[55,345][1025,1945]')
+    if fault=='outside-footer':a.set('bounds','[55,1830][1025,2039]')
+    if fault in ('actionable-overlay','edit-overlay','long-click-overlay'):
+     attrs={'clickable':'true'} if fault=='actionable-overlay' else {'class':'android.widget.EditText'} if fault=='edit-overlay' else {'long-clickable':'true'}
+     root.append(node(**attrs,bounds='[400,1900][680,1950]'))
+    if fault=='not-enabled':a.set('enabled','false')
+    if fault=='not-clickable':a.set('clickable','false')
+    if fault=='wrong-role':a.set('class','android.widget.TextView')
+    if fault=='foreign-footer':footer.set('package','test.foreign')
+    if fault=='wrong-scene':section.set('resource-id','contest-step-gamemodes')
+    if fault=='other-forward-id':root.append(node(**{'resource-id':'contest-start'}))
+    if fault=='opposing-owner-label':a.set('content-desc','Start')
+    d=self.driver(td)
+    with patch.object(d,'read',return_value=root) as read,patch.object(d,'adb') as adb:
+     with self.assertRaises(ValueError):d.advance_footer('setup')
+     read.assert_called_once();adb.assert_not_called()
+ def test_transition_failure_never_retries_or_scrolls_and_start_only_accepts_distinct_paywall(self):
+  for fault in ('old-scene','mixed','wrong-scene','foreign-title','missing-close'):
+   with self.subTest(fault=fault),tempfile.TemporaryDirectory() as td:
+    root,*_=footer_fixture(before='round-settings')
+    after=footer_next('round-settings')
+    if fault=='old-scene':after=root
+    if fault=='mixed':after.append(node(**{'resource-id':'contest-step-setup'}))
+    if fault=='wrong-scene':after=footer_next('setup')
+    if fault=='foreign-title':after[1].set('package','test.foreign')
+    if fault=='missing-close':after.remove(after[0])
+    d=self.driver(td)
+    with patch.object(d,'read',side_effect=[root,after]) as read,patch.object(d,'adb') as adb,patch.object(c.time,'sleep'):
+     with self.assertRaisesRegex(ValueError,'FOOTER_DESTINATION_UNVERIFIED'):d.advance_footer('round-settings')
+     self.assertEqual(read.call_count,2);adb.assert_called_once()
+     self.assertEqual(adb.call_args.args[:3],('shell','input','tap'))
+    self.assertEqual(d.phase,'footer-round-settings-destination')
+ def test_action_generic_tap_cannot_bypass_and_flow_uses_expected_stages(self):
+  with tempfile.TemporaryDirectory() as td:
+   d=self.driver(td)
+   with patch.object(d,'adb') as adb:
+    for key in ('contest-continue','contest-start'):
+     with self.assertRaisesRegex(ValueError,'FOOTER_ACTION_UNVERIFIED'):d.tap(key)
+    adb.assert_not_called()
+  d=MagicMock();d.report=[]
+  with patch.object(c,'Driver',return_value=d),patch.object(c,'validate'):c.journey({},lane='wizard')
+  sequence=[(a,b) for a,b,_ in d.mock_calls]
+  for before,(_,_,after) in c.FOOTER_STEPS.items():
+   self.assertLess(sequence.index(('advance_footer',(before,))),sequence.index(('shot',(after,))))
+  self.assertLess(sequence.index(('shot',('players-end',))),sequence.index(('advance_footer',('setup',))))
+
 class Evidence(unittest.TestCase):
  def driver(self,td):
   return c.Driver({'out':td+'/test','package':'test.app','serial':'emulator-5554'})
@@ -514,21 +630,6 @@ class Evidence(unittest.TestCase):
   name.set('text','QAGuest')
   r.remove(next(n for n in r if n.get('text')==c.MISSING))
   with self.assertRaises(ValueError):c.validate(r,'entry-invalid')
- def test_footer_requires_same_observed_container_enabled_and_full_bounds(self):
-  for condition in ('ok','outside','sibling','disabled','not-clickable'):
-   with self.subTest(condition=condition),tempfile.TemporaryDirectory() as td:
-    d=self.driver(td);r=fixture('setup-initial');footer=c.one(r,'contest-footer')
-    footer.set('bounds','[0,700][600,890]')
-    n=node(**{'resource-id':'contest-continue','bounds':'[20,720][580,850]',
-              'clickable':'false' if condition=='not-clickable' else 'true',
-              'enabled':'false' if condition=='disabled' else 'true'})
-    if condition=='outside':n.set('bounds','[20,720][580,900]')
-    (r if condition=='sibling' else footer).append(n)
-    with patch.object(d,'seek',return_value=(r,n)),patch.object(d,'adb') as adb,patch.object(c.time,'sleep'):
-     if condition=='ok':d.tap('contest-continue');adb.assert_called_once()
-     else:
-      with self.assertRaises(ValueError):d.tap('contest-continue')
-      adb.assert_not_called()
  def test_blocked_after_capture_preserves_checkpoint_without_pass(self):
   with tempfile.TemporaryDirectory() as td:
    d=self.driver(td);d.phase='host-prefill';d.reason='CONTROL_MISSING_OR_AMBIGUOUS'
