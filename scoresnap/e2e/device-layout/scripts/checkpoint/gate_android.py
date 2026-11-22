@@ -4,6 +4,8 @@ import android_capture as b
 import flow_adapter as flow
 import os_scale
 import android_insets
+import sdk_offline_provision
+import offline_apk
 SHA=re.compile('[0-9a-f]{40}')
 REQ=['platforms/android-36/android.jar','build-tools/36.0.0/aapt','ndk/27.1.12297006/source.properties','cmake/3.22.1/bin/cmake']
 
@@ -42,6 +44,8 @@ def command(args,env,cwd,phase,seconds,logs):
 
 def build(repo,src,private,identity):
     sdk=pathlib.Path(os.environ.get('ANDROID_SDK_ROOT') or os.environ.get('ANDROID_HOME') or '/nonexistent')
+    try:sdk_offline_provision.ensure(sdk,private,os.environ)
+    except (ValueError,RuntimeError,OSError,subprocess.SubprocessError):raise b.Failure('sdk-provision-blocked') from None
     if any(not (sdk/p).exists() for p in REQ):raise b.Failure('exact-sdk36-ndk27-cmake322-missing')
     java=os.environ.get('JAVA_HOME_17_X64') or os.environ.get('JAVA_HOME')
     if not java or not pathlib.Path(java,'bin/java').is_file():raise b.Failure('java17-missing')
@@ -57,12 +61,17 @@ def build(repo,src,private,identity):
     app=src/'scoresnap'
     command(['npm','ci','--no-audit','--no-fund'],env,app,'npm-ci',300,logs)
     command(['node',str(app/'node_modules/expo/bin/cli'),'prebuild','--platform','android','--no-install'],env,app,'prebuild',180,logs)
+    overlay_hash=offline_apk.overlay(app/'android')
     command(['bash','./gradlew',':app:assembleRelease','-PreactNativeArchitectures=x86_64','-Pandroid.builder.sdkDownload=false','--no-daemon','--no-build-cache','--max-workers=2','--no-parallel','-Dorg.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8'],env,app/'android','gradle-release',1200,logs)
     if read(['git','status','--porcelain'],src):raise b.Failure('build-mutated-source')
     apks=list((app/'android/app/build/outputs/apk/release').glob('*.apk'))
     if len(apks)!=1:raise b.Failure('release-apk-count')
+    apk=apks[0]
+    network=offline_apk.verify_permissions(read([str(sdk/'build-tools/36.0.0/aapt'),'dump','permissions',str(apk)]),b.PACKAGE)
+    network['generatedOverlaySha256']=overlay_hash
+    (private/'offline-apk.json').write_text(json.dumps(network))
     apk=apks[0];binding={'source_sha':identity['checkoutSha'],'source_tree':identity['checkoutTree'],'apk_sha256':b.digest(apk.read_bytes()),'pixel_size':[1080,2400]}
-    return apk,binding,{'recipeSha256':b.digest(pathlib.Path(__file__).read_bytes()),'lockSha256':b.digest((app/'package-lock.json').read_bytes()),'qaProfile':{k:v for k,v in env.items() if k.startswith('EXPO_')},'variant':'Release','apkBytes':apk.stat().st_size}
+    return apk,binding,{'offlineNetwork':network,'sdkProvision':json.loads((private/'sdk-provision.json').read_text()),'recipeSha256':b.digest(pathlib.Path(__file__).read_bytes()),'lockSha256':b.digest((app/'package-lock.json').read_bytes()),'qaProfile':{k:v for k,v in env.items() if k.startswith('EXPO_')},'variant':'Release','apkBytes':apk.stat().st_size}
 
 class ObservedDevice(b.Android):
     def __init__(self,serial,wanted):super().__init__(serial,b.PACKAGE+'/.MainActivity');self.wanted=wanted
