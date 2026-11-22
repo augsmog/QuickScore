@@ -69,7 +69,11 @@ test('72-player leaderboard mounts every results row without throwing', async ()
     '../../../src/engine/contest-results': {
       teamCardPlayers: () => players,
       liveRoundCourse: (value) => value.course,
+      calculateContestSettlement: () => ({ transactions: [], netByPlayer: {} }),
     },
+    // AUG-246: per-game leader rows (real pure helper; stroke-play-only fixtures get no rows).
+    '../../../src/engine/calculators/game-leaders': load('src/engine/calculators/game-leaders.ts', { '../types': {} }),
+    '../../../src/engine/types': { ALL_GAMES: [] },
     '../../../src/engine/calculators/stroke-play': load('src/engine/calculators/stroke-play.ts', {
       '../types': {},
     }),
