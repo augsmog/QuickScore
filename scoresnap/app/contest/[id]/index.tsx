@@ -10,7 +10,7 @@ import { actualInputLedger, ACTUAL_INPUT_GAMES } from "../../../src/engine/actua
 import { PrePlayDeclarations } from "../../../src/ui/PrePlayDeclarations";
 import { scopedAuxiliary, calculateContestSettlement, liveRoundCourse, liveSkinsStatus, liveNassauLabels } from "../../../src/engine/contest-results";
 import { calcNassauRules } from "../../../src/engine/calculators/nassau";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -49,8 +49,10 @@ import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { HOLE_NAV_TARGET, SCORE_STEPPER_TARGET } from "../../../src/ui/score-entry-metrics";
 import { posthog } from "../../../src/config/posthog";
 
+import { partialImportResume, scoringPlayOrder } from "../../../src/services/partial-import-resume";
+
 export default function ScorecardScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, groupId, resumeImport } = useLocalSearchParams<{ id: string; groupId?: string; resumeImport?: string }>();
   const router = useRouter();
   const savedContest = useContestStore((s) =>
     s.contests.find((c) => c.id === id)
@@ -63,8 +65,15 @@ export default function ScorecardScreen() {
   const completeContest = useContestStore((s) => s.completeContest);
   const updateAuxiliaryData = useContestStore((s) => s.updateAuxiliaryData);
 
-  const [currentHole, setCurrentHole] = useState(1);
-  const [selectedGroup, setSelectedGroup] = useState(0);
+  const [currentHole, setCurrentHole] = useState(() => partialImportResume(contest, groupId, Boolean(resumeImport)).hole ?? 1);
+  const [selectedGroup, setSelectedGroup] = useState(() => partialImportResume(contest, groupId, Boolean(resumeImport)).groupIndex);
+  const roundContext = contest?.isTournament ? contest.rounds?.find(r => r.number === contest.currentRound)?.id : null;
+  useEffect(() => {
+    // A fresh confirm route must reset even an already-mounted scorer. Ordinary score
+    // edits do not reset navigation or skip the hole the scorer is still editing.
+    const resume = partialImportResume(contest, groupId, Boolean(resumeImport));
+    if (resume.hole !== null) { setCurrentHole(resume.hole); setSelectedGroup(resume.groupIndex); }
+  }, [id, groupId, resumeImport, roundContext, Boolean(contest)]);
   const [showAuxPrompt, setShowAuxPrompt] = useState(false);
   const [declaration,setDeclaration]=useState<"wolf"|"bisque"|"jokerDeclarations"|null>(null);
 
@@ -79,10 +88,13 @@ export default function ScorecardScreen() {
   const course = liveRoundCourse(contest);
   const sharedCard=contest.gameConfig?.rulesVersion===1 && contest.games.some(g=>g==="alternate_shot" || g==="chapman");
   const auxiliary=scopedAuxiliary(contest,group.id,activeRound?.id);
-  const displayPlayers=sharedCard?group.players.filter((p,i,all)=>all.findIndex(q=>q.team===p.team)===i).map(p=>({...p,name:`Team ${p.team}`,scores:course.holes.map((_,i)=>auxiliary.teamCards?.[i+1]?.[p.team!]??0)})):group.players;
-  // Check if all players on current hole have scores
-  const allScoredOnHole = computeAllScoredOnHole(displayPlayers, currentHole);
-  const holeData = course.holes[currentHole - 1];
+  const displayPlayers=sharedCard?group.players.filter((p,i,all)=>all.findIndex(q=>q.team===p.team)===i).map(p=>({...p,name:`Team ${p.team}`,scores:course.holes.map((h)=>auxiliary.teamCards?.[h.num]?.[p.team!]??0)})):group.players;
+  const currentHoleIndex = course.holes.findIndex(h => h.num === currentHole);
+  const playOrder = scoringPlayOrder(course.holes, group);
+  const orderIndex = playOrder.indexOf(currentHole);
+  // Scores are course-position arrays; route/navigation values are hole identities.
+  const allScoredOnHole = computeAllScoredOnHole(displayPlayers, currentHoleIndex + 1);
+  const holeData = course.holes[currentHoleIndex];
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
   const isCompleted = contest.status === "completed";
@@ -97,10 +109,10 @@ export default function ScorecardScreen() {
   const currentPlayerScores = useMemo(() => {
     const map = new Map<string, number>();
     for (const p of group.players) {
-      map.set(p.id, p.scores[currentHole - 1] || 0);
+      map.set(p.id, p.scores[currentHoleIndex] || 0);
     }
     return map;
-  }, [group.players, currentHole]);
+  }, [group.players, currentHoleIndex]);
 
   // Wolf rotation order
   const wolfOrder = useMemo(
@@ -186,7 +198,7 @@ export default function ScorecardScreen() {
       const player = displayPlayers.find((p) => p.id === playerId);
       if (!player) return;
 
-      const currentScore = player.scores[currentHole - 1] || 0;
+      const currentScore = player.scores[currentHoleIndex] || 0;
       // If no score entered yet, start from par
       const baseScore = currentScore > 0 ? currentScore : par;
       const newScore = Math.max(1, Math.min(15, baseScore + delta));
@@ -196,7 +208,7 @@ export default function ScorecardScreen() {
       if(contest.gameConfig?.rulesVersion===1 && contest.games.includes("wolf") && !auxiliary.wolf?.[currentHole]) {setDeclaration("wolf");return;}
       updateScore(contest.id, group.id, playerId, currentHole, newScore);
     },
-    [contest, auxiliary, group, displayPlayers, currentHole, par, updateScore, isCompleted]
+    [contest, auxiliary, group, displayPlayers, currentHole, currentHoleIndex, par, updateScore, isCompleted]
   );
 
   // Set a player to exactly par (tap the score display)
@@ -209,7 +221,7 @@ export default function ScorecardScreen() {
       if(contest.gameConfig?.rulesVersion===1 && contest.games.includes("wolf") && !auxiliary.wolf?.[currentHole]) {setDeclaration("wolf");return;}
       updateScore(contest.id, group.id, playerId, currentHole, par);
     },
-    [contest, auxiliary, group.id, currentHole, par, updateScore, isCompleted]
+    [contest, auxiliary, group.id, currentHole, currentHoleIndex, par, updateScore, isCompleted]
   );
 
   // Clear a player's score (long press the score)
@@ -224,10 +236,10 @@ export default function ScorecardScreen() {
 
   // ── Hole Navigation ──
   const advanceToNextHole = useCallback(() => {
-    if (currentHole < 18) {
-      setCurrentHole(currentHole + 1);
+    if (orderIndex >= 0 && orderIndex < playOrder.length - 1) {
+      setCurrentHole(playOrder[orderIndex + 1]);
     }
-  }, [currentHole]);
+  }, [orderIndex, playOrder.join(",")]);
 
   const handleNextHole = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -245,7 +257,7 @@ export default function ScorecardScreen() {
     // setToPar): it is an explicit "take par for the rest" shortcut, not a manual entry,
     // so it must not re-surface a declaration prompt for players the scorer is skipping.
     const saveParsAndProceed = () => {
-      for (const p of playersNeedingPar(displayPlayers, currentHole)) {
+      for (const p of playersNeedingPar(displayPlayers, currentHoleIndex + 1)) {
         updateScore(contest.id, group.id, p.id, currentHole, par);
       }
       proceed();
@@ -264,14 +276,14 @@ export default function ScorecardScreen() {
     }
 
     proceed();
-  }, [contest.id, contest.games, contest.gameConfig, auxiliary, currentHole, currentHoleInfo, currentPlayerScores, advanceToNextHole, allScoredOnHole, displayPlayers, group.id, par, updateScore]);
+  }, [contest.id, contest.games, contest.gameConfig, auxiliary, currentHole, currentHoleInfo, currentPlayerScores, advanceToNextHole, allScoredOnHole, displayPlayers, currentHoleIndex, group.id, par, updateScore]);
 
   const handlePrevHole = useCallback(() => {
-    if (currentHole > 1) {
-      setCurrentHole(currentHole - 1);
+    if (orderIndex > 0) {
+      setCurrentHole(playOrder[orderIndex - 1]);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-  }, [currentHole]);
+  }, [orderIndex, playOrder.join(",")]);
 
   // Handle Tier 2 aux prompt results
   const handleAuxComplete = useCallback(
@@ -496,8 +508,8 @@ export default function ScorecardScreen() {
         </View>
 
         {contest.gameConfig?.rulesVersion===1 && <View style={{paddingHorizontal:20}}>
-          {contest.games.includes("wolf") && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("wolf")} style={{minHeight:44,justifyContent:"center"}}><Text style={{color:COLORS.primary,padding:12}}>Record Wolf decision before play {auxiliary.wolf?.[currentHole]?"✓":"— required"}</Text></Pressable>}
-          {contest.gameConfig.bisqueHandicap && <Pressable disabled={group.players.some(p=>p.scores[currentHole-1]>0)} onPress={()=>setDeclaration("bisque")}><Text style={{color:COLORS.primary,padding:12}}>Declare 0–2 Bisque strokes before this hole {auxiliary.bisque?.[currentHole]?"✓":"— required"}</Text></Pressable>}
+          {contest.games.includes("wolf") && <Pressable disabled={group.players.some(p=>p.scores[currentHoleIndex]>0)} onPress={()=>setDeclaration("wolf")} style={{minHeight:44,justifyContent:"center"}}><Text style={{color:COLORS.primary,padding:12}}>Record Wolf decision before play {auxiliary.wolf?.[currentHole]?"✓":"— required"}</Text></Pressable>}
+          {contest.gameConfig.bisqueHandicap && <Pressable disabled={group.players.some(p=>p.scores[currentHoleIndex]>0)} onPress={()=>setDeclaration("bisque")}><Text style={{color:COLORS.primary,padding:12}}>Declare 0–2 Bisque strokes before this hole {auxiliary.bisque?.[currentHole]?"✓":"— required"}</Text></Pressable>}
           {contest.gameConfig.jokerEnabled && <Pressable disabled={group.players.some(p=>p.scores.some(n=>n>0))} onPress={()=>setDeclaration("jokerDeclarations")}><Text style={{color:COLORS.primary,padding:12}}>Record two public Joker holes per player before round {auxiliary.jokerDeclarations?.[0]?"✓":"— required"}</Text></Pressable>}
         </View>}
         {declaration && <PrePlayDeclarations kind={declaration} players={group.players} course={course} hole={currentHole} config={contest.gameConfig??{}} onClose={()=>setDeclaration(null)} onSave={(key,h,value)=>{try{updateAuxiliaryData(contest.id,key,h,value,group.id);}catch(error){showAlert("Invalid declaration",String(error));}}}/>}
@@ -554,6 +566,9 @@ export default function ScorecardScreen() {
                 key={g.id}
                 onPress={() => {
                   setSelectedGroup(gi);
+                  // Ordinary host scoring switches groups on the current hole. Only an
+                  // import-resume context selects that group's next unscored hole.
+                  if (resumeImport) setCurrentHole(partialImportResume(contest, g.id).hole ?? currentHole);
                 }}
                 style={{
                   backgroundColor:
@@ -592,7 +607,7 @@ export default function ScorecardScreen() {
           showsVerticalScrollIndicator={false}
         >
           {displayPlayers.map((player, idx) => {
-            const score = player.scores[currentHole - 1] || 0;
+            const score = player.scores[currentHoleIndex] || 0;
             const hasScore = score > 0;
             const displayScore = hasScore ? score : par;
             const diff = hasScore ? score - par : 0;
@@ -806,7 +821,7 @@ export default function ScorecardScreen() {
               accessibilityRole="button"
               accessibilityLabel="Previous hole"
               onPress={handlePrevHole}
-              disabled={currentHole <= 1}
+              disabled={orderIndex <= 0}
               style={{
                 flex: 1,
                 flexDirection: "row",
@@ -816,7 +831,7 @@ export default function ScorecardScreen() {
                 backgroundColor: COLORS.surfaceMid,
                 borderRadius: RADII.md,
                 minHeight: compactViewport ? 44 : HOLE_NAV_TARGET,
-                opacity: currentHole <= 1 ? 0.3 : 1,
+                opacity: orderIndex <= 0 ? 0.3 : 1,
               }}
             >
               <ChevronLeft size={16} color={COLORS.textDim} />
@@ -848,7 +863,7 @@ export default function ScorecardScreen() {
                 minHeight: compactViewport ? 44 : HOLE_NAV_TARGET,
                 borderWidth: allScoredOnHole ? 1 : 0,
                 borderColor: COLORS.primary + "44",
-                opacity: currentHole >= 18 ? 0.3 : 1,
+                opacity: orderIndex >= playOrder.length - 1 ? 0.3 : 1,
               }}
             >
               <Text

@@ -19,7 +19,7 @@ assert.ok(nextHole.includes('{ text: "Save pars", onPress: saveParsAndProceed }'
 // Save pars must persist a real score (not just advance) for every unscored
 // player on the current hole, via the same store call manual par-entry uses.
 assert.ok(nextHole.includes('const saveParsAndProceed = () => {'));
-assert.ok(nextHole.includes('for (const p of playersNeedingPar(displayPlayers, currentHole)) {'));
+assert.ok(nextHole.includes('for (const p of playersNeedingPar(displayPlayers, currentHoleIndex + 1)) {'));
 assert.ok(nextHole.includes('updateScore(contest.id, group.id, p.id, currentHole, par);'));
 
 // The existing Tier-2 aux-prompt / advance behavior must still run after

@@ -11,7 +11,7 @@ export function validateStartSlots(contest:Contest) {
   for(const group of groups){
    const slot:StartSlot|undefined=group.startSlot;
    if(!slot)continue;
-   if(!Number.isInteger(slot.hole)||slot.hole<1||slot.hole>course.holes.length)throw new RangeError(`Invalid start hole for group ${group.id}`);
+   if(!Number.isInteger(slot.hole)||!course.holes.some(h=>h.num===slot.hole))throw new RangeError(`Invalid start hole for group ${group.id}`);
    if(slot.wave!==undefined && slot.wave!=="A" && slot.wave!=="B")throw new RangeError(`Invalid start wave for group ${group.id}`);
   }
  };
@@ -65,36 +65,37 @@ export function validateAuxiliaryWrite(contest:Contest,groupId:string,key:keyof 
  const group=(round?.groups??contest.groups).find(g=>g.id===groupId);if(!group)throw new Error('Unknown input group');
  const course=round?.course??contest.course, players=group.players, ids=new Set(players.map(p=>p.id));
  const existing=scopedAuxiliary(contest,groupId,round?.id);
- if(!Number.isInteger(hole) || hole<(key==='jokerDeclarations'?0:1) || hole>course.holes.length)throw new Error('Invalid hole');
+ const holeIndex=course.holes.findIndex(h=>h.num===hole);
+ if(!Number.isInteger(hole) || (key==='jokerDeclarations'?hole!==0:holeIndex<0))throw new Error('Invalid hole');
  if(key==='jokerDeclarations'){
   if(existing.jokerDeclarations?.[0] && JSON.stringify(existing.jokerDeclarations[0])!==JSON.stringify(value))throw new Error("Public Joker choices are locked");
   if(players.some(p=>p.scores.some(n=>n>0)))throw new Error('Joker choices must be recorded before the round');
-  if(!players.every(p=>Array.isArray(value?.[p.id]) && value[p.id].length===2 && new Set(value[p.id]).size===2 && value[p.id].every((n:number)=>Number.isInteger(n)&&n>=1&&n<=course.holes.length)))throw new Error('Record two distinct valid Joker holes for every player');
+  if(!players.every(p=>Array.isArray(value?.[p.id]) && value[p.id].length===2 && new Set(value[p.id]).size===2 && value[p.id].every((n:number)=>Number.isInteger(n)&&course.holes.some(h=>h.num===n))))throw new Error('Record two distinct valid Joker holes for every player');
  }
  if(key==='bisque'){
   if(existing.bisque?.[hole] && JSON.stringify(existing.bisque[hole])!==JSON.stringify(value))throw new Error("Bisque declarations are locked");
-  if(players.some(p=>p.scores[hole-1]>0))throw new Error('Bisques must be declared before playing the hole');
+  if(players.some(p=>p.scores[holeIndex]>0))throw new Error('Bisques must be declared before playing the hole');
   if(value?.beforePlay!==true)throw new Error('Confirm pre-play declaration');
   for(const p of players){const n=value?.strokes?.[p.id], budget=Math.round(p.courseHandicaps?.[course.name]??p.handicap);const used=Object.entries(existing.bisque??{}).reduce((sum,[h,e])=>sum+(Number(h)===hole?0:e.strokes[p.id]??0),0);if(!Number.isInteger(n)||n<0||n>2||budget<0||used+n>budget)throw new Error('Bisque budget exceeded (0–2 per hole, full nonnegative course handicap)');}
  }
  if(key==='wolf'){
   const wolf=players[(hole-1)%4];
   if(players.length!==4 || !value || typeof value.isLoneWolf!=='boolean' || value.partnerId!==null && (!ids.has(value.partnerId)||value.partnerId===wolf.id))throw new Error('Invalid Wolf partner');
-  if(value.beforePlay && players.some(p=>p.scores[hole-1]>0))throw new Error('Pre-play Wolf choices are locked after scoring');
+  if(value.beforePlay && players.some(p=>p.scores[holeIndex]>0))throw new Error('Pre-play Wolf choices are locked after scoring');
   if(existing.wolf?.[hole]?.beforePlay && JSON.stringify(existing.wolf[hole])!==JSON.stringify(value))throw new Error('Pre-play Wolf choice is already locked');
   if(value.blind && (!contest.gameConfig?.blindWolf || !value.beforePlay || !value.isLoneWolf || value.partnerId!==null || value.refused))throw new Error('Blind Wolf requires a pre-tee solo declaration');
   if(value.refused && (!contest.gameConfig?.pigVariation || !value.beforePlay || !value.partnerId || value.isLoneWolf || value.blind))throw new Error('Pig requires the selected partner to refuse before play');
  }
  if(key==='snake' && (!Array.isArray(value)||new Set(value).size!==value.length||value.some((id:string)=>!ids.has(id))))throw new Error('Record unique three-putters in chronological order');
- if(key==='greenies' && (course.holes[hole-1].par!==3 || value!==null && !ids.has(value)))throw new Error('Invalid par-3 greenie');
+ if(key==='greenies' && (course.holes[holeIndex].par!==3 || value!==null && !ids.has(value)))throw new Error('Invalid par-3 greenie');
  if(key==='bbb' && ['bingo','bango','bongo'].some(k=>value?.[k]!==null && !ids.has(value?.[k])))throw new Error('Confirm every BBB award or explicitly select no award');
  if(key==='hammer' && (!value || typeof value.hammered!=='boolean' || typeof value.accepted!=='boolean' || value.hammered && !ids.has(value.hammerBy)))throw new Error('Invalid hammer decision');
- if(key==='junk' && (!value || !Array.isArray(value.sandies)||!Array.isArray(value.barkies)||[...value.sandies,...value.barkies].some((id:string)=>!ids.has(id)||players.find(p=>p.id===id)!.scores[hole-1]>course.holes[hole-1].par) || value.greenie!==null && !ids.has(value.greenie)))throw new Error('Confirm actual qualifying junk feats');
+ if(key==='junk' && (!value || !Array.isArray(value.sandies)||!Array.isArray(value.barkies)||[...value.sandies,...value.barkies].some((id:string)=>!ids.has(id)||players.find(p=>p.id===id)!.scores[holeIndex]>course.holes[holeIndex].par) || value.greenie!==null && !ids.has(value.greenie)))throw new Error('Confirm actual qualifying junk feats');
 }
 export function validateScoreWrite(contest:Contest,groupId:string,playerId:string,hole:number,strokes:number) {
  const round=contest.isTournament?contest.rounds?.find(r=>r.number===contest.currentRound):undefined;
  const group=(round?.groups??contest.groups).find(g=>g.id===groupId),course=round?.course??contest.course;
- if(!group?.players.some(p=>p.id===playerId) || !Number.isInteger(hole)||hole<1||hole>course.holes.length || !Number.isInteger(strokes)||strokes<0||strokes>99)throw new Error('Invalid score entry');
+ if(!group?.players.some(p=>p.id===playerId) || !Number.isInteger(hole)||!course.holes.some(h=>h.num===hole) || !Number.isInteger(strokes)||strokes<0||strokes>99)throw new Error('Invalid score entry');
  if(contest.status==='completed')throw new Error('Completed scorecards are locked');
  if(contest.gameConfig?.rulesVersion!==1 || contest.gameConfig.inputRulesVersion!==1 || strokes===0)return;
  const aux=scopedAuxiliary(contest,groupId,round?.id);
