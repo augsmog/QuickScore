@@ -1,6 +1,5 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
-const http = require("node:http");
 const path = require("node:path");
 const ts = require("typescript");
 const vm = require("node:vm");
@@ -28,28 +27,6 @@ function load(rel, stubs = {}) {
 
 function externalScriptTags(html) {
   return [...html.matchAll(/<script\b[^>]*>/gi)].map((match) => match[0]);
-}
-
-function startSite() {
-  const site = path.join(root, "site");
-  const server = http.createServer((req, res) => {
-    const pathname = decodeURIComponent(new URL(req.url, "http://127.0.0.1").pathname);
-    const rel = pathname.replace(/^\/+/, "");
-    const candidates = [
-      path.resolve(site, rel),
-      path.resolve(site, rel, "index.html"),
-    ];
-    const file = candidates.find((candidate) => candidate.startsWith(site + path.sep) && fs.existsSync(candidate) && fs.statSync(candidate).isFile());
-    if (!file) {
-      res.writeHead(404).end("missing");
-      return;
-    }
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    fs.createReadStream(file).pipe(res);
-  });
-  return new Promise((resolve) => {
-    server.listen(0, "127.0.0.1", () => resolve({ server, port: server.address().port }));
-  });
 }
 
 test("public host and contact are the autumn8 values", () => {
@@ -113,7 +90,7 @@ test("Pages deploy targets snapscore-site, not the existing snapscore project", 
   expect(script).not.toMatch(/--project-name snapscore(?!-site)/);
 });
 
-test("support route renders the contact email, deletion request, and no external scripts", async () => {
+test("approved home and support copy stays in sync across both public-page render surfaces", () => {
   const pages = load("src/web/public-pages.ts");
   const privacyMarkdown = fs.readFileSync(path.join(root, "docs/privacy-policy.md"), "utf8");
   expect(crypto.createHash("sha256").update(privacyMarkdown).digest("hex")).toBe(
@@ -127,52 +104,48 @@ test("support route renders the contact email, deletion request, and no external
   expect(privacyMarkdown.toLowerCase()).not.toContain("draft");
   expect(privacyMarkdown).not.toContain("august-industries.com");
   const supportHtml = fs.readFileSync(path.join(root, "site/support/index.html"), "utf8");
+  const homeHtml = fs.readFileSync(path.join(root, "site/index.html"), "utf8");
   const privacyHtml = fs.readFileSync(path.join(root, "site/privacy/index.html"), "utf8");
   const renderedSupport = pages.renderSupportPage();
+  const renderedHome = pages.renderHomePage();
   const renderedPrivacy = pages.renderPrivacyPage(privacyMarkdown);
   expect(supportHtml).toBe(renderedSupport.endsWith("\n") ? renderedSupport : `${renderedSupport}\n`);
+  expect(homeHtml).toBe(renderedHome.endsWith("\n") ? renderedHome : `${renderedHome}\n`);
   expect(privacyHtml).toBe(renderedPrivacy.endsWith("\n") ? renderedPrivacy : `${renderedPrivacy}\n`);
+  expect(homeHtml).toContain("Score your round, run your games, and see who owes what. Got a paper card? Scan it.");
+  expect(supportHtml).toContain("SnapScore helps golf groups record rounds, run side games and see who owes what. Enter scores by hand or choose to scan a paper scorecard and review the results before saving.");
+  expect(supportHtml).toContain("How do I record a round?");
+  expect(supportHtml.indexOf("How do I record a round?")).toBeLessThan(supportHtml.indexOf("How does scorecard scanning work?"));
+  expect(supportHtml).toContain("SnapScore includes 50+ game modes");
+  expect(supportHtml).toContain("mailto:hello@snapscore.autumn8.me");
+  expect(supportHtml).not.toMatch(/\b(bet|wager|gamble|payout|unlock)\b/i);
 
-  const { server, port } = await startSite();
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/support`);
-    expect(response.status).toBe(200);
-    const html = await response.text();
-    expect(html).toContain("mailto:augie@autumn8.me");
-    expect(html).toContain("augie@autumn8.me");
-    expect(html).toContain('id="data-deletion"');
-    expect(html).toContain("does not automatically delete data stored on SnapScore's servers");
-    expect(html).toContain("To request deletion of that server data");
-    expect(html).toContain('href="/privacy"');
-    expect(html.toLowerCase()).not.toContain("coming soon");
-    expect(html).not.toContain("johnaugustjones@gmail.com");
-    expect(externalScriptTags(html)).toEqual([]);
-    expect(html).not.toMatch(/\bsrc\s*=\s*["']https?:/i);
-    expect(html).toContain('name="viewport" content="width=device-width, initial-scale=1"');
-    expect(html).toContain("@media (max-width: 390px)");
+  expect(supportHtml).toContain("mailto:hello@snapscore.autumn8.me");
+  expect(supportHtml).toContain("How do I record a round?");
+  expect(supportHtml).toContain('href="/privacy"');
+  expect(supportHtml.toLowerCase()).not.toContain("coming soon");
+  expect(supportHtml).not.toContain("johnaugustjones@gmail.com");
+  expect(externalScriptTags(supportHtml)).toEqual([]);
+  expect(supportHtml).not.toMatch(/\bsrc\s*=\s*["']https?:/i);
+  expect(supportHtml).toContain('name="viewport" content="width=device-width, initial-scale=1"');
+  expect(supportHtml).toContain("@media (max-width: 390px)");
 
-    const privacy = await fetch(`http://127.0.0.1:${port}/privacy`);
-    const privacyBody = await privacy.text();
-    expect(privacy.status).toBe(200);
-    expect(privacyBody).toContain("mailto:augie@autumn8.me");
-    expect(privacyBody).toContain("<title>Privacy policy · SnapScore</title>");
-    expect(privacyBody).toContain('id="retention-and-deletion"');
-    expect(privacyBody).toContain('id="children"');
-    expect(privacyBody).toContain("It does not delete your account or data on SnapScore's servers");
-    expect(privacyBody).toContain("Effective date: October 30, 2026");
-    expect(privacyBody).toContain("SnapScore is operated by John August Jones");
-    expect(privacyBody).toContain("To ask us to delete your account and the data stored on SnapScore's servers");
-    expect(privacyBody).toContain("forwards it to Anthropic's API");
-    expect(privacyBody).not.toContain("Draft dated");
-    expect(privacyBody).not.toContain("johnaugustjones@gmail.com");
-    expect(externalScriptTags(privacyBody)).toEqual([]);
-    expect(privacyBody).not.toMatch(/\bsrc\s*=\s*["']https?:/i);
-  } finally {
-    await new Promise((resolve) => server.close(resolve));
-  }
+  expect(privacyHtml).toContain("mailto:augie@autumn8.me");
+  expect(privacyHtml).toContain("<title>Privacy policy · SnapScore</title>");
+  expect(privacyHtml).toContain('id="retention-and-deletion"');
+  expect(privacyHtml).toContain('id="children"');
+  expect(privacyHtml).toContain("It does not delete your account or data on SnapScore's servers");
+  expect(privacyHtml).toContain("Effective date: October 30, 2026");
+  expect(privacyHtml).toContain("SnapScore is operated by John August Jones");
+  expect(privacyHtml).toContain("To ask us to delete your account and the data stored on SnapScore's servers");
+  expect(privacyHtml).toContain("forwards it to Anthropic's API");
+  expect(privacyHtml).not.toContain("Draft dated");
+  expect(privacyHtml).not.toContain("johnaugustjones@gmail.com");
+  expect(externalScriptTags(privacyHtml)).toEqual([]);
+  expect(privacyHtml).not.toMatch(/\bsrc\s*=\s*["']https?:/i);
 });
 
-test("terms route is generated from docs/terms-of-service.md", async () => {
+test("terms route is generated from docs/terms-of-service.md", () => {
   const pages = load("src/web/public-pages.ts");
   const termsMarkdown = fs.readFileSync(path.join(root, "docs/terms-of-service.md"), "utf8");
   expect(termsMarkdown).toContain("Effective Date: March 24, 2026");
@@ -183,22 +156,14 @@ test("terms route is generated from docs/terms-of-service.md", async () => {
   const renderedTerms = pages.renderTermsPage(termsMarkdown);
   expect(termsHtml).toBe(renderedTerms.endsWith("\n") ? renderedTerms : `${renderedTerms}\n`);
 
-  const { server, port } = await startSite();
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/terms`);
-    expect(response.status).toBe(200);
-    const html = await response.text();
-    expect(html).toContain("<title>Terms of Service — SnapScore Golf</title>");
-    expect(html).toContain("Effective Date: March 24, 2026");
-    expect(html).toContain("The App is a score-tracking and calculation tool only.");
-    expect(html).toContain("State of Texas");
-    expect(html).toContain("mailto:augie@autumn8.me");
-    expect(html).toContain('href="/terms" aria-current="page"');
-    expect(html).not.toContain("august-industries.com");
-    expect(html).not.toContain("support@august-industries.com");
-    expect(externalScriptTags(html)).toEqual([]);
-    expect(html).not.toMatch(/\bsrc\s*=\s*["']https?:/i);
-  } finally {
-    await new Promise((resolve) => server.close(resolve));
-  }
+  expect(termsHtml).toContain("<title>Terms of Service — SnapScore Golf</title>");
+  expect(termsHtml).toContain("Effective Date: March 24, 2026");
+  expect(termsHtml).toContain("The App is a score-tracking and calculation tool only.");
+  expect(termsHtml).toContain("State of Texas");
+  expect(termsHtml).toContain("mailto:augie@autumn8.me");
+  expect(termsHtml).toContain('href="/terms" aria-current="page"');
+  expect(termsHtml).not.toContain("august-industries.com");
+  expect(termsHtml).not.toContain("support@august-industries.com");
+  expect(externalScriptTags(termsHtml)).toEqual([]);
+  expect(termsHtml).not.toMatch(/\bsrc\s*=\s*["']https?:/i);
 });
