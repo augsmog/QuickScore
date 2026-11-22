@@ -15,7 +15,8 @@ export interface PartialImportStoreAction {
     contestId: string,
     roundId: string | null,
     groupId: string,
-    patch: readonly PartialImportCell[]
+    patch: readonly PartialImportCell[],
+    playedHoles: readonly number[]
   ) => void;
 }
 
@@ -40,9 +41,9 @@ export function confirmPartialImportToStore(
 ): PartialImportConfirmOutcome {
   let storeError: string | null = null;
   try {
-    const state = session.confirm(accountId, context, (patch) => {
+    const state = session.confirm(accountId, context, (patch, playedHoles) => {
       try {
-        store.applyReviewedPartialImport(context.contestId, context.roundId, context.groupId, patch);
+        store.applyReviewedPartialImport(context.contestId, context.roundId, context.groupId, patch, playedHoles);
       } catch (error) {
         storeError = error instanceof Error ? error.message : String(error);
         throw error;

@@ -33,7 +33,12 @@ function contextEquals(a: PartialImportSessionContext, b: PartialImportSessionCo
  * instances -- callers can mutate what they're handed without corrupting session state. */
 function cloneResult(result: PartialImportResult): PartialImportResult {
   if (!result.ok) return { ok: false, blockers: [...result.blockers] };
-  return { ok: true, complete: result.complete, patch: result.patch.map((cell) => ({ ...cell })) };
+  return {
+    ok: true,
+    complete: result.complete,
+    patch: result.patch.map((cell) => ({ ...cell })),
+    playedHoles: [...result.playedHoles],
+  };
 }
 
 /** Returns a copy whose nested context, result and patch (if any) are never the internal
@@ -124,7 +129,7 @@ export class PartialImportSession {
   confirm(
     accountId: string,
     context: PartialImportSessionContext,
-    apply: (patch: readonly PartialImportCell[]) => void
+    apply: (patch: readonly PartialImportCell[], playedHoles: readonly number[]) => void
   ): PartialImportSessionState {
     if (accountId !== this.accountId) throw new Error("Confirm belongs to a different account");
     if (context.accountId !== accountId) throw new Error("Confirm context does not match the confirming account");
@@ -148,8 +153,9 @@ export class PartialImportSession {
     // that reentrant confirm see the token as not-yet-applied and invoke `apply` a second time.
     if (draftToken !== null) this.appliedTokens.add(draftToken);
     const patch = this.state.result.patch;
+    const playedHoles = this.state.result.playedHoles;
     const generationBeforeApply = this.generation;
-    apply(patch);
+    apply(patch, playedHoles);
     if (this.generation !== generationBeforeApply) {
       // apply() itself invalidated this session (e.g. triggered setAccount/discard, or started a
       // new review) -- honor that instead of resurrecting a confirmed state over it.

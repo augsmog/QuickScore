@@ -36,11 +36,11 @@ function draftSession(strokes: number | null = 4, confidence = 0.95): PartialImp
 }
 
 function recordingStore(fail?: string) {
-  const calls: Array<[string, string | null, string, readonly PartialImportCell[]]> = [];
+  const calls: Array<[string, string | null, string, readonly PartialImportCell[], readonly number[]]> = [];
   return {
     calls,
-    applyReviewedPartialImport(contestId: string, roundId: string | null, groupId: string, patch: readonly PartialImportCell[]) {
-      calls.push([contestId, roundId, groupId, patch]);
+    applyReviewedPartialImport(contestId: string, roundId: string | null, groupId: string, patch: readonly PartialImportCell[], playedHoles: readonly number[]) {
+      calls.push([contestId, roundId, groupId, patch, playedHoles]);
       if (fail) throw new Error(fail);
     },
   };
@@ -52,8 +52,25 @@ describe("confirmPartialImportToStore", () => {
     const store = recordingStore();
     const outcome = confirmPartialImportToStore(session, "acct-1", ctx(), store);
     expect(outcome).toEqual({ ok: true, patch: [{ playerId: "a", hole: 10, strokes: 4 }] });
-    expect(store.calls).toEqual([["contest-1", "round-1", "group-1", [{ playerId: "a", hole: 10, strokes: 4 }]]]);
+    expect(store.calls).toEqual([["contest-1", "round-1", "group-1", [{ playerId: "a", hole: 10, strokes: 4 }], [10]]]);
     expect(session.getState().status).toBe("confirmed");
+  });
+
+  it("an identical (no-op) reviewed score still reports the confirmed-played hole to the store", () => {
+    const session = new PartialImportSession();
+    session.setAccount("acct-1");
+    const token = session.beginReview("acct-1", ctx());
+    session.completeReview(token, ctx(), {
+      rows: [{ name: "A", source: "ocr", matchedPlayerId: "a", requiredHoles: [10], scores: [4], confidence: [0.95], nameConfidence: 0.95 }],
+      players: [{ id: "a", name: "A", scores: { 10: 4 } }],
+      holeIdentities: [10],
+      playedHoles: new Set([10]),
+      coverage: "sparse",
+    });
+    const store = recordingStore();
+    const outcome = confirmPartialImportToStore(session, "acct-1", ctx(), store);
+    expect(outcome).toEqual({ ok: true, patch: [] });
+    expect(store.calls).toEqual([["contest-1", "round-1", "group-1", [], [10]]]);
   });
 
   it("a repeated confirm does not write twice", () => {
