@@ -88,21 +88,28 @@ def execute(source,out):
  manifestpath=out/'build.json';manifestpath.write_text(json.dumps(manifest,indent=2)+'\n')
  (out/'apk-transport.json').write_text(json.dumps({'sourceSha':manifest['sourceSha'],'sourceTree':manifest['sourceTree'],'apkSha256':h,'aggregatePass':False,**inspect_transport(pathlib.Path(sdk)/'build-tools/36.0.0/aapt',apk)},indent=2)+'\n')
  cmd([tools['adb'],'-s',serial,'install','-r',str(apk)],'install',60)
- # No fixtures or permission grants. Offline app completes onboarding through existing product behavior.
+ return run_scales(adb,package,{'source':str(source),'serial':serial,'package':package,'apk':str(apk),'buildManifest':str(manifestpath)},out,h)
+
+def run_scales(adb,package,base,out,apk_hash):
+ from checkpoints import journey,SupplementalJourneyBlocked
+ # No reset of persisted app data: ordinary process cold-start and verified Home
+ # are required afresh before any next-scale supplemental action.
  original=adb('shell','settings','get','system','font_scale')
  if not re.fullmatch(r'\d+(?:\.\d+)?',original):raise ValueError('cannot safely restore original font scale')
- results=[]
+ results=[];failures=[]
  try:
   for value in [1.0,1.3]:
    adb('shell','settings','put','system','font_scale',str(value))
    adb('shell','am','force-stop',package)
    adb('shell','monkey','-p',package,'-c','android.intent.category.LAUNCHER','1')
-   cfg={'source':str(source),'serial':serial,'package':package,'apk':str(apk),'buildManifest':str(manifestpath),'expectedScale':value,'out':str(out/('scale-'+str(value)))}
-   # smoke performs bounded read-only Home readiness; capture/scale/provenance failures are never retried.
+   cfg={**base,'expectedScale':value,'out':str(out/('scale-'+str(value)))}
+   # Fatal Home/provenance failures are outside the supplemental catch.
    smoke(cfg)
    results.append(value)
-   from checkpoints import journey
-   journey(cfg)
+   try:journey(cfg)
+   except SupplementalJourneyBlocked as error:
+    failures.append({'scale':value,'phase':error.phase,'status':'BLOCKED'})
  finally:adb('shell','settings','put','system','font_scale',original)
- (out/'smoke-summary.json').write_text(json.dumps({'observedScales':results,'apkSha256':h,'aggregatePass':False,'runtimePaywall':False,'nativeJoin':False},indent=2)+'\n')
+ (out/'smoke-summary.json').write_text(json.dumps({'observedScales':results,'apkSha256':apk_hash,'supplementalFailures':failures,'aggregatePass':False,'runtimePaywall':False,'nativeJoin':False},indent=2)+'\n')
+ if failures:raise ValueError('SUPPLEMENTAL_JOURNEY_INCOMPLETE')
  return results

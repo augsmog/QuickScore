@@ -6,6 +6,13 @@ contain allowlisted checkpoint names and bounds, never raw UI/device data.
 import json,pathlib,re,subprocess,time,xml.etree.ElementTree as ET
 from smoke import run as capture, target_focus
 
+class SupplementalJourneyBlocked(ValueError):
+ def __init__(self,phase):
+  self.phase=phase
+  super().__init__('ANDROID_CONTINUATION_BLOCKED:'+phase)
+
+class CaptureBoundaryFailure(ValueError):pass
+
 HEADER='Run the game. We do the math.'
 MISSING='Contest not found on this device. Offline codes work only in the organizer’s browser.'
 SCENES={
@@ -124,7 +131,8 @@ class Driver:
   def guard(xml,focus,package):
    target_focus(focus,package);validate(tree(xml,package),name);return []
   cfg={**self.c,'out':str(self.out/name),'_scene':guard,'_checkpoint':name}
-  capture(cfg)
+  try:capture(cfg)
+  except Exception:raise CaptureBoundaryFailure('CONTINUATION_CAPTURE_BOUNDARY_FAILED') from None
   # Bounds are observed accessibility bounds, not painted glyph geometry or dp.
   targets=list(SCENES[name])+list(TEXTS.get(name,()))
   bounds={str(i):box(one(root,k,'id' if k in SCENES[name] else 'text')) for i,k in enumerate(targets)}
@@ -169,5 +177,8 @@ def journey(c):
   d.seek('rounds-2',direction='up');validate(d.read(),'rounds')
   d.report.append({'checkpoint':'draft-retained','verified':True})
   d.tap('new-contest-back');d.save('CAPTURED_SUPPLEMENTAL_ONLY')
- except Exception:
-  d.save('BLOCKED');raise ValueError('ANDROID_CONTINUATION_BLOCKED:'+d.phase) from None
+ except Exception as error:
+  d.save('BLOCKED')
+  if isinstance(error,CaptureBoundaryFailure):raise
+  if isinstance(error,(ValueError,subprocess.SubprocessError)):raise SupplementalJourneyBlocked(d.phase) from None
+  raise
