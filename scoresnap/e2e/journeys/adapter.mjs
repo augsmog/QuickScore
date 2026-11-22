@@ -207,8 +207,8 @@ export const cases={
     await check('entry',()=>ready(page,'round-scorecard'));
     await check('code-visible',async()=>assert.equal((await page.getByTestId('organizer-join-code').innerText()).trim(),'Join code: JRNY26'));
     await act.activate(page.getByTestId('journey-invite'),{feature:'invite'});
-    await check('activation',()=>page.getByText('Local invite link copied · same browser only',{exact:true}).waitFor({state:'visible'}));
-    await check('destination',async()=>assert.match(await page.evaluate(()=>navigator.clipboard.readText()),/\/join\/JRNY26$/));
+    await check('activation',()=>page.getByText('Local join code copied · same browser only',{exact:true}).waitFor({state:'visible'}));
+    await check('destination',async()=>assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'Same browser only — This join code works on this device/browser, not another phone. Live cross-device sharing is coming. Join with code JRNY26.'));
     await check('outcome',async()=>assert.equal((await contests(page))[0].joinCode,'JRNY26')); await step('invite-copied');
   },
   'J-game-rules':async({page,act,check,step})=>{
