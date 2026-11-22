@@ -1,9 +1,12 @@
 """Staged disposable dual boot only; bounded redacted terminal receipt."""
 import contextlib,json,os,re,signal,subprocess,sys,time
 import two_iphone_preflight as probe
-REF='refs/heads/qa/snapscore-hosted-dual-boot-main'
+REF='refs/heads/qa/snapscore-hosted-dual-boot-intel'
 FLOOR=12*(1<<30)
 TRANSPORT_MAX_NS=30_000_000_000
+EXPECTED_SDK=("26.4", "23E252")
+INTEL_RAM_BYTES=14_000_000_000
+INTEL_LOGICAL_CPUS=4
 
 def transport_admission():
  # Same host clock across Python >=3.10 processes on macOS, not shell wall time.
@@ -24,21 +27,26 @@ def run():
  if not re.fullmatch('[0-9a-f]{40}',sha):raise probe.GateError('HARNESS_SHA_REQUIRED','HOST_SCOPE')
  tmp,marker=probe.job_context()
  d=probe.Diagnostic()
- result={'harnessSha':sha,'scope':'disposable-dual-boot-only','nativeAppProof':False,'buildBudgetPass':None}
+ result={'harnessSha':sha,'scope':'disposable-dual-boot-only','nativeAppProof':False,'buildBudgetPass':None,
+         'runnerLabel':probe.HOST_LABEL,'processorArchitecture':probe.HOST_ARCH}
  started=time.monotonic();phase='installed-readbacks'
  try:
   d.at('transport-admission');transport_admission()
   d.at('memory-readback')
-  try:memory=subprocess.run(['/usr/sbin/sysctl','-n','hw.memsize'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=10,check=True)
+  try:memory=subprocess.run(['/usr/sbin/sysctl','-n','hw.memsize','hw.logicalcpu'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=10,check=True)
   except subprocess.TimeoutExpired as e:raise probe.GateError('memory unavailable','COMMAND_TIMEOUT') from e
   except subprocess.CalledProcessError as e:raise probe.GateError('memory unavailable','COMMAND_NONZERO') from e
-  if not re.fullmatch(rb'[0-9]{1,20}\s*',memory.stdout):raise probe.GateError('RAM_READBACK_INVALID','MEMORY_READBACK_INVALID')
-  result['physicalRamBytes']=int(memory.stdout)
+  profile=re.fullmatch(rb'([0-9]{1,20})\n([0-9]{1,3})\s*',memory.stdout)
+  if not profile:raise probe.GateError('memory/CPU readback invalid','MEMORY_READBACK_INVALID')
+  result['physicalRamBytes'],result['logicalCpuCount']=map(int,profile.groups())
+  if result['physicalRamBytes']<INTEL_RAM_BYTES or result['logicalCpuCount']<INTEL_LOGICAL_CPUS:
+   raise probe.GateError('standard Intel capacity profile mismatch','INTEL_CAPACITY_PROFILE_MISMATCH')
   d.at('sdk-readback')
   sdk=probe.command('--sdk','iphonesimulator','--show-sdk-version')
   sdkbuild=probe.command('--sdk','iphonesimulator','--show-sdk-build-version')
   if not re.fullmatch('[0-9.]{1,20}',sdk) or not re.fullmatch('[A-Za-z0-9.]{1,32}',sdkbuild):raise probe.GateError('SDK_READBACK_INVALID','SDK_READBACK_INVALID')
   result['simulatorSdk']={'version':sdk,'build':sdkbuild}
+  if (sdk,sdkbuild)!=EXPECTED_SDK:raise probe.GateError('simulator SDK pin mismatch','SDK_MISMATCH')
   d.at('disk-before')
   result['freeBefore']=probe.free_space(tmp,FLOOR,'before probe')
   phase='canonical-dual-boot'

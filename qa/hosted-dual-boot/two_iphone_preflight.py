@@ -17,6 +17,8 @@ import tempfile
 import time
 import uuid
 
+HOST_LABEL = "macos-26-intel"
+HOST_ARCH = "x86_64"
 XCODE = "/Applications/Xcode_26.4.1.app/Contents/Developer"
 XCODE_ID = ("Xcode 26.4.1", "Build version 17E202")
 RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-26-4"
@@ -46,7 +48,7 @@ PRIMARY_STAGES = frozenset(("host-context", "transport-admission", "memory-readb
 CLEANUP_STAGES = frozenset(("cleanup-identify", "cleanup-shutdown", "cleanup-shutdown-readback",
     "cleanup-delete", "cleanup-delete-readback", "cleanup-journal"))
 CODES = frozenset(("HOST_SCOPE", "HOST_CONTEXT", "TRANSPORT_BUDGET_INVALID", "TRANSPORT_BUDGET_EXHAUSTED",
-    "CATALOG_DEADLINE", "MEMORY_READBACK_INVALID", "SDK_READBACK_INVALID",
+    "CATALOG_DEADLINE", "MEMORY_READBACK_INVALID", "INTEL_CAPACITY_PROFILE_MISMATCH", "SDK_READBACK_INVALID", "SDK_MISMATCH",
     "DISK_FLOOR", "XCODE_MISMATCH", "RUNTIME_MISMATCH", "DEVICE_TYPE_MISSING",
     "RUNTIME_DEVICE_UNSUPPORTED", "INVENTORY_INVALID", "NONCE_COLLISION", "FRESH_UUID_REQUIRED",
     "IDENTITY_DRIFT", "CREATED_NOT_SHUTDOWN", "PREBOOT_NOT_SHUTDOWN",
@@ -80,6 +82,7 @@ class Diagnostic:
         self.stage = "host-context"
         self.role = None
         self.primary = None
+        self.catalog_verified = False
         self.host_boot_command_completed = False
         self.host_stable_before_guest = False
         self.guest_boot_requested = False
@@ -99,7 +102,7 @@ class Diagnostic:
 
     def fields(self):
         return {"primaryFailure": self.primary, "simultaneousBootVerified": self.dual_boot_verified,
-                "bootStrategy": "staged-host-then-guest",
+                "bootStrategy": "staged-host-then-guest", "catalogVerified": self.catalog_verified,
                 "bootReadbacks": {"hostBootCommandCompleted": self.host_boot_command_completed,
                                   "hostStableBeforeGuest": self.host_stable_before_guest,
                                   "guestBootRequested": self.guest_boot_requested,
@@ -111,10 +114,10 @@ class Diagnostic:
 
 def job_context():
     expected = {"GITHUB_ACTIONS": "true", "RUNNER_OS": "macOS",
-                "RUNNER_ARCH": "ARM64", "RUNNER_ENVIRONMENT": "github-hosted"}
-    if (platform.system() != "Darwin" or platform.machine() != "arm64"
+                "RUNNER_ARCH": "X64", "RUNNER_ENVIRONMENT": "github-hosted"}
+    if (platform.system() != "Darwin" or platform.machine() != HOST_ARCH
             or any(os.environ.get(k) != v for k, v in expected.items())):
-        raise GateError("expected a standard GitHub-hosted macOS arm64 job; no simulator commands ran", "HOST_CONTEXT")
+        raise GateError("expected a standard GitHub-hosted macOS Intel job; no simulator commands ran", "HOST_CONTEXT")
     fields = [os.environ.get(k, "") for k in ("GITHUB_REPOSITORY", "GITHUB_RUN_ID",
               "GITHUB_RUN_ATTEMPT", "GITHUB_JOB", "RUNNER_NAME", "RUNNER_TEMP")]
     if not all(fields) or not Path(fields[-1]).is_absolute():
@@ -187,8 +190,10 @@ def validate_catalog(diagnostic=None):
     if sum(d.get("identifier") == DEVICE for d in doc.get("devicetypes", [])) != 1:
         raise GateError("exact iPhone 16 Pro device type unavailable", "DEVICE_TYPE_MISSING")
     supported = runtimes[0].get("supportedDeviceTypes")
-    if supported and not any(d.get("identifier") == DEVICE for d in supported):
-        raise GateError("installed runtime does not advertise support for iPhone 16 Pro", "RUNTIME_DEVICE_UNSUPPORTED")
+    if (not isinstance(supported, list) or
+            sum(isinstance(item, dict) and item.get("identifier") == DEVICE for item in supported) != 1):
+        raise GateError("installed runtime does not advertise exact support for iPhone 16 Pro", "RUNTIME_DEVICE_UNSUPPORTED")
+    d.catalog_verified = True
     return rows
 
 

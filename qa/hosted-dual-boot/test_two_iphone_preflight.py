@@ -254,7 +254,7 @@ class PreflightTests(unittest.TestCase):
             self.probe()
         self.sim.build = subject.RUNTIME_BUILD
         self.sim.supports = False
-        with self.assertRaisesRegex(subject.GateError, "does not advertise support"):
+        with self.assertRaisesRegex(subject.GateError, "does not advertise exact support"):
             self.probe()
         self.assertFalse(any(c[1:2] == ["create"] for c, _ in self.sim.calls))
         self.only_original()
@@ -445,6 +445,31 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(failure.exception.code,"CATALOG_DEADLINE")
         self.assertEqual(d.stage,"catalog-simctl-inventory")
         self.assertEqual([cmd for cmd,_ in self.sim.calls],[["xcodebuild","-version"]])
+
+    def test_intel_context_requires_real_machine_and_hosted_x64_markers(self):
+        flags={"GITHUB_ACTIONS":"true","RUNNER_OS":"macOS","RUNNER_ARCH":"X64",
+            "RUNNER_ENVIRONMENT":"github-hosted","GITHUB_REPOSITORY":"augsmog/QuickScore","GITHUB_RUN_ID":"1",
+            "GITHUB_RUN_ATTEMPT":"1","GITHUB_JOB":"dual_boot","RUNNER_NAME":"fake","RUNNER_TEMP":str(self.tmp)}
+        for machine, override in (("x86_64",{}),("arm64",{}),("x86_64",{"RUNNER_ARCH":"ARM64"}),
+            ("x86_64",{"RUNNER_ENVIRONMENT":"self-hosted"})):
+            with self.subTest(machine=machine,override=override), patch.object(subject.platform,"system",return_value="Darwin"), \
+                 patch.object(subject.platform,"machine",return_value=machine), patch.dict(os.environ,flags|override,clear=True):
+                if machine=="x86_64" and not override:
+                    self.assertEqual(subject.job_context()[0],self.tmp)
+                else:
+                    with self.assertRaisesRegex(subject.GateError,"no simulator commands ran"):subject.job_context()
+        self.assertEqual(self.sim.calls,[])
+
+    def test_incomplete_runtime_device_catalog_is_not_admitted(self):
+        doc={"runtimes":[{"identifier":subject.RUNTIME, "version":subject.RUNTIME_VERSION,
+             "buildversion":subject.RUNTIME_BUILD,"isAvailable":True}],"devicetypes":[{"identifier":subject.DEVICE}]}
+        d=subject.Diagnostic()
+        with patch.object(subject,"inventory",return_value=(doc,[])):
+            with self.assertRaisesRegex(subject.GateError, "exact support"):
+                subject.preflight(self.tmp, MARK, 4*subject.GIB, subject.BOOT_SHARED_SECONDS, False,d)
+        self.assertFalse(d.catalog_verified)
+        self.assertEqual(d.primary,{"stage":"catalog-validation","code":"RUNTIME_DEVICE_UNSUPPORTED"})
+        self.assertEqual(self.sim.mutations(),[])
 
     def test_host_gate_refuses_non_darwin_with_zero_simctl(self):
         with patch.object(subject.platform, "system", return_value="Linux"):

@@ -1,11 +1,11 @@
-name: E2E iOS simulator dual boot
+name: E2E iOS simulator dual boot (Intel admission)
 on:
   workflow_dispatch:
 permissions: {}
 jobs:
   dual_boot:
-    if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-hosted-dual-boot-main'
-    runs-on: macos-26
+    if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-hosted-dual-boot-intel' && toJSON(github.event.repository.private) == 'false'
+    runs-on: macos-26-intel
     timeout-minutes: 8
     steps:
       - name: Read two exact QA blobs without checking out unrelated gitlinks
@@ -20,6 +20,10 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
+          if [[ "${RUNNER_ENVIRONMENT:-}" != github-hosted || "${RUNNER_OS:-}" != macOS || "${RUNNER_ARCH:-}" != X64 ]]; then
+            echo '{"status":"BLOCKED","primaryFailure":{"stage":"host-context","code":"HOST_CONTEXT"},"nativeAppProof":false}'
+            exit 78
+          fi
           started_ns="$(python3 -I -S -c 'from time import monotonic_ns; print(monotonic_ns())')"
           [[ "${GITHUB_SHA:-}" =~ ^[0-9a-f]{40}$ ]]
           unset GIT_CONFIG_PARAMETERS
@@ -34,8 +38,8 @@ jobs:
             path="qa/hosted-dual-boot/$file"
             blob="$(g rev-parse "$GITHUB_SHA:$path")"
             case "$file" in
-              run.py) expected=7158bba41c5d0002d7864e8d76680ed5d108a66e ;;
-              two_iphone_preflight.py) expected=693dabf95104b15f353a359aec1bda1173d97a96 ;;
+              run.py) expected=ce5822862a8afa4a2460d6a0374b586a7c84c756 ;;
+              two_iphone_preflight.py) expected=59d1d2bcb89a303efc42c31dfe42334f398762ab ;;
             esac
             [[ "$blob" == "$expected" ]]
             [[ "$(g ls-tree "$GITHUB_SHA" -- "$path")" == "100644 blob $blob"$'\t'"$path" ]]
