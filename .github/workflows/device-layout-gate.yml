@@ -1,16 +1,15 @@
-name: SnapScore private Android capture
-# Selected QA ref only. Never merge this replacement into main.
-# Existing registered path; supplemental output never satisfies the required gate.
+name: SnapScore offline compile diagnostic
+# Selected QA ref only; never merge this replacement into main.
 on:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: snapscore-private-android-capture
+  group: snapscore-private-android-compile
   cancel-in-progress: false
 jobs:
-  android-compact:
-    if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-main-android-capture'
+  compile-only:
+    if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-main-android-compile'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -18,43 +17,8 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: Verify isolated source and invocation
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$GITHUB_REPOSITORY" = augsmog/QuickScore
-          test "$GITHUB_EVENT_NAME" = workflow_dispatch
-          test "$GITHUB_REF" = refs/heads/qa/snapscore-main-android-capture
-          test "$RUNNER_ENVIRONMENT" = github-hosted
-          test "$RUNNER_OS" = Linux
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git show -s --format=%P HEAD)" = 7fa2ef2adce5ee2e4be414a74061f9e8e18f9f86
-          test "$(git rev-parse HEAD^'^{tree}')" = c040d5349017ce5255e4a76a53b05423b28ceae2
-          test "$(git remote get-url origin)" = https://github.com/augsmog/QuickScore.git
-          test -z "$(git status --porcelain)"
-          test "$(git diff --name-only HEAD^ HEAD)" = .github/workflows/device-layout-gate.yml
-          git diff --exit-code HEAD^ HEAD -- scoresnap qa
-          echo 'Exact parent/source scope verified; capture only, not acceptance.'
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Enable KVM (hardware accel, ubuntu-latest, 1x quota)
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
-      - uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          arch: x86_64
-          profile: pixel_5
-          # Compact custom AVD geometry (≈360x800dp @ 480dpi) is applied by the harness config.
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: DEVICE_LAYOUT_OUT="${{ runner.temp }}/device-layout-out" bash scoresnap/e2e/device-layout/scripts/run-android-compact.sh
-      - name: Upload Android capture bundle (candidate-bound; reviewed by vision-candidate)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: device-layout-android
-          path: ${{ runner.temp }}/device-layout-out
-          if-no-files-found: ignore
-          retention-days: 14
+      - name: Compile immutable offline fixture and print bounded receipt
+        run: python3 -B scoresnap/e2e/device-layout/scripts/checkpoint/compile_only.py
