@@ -8,7 +8,7 @@ pnpm store by hardlink, so each extra copy costs directories only, not a full
 
 1. Refuses relative paths, a reused output path, a store on another filesystem,
    source/store/output overlaps, symlink destinations or ancestors, inode use at or
-   above the cap (default 76%; only finite positive stricter caps allowed),
+   above the cap (default and maximum 95%, the single emergency stop; no 76%/78% gates),
    invalid inode counters, or any pnpm other than 10.34.6.
 2. Requires clean tracked source, clones Git history without shared object hardlinks,
    copies tracked files and checks them against the source SHA, then derives `pnpm-lock.yaml` from `package-lock.json`
