@@ -14,6 +14,8 @@ HERE = Path(__file__).resolve().parent
 WORKFLOW = HERE.parents[1] / ".github/workflows/e2e-ios-sim.yml"
 HTTPS = "https://github.com/augsmog/QuickScore.git"
 BASE = "5190f43261a42f108d54627c793d5be64046c840"
+REVIEWED_PARENT = "72558fff91b58b07ae4a8715c4768f34c24c06cd"
+REVIEWED_PARENT_TREE = "33cd90fc2621e3ea02d0744ef1c5dd536b6a8af3"
 SOURCE = "a073d5761b77f3e01610acebaf5d98f76a920fb5"
 SOURCE_TREE = "3cbda6ddde720b614c0ae3c2bccef7948d805e20"
 LINK = "august-industries-site"
@@ -93,7 +95,12 @@ class ExactAnonymousCheckout(unittest.TestCase):
         qa.mkdir(parents=True)
         (qa / "compile_only.py").write_text(COMPILE_STUB)
         git(self.origin, "add", "qa")
-        git(self.origin, "commit", "-qm", "harness with same unmapped gitlink")
+        git(self.origin, "commit", "-qm", "reviewed prior harness with unmapped gitlink")
+        self.reviewed_parent = git(self.origin, "rev-parse", "HEAD")
+        self.reviewed_tree = git(self.origin, "rev-parse", "HEAD^{tree}")
+        (qa / "readback-only").write_text("synthetic QA successor only")
+        git(self.origin, "add", "qa")
+        git(self.origin, "commit", "-qm", "fast-forward diagnostic successor")
         self.head = git(self.origin, "rev-parse", "HEAD")
         self.tree = git(self.origin, "rev-parse", "HEAD^{tree}")
         self.remote = self.root / "public-synthetic.git"
@@ -107,7 +114,9 @@ class ExactAnonymousCheckout(unittest.TestCase):
         self.body = BODY.replace(
             f"repo='{HTTPS}'", f"repo={shlex.quote(self.remote.as_uri())}", 1).replace(
             "GIT_ALLOW_PROTOCOL=https /usr/bin/git", 'GIT_ALLOW_PROTOCOL=file "GIT_TRACE=$git_home/test-git-trace" /usr/bin/git', 1
-        ).replace(BASE, self.main).replace(SOURCE, self.product).replace(SOURCE_TREE, self.product_tree)
+        ).replace(BASE, self.main).replace(REVIEWED_PARENT, self.reviewed_parent).replace(
+            REVIEWED_PARENT_TREE, self.reviewed_tree
+        ).replace(SOURCE, self.product).replace(SOURCE_TREE, self.product_tree)
         self.env = dict(os.environ, GITHUB_ACTIONS="true", GITHUB_REPOSITORY="augsmog/QuickScore",
                         GITHUB_EVENT_NAME="workflow_dispatch", GITHUB_REF="refs/heads/qa/snapscore-a073-hosted-compile-main",
                         RUNNER_ARCH="ARM64", RUNNER_OS="macOS", RUNNER_ENVIRONMENT="github-hosted",
@@ -158,12 +167,25 @@ class ExactAnonymousCheckout(unittest.TestCase):
         self.assertEqual("PRODUCT_READBACK", receipt[0]["reason"])
         self.assertTrue(receipt[-1]["temporaryRootRemoved"])
 
-    def test_sole_harness_parent_is_reviewed_main_not_product(self):
-        self.body = self.body.replace("expected_parent='"+self.main+"'", "expected_parent='"+self.product+"'", 1)
+    def test_sole_harness_parent_is_reviewed_predecessor_not_product(self):
+        self.body = self.body.replace("expected_parent='"+self.reviewed_parent+"'", "expected_parent='"+self.product+"'", 1)
         result, receipt = self.execute()
         self.assertEqual(78, result.returncode)
         self.assertEqual("HARNESS_PARENT", receipt[0]["reason"])
         self.assertTrue(receipt[-1]["temporaryRootRemoved"])
+
+    def test_parent_tree_and_main_ancestry_fail_with_no_compile(self):
+        original = self.body
+        for pin, actual, code in (
+            ("expected_parent_tree", self.reviewed_tree, "HARNESS_PARENT_TREE"),
+            ("expected_main", self.main, "HARNESS_MAIN_ANCESTRY"),
+        ):
+            with self.subTest(code=code):
+                self.body = original.replace(pin+"='"+actual+"'", pin+"='"+"d"*40+"'", 1)
+                result, receipts = self.execute()
+                self.assertEqual(78, result.returncode)
+                self.assertEqual(code, receipts[0]["reason"])
+                self.assertTrue(receipts[-1]["temporaryRootRemoved"])
 
     def test_non_hex_oid_and_wrong_dispatch_do_not_create_worktrees(self):
         for overrides, reason in [
@@ -182,7 +204,10 @@ class ExactAnonymousCheckout(unittest.TestCase):
         self.assertIn("repo='"+HTTPS+"'", BODY)
         self.assertIn("product_sha='"+SOURCE+"'", BODY)
         self.assertIn("product_tree='"+SOURCE_TREE+"'", BODY)
-        self.assertIn("expected_parent='"+BASE+"'", BODY)
+        self.assertIn("expected_main='"+BASE+"'", BODY)
+        self.assertIn("expected_parent='"+REVIEWED_PARENT+"'", BODY)
+        self.assertIn("expected_parent_tree='"+REVIEWED_PARENT_TREE+"'", BODY)
+        self.assertIn(' "$EXPECTED_HARNESS_TREE" 3 HARNESS', BODY)
         self.assertIn("GIT_ALLOW_PROTOCOL=https /usr/bin/git", BODY)
         self.assertIn("credential.helper= -c http.extraHeader= -c http.followRedirects=false", BODY)
         self.assertIn("GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null", BODY)

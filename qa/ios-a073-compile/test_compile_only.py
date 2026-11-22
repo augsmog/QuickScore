@@ -53,14 +53,17 @@ class CompileOnly(unittest.TestCase):
 
     def test_redaction_projection_never_exports_internal_fields(self):
         doc = {"status": "UNSIGNED_SIMULATOR_RELEASE_BUILT", "lastPhase": "artifact",
-               "phaseSeconds": {"npm": 12.34, "secret": 23, "release": "secrets"},
+               "phaseSeconds": {"npm": 12.34, "generated-policy": 0.23, "secret": 23, "release": "secrets"},
+               "generatedPolicy": {"ats": "stock-local-networking-removed", "raw": "private-value"},
                "artifact": {"sha256": "a"*64, "executableSha256": "b"*64, "bytes": 12,
                             "files": ["raw-path-not-exported"]},
                "packageLockSha256": "c"*64, "resolvedPodsSha256": "d"*64,
                "freeBytesAfter": 12924335104, "appRelativePath": "raw-app-not-exported",
                "binaryUUID": "internal", "secret": "not-exported"}
         pub = c.project_evidence(doc, True)
-        self.assertEqual(pub["phaseSeconds"], {"npm": 12.34})
+        self.assertEqual(pub["phaseSeconds"], {"npm": 12.34, "generated-policy": 0.23})
+        self.assertNotIn("generatedPolicy", pub)
+        self.assertNotIn("private-value", json.dumps(pub))
         self.assertEqual(pub["architecture"], "arm64")
         self.assertNotIn("raw-path", json.dumps(pub))
         self.assertNotIn("raw-app", json.dumps(pub))
@@ -71,7 +74,7 @@ class CompileOnly(unittest.TestCase):
         sha, tree = "a"*40, "b"*40
         env = {"EXPECTED_HARNESS_SHA": sha, "EXPECTED_HARNESS_TREE": tree,
                "GITHUB_SHA": sha, "GITHUB_REF": c.REF}
-        with patch.object(c, "read", side_effect=[sha, tree, "", sha + " " + c.MAIN]):
+        with patch.object(c, "read", side_effect=[sha, tree, "", f"{sha} {c.REVIEWED_PARENT}", c.REVIEWED_PARENT_TREE, f"{c.REVIEWED_PARENT} {c.MAIN}"]):
             self.assertEqual(c.harness_binding(Path("/harness"), env), (sha, tree))
         with patch.object(c, "read", side_effect=[sha, tree, "", sha + " " + "f"*40]):
             with self.assertRaisesRegex(build.Blocked, "HARNESS_PARENT_CHANGED"):
@@ -80,6 +83,19 @@ class CompileOnly(unittest.TestCase):
             with self.assertRaisesRegex(build.Blocked, "HARNESS_SCOPE"):
                 c.harness_binding(Path("/harness"), {**env, "GITHUB_REF": "refs/heads/main"})
             read.assert_not_called()
+
+    def test_reviewed_parent_tree_and_ancestry_independently_fail_closed(self):
+        sha, tree = "a"*40, "b"*40
+        env = {"EXPECTED_HARNESS_SHA": sha, "EXPECTED_HARNESS_TREE": tree,
+               "GITHUB_SHA": sha, "GITHUB_REF": c.REF}
+        head = [sha, tree, "", f"{sha} {c.REVIEWED_PARENT}"]
+        for readbacks, reason in [
+            (head+["e"*40], "HARNESS_PARENT_TREE_CHANGED"),
+            (head+[c.REVIEWED_PARENT_TREE, f"{c.REVIEWED_PARENT} {'f'*40}"], "HARNESS_MAIN_ANCESTRY_CHANGED"),
+        ]:
+            with self.subTest(reason=reason), patch.object(c, "read", side_effect=readbacks):
+                with self.assertRaisesRegex(build.Blocked, reason):
+                    c.harness_binding(Path("/harness"), env)
 
     def test_mock_composed_failure_preserves_phase_and_cleans(self):
         with TemporaryDirectory() as temp:

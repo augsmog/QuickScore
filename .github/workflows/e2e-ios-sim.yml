@@ -30,7 +30,9 @@ jobs:
           set -euo pipefail
           umask 077
           repo='https://github.com/augsmog/QuickScore.git'
-          expected_parent='5190f43261a42f108d54627c793d5be64046c840'
+          expected_main='5190f43261a42f108d54627c793d5be64046c840'
+          expected_parent='72558fff91b58b07ae4a8715c4768f34c24c06cd'
+          expected_parent_tree='33cd90fc2621e3ea02d0744ef1c5dd536b6a8af3'
           product_sha='a073d5761b77f3e01610acebaf5d98f76a920fb5'
           product_tree='3cbda6ddde720b614c0ae3c2bccef7948d805e20'
           blocked() {
@@ -84,9 +86,13 @@ jobs:
             worktree="$(git_clean -C "$dir" status --porcelain 2>/dev/null)" || blocked "${lane}_STATUS"
             [[ "$head" == "$sha" && "$actual_tree" == "$tree" && -z "$worktree" ]] || blocked "${lane}_READBACK"
           }
-          read_checkout "$scratch/harness" "$EXPECTED_HARNESS_SHA" "$EXPECTED_HARNESS_TREE" 2 HARNESS
+          read_checkout "$scratch/harness" "$EXPECTED_HARNESS_SHA" "$EXPECTED_HARNESS_TREE" 3 HARNESS
           harness_parents="$(git_clean -C "$scratch/harness" rev-list --parents -n 1 HEAD 2>/dev/null)" || blocked HARNESS_PARENT
           [[ "$harness_parents" == "$EXPECTED_HARNESS_SHA $expected_parent" ]] || blocked HARNESS_PARENT
+          parent_tree="$(git_clean -C "$scratch/harness" rev-parse "$expected_parent^{tree}" 2>/dev/null)" || blocked HARNESS_PARENT_TREE
+          [[ "$parent_tree" == "$expected_parent_tree" ]] || blocked HARNESS_PARENT_TREE
+          parent_parents="$(git_clean -C "$scratch/harness" rev-list --parents -n 1 "$expected_parent" 2>/dev/null)" || blocked HARNESS_MAIN_ANCESTRY
+          [[ "$parent_parents" == "$expected_parent $expected_main" ]] || blocked HARNESS_MAIN_ANCESTRY
           read_checkout "$scratch/product" "$product_sha" "$product_tree" 1 PRODUCT
           /usr/bin/env -i "PATH=$PATH" "HOME=$git_home" "XDG_CONFIG_HOME=$git_home" \
             GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/usr/bin/false \

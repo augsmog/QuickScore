@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Unsigned synthetic-loopback iOS Release builder. No installs, launches or uploads."""
 import argparse,base64,hashlib,json,os,pathlib,platform,plistlib,re,shutil,signal,subprocess,sys,tarfile,tempfile,time
+from xml.parsers.expat import ExpatError
 import native_policy
 SHA='a073d5761b77f3e01610acebaf5d98f76a920fb5'
 TREE='3cbda6ddde720b614c0ae3c2bccef7948d805e20'
@@ -133,16 +134,54 @@ def commands(app,dd,compile_only=False):return [
  ('prebuild',['node','node_modules/expo/bin/cli','prebuild','--platform','ios','--no-install'],app,180),
  ('pods',['pod','install'],app/'ios',300),
  ('release',['xcodebuild','-workspace','SnapScore.xcworkspace','-scheme','SnapScore','-configuration','Release','-destination','generic/platform=iOS Simulator','-derivedDataPath',str(dd),'CODE_SIGNING_ALLOWED=NO','CODE_SIGNING_REQUIRED=NO','CODE_SIGN_IDENTITY=',*(['ARCHS=arm64'] if compile_only else []),'build'],app/'ios',1200)]
-def generated_policy(app):
+def compile_plist_bytes(path,app,*,final=False):
+ if not path.is_file():
+  raise Blocked('FINAL_PLIST_INVALID' if final else 'GENERATED_PLISTS_MISSING')
+ # The only writable inputs are the exact generated paths in the scratch app.
+ if any(p.is_symlink() for p in (path,*path.parents) if p==app or p.is_relative_to(app)):
+  raise Blocked('FINAL_PLIST_INVALID' if final else 'GENERATED_PLIST_PATH_UNSAFE')
+ try:
+  with path.open('rb') as stream:b=stream.read(1024**2 + 1)
+ except OSError as exc:
+  raise Blocked('FINAL_PLIST_INVALID' if final else 'GENERATED_PLIST_READ_FAILED') from exc
+ must(len(b)<=1024**2,'FINAL_PLIST_INVALID' if final else 'GENERATED_PLIST_INVALID')
+ return b
+
+def compile_plist(data,*,final=False):
+ try:return plistlib.loads(data)
+ except (plistlib.InvalidFileException,ValueError,TypeError,OverflowError,ExpatError) as exc:
+  raise Blocked('FINAL_PLIST_INVALID' if final else 'GENERATED_PLIST_INVALID') from exc
+
+def generated_policy(app,compile_only=False):
  ep=app/'ios/SnapScore/Supporting/Expo.plist';ip=app/'ios/SnapScore/Info.plist'
+ if compile_only:
+  eb=compile_plist_bytes(ep,app);ib=compile_plist_bytes(ip,app)
+  try:e,i=native_policy.policy(compile_plist(eb),compile_plist(ib),compile_only=True)
+  except native_policy.CompilePolicyError as exc:raise Blocked(str(exc)) from exc
+  try:ep.write_bytes(plistlib.dumps(e));ip.write_bytes(plistlib.dumps(i))
+  except (OSError,ValueError,TypeError,OverflowError) as exc:raise Blocked('GENERATED_PLIST_WRITE_FAILED') from exc
+  ea=compile_plist_bytes(ep,app);ia=compile_plist_bytes(ip,app)
+  e_read=compile_plist(ea);i_read=compile_plist(ia)
+  try:native_policy.verify(e_read,i_read,compile_only=True)
+  except native_policy.CompilePolicyError as exc:raise Blocked('GENERATED_PLIST_WRITE_UNVERIFIED') from exc
+  must(e_read==e and i_read==i,'GENERATED_PLIST_WRITE_UNVERIFIED')
+  return {'before':{'expo':digest(eb),'info':digest(ib)},
+          'after':{'expo':digest(ea),'info':digest(ia)},
+          'ats':'stock-local-networking-removed'}
  must(ep.is_file() and ip.is_file(),'GENERATED_PLISTS_MISSING')
  before={n:digest(p.read_bytes()) for n,p in [('expo',ep),('info',ip)]}
  e,i=native_policy.policy(plistlib.loads(ep.read_bytes()),plistlib.loads(ip.read_bytes()))
  ep.write_bytes(plistlib.dumps(e));ip.write_bytes(plistlib.dumps(i))
  return {'before':before,'after':{'expo':digest(ep.read_bytes()),'info':digest(ip.read_bytes())}}
-def artifact(app):
+def artifact(app,compile_only=False):
  must(app.is_dir(),'RELEASE_APP_MISSING')
- info=plistlib.loads((app/'Info.plist').read_bytes());expo=plistlib.loads((app/'Expo.plist').read_bytes());native_policy.verify(expo,info)
+ if compile_only:
+  info=compile_plist(compile_plist_bytes(app/'Info.plist',app,final=True),final=True)
+  expo=compile_plist(compile_plist_bytes(app/'Expo.plist',app,final=True),final=True)
+  try:native_policy.verify(expo,info,compile_only=True)
+  except native_policy.CompilePolicyError as exc:raise Blocked(str(exc)) from exc
+ else:
+  info=plistlib.loads((app/'Info.plist').read_bytes());expo=plistlib.loads((app/'Expo.plist').read_bytes());native_policy.verify(expo,info)
  must(info.get('CFBundleIdentifier')=='com.scoresnap.app' and info.get('CFBundleSupportedPlatforms')==['iPhoneSimulator'],'NOT_TARGET_SIMULATOR_APP')
  must(not (app/'embedded.mobileprovision').exists() and not (app/'_CodeSignature').exists(),'SIGNED_ARTIFACT_REJECTED')
  rows=[];total=0
@@ -181,12 +220,17 @@ def build(a):
    try:phase(cmd,cwd,env,budget,a.minimum_free_bytes)
    finally:receipt['phaseSeconds'][name]=round(time.monotonic()-start,2)
    must(digest((app/'package-lock.json').read_bytes())==lock and digest((app/'package.json').read_bytes())==package_hash,'PRODUCT_LOCK_CHANGED')
-   if name=='prebuild':receipt['generatedPolicy']=generated_policy(app)
+   if name=='prebuild':
+    if compile_only:
+     stage='generated-policy';policy_start=time.monotonic()
+     try:receipt['generatedPolicy']=generated_policy(app,True)
+     finally:receipt['phaseSeconds'][stage]=round(time.monotonic()-policy_start,2)
+    else:receipt['generatedPolicy']=generated_policy(app)
    if name=='pods':
     pl=app/'ios/Podfile.lock';ml=app/'ios/Pods/Manifest.lock'
     must(pl.is_file() and ml.is_file() and pl.read_bytes()==ml.read_bytes(),'PODS_LOCK_MISMATCH')
     receipt['resolvedPodsSha256']=digest(pl.read_bytes());receipt['resolvedPodsIndependentReviewRequired']=True
-  stage='artifact';binary=dd/'Build/Products/Release-iphonesimulator/SnapScore.app';receipt['artifact']=artifact(binary)
+  stage='artifact';binary=dd/'Build/Products/Release-iphonesimulator/SnapScore.app';receipt['artifact']=(artifact(binary,True) if compile_only else artifact(binary))
   uuid=read(['xcrun','dwarfdump','--uuid',str(binary/'SnapScore')],env)
   matches=re.findall(r'^UUID: ([0-9A-Fa-f-]{36}) \((arm64)\) ',uuid,re.M);must(len(matches)==1,'BINARY_UUID_UNVERIFIED')
   if compile_only:

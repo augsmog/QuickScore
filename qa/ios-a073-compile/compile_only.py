@@ -14,17 +14,23 @@ import types
 import build
 
 MAIN = "5190f43261a42f108d54627c793d5be64046c840"
+REVIEWED_PARENT = "72558fff91b58b07ae4a8715c4768f34c24c06cd"
+REVIEWED_PARENT_TREE = "33cd90fc2621e3ea02d0744ef1c5dd536b6a8af3"
 REF = "refs/heads/qa/snapscore-a073-hosted-compile-main"
 FLOOR = 12 * 1024**3
 DEVELOPER_DIR = "/Applications/Xcode_26.4.1.app/Contents/Developer"
-PHASES = ("toolchain", "export", "npm", "prebuild", "pods", "release", "artifact")
+PHASES = ("toolchain", "export", "npm", "prebuild", "generated-policy", "pods", "release", "artifact")
 REASONS = frozenset("""
-    HARNESS_SHA_TREE_REQUIRED HARNESS_SCOPE HARNESS_CHANGED HARNESS_PARENT_CHANGED
+    HARNESS_SHA_TREE_REQUIRED HARNESS_SCOPE HARNESS_CHANGED HARNESS_PARENT_CHANGED HARNESS_PARENT_TREE_CHANGED HARNESS_MAIN_ANCESTRY_CHANGED
     EXACT_CLEAN_SOURCE_REQUIRED TRUSTED_HOSTED_CONTEXT_REQUIRED HOSTED_ARM64_MAC_REQUIRED
     EXACT_HOSTED_NODE_REQUIRED TOOLCHAIN_MISMATCH SIMULATOR_SDK_MISMATCH
     READBACK_FAILED FIXTURE_PORT_INSPECTION_FAILED FIXTURE_PORT_IN_USE
     PHASE_FAILED PHASE_TIMEOUT DISK_FLOOR SOURCE_CHANGED INVALID_HOST_PATHS
     PRODUCT_LOCK_CHANGED PODS_LOCK_MISMATCH BUILD_EVIDENCE_INVALID
+    GENERATED_PLISTS_MISSING GENERATED_PLIST_INVALID GENERATED_PLIST_PATH_UNSAFE
+    GENERATED_PLIST_READ_FAILED GENERATED_PLIST_WRITE_FAILED GENERATED_PLIST_WRITE_UNVERIFIED
+    GENERATED_ATS_POLICY_UNEXPECTED
+    FINAL_PLIST_INVALID FINAL_OTA_POLICY_INVALID FINAL_ATS_POLICY_INVALID
     CLEANUP_UNVERIFIED BINARY_UUID_UNVERIFIED BINARY_NOT_ARM64_ONLY JOB_INTERRUPTED
     SIGNED_ARTIFACT_REJECTED RELEASE_APP_MISSING NOT_TARGET_SIMULATOR_APP
     TRACKED_ENV_NOT_ALLOWED TEMPLATE_BLOB_MISMATCH TEMPLATE_ARCHIVE_SIZE_MISMATCH
@@ -48,7 +54,12 @@ def harness_binding(repo, env):
     git = lambda *a: read(["git", "--no-optional-locks", "-C", str(repo), *a])
     require(git("rev-parse", "HEAD") == sha and git("rev-parse", "HEAD^{tree}") == tree
             and not git("status", "--porcelain"), "HARNESS_CHANGED")
-    require(git("rev-list", "--parents", "-n", "1", "HEAD") == f"{sha} {MAIN}", "HARNESS_PARENT_CHANGED")
+    require(git("rev-list", "--parents", "-n", "1", "HEAD") == f"{sha} {REVIEWED_PARENT}",
+            "HARNESS_PARENT_CHANGED")
+    require(git("rev-parse", f"{REVIEWED_PARENT}^{{tree}}") == REVIEWED_PARENT_TREE,
+            "HARNESS_PARENT_TREE_CHANGED")
+    require(git("rev-list", "--parents", "-n", "1", REVIEWED_PARENT) == f"{REVIEWED_PARENT} {MAIN}",
+            "HARNESS_MAIN_ANCESTRY_CHANGED")
     return sha, tree
 
 
@@ -103,7 +114,12 @@ def project_evidence(receipt, success):
     value["phaseSeconds"] = {p: phases[p] for p in PHASES if p in phases and
                             type(phases[p]) in (int, float) and 0 <= phases[p] <= 1205}
     if success:
-        require(receipt.get("status") == "UNSIGNED_SIMULATOR_RELEASE_BUILT", "BUILD_EVIDENCE_INVALID")
+        generated = receipt.get("generatedPolicy", {})
+        require(receipt.get("status") == "UNSIGNED_SIMULATOR_RELEASE_BUILT"
+                and value.get("lastPhase") == "artifact"
+                and "generated-policy" in value["phaseSeconds"]
+                and isinstance(generated, dict) and generated.get("ats") == "stock-local-networking-removed",
+                "BUILD_EVIDENCE_INVALID")
         for field, v in (("packageLockSha256", receipt.get("packageLockSha256")),
                          ("resolvedPodsSha256", receipt.get("resolvedPodsSha256")),
                          ("appSha256", receipt.get("artifact", {}).get("sha256")),
