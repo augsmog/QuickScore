@@ -22,7 +22,7 @@ const contest:any={id:contestId,name:'Synthetic Invite Journey',joinCode:code,co
 await enrollNewRound(contest,data.user.id,{
   create:async row=>{const {error}=await auth.from('contests').insert(row);assert(!error,'Disposable contest insert');},
   rpc:async(name,args)=>{const {data,error}=await auth.rpc(name,args);assert(!error,`Disposable fixture RPC ${name}`);return data;}
-});
+} satisfies Parameters<typeof enrollmentModule.enrollNewRound>[2]);
 const {data:snapshot,error:snapshotError}=await auth.rpc('fetch_snapshot',{contest_id:contestId,after_revision:0});
 assert(!snapshotError && snapshot,'Fixture snapshot RPC succeeds');
 assert.equal(snapshot.invite_code,code,'Owner snapshot contains canonical synthetic invite (requires owner-invite proposal)');
