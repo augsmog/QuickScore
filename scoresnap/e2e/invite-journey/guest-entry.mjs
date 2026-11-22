@@ -20,7 +20,7 @@ export async function enterFreshGuestJoin(page) {
     }
     phase='sign-in-scene';
     if(scene(page.url())!=='sign-in')throw Error('unexpected route');
-    await page.getByPlaceholder('Email address',{exact:true}).waitFor({state:'visible'});
+    await page.getByText('Join with code',{exact:true}).waitFor({state:'visible'});
     phase='sign-in-join';
     await page.getByText('Join with code',{exact:true}).click();
     phase='join-scene';
