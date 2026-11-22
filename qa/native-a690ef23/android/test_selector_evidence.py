@@ -249,6 +249,119 @@ class AndroidOwnership(unittest.TestCase):
     with self.assertRaisesRegex(ValueError,'PLAYER_PAIR_UNVERIFIED'):d.fill('Player 2 name','QAGuest')
     adb.assert_not_called();read.assert_called_once()
 
+def add_fixture(scale=1.0,index=2,mode='pair',after=False):
+ dy=0 if scale==1.0 else 59
+ limit=1993 if scale==1.0 else 1976
+ def n(key='',b=(55,345,1025,1950),**kw):
+  return node(**{'package':'test.app','resource-id':key,
+                'bounds':f'[{b[0]},{b[1]}][{b[2]},{b[3]}]',**kw})
+ root=ET.Element('hierarchy')
+ scroll=n('contest-scroll',(55,345,1025,limit),scrollable='true')
+ setup=n('contest-step-setup',(55,345,1025,limit))
+ footer=n('contest-footer',(0,limit,1080,2208));back=n('new-contest-back',(55,158,187,290))
+ root.extend([scroll,footer,back]);scroll.append(setup)
+ prior=n('contest-player-'+str(index-1),(55,980+dy,1025,1270+dy))
+ setup.append(prior)
+ add=n('',(80,1310+dy,1000,1450+dy),clickable='true',**{'class':'android.view.ViewGroup','content-desc':c.ADD_PLAYER})
+ label=n('',(420,1350+dy,680,1400+dy),text=c.ADD_PLAYER,clickable='false',**{'class':'android.widget.TextView'})
+ wrapper=n('',(370,1330+dy,700,1420+dy),clickable='false',**{'class':'android.view.View'})
+ if mode!='none':setup.append(add)
+ if mode in ('pair','outside-alias','foreign-label','wrong-class','clickable-label','wrong-wrapper','wrong-desc'):
+  add.append(wrapper);wrapper.append(label)
+ if mode=='alias-sibling':setup.append(label)
+ if mode=='independent':setup.append(ET.fromstring(ET.tostring(add)))
+ if mode=='third':
+  add.extend([label,ET.fromstring(ET.tostring(label))])
+ if mode=='outside-alias':label.set('bounds','[15,1300][79,1340]')
+ if mode=='foreign-label':label.set('package','test.foreign')
+ if mode=='wrong-class':label.set('class','android.view.View')
+ if mode=='clickable-label':label.set('clickable','true')
+ if mode=='wrong-wrapper':wrapper.set('clickable','true')
+ if mode=='wrong-desc':add.set('text',c.ADD_PLAYER);add.attrib.pop('content-desc')
+ if mode=='behind-footer':add.set('bounds',f'[80,{limit-100}][1000,{limit+10}]')
+ if mode=='outside-scroll':add.set('bounds','[0,1300][54,1400]')
+ if mode=='wrong-scene':setup.set('resource-id','contest-step-gamemodes')
+ if mode=='disabled':add.set('enabled','false')
+ if mode=='label-only':add.set('class','android.widget.TextView');add.set('clickable','false')
+ if after:setup.append(n('contest-player-'+str(index),(55,1300+dy,1025,1640+dy)))
+ return root,setup,prior,add
+
+class AddPlayerControls(unittest.TestCase):
+ def driver(self,td):
+  return c.Driver({'out':td+'/test','package':'test.app','serial':'emulator-5554'})
+ def test_exact_add_pair_and_single_owner_at_both_scales_for_both_indices(self):
+  for scale in (1.0,1.3):
+   for index in (2,3):
+    for alias in ('pair','single'):
+     with self.subTest(scale=scale,index=index,alias=alias),tempfile.TemporaryDirectory() as td:
+      root,_,_,target=add_fixture(scale,index,alias)
+      after,*_=add_fixture(scale,index,after=True)
+      d=self.driver(td)
+      with patch.object(d,'read',side_effect=[root,after]),patch.object(d,'adb') as adb,patch.object(c.time,'sleep'):
+       d.add_player(index)
+      l,t,r,b=c.box(target)
+      adb.assert_called_once_with('shell','input','tap',str((l+r)//2),str((t+b)//2))
+      control,before,post=d.observations
+      self.assertEqual(control['sameActionAliasVerified'],alias=='pair')
+      self.assertEqual((before['priorIndexMatches'],before['nextIndexMatches'],post['nextIndexMatches']),(1,0,1))
+      serialized=json.dumps(d.observations)
+      self.assertNotIn(c.ADD_PLAYER,serialized);self.assertNotIn('test.app',serialized)
+ def test_ambiguous_or_unsafe_add_never_taps_or_scrolls_to_hide_it(self):
+  for mode in ('independent','alias-sibling','third','outside-alias','foreign-label','wrong-class','clickable-label',
+               'wrong-wrapper','wrong-desc','behind-footer','outside-scroll','wrong-scene','disabled','label-only'):
+   with self.subTest(mode=mode),tempfile.TemporaryDirectory() as td:
+    root,*_=add_fixture(1.3,mode=mode)
+    d=self.driver(td)
+    with patch.object(d,'read',return_value=root) as read,patch.object(d,'adb') as adb:
+     with self.assertRaises(ValueError):d.add_player(2)
+     read.assert_called_once();adb.assert_not_called()
+ def test_preexisting_next_or_wrong_previous_never_taps(self):
+  for fault in ('preexisting','higher','no-prior','prior-below','duplicated-prior'):
+   with self.subTest(fault=fault),tempfile.TemporaryDirectory() as td:
+    root,setup,prior,target=add_fixture(after=fault=='preexisting')
+    if fault=='higher':setup.append(node(**{'resource-id':'contest-player-3'}))
+    if fault=='no-prior':setup.remove(prior)
+    if fault=='prior-below':prior.set('bounds','[55,1330][1025,1600]')
+    if fault=='duplicated-prior':setup.append(ET.fromstring(ET.tostring(prior)))
+    d=self.driver(td)
+    with patch.object(d,'read',return_value=root) as read,patch.object(d,'adb') as adb:
+     with self.assertRaisesRegex(ValueError,'ADD_PLAYER_ORDER_UNVERIFIED'):d.add_player(2)
+     read.assert_called_once();adb.assert_not_called()
+ def test_posttap_missing_or_duplicate_never_retaps_and_search_is_bounded(self):
+  for fault in ('missing','duplicate','higher','wrong-order','revealed'):
+   with self.subTest(fault=fault),tempfile.TemporaryDirectory() as td:
+    root,*_=add_fixture()
+    after,setup,prior,_=add_fixture(after=fault!='missing')
+    if fault=='duplicate':setup.append(ET.fromstring(ET.tostring(c.one(after,'contest-player-2'))))
+    if fault=='higher':setup.append(node(**{'resource-id':'contest-player-3'}))
+    if fault=='wrong-order':prior.set('bounds','[55,1250][1025,1390]')
+    missing,*_=add_fixture()
+    side=[root,missing,after] if fault=='revealed' else [root,after,after,after]
+    d=self.driver(td)
+    with patch.object(d,'read',side_effect=side) as read,patch.object(d,'adb') as adb,patch.object(c.time,'sleep'):
+     if fault=='revealed':d.add_player(2)
+     else:
+      with self.assertRaises(ValueError):d.add_player(2)
+     cmds=[call.args[:3] for call in adb.call_args_list]
+     self.assertEqual(cmds.count(('shell','input','tap')),1)
+     self.assertEqual(cmds.count(('shell','input','swipe')),2 if fault=='missing' else 1 if fault=='revealed' else 0)
+     self.assertEqual(read.call_count,4 if fault=='missing' else 3 if fault=='revealed' else 2)
+ def test_players_end_uses_same_typed_guard_and_owner_bounds_without_tap(self):
+  with tempfile.TemporaryDirectory() as td:
+   d=self.driver(td)
+   root,_,_,target=add_fixture(1.3,3)
+   wrong,*_=add_fixture(1.3,3,'alias-sibling')
+   def fake_capture(cfg):
+    with patch.object(c,'target_focus'):
+     cfg['_scene'](ET.tostring(root).decode(),'','test.app')
+     with self.assertRaises(ValueError):cfg['_scene'](ET.tostring(wrong).decode(),'','test.app')
+   with patch.object(d,'read',return_value=root),patch.object(c,'capture',side_effect=fake_capture),patch.object(d,'adb') as adb:
+    d.shot('players-end')
+    adb.assert_not_called()
+   self.assertEqual(d.report[-1]['observedBoundsPx']['2'],c.box(target))
+   self.assertTrue(d.observations[-1]['sameActionAliasVerified'])
+   with self.assertRaises(ValueError):d.guard(wrong,'players-end')
+
 class Evidence(unittest.TestCase):
  def driver(self,td):
   return c.Driver({'out':td+'/test','package':'test.app','serial':'emulator-5554'})

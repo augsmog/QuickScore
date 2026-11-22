@@ -17,12 +17,14 @@ NAVIGATION_REASONS=frozenset({
  'CONTROL_MISSING_OR_AMBIGUOUS','AMBIGUOUS_CONTROL','CONTROL_UNREACHABLE',
  'SCROLL_REGION_AMBIGUOUS','SCROLL_REGION_OCCLUDED','CONTROL_DISABLED',
  'CONTROL_BEHIND_FOOTER','WRONG_SCENE','WRONG_STEP','KEYBOARD_DISMISSAL_UNVERIFIED',
+ 'ADD_PLAYER_ACTION_UNVERIFIED','ADD_PLAYER_ORDER_UNVERIFIED','ADD_PLAYER_NEXT_CARD_UNVERIFIED',
  'DISABLED_STATE_UNOBSERVED','PLAYER_PAIR_UNVERIFIED','PLAYER_FOCUS_UNVERIFIED','PLAYER_CARD_LOWER_EDGE_CLIPPED',
 })
 def navigation_reason(error):
  return str(error) if type(error) is ValueError and str(error) in NAVIGATION_REASONS else None
 
 
+ADD_PLAYER='+ ADD PLAYER'
 HEADER='Run the game. We do the math.'
 MISSING='Contest not found on this device. Offline codes work only in the organizer’s browser.'
 SCENES={
@@ -38,7 +40,7 @@ SCENES={
  'paywall-free':(), 'paywall-annual':(), 'paywall-disabled':(),
 }
 TEXTS={'entry':('Join with code','Find contest'), 'entry-invalid':('Find contest',MISSING),
- 'rounds':('NUMBER OF ROUNDS',), 'players-end':('+ ADD PLAYER',),
+ 'rounds':('NUMBER OF ROUNDS',),
  'paywall-top':(HEADER,), 'paywall-free':('Free','Current plan'),
  'paywall-annual':('Tournament Director','$79.99/year'),
  'paywall-disabled':('Currently unavailable','Renews yearly. Cancel anytime.')}
@@ -105,6 +107,77 @@ def find_button(root):
   a=parents.get(a)
  if a is not target:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
  return target
+
+def add_player_scope(root,package):
+ validate(root,'setup-initial')
+ setup=one(root,'contest-step-setup');scroll=one(root,'contest-scroll');footer=one(root,'contest-footer')
+ sb,vb,fb=box(setup),box(scroll),box(footer)
+ if not package or any(n.get('package')!=package for n in (setup,scroll,footer)) or scroll.get('scrollable')!='true':
+  raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
+ if not overlap(sb,vb) or fb[1]<=max(sb[1],vb[1]):raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
+ return sb,vb,fb
+
+def add_player_target(root,package,proof):
+ """Exact single actionable Add, or one proved owner/TextView alias pair."""
+ sb,vb,fb=add_player_scope(root,package)
+ hits=matches(root,ADD_PLAYER,'text')
+ actions=[n for n in hits if visible_button(n)]
+ proof.update({'addLabelHits':min(3,len(hits)),'actionableHits':min(3,len(actions)),
+  'candidates':[{'labelAsText':n.get('text')==ADD_PLAYER,'labelAsDescription':n.get('content-desc')==ADD_PLAYER,
+                 'sameApp':n.get('package')==package,**role_observation(root,n,actions[0] if len(actions)==1 else None)} for n in hits[:3]]})
+ if not hits:return None
+ if len(hits) not in (1,2) or len(actions)!=1 or any(n.get('package')!=package for n in hits):
+  raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
+ target=actions[0];tb=box(target)
+ if not contained(tb,sb) or not contained(tb,vb) or tb[3]>fb[1]:
+  raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
+ if len(hits)==2:
+  label=next(n for n in hits if n is not target)
+  if (target.get('content-desc')!=ADD_PLAYER or label.get('text')!=ADD_PLAYER or
+      label.get('class')!='android.widget.TextView' or label.get('clickable')!='false' or
+      not contained(box(label),tb)):
+   raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
+  parents=parents_of(root);parent=parents.get(label)
+  while parent is not None and parent is not target:
+   if (parent.tag!='node' or parent.get('package')!=package or parent.get('clickable')!='false' or
+       parent.get('class') not in ('android.view.View','android.view.ViewGroup','android.widget.FrameLayout','android.widget.LinearLayout') or
+       not contained(box(label),box(parent)) or not contained(box(parent),tb)):
+    raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
+   parent=parents.get(parent)
+  if parent is not target:raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
+  proof['sameActionAliasVerified']=True
+ else:proof['sameActionAliasVerified']=False
+ return target
+
+def add_player_roster(root,index,package,proof,*,action=None):
+ """Before tap prove last existing card precedes Add and next index is absent.
+ After tap prove one named next ID, never interpret label presence as success.
+ """
+ sb,vb,fb=add_player_scope(root,package)
+ indexed={}
+ for n in root.iter('node'):
+  m=re.fullmatch(r'contest-player-([0-9]{1,3})',node_id(n))
+  if m:
+   if m[1]!=str(int(m[1])):raise ValueError('ADD_PLAYER_ORDER_UNVERIFIED')
+   indexed.setdefault(int(m[1]),[]).append(n)
+ prev=indexed.get(index-1,[]);following=indexed.get(index,[])
+ proof.update({'priorIndexMatches':min(len(prev),3),'nextIndexMatches':min(len(following),3),
+               'anyHigherIndex':any(i>index for i in indexed)})
+ if (any(len(ns)!=1 or ns[0].get('package')!=package for ns in indexed.values()) or proof['anyHigherIndex']):
+  raise ValueError('ADD_PLAYER_ORDER_UNVERIFIED')
+ def guarded(n):
+  b=box(n)
+  return bool(b and contained(b,sb) and contained(b,vb) and b[3]<=fb[1])
+ if action is not None:
+  if following or len(prev)!=1 or not guarded(prev[0]) or box(prev[0])[3]>box(action)[1]:
+   raise ValueError('ADD_PLAYER_ORDER_UNVERIFIED')
+  return None
+ if not following or not box(following[0]):return None
+ nxt=following[0]
+ if (not guarded(nxt) or (prev and box(prev[0]) and box(prev[0])[3]>box(nxt)[1]) or
+     any(overlap(box(nxt),box(ns[0])) for i,ns in indexed.items() if i!=index)):
+  raise ValueError('ADD_PLAYER_NEXT_CARD_UNVERIFIED')
+ return nxt
 
 def role_observation(root,n,anchor=None):
  parents=parents_of(root)
@@ -292,7 +365,12 @@ class Driver:
   for attempt in range(9):
    root=self.read()
    if kind=='text' and key==FIND:return root,find_button(root)
-   found=matches(root,key,kind)
+   if kind=='text' and key==ADD_PLAYER:
+    proof={'checkpoint':'add-player-control'}
+    self.observations.append(proof)
+    target=add_player_target(root,self.c['package'],proof)
+    found=[target] if target is not None else []
+   else:found=matches(root,key,kind)
    roles={'home-join-code':'home-join','home-new-contest':'home-new-contest','contest-step-setup':'setup-scene','contest-player-0':'host-card','Player 2 name':'guest-player-input'}
    if key in roles and hasattr(self,'observations'):
     self.observations.append({'checkpoint':'lookup','selectors':[{'role':roles[key],'kind':kind,'matches':min(len(found),2)}]})
@@ -311,7 +389,21 @@ class Driver:
   x=(l+r)//2;y1=t+(b-t)*3//4;y2=t+(b-t)//4
   if direction=='up':y1,y2=y2,y1
   self.adb('shell','input','swipe',str(x),str(y1),str(x),str(y2),'400');time.sleep(.3)
+ def add_player(self,index):
+  if index not in (2,3):raise ValueError('ADD_PLAYER_ORDER_UNVERIFIED')
+  root,target=self.seek(ADD_PLAYER,'text')
+  before={'checkpoint':'add-player-before','playerIndex':index};self.observations.append(before)
+  add_player_roster(root,index,self.c['package'],before,action=target)
+  l,t,r,b=box(target)
+  self.adb('shell','input','tap',str((l+r)//2),str((t+b)//2));time.sleep(.3)
+  for attempt in range(3):
+   fresh=self.read()
+   after={'checkpoint':'add-player-after','playerIndex':index,'attempt':attempt+1};self.observations.append(after)
+   if add_player_roster(fresh,index,self.c['package'],after) is not None:return
+   if attempt<2:self.scroll('down',fresh)
+  raise ValueError('ADD_PLAYER_NEXT_CARD_UNVERIFIED')
  def tap(self,key,kind='id',direction='down'):
+  if key==ADD_PLAYER and kind=='text':raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
   root,n=self.seek(key,kind,direction)
   for attempt in range(8):
    foot=matches(root,'contest-footer')
@@ -377,6 +469,8 @@ class Driver:
   if name in ('entry','entry-invalid'):proof['findContestCandidates']=join_candidates(root)
   self.observations.append(proof)
   validate(root,name)
+  if name=='players-end':
+   if add_player_target(root,self.c['package'],proof) is None:raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
  def join_diagnostic(self):
   if not self.joinTapped or self.phase!='join-destination':raise CaptureBoundaryFailure('DIAGNOSTIC_NOT_AFTER_JOIN_TAP')
   cfg={**self.c,'out':str(self.out/'join-unidentified'),'_scene':diagnostic_guard,
@@ -407,13 +501,16 @@ class Driver:
   self.phase=name
   root=self.read();self.guard(root,name)
   def guard(xml,focus,package):
-   target_focus(focus,package);validate(tree(xml,package),name);return []
+   target_focus(focus,package);native=tree(xml,package);validate(native,name)
+   if name=='players-end' and add_player_target(native,package,{}) is None:raise ValueError('ADD_PLAYER_ACTION_UNVERIFIED')
+   return []
   cfg={**self.c,'out':str(self.out/name),'_scene':guard,'_checkpoint':name}
   try:capture(cfg)
   except Exception:raise CaptureBoundaryFailure('CONTINUATION_CAPTURE_BOUNDARY_FAILED') from None
   # Bounds are observed accessibility bounds, not painted glyph geometry or dp.
   targets=list(SCENES[name])+list(TEXTS.get(name,()))
   bounds={str(i):box(scene_node(root,k,'id' if k in SCENES[name] else 'text')) for i,k in enumerate(targets)}
+  if name=='players-end':bounds[str(len(targets))]=box(add_player_target(root,self.c['package'],{}))
   self.report.append({'checkpoint':name,'captured':True,'observedBoundsPx':bounds,'geometryPassed':False,'visualReviewRequired':True})
  def save(self,status):
   captured=[r['checkpoint'] for r in self.report if r.get('captured')]
@@ -443,13 +540,13 @@ def journey(c,lane='all'):
   d.phase='host-prefill';d.seek('contest-player-0');d.prepare_host()
   d.phase='guest-entry';d.fill('Player 2 name','QAGuest')
   for number,name in [(3,'QAThree'),(4,'QAFour')]:
-   d.phase='add-player';d.tap('+ ADD PLAYER','text')
-   d.seek('contest-player-'+str(number-1));d.fill('Player '+str(number)+' name',name)
+   d.phase='add-player';d.add_player(number-1)
+   d.phase='player-entry';d.fill('Player '+str(number)+' name',name)
   d.shot('setup')
   d.phase='round-toggle';d.tap('tournament-toggle',direction='up');d.seek('rounds-2');d.shot('rounds')
   d.tap('rounds-2')
   # Reach end deliberately, preserve separate pre/end screenshots for rule 2.
-  d.phase='players-end';d.seek('+ ADD PLAYER','text');d.shot('players-end')
+  d.phase='players-end';d.seek(ADD_PLAYER,'text');d.shot('players-end')
   d.tap('contest-continue');d.shot('games')
   d.tap('contest-continue');d.shot('round-settings')
   d.phase='paywall-enter';d.tap('contest-start');d.seek('paywall-close');d.shot('paywall-top')
