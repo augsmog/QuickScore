@@ -1,4 +1,4 @@
-"""Canonical disposable dual boot only; bounded redacted terminal receipt."""
+"""Staged disposable dual boot only; bounded redacted terminal receipt."""
 import contextlib,json,os,re,signal,subprocess,sys,time
 import two_iphone_preflight as probe
 REF='refs/heads/qa/snapscore-hosted-dual-boot-main'
@@ -44,7 +44,7 @@ def run():
   phase='canonical-dual-boot'
   # Canonical failures can contain private receipt paths: suppress, never publish.
   with contextlib.redirect_stdout(Discard()),contextlib.redirect_stderr(Discard()):
-   raw=probe.preflight(tmp,marker,FLOOR,180,False,d)
+   raw=probe.preflight(tmp,marker,FLOOR,probe.BOOT_SHARED_SECONDS,False,d)
   d.at('completion')
   if raw.get('status')!='PASS' or raw.get('disposition')!='deleted-and-verified' or not d.cleanup_verified or not d.dual_boot_verified:raise probe.GateError('CANONICAL_COMPLETION_REQUIRED','COMPLETION_UNVERIFIED')
   result.update(status='PASS',xcode=raw['xcode'],runtime=raw['runtime'],deviceType=raw['device_type'],bootSeconds={role:raw['devices'][role]['boot_wait_s'] for role in ('host','guest')},freeBothBooted=raw['free_disk_both_booted'])

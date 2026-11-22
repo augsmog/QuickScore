@@ -8,7 +8,6 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
-import threading
 import unittest
 from unittest.mock import patch
 
@@ -30,7 +29,8 @@ class Sim:
         self.devices = {EXISTING: row(EXISTING, "Already present", "Booted")}
         self.original = copy.deepcopy(self.devices[EXISTING])
         self.calls = []
-        self.barrier = threading.Barrier(2, timeout=3)
+        self.host_stability_reads = 0
+        self.guest_boot_requested = False
         self.failure = None
         self.build = subject.RUNTIME_BUILD
         self.runtime_available = True
@@ -57,6 +57,13 @@ class Sim:
         if cmd == ["xcodebuild", "-version"]:
             return result("\n".join(subject.XCODE_ID))
         if cmd == ["simctl", "list", "-j"]:
+            if self.guest_boot_requested and self.failure == "joint-timeout" and self.devices.get(GUEST, {}).get("state") == "Booted":
+                self.failure = None  # only the joint read fails; cleanup remains observable
+                raise subprocess.TimeoutExpired(argv, timeout)
+            if not self.guest_boot_requested and self.devices.get(HOST, {}).get("state") == "Booted":
+                self.host_stability_reads += 1
+                if self.failure == "host-loses-state-on-confirm" and self.host_stability_reads == 2:
+                    self.devices[HOST]["state"] = "Shutdown"
             for uid in list(self.delayed_shutdown):
                 self.delayed_shutdown[uid] -= 1
                 if self.delayed_shutdown[uid] <= 0:
@@ -96,7 +103,14 @@ class Sim:
         assert uid in {HOST, GUEST}, (op, uid)
         if op == "bootstatus":
             assert cmd[3:] == ["-b"]
-            self.barrier.wait()  # serial launches cannot pass this test
+            if uid == HOST and self.failure == "host-timeout":
+                raise subprocess.TimeoutExpired(argv, timeout)
+            if uid == GUEST:
+                self.guest_boot_requested = True
+                if self.failure == "parallel-contention" and self.host_stability_reads < 2:
+                    # Illustrative contention model only: an early second boot cannot succeed.
+                    raise subprocess.TimeoutExpired(argv, timeout)
+                assert self.host_stability_reads >= 2
             if uid == GUEST and self.failure == "boot-error":
                 return result(returncode=148)
             if uid == GUEST and self.failure == "boot-timeout":
@@ -104,8 +118,10 @@ class Sim:
             self.devices[uid]["state"] = "Booted"
             if uid == GUEST and self.failure == "drift":
                 self.devices[uid]["deviceTypeIdentifier"] = "foreign-type"
-            if uid == GUEST and self.failure == "false-ready":
+            if (uid == GUEST and self.failure == "false-ready") or (uid == HOST and self.failure == "host-false-ready"):
                 self.devices[uid]["state"] = "Shutdown"
+            if uid == GUEST and self.failure == "host-regresses-during-guest":
+                self.devices[HOST]["state"] = "Shutdown"
         elif op == "shutdown":
             if self.host_never_shuts and uid == HOST:
                 self.devices[uid]["state"] = "Shutting Down"
@@ -147,6 +163,7 @@ class PreflightTests(unittest.TestCase):
                   patch.object(subject.shutil, "disk_usage",
                                return_value=shutil._ntuple_diskusage(14*subject.GIB, 4*subject.GIB, 10*subject.GIB)),
                   patch.object(subject, "SETTLE_SECONDS", .06),
+                  patch.object(subject, "HOST_STABILITY_GAP", .001),
                   patch.object(subject, "POLL_SECONDS", .001),
                   patch.object(subject, "device_home", return_value=self.tmp/"home"/"Library"/"Developer"/"CoreSimulator"/"Devices"),
                   contextlib.redirect_stderr(self.logs)):
@@ -154,7 +171,7 @@ class PreflightTests(unittest.TestCase):
             self.addCleanup(p.__exit__, None, None, None)
 
     def probe(self, keep=False):
-        return subject.preflight(self.tmp, MARK, 4 * subject.GIB, 2, keep)
+        return subject.preflight(self.tmp, MARK, 4 * subject.GIB, subject.BOOT_SHARED_SECONDS, keep)
 
     def cleanup(self, receipt):
         path = Path(receipt)
@@ -164,9 +181,12 @@ class PreflightTests(unittest.TestCase):
     def only_original(self):
         self.assertEqual(self.sim.devices, {EXISTING: self.sim.original})
 
-    def test_concurrent_success_and_default_scoped_cleanup(self):
+    def test_serial_success_under_synthetic_contention_and_default_scoped_cleanup(self):
+        self.sim.failure = "parallel-contention"
         verdict = self.probe()
         self.assertEqual(verdict["disposition"], "deleted-and-verified")
+        self.assertEqual(self.sim.host_stability_reads, 2)
+        self.assertEqual([uid for op, uid in self.sim.mutations() if op == "bootstatus"], [HOST, GUEST])
         self.assertEqual({d["udid"] for d in verdict["devices"].values()}, {HOST, GUEST})
         self.assertEqual({d["state_at_probe"] for d in verdict["devices"].values()}, {"Booted"})
         self.assertEqual(verdict["free_disk_both_booted"]["simulator_volume_free_bytes"], 10 * subject.GIB)
@@ -187,7 +207,8 @@ class PreflightTests(unittest.TestCase):
             self.probe()
         boot_waits = [t for c, t in self.sim.calls if c[1:2] == ["bootstatus"]]
         self.assertEqual(len(boot_waits), 2)
-        self.assertTrue(all(0 < t <= 2 for t in boot_waits))
+        self.assertTrue(0 < boot_waits[0] <= subject.BOOT_ROLE_SECONDS - subject.HOST_STABILITY_RESERVE)
+        self.assertTrue(0 < boot_waits[1] <= subject.BOOT_ROLE_SECONDS)
         self.only_original()
 
     def test_identity_drift_never_mutates_changed_guest(self):
@@ -294,7 +315,7 @@ class PreflightTests(unittest.TestCase):
         self.sim.shutdown_delay = True
         self.sim.delete_delay = True
         d = subject.Diagnostic()
-        verdict = subject.preflight(self.tmp, MARK, 4*subject.GIB, 2, False, d)
+        verdict = subject.preflight(self.tmp, MARK, 4*subject.GIB, subject.BOOT_SHARED_SECONDS, False, d)
         self.assertEqual(verdict["status"], "PASS")
         self.assertTrue(d.dual_boot_verified)
         self.assertTrue(d.cleanup_verified)
@@ -315,7 +336,7 @@ class PreflightTests(unittest.TestCase):
         self.sim.shutdown_drift = True
         d = subject.Diagnostic()
         with self.assertRaises(subject.CleanupError):
-            subject.preflight(self.tmp, MARK, 4*subject.GIB, 2, False, d)
+            subject.preflight(self.tmp, MARK, 4*subject.GIB, subject.BOOT_SHARED_SECONDS, False, d)
         self.assertTrue(d.dual_boot_verified)
         self.assertIsNone(d.primary)
         self.assertIn(("shutdown", GUEST), self.sim.mutations())
@@ -328,16 +349,62 @@ class PreflightTests(unittest.TestCase):
         self.sim.host_never_shuts = True
         d = subject.Diagnostic()
         with self.assertRaisesRegex(subject.GateError, "guest.*deadline"):
-            subject.preflight(self.tmp, MARK, 4*subject.GIB, 2, False, d)
+            subject.preflight(self.tmp, MARK, 4*subject.GIB, subject.BOOT_SHARED_SECONDS, False, d)
         self.assertFalse(d.dual_boot_verified)
         self.assertFalse(d.cleanup_verified)
-        self.assertEqual(d.primary,{"stage":"boot","code":"DUAL_BOOT_FAILED",
-            "roles":[{"stage":"boot","role":"guest","code":"COMMAND_TIMEOUT"}]})
+        self.assertEqual(d.primary,{"stage":"guest-boot-command","role":"guest","code":"COMMAND_TIMEOUT"})
         self.assertEqual(d.cleanup_failures,[{"stage":"cleanup-shutdown-readback",
             "role":"host","code":"COMMAND_TIMEOUT","commandFailure":"COMMAND_TIMEOUT"}])
         self.assertIn(("delete", GUEST), self.sim.mutations())
         self.assertNotIn(("delete", HOST), self.sim.mutations())
         self.assertEqual(self.sim.devices[EXISTING],self.sim.original)
+
+    def test_host_block_never_requests_guest_boot(self):
+        for failure, phase, code in (("host-timeout", "host-boot-command", "COMMAND_TIMEOUT"),
+                                     ("host-false-ready", "host-stability-first", "HOST_NOT_STABLY_BOOTED"),
+                                     ("host-loses-state-on-confirm", "host-stability-confirm", "HOST_NOT_STABLY_BOOTED")):
+            with self.subTest(failure=failure):
+                self.sim.calls.clear()
+                self.sim.failure = failure
+                d = subject.Diagnostic()
+                with self.assertRaises(subject.GateError):
+                    subject.preflight(self.tmp, MARK, 4*subject.GIB, subject.BOOT_SHARED_SECONDS, False, d)
+                self.assertEqual(d.primary, {"stage":phase, "role":"host", "code":code})
+                self.assertEqual([uid for op, uid in self.sim.mutations() if op == "bootstatus"], [HOST])
+                self.assertFalse(d.host_stable_before_guest)
+                self.assertFalse(d.guest_boot_requested)
+                self.only_original()
+
+    def test_separate_boots_never_satisfy_one_joint_snapshot(self):
+        self.sim.failure = "host-regresses-during-guest"
+        d = subject.Diagnostic()
+        with self.assertRaises(subject.GateError):
+            subject.preflight(self.tmp, MARK, 4*subject.GIB, subject.BOOT_SHARED_SECONDS, False, d)
+        self.assertTrue(d.host_stable_before_guest)
+        self.assertTrue(d.guest_boot_command_completed)
+        self.assertFalse(d.dual_boot_verified)
+        self.assertEqual(d.primary, {"stage":"joint-booted-snapshot","code":"POSTBOOT_NOT_BOOTED","role":"host"})
+        self.only_original()
+
+    def test_joint_inventory_timeout_typed_even_after_both_commands_succeeded(self):
+        self.sim.failure = "joint-timeout"
+        d = subject.Diagnostic()
+        with self.assertRaises(subject.GateError):
+            subject.preflight(self.tmp, MARK, 4*subject.GIB, subject.BOOT_SHARED_SECONDS, False, d)
+        self.assertEqual(d.fields()["bootReadbacks"], {"hostBootCommandCompleted":True,
+            "hostStableBeforeGuest":True, "guestBootRequested":True, "guestBootCommandCompleted":True})
+        self.assertFalse(d.dual_boot_verified)
+        self.assertEqual(d.primary, {"stage":"joint-booted-snapshot","code":"COMMAND_TIMEOUT"})
+        self.only_original()
+
+    def test_shared_deadline_exhausted_before_any_boot_command(self):
+        with patch.object(subject, "JOINT_READ_SECONDS", subject.BOOT_SHARED_SECONDS):
+            d = subject.Diagnostic()
+            with self.assertRaises(subject.GateError):
+                subject.preflight(self.tmp, MARK, 4*subject.GIB, subject.BOOT_SHARED_SECONDS, False, d)
+        self.assertEqual(d.primary,{"stage":"host-boot-command","code":"BOOT_DEADLINE","role":"host"})
+        self.assertFalse(any(op == "bootstatus" for op, _ in self.sim.mutations()))
+        self.only_original()
 
     def test_catalog_has_one_read_per_stage_with_shared_45_second_budget(self):
         d = subject.Diagnostic()

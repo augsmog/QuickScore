@@ -5,12 +5,11 @@ class Tests(unittest.TestCase):
  def env(self):return {'GITHUB_SHA':'a'*40,'GITHUB_REPOSITORY':'augsmog/QuickScore','GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':r.REF,'GITHUB_JOB':'dual_boot','DEVELOPER_DIR':r.probe.XCODE,'SNAPSCORE_DUAL_BOOT_STARTED_NS':str(r.time.monotonic_ns())}
  def exercise(self,fail=False,cleanup_fail=False):
   def preflight(tmp,marker,minimum,budget,keep,d):
-   self.assertFalse(keep);self.assertEqual(budget,180);self.assertEqual(minimum,12*(1<<30))
+   self.assertFalse(keep);self.assertEqual(budget,195);self.assertEqual(minimum,12*(1<<30))
    print('private raw identity');print('private path',file=__import__('sys').stderr)
-   primary=r.probe.GateError('private primary identity','DUAL_BOOT_FAILED',(
-      ('guest',r.probe.GateError('untrusted stdout','COMMAND_TIMEOUT')),))
+   primary=r.probe.GateError('private primary identity','COMMAND_TIMEOUT')
    if fail:
-    d.at('boot');d.record_primary(primary)
+    d.at('guest-boot-command','guest');d.record_primary(primary)
    d.dual_boot_verified=not fail
    d.cleanup_attempted=True
    d.cleanup_verified=not cleanup_fail
@@ -30,7 +29,7 @@ class Tests(unittest.TestCase):
  def test_distinct_primary_and_cleanup_failure_fields(self):
   for a,b in ((True,False),(False,True),(True,True)):
    result=self.exercise(a,b);self.assertEqual(result['status'],'BLOCKED');self.assertNotIn('private',json.dumps(result))
-   self.assertEqual(result['primaryFailure'],{'stage':'boot','code':'DUAL_BOOT_FAILED','roles':[{'stage':'boot','code':'COMMAND_TIMEOUT','role':'guest'}]} if a else None)
+   self.assertEqual(result['primaryFailure'],{'stage':'guest-boot-command','code':'COMMAND_TIMEOUT','role':'guest'} if a else None)
    self.assertEqual(result['simultaneousBootVerified'],not a)
    self.assertEqual(result['cleanupFailures'],[{'stage':'cleanup-shutdown-readback','code':'SHUTDOWN_NOT_VERIFIED','role':'host'}] if b else [])
  def test_reason_never_emits_unknown_untrusted_code_stage_or_role(self):

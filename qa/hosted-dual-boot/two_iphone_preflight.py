@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Owned two-device capacity preflight; no app, backend, downloads, or global changes."""
 import argparse
-import concurrent.futures
 import hashlib
 import json
 import os
@@ -34,27 +33,33 @@ CATALOG_SECONDS = 45
 ROLE_CLEANUP_SECONDS = 35
 SETTLE_SECONDS = 8
 POLL_SECONDS = 0.5
+BOOT_SHARED_SECONDS = 195
+BOOT_ROLE_SECONDS = 105
+HOST_STABILITY_RESERVE = 10
+HOST_STABILITY_GAP = 0.5
+STABILITY_READ_SECONDS = 4
+JOINT_READ_SECONDS = 10
 PRIMARY_STAGES = frozenset(("host-context", "transport-admission", "memory-readback", "sdk-readback", "disk-before",
-    "catalog-xcode", "catalog-simctl-inventory", "catalog-validation", "journal", "create", "create-readback", "preboot-readback", "boot",
-    "postboot-readback", "disk-both-booted", "completion", "disk-after-cleanup"))
+    "catalog-xcode", "catalog-simctl-inventory", "catalog-validation", "journal", "create", "create-readback",
+    "preboot-readback", "host-boot-command", "host-stability-first", "host-stability-confirm",
+    "guest-boot-command", "joint-booted-snapshot", "disk-both-booted", "completion", "disk-after-cleanup"))
 CLEANUP_STAGES = frozenset(("cleanup-identify", "cleanup-shutdown", "cleanup-shutdown-readback",
     "cleanup-delete", "cleanup-delete-readback", "cleanup-journal"))
 CODES = frozenset(("HOST_SCOPE", "HOST_CONTEXT", "TRANSPORT_BUDGET_INVALID", "TRANSPORT_BUDGET_EXHAUSTED",
     "CATALOG_DEADLINE", "MEMORY_READBACK_INVALID", "SDK_READBACK_INVALID",
     "DISK_FLOOR", "XCODE_MISMATCH", "RUNTIME_MISMATCH", "DEVICE_TYPE_MISSING",
     "RUNTIME_DEVICE_UNSUPPORTED", "INVENTORY_INVALID", "NONCE_COLLISION", "FRESH_UUID_REQUIRED",
-    "IDENTITY_DRIFT", "CREATED_NOT_SHUTDOWN", "PREBOOT_NOT_SHUTDOWN", "DUAL_BOOT_FAILED",
-    "BOOT_DEADLINE", "POSTBOOT_NOT_BOOTED", "COMMAND_TIMEOUT", "COMMAND_NONZERO",
+    "IDENTITY_DRIFT", "CREATED_NOT_SHUTDOWN", "PREBOOT_NOT_SHUTDOWN",
+    "BOOT_DEADLINE", "HOST_NOT_STABLY_BOOTED", "GUEST_NOT_SHUTDOWN_BEFORE_BOOT", "POSTBOOT_NOT_BOOTED", "COMMAND_TIMEOUT", "COMMAND_NONZERO",
     "COMMAND_START_FAILED", "SHUTDOWN_NOT_VERIFIED", "DELETE_NOT_VERIFIED",
     "INTERRUPTED_CREATE_UNOBSERVED", "CLEANUP_DEADLINE", "CLEANUP_FAILED",
     "COMPLETION_UNVERIFIED", "INTERRUPTED", "LOCAL_IO", "UNKNOWN"))
 
 
 class GateError(RuntimeError):
-    def __init__(self, message, code="UNKNOWN", failures=()):
+    def __init__(self, message, code="UNKNOWN"):
         super().__init__(message)  # Private only; never emitted by the hosted wrapper.
         self.code = code
-        self.failures = failures
 
 
 class CleanupError(GateError):
@@ -75,6 +80,10 @@ class Diagnostic:
         self.stage = "host-context"
         self.role = None
         self.primary = None
+        self.host_boot_command_completed = False
+        self.host_stable_before_guest = False
+        self.guest_boot_requested = False
+        self.guest_boot_command_completed = False
         self.dual_boot_verified = False
         self.cleanup_attempted = False
         self.cleanup_verified = False
@@ -87,12 +96,14 @@ class Diagnostic:
         if self.primary is not None or isinstance(error, CleanupError):
             return
         self.primary = reason(error, self.stage, self.role)
-        if getattr(error, "code", None) == "DUAL_BOOT_FAILED":
-            self.primary["roles"] = [reason(cause, "boot", role)
-                                     for role, cause in error.failures[:2] if role in ROLES]
 
     def fields(self):
         return {"primaryFailure": self.primary, "simultaneousBootVerified": self.dual_boot_verified,
+                "bootStrategy": "staged-host-then-guest",
+                "bootReadbacks": {"hostBootCommandCompleted": self.host_boot_command_completed,
+                                  "hostStableBeforeGuest": self.host_stable_before_guest,
+                                  "guestBootRequested": self.guest_boot_requested,
+                                  "guestBootCommandCompleted": self.guest_boot_command_completed},
                 "cleanupAttempted": self.cleanup_attempted,
                 "cleanupVerified": self.cleanup_verified, "cleanupFailures": self.cleanup_failures[:3]}
 
@@ -363,36 +374,73 @@ def cleanup(path, data, diagnostic=None):
     d.cleanup_verified = True
 
 
-def boot_pair(records, budget):
-    deadline = time.monotonic() + budget
+def boot_remaining(deadline, operation_cap):
+    seconds = deadline - time.monotonic()
+    if seconds <= 0:
+        raise GateError("boot/readback deadline exhausted", "BOOT_DEADLINE")
+    return min(seconds, operation_cap)
 
-    def boot(item):
-        role, uid = item
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise GateError(f"{role} missed dual-boot deadline", "BOOT_DEADLINE")
-        started = time.monotonic()
-        try:
-            # -b requests boot if necessary and blocks until readiness.
-            command("simctl", "bootstatus", uid, "-b", timeout=remaining)
-        except GateError as exc:
-            raise GateError(f"{role}: {exc}", exc.code) from exc
-        if time.monotonic() > deadline:
-            raise GateError(f"{role} missed dual-boot deadline", "BOOT_DEADLINE")
-        return role, round(time.monotonic() - started, 3)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        futures = [pool.submit(boot, item) for item in records.items()]
-        timings, failures = {}, []
-        for (role, _), future in zip(records.items(), futures):
-            try:
-                role, elapsed = future.result()
-                timings[role] = elapsed
-            except GateError as exc:
-                failures.append((role, exc))
-        if failures:
-            raise GateError("; ".join(str(exc) for _, exc in failures), "DUAL_BOOT_FAILED", tuple(failures))
-    return timings
+def run_boot_command(uid, deadline, diagnostic, role):
+    started = time.monotonic()
+    timeout = boot_remaining(deadline, BOOT_ROLE_SECONDS)
+    if role == "guest":
+        diagnostic.guest_boot_requested = True
+    try:
+        # Exact owned UUID only; -b requests one boot and blocks for readiness.
+        command("simctl", "bootstatus", uid, "-b", timeout=timeout)
+    except GateError as exc:
+        raise GateError(f"{role}: {exc}", exc.code) from exc
+    boot_remaining(deadline, BOOT_ROLE_SECONDS)  # zero exit after the limit is not evidence
+    return round(time.monotonic() - started, 3)
+
+
+def require_state(rows, token, uid, role, expected, code):
+    row = lookup(rows, token, role, uid)
+    if not row or row.get("state") != expected or row.get("isAvailable") is not True:
+        raise GateError(f"{role} not available and {expected} in required inventory snapshot", code)
+
+
+def boot_pair(records, token, budget, d):
+    """A/B diagnostic: boot host alone; prove simultaneous state after guest starts."""
+    started = time.monotonic()
+    deadline = started + budget
+    host, guest = (records[role] for role in ROLES)
+    host_phase_deadline = min(deadline - JOINT_READ_SECONDS, started + BOOT_ROLE_SECONDS)
+    d.at("host-boot-command", "host")
+    host_seconds = run_boot_command(host, host_phase_deadline - HOST_STABILITY_RESERVE, d, "host")
+    d.host_boot_command_completed = True
+
+    def read_host_stability(stage):
+        d.at(stage, "host")
+        _, rows = inventory(timeout=boot_remaining(host_phase_deadline, STABILITY_READ_SECONDS))
+        boot_remaining(host_phase_deadline, STABILITY_READ_SECONDS)
+        require_state(rows, token, host, "host", "Booted", "HOST_NOT_STABLY_BOOTED")
+        d.at(stage, "guest")
+        require_state(rows, token, guest, "guest", "Shutdown", "GUEST_NOT_SHUTDOWN_BEFORE_BOOT")
+
+    read_host_stability("host-stability-first")
+    d.at("host-stability-confirm", "host")
+    if boot_remaining(host_phase_deadline, HOST_STABILITY_GAP * 2) <= HOST_STABILITY_GAP:
+        raise GateError("insufficient time for separated host-readback observations", "BOOT_DEADLINE")
+    time.sleep(HOST_STABILITY_GAP)
+    read_host_stability("host-stability-confirm")
+    d.host_stable_before_guest = True
+
+    d.at("guest-boot-command", "guest")
+    guest_deadline = min(deadline - JOINT_READ_SECONDS, time.monotonic() + BOOT_ROLE_SECONDS)
+    guest_seconds = run_boot_command(guest, guest_deadline, d, "guest")
+    d.guest_boot_command_completed = True
+
+    # One fresh atomic inventory: historical host and guest observations cannot be paired.
+    d.at("joint-booted-snapshot")
+    _, rows = inventory(timeout=boot_remaining(deadline, JOINT_READ_SECONDS))
+    boot_remaining(deadline, JOINT_READ_SECONDS)
+    for role, uid in (("host", host), ("guest", guest)):
+        d.at("joint-booted-snapshot", role)
+        require_state(rows, token, uid, role, "Booted", "POSTBOOT_NOT_BOOTED")
+    d.dual_boot_verified = True
+    return {"host": host_seconds, "guest": guest_seconds}
 
 
 def preflight(tmp, marker, minimum, budget, keep, diagnostic=None):
@@ -446,16 +494,7 @@ def _preflight(tmp, marker, minimum, budget, keep, d):
             row = lookup(rows, token, role, uid)
             if not row or row.get("state") != "Shutdown" or row.get("isAvailable") is not True:
                 raise GateError(f"{role} not available and Shutdown before dual boot", "PREBOOT_NOT_SHUTDOWN")
-        d.at("boot")
-        timings = boot_pair(data["records"], budget)
-        d.at("postboot-readback")
-        _, rows = inventory()
-        for role, uid in data["records"].items():
-            d.at(d.stage, role)
-            row = lookup(rows, token, role, uid)
-            if not row or row.get("state") != "Booted" or row.get("isAvailable") is not True:
-                raise GateError(f"{role} not available and Booted in the same inventory snapshot", "POSTBOOT_NOT_BOOTED")
-        d.dual_boot_verified = True
+        timings = boot_pair(data["records"], token, budget, d)
         d.at("disk-both-booted")
         during = free_space(tmp, minimum, "while both booted")
         result = {
