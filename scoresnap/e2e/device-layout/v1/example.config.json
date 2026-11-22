@@ -1,0 +1,36 @@
+{
+  "schema": "device-layout/v1",
+  "product": "snapscore",
+  "adapter": "rn-maestro",
+  "provenance": { "sourceSha": "587e88f", "buildHash": "0000000", "configHash": "0000000" },
+  "devices": [
+    { "id": "se3", "platform": "ios", "profile": "iphone-se-3", "logical": { "width": 375, "height": 667 }, "density": 2, "os": 18.5, "fontScale": 1, "runner": "johns-mac-mini", "cadence": "pr" },
+    { "id": "iphone-16-pro", "platform": "ios", "profile": "iphone-16-pro", "logical": { "width": 402, "height": 874 }, "density": 3, "os": 26.0, "fontScale": 1, "runner": "johns-mac-mini", "cadence": "pr" },
+    { "id": "iphone-16-pro-max", "platform": "ios", "profile": "iphone-16-pro-max", "logical": { "width": 440, "height": 956 }, "density": 3, "os": 26.0, "fontScale": 1, "runner": "johns-mac-mini", "cadence": "nightly" },
+    { "id": "android-compact", "platform": "android", "profile": "compact-avd", "logical": { "width": 360, "height": 800 }, "density": 3, "os": 35, "fontScale": 1, "runner": "ubuntu-latest-kvm", "cadence": "pr" }
+  ],
+  "flows": [
+    { "id": "new-contest", "states": ["empty", "named", "multi-day", "teams", "combined-stress"], "checkpoints": ["entry", "name-keyboard", "rounds-scroll", "teams-on", "last-player-above-footer", "start"] },
+    { "id": "join", "states": ["invalid-code", "valid-code", "pending", "bound"], "checkpoints": ["entry", "invalid", "bound"] },
+    { "id": "paywall", "states": ["plans"], "checkpoints": ["entry", "cta-above-fold"] }
+  ],
+  "rules": [
+    { "id": 1, "name": "overlap", "layer": "both", "contract": { "tolerancePt": 1 } },
+    { "id": 2, "name": "clipping-reachability", "layer": "both", "contract": { "minRatio": 0.999 } },
+    { "id": 3, "name": "truncation-context", "layer": "both", "contract": { "maxFontScale": "AX1" } },
+    { "id": 4, "name": "spacing-alignment", "layer": "both", "contract": { "minSpacingPt": 8, "alignPt": 4, "headerMaxPt": 32 } },
+    { "id": 5, "name": "tap-targets", "layer": "geometry", "contract": { "iosPt": 44, "androidDp": 48, "edgeGapPt": 8 } },
+    { "id": 7, "name": "state-legibility", "layer": "vision", "contract": { "minSwitchContrast": 3.0 } },
+    { "id": 8, "name": "flow-completion", "layer": "both", "contract": {} }
+  ],
+  "reviewerPolicy": { "builder": "anthropic", "provider": "openai", "model": "gpt-6-astra", "effort": "high" },
+  "waivers": [],
+  "fixtures": {
+    "negative": [
+      { "image": "multi-day.png", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expectDefect": "switch/label collision; rounds picker loses 'Number of Rounds'" },
+      { "image": "team-mode.png", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expectDefect": "Team Mode switch renders as an unlabeled black pill" }
+    ],
+    "positive": []
+  },
+  "retention": { "passDays": 7, "failDays": 14 }
+}
