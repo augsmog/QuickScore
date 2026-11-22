@@ -1,232 +1,222 @@
 name: device-layout-gate
-# AUG-1380 (child of AUG-1373). Cross-device usability + visual layout gate for SnapScore UI
-# PRs. ALWAYS STARTS (no workflow-level path filter — those leave required checks stuck
-# "Expected"/pending). Path logic lives INSIDE the `changes` job: UI-affecting changes run the
-# full gate; doc-only changes emit an explicit successful exemption. See
-# /workspace/aos-state/reports/2026-11-19-device-gate-t1547u/RECONCILED-PLAN.md sections B–E.
-#
-# Layers:
-#   1. deterministic  — rules 1–8 geometry engine + fixture/waiver integrity (fast, free).
-#   2. vision-selfcheck — rubric-drift self-check: the committed owner negative fixtures MUST
-#                         come back flagged (rule 2 footer-clip + rule-4/6 alignment family),
-#                         or the gate fails itself.
-#   3. android-compact — Android compact AVD (360x800dp, API 35) on ubuntu-latest KVM, Maestro
-#                        device-layout flows → geometry runner. Gated on the native harness
-#                        (AUG-1376) + owner enablement (variable DEVICE_LAYOUT_NATIVE) so we do
-#                        not burn hosted minutes on a not-yet-wired build. iOS rows land on the
-#                        Mac mini runner under AUG-1376.
-#
-# Making this a REQUIRED merge-blocking check (branch protection on augsmog/QuickScore main +
-# the safe_merge.py mandatory-named-check change) is an owner-approved control item, tracked in
-# the RECONCILED-PLAN owner items. The workflow is the always-start half of that contract.
+# Selected-ref, one-shot diagnostic only. Never merge this workflow into main.
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
-permissions:
-  contents: read
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-
+permissions: {}
 jobs:
-  changes:
-    runs-on: ubuntu-latest
+  read-only-metadata-admission:
+    if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-android-admission-metadata'
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
-    outputs:
-      ui: ${{ steps.filter.outputs.ui }}
-      native: ${{ steps.filter.outputs.native }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - id: filter
-        name: Decide if this PR affects SnapScore UI
+      - name: Read official metadata and existing local capabilities only
+        if: runner.environment == 'github-hosted' && runner.os == 'Linux' && runner.arch == 'X64'
         shell: bash
         run: |
           set -euo pipefail
-          base="${{ github.event.pull_request.base.sha }}"
-          head="${{ github.sha }}"
-          if [ -z "$base" ]; then base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"; fi
-          files="$(git diff --name-only "$base" "$head" || true)"
-          echo "changed files:"; echo "$files"
-          # UI-affecting: app routes, shared UI/theme/assets, native/config/deps, flows, the gate
-          # itself, and the device-layout module. Unknown-impact (non doc-only) runs the gate.
-          ui=false
-          native=false
-          while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            case "$f" in
-              scoresnap/app/**|scoresnap/src/ui/**|scoresnap/src/**/*.tsx|scoresnap/assets/**|\
-              scoresnap/app.json|scoresnap/app.config.*|scoresnap/package.json|scoresnap/package-lock.json|\
-              .maestro/**)
-                ui=true; native=true ;;  # app UI: full native evidence on BOTH platforms (owner card t1550s9640)
-              scoresnap/e2e/device-layout/**|.github/workflows/device-layout-gate.yml)
-                ui=true ;;  # the gate's own code: layers 1-2 (unit tests + rubric self-check)
-              .github/mac-runner/*|.github/workflows/mac-runner-hygiene.yml|.github/workflows/mac-runner-watch.yml)
-                : ;;  # Mac runner hygiene (AUG-1484): runner ops, not app UI
-              *.md|docs/**|**/*.md|LICENSE|.gitignore)
-                : ;;  # doc-only candidate
-              *)
-                ui=true; native=true ;;  # unknown impact → run the full gate (fail safe)
-            esac
-          done <<< "$files"
-          echo "ui=$ui" >> "$GITHUB_OUTPUT"
-          echo "native=$native" >> "$GITHUB_OUTPUT"
-          if [ "$ui" = "false" ]; then
-            echo "Doc-only change — device-layout gate exempt (explicit success)."
-          fi
+          umask 077
+          test "$(id -u)" != 0
+          work="$(mktemp -d "${RUNNER_TEMP}/android-admission-source.XXXXXXXX")"
+          trap 'rm -f -- "$work/probe.py"; rmdir -- "$work"' EXIT
+          cat > "$work/probe.py" <<'READ_ONLY_PY'
+          """Only GET exact Google repository metadata and read local capability attributes."""
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import stat
+          import subprocess
+          import tempfile
+          import xml.etree.ElementTree as ET
 
-  deterministic:
-    needs: changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: scoresnap/e2e/device-layout
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Layer 1 — deterministic geometry rules 1–8 + fixtures + waivers (unit tests)
-        if: needs.changes.outputs.ui == 'true'
-        run: node --test lib/*.test.mjs
-      - name: Validate committed waivers.json
-        if: needs.changes.outputs.ui == 'true'
-        run: node -e "import('./lib/waivers.mjs').then(m=>{const d=JSON.parse(require('fs').readFileSync('waivers.json'));const r=m.validateWaivers(d);if(!r.ok){console.error(r.errors.join('\n'));process.exit(1)}console.log('waivers ok')})"
-      - name: Doc-only exemption
-        if: needs.changes.outputs.ui != 'true'
-        run: echo "Doc-only change — deterministic layer skipped by design (exempt success)."
+          ORIGIN = "https://dl.google.com"
+          INDEXES = {
+              "api35": ("/android/repository/sys-img/android/sys-img2-1.xml",
+                        "sdk-sys-img", "http://schemas.android.com/sdk/android/repo/sys-img2/01",
+                        "system-images;android-35;default;x86_64"),
+              "platformTools": ("/android/repository/repository2-3.xml",
+                                "sdk-repository", "http://schemas.android.com/sdk/android/repo/repository2/03",
+                                "platform-tools"),
+          }
+          CAP = 16 * 1024 * 1024
+          PATH = "/usr/bin:/bin"
+          BASE_ENV = {"PATH": PATH, "LC_ALL": "C", "LANG": "C"}
+          TARGET = (37, 0, 1)
 
-  vision-selfcheck:
-    needs: changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: scoresnap/e2e/device-layout
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Layer 2 — rubric-drift self-check against committed owner negative fixtures
-        if: needs.changes.outputs.ui == 'true'
-        # Uses the committed Codex astra/high calibration reviews (reproduced run, no API/spend).
-        # When the live reviewer is wired into CI (owner item: credentials), swap --reviews for
-        #   --review-cmd "$DEVICE_LAYOUT_VISION_CMD" to produce reviews fresh each run.
-        run: node run-vision.mjs --self-check --reviews fixtures/negative/calibration
-      - name: Doc-only exemption
-        if: needs.changes.outputs.ui != 'true'
-        run: echo "Doc-only change — vision self-check skipped by design (exempt success)."
 
-  android-compact:
-    needs: [changes, deterministic, vision-selfcheck]
-    # Native layer for app-UI changes (native == true). Fails loudly until the AUG-1376 harness lands.
-    # Owner card t1550s9640 (Nov 19 2026): both platforms, full native evidence; no enablement variable.
-    if: needs.changes.outputs.native == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Enable KVM (hardware accel, ubuntu-latest, 1x quota)
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
-      - uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          arch: x86_64
-          profile: pixel_5
-          # Compact custom AVD geometry (≈360x800dp @ 480dpi) is applied by the harness config.
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: DEVICE_LAYOUT_OUT="${{ runner.temp }}/device-layout-out" bash scoresnap/e2e/device-layout/scripts/run-android-compact.sh
-      - name: Upload Android capture bundle (candidate-bound; reviewed by vision-candidate)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: device-layout-android
-          path: ${{ runner.temp }}/device-layout-out
-          if-no-files-found: ignore
-          retention-days: 14
+          class Held(Exception):
+              pass
 
-  ios-sim:
-    needs: [changes, deterministic, vision-selfcheck]
-    # iOS rows on the self-hosted Mac mini runner (labels self-hosted, ios-sim), owner card t1550s9640.
-    # Every PR: iPhone 16 Pro (402x874) + iPhone SE 3 (375x667); AX3 text when the run stays < 15 min.
-    if: needs.changes.outputs.native == 'true'
-    runs-on: [self-hosted, ios-sim]
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-      - name: iOS simulator legs (iPhone 16 Pro, iPhone SE 3)
-        env:
-          DEVICE_LAYOUT_IOS_PROFILES: iphone-16-pro,iphone-se-3
-          DEVICE_LAYOUT_OUT: ${{ runner.temp }}/device-layout-out
-        run: |
-          rm -rf "$DEVICE_LAYOUT_OUT"
-          bash scoresnap/e2e/device-layout/scripts/run-ios-sim.sh
-      - name: Upload iOS capture bundles (candidate-bound; reviewed by vision-candidate)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: device-layout-ios
-          path: ${{ runner.temp }}/device-layout-out
-          if-no-files-found: ignore
-          retention-days: 14
 
-  vision-candidate:
-    needs: [changes, android-compact, ios-sim]
-    # Layer 2 on the CANDIDATE (Codex check 7116885 finding 3): the cross-company vision reviewer
-    # judges every native checkpoint screenshot of this exact build (sha256-bound), after a fresh
-    # live rubric self-check on the owner negative fixtures with the same reviewer. Runs on the
-    # Mac runner, where the reviewer command (DEVICE_LAYOUT_VISION_CMD) is configured runner-side;
-    # no model credentials live in GitHub. Unset reviewer or missing bundles => FAIL (fail closed).
-    if: ${{ !cancelled() && needs.changes.outputs.native == 'true' }}
-    runs-on: [self-hosted, ios-sim]
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: device-layout-*
-          path: ${{ runner.temp }}/device-layout-candidate
-      - name: Candidate vision review (all native bundles, both platforms)
-        run: bash scoresnap/e2e/device-layout/scripts/run-vision-candidate.sh "${{ runner.temp }}/device-layout-candidate"
+          def require(ok, code):
+              if not ok:
+                  raise Held(code)
 
-  device-layout-gate:
-    # The ONE aggregate status check. Its name is the contract: branch protection on main and
-    # augie-os-control safe_merge.py both require a check named exactly `device-layout-gate`.
-    # Always runs and always reports, so doc-only PRs are not blocked.
-    if: always()
-    needs: [changes, deterministic, vision-selfcheck, android-compact, ios-sim, vision-candidate]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Aggregate verdict
-        env:
-          UI: ${{ needs.changes.outputs.ui }}
-          NATIVE: ${{ needs.changes.outputs.native }}
-          R_CHANGES: ${{ needs.changes.result }}
-          R_DET: ${{ needs.deterministic.result }}
-          R_VIS: ${{ needs.vision-selfcheck.result }}
-          R_AND: ${{ needs.android-compact.result }}
-          R_IOS: ${{ needs.ios-sim.result }}
-          R_VCAND: ${{ needs.vision-candidate.result }}
-        run: |
-          set -u
-          echo "changes=$R_CHANGES deterministic=$R_DET vision-selfcheck=$R_VIS android-compact=$R_AND ios-sim=$R_IOS vision-candidate=$R_VCAND ui=$UI native=$NATIVE"
-          [ "$R_CHANGES" = success ] || { echo "::error::changes job $R_CHANGES"; exit 1; }
-          if [ "$UI" != true ]; then echo "Doc-only change: exempt (success)."; exit 0; fi
-          { [ "$R_DET" = success ] && [ "$R_VIS" = success ]; } || { echo "::error::layer 1/2 not green"; exit 1; }
-          if [ "$NATIVE" = true ]; then
-            [ "$R_AND" = success ] || { echo "::error::Android native leg $R_AND (full native evidence required)"; exit 1; }
-            [ "$R_IOS" = success ] || { echo "::error::iOS native leg $R_IOS (full native evidence required)"; exit 1; }
-            [ "$R_VCAND" = success ] || { echo "::error::candidate vision review $R_VCAND (cross-company review of this build's screenshots required)"; exit 1; }
-          fi
-          echo "device-layout-gate: PASS"
+
+          def fields(e, name, optional=False):
+              rows = [x for x in e if x.tag == name]
+              require(len(rows) <= 1 and (optional or len(rows) == 1), "XML_FIELD_" + name)
+              return rows[0] if rows else None
+
+
+          def val(e, name, optional=False):
+              row = fields(e, name, optional)
+              if row is None:
+                  return None
+              raw = row.text or ""
+              require(len(row) == 0 and 0 < len(raw.strip()) <= 255, "XML_TEXT_" + name)
+              return raw.strip()
+
+
+          def integer(v, cap=100000):
+              require(isinstance(v, str) and re.fullmatch(r"[0-9]{1,12}", v) is not None and int(v) <= cap, "XML_INTEGER")
+              return int(v)
+
+
+          def parse(key, raw):
+              path, name, ns, pkg = INDEXES[key]
+              require(0 < len(raw) <= CAP, "REPOSITORY_METADATA_SIZE")
+              # Never permit DTD/entity declarations, non-UTF-8 or a UTF-16/NUL trick.
+              text = raw.decode("utf-8-sig", "strict")
+              require("\0" not in text and not re.search(r"<!\s*(?:DOCTYPE|ENTITY)\b", text, re.I),
+                      "UNSAFE_XML_DECLARATION")
+              root = ET.fromstring(text)
+              require(root.tag == "{{{}}}{}".format(ns, name), "REPOSITORY_NAMESPACE")
+              out = []
+              for remote in root.findall("remotePackage"):
+                  if remote.get("path") != pkg:
+                      continue
+                  channel = fields(remote, "channelRef", True)
+                  if channel is not None and channel.get("ref") != "channel-0":
+                      continue
+                  rev = fields(remote, "revision")
+                  if fields(rev, "preview", True) is not None:
+                      continue
+                  v = (integer(val(rev, "major")), integer(val(rev, "minor", True) or "0"),
+                       integer(val(rev, "micro", True) or "0"))
+                  require(v[0] > 0, "INVALID_MAJOR")
+                  if key == "api35":
+                      details = fields(remote, "type-details")
+                      require(val(details, "api-level") == "35" and val(details, "abi") == "x86_64" and
+                              val(fields(details, "tag"), "id") == "default", "WRONG_API35_ABI_OR_VARIANT")
+                  for archive in fields(remote, "archives").findall("archive"):
+                      os_name = val(archive, "host-os", True)
+                      arch = val(archive, "host-arch", True)
+                      if key == "platformTools" and os_name != "linux":
+                          continue
+                      if key == "api35" and os_name not in (None, "linux"):
+                          continue
+                      if arch not in (None, "x64", "x86_64"):
+                          continue
+                      body = fields(archive, "complete")
+                      size = integer(val(body, "size"), cap=15_000_000_000)
+                      filename = val(body, "url")
+                      require(size > 0 and re.fullmatch(r"[A-Za-z0-9_.-]{1,160}\.zip", filename)
+                              and not filename.startswith((".", "-")), "UNSAFE_ARCHIVE_LOCATOR")
+                      checks = {}
+                      for e in body.findall("checksum"):
+                          method = e.get("type", "sha1")
+                          n = {"sha1":40, "sha256":64}.get(method)
+                          value = (e.text or "").strip()
+                          require(n is not None and method not in checks and not len(e) and
+                                  re.fullmatch("[a-fA-F0-9]{" + str(n) + "}", value), "INVALID_PUBLISHER_CHECKSUM")
+                          checks[method] = value.lower()
+                      require(bool(checks), "PUBLISHER_CHECKSUM_MISSING")
+                      lic = fields(remote, "uses-license", True)
+                      license_id = lic.get("ref") if lic is not None else None
+                      require(license_id is None or re.fullmatch(r"[a-z0-9-]{1,80}", license_id),
+                              "INVALID_LICENSE_REF")
+                      out.append({"revision":list(v), "url":ORIGIN + path.rsplit("/",1)[0]+"/"+filename,
+                                  "archiveBytes":size, "publisherChecksum":checks, "licenseRef":license_id})
+              require(0 < len(out) <= 10 and len({tuple(x["revision"]) for x in out}) == len(out),
+                      "EXACT_STABLE_LINUX_ROW_MISSING_OR_AMBIGUOUS")
+              return {"source":ORIGIN+path,"metadataBytes":len(raw),"metadataSha256":hashlib.sha256(raw).hexdigest(),
+                      "package":pkg,"stablePublisherRows":sorted(out,key=lambda x:x["revision"],reverse=True)}
+
+
+          def fetch(key, scratch):
+              url = ORIGIN + INDEXES[key][0]
+              target = scratch / (key + ".xml")
+              # --disable must be first: do not read curlrc. No auth/proxy/redirect/archives.
+              args = ["/usr/bin/curl","--disable","--silent","--show-error","--noproxy","*","--proto","=https",
+                      "--tlsv1.2","--max-redirs","0","--connect-timeout","8","--max-time","24",
+                      "--max-filesize",str(CAP),"--header","Accept: application/xml, text/xml",
+                      "--output",str(target),"--write-out","%{http_code}\\n%{content_type}\\n%{url_effective}\\n",url]
+              try:
+                  p = subprocess.run(args, env=BASE_ENV, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=27)
+              except (subprocess.TimeoutExpired, OSError):
+                  raise Held("DIRECT_GOOGLE_TLS_UNAVAILABLE") from None
+              require(p.returncode == 0 and len(p.stdout) <= 1024, "DIRECT_GOOGLE_TLS_UNAVAILABLE")
+              report = p.stdout.decode("utf-8").splitlines()
+              require(len(report) == 3 and report[0] == "200" and report[2] == url
+                      and report[1].split(";",1)[0].strip().lower() in ("application/xml","text/xml"),
+                      "DIRECT_GOOGLE_HTTP_STATUS_TYPE_OR_ORIGIN")
+              with target.open("rb") as f:
+                  return f.read(CAP+1)
+
+
+          def local_docker(scratch):
+              socket = Path("/var/run/docker.sock")
+              try:
+                  # lstat rejects unexpected symlink endpoints; normal /var/run directory alias is fine.
+                  if not stat.S_ISSOCK(socket.lstat().st_mode):
+                      return {"available":False,"reason":"EXPECTED_LOCAL_SOCKET_NOT_PRESENT"}
+                  config = scratch/"docker-empty"
+                  config.mkdir(mode=0o700)
+                  p = subprocess.run(["/usr/bin/docker","--config",str(config),"-H","unix:///var/run/docker.sock",
+                                      "version","--format","{{json .}}"], env={**BASE_ENV,"HOME":str(config)},
+                                     stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=8)
+                  if p.returncode or len(p.stdout)>32768:
+                      return {"available":False,"reason":"LOCAL_DAEMON_VERSION_UNAVAILABLE"}
+                  data = json.loads(p.stdout)
+                  client, server = data["Client"], data["Server"]
+                  vc, vs = client["Version"], server["Version"]
+                  require(all(re.fullmatch(r"[0-9]{1,3}(?:\.[0-9]{1,3}){1,3}(?:[-+.][A-Za-z0-9.-]{1,35})?",x)
+                              for x in (vc,vs)), "DOCKER_VERSION_INVALID")
+                  require(server["Os"] == "linux" and server["Arch"] in ("amd64","x86_64"), "DAEMON_NOT_LINUX_X64")
+                  return {"available":True,"clientVersion":vc,"serverVersion":vs,"serverOs":"linux","serverArch":server["Arch"]}
+              except (Held, OSError, ValueError, TypeError, KeyError, subprocess.TimeoutExpired):
+                  return {"available":False,"reason":"LOCAL_DAEMON_VERSION_UNVERIFIED"}
+
+
+          def kvm():
+              p = "/dev/kvm"
+              try:
+                  s = os.stat(p, follow_symlinks=False)
+                  require(stat.S_ISCHR(s.st_mode) and (os.major(s.st_rdev),os.minor(s.st_rdev)) == (10,232),
+                          "WRONG_KVM_NODE_TYPE")
+                  a = lambda mode: os.access(p,mode,effective_ids=True,follow_symlinks=False)
+                  return {"nodePresent":True,"major":10,"minor":232,"currentUserCanRead":a(os.R_OK),
+                          "currentUserCanWrite":a(os.W_OK),"primaryDeviceGroup":s.st_gid == os.getegid(),
+                          "supplementalDeviceGroup":s.st_gid in os.getgroups(),"currentUserNonRoot":os.geteuid()!=0}
+              except (Held,OSError,NotImplementedError):
+                  return {"nodePresent":False,"reason":"EXPECTED_KVM_NODE_UNAVAILABLE_OR_WRONG_TYPE"}
+
+
+          def main():
+              receipts = {}
+              with tempfile.TemporaryDirectory(prefix="android-admission-") as directory:
+                  scratch = Path(directory)
+                  for key in INDEXES:
+                      try:
+                          receipts[key] = parse(key, fetch(key, scratch))
+                      except (Held, OSError, UnicodeError, ET.ParseError) as er:
+                          receipts[key] = {"blocked":str(er) if isinstance(er,Held) else "REPOSITORY_XML_INVALID"}
+                  docker = local_docker(scratch)
+              rows = receipts["platformTools"].get("stablePublisherRows",[])
+              seen = any(tuple(r["revision"]) == TARGET for r in rows)
+              result = {"scope":"metadata-and-host-capability-readback-only","metadata":receipts,
+                        "preferredPlatformTools37_0_1Present":seen,"docker":docker,"kvm":kvm(),
+                        "notRuntimeProof":True,"appOperations":False,"containerOperations":False,
+                        "archiveDownloads":False,"pixelDispatchAuthorized":False}
+              print(json.dumps(result,sort_keys=True))
+              # This must never look like the merge-blocking device layout gate passed.
+              return 78
+
+
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          READ_ONLY_PY
+          printf '%s  %s\n' 3b67ad93cc2b7eda51f3830fea877862f438a31de0876bc1427ec85765ed3f51 "$work/probe.py" | /usr/bin/sha256sum --check --status
+          /usr/bin/env -i PATH=/usr/bin:/bin LANG=C LC_ALL=C TMPDIR="$work" /usr/bin/python3 -I -B "$work/probe.py"
