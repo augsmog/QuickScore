@@ -9,47 +9,72 @@ def scene(tree):
  if 'paywall-close' not in ids or HEADER not in texts or ids.intersection({'home-new-contest','contest-start','contest-step-setup','contest-step-round-settings'}):raise ValueError('PAYWALL_SCENE_REQUIRED')
  return True
 
-OPEN="""- assertVisible: {id: home-new-contest}
+ENTER="""- assertVisible: {id: home-new-contest}
 - tapOn: {id: home-new-contest}
 - assertVisible: {id: contest-step-setup}
 - assertNotVisible: {id: home-new-contest}
-- scrollUntilVisible:
-    element: {text: '^Your name$'}
+- assertNotVisible: {id: contest-player-2}
+"""
+HOST="""- scrollUntilVisible:
+    element: {id: contest-player-0}
     direction: DOWN
     timeout: 12000
-- tapOn: 'Your name'
-- eraseText: 100
-- inputText: 'QA Host'
-- scrollUntilVisible:
+- assertVisible:
+    id: contest-player-0
+    containsDescendants:
+      - text: '^Golfer$'
+"""
+GUEST="""- scrollUntilVisible:
     element: {text: '^Player 2 name$'}
     direction: DOWN
     timeout: 12000
-- tapOn: 'Player 2 name'
+- assertVisible:
+    id: contest-player-1
+    containsDescendants:
+      - text: '^Player 2 name$'
+- tapOn: {text: '^Player 2 name$'}
 - inputText: 'QA Guest'
 - hideKeyboard
-- scrollUntilVisible:
+- assertVisible:
+    id: contest-player-1
+    containsDescendants:
+      - text: '^QA Guest$'
+"""
+TOGGLE="""- scrollUntilVisible:
     element: {id: tournament-toggle}
     direction: UP
     timeout: 12000
 - tapOn: {id: tournament-toggle}
-- scrollUntilVisible:
+"""
+ROUNDS="""- scrollUntilVisible:
     element: {id: rounds-2}
     direction: DOWN
     timeout: 12000
 - assertVisible: {id: rounds-2}
 - tapOn: {id: rounds-2}
-- tapOn: {id: contest-continue}
+"""
+GAME_STEP="""- tapOn: {id: contest-continue}
 - assertVisible: {id: contest-step-gamemodes}
-- tapOn: {id: contest-continue}
+"""
+ROUND_STEP="""- tapOn: {id: contest-continue}
 - assertVisible: {id: contest-step-round-settings}
+"""
+START="""- assertVisible: {id: contest-step-round-settings}
 - tapOn: {id: contest-start}
-- extendedWaitUntil:
+"""
+APPEARANCE="""- extendedWaitUntil:
     visible: {id: paywall-close}
     timeout: 15000
 - assertVisible: 'Run the game. We do the math.'
 - assertNotVisible: {id: home-new-contest}
 - assertNotVisible: {id: contest-start}
 """
+ENTRY_STEPS=(('enter',ENTER),('host-prefill',HOST),('guest-entry',GUEST),('tournament-toggle',TOGGLE),('round-count',ROUNDS),('game-step',GAME_STEP),('round-step',ROUND_STEP),('start',START),('appearance',APPEARANCE))
+REENTRY_STEPS=ENTRY_STEPS[5:]
+OPEN=''.join(text for _,text in ENTRY_STEPS)
+def run_entry(flow,progress,reopen=False):
+ for step,text in REENTRY_STEPS if reopen else ENTRY_STEPS:
+  progress.perform('paywall',step,lambda step=step,text=text:flow(text,step))
 CLOSE="""- assertVisible: {id: paywall-close}
 - assertVisible: 'Run the game. We do the math.'
 - tapOn: {id: paywall-close}
@@ -60,15 +85,21 @@ CLOSE="""- assertVisible: {id: paywall-close}
 - tapOn: {id: new-contest-back}
 - assertVisible: {id: contest-step-setup}
 - scrollUntilVisible:
-    element: {text: '^QA Host$'}
+    element: {text: '^Golfer$'}
     direction: DOWN
     timeout: 12000
-- assertVisible: 'QA Host'
+- assertVisible:
+    id: contest-player-0
+    containsDescendants:
+      - text: '^Golfer$'
 - scrollUntilVisible:
     element: {text: '^QA Guest$'}
     direction: DOWN
     timeout: 12000
-- assertVisible: 'QA Guest'
+- assertVisible:
+    id: contest-player-1
+    containsDescendants:
+      - text: '^QA Guest$'
 - scrollUntilVisible:
     element: {id: rounds-2}
     direction: UP
@@ -80,15 +111,4 @@ VISIBLE="""- assertVisible: {id: paywall-close}
 - assertNotVisible: {id: home-new-contest}
 - assertNotVisible: {id: contest-start}
 """
-REOPEN="""- tapOn: {id: contest-continue}
-- assertVisible: {id: contest-step-gamemodes}
-- tapOn: {id: contest-continue}
-- assertVisible: {id: contest-step-round-settings}
-- tapOn: {id: contest-start}
-- extendedWaitUntil:
-    visible: {id: paywall-close}
-    timeout: 15000
-- assertVisible: 'Run the game. We do the math.'
-- assertNotVisible: {id: home-new-contest}
-- assertNotVisible: {id: contest-start}
-"""
+REOPEN=''.join(text for _,text in REENTRY_STEPS)

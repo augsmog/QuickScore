@@ -45,7 +45,7 @@ def clean_npm_configs(home):
   path.chmod(0o600)
  return {key:str(path) for key,path in paths.items()}
 PHASES={'paywall','preflight','home','setup','scale','restore','cold-home','add-player'}
-STEPS={'open','close-draft','prepare','tap','entry','add-third','add-fourth','capture','set-readback','return-home','restore-category','restart','reveal','activate'}
+STEPS={'enter','host-prefill','guest-entry','tournament-toggle','round-count','game-step','round-step','start','appearance','open','close-draft','prepare','tap','entry','add-third','add-fourth','capture','set-readback','return-home','restore-category','restart','reveal','activate'}
 class Progress:
  def __init__(self):self.failure=None;self.restoreFailed=False
  def perform(self,phase,step,fn):
@@ -170,12 +170,12 @@ def _run(a,progress):
     progress.perform('add-player','capture',lambda:shot('add-player','add-player-'+category,category,ADD_VISIBLE,'post-cold'))
     progress.perform('add-player','activate',lambda:flow(ADD_ACTIVATE,'add-activate-'+str(i)))
     (out/('add-player-action-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'fourPlayerCheckpointPreserved':True,'fifthPlayerVisibleAfterTap':True,'aggregatePass':False})+'\n')
-   from paywall import OPEN,CLOSE,VISIBLE,REOPEN
+   from paywall import OPEN,CLOSE,VISIBLE,REOPEN,run_entry
    from pricing import reveal,visible,RETURN_TOP,optional_sections
    progress.perform('home','return-home',lambda:flow('- tapOn: {id: new-contest-back}\n','paywall-return-home'))
    for i,category in enumerate(CATEGORIES):
     progress.perform('scale','set-readback',lambda:(sim('ui',a.udid,'content_size',category,name='paywall-set-'+str(i)),category_readback(sim('ui',a.udid,'content_size',name='paywall-read-'+str(i)),category)))
-    progress.perform('paywall','open',lambda:flow(OPEN if i==0 else REOPEN,'paywall-open-'+str(i)))
+    run_entry(lambda text,step:flow(text,'paywall-'+step+'-'+str(i)),progress,reopen=i!=0)
     progress.perform('paywall','capture',lambda:shot('paywall','paywall-'+category,category,VISIBLE,'post-cold'))
     def section_capture(section):
      flow(RETURN_TOP,section+'-top-'+category)

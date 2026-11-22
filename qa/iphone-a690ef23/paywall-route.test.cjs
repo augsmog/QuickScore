@@ -7,13 +7,13 @@ function fixture(file,code,expression){
  return new Function('require','jest','expect','structuredClone',code+'\nreturn '+expression)(localRequire,jest,expect,structuredClone);
 }
 const wizardSource=fs.readFileSync('tests/new-contest-paywall.test.cjs','utf8');
-const wizard=fixture('wizard',wizardSource.slice(0,wizardSource.indexOf('const gameCard')).replace("firstName: 'Augie'","firstName: 'Fixture'"),'harness');
+const wizard=fixture('wizard',wizardSource.slice(0,wizardSource.indexOf('const gameCard')).replace("firstName: 'Augie'","firstName: 'Golfer'"),'harness');
 const ledger=fs.readFileSync('tests/paywall-clubhouse-ledger.test.cjs','utf8');
 const pwCode=ledger.slice(0,ledger.indexOf("test('AC-PW1"))+ledger.slice(ledger.indexOf('function screen('),ledger.indexOf("test('AC-PW3"));
 const paywall=fixture('paywall',pwCode,'({screen,nodes,text,button,C})');
 const {act}=require('react-test-renderer');
 test('ordinary wizard handlers route free two-name two-round draft; fallback Close preserves names',()=>{
- const h=wizard('free');h.input('Your name','QA Host');h.input('Player 2 name','QA Guest');
+ const h=wizard('free');expect(h.players()[0].name).toBe('Golfer');h.input('Player 2 name','QA Guest');
  expect(h.byId('contest-continue').disabled).toBe(false);
  act(()=>h.byId('tournament-toggle').onValueChange(true));act(()=>h.byId('rounds-2').onPress());
  h.press('Continue');expect(h.byId('game-mode-stroke_play').accessibilityState.selected).toBe(true);
@@ -23,7 +23,7 @@ test('ordinary wizard handlers route free two-name two-round draft; fallback Clo
  expect(paywall.button(tree,'Currently unavailable').props.disabled).toBe(true);
  const close=paywall.nodes(tree).find(n=>n.props?.testID==='paywall-close');close.props.onPress();expect(p.back).toHaveBeenCalledTimes(1);
  // Router back is observed above; retained wizard instance is the repository's fixture contract.
- h.press('Back');h.press('Back');expect(h.players().map(p=>p.name)).toEqual(['QA Host','QA Guest']);expect(h.byId('tournament-toggle').value).toBe(true);expect(h.addContest).not.toHaveBeenCalled();
+ h.press('Back');h.press('Back');expect(h.players().map(p=>p.name)).toEqual(['Golfer','QA Guest']);expect(h.byId('tournament-toggle').value).toBe(true);expect(h.addContest).not.toHaveBeenCalled();
 });
 test('missing second name blocks ordinary Continue; entitled two-round control creates instead',()=>{
  const invalid=wizard('free');expect(invalid.byId('contest-continue').disabled).toBe(true);

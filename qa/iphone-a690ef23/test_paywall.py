@@ -16,7 +16,7 @@ class PaywallControls(unittest.TestCase):
     if 'tapOn' in command:self.assertNotRegex(str(command['tapOn']),r'(?i)buy|subscribe|restore|terms|privacy|unavailable|://')
   self.assertIn('home-new-contest',OPEN);self.assertIn('rounds-2',OPEN);self.assertIn('contest-start',OPEN)
   self.assertEqual(CLOSE.count('- tapOn: {id: new-contest-back}'),2)
-  self.assertIn("'QA Host'",CLOSE);self.assertIn("'QA Guest'",CLOSE)
+  self.assertIn("^Golfer$",CLOSE);self.assertIn("^QA Guest$",CLOSE)
  def test_no_source_mutation_before_paywall(self):
   r=pathlib.Path(__file__).resolve().parents[2];s=(r/'scoresnap/app/contest/new.tsx').read_text()
   self.assertLess(s.index('router.push("/paywall?tier=td")'),s.index('addContest(contest)'))
