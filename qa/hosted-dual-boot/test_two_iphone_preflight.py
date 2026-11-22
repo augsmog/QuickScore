@@ -339,6 +339,46 @@ class PreflightTests(unittest.TestCase):
         self.assertNotIn(("delete", HOST), self.sim.mutations())
         self.assertEqual(self.sim.devices[EXISTING],self.sim.original)
 
+    def test_catalog_has_one_read_per_stage_with_shared_45_second_budget(self):
+        d = subject.Diagnostic()
+        with patch.object(subject.time, "monotonic", side_effect=[100, 100.01, 104.0, 135.0]):
+            subject.validate_catalog(d)
+        calls = self.sim.calls
+        self.assertEqual([c for c,_ in calls], [["xcodebuild","-version"],["simctl","list","-j"]])
+        self.assertAlmostEqual(calls[0][1],44.99)
+        self.assertEqual(calls[1][1],41.0)
+        self.assertEqual(d.stage, "catalog-validation")
+        self.assertEqual(self.sim.mutations(), [])
+
+    def test_catalog_timeout_has_exact_operation_stage_and_no_device_mutation(self):
+        for argv,stage in ((["xcodebuild","-version"],"catalog-xcode"),
+                           (["simctl","list","-j"],"catalog-simctl-inventory")):
+            with self.subTest(stage=stage):
+                self.sim.calls.clear()
+                d = subject.Diagnostic()
+                def invoke(request, **kw):
+                    if request[1:]==argv:
+                        self.sim.calls.append((request[1:],kw["timeout"]))
+                        raise subprocess.TimeoutExpired(request, kw["timeout"], stderr=b"private device or path")
+                    return self.sim.run(request, **kw)
+                with patch.object(subject.subprocess,"run",side_effect=invoke):
+                    with self.assertRaises(subject.GateError):
+                        subject.preflight(self.tmp,MARK,4*subject.GIB,180,False,d)
+                self.assertEqual(d.primary, {"stage":stage,"code":"COMMAND_TIMEOUT"})
+                self.assertFalse(d.cleanup_attempted)
+                expected_calls=[["xcodebuild","-version"]]
+                if stage=="catalog-simctl-inventory":expected_calls.append(["simctl","list","-j"])
+                self.assertEqual([cmd for cmd,_ in self.sim.calls],expected_calls)
+
+    def test_no_second_read_when_xcode_consumed_catalog_deadline(self):
+        d = subject.Diagnostic()
+        with patch.object(subject.time,"monotonic",side_effect=[100,100,145.01]):
+            with self.assertRaises(subject.GateError) as failure:
+                subject.validate_catalog(d)
+        self.assertEqual(failure.exception.code,"CATALOG_DEADLINE")
+        self.assertEqual(d.stage,"catalog-simctl-inventory")
+        self.assertEqual([cmd for cmd,_ in self.sim.calls],[["xcodebuild","-version"]])
+
     def test_host_gate_refuses_non_darwin_with_zero_simctl(self):
         with patch.object(subject.platform, "system", return_value="Linux"):
             with self.assertRaisesRegex(subject.GateError, "no simulator commands ran"):

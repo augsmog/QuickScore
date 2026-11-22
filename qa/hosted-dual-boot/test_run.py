@@ -2,7 +2,7 @@ import contextlib,io,json,os,pathlib,tempfile,types,unittest
 from unittest.mock import patch,Mock
 import run as r
 class Tests(unittest.TestCase):
- def env(self):return {'GITHUB_SHA':'a'*40,'GITHUB_REPOSITORY':'augsmog/QuickScore','GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':r.REF,'GITHUB_JOB':'dual_boot','DEVELOPER_DIR':r.probe.XCODE}
+ def env(self):return {'GITHUB_SHA':'a'*40,'GITHUB_REPOSITORY':'augsmog/QuickScore','GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':r.REF,'GITHUB_JOB':'dual_boot','DEVELOPER_DIR':r.probe.XCODE,'SNAPSCORE_DUAL_BOOT_STARTED_NS':str(r.time.monotonic_ns())}
  def exercise(self,fail=False,cleanup_fail=False):
   def preflight(tmp,marker,minimum,budget,keep,d):
    self.assertFalse(keep);self.assertEqual(budget,180);self.assertEqual(minimum,12*(1<<30))
@@ -45,8 +45,18 @@ class Tests(unittest.TestCase):
    self.assertEqual(r.probe.validate_catalog(),[])
    doc['devicetypes'].append({'identifier':r.probe.DEVICE})
    with self.assertRaises(r.probe.GateError):r.probe.validate_catalog()
+ def test_transport_late_or_invalid_stops_without_commands_or_device_allocation(self):
+  now=100_000_000_000
+  for value,code in (('69999999999','TRANSPORT_BUDGET_EXHAUSTED'),
+                     ('100000000001','TRANSPORT_BUDGET_INVALID'),
+                     ('host/wall clock','TRANSPORT_BUDGET_INVALID')):
+   with patch.dict(os.environ,self.env()|{'SNAPSCORE_DUAL_BOOT_STARTED_NS':value},clear=True),patch.object(r.time,'monotonic_ns',return_value=now),patch.object(r.probe,'job_context',return_value=(pathlib.Path('/synthetic'),'marker')),patch.object(r.probe,'preflight') as preflight,patch.object(r.subprocess,'run') as command:
+    actual=r.run()
+   self.assertEqual(actual['primaryFailure'],{'stage':'transport-admission','code':code})
+   self.assertFalse(actual['cleanupAttempted']);self.assertEqual(actual['status'],'BLOCKED')
+   preflight.assert_not_called();command.assert_not_called()
  def test_workflow_scope(self):
-  text=(pathlib.Path(__file__).parents[2]/'.github/workflows/e2e-ios-sim.yml').read_text();self.assertIn(r.REF,text);self.assertIn(r.probe.XCODE,text)
+  text=(pathlib.Path(__file__).parents[2]/'.github/workflows/e2e-ios-sim.yml').read_text();self.assertIn(r.REF,text);self.assertIn(r.probe.XCODE,text);self.assertIn("from time import monotonic_ns",text);self.assertIn('SNAPSCORE_DUAL_BOOT_STARTED_NS="$started_ns"',text)
   for forbidden in ('pull_request:','push:','upload-artifact','secrets.','npm ','brew ','sudo ','self-hosted'):
    self.assertNotIn(forbidden,text)
 if __name__=='__main__':unittest.main()

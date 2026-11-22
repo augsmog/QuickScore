@@ -20,6 +20,7 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
+          started_ns="$(python3 -I -S -c 'from time import monotonic_ns; print(monotonic_ns())')"
           [[ "${GITHUB_SHA:-}" =~ ^[0-9a-f]{40}$ ]]
           unset GIT_CONFIG_PARAMETERS
           scratch="$(mktemp -d "${RUNNER_TEMP:?}/snapscore-dual-source.XXXXXXXX")"
@@ -33,8 +34,8 @@ jobs:
             path="qa/hosted-dual-boot/$file"
             blob="$(g rev-parse "$GITHUB_SHA:$path")"
             case "$file" in
-              run.py) expected=4aab8961b1627203f3f3ee00dad132d180ba1766 ;;
-              two_iphone_preflight.py) expected=b6fb5a3fc1c6762ec2d7a0aa92c4e1d125706916 ;;
+              run.py) expected=9f57595dc7a5b64b484f065f0dc4da2f78d69ef4 ;;
+              two_iphone_preflight.py) expected=7c1e367a5302e6f8852d5a700dba72f29d0420d7 ;;
             esac
             [[ "$blob" == "$expected" ]]
             [[ "$(g ls-tree "$GITHUB_SHA" -- "$path")" == "100644 blob $blob"$'\t'"$path" ]]
@@ -42,4 +43,4 @@ jobs:
             g cat-file blob "$blob" > "$scratch/$file"
             [[ "$(g hash-object --no-filters "$scratch/$file")" == "$blob" ]]
           done
-          python3 -B "$scratch/run.py"
+          SNAPSCORE_DUAL_BOOT_STARTED_NS="$started_ns" python3 -B "$scratch/run.py"

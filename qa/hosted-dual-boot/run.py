@@ -3,6 +3,16 @@ import contextlib,json,os,re,signal,subprocess,sys,time
 import two_iphone_preflight as probe
 REF='refs/heads/qa/snapscore-hosted-dual-boot-main'
 FLOOR=12*(1<<30)
+TRANSPORT_MAX_NS=30_000_000_000
+
+def transport_admission():
+ # Same host clock across Python >=3.10 processes on macOS, not shell wall time.
+ raw=os.environ.get('SNAPSCORE_DUAL_BOOT_STARTED_NS','')
+ if not re.fullmatch('[0-9]{1,20}',raw):raise probe.GateError('transport stamp invalid','TRANSPORT_BUDGET_INVALID')
+ elapsed=time.monotonic_ns()-int(raw)
+ if elapsed<0:raise probe.GateError('transport stamp invalid','TRANSPORT_BUDGET_INVALID')
+ if elapsed>TRANSPORT_MAX_NS:raise probe.GateError('transport duration exceeded','TRANSPORT_BUDGET_EXHAUSTED')
+
 class Discard:
  def write(self,text):return len(text)
  def flush(self):pass
@@ -17,6 +27,7 @@ def run():
  result={'harnessSha':sha,'scope':'disposable-dual-boot-only','nativeAppProof':False,'buildBudgetPass':None}
  started=time.monotonic();phase='installed-readbacks'
  try:
+  d.at('transport-admission');transport_admission()
   d.at('memory-readback')
   try:memory=subprocess.run(['/usr/sbin/sysctl','-n','hw.memsize'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=10,check=True)
   except subprocess.TimeoutExpired as e:raise probe.GateError('memory unavailable','COMMAND_TIMEOUT') from e

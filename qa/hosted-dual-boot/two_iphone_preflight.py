@@ -30,15 +30,17 @@ GIB = 1 << 30
 UUID_RE = re.compile(r"[0-9A-F]{8}(?:-[0-9A-F]{4}){3}-[0-9A-F]{12}")
 TOKEN_RE = re.compile(r"[0-9a-f]{32}")
 ROLES = ("host", "guest")
+CATALOG_SECONDS = 45
 ROLE_CLEANUP_SECONDS = 35
 SETTLE_SECONDS = 8
 POLL_SECONDS = 0.5
-PRIMARY_STAGES = frozenset(("host-context", "memory-readback", "sdk-readback", "disk-before",
-    "catalog", "journal", "create", "create-readback", "preboot-readback", "boot",
+PRIMARY_STAGES = frozenset(("host-context", "transport-admission", "memory-readback", "sdk-readback", "disk-before",
+    "catalog-xcode", "catalog-simctl-inventory", "catalog-validation", "journal", "create", "create-readback", "preboot-readback", "boot",
     "postboot-readback", "disk-both-booted", "completion", "disk-after-cleanup"))
 CLEANUP_STAGES = frozenset(("cleanup-identify", "cleanup-shutdown", "cleanup-shutdown-readback",
     "cleanup-delete", "cleanup-delete-readback", "cleanup-journal"))
-CODES = frozenset(("HOST_SCOPE", "HOST_CONTEXT", "MEMORY_READBACK_INVALID", "SDK_READBACK_INVALID",
+CODES = frozenset(("HOST_SCOPE", "HOST_CONTEXT", "TRANSPORT_BUDGET_INVALID", "TRANSPORT_BUDGET_EXHAUSTED",
+    "CATALOG_DEADLINE", "MEMORY_READBACK_INVALID", "SDK_READBACK_INVALID",
     "DISK_FLOOR", "XCODE_MISMATCH", "RUNTIME_MISMATCH", "DEVICE_TYPE_MISSING",
     "RUNTIME_DEVICE_UNSUPPORTED", "INVENTORY_INVALID", "NONCE_COLLISION", "FRESH_UUID_REQUIRED",
     "IDENTITY_DRIFT", "CREATED_NOT_SHUTDOWN", "PREBOOT_NOT_SHUTDOWN", "DUAL_BOOT_FAILED",
@@ -149,10 +151,23 @@ def inventory(timeout=15):
         raise GateError("unsupported simctl JSON inventory", "INVENTORY_INVALID") from exc
 
 
-def validate_catalog():
-    if tuple(command("xcodebuild", "-version").splitlines()) != XCODE_ID:
+def validate_catalog(diagnostic=None):
+    d = diagnostic or Diagnostic()
+    deadline = time.monotonic() + CATALOG_SECONDS
+
+    def budget():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise GateError("read-only catalog deadline exhausted", "CATALOG_DEADLINE")
+        return min(CATALOG_SECONDS, remaining)
+
+    d.at("catalog-xcode")
+    if tuple(command("xcodebuild", "-version", timeout=budget()).splitlines()) != XCODE_ID:
         raise GateError("expected Xcode 26.4.1 (17E202)", "XCODE_MISMATCH")
-    doc, rows = inventory()
+    d.at("catalog-simctl-inventory")
+    doc, rows = inventory(timeout=budget())
+    budget()  # Never admit a late return before allocating a device.
+    d.at("catalog-validation")
     runtimes = [r for r in doc.get("runtimes", []) if r.get("identifier") == RUNTIME]
     if (len(runtimes) != 1 or runtimes[0].get("isAvailable") is not True
             or runtimes[0].get("version") != RUNTIME_VERSION
@@ -392,8 +407,7 @@ def preflight(tmp, marker, minimum, budget, keep, diagnostic=None):
 def _preflight(tmp, marker, minimum, budget, keep, d):
     d.at("disk-before")
     before = free_space(tmp, minimum, "before create")
-    d.at("catalog")
-    initial = validate_catalog()
+    initial = validate_catalog(d)
     existing_ids = {r.get("udid") for _, r in initial}
     existing_names = {r.get("name") for _, r in initial}
     token = uuid.uuid4().hex
