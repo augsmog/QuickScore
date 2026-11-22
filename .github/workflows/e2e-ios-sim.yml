@@ -1,25 +1,45 @@
 name: E2E iOS simulator dual boot
 on:
   workflow_dispatch:
-permissions:
-  contents: read
+permissions: {}
 jobs:
   dual_boot:
     if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-hosted-dual-boot-main'
     runs-on: macos-26
     timeout-minutes: 8
     steps:
-      - name: Read dispatched QA source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-          submodules: false
-      - name: Boot two owned disposable simulators and clean them
+      - name: Read two exact QA blobs without checking out unrelated gitlinks
         shell: bash
         env:
           DEVELOPER_DIR: /Applications/Xcode_26.4.1.app/Contents/Developer
+          GIT_CONFIG_NOSYSTEM: '1'
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_CONFIG_COUNT: '0'
+          GIT_TERMINAL_PROMPT: '0'
+          GIT_ALLOW_PROTOCOL: https
         run: |
           set -euo pipefail
           umask 077
-          python3 -B qa/hosted-dual-boot/run.py
+          [[ "${GITHUB_SHA:-}" =~ ^[0-9a-f]{40}$ ]]
+          unset GIT_CONFIG_PARAMETERS
+          scratch="$(mktemp -d "${RUNNER_TEMP:?}/snapscore-dual-source.XXXXXXXX")"
+          trap 'rm -rf -- "$scratch"' EXIT
+          db="$scratch/object-db"
+          git init -q --bare --template= "$db"
+          g() { git --git-dir="$db" "$@"; }
+          g -c credential.helper= -c submodule.recurse=false fetch -q --depth=1 --no-tags --no-recurse-submodules https://github.com/augsmog/QuickScore.git "$GITHUB_SHA"
+          [[ "$(g rev-parse FETCH_HEAD)" == "$GITHUB_SHA" ]]
+          for file in run.py two_iphone_preflight.py; do
+            path="qa/hosted-dual-boot/$file"
+            blob="$(g rev-parse "$GITHUB_SHA:$path")"
+            case "$file" in
+              run.py) expected=bce11b7ba6619d11f960b9cc55f900fed8d6180a ;;
+              two_iphone_preflight.py) expected=5f1ae47cf7fac7a90887ee45a20c68a828ecfcb0 ;;
+            esac
+            [[ "$blob" == "$expected" ]]
+            [[ "$(g ls-tree "$GITHUB_SHA" -- "$path")" == "100644 blob $blob"$'\t'"$path" ]]
+            [[ "$(g cat-file -s "$blob")" -le 2097152 ]]
+            g cat-file blob "$blob" > "$scratch/$file"
+            [[ "$(g hash-object --no-filters "$scratch/$file")" == "$blob" ]]
+          done
+          python3 -B "$scratch/run.py"
