@@ -6,6 +6,7 @@ import { backend, validateFixture, assertScores, assertBinding, assertShare, eve
 import { selectHostPlayer } from '../xdevice-host-player.mjs';
 import { readHostScoreState } from './host-score-diagnostic.mjs';
 import { assertScoreControl } from './score-control.mjs';
+import { enterFreshGuestJoin } from './guest-entry.mjs';
 const f=JSON.parse(await readFile(process.env.INVITE_FIXTURE,'utf8'));validateFixture(f);
 const mode=process.env.INVITE_ANONYMOUS;assert(['true','false'].includes(mode),'Explicit anonymous mode required');
 const base=process.env.BASE_URL ?? 'http://127.0.0.1:8089';assert.equal(new URL(base).origin,'http://127.0.0.1:8089');
@@ -23,9 +24,15 @@ async function freshSnapshot(p,trigger){
   waiting.catch(()=>{});await trigger();const r=await waiting;return r.json();
 }
 try {
-  await onboarding(guest);
+  await guest.goto(base);
   const before=await rows();
-  await guest.getByTestId('home-join-code').click();
+  try {
+    const entry=await enterFreshGuestJoin(guest);
+    await writeFile(`${out}/guest-entry.json`,JSON.stringify({mode,...entry}));
+  } catch(error) {
+    await writeFile(`${out}/guest-entry.json`,JSON.stringify({mode,...error.receipt}));
+    throw error;
+  }
   await guest.getByLabel('Join code', {exact:true}).fill(f.code);
   await guest.getByPlaceholder('Display name').fill('Journey Visitor');
   await text(guest,'Find contest').click();
