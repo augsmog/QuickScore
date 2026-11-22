@@ -29,7 +29,7 @@ function visibleText(a) {
 // structural container (ignored by most rules but kept for ancestry).
 function inferRole(a, resourceId, roleHint) {
   if (roleHint) return roleHint;
-  const interactive = a.checked === 'true' || a.checked === true ||
+  const interactive = a.clickable === 'true' || a.clickable === true || a.checked === 'true' || a.checked === true ||
     a.selected === 'true' || a.selected === true ||
     (a.hintText && a.hintText.length > 0) ||
     /\b(btn|button|switch|toggle|chip|tab|input|field|cta|link|target)\b/i.test(resourceId || '');
@@ -42,6 +42,7 @@ function inferRole(a, resourceId, roleHint) {
 // for the hierarchy), Android bounds are in px (density = dpi/160). Pass the capture's value.
 export function normalizeMaestroHierarchy(root, options = {}) {
   const { density = 1, resourceMeta = {}, scrollState = null } = options;
+  if (!Number.isFinite(density) || density <= 0) throw new Error('Invalid measured density');
   const nodes = [];
   let counter = 0;
   const scale = (r) => r && ({
@@ -49,7 +50,7 @@ export function normalizeMaestroHierarchy(root, options = {}) {
     right: r.right / density, bottom: r.bottom / density,
   });
 
-  function walk(raw, parentId, depth) {
+  function walk(raw, parentId, depth, scrollViewport = null) {
     const a = raw.attributes || {};
     const resourceId = a['resource-id'] || '';
     const bounds = scale(parseBounds(a.bounds));
@@ -72,8 +73,27 @@ export function normalizeMaestroHierarchy(root, options = {}) {
       meta: { depth, resourceId, ...override.meta },
     };
     if (!bounds) node.meta.unparsedBounds = a.bounds || null;
+    // Retain the measured raw frame. A scroll edge is not evidence of truncation:
+    // equality is fully painted. Intersect ALL measured scroll ancestors, not merely
+    // the nearest one. Neither caller metadata nor a clip flag can grant a waiver.
+    delete node.meta.scrollViewport;
+    if (scrollViewport) node.meta.scrollViewport = { ...scrollViewport };
     nodes.push(node);
-    for (const child of raw.children || []) walk(child, id, depth + 1);
+    let childViewport = scrollViewport;
+    if (a.scrollable === true || a.scrollable === 'true') {
+      if (!bounds || bounds.right <= bounds.left || bounds.bottom <= bounds.top) {
+        throw new Error('Scrollable ancestor has no valid measured bounds');
+      }
+      childViewport = scrollViewport ? {
+        left: Math.max(bounds.left, scrollViewport.left),
+        top: Math.max(bounds.top, scrollViewport.top),
+        right: Math.min(bounds.right, scrollViewport.right),
+        bottom: Math.min(bounds.bottom, scrollViewport.bottom),
+      } : bounds;
+      // Empty intersection is retained; it is evidence of concealment, not a
+      // synthetic positive-area rectangle.
+    }
+    for (const child of raw.children || []) walk(child, id, depth + 1, childViewport);
     return node;
   }
 
