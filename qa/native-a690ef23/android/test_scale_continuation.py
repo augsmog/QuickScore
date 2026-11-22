@@ -1,6 +1,6 @@
 """Offline scheduling controls, never native run evidence."""
 import json,pathlib,tempfile,unittest
-from unittest.mock import patch
+from unittest.mock import patch,MagicMock
 import hosted,checkpoints
 
 class ScaleContinuation(unittest.TestCase):
@@ -44,5 +44,26 @@ class ScaleContinuation(unittest.TestCase):
   with patch.object(d,'read',return_value=fixture('rounds')),patch.object(checkpoints,'capture',side_effect=ValueError('installed APK mismatch')):
    with self.assertRaises(checkpoints.CaptureBoundaryFailure):d.shot('rounds')
   self.assertEqual(d.report,[])
+ def test_real_journey_optional_capture_failure_is_fatal(self):
+  for section in ['paywall-free','paywall-annual','paywall-disabled']:
+   with self.subTest(section=section):
+    d=MagicMock();d.report=[]
+    def shot(name):
+     d.phase=name
+     if name==section:raise checkpoints.CaptureBoundaryFailure('capture boundary')
+    d.shot.side_effect=shot
+    with patch.object(checkpoints,'Driver',return_value=d),patch.object(checkpoints,'one'),patch.object(checkpoints,'validate'):
+     with self.assertRaises(checkpoints.CaptureBoundaryFailure):checkpoints.journey({})
+    d.save.assert_called_once_with('BLOCKED')
+    self.assertFalse(any(r.get('status')=='SECTION_NOT_SAFELY_OBSERVED' for r in d.report))
+    self.assertFalse(any(call.args[0]=='paywall-close' for call in d.tap.call_args_list))
+ def test_real_journey_missing_optional_section_remains_explicit(self):
+  d=MagicMock();d.report=[]
+  def shot(name):
+   if name=='paywall-free':raise ValueError('label missing before capture')
+  d.shot.side_effect=shot
+  with patch.object(checkpoints,'Driver',return_value=d),patch.object(checkpoints,'one'),patch.object(checkpoints,'validate'):checkpoints.journey({})
+  self.assertIn({'checkpoint':'paywall-free','captured':False,'status':'SECTION_NOT_SAFELY_OBSERVED','geometryPassed':False},d.report)
+  d.save.assert_called_once_with('CAPTURED_SUPPLEMENTAL_ONLY')
 
 if __name__=='__main__':unittest.main()

@@ -167,6 +167,7 @@ def journey(c):
   for name,key in [('paywall-free','Free'),('paywall-annual','$79.99/year'),('paywall-disabled','Currently unavailable')]:
    d.phase=name
    try:d.seek(key,'text');d.shot(name)
+   except CaptureBoundaryFailure:raise
    except (ValueError,subprocess.SubprocessError):
     d.report.append({'checkpoint':name,'captured':False,'status':'SECTION_NOT_SAFELY_OBSERVED','geometryPassed':False})
   d.phase='paywall-close';d.tap('paywall-close',direction='up')
