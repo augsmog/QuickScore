@@ -122,6 +122,12 @@ export function ruleClipping(tree, ctx) {
   const required = tree.nodes.filter((n) => n.meta?.required || n.role === 'control');
   for (const n of required) {
     const r = n.bbox;
+    const clip = n.meta?.scrollViewport;
+    if (clip && (r.left < clip.left || r.top < clip.top ||
+        r.right > clip.right || r.bottom > clip.bottom)) {
+      findings.push({ rule: 2, severity: 'major', bbox: bboxArr(r), nodes: [n.id],
+        reason: 'Required/control frame is not fully painted within measured scroll ancestors; full visibility and reachability are unproven at this checkpoint.' });
+    }
     // Partially behind the sticky footer = clipped / not operable.
     if (footer && r.bottom > footer.top + 1 && r.top < footer.top - 1 &&
         intersect(r, footer).width > 1) {
@@ -225,6 +231,18 @@ export function ruleTapTargets(tree, ctx) {
     const r = rectOf(t);
     const w = r.right - r.left;
     const h = r.bottom - r.top;
+    const clip = t.meta?.scrollViewport;
+    if (clip) {
+      if (!['left', 'top', 'right', 'bottom'].every(k => Number.isFinite(clip[k]))) {
+        throw new Error('Malformed measured scroll viewport');
+      }
+      const paintedW = Math.max(0, Math.min(r.right, clip.right) - Math.max(r.left, clip.left));
+      const paintedH = Math.max(0, Math.min(r.bottom, clip.bottom) - Math.max(r.top, clip.top));
+      if ((paintedW < min - 0.5 || paintedH < min - 0.5) && w >= min - 0.5 && h >= min - 0.5) {
+        findings.push({ rule: 5, severity: 'major', bbox: bboxArr(r), nodes: [t.id],
+          reason: 'Measured scroll clipping leaves an undersized painted target; raw size does not prove an operable reachable target.' });
+      }
+    }
     if (w < min - 0.5 || h < min - 0.5) {
       findings.push({
         rule: 5, severity: 'major', bbox: bboxArr(r), nodes: [t.id],
