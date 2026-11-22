@@ -2,6 +2,12 @@ name: iOS boot smoke
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'scoresnap/docs/**'
+      - 'reports/**'
+      - 'review/**'
+      - 'evidence-*/**'
   # CI trim 2026-10-30 (Augie yes 4:21 PM PT): PRs run this suite only when files it tests change.
   # Main pushes and manual runs are unfiltered.
   pull_request:
@@ -29,7 +35,7 @@ on:
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true  # superseded main runs cancel too (Actions minutes, repo private Nov 5)
 permissions:
   contents: read
 jobs:
