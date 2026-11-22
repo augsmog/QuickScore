@@ -1,11 +1,13 @@
 """Static exact-byte controls; not native accessibility or layout proof."""
 import pathlib,subprocess,unittest,re
 ROOT=pathlib.Path(__file__).resolve().parents[2]
-BASE='5190f43261a42f108d54627c793d5be64046c840'
+BASE='7188c644a7f0211a6c395d2997e978bb791ffa87'
+PAYWALL='2c7c58fc7f7427d1d7b10ff18734dffa50a7f765'
+REVIEWED_TESTS=('scoresnap/tests/no-pro-surfaces.test.cjs','scoresnap/tests/paywall-android-font-readiness.test.cjs','scoresnap/tests/paywall-clubhouse-ledger.test.cjs')
 ADDITIONS={
  'scoresnap/app/contest/new.tsx':['        testID="contest-scroll"\n','                testID={`contest-player-${idx}`}\n','        testID="contest-footer"\n'],
  'scoresnap/app/paywall.tsx':[' testID="paywall-close"']}
-def original(p):return subprocess.check_output(['git','-C',str(ROOT),'show',BASE+':'+p]).decode()
+def original(p):return subprocess.check_output(['git','-C',str(ROOT),'show',(PAYWALL if p=='scoresnap/app/paywall.tsx' else BASE)+':'+p]).decode()
 def invariant(p,text):
  for addition in ADDITIONS[p]:
   if text.count(addition)!=1:raise ValueError('missing/duplicate hook')
@@ -33,5 +35,9 @@ class Checks(unittest.TestCase):
   self.assertNotIn('testID="contest-rounds"',s)
  def test_flag_and_workflow_paths_not_changed(self):
   paths=subprocess.check_output(['git','-C',str(ROOT),'diff',BASE,'--name-only']).decode().splitlines()
-  self.assertTrue(all(p in ADDITIONS or p.startswith(('qa/selector-sidecar/','scoresnap/e2e/device-layout/')) for p in paths))
+  self.assertTrue(all(p in ADDITIONS or p in REVIEWED_TESTS or p.startswith(('qa/selector-sidecar/','scoresnap/e2e/device-layout/')) for p in paths))
+ def test_reviewed_paywall_tests_exact(self):
+  for p in REVIEWED_TESTS:
+   expected=subprocess.check_output(['git','-C',str(ROOT),'show',PAYWALL+':'+p])
+   self.assertEqual((ROOT/p).read_bytes(),expected)
 if __name__=='__main__':unittest.main()
