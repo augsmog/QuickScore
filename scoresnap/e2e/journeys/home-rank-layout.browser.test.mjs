@@ -40,7 +40,10 @@ for(const [name,profile] of Object.entries(SAFE_AREA_PROFILES)) {
   assert(viewport&&home,'real home scroll view and tab must render');
   assert(viewport.y+viewport.height<=home.y+2,`scroll bottom ${viewport.y+viewport.height} intersects tab at ${home.y}`);
   const cards=page.locator('[tabindex="0"]').filter({hasText:'Journey course'});
-  assert.equal(await cards.count(),2);
+  // iPhone SE's viewport only leaves room for one full card above the tab bar
+  // before the next would render mid-cut (AUG-1159); Home keeps the most
+  // recent completed round in that case, which is still round B.
+  assert.equal(await cards.count(),name==='iphone-se'?1:2);
   await cards.last().scrollIntoViewIfNeeded();const card=await cards.last().boundingBox();
   assert(card.y>=viewport.y&&card.y+card.height<=viewport.y+viewport.height+2);
   await cards.last().click();await page.waitForURL(/\/contest\/acceptance-round-b/);
