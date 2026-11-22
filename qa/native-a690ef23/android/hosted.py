@@ -106,9 +106,18 @@ def run_scales(adb,package,base,out,apk_hash):
    # Fatal Home/provenance failures are outside the supplemental catch.
    smoke(cfg)
    results.append(value)
-   try:journey(cfg)
-   except SupplementalJourneyBlocked as error:
-    failures.append({'scale':value,'phase':error.phase,'status':'BLOCKED'})
+   for lane in ('join','wizard'):
+    lane_cfg={**cfg,'out':str(out/('scale-'+str(value)+'-'+lane))}
+    if lane=='wizard':
+     # Cold process only; never clear data. A fresh authenticated Home capture
+     # rechecks source/APK/foreground/scale before the independent wizard attempt.
+     adb('shell','am','force-stop',package)
+     adb('shell','monkey','-p',package,'-c','android.intent.category.LAUNCHER','1')
+     smoke(lane_cfg)
+    try:journey(lane_cfg,lane=lane)
+    except SupplementalJourneyBlocked as error:
+     failures.append({'scale':value,'lane':lane,'phase':error.phase,'reason':error.reason,'status':'BLOCKED'})
+
  finally:adb('shell','settings','put','system','font_scale',original)
  (out/'smoke-summary.json').write_text(json.dumps({'observedScales':results,'apkSha256':apk_hash,'supplementalFailures':failures,'aggregatePass':False,'runtimePaywall':False,'nativeJoin':False},indent=2)+'\n')
  if failures:raise ValueError('SUPPLEMENTAL_JOURNEY_INCOMPLETE')

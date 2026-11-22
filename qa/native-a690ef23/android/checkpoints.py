@@ -7,11 +7,21 @@ import json,pathlib,re,subprocess,time,xml.etree.ElementTree as ET
 from smoke import run as capture, target_focus
 
 class SupplementalJourneyBlocked(ValueError):
- def __init__(self,phase):
-  self.phase=phase
+ def __init__(self,phase,reason='NAVIGATION_BLOCKED'):
+  self.phase=phase;self.reason=reason
   super().__init__('ANDROID_CONTINUATION_BLOCKED:'+phase)
 
 class CaptureBoundaryFailure(ValueError):pass
+
+NAVIGATION_REASONS=frozenset({
+ 'CONTROL_MISSING_OR_AMBIGUOUS','AMBIGUOUS_CONTROL','CONTROL_UNREACHABLE',
+ 'SCROLL_REGION_AMBIGUOUS','SCROLL_REGION_OCCLUDED','CONTROL_DISABLED',
+ 'CONTROL_BEHIND_FOOTER','WRONG_SCENE','WRONG_STEP','KEYBOARD_DISMISSAL_UNVERIFIED',
+ 'DISABLED_STATE_UNOBSERVED',
+})
+def navigation_reason(error):
+ return str(error) if type(error) is ValueError and str(error) in NAVIGATION_REASONS else None
+
 
 HEADER='Run the game. We do the math.'
 MISSING='Contest not found on this device. Offline codes work only in the organizer’s browser.'
@@ -82,12 +92,14 @@ def validate(root,name):
  return True
 
 class Driver:
- def __init__(self,c):self.c=c;self.phase='entry';self.report=[];self.out=pathlib.Path(c['out']+'-continuation');self.out.mkdir(exist_ok=False)
+ def __init__(self,c):self.c=c;self.phase='entry';self.report=[];self.out=pathlib.Path(c['out']+'-continuation');self.out.mkdir(exist_ok=False);self.reason=None
  def adb(self,*args):return subprocess.check_output(['adb','-s',self.c['serial'],*args],timeout=15,stderr=subprocess.PIPE).decode()
  def read(self):
   from smoke import read_focus
-  target_focus(read_focus(self.adb),self.c['package'])
-  return tree(self.adb('exec-out','uiautomator','dump','/dev/tty'),self.c['package'])
+  try:
+   target_focus(read_focus(self.adb),self.c['package'])
+   return tree(self.adb('exec-out','uiautomator','dump','/dev/tty'),self.c['package'])
+  except Exception:raise CaptureBoundaryFailure('FOREGROUND_OR_HIERARCHY_BOUNDARY_FAILED') from None
  def seek(self,key,kind='id',direction='down'):
   for attempt in range(9):
    root=self.read();found=matches(root,key,kind)
@@ -138,18 +150,24 @@ class Driver:
   bounds={str(i):box(one(root,k,'id' if k in SCENES[name] else 'text')) for i,k in enumerate(targets)}
   self.report.append({'checkpoint':name,'captured':True,'observedBoundsPx':bounds,'geometryPassed':False,'visualReviewRequired':True})
  def save(self,status):
-  (self.out/'continuation.json').write_text(json.dumps({'sourceSha':self.c_source(),'status':status,'phase':self.phase,'checkpoints':self.report,'aggregatePass':False,'runtimeRNScale':None,'nativeJoin':False,'catalog':'offline-fallback-no-provider','blocked':['online-host-approval-binding-score-reconnect','initialized-RN-scale','independent-geometry-review']},indent=2)+'\n')
+  (self.out/'continuation.json').write_text(json.dumps({'sourceSha':self.c_source(),'status':status,'phase':self.phase,'reason':self.reason,'checkpoints':self.report,'aggregatePass':False,'runtimeRNScale':None,'nativeJoin':False,'catalog':'offline-fallback-no-provider','blocked':['online-host-approval-binding-score-reconnect','initialized-RN-scale','independent-geometry-review']},indent=2)+'\n')
  def c_source(self):
   from smoke import SHA
   return SHA
 
-def journey(c):
+def journey(c,lane='all'):
+ if lane not in ('all','join','wizard'):raise ValueError('UNKNOWN_LANE')
  d=Driver(c)
  try:
-  # First complete independent entry evidence; no round/code is seeded.
-  d.tap('home-join-code');d.shot('entry')
-  d.fill('Join code','AAAAAA');d.fill('Display name','QAGuest');d.tap('Find contest','text')
-  d.seek(MISSING,'text');d.shot('entry-invalid');d.tap('join-dismiss')
+  if lane in ('all','join'):
+   d.phase='join-home-lookup';d.seek('home-join-code')
+   d.phase='join-home-tap';d.tap('home-join-code')
+   d.phase='join-destination';validate(d.read(),'entry')
+   d.shot('entry')
+   d.phase='join-invalid';d.fill('Join code','AAAAAA');d.fill('Display name','QAGuest');d.tap('Find contest','text')
+   d.seek(MISSING,'text');d.shot('entry-invalid');d.tap('join-dismiss')
+   if lane=='join':
+    d.save('CAPTURED_SUPPLEMENTAL_ONLY');return
   d.phase='setup-enter';d.tap('home-new-contest');d.seek('contest-player-0')
   host=one(d.read(),'contest-player-0');one(host,'Golfer','input')
   d.fill('Player 2 name','QAGuest')
@@ -179,7 +197,8 @@ def journey(c):
   d.report.append({'checkpoint':'draft-retained','verified':True})
   d.tap('new-contest-back');d.save('CAPTURED_SUPPLEMENTAL_ONLY')
  except Exception as error:
+  d.reason=navigation_reason(error) or 'FATAL_BOUNDARY_OR_UNCLASSIFIED'
   d.save('BLOCKED')
   if isinstance(error,CaptureBoundaryFailure):raise
-  if isinstance(error,(ValueError,subprocess.SubprocessError)):raise SupplementalJourneyBlocked(d.phase) from None
+  if navigation_reason(error):raise SupplementalJourneyBlocked(d.phase,d.reason) from None
   raise
