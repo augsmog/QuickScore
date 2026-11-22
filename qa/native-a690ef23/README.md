@@ -47,3 +47,22 @@ retried. A readiness success is not a screenshot or native gate pass.
 `apk-transport.json` uses existing build-tools aapt read-only against the exact APK;
 unknown/custom policy remains unknown, and no network/runtime acceptance is inferred.
 Build, lint, settings restoration and trusted intake/aggregate exit 78 are unchanged.
+
+### API35 display-scoped focus successor
+Use read-only `dumpsys window displays` at readiness and both capture observations.
+Exactly one `Display: mDisplayId=0` block is required; reject all multiple/secondary
+or missing displays, outside-block focus, null/duplicate/foreign/system focus.
+The target still must match the uniquely resumed Activity client block, visible
+Home and requested Settings/Activity scale before/after; PID alone never passes.
+The optional AAPT policy parser derives application indentation/parentage from the
+manifest tree, accounting for namespace depth, and reads only direct application
+attributes. Typed boolean/raw contradictions, malformed nesting, duplicate apps,
+custom security policies and unsupported output retain unknown effective policy.
+An independently read target SDK can survive an unrecognized XML-tree format.
+Source references and synthetic structural fixtures live in android/fixtures;
+these do not represent an actual runner dump or device/network acceptance.
+Global default-display binding additionally brackets each display-content query with
+two WMS `windows` reads of the unique mTopFocusedDisplayId. Both must be 0. The
+observed ID selects the sole matching block; no first-block/PID/suffix fallback.
+Every before/after capture observation repeats this binding. Nonzero/ambiguous or
+missing global IDs fail closed; multiple display blocks remain unsupported.

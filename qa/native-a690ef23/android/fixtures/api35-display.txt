@@ -1,0 +1,6 @@
+WINDOW MANAGER DISPLAY CONTENTS (dumpsys window displays)
+  Display: mDisplayId=0 (organized)
+    init=1080x1920 420dpi
+  mLayoutSeq=12
+  mCurrentFocus=Window{abc u0 test.app/.Main}
+  mFocusedApp=ActivityRecord{def u0 test.app/.Main t1}

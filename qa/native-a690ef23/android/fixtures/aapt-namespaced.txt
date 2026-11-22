@@ -1,0 +1,9 @@
+N: android=http://schemas.android.com/apk/res/android
+  E: manifest (line=1)
+    A: package="test.app" (Raw: "test.app")
+    E: uses-sdk (line=4)
+      A: android:targetSdkVersion(0x01010270)=(type 0x10)0x24
+    E: application (line=6)
+      A: android:usesCleartextTraffic(0x010104ec)=(type 0x12)0x0 (Raw: "false")
+      E: activity (line=8)
+        A: android:name(0x01010003)=".Main" (Raw: ".Main")

@@ -9,18 +9,35 @@ class ActivityReadbackError(ValueError):
   self.diagnostic={'reason':reason,'activityBlocks':min(blocks,32),'targetBlocks':min(targets,32),'currentConfigFields':min(fields,32)}
   super().__init__(json.dumps(self.diagnostic,sort_keys=True))
 class FocusReadbackError(ActivityReadbackError):
- def __init__(self,reason,fields=0,targets=0,foreign=0):
-  self.diagnostic={'reason':reason,'focusFields':min(fields,32),'targetFocusMatches':min(targets,32),'foreignFocusMatches':min(foreign,32)}
+ def __init__(self,reason,fields=0,targets=0,foreign=0,displays=0):
+  self.diagnostic={'reason':reason,'focusFields':min(fields,32),'targetFocusMatches':min(targets,32),'foreignFocusMatches':min(foreign,32),'displayBlocks':min(displays,32)}
   ValueError.__init__(self,json.dumps(self.diagnostic,sort_keys=True))
+def top_display(windows):
+ if len(windows)>1000000:raise FocusReadbackError('FOCUS_INPUT_LIMIT')
+ values=re.findall(r'^ *mTopFocusedDisplayId=([0-9]+) *$',windows,re.M)
+ if values!=['0']:raise FocusReadbackError('TOP_DEFAULT_DISPLAY_NOT_UNIQUE')
+ return values[0]
+def read_focus(adb):
+ # WMS windows owns the global top ID; DisplayContent owns per-display focus.
+ before=top_display(adb('shell','dumpsys','window','windows'))
+ displays=adb('shell','dumpsys','window','displays')
+ after=top_display(adb('shell','dumpsys','window','windows'))
+ if before!=after:raise FocusReadbackError('TOP_DISPLAY_CHANGED')
+ return 'mTopFocusedDisplayId='+before+'\n'+displays
 def target_focus(focus,package):
  if len(focus)>1000000:raise FocusReadbackError('FOCUS_INPUT_LIMIT')
+ top=top_display(focus)
+ # AOSP API35 DisplayContent.dump: one default display, never choose among displays.
+ displays=list(re.finditer(r'^ *Display: mDisplayId=([0-9]+)(?: \(organized\))? *$',focus,re.M))
+ if len(displays)!=1 or displays[0][1]!=top:raise FocusReadbackError('DEFAULT_DISPLAY_NOT_UNIQUE',displays=len(displays))
+ if 'mCurrentFocus=' in focus[:displays[0].end()]:raise FocusReadbackError('FOCUS_OUTSIDE_DISPLAY',displays=1)
  fields=re.findall(r'mCurrentFocus=([^\r\n]*)',focus)
  matches=re.findall(r'mCurrentFocus=Window\{[^\n]*?\s([^\s}]+/[^\s}]+)\}',focus)
  targets=[m for m in matches if m.split('/')[0]==package]
  foreign=len(matches)-len(targets)
  if len(fields)!=1 or len(matches)!=1 or len(targets)!=1:
   reason='FOCUS_AMBIGUOUS' if len(fields)>1 or len(matches)>1 else 'FOCUS_FOREIGN' if foreign else 'FOCUS_MISSING_OR_UNSUPPORTED'
-  raise FocusReadbackError(reason,len(fields),len(targets),foreign)
+  raise FocusReadbackError(reason,len(fields),len(targets),foreign,1)
  return matches[0]
 class HomeSceneError(ValueError):pass
 
@@ -35,7 +52,7 @@ def settle_home(adb,package,write,sleep=time.sleep):
     if error.returncode!=1:raise
     raw=''
    diagnostic['targetProcessPresent']=bool(re.fullmatch(r'[0-9]+(?:\s+[0-9]+)*',raw))
-   focus=adb('shell','dumpsys','window','windows')
+   focus=read_focus(adb)
    target_focus(focus,package);diagnostic['targetFocused']=True
    scene(adb('exec-out','uiautomator','dump','/dev/tty'),focus,package)
    if not diagnostic['targetProcessPresent']:raise HomeSceneError('TARGET_PROCESS_NOT_OBSERVED')
@@ -116,7 +133,7 @@ def run(c):
   write_status()
  settle_home(adb,package,write_readiness)
  def observe():
-  s=adb('shell','settings','get','system','font_scale');a=adb('shell','dumpsys','activity','top');f=adb('shell','dumpsys','window','windows');x=adb('exec-out','uiautomator','dump','/dev/tty')
+  s=adb('shell','settings','get','system','font_scale');a=adb('shell','dumpsys','activity','top');f=read_focus(adb);x=adb('exec-out','uiautomator','dump','/dev/tty')
   ids=scene(x,f,package) # Verify target Home before interpreting any Activity scale.
   return {'timestampMs':int(time.time()*1000),'scale':scale(s,a,expected,f,package),'homeSceneVerified':True,'foregroundActivityVerified':True,'activityIdentitySha256':activity_scale(a,f,package,identity=True),'runtimeRNScale':None}
  try:

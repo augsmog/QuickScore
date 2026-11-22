@@ -1,11 +1,11 @@
 import json,unittest
 from smoke import target_focus,FocusReadbackError,settle_home
 class FocusControls(unittest.TestCase):
- focus='mCurrentFocus=Window{abc u0 test.app/.Main}'
+ focus='mTopFocusedDisplayId=0\nDisplay: mDisplayId=0\n  mCurrentFocus=Window{abc u0 test.app/.Main}'
  xml='<hierarchy>'+''.join('<node package="test.app" resource-id="test.app:id/'+s+'" bounds="[0,0][10,10]" />' for s in ['home-scroll','home-new-contest'])+'</hierarchy>'
  def test_positive_and_foreign_ambiguous_missing(self):
   self.assertEqual(target_focus(self.focus,'test.app'),'test.app/.Main')
-  for raw,reason in [(self.focus.replace('test.app','private.foreign'),'FOCUS_FOREIGN'),(self.focus+'\n'+self.focus,'FOCUS_AMBIGUOUS'),('mCurrentFocus=null','FOCUS_MISSING_OR_UNSUPPORTED'),('','FOCUS_MISSING_OR_UNSUPPORTED')]:
+  for raw,reason in [(self.focus.replace('test.app','private.foreign'),'FOCUS_FOREIGN'),(self.focus+'\n'+self.focus,'TOP_DEFAULT_DISPLAY_NOT_UNIQUE'),('mTopFocusedDisplayId=0\nDisplay: mDisplayId=0\n  mCurrentFocus=null','FOCUS_MISSING_OR_UNSUPPORTED'),('','TOP_DEFAULT_DISPLAY_NOT_UNIQUE')]:
    with self.assertRaises(FocusReadbackError) as caught:target_focus(raw,'test.app')
    self.assertEqual(caught.exception.diagnostic['reason'],reason)
    self.assertNotIn('private.foreign',str(caught.exception))
@@ -14,12 +14,13 @@ class FocusControls(unittest.TestCase):
   def adb(*args):
    calls.append(args)
    if args[:2]==('shell','pidof'):return pid
+   if args==('shell','dumpsys','window','windows'):return 'mTopFocusedDisplayId=0'
    if args[:2]==('shell','dumpsys'):
-    value=focuses[min(i[0],len(focuses)-1)];i[0]+=1;return value
+    value=focuses[min(i[0],len(focuses)-1)];i[0]+=1;return value.replace('mTopFocusedDisplayId=0\n','')
    return self.xml if xml is None else xml
   return adb,calls
  def test_readonly_settle_records_initial_failure_then_real_ready(self):
-  adb,calls=self.fake(['mCurrentFocus=null',self.focus]);rows=[];sleeps=[]
+  adb,calls=self.fake(['mTopFocusedDisplayId=0\nDisplay: mDisplayId=0\n  mCurrentFocus=null',self.focus]);rows=[];sleeps=[]
   settle_home(adb,'test.app',rows.append,sleeps.append)
   self.assertEqual([r['reason'] for r in rows],['FOCUS_MISSING_OR_UNSUPPORTED','READY'])
   self.assertEqual(sleeps,[2]);self.assertTrue(rows[-1]['homeSceneVerified'])

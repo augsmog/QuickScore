@@ -1,7 +1,7 @@
 import unittest,json
 from smoke import activity_scale,ActivityReadbackError
 class ActivityControls(unittest.TestCase):
- focus='mCurrentFocus=Window{abc u0 test.app/.Main}'
+ focus='mTopFocusedDisplayId=0\nDisplay: mDisplayId=0\n  mCurrentFocus=Window{abc u0 test.app/.Main}'
  def block(self,value='1.3',component='test.app/.Main',state='true',field='mCurrentConfig'):
   return f'ACTIVITY {component} token pid=1\n mResumed={state} mStopped=false mFinished=false\n {field}={{{value} test}}\n'
  def test_exact_and_reverse_unrelated_order(self):
