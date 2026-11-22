@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import plistlib
 import pwd
 import re
 import shutil
@@ -16,6 +17,7 @@ import sys
 import tempfile
 import time
 import uuid
+from xml.parsers.expat import ExpatError
 
 HOST_LABEL = "macos-26-intel"
 HOST_ARCH = "x86_64"
@@ -32,6 +34,10 @@ UUID_RE = re.compile(r"[0-9A-F]{8}(?:-[0-9A-F]{4}){3}-[0-9A-F]{12}")
 TOKEN_RE = re.compile(r"[0-9a-f]{32}")
 ROLES = ("host", "guest")
 CATALOG_SECONDS = 45
+CATALOG_KIND_SECONDS = 22
+CATALOG_DEVICE_SECONDS = 15
+DEVICE_SCOPE_LIMIT = 256
+PLIST_LIMIT = 65536
 ROLE_CLEANUP_SECONDS = 35
 SETTLE_SECONDS = 8
 POLL_SECONDS = 0.5
@@ -42,7 +48,8 @@ HOST_STABILITY_GAP = 0.5
 STABILITY_READ_SECONDS = 4
 JOINT_READ_SECONDS = 10
 PRIMARY_STAGES = frozenset(("host-context", "transport-admission", "memory-readback", "sdk-readback", "disk-before",
-    "catalog-xcode", "catalog-simctl-inventory", "catalog-validation", "journal", "create", "create-readback",
+    "catalog-xcode", "catalog-runtime", "catalog-device-type", "catalog-runtime-devices", "catalog-ownership-scope",
+    "catalog-validation", "journal", "create", "create-readback",
     "preboot-readback", "host-boot-command", "host-stability-first", "host-stability-confirm",
     "guest-boot-command", "joint-booted-snapshot", "disk-both-booted", "completion", "disk-after-cleanup"))
 CLEANUP_STAGES = frozenset(("cleanup-identify", "cleanup-shutdown", "cleanup-shutdown-readback",
@@ -51,6 +58,7 @@ CODES = frozenset(("HOST_SCOPE", "HOST_CONTEXT", "TRANSPORT_BUDGET_INVALID", "TR
     "CATALOG_DEADLINE", "MEMORY_READBACK_INVALID", "INTEL_CAPACITY_PROFILE_MISMATCH", "SDK_READBACK_INVALID", "SDK_MISMATCH",
     "DISK_FLOOR", "XCODE_MISMATCH", "RUNTIME_MISMATCH", "DEVICE_TYPE_MISSING",
     "RUNTIME_DEVICE_UNSUPPORTED", "INVENTORY_INVALID", "NONCE_COLLISION", "FRESH_UUID_REQUIRED",
+    "DEVICE_SCOPE_UNVERIFIED", "UNKNOWN_DEVICE_IN_SCOPE", "UNOWNED_DEVICE_ACTIVE",
     "IDENTITY_DRIFT", "CREATED_NOT_SHUTDOWN", "PREBOOT_NOT_SHUTDOWN",
     "BOOT_DEADLINE", "HOST_NOT_STABLY_BOOTED", "GUEST_NOT_SHUTDOWN_BEFORE_BOOT", "POSTBOOT_NOT_BOOTED", "COMMAND_TIMEOUT", "COMMAND_NONZERO",
     "COMMAND_START_FAILED", "SHUTDOWN_NOT_VERIFIED", "DELETE_NOT_VERIFIED",
@@ -151,50 +159,152 @@ def command(*args, timeout=15):
     return result.stdout.strip()
 
 
-def inventory(timeout=15):
+def json_category(category, timeout, *selector):
     try:
-        doc = json.loads(command("simctl", "list", "-j", timeout=timeout))
-        grouped = doc["devices"]
-        rows = []
-        for runtime, devices in grouped.items():
-            if not isinstance(devices, list) or any(not isinstance(row, dict) for row in devices):
-                raise TypeError("malformed device rows")
-            rows.extend((runtime, row) for row in devices)
-        return doc, rows
+        raw = command("simctl", "list", "-j", category, *selector, timeout=timeout)
+        if len(raw) > 1_000_000:
+            raise ValueError("oversized simctl response")
+        def unique(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("duplicate JSON object key")
+                result[key] = value
+            return result
+        doc = json.loads(raw, object_pairs_hook=unique)
+        if not isinstance(doc, dict) or set(doc) != {category}:
+            raise ValueError("simctl selector returned a non-category response")
+        return doc
     except (ValueError, KeyError, TypeError, AttributeError) as exc:
-        raise GateError("unsupported simctl JSON inventory", "INVENTORY_INVALID") from exc
+        raise GateError("unsupported simctl JSON category", "INVENTORY_INVALID") from exc
+
+
+def inventory(timeout=15):
+    # Never enumerate pairs or other runtime device groups. Reject an ignored selector.
+    doc = json_category("devices", timeout, RUNTIME)
+    grouped = doc["devices"]
+    if not isinstance(grouped, dict) or set(grouped) != {RUNTIME}:
+        raise GateError("exact single runtime device inventory unverified", "INVENTORY_INVALID")
+    devices = grouped[RUNTIME]
+    if not isinstance(devices, list) or len(devices) > DEVICE_SCOPE_LIMIT:
+        raise GateError("malformed runtime device inventory", "INVENTORY_INVALID")
+    ids = set()
+    for row in devices:
+        if not isinstance(row, dict):
+            raise GateError("malformed device row", "INVENTORY_INVALID")
+        uid, name, state = (row.get(key) for key in ("udid", "name", "state"))
+        if not isinstance(uid, str) or not UUID_RE.fullmatch(uid) or uid in ids or not all(
+                isinstance(v, str) and 0 < len(v) <= 512 for v in (name, state)):
+            raise GateError("unknown, duplicate, or malformed runtime device identity", "INVENTORY_INVALID")
+        ids.add(uid)
+    return doc, [(RUNTIME, row) for row in devices]
+
+
+def catalog_records(category, budget):
+    doc = json_category(category, budget)
+    records = doc[category]
+    if not isinstance(records, list) or len(records) > 512 or any(not isinstance(r, dict) for r in records):
+        raise GateError("malformed simctl catalogue", "INVENTORY_INVALID")
+    return records
 
 
 def validate_catalog(diagnostic=None):
     d = diagnostic or Diagnostic()
     deadline = time.monotonic() + CATALOG_SECONDS
 
-    def budget():
+    def budget(cap=CATALOG_SECONDS):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise GateError("read-only catalog deadline exhausted", "CATALOG_DEADLINE")
-        return min(CATALOG_SECONDS, remaining)
+        return min(cap, remaining)
 
     d.at("catalog-xcode")
-    if tuple(command("xcodebuild", "-version", timeout=budget()).splitlines()) != XCODE_ID:
+    if tuple(command("xcodebuild", "-version", timeout=budget(12)).splitlines()) != XCODE_ID:
         raise GateError("expected Xcode 26.4.1 (17E202)", "XCODE_MISMATCH")
-    d.at("catalog-simctl-inventory")
-    doc, rows = inventory(timeout=budget())
-    budget()  # Never admit a late return before allocating a device.
-    d.at("catalog-validation")
-    runtimes = [r for r in doc.get("runtimes", []) if r.get("identifier") == RUNTIME]
+    d.at("catalog-runtime")
+    runtimes = [r for r in catalog_records("runtimes", budget(CATALOG_KIND_SECONDS)) if r.get("identifier") == RUNTIME]
+    budget()
     if (len(runtimes) != 1 or runtimes[0].get("isAvailable") is not True
             or runtimes[0].get("version") != RUNTIME_VERSION
             or runtimes[0].get("buildversion") != RUNTIME_BUILD):
         raise GateError("expected installed, available iOS 26.4 runtime version 26.4.1 (23E254a)", "RUNTIME_MISMATCH")
-    if sum(d.get("identifier") == DEVICE for d in doc.get("devicetypes", [])) != 1:
+    d.at("catalog-device-type")
+    types = catalog_records("devicetypes", budget(12))
+    budget()
+    if sum(t.get("identifier") == DEVICE for t in types) != 1:
         raise GateError("exact iPhone 16 Pro device type unavailable", "DEVICE_TYPE_MISSING")
+    d.at("catalog-validation")
     supported = runtimes[0].get("supportedDeviceTypes")
     if (not isinstance(supported, list) or
             sum(isinstance(item, dict) and item.get("identifier") == DEVICE for item in supported) != 1):
         raise GateError("installed runtime does not advertise exact support for iPhone 16 Pro", "RUNTIME_DEVICE_UNSUPPORTED")
+    d.at("catalog-runtime-devices")
+    _, rows = inventory(timeout=budget(CATALOG_DEVICE_SECONDS))
+    d.at("catalog-ownership-scope")
+    global_ids = device_set_baseline(lambda: budget())
+    budget()
+    baseline = {}
+    for _, row in rows:
+        uid, name = row["udid"], row["name"]
+        if global_ids.get(uid) != name:
+            raise GateError("runtime row lacks exact local device identity", "DEVICE_SCOPE_UNVERIFIED")
+        if row["state"] != "Shutdown":
+            raise GateError("pre-existing device is not Shutdown", "UNOWNED_DEVICE_ACTIVE")
+        baseline[uid] = name
     d.catalog_verified = True
-    return rows
+    return baseline, global_ids
+
+
+def device_set_baseline(remaining):
+    """Read only default device-set identity metadata; no filesystem fallback mutations."""
+    root = device_home()
+    ids = {}
+    try:
+        root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            if os.fstat(root_fd).st_uid != os.getuid():
+                raise ValueError("unverified default device-set owner")
+            with os.scandir(root_fd) as entries:
+                for i, entry in enumerate(entries):
+                    remaining()
+                    if i >= DEVICE_SCOPE_LIMIT:
+                        raise ValueError("default device-set entry cap")
+                    uid = entry.name
+                    if not UUID_RE.fullmatch(uid):
+                        if UUID_RE.fullmatch(uid.upper()):
+                            raise ValueError("noncanonical UUID")
+                        continue
+                    child = os.open(uid, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root_fd)
+                    try:
+                        if os.fstat(child).st_uid != os.getuid():
+                            raise ValueError("unverified device directory owner")
+                        flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+                        with os.fdopen(os.open("device.plist", flags, dir_fd=child), "rb") as fd:
+                            st = os.fstat(fd.fileno())
+                            if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid() or st.st_size > PLIST_LIMIT:
+                                raise ValueError("unverified device metadata")
+                            data = plistlib.loads(fd.read(PLIST_LIMIT + 1))
+                    finally:
+                        os.close(child)
+                    if (not isinstance(data, dict) or data.get("UDID") != uid or
+                            not isinstance(data.get("name"), str) or not 0 < len(data["name"]) <= 512):
+                        raise ValueError("unverified metadata identity")
+                    ids[uid] = data["name"]
+        finally:
+            os.close(root_fd)
+    except (OSError, ValueError, TypeError, OverflowError, ExpatError, plistlib.InvalidFileException) as exc:
+        raise GateError("default device-set UUID/name scope not independently proven", "DEVICE_SCOPE_UNVERIFIED") from exc
+    return ids
+
+
+def scope_check(rows, previous, records):
+    for _, row in rows:
+        uid = row["udid"]
+        if uid in previous:
+            if row["name"] != previous[uid] or row["state"] != "Shutdown":
+                raise GateError("pre-existing runtime device changed while probing", "UNOWNED_DEVICE_ACTIVE")
+        elif uid not in records.values():
+            raise GateError("unplanned runtime device present", "UNKNOWN_DEVICE_IN_SCOPE")
 
 
 def device_home():
@@ -285,7 +395,25 @@ def remaining_until(deadline, limit):
 
 def fresh_owned(token, role, uid, deadline):
     _, rows = inventory(timeout=remaining_until(deadline, 6))
-    return lookup(rows, token, role, uid)
+    row = lookup(rows, token, role, uid)
+    if row is None and uid is not None:
+        try:
+            # Filtered absence is not evidence if the whole device set disappeared.
+            root = os.open(device_home(), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            try:
+                if os.fstat(root).st_uid != os.getuid():
+                    raise ValueError("unexpected device-set owner")
+                try:
+                    os.stat(uid, dir_fd=root, follow_symlinks=False)
+                except FileNotFoundError:
+                    pass
+                else:
+                    raise GateError("UUID still exists outside proven scoped inventory", "IDENTITY_DRIFT")
+            finally:
+                os.close(root)
+        except (OSError, ValueError) as exc:
+            raise GateError("cannot independently check missing UUID", "DEVICE_SCOPE_UNVERIFIED") from exc
+    return row
 
 
 def settle_owned(token, role, uid, deadline, ready, code, command_error=None):
@@ -406,7 +534,7 @@ def require_state(rows, token, uid, role, expected, code):
         raise GateError(f"{role} not available and {expected} in required inventory snapshot", code)
 
 
-def boot_pair(records, token, budget, d):
+def boot_pair(records, token, budget, d, baseline):
     """A/B diagnostic: boot host alone; prove simultaneous state after guest starts."""
     started = time.monotonic()
     deadline = started + budget
@@ -420,6 +548,7 @@ def boot_pair(records, token, budget, d):
         d.at(stage, "host")
         _, rows = inventory(timeout=boot_remaining(host_phase_deadline, STABILITY_READ_SECONDS))
         boot_remaining(host_phase_deadline, STABILITY_READ_SECONDS)
+        scope_check(rows, baseline, records)
         require_state(rows, token, host, "host", "Booted", "HOST_NOT_STABLY_BOOTED")
         d.at(stage, "guest")
         require_state(rows, token, guest, "guest", "Shutdown", "GUEST_NOT_SHUTDOWN_BEFORE_BOOT")
@@ -441,6 +570,7 @@ def boot_pair(records, token, budget, d):
     d.at("joint-booted-snapshot")
     _, rows = inventory(timeout=boot_remaining(deadline, JOINT_READ_SECONDS))
     boot_remaining(deadline, JOINT_READ_SECONDS)
+    scope_check(rows, baseline, records)
     for role, uid in (("host", host), ("guest", guest)):
         d.at("joint-booted-snapshot", role)
         require_state(rows, token, uid, role, "Booted", "POSTBOOT_NOT_BOOTED")
@@ -460,9 +590,9 @@ def preflight(tmp, marker, minimum, budget, keep, diagnostic=None):
 def _preflight(tmp, marker, minimum, budget, keep, d):
     d.at("disk-before")
     before = free_space(tmp, minimum, "before create")
-    initial = validate_catalog(d)
-    existing_ids = {r.get("udid") for _, r in initial}
-    existing_names = {r.get("name") for _, r in initial}
+    baseline, global_ids = validate_catalog(d)
+    existing_ids = set(global_ids)
+    existing_names = set(global_ids.values())
     token = uuid.uuid4().hex
     if any(name_for(token, role) in existing_names for role in ROLES):
         raise GateError("nonce-name collision before create", "NONCE_COLLISION")
@@ -489,17 +619,19 @@ def _preflight(tmp, marker, minimum, budget, keep, d):
             write_receipt(receipt, data)
             d.at("create-readback", role)
             _, rows = inventory()
+            scope_check(rows, baseline, data["records"])
             row = lookup(rows, token, role, uid)
             if not row or row.get("state") != "Shutdown" or row.get("isAvailable") is not True:
                 raise GateError(f"{role} newly created device is unavailable or not Shutdown", "CREATED_NOT_SHUTDOWN")
         d.at("preboot-readback")
         _, rows = inventory()
+        scope_check(rows, baseline, data["records"])
         for role, uid in data["records"].items():
             d.at(d.stage, role)
             row = lookup(rows, token, role, uid)
             if not row or row.get("state") != "Shutdown" or row.get("isAvailable") is not True:
                 raise GateError(f"{role} not available and Shutdown before dual boot", "PREBOOT_NOT_SHUTDOWN")
-        timings = boot_pair(data["records"], token, budget, d)
+        timings = boot_pair(data["records"], token, budget, d, baseline)
         d.at("disk-both-booted")
         during = free_space(tmp, minimum, "while both booted")
         result = {

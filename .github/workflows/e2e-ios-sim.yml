@@ -39,7 +39,7 @@ jobs:
             blob="$(g rev-parse "$GITHUB_SHA:$path")"
             case "$file" in
               run.py) expected=ce5822862a8afa4a2460d6a0374b586a7c84c756 ;;
-              two_iphone_preflight.py) expected=59d1d2bcb89a303efc42c31dfe42334f398762ab ;;
+              two_iphone_preflight.py) expected=6af93496bc7e93175a32ff9f66fd19de099469f7 ;;
             esac
             [[ "$blob" == "$expected" ]]
             [[ "$(g ls-tree "$GITHUB_SHA" -- "$path")" == "100644 blob $blob"$'\t'"$path" ]]

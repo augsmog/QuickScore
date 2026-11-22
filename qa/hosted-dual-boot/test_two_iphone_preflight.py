@@ -26,7 +26,7 @@ def row(uid, name, state="Shutdown", kind=subject.DEVICE):
 
 class Sim:
     def __init__(self):
-        self.devices = {EXISTING: row(EXISTING, "Already present", "Booted")}
+        self.devices = {EXISTING: row(EXISTING, "Already present", "Shutdown")}
         self.original = copy.deepcopy(self.devices[EXISTING])
         self.calls = []
         self.host_stability_reads = 0
@@ -56,7 +56,14 @@ class Sim:
 
         if cmd == ["xcodebuild", "-version"]:
             return result("\n".join(subject.XCODE_ID))
-        if cmd == ["simctl", "list", "-j"]:
+        if cmd == ["simctl", "list", "-j", "runtimes"]:
+            supported = subject.DEVICE if self.supports else "wrong-type"
+            return result(json.dumps({"runtimes": [{"identifier": subject.RUNTIME, "isAvailable": self.runtime_available,
+                              "version": subject.RUNTIME_VERSION, "buildversion": self.build,
+                              "supportedDeviceTypes": [{"identifier": supported}]}]}))
+        if cmd == ["simctl", "list", "-j", "devicetypes"]:
+            return result(json.dumps({"devicetypes": [{"identifier": subject.DEVICE}]}))
+        if cmd == ["simctl", "list", "-j", "devices", subject.RUNTIME]:
             if self.guest_boot_requested and self.failure == "joint-timeout" and self.devices.get(GUEST, {}).get("state") == "Booted":
                 self.failure = None  # only the joint read fails; cleanup remains observable
                 raise subprocess.TimeoutExpired(argv, timeout)
@@ -75,14 +82,7 @@ class Sim:
                     del self.devices[uid]
                     del self.delayed_delete[uid]
             devices = [dict(d) for d in self.devices.values()]
-            supported = subject.DEVICE if self.supports else "wrong-type"
-            return result(json.dumps({
-                "devices": {subject.RUNTIME: devices},
-                "runtimes": [{"identifier": subject.RUNTIME, "isAvailable": self.runtime_available,
-                              "version": subject.RUNTIME_VERSION, "buildversion": self.build,
-                              "supportedDeviceTypes": [{"identifier": supported}]}],
-                "devicetypes": [{"identifier": subject.DEVICE}],
-            }))
+            return result(json.dumps({"devices": {subject.RUNTIME: devices}}))
         if cmd[:2] == ["simctl", "create"]:
             name = cmd[2]
             assert cmd[3:] == [subject.DEVICE, subject.RUNTIME]
@@ -152,20 +152,55 @@ class Sim:
                 if len(cmd) >= 3 and cmd[1] in {"bootstatus", "delete", "shutdown"}]
 
 
+class DeviceSetTests(unittest.TestCase):
+    def test_real_local_scope_reads_only_identity_and_rejects_symlink(self):
+        import plistlib
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            (root/EXISTING).mkdir()
+            (root/EXISTING/"device.plist").write_bytes(plistlib.dumps({"UDID":EXISTING,"name":"Existing"}))
+            (root/"device_set.plist").write_bytes(b"not an examined identity file")
+            with patch.object(subject,"device_home",return_value=root):
+                self.assertEqual(subject.device_set_baseline(lambda:1),{EXISTING:"Existing"})
+                (root/FOREIGN).symlink_to(root/EXISTING,target_is_directory=True)
+                with self.assertRaises(subject.GateError) as err:subject.device_set_baseline(lambda:1)
+                self.assertEqual(err.exception.code,"DEVICE_SCOPE_UNVERIFIED")
+
+    def test_unknown_global_nonce_collision_never_allocates(self):
+        from types import SimpleNamespace
+        t="a"*32
+        d=subject.Diagnostic()
+        ids={EXISTING:"Already present",FOREIGN:subject.name_for(t,"host")}
+        with tempfile.TemporaryDirectory() as tmp, patch.object(subject,"free_space"), \
+             patch.object(subject,"validate_catalog",return_value=({EXISTING:"Already present"},ids)), \
+             patch.object(subject.uuid,"uuid4",return_value=SimpleNamespace(hex=t)), \
+             patch.object(subject,"command") as mutating:
+            with self.assertRaises(subject.GateError) as err:
+                subject.preflight(Path(tmp),MARK,4*subject.GIB,subject.BOOT_SHARED_SECONDS,False,d)
+            self.assertEqual(err.exception.code,"NONCE_COLLISION")
+            mutating.assert_not_called()
+            self.assertFalse(d.cleanup_attempted)
+
+
 class PreflightTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.tmp = Path(self.temp.name).resolve()
+        home = tempfile.TemporaryDirectory()
+        self.addCleanup(home.cleanup)
+        self.device_scope = Path(home.name)/"Library"/"Developer"/"CoreSimulator"/"Devices"
+        self.device_scope.mkdir(parents=True)
         self.sim = Sim()
         self.logs = io.StringIO()
         for p in (patch.object(subject.subprocess, "run", side_effect=self.sim.run),
                   patch.object(subject.shutil, "disk_usage",
                                return_value=shutil._ntuple_diskusage(14*subject.GIB, 4*subject.GIB, 10*subject.GIB)),
+                  patch.object(subject, "device_set_baseline", return_value={EXISTING:"Already present"}),
                   patch.object(subject, "SETTLE_SECONDS", .06),
                   patch.object(subject, "HOST_STABILITY_GAP", .001),
                   patch.object(subject, "POLL_SECONDS", .001),
-                  patch.object(subject, "device_home", return_value=self.tmp/"home"/"Library"/"Developer"/"CoreSimulator"/"Devices"),
+                  patch.object(subject, "device_home", return_value=self.device_scope),
                   contextlib.redirect_stderr(self.logs)):
             p.__enter__()
             self.addCleanup(p.__exit__, None, None, None)
@@ -406,20 +441,26 @@ class PreflightTests(unittest.TestCase):
         self.assertFalse(any(op == "bootstatus" for op, _ in self.sim.mutations()))
         self.only_original()
 
-    def test_catalog_has_one_read_per_stage_with_shared_45_second_budget(self):
+    def test_catalog_has_one_read_per_stage_with_small_shared_budget(self):
         d = subject.Diagnostic()
-        with patch.object(subject.time, "monotonic", side_effect=[100, 100.01, 104.0, 135.0]):
+        ticks=iter([100,100.01,105,111,112,118,119,139])
+        with patch.object(subject.time, "monotonic", side_effect=lambda:next(ticks)):
             subject.validate_catalog(d)
-        calls = self.sim.calls
-        self.assertEqual([c for c,_ in calls], [["xcodebuild","-version"],["simctl","list","-j"]])
-        self.assertAlmostEqual(calls[0][1],44.99)
-        self.assertEqual(calls[1][1],41.0)
-        self.assertEqual(d.stage, "catalog-validation")
+        calls=self.sim.calls
+        self.assertEqual([c for c,_ in calls], [["xcodebuild","-version"],["simctl","list","-j","runtimes"],
+            ["simctl","list","-j","devicetypes"],["simctl","list","-j","devices",subject.RUNTIME]])
+        self.assertTrue(all(0 < budget <= cap for (_,budget),cap in zip(calls,(12,22,12,15))))
+        self.assertEqual(d.stage,"catalog-ownership-scope")
+        self.assertTrue(d.catalog_verified)
         self.assertEqual(self.sim.mutations(), [])
 
     def test_catalog_timeout_has_exact_operation_stage_and_no_device_mutation(self):
-        for argv,stage in ((["xcodebuild","-version"],"catalog-xcode"),
-                           (["simctl","list","-j"],"catalog-simctl-inventory")):
+        catalog=[
+            (["xcodebuild","-version"],"catalog-xcode"),
+            (["simctl","list","-j","runtimes"],"catalog-runtime"),
+            (["simctl","list","-j","devicetypes"],"catalog-device-type"),
+            (["simctl","list","-j","devices",subject.RUNTIME],"catalog-runtime-devices")]
+        for index,(argv,stage) in enumerate(catalog):
             with self.subTest(stage=stage):
                 self.sim.calls.clear()
                 d = subject.Diagnostic()
@@ -433,18 +474,54 @@ class PreflightTests(unittest.TestCase):
                         subject.preflight(self.tmp,MARK,4*subject.GIB,180,False,d)
                 self.assertEqual(d.primary, {"stage":stage,"code":"COMMAND_TIMEOUT"})
                 self.assertFalse(d.cleanup_attempted)
-                expected_calls=[["xcodebuild","-version"]]
-                if stage=="catalog-simctl-inventory":expected_calls.append(["simctl","list","-j"])
-                self.assertEqual([cmd for cmd,_ in self.sim.calls],expected_calls)
+                self.assertEqual([cmd for cmd,_ in self.sim.calls],[pair[0] for pair in catalog[:index+1]])
 
     def test_no_second_read_when_xcode_consumed_catalog_deadline(self):
         d = subject.Diagnostic()
-        with patch.object(subject.time,"monotonic",side_effect=[100,100,145.01]):
-            with self.assertRaises(subject.GateError) as failure:
-                subject.validate_catalog(d)
+        with patch.object(subject.time, "monotonic", side_effect=[100,100,145.01]):
+            with self.assertRaises(subject.GateError) as failure:subject.validate_catalog(d)
         self.assertEqual(failure.exception.code,"CATALOG_DEADLINE")
-        self.assertEqual(d.stage,"catalog-simctl-inventory")
+        self.assertEqual(d.stage,"catalog-runtime")
         self.assertEqual([cmd for cmd,_ in self.sim.calls],[["xcodebuild","-version"]])
+
+    def test_broad_or_ambiguous_device_scope_is_rejected(self):
+        for doc in ({"devices":{subject.RUNTIME:[],"wrong.runtime":[]}},{"devices":{}},
+            {"devices":{subject.RUNTIME:[row(HOST,"x"),row(HOST,"y")]}},
+            {"devices":{subject.RUNTIME:[]},"runtimes":[]}):
+            with self.subTest(doc=doc),patch.object(subject,"command",return_value=json.dumps(doc)):
+                with self.assertRaisesRegex(subject.GateError,"inventory|category|ambiguous|identity"):subject.inventory()
+
+    def test_unknown_scoped_device_blocks_before_guest_mutation(self):
+        d=subject.Diagnostic()
+        original=self.sim.run
+        def insert_before_read(argv, **kw):
+            if argv[1:3]==["simctl","bootstatus"] and argv[3]==HOST:
+                self.sim.devices[FOREIGN]=row(FOREIGN,"New unowned","Shutdown")
+            return original(argv,**kw)
+        with patch.object(subject.subprocess,"run",side_effect=insert_before_read):
+            with self.assertRaises(subject.GateError):
+                subject.preflight(self.tmp,MARK,4*subject.GIB,subject.BOOT_SHARED_SECONDS,False,d)
+        self.assertEqual(d.primary,{"stage":"host-stability-first","role":"host","code":"UNKNOWN_DEVICE_IN_SCOPE"})
+        self.assertFalse(d.guest_boot_requested)
+        self.assertFalse(any(uid==FOREIGN for _,uid in self.sim.mutations()))
+
+    def test_absence_of_still_present_uid_never_mutates_or_successfully_cleans(self):
+        d=subject.Diagnostic()
+        original=self.sim.run
+        def drift(argv, **kw):
+            response=original(argv,**kw)
+            if argv[1:3]==["simctl","bootstatus"] and argv[3]==GUEST:
+                del self.sim.devices[HOST]
+                (subject.device_home()/HOST).mkdir(parents=True)
+            return response
+        with patch.object(subject.subprocess,"run",side_effect=drift):
+            with self.assertRaises(subject.GateError):
+                subject.preflight(self.tmp,MARK,4*subject.GIB,subject.BOOT_SHARED_SECONDS,False,d)
+        self.assertFalse(d.dual_boot_verified)
+        self.assertFalse(d.cleanup_verified)
+        self.assertEqual(d.cleanup_failures,[{"stage":"cleanup-identify","role":"host","code":"IDENTITY_DRIFT"}])
+        self.assertNotIn(("shutdown",HOST),self.sim.mutations())
+        self.assertNotIn(("delete",HOST),self.sim.mutations())
 
     def test_intel_context_requires_real_machine_and_hosted_x64_markers(self):
         flags={"GITHUB_ACTIONS":"true","RUNNER_OS":"macOS","RUNNER_ARCH":"X64",
@@ -464,7 +541,7 @@ class PreflightTests(unittest.TestCase):
         doc={"runtimes":[{"identifier":subject.RUNTIME, "version":subject.RUNTIME_VERSION,
              "buildversion":subject.RUNTIME_BUILD,"isAvailable":True}],"devicetypes":[{"identifier":subject.DEVICE}]}
         d=subject.Diagnostic()
-        with patch.object(subject,"inventory",return_value=(doc,[])):
+        with patch.object(subject,"catalog_records",side_effect=lambda name,_:doc[name]):
             with self.assertRaisesRegex(subject.GateError, "exact support"):
                 subject.preflight(self.tmp, MARK, 4*subject.GIB, subject.BOOT_SHARED_SECONDS, False,d)
         self.assertFalse(d.catalog_verified)
