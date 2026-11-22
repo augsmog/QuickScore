@@ -166,6 +166,7 @@ class AndroidOwnership(unittest.TestCase):
     d=self.driver(td)
     partial_focus=lambda g:clipped(g[0],g[2],g[3],g[4],g[5])
     if phase=='during-focus':
+     focus[4].set('focused','false')
      side=[before,partial_focus(focus)]
     else:
      partial=ownership_fixture(1.3,1,'QAGuest')
@@ -178,6 +179,67 @@ class AndroidOwnership(unittest.TestCase):
       with self.assertRaisesRegex(ValueError,'PLAYER_CARD_LOWER_EDGE_CLIPPED'):d.fill('Player 2 name','QAGuest')
       self.assertFalse(any(x.args[:3]==('shell','input','text') for x in adb.call_args_list))
      self.assertEqual(sum(x.args[:3]==('shell','input','swipe') for x in adb.call_args_list),0 if phase=='during-focus' else 1)
+ def test_exact_40c017_focus_clip_trace_at_both_scales_with_no_posttap_swipe(self):
+  for scale in (1.0,1.3):
+   for bad in (None,'unfocused','wrong-card','wrong-name','keyboard-hidden','overlap','conflict',
+               'not-at-lower-clip','other-field-focused','anchor-changed','id-changed','hcp-returns-unbound'):
+    with self.subTest(scale=scale,bad=bad),tempfile.TemporaryDirectory() as td:
+     pre,_,precard,pre_edits,prefield,_=ownership_fixture(scale,1,None)
+     footer_top=1993 if scale==1.0 else 1976
+     other=c.one(pre,'contest-player-0')
+     other.set('bounds','[55,900][1025,1470]')
+     precard.set('bounds',f'[55,1500][1025,{footer_top}]')
+     prefield.set('bounds','[217,1530][920,1658]')
+     # Preserve full pair pre-tap, no XML descendants. Both real traces had
+     # the pre-tap card on the lower edge even though the HCP was visible.
+     pre_hcp=next(n for n in pre.iter('node') if c.node_id(n)=='player-handicap-')
+     pre_hcp.set('bounds','[160,1720][344,1830]')
+     pre_edits[-2].set('bounds','[217,950][920,1060]')
+     pre_edits[-1].set('bounds','[160,1100][344,1200]')
+     focus,_,card,edits,name,hcp=ownership_fixture(scale,1,None,True)
+     # No raw bytes were retained by the device: reconstruct the redacted
+     # predicates, including per-scale remaining visible EditText counts.
+     hcp.set('bounds','[160,1900][344,1980]')
+     edits.remove(hcp)
+     cutoff=1660 if scale==1.0 else 1640
+     c.one(focus,'contest-footer').set('bounds',f'[0,{cutoff}][1080,2208]')
+     for k in ('contest-step-setup','contest-scroll'):
+      c.one(focus,k).set('bounds',f'[55,345][1025,{cutoff}]')
+     c.one(focus,'contest-player-0').set('bounds','[55,800][1025,1380]')
+     card.set('bounds',f'[55,1440][1025,{cutoff}]')
+     name.set('bounds','[217,1470][920,1598]')
+     [node for node in edits if node is not name][-1].set('visible-to-user','false')
+     if scale==1.3:[node for node in edits if node is not name][-2].set('visible-to-user','false')
+     if bad=='unfocused':name.set('focused','false')
+     if bad=='wrong-card':card.set('resource-id','contest-player-2')
+     if bad=='wrong-name':name.set('text','not the intended name')
+     if bad=='overlap':c.one(focus,'contest-player-0').set('bounds',card.get('bounds'))
+     if bad=='conflict':
+      extra=ET.fromstring(ET.tostring(name));extra.set('text','conflicting name');edits.append(extra)
+     if bad=='not-at-lower-clip':card.set('bounds',f'[55,1440][1025,{cutoff-1}]')
+     if bad=='other-field-focused':edits[0].set('focused','true')
+     if bad=='anchor-changed':name.set('bounds','[220,1470][920,1598]')
+     if bad=='id-changed':name.set('resource-id','unrelated-edit-control')
+     after,_,_,_,_,post_hcp=ownership_fixture(scale,1,'QAGuest')
+     if bad=='hcp-returns-unbound':
+      post_hcp.set('resource-id','player-handicap-wrong');post_hcp.set('content-desc','Handicap for wrong')
+     d=self.driver(td)
+     with patch.object(d,'read',side_effect=[pre,focus,after]),patch.object(d,'adb',return_value='mInputShown=false' if bad=='keyboard-hidden' else 'mInputShown=true') as adb,patch.object(c.time,'sleep'):
+      if bad:
+       with self.assertRaises(ValueError):d.fill('Player 2 name','QAGuest')
+      else:d.fill('Player 2 name','QAGuest')
+      commands=[x.args for x in adb.call_args_list]
+      self.assertFalse(any(c[:3]==('shell','input','swipe') for c in commands))
+      self.assertEqual([c for c in commands if c[:3]==('shell','input','text')],
+                       [('shell','input','text','QAGuest')] if bad in (None,'hcp-returns-unbound') else [])
+      if not bad:
+       probe=next(o for o in d.observations if o['checkpoint']=='name-after-focus')
+       inv=probe['playerPredicates']
+       self.assertEqual(tuple(inv[k] for k in ('sameAppEdit','visibleAppEdit','inCardEdit','nameExactlyMatches',
+                        'hcpExactlyMatches','focusedAppEdit','cardAtLowerClip','focusedClipAccepted')),
+                        (5,4 if scale==1.0 else 3,1,1,0,1,1,1))
+       self.assertTrue(probe['sameNameAnchor'])
+       self.assertEqual(d.observations[-1]['checkpoint'],'name-after-edit')
  def test_guest_no_input_if_prefill_unproved(self):
   root,_,_,_,_,hcp=ownership_fixture(1.3,1,None)
   hcp.attrib.pop('resource-id');hcp.attrib.pop('content-desc')

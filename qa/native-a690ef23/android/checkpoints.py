@@ -156,7 +156,7 @@ def node_id(n):return n.get('resource-id','').split(':id/')[-1]
 def overlap(a,b):
  return bool(a and b and max(a[0],b[0])<min(a[2],b[2]) and max(a[1],b[1])<min(a[3],b[3]))
 
-def player_pair(root,index,value,package,counts):
+def player_pair(root,index,value,package,counts,*,after_verified_tap=False):
  """No XML-parent hypothesis: prove the exact name and independent HCP semantics."""
  k='contest-player-'+str(index)
  cards=matches(root,k)
@@ -164,7 +164,7 @@ def player_pair(root,index,value,package,counts):
   'sameAppEdit':0,'visibleAppEdit':0,'inCardEdit':0,'inGuardedBounds':0,
   'nameExactlyMatches':0,'hcpIdExactlyMatches':0,'hcpLabelExactlyMatches':0,
   'hcpExactlyMatches':0,'nestedEdits':0,'focusedEdit':0,'cardAtLowerClip':0,
-  'nonconflictingClip':0})
+  'nonconflictingClip':0,'focusedAppEdit':0,'focusedClipAccepted':0})
  try:
   validate(root,'setup-initial')
   if len(cards)!=1:raise ValueError('PLAYER_PAIR_UNVERIFIED')
@@ -185,7 +185,8 @@ def player_pair(root,index,value,package,counts):
  counts.update({'sameAppEdit':min(len(all_edits),16),'visibleAppEdit':min(len(visible),16),
   'inCardEdit':min(len(inside),3),'inGuardedBounds':min(len(safe),3),
   'nestedEdits':min(len([n for n in card.iter('node') if n in visible]),3),
-  'focusedEdit':min(sum(n.get('focused')=='true' for n in safe),3)})
+  'focusedEdit':min(sum(n.get('focused')=='true' for n in safe),3),
+  'focusedAppEdit':min(sum(n.get('focused')=='true' for n in all_edits),3)})
  label='Player '+str(index+1)+' name'
  full_name=lambda n:n.get('text')==value
  empty_name=lambda n:(n.get('text')==label or
@@ -217,7 +218,15 @@ def player_pair(root,index,value,package,counts):
                and all(n in safe or box(n)[3]>lower for n in known)
                and not (len(known)==2 and overlap(box(known[0]),box(known[1]))))
  counts['nonconflictingClip']=int(bool(pending_clip))
- if pending_clip:raise ValueError('PLAYER_CARD_LOWER_EDGE_CLIPPED')
+ if pending_clip:
+  # This is NOT a general single-field lookup or another reveal. It is only
+  # the post-tap continuation of a separately proven blank name + HCP pair.
+  if (after_verified_tap and value is None and index in (1,2,3) and
+      len(inside)==len(safe)==len(names)==1 and not allowances and
+      counts['focusedAppEdit']==1 and names[0].get('focused')=='true'):
+   counts['focusedClipAccepted']=1
+   return names[0]
+  raise ValueError('PLAYER_CARD_LOWER_EDGE_CLIPPED')
  if (not counts['sceneBounds'] or counts['competingCards'] or len(inside)!=2 or len(safe)!=2 or
      len(names)!=1 or len(allowances)!=1 or names[0] is allowances[0] or
      overlap(box(names[0]),box(allowances[0]))):
@@ -331,13 +340,23 @@ class Driver:
    field=self.player_field_reveal(root,index,None,'name-before-edit')
    l,t,r,b=box(field)
    self.adb('shell','input','tap',str((l+r)//2),str((t+b)//2))
-   # Fresh native re-observation must prove the same indexed card still has
-   # its empty name/HCP pair and focus is on the semantic name, not the HCP.
-   focused=self.player_field(self.read(),index,None,'name-after-focus')
-   if focused.get('focused')!='true' or self.observations[-1]['playerPredicates']['focusedEdit']!=1:
-    raise ValueError('PLAYER_FOCUS_UNVERIFIED')
+   # Take a fresh native hierarchy after this proved tap. The IME can
+   # squeeze the HCP under the footer; its visibility never authorizes typing.
+   fresh=self.read()
    if not re.search(r'\bmInputShown=true\b',self.adb('shell','dumpsys','input_method')):
     raise ValueError('KEYBOARD_DISMISSAL_UNVERIFIED')
+   observed={'checkpoint':'name-after-focus','playerIndex':index,'playerPredicates':{}}
+   self.observations.append(observed)
+   counts=observed['playerPredicates']
+   focused=player_pair(fresh,index,None,self.c['package'],counts,after_verified_tap=True)
+   # No stable product ID exists for the name yet. Match the exact already
+   # selected field's resource-id (even when empty) and horizontal anchor.
+   # IME can move Y, but cannot substitute another card or field.
+   same_field=(focused.get('resource-id','')==field.get('resource-id','') and
+               (box(focused)[0],box(focused)[2])==(l,r))
+   observed['sameNameAnchor']=same_field
+   if not same_field or focused.get('focused')!='true' or counts['focusedAppEdit']!=1:
+    raise ValueError('PLAYER_FOCUS_UNVERIFIED')
   else:
    root,field=self.seek(label,'input')
    if field.get('enabled')!='true' or field.get('text','') not in ('',label):
