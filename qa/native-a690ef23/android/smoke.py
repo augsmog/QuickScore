@@ -114,7 +114,14 @@ def run(c):
  serial=c['serial'];package=c['package'];expected=c.get('expectedScale',1.)
  if not re.fullmatch(r'emulator-\d+',serial):raise ValueError('explicit disposable emulator serial required')
  if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_.]+',package):raise ValueError('invalid package')
- adb=lambda *a,**kw:command(['adb','-s',serial,*a],**kw)
+ def adb(*args,binary=False):
+  observer=c.get('_adb_observe')
+  try:raw=command(['adb','-s',serial,*args],binary=True)
+  except (subprocess.CalledProcessError,subprocess.TimeoutExpired) as error:
+   if observer:observer(args,error=error)
+   raise
+  if observer:observer(args,stdout=raw)
+  return raw if binary else raw.decode()
  if adb('get-state').strip()!='device':raise ValueError('emulator unavailable')
  apk=pathlib.Path(c['apk']).read_bytes();h=digest(apk);m=json.loads(pathlib.Path(c['buildManifest']).read_text())
  if m.get('sourceSha')!=SHA or m.get('sourceTree')!=TREE or m.get('apkSha256')!=h or m.get('variant')!='release' or m.get('offline') is not True or not re.fullmatch('[a-f0-9]{64}',m.get('recipeSha256','')):raise ValueError('build provenance mismatch')

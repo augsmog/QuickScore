@@ -1,5 +1,6 @@
 """Exact-source disposable Android build/install/smoke; never a full gate pass."""
-import hashlib,json,os,pathlib,re,shutil,signal,subprocess,time,sys
+import contextlib,hashlib,json,os,pathlib,re,shutil,signal,subprocess,time,sys
+from adb_boundary import Boundary
 from smoke import run as smoke
 from provision import ensure
 from transport import inspect as inspect_transport
@@ -110,6 +111,8 @@ def execute(source,out):
  home=source/'.git/test-home';home.mkdir();env={k:os.environ[k] for k in ['PATH','JAVA_HOME','LANG','TMPDIR'] if k in os.environ}
  env.update(JAVA_HOME=java_home,HOME=str(home),ANDROID_HOME=sdk,ANDROID_SDK_ROOT=sdk,GRADLE_USER_HOME=str(home/'gradle'),CI='1',EXPO_NO_TELEMETRY='1',EXPO_OFFLINE='1',SENTRY_DISABLE_AUTO_UPLOAD='true',EXPO_PUBLIC_SIMULATOR_NO_MLKIT='1',EXPO_PUBLIC_OFFLINE_MODE='true',EXPO_PUBLIC_DEMO_MODE='false',EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING='true',EXPO_PUBLIC_FEATURE_LEAGUES='false',EXPO_PUBLIC_FEATURE_NATIVE_LINKS='false')
  env.update(clean_npm_configs(home))
+ boundary=Boundary(tools['adb'],serial,env,out)
+ boundary.checked(boundary.prebuild)
  def cmd(args,phase,timeout=30,cwd=app):
   log_path=out/(phase+'.log')
   progress=release_progress(log_path,out/'gradle-progress.json') if phase=='gradle-release' else None
@@ -117,7 +120,6 @@ def execute(source,out):
    try:rc=run_process(args,env,cwd,log,timeout,progress)
    except subprocess.TimeoutExpired:raise RuntimeError(phase+' timed out') from None
    if rc:raise RuntimeError(phase+' failed; see phase log')
- def adb(*args):return subprocess.check_output([tools['adb'],'-s',serial,*args],timeout=30,env=env).decode().strip()
  # Reuse source lockfile; no dependency/version edits. Standard public dependency resolution only.
  lock=hashlib.sha256((app/'package-lock.json').read_bytes()).hexdigest()
  cmd([tools['npm'],'ci','--no-audit','--no-fund'], 'npm-ci',300)
@@ -135,26 +137,43 @@ def execute(source,out):
  manifestpath=out/'build.json';manifestpath.write_text(json.dumps(manifest,indent=2)+'\n')
  (out/'apk-transport.json').write_text(json.dumps({'sourceSha':manifest['sourceSha'],'sourceTree':manifest['sourceTree'],'apkSha256':h,'aggregatePass':False,**inspect_transport(pathlib.Path(sdk)/'build-tools/36.0.0/aapt',apk)},indent=2)+'\n')
  cmd([tools['adb'],'-s',serial,'install','-r',str(apk)],'install',60)
- return run_scales(adb,package,{'source':str(source),'serial':serial,'package':package,'apk':str(apk),'buildManifest':str(manifestpath)},out,h)
+ boundary.checked(boundary.post_install,source,manifest['sourceSha'],manifest['sourceTree'],package,h)
+ return boundary.checked(run_scales,boundary.run,package,{'source':str(source),'serial':serial,'package':package,'apk':str(apk),'buildManifest':str(manifestpath)},out,h,boundary)
 
-def run_scales(adb,package,base,out,apk_hash):
+@contextlib.contextmanager
+def restore_scale(adb,original):
+ primary=None
+ try:yield
+ except BaseException as error:primary=error;raise
+ finally:
+  try:adb('shell','settings','put','system','font_scale',original)
+  except Exception:
+   if primary is None:raise
+
+def run_scales(adb,package,base,out,apk_hash,boundary=None):
  from checkpoints import journey,SupplementalJourneyBlocked
  # No reset of persisted app data: ordinary process cold-start and verified Home
  # are required afresh before any next-scale supplemental action.
- original=adb('shell','settings','get','system','font_scale')
+ original=boundary.original if boundary else adb('shell','settings','get','system','font_scale')
  if not re.fullmatch(r'\d+(?:\.\d+)?',original):raise ValueError('cannot safely restore original font scale')
  results=[];failures=[]
- try:
+ with boundary.restore_guard('capture-font-restore',original) if boundary else restore_scale(adb,original):
   for value in [1.0,1.3]:
-   adb('shell','settings','put','system','font_scale',str(value))
+   if boundary:
+    boundary.phase='capture-font-'+str(value);boundary.font(str(value))
+    boundary.phase='capture-launch-'+str(value)
+   else:adb('shell','settings','put','system','font_scale',str(value))
    adb('shell','am','force-stop',package)
    adb('shell','monkey','-p',package,'-c','android.intent.category.LAUNCHER','1')
    cfg={**base,'expectedScale':value,'out':str(out/('scale-'+str(value)))}
+   if boundary:
+    boundary.phase='home-admission-'+str(value);cfg['_adb_observe']=boundary.log
    # Fatal Home/provenance failures are outside the supplemental catch.
    smoke(cfg)
    results.append(value)
    for lane in ('join','wizard'):
     lane_cfg={**cfg,'out':str(out/('scale-'+str(value)+'-'+lane))}
+    if boundary:boundary.phase='capture-'+lane+'-'+str(value)
     if lane=='wizard':
      # Cold process only; never clear data. A fresh authenticated Home capture
      # rechecks source/APK/foreground/scale before the independent wizard attempt.
@@ -165,7 +184,6 @@ def run_scales(adb,package,base,out,apk_hash):
     except SupplementalJourneyBlocked as error:
      failures.append({'scale':value,'lane':lane,'phase':error.phase,'reason':error.reason,'status':'BLOCKED'})
 
- finally:adb('shell','settings','put','system','font_scale',original)
  (out/'smoke-summary.json').write_text(json.dumps({'observedScales':results,'apkSha256':apk_hash,'supplementalFailures':failures,'aggregatePass':False,'runtimePaywall':False,'nativeJoin':False},indent=2)+'\n')
  if failures:raise ValueError('SUPPLEMENTAL_JOURNEY_INCOMPLETE')
  return results
