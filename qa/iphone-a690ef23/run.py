@@ -13,6 +13,9 @@ def category_readback(raw,expected=None):
  return value
 
 def screen(tree,scene):
+ if scene=='paywall':
+  from paywall import scene as paywall_scene
+  paywall_scene(tree)
  ids=set();texts=set()
  def walk(n):
   a=n.get('attributes',{});rid=a.get('resource-id','')
@@ -39,8 +42,8 @@ def clean_npm_configs(home):
   with path.open('x'):pass
   path.chmod(0o600)
  return {key:str(path) for key,path in paths.items()}
-PHASES={'preflight','home','setup','scale','restore','cold-home','add-player'}
-STEPS={'prepare','tap','entry','add-third','add-fourth','capture','set-readback','return-home','restore-category','restart','reveal','activate'}
+PHASES={'paywall','preflight','home','setup','scale','restore','cold-home','add-player'}
+STEPS={'open','close-draft','prepare','tap','entry','add-third','add-fourth','capture','set-readback','return-home','restore-category','restart','reveal','activate'}
 class Progress:
  def __init__(self):self.failure=None;self.restoreFailed=False
  def perform(self,phase,step,fn):
@@ -165,8 +168,16 @@ def _run(a,progress):
     progress.perform('add-player','capture',lambda:shot('add-player','add-player-'+category,category,ADD_VISIBLE,'post-cold'))
     progress.perform('add-player','activate',lambda:flow(ADD_ACTIVATE,'add-activate-'+str(i)))
     (out/('add-player-action-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'fourPlayerCheckpointPreserved':True,'fifthPlayerVisibleAfterTap':True,'aggregatePass':False})+'\n')
+   from paywall import OPEN,CLOSE,VISIBLE,REOPEN
+   progress.perform('home','return-home',lambda:flow('- tapOn: {id: new-contest-back}\n','paywall-return-home'))
+   for i,category in enumerate(CATEGORIES):
+    progress.perform('scale','set-readback',lambda:(sim('ui',a.udid,'content_size',category,name='paywall-set-'+str(i)),category_readback(sim('ui',a.udid,'content_size',name='paywall-read-'+str(i)),category)))
+    progress.perform('paywall','open',lambda:flow(OPEN if i==0 else REOPEN,'paywall-open-'+str(i)))
+    progress.perform('paywall','capture',lambda:shot('paywall','paywall-'+category,category,VISIBLE,'post-cold'))
+    progress.perform('paywall','close-draft',lambda:flow(CLOSE,'paywall-close-draft-'+str(i)))
+    (out/('paywall-draft-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'namesRetained':True,'twoRoundControlVisible':True,'aggregatePass':False})+'\n')
   finally:progress.perform('restore','restore-category',lambda:(sim('ui',a.udid,'content_size',original,name='restore-original-category'),category_readback(sim('ui',a.udid,'content_size',name='restored-category'),original)))
-  (out/'result.json').write_text(json.dumps({'status':'SUPPLEMENTAL_STOCK_CATEGORY_CAPTURES','aggregatePass':False,'runtimeRNScaleObserved':False,'paywall':'unrun','nativeJoin':'unrun','SE3':'unrun/report-only'})+'\n')
+  (out/'result.json').write_text(json.dumps({'status':'SUPPLEMENTAL_STOCK_CATEGORY_CAPTURES','aggregatePass':False,'runtimeRNScaleObserved':False,'paywall':'offline-fallback-header-and-draft-only','nativeJoin':'unrun','SE3':'unrun/report-only'})+'\n')
   return 78
 if __name__=='__main__':
  p=argparse.ArgumentParser();p.add_argument('--repo',required=True);p.add_argument('--udid',required=True);p.add_argument('--out',required=True);a=p.parse_args()

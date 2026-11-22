@@ -48,3 +48,19 @@ Capture sequence: three Home warm-process categories first, then three Home cold
 Add Player uses exact escaped visible text and explicit 100% visibility with centering. This proves label visibility and subsequent control activation if the run succeeds; complete button paint/footer clearance still requires independent screenshot review. Missing scroll reachability stops the setup phase with typed phase/step; already completed Home captures survive. No geometry/native/full-gate success is inferred. Fifth-player success is recorded only after its actual visible assertion, separately from the preserved four-player screenshot.
 
 Output remains exit78 / aggregate false, including successful supplemental captures. Paywall remains unrun. No provider calls or staged paywall code are added. Existing guard, workflow, permissions and runtime/Xcode policy remain unchanged. Stock category is OS evidence only; runtimeRNScale stays null.
+
+### Local paywall continuation
+After the twelve existing captures and fifth-player checks, the same offline
+installed build follows Home → New Contest with two synthetic names, the ordinary
+multi-day toggle/two rounds, Continue twice, and Start. Default course and stroke
+play are valid app defaults. No contest is seeded or saved on the free TD route.
+Three additional header captures require actual before/after stock-category
+readbacks and the exact paywall header/Close identity; foreign scenes fail closed.
+Close and explicit header Back IDs return through both wizard steps and verify both
+names and the two-round control. This is a fallback header/draft check: native price,
+disabled CTA, live provider, purchase/restore and initialized RN scale remain unproven.
+No Buy, Restore, URL, provider or deep-link action is used. Existing trusted intake,
+ref and aggregate exit 78 remain unchanged. Failure preserves prior screened pairs.
+Portable checks: `python3 -m unittest discover -s qa/iphone-a690ef23 -p 'test_*.py'`;
+`paywall-route.test.cjs` additionally exercises exact app handlers with repository
+renderer fixtures (not a native navigation result).
