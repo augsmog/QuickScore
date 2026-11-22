@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { COLORS, FONTS, RADII } from "../ui/theme";
 import { formatToPar } from "../utils/formatters";
@@ -36,6 +36,8 @@ type LeaderboardResultsListProps = {
   /** Players whose recent-form strokes drive the last-3-holes strip. */
   recentPlayers: Player[];
   contest: Contest;
+  /** AUG-707: tap a row to open that player's full-round scorecard. */
+  onPlayerPress?: (playerId: string) => void;
   ListHeaderComponent?: React.ReactElement | null;
   ListFooterComponent?: React.ReactElement | null;
 };
@@ -55,6 +57,7 @@ export function LeaderboardResultsList({
   allPlayers,
   recentPlayers,
   contest,
+  onPlayerPress,
   ListHeaderComponent,
   ListFooterComponent,
 }: LeaderboardResultsListProps) {
@@ -128,8 +131,12 @@ export function LeaderboardResultsList({
           const lastHoles = lastThreePlayedHoleChips(recentScores, contest.course.holes);
 
           return (
-            <View
+            <Pressable
               testID={`leaderboard-player-${r.name}`}
+              accessibilityRole={onPlayerPress ? "button" : undefined}
+              accessibilityLabel={onPlayerPress ? `${r.name} scorecard` : undefined}
+              disabled={!onPlayerPress}
+              onPress={() => onPlayerPress?.(r.playerId)}
               style={rowHasRoundColumns ? {
                 backgroundColor: isYou ? COLORS.surfaceHighest : "transparent",
                 height: 44,
@@ -270,7 +277,7 @@ export function LeaderboardResultsList({
               </View>
                 </>
               )}
-            </View>
+            </Pressable>
           );
         }}
       />

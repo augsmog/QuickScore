@@ -55,7 +55,7 @@ function componentDeps() {
     react: React,
     'react/jsx-runtime': require('react/jsx-runtime'),
     '@shopify/flash-list': { FlashList: passthroughFlashList },
-    'react-native': { View: 'View', Text: 'Text' },
+    'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable' },
     '../ui/theme': {
       COLORS: new Proxy({}, { get: (_, key) => String(key) }),
       FONTS: new Proxy({}, { get: (_, key) => String(key) }),
