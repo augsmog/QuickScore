@@ -31,10 +31,10 @@ class IndependentLanes(unittest.TestCase):
     hosted.run_scales(lambda *a:'1.0','synthetic.app',{},pathlib.Path(td),'a'*64)
    self.assertEqual(j.call_count,1);self.assertEqual(len(events),2)
  def test_actual_join_lookup_tap_destination_are_distinct(self):
-  for method,reason,phase in [('seek','CONTROL_UNREACHABLE','join-home-lookup'),('tap','CONTROL_DISABLED','join-home-tap'),('validate','WRONG_SCENE','join-destination')]:
+  for method,reason,phase in [('seek','CONTROL_UNREACHABLE','join-home-lookup'),('tap','CONTROL_DISABLED','join-home-tap'),('guard','WRONG_SCENE','join-destination')]:
    d=MagicMock();d.report=[]
    with patch.object(c,'Driver',return_value=d),patch.object(c,'validate') as v:
-    (v if method=='validate' else getattr(d,method)).side_effect=ValueError(reason)
+    getattr(d,method).side_effect=ValueError(reason)
     with self.assertRaises(c.SupplementalJourneyBlocked) as e:c.journey({},lane='join')
    self.assertEqual(e.exception.phase,phase);self.assertEqual(e.exception.reason,reason)
    d.shot.assert_not_called();d.save.assert_called_once_with('BLOCKED')

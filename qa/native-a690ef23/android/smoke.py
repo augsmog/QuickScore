@@ -118,6 +118,11 @@ def run(c):
  if adb('get-state').strip()!='device':raise ValueError('emulator unavailable')
  apk=pathlib.Path(c['apk']).read_bytes();h=digest(apk);m=json.loads(pathlib.Path(c['buildManifest']).read_text())
  if m.get('sourceSha')!=SHA or m.get('sourceTree')!=TREE or m.get('apkSha256')!=h or m.get('variant')!='release' or m.get('offline') is not True or not re.fullmatch('[a-f0-9]{64}',m.get('recipeSha256','')):raise ValueError('build provenance mismatch')
+ diagnostic_only=c.get('_diagnostic_only',False)
+ if diagnostic_only:
+  flags=m.get('flags',{})
+  if c.get('_checkpoint')!='join-unidentified' or flags.get('EXPO_PUBLIC_OFFLINE_MODE')!='true' or flags.get('EXPO_PUBLIC_DEMO_MODE')!='false' or flags.get('EXPO_PUBLIC_FEATURE_NATIVE_LINKS')!='false' or flags.get('EXPO_PUBLIC_FEATURE_LEAGUES')!='false':
+   raise ValueError('isolated offline diagnostic profile required')
  paths=adb('shell','pm','path',package).strip().splitlines()
  if len(paths)!=1 or not paths[0].startswith('package:/data/app/'):raise ValueError('single installed APK required')
  installed=paths[0][8:]
@@ -149,9 +154,10 @@ def run(c):
   write_status();raise ValueError('CAPTURE_OR_SCENE_UNVERIFIED') from None
  capture_state['phase']='screened';write_status()
  out=pathlib.Path(c['out']);out.mkdir(exist_ok=False)
- (out/'home.png').write_bytes(png)
+ (out/('diagnostic.png' if diagnostic_only else 'home.png')).write_bytes(png)
  receipt={'sourceSha':SHA,'tree':TREE,'apkSha256':h,'runtimeRNScale':None,'before':before,'after':after,'pngSha256':digest(png),'scope':'OS Settings + foreground Activity configuration; no initialized RN in-process claim','geometryPassed':False,'nativeAcceptance':False}
- if validator is not scene:receipt.update(scene=c['_checkpoint'],sceneVerified=True)
+ if validator is not scene:receipt.update(scene=c['_checkpoint'],sceneVerified=not diagnostic_only)
+ if diagnostic_only:receipt.update(status='DIAGNOSTIC_ONLY_UNIDENTIFIED_SCENE',aggregatePass=False,scene='UNIDENTIFIED')
  (out/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
 if __name__=='__main__':
  p=argparse.ArgumentParser();p.add_argument('config');a=p.parse_args()

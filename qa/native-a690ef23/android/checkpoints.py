@@ -28,6 +28,7 @@ MISSING='Contest not found on this device. Offline codes work only in the organi
 SCENES={
  'entry':('join-dismiss','local-join-limitation'),
  'entry-invalid':('join-dismiss','local-join-limitation'),
+ 'setup-initial':('contest-step-setup','contest-footer','new-contest-back'),
  'setup':('contest-step-setup','contest-footer'),
  'rounds':('contest-step-setup','contest-footer','rounds-2','rounds-3','rounds-4'),
  'players-end':('contest-step-setup','contest-footer'),
@@ -68,6 +69,28 @@ def one(root,key,kind='id'):
  if len(found)!=1:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
  return found[0]
 
+def selector_counts(root,name):
+ if name not in SCENES:raise ValueError('UNKNOWN_CHECKPOINT')
+ return [{'role':key,'kind':kind,'matches':min(len(matches(root,key,kind)),2)}
+         for kind,keys in [('id',SCENES[name]),('text',TEXTS.get(name,()))] for key in keys]
+
+def host_input(root):
+ card=one(root,'contest-player-0')
+ inputs=[n for n in card.iter('node') if box(n) and n.get('class')=='android.widget.EditText'
+         and n.get('hint')=='Your name']
+ if len(inputs)!=1:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+ return inputs[0]
+
+def diagnostic_guard(xml,focus,package):
+ target_focus(focus,package)
+ root=tree(xml,package)
+ # Foreground-only capture is never a scene acceptance. Require app nodes;
+ # global default-display and Activity/scale/source/APK checks remain in capture.
+ if not any(n.get('package')==package and box(n) for n in root.iter('node')):
+  raise CaptureBoundaryFailure('NO_VISIBLE_APP_CONTENT')
+ return []
+
+
 def validate(root,name):
  if name not in SCENES:raise ValueError('UNKNOWN_CHECKPOINT')
  ids={n.get('resource-id','').split(':id/')[-1] for n in root.iter('node') if box(n)}
@@ -92,7 +115,7 @@ def validate(root,name):
  return True
 
 class Driver:
- def __init__(self,c):self.c=c;self.phase='entry';self.report=[];self.out=pathlib.Path(c['out']+'-continuation');self.out.mkdir(exist_ok=False);self.reason=None
+ def __init__(self,c):self.c=c;self.phase='entry';self.report=[];self.out=pathlib.Path(c['out']+'-continuation');self.out.mkdir(exist_ok=False);self.reason=None;self.observations=[];self.hostName=None;self.diagnostic=None;self.joinTapped=False
  def adb(self,*args):return subprocess.check_output(['adb','-s',self.c['serial'],*args],timeout=15,stderr=subprocess.PIPE).decode()
  def read(self):
   from smoke import read_focus
@@ -103,6 +126,9 @@ class Driver:
  def seek(self,key,kind='id',direction='down'):
   for attempt in range(9):
    root=self.read();found=matches(root,key,kind)
+   roles={'home-join-code':'home-join','home-new-contest':'home-new-contest','contest-step-setup':'setup-scene','contest-player-0':'host-card','Player 2 name':'guest-player-input'}
+   if key in roles and hasattr(self,'observations'):
+    self.observations.append({'checkpoint':'lookup','selectors':[{'role':roles[key],'kind':kind,'matches':min(len(found),2)}]})
    if len(found)>1:raise ValueError('AMBIGUOUS_CONTROL')
    if found:return root,found[0]
    if attempt==8:break
@@ -131,15 +157,51 @@ class Driver:
   self.adb('shell','input','tap',str((l+r)//2),str((t+b)//2));time.sleep(.3)
  def fill(self,label,value):
   if value not in ('QAGuest','QAThree','QAFour','AAAAAA'):raise ValueError('NON_SYNTHETIC_INPUT')
+  roles={'Join code':'join-code-input','Display name':'guest-display-input','Player 2 name':'guest-player-input','Player 3 name':'third-player-input','Player 4 name':'fourth-player-input'}
+  if label not in roles:raise ValueError('NON_SYNTHETIC_INPUT')
+  root,_=self.seek(label,'input')
+  self.observations.append({'checkpoint':'input','selectors':[{'role':roles[label],'kind':'input','matches':min(len(matches(root,label,'input')),2)}]})
   self.tap(label,'input')
   self.adb('shell','input','text',value)
   ime=self.adb('shell','dumpsys','input_method')
   if not re.search(r'\bmInputShown=true\b',ime):raise ValueError('KEYBOARD_DISMISSAL_UNVERIFIED')
   self.adb('shell','input','keyevent','4');time.sleep(.3)
   one(self.read(),value,'input')
+ def guard(self,root,name):
+  self.observations.append({'checkpoint':name,'selectors':selector_counts(root,name)})
+  validate(root,name)
+ def join_diagnostic(self):
+  if not self.joinTapped or self.phase!='join-destination':raise CaptureBoundaryFailure('DIAGNOSTIC_NOT_AFTER_JOIN_TAP')
+  cfg={**self.c,'out':str(self.out/'join-unidentified'),'_scene':diagnostic_guard,
+       '_checkpoint':'join-unidentified','_diagnostic_only':True}
+  try:capture(cfg)
+  except Exception:raise CaptureBoundaryFailure('DIAGNOSTIC_CAPTURE_BOUNDARY_FAILED') from None
+  self.diagnostic={'scene':'UNIDENTIFIED','captured':True,'sceneVerified':False,'geometryPassed':False,'nativeAcceptance':False}
+ def prepare_host(self):
+  root=self.read()
+  cards=matches(root,'contest-player-0')
+  inputs=[] if len(cards)!=1 else [n for n in cards[0].iter('node') if box(n) and n.get('class')=='android.widget.EditText' and n.get('hint')=='Your name']
+  self.observations.append({'checkpoint':'host-prefill','selectors':[{'role':'host-card','kind':'id','matches':min(len(cards),2)},{'role':'host-name-input','kind':'input','matches':min(len(inputs),2)}]})
+  n=host_input(root)
+  value=n.get('text')
+  if value is None:raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+  self.hostName=value
+  if value!='':return # Keep observed nonempty value in memory only.
+  if n.get('enabled')!='true':raise ValueError('CONTROL_DISABLED')
+  l,t,r,b=box(n)
+  footer=matches(root,'contest-footer')
+  if len(footer)!=1 or b>box(footer[0])[1]:raise ValueError('CONTROL_BEHIND_FOOTER')
+  self.adb('shell','input','tap',str((l+r)//2),str((t+b)//2))
+  # Reacquire the exact card and prove empty immediately before text input.
+  if host_input(self.read()).get('text')!='':raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+  self.adb('shell','input','text','QAHost')
+  if not re.search(r'\bmInputShown=true\b',self.adb('shell','dumpsys','input_method')):raise ValueError('KEYBOARD_DISMISSAL_UNVERIFIED')
+  self.adb('shell','input','keyevent','4')
+  if host_input(self.read()).get('text')!='QAHost':raise ValueError('CONTROL_MISSING_OR_AMBIGUOUS')
+  self.hostName='QAHost'
  def shot(self,name):
   self.phase=name
-  root=self.read();validate(root,name)
+  root=self.read();self.guard(root,name)
   def guard(xml,focus,package):
    target_focus(focus,package);validate(tree(xml,package),name);return []
   cfg={**self.c,'out':str(self.out/name),'_scene':guard,'_checkpoint':name}
@@ -150,7 +212,7 @@ class Driver:
   bounds={str(i):box(one(root,k,'id' if k in SCENES[name] else 'text')) for i,k in enumerate(targets)}
   self.report.append({'checkpoint':name,'captured':True,'observedBoundsPx':bounds,'geometryPassed':False,'visualReviewRequired':True})
  def save(self,status):
-  (self.out/'continuation.json').write_text(json.dumps({'sourceSha':self.c_source(),'status':status,'phase':self.phase,'reason':self.reason,'checkpoints':self.report,'aggregatePass':False,'runtimeRNScale':None,'nativeJoin':False,'catalog':'offline-fallback-no-provider','blocked':['online-host-approval-binding-score-reconnect','initialized-RN-scale','independent-geometry-review']},indent=2)+'\n')
+  (self.out/'continuation.json').write_text(json.dumps({'sourceSha':self.c_source(),'status':status,'phase':self.phase,'reason':self.reason,'selectorObservations':self.observations,'diagnosticCapture':self.diagnostic,'checkpoints':self.report,'aggregatePass':False,'runtimeRNScale':None,'nativeJoin':False,'catalog':'offline-fallback-no-provider','blocked':['online-host-approval-binding-score-reconnect','initialized-RN-scale','independent-geometry-review']},indent=2)+'\n')
  def c_source(self):
   from smoke import SHA
   return SHA
@@ -161,16 +223,18 @@ def journey(c,lane='all'):
  try:
   if lane in ('all','join'):
    d.phase='join-home-lookup';d.seek('home-join-code')
-   d.phase='join-home-tap';d.tap('home-join-code')
-   d.phase='join-destination';validate(d.read(),'entry')
+   d.phase='join-home-tap';d.tap('home-join-code');d.joinTapped=True
+   d.phase='join-destination';d.guard(d.read(),'entry')
    d.shot('entry')
    d.phase='join-invalid';d.fill('Join code','AAAAAA');d.fill('Display name','QAGuest');d.tap('Find contest','text')
    d.seek(MISSING,'text');d.shot('entry-invalid');d.tap('join-dismiss')
    if lane=='join':
     d.save('CAPTURED_SUPPLEMENTAL_ONLY');return
-  d.phase='setup-enter';d.tap('home-new-contest');d.seek('contest-player-0')
-  host=one(d.read(),'contest-player-0');one(host,'Golfer','input')
-  d.fill('Player 2 name','QAGuest')
+  d.phase='setup-tap';d.tap('home-new-contest')
+  d.phase='setup-scene';d.seek('contest-step-setup');d.guard(d.read(),'setup-initial')
+  d.shot('setup-initial')
+  d.phase='host-prefill';d.seek('contest-player-0');d.prepare_host()
+  d.phase='guest-entry';d.fill('Player 2 name','QAGuest')
   for number,name in [(3,'QAThree'),(4,'QAFour')]:
    d.phase='add-player';d.tap('+ ADD PLAYER','text')
    d.seek('contest-player-'+str(number-1));d.fill('Player '+str(number)+' name',name)
@@ -190,13 +254,17 @@ def journey(c,lane='all'):
     d.report.append({'checkpoint':name,'captured':False,'status':'SECTION_NOT_SAFELY_OBSERVED','geometryPassed':False})
   d.phase='paywall-close';d.tap('paywall-close',direction='up')
   validate(d.read(),'round-settings');d.tap('new-contest-back');validate(d.read(),'games')
-  d.tap('new-contest-back');d.seek('contest-player-0');one(one(d.read(),'contest-player-0'),'Golfer','input')
+  d.tap('new-contest-back');d.seek('contest-player-0');one(one(d.read(),'contest-player-0'),d.hostName,'input')
   for index,name in [(1,'QAGuest'),(2,'QAThree'),(3,'QAFour')]:
    d.seek('contest-player-'+str(index));one(one(d.read(),'contest-player-'+str(index)),name,'input')
   d.seek('rounds-2',direction='up');validate(d.read(),'rounds')
   d.report.append({'checkpoint':'draft-retained','verified':True})
   d.tap('new-contest-back');d.save('CAPTURED_SUPPLEMENTAL_ONLY')
  except Exception as error:
+  if d.phase=='join-destination' and navigation_reason(error):
+   try:d.join_diagnostic()
+   except CaptureBoundaryFailure:
+    d.reason='FATAL_BOUNDARY_OR_UNCLASSIFIED';d.save('BLOCKED');raise
   d.reason=navigation_reason(error) or 'FATAL_BOUNDARY_OR_UNCLASSIFIED'
   d.save('BLOCKED')
   if isinstance(error,CaptureBoundaryFailure):raise

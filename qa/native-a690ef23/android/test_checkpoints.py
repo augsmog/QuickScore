@@ -51,7 +51,7 @@ class Controls(unittest.TestCase):
   r.append(node(**{'class':'android.widget.EditText','content-desc':'Join code'}))
   with self.assertRaises(ValueError):c.one(r,'Join code','input')
  def driver(self):
-  d=object.__new__(c.Driver);d.c={'package':'test.app','serial':'emulator-5554'};return d
+  d=object.__new__(c.Driver);d.c={'package':'test.app','serial':'emulator-5554'};d.observations=[];return d
  def test_seek_timeout_bounded(self):
   d=self.driver()
   with patch.object(d,'read',return_value=ET.Element('hierarchy')),patch.object(d,'scroll') as scroll:
@@ -71,7 +71,7 @@ class Controls(unittest.TestCase):
    adb.assert_not_called()
  def test_missing_keyboard_does_not_back_out(self):
   d=self.driver()
-  with patch.object(d,'tap'),patch.object(d,'adb',return_value='mInputShown=false') as adb:
+  with patch.object(d,'seek',return_value=(ET.Element('hierarchy'),None)),patch.object(d,'tap'),patch.object(d,'adb',return_value='mInputShown=false') as adb:
    with self.assertRaises(ValueError):d.fill('Player 2 name','QAGuest')
    self.assertFalse(any('keyevent' in call.args for call in adb.call_args_list))
  def test_capture_reuses_installed_apk_and_scale_checks(self):
@@ -96,12 +96,12 @@ class Controls(unittest.TestCase):
   for forbidden in ['am\',\'start','pm\',\'clear','Restore Purchases\',','Subscribe —\',','settings\',\'put']:self.assertNotIn(forbidden,own)
 
 class CaptureControls(unittest.TestCase):
- def exercise(self,fault=None):
+ def exercise(self,fault=None,diagnostic=False):
   import smoke
   with tempfile.TemporaryDirectory() as td:
    p=pathlib.Path(td);apk=b'synthetic-apk';h=hashlib.sha256(apk).hexdigest()
    (p/'app.apk').write_bytes(apk)
-   (p/'build.json').write_text(json.dumps({'sourceSha':smoke.SHA,'sourceTree':smoke.TREE,'apkSha256':h,'variant':'release','offline':True,'recipeSha256':'a'*64}))
+   (p/'build.json').write_text(json.dumps({'sourceSha':smoke.SHA,'sourceTree':smoke.TREE,'apkSha256':h,'variant':'release','offline':True,'recipeSha256':'a'*64,'flags':{} if fault=='profile' else {'EXPO_PUBLIC_OFFLINE_MODE':'true','EXPO_PUBLIC_DEMO_MODE':'false','EXPO_PUBLIC_FEATURE_NATIVE_LINKS':'false','EXPO_PUBLIC_FEATURE_LEAGUES':'false'}}))
    focus='mCurrentFocus=Window{abc u0 test.app/.Main}'
    activity='ACTIVITY test.app/.Main token pid=1\n mResumed=true mStopped=false mFinished=false\n mCurrentConfig={1.3 test}'
    xml=ET.tostring(fixture('rounds')).decode()
@@ -127,13 +127,18 @@ class CaptureControls(unittest.TestCase):
     raise AssertionError('unexpected test command')
    def guard(raw,f,pkg):smoke.target_focus(f,pkg);return c.validate(c.tree(raw,pkg),'rounds')
    cfg={'source':str(p),'serial':'emulator-5554','package':'test.app','apk':str(p/'app.apk'),'buildManifest':str(p/'build.json'),'expectedScale':1.3,'out':str(p/'capture'),'_scene':guard,'_checkpoint':'rounds'}
+   if diagnostic:cfg.update(_scene=c.diagnostic_guard,_checkpoint='join-unidentified',_diagnostic_only=True)
    with patch.object(smoke.subprocess,'check_output',side_effect=command),patch.object(smoke.time,'time',side_effect=[1,20] if fault=='stale' else [1,2]):
     if fault:
      with self.assertRaises(ValueError):smoke.run(cfg)
-     self.assertFalse((p/'capture/home.png').exists())
+     self.assertFalse((p/'capture/home.png').exists());self.assertFalse((p/'capture/diagnostic.png').exists())
     else:
      smoke.run(cfg);r=json.loads((p/'capture/receipt.json').read_text())
-     self.assertTrue(r['sceneVerified']);self.assertFalse(r['nativeAcceptance']);self.assertFalse(r['before']['homeSceneVerified']);self.assertIsNone(r['runtimeRNScale'])
+     self.assertEqual(r['sceneVerified'],not diagnostic);self.assertFalse(r['nativeAcceptance']);self.assertFalse(r['before']['homeSceneVerified']);self.assertIsNone(r['runtimeRNScale'])
+ def test_diagnostic_is_never_scene_acceptance(self):self.exercise(diagnostic=True)
+ def test_diagnostic_preserves_all_boundaries(self):
+  for fault in ['source','installed-apk','scale','foreign','changed-activity','stale','profile']:
+   with self.subTest(fault=fault):self.exercise(fault,diagnostic=True)
  def test_screened_rounds_fixture_only(self):self.exercise()
  def test_failures_never_emit_capture(self):
   for fault in ['source','installed-apk','scale','foreign','wrong-scene','changed-activity','stale']:

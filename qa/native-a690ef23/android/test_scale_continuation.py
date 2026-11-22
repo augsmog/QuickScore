@@ -41,7 +41,7 @@ class ScaleContinuation(unittest.TestCase):
  def test_success_still_has_no_acceptance(self):self.exercise(None)
  def test_capture_failure_cannot_become_retryable_navigation(self):
   from test_checkpoints import fixture
-  d=object.__new__(checkpoints.Driver);d.c={};d.out=pathlib.Path('/unused');d.report=[]
+  d=object.__new__(checkpoints.Driver);d.c={};d.out=pathlib.Path('/unused');d.report=[];d.observations=[]
   with patch.object(d,'read',return_value=fixture('rounds')),patch.object(checkpoints,'capture',side_effect=ValueError('installed APK mismatch')):
    with self.assertRaises(checkpoints.CaptureBoundaryFailure):d.shot('rounds')
   self.assertEqual(d.report,[])
