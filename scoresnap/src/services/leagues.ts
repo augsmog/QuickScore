@@ -1,3 +1,4 @@
+import { LEAGUES_ENABLED } from '../config/features';
 import { supabase } from '../db/supabase';
 
 export interface League {
@@ -21,6 +22,7 @@ export interface LeagueEvent {
 }
 
 async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
+  if (!LEAGUES_ENABLED) throw new Error('LEAGUES_DISABLED');
   const { data, error } = await supabase.rpc(name as never, args as never);
   if (error) throw error;
   return data as T;

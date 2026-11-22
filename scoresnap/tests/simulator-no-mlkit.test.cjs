@@ -59,15 +59,15 @@ test("simulator-offline is a local-only E2E fixture build, never production env"
   }
 });
 
-test("production and TestFlight profiles are byte-for-byte what they were", () => {
+test("production and TestFlight profiles match the approved code-only release", () => {
   expect(eas.build.production).toEqual({
     autoIncrement: true, channel: "production", environment: "production",
-    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_PRO_ENABLED: "false" },
+    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: "true", EXPO_PUBLIC_FEATURE_LEAGUES: "false", EXPO_PUBLIC_FEATURE_NATIVE_LINKS: "false", EXPO_PUBLIC_PRO_ENABLED: "false" },
   });
   expect(eas.build.testflight).toEqual({
     distribution: "store", ios: { buildConfiguration: "Release" }, autoIncrement: true,
     channel: "testflight", environment: "production",
-    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_PRO_ENABLED: "false" },
+    env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: "true", EXPO_PUBLIC_FEATURE_LEAGUES: "false", EXPO_PUBLIC_FEATURE_NATIVE_LINKS: "false", EXPO_PUBLIC_PRO_ENABLED: "false" },
   });
 });
 

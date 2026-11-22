@@ -12,7 +12,7 @@ import { View, Text, Pressable, Share, Platform } from "react-native";
 import { useContestStore, type Contest } from "../stores/contest-store";
 import { generateJoinCode } from "../services/guest-join";
 import { COLORS } from "./theme";
-import { CROSS_DEVICE_SHARING_ENABLED } from "../config/features";
+import { CROSS_DEVICE_SHARING_ENABLED, NATIVE_LINKS_ENABLED } from "../config/features";
 import { isCompactViewport } from './compact-viewport';
 
 export function ContestJoinCode({ contest }: { contest: Contest }) {
@@ -90,6 +90,16 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
         setFailedSnapshot(undefined);
       }
       if (!code) return;
+      if (!NATIVE_LINKS_ENABLED) {
+        const invite = onlineEnabled
+          ? `Open SnapScore, tap Join with code, and enter ${code}. The host must approve your request.`
+          : `${getLocalJoinLimitation().title} — ${getLocalJoinLimitation().message} Join with code ${code}.`;
+        if (Platform.OS === "web" && navigator.clipboard) {
+          await navigator.clipboard.writeText(invite);
+          if (current()) setMessage(onlineEnabled ? "Join code instructions copied" : "Local join code copied · same browser only");
+        } else await Share.share({ message: invite });
+        return;
+      }
       const link = Platform.OS === "web" ? `${window.location.origin}/join/${code}` : `snapscore://join/${code}`;
       if (Platform.OS === "web" && navigator.clipboard) { await navigator.clipboard.writeText(link); if (current()) setMessage(onlineEnabled ? "Online invite link copied" : "Local invite link copied · same browser only"); }
       else await Share.share({ message: onlineEnabled ? `Sign in with email or Apple. Join with code ${code}: ${link}` : `${getLocalJoinLimitation().title} — ${getLocalJoinLimitation().message} Join with code ${code}: ${link}` });

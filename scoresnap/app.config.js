@@ -1,18 +1,13 @@
 const base = require('./app.json').expo;
-// Entitlements require a new native build. Host association files must be served
-// by the public website with the release team's ID/signing fingerprints.
+// Join by code does not require native association entitlements.
+// Future activation requires a separately reviewed signed-build association packet
+// (AASA + Android signing fingerprints + hosted verification). None is present.
 module.exports = () => {
-  if (process.env.EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING !== 'true') return base;
-  const origin = new URL(process.env.EXPO_PUBLIC_WEB_URL || 'https://snapscore.autumn8.me');
-  if (origin.protocol !== 'https:' || origin.username || origin.password || origin.port || origin.pathname !== '/') {
-    throw Error('EXPO_PUBLIC_WEB_URL must be a public HTTPS origin');
+  if (process.env.EXPO_PUBLIC_FEATURE_NATIVE_LINKS === 'true') {
+    throw Error('NATIVE_LINK_ASSOCIATIONS_UNVERIFIED: signed association evidence required before enabling native links');
   }
-  return {
-    ...base,
-    ios: { ...base.ios, associatedDomains: [`applinks:${origin.hostname}`] },
-    android: { ...base.android, intentFilters: [{ action: 'VIEW', autoVerify: true,
-      category: ['BROWSABLE', 'DEFAULT'],
-      data: ['/r/', '/join/'].map(pathPrefix => ({ scheme: 'https', host: origin.hostname, pathPrefix })),
-    }] },
-  };
+  if (base.ios?.associatedDomains?.length || base.android?.intentFilters?.length) {
+    throw Error('NATIVE_LINK_ASSOCIATIONS_UNVERIFIED: unexpected native association in base config');
+  }
+  return base;
 };

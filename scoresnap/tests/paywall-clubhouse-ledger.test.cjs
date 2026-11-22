@@ -39,7 +39,7 @@ function screen({restore=async()=>true,owner='free',target}={}){
  const alert=jest.fn(),openURL=jest.fn(),back=jest.fn();
  const react={useState:init=>{const i=cursor++;if(!(i in states))states[i]=init;return[states[i],v=>{states[i]=v;}];},useEffect:f=>effects.push(f)};
  const Screen=load('app/paywall.tsx',{
- react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{View:'View',Text:'Text',ScrollView:'ScrollView',Pressable:'Pressable',Alert:{alert},Linking:{openURL},StyleSheet:{create:x=>x}},
+ react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{Platform:{OS:'ios'},View:'View',Text:'Text',ScrollView:'ScrollView',Pressable:'Pressable',Alert:{alert},Linking:{openURL},StyleSheet:{create:x=>x}},
  'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'expo-router':{useRouter:()=>({back}),useLocalSearchParams:()=>({tier:target})},
  '@expo-google-fonts/inter':{useFonts:()=>[true]},
  '../src/services/purchases':{getPackages:async()=>packages,purchasePackage:async()=>true,restorePurchases:restore,syncProStatus:async()=>{}},

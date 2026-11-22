@@ -38,7 +38,7 @@ async function mount({ online = true, actor = 'owner', restored = true, joinCode
     '../stores/contest-store': { useContestStore: contestStore },
     'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable', Platform: { OS: platform }, Share: { share: nativeShare } },
     './theme': { COLORS: {} }, './LocalJoinLimitationBanner': { LocalJoinLimitationBanner: () => null },
-    '../config/features': { CROSS_DEVICE_SHARING_ENABLED: true },
+    '../config/features': { CROSS_DEVICE_SHARING_ENABLED: true, NATIVE_LINKS_ENABLED: false },
   });
   const { ContestJoinCode } = load('src/ui/ContestJoinCode.tsx');
   function Screen() { const contest = contestStore(s => s.contests[0]); return React.createElement(ContestJoinCode, { contest }); }
@@ -67,14 +67,14 @@ test('reload waits for proof even with a previously canonical persisted code and
   await act(async () => pending.resolve(snapshot()));
   expect(h.codes()).toHaveLength(1); expect(h.codes()[0].props.children).toContain('DGTWEW');
 });
-test.each(['web', 'ios'])('share rechecks server and uses fresh rotated code, never persisted/rendered old code: %s', async platform => {
+test.each(['web', 'ios', 'android'])('share rechecks server and uses fresh rotated code, never persisted/rendered old code: %s', async platform => {
   const h = await mount({ platform });
   expect(h.codes()[0].props.children).toContain('DGTWEW');
   h.setResponse(snapshot({ invite_code: 'NEW234', revision: 2 }));
   await act(async () => h.shares()[0].props.onPress());
   expect(h.client.rejoinHost).toHaveBeenCalledTimes(2);
-  if (platform === 'web') expect(h.clipboard).toHaveBeenCalledWith('https://local.test/join/NEW234');
-  else expect(h.nativeShare).toHaveBeenCalledWith({ message: 'Sign in with email or Apple. Join with code NEW234: snapscore://join/NEW234' });
+  if (platform === 'web') expect(h.clipboard).toHaveBeenCalledWith('Open SnapScore, tap Join with code, and enter NEW234. The host must approve your request.');
+  else expect(h.nativeShare).toHaveBeenCalledWith({ message: 'Open SnapScore, tap Join with code, and enter NEW234. The host must approve your request.' });
 });
 test('double share while verification is pending produces one request and one copy', async () => {
   const h = await mount(), pending = deferred(); h.setResponse(pending.promise);
@@ -104,14 +104,23 @@ test('failed check can recover through Online sync accepted refresh without remo
   expect(h.codes()).toHaveLength(1); expect(h.shares()).toHaveLength(1);
   expect(h.root.root.findAllByType('Text').some(n => n.props.children === 'Could not check online sharing. Open Online sync to retry.')).toBe(false);
 });
-test('local-only new and legacy rounds still allocate and share a local code', async () => {
-  const h = await mount({ online: false, actor: null, restored: false, joinCode: '' });
+test.each(['web', 'ios', 'android'])('local-only code instructions disclose device scope without host approval: %s', async platform => {
+  const h = await mount({ online: false, actor: null, restored: false, joinCode: '', platform });
   const code = h.contestStore.getState().contests[0].joinCode;
   expect(code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
   expect(h.codes()[0].props.children).toContain(code);
   await act(async () => h.shares()[0].props.onPress());
-  expect(h.clipboard).toHaveBeenCalledWith(`https://local.test/join/${code}`);
+  const invite = `Same browser only — This join code works on this device/browser, not another phone. Live cross-device sharing is coming. Join with code ${code}.`;
+  if (platform === 'web') {
+    expect(h.clipboard).toHaveBeenCalledWith(invite);
+    expect(h.root.root.findAllByType('Text').some(n => n.props.children === 'Local join code copied · same browser only')).toBe(true);
+    expect(h.nativeShare).not.toHaveBeenCalled();
+  } else {
+    expect(h.nativeShare).toHaveBeenCalledWith({ message: invite });
+    expect(h.clipboard).not.toHaveBeenCalled();
+  }
   expect(h.client.rejoinHost).not.toHaveBeenCalled();
+  expect(h.enroll).not.toHaveBeenCalled();
 });
 test('new local online round retains enrollment control and no invite until enrollment', async () => {
   const h = await mount({ restored: false, response: { code: '42501' } });

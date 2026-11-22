@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, FONTS } from "../../src/ui/theme";
 import { tabBarHeight } from "../../src/ui/tab-bar-metrics";
 
+import { LEAGUES_ENABLED } from "../../src/config/features";
+
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
 
@@ -99,6 +101,7 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="leagues" options={{ title: "Leagues", href: LEAGUES_ENABLED ? "/leagues" : null }} />
       <Tabs.Screen
         name="profile"
         options={{
