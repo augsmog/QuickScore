@@ -1,5 +1,5 @@
 import unittest,yaml,pathlib,hashlib
-from pricing import SECTIONS,section_scene,reveal,visible,RETURN_TOP,optional_sections
+from pricing import SECTIONS,section_scene,reveal,visible,RETURN_TOP,optional_sections,SectionUnavailable
 from run import SHA,TREE,screen
 from intake import sanitize
 class PricingControls(unittest.TestCase):
@@ -29,7 +29,7 @@ class PricingControls(unittest.TestCase):
   calls=[]
   def capture(section):
    calls.append(section)
-   if section=='paywall-free':raise RuntimeError('private raw text must not escape')
+   if section=='paywall-free':raise SectionUnavailable('reveal')
   rows=optional_sections(capture)
   self.assertEqual(calls,list(SECTIONS));self.assertEqual(rows[0]['status'],'unavailable');self.assertEqual(rows[1]['status'],'captured');self.assertNotIn('private',str(rows))
  def test_recovery_precedes_close_and_keeps_top_checkpoint(self):

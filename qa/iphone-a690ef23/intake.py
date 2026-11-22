@@ -86,7 +86,7 @@ def main():
    if not re.fullmatch('[A-Fa-f0-9-]{36}',udid):udid=None;raise ValueError('INVALID_CREATED_UUID')
    cmd(['xcrun','simctl','boot',udid],60);cmd(['xcrun','simctl','bootstatus',udid,'-b'],180)
    run(types.SimpleNamespace(repo=str(ROOT),udid=udid,out=str(capture),device_name=name,progress=progress))
-   state['status']='SUPPLEMENTAL_CAPTURE_COMPLETE_GATE_RED'
+   state['status']='BLOCKED_OR_PARTIAL_GATE_RED' if progress.categoryFailures else 'SUPPLEMENTAL_CAPTURE_COMPLETE_GATE_RED'
   except Exception as error:
    if re.fullmatch('[A-Z][A-Z0-9_]{1,80}',str(error)):state['failureCode']=str(error)
    else:state['failureCode']='NATIVE_PHASE_OR_SCENE_CHECK_FAILED'
@@ -116,7 +116,7 @@ def main():
       else:state['status']='RECEIPT_REJECTED_GATE_RED'
      except Exception:state['status']='RECEIPT_REJECTED_GATE_RED'
    state['paywallSections']=[]
-   from pricing import SECTIONS
+   from pricing import SECTIONS,SECTION_PHASES
    for category in CATEGORIES:
     section_file=capture/('paywall-sections-'+category+'.json')
     if section_file.is_file():
@@ -126,7 +126,8 @@ def main():
       rows=r['sections']
       if len(rows)!=3 or [v['section'] for v in rows]!=list(SECTIONS):raise ValueError('SECTION_RECEIPT_INVALID')
       for row in rows:
-       expected={'section':row['section'],'status':'captured'} if row.get('status')=='captured' else {'section':row['section'],'status':'unavailable','reason':'SECTION_VISIBILITY_OR_STATE_UNVERIFIED'}
+       expected={'section':row['section'],'status':'captured'} if row.get('status')=='captured' else {'section':row['section'],'status':'unavailable','reason':'SECTION_VISIBILITY_OR_STATE_UNVERIFIED','step':row.get('step')}
+       if row.get('status')!='captured' and row.get('step') not in SECTION_PHASES:raise ValueError('SECTION_RECEIPT_INVALID')
        if row!=expected:raise ValueError('SECTION_RECEIPT_INVALID')
        if row['status']=='captured' and not (destination/(row['section']+'-'+category+'.json')).is_file():raise ValueError('SECTION_CAPTURE_MISSING')
       state['paywallSections'].append({'category':category,'sections':rows})

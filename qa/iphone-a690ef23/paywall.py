@@ -64,16 +64,16 @@ OPEN=''.join(text for _,text in ENTRY_STEPS)
 def run_entry(flow,progress,reopen=False):
  for step,text in REENTRY_STEPS if reopen else ENTRY_STEPS:
   progress.perform('paywall',step,lambda step=step,text=text:flow(text,step))
-CLOSE_OVERLAY="""- assertVisible: {id: paywall-close}
-- assertVisible: 'Run the game. We do the math.'
-- tapOn: {id: paywall-close}
-- assertNotVisible: {id: paywall-close}
-- assertVisible: {id: contest-step-round-settings}
-- tapOn: {id: new-contest-back}
-- assertVisible: {id: contest-step-gamemodes}
-- tapOn: {id: new-contest-back}
-- assertVisible: {id: contest-step-setup}
-"""
+CLOSE_PHASES=(
+ ('close-precondition',"- assertVisible: {id: paywall-close}\n- assertVisible: 'Run the game. We do the math.'\n"),
+ ('close-tap',"- tapOn: {id: paywall-close}\n"),
+ ('close-dismiss',"- extendedWaitUntil:\n    notVisible: {id: paywall-close}\n    timeout: 15000\n- extendedWaitUntil:\n    visible: {id: contest-step-round-settings}\n    timeout: 15000\n"),
+ ('back-games-tap',"- tapOn: {id: new-contest-back}\n"),
+ ('back-games-scene',"- extendedWaitUntil:\n    visible: {id: contest-step-gamemodes}\n    timeout: 15000\n- assertNotVisible: {id: paywall-close}\n"),
+ ('back-setup-tap',"- tapOn: {id: new-contest-back}\n"),
+ ('back-setup-scene',"- extendedWaitUntil:\n    visible: {id: contest-step-setup}\n    timeout: 15000\n- assertNotVisible: {id: paywall-close}\n"),
+)
+CLOSE_OVERLAY=''.join(text for _,text in CLOSE_PHASES)
 DRAFT_CONTINUE=GAME_STEP+"""- tapOn: {id: new-contest-back}
 - assertVisible: {id: contest-step-setup}
 """
@@ -94,7 +94,7 @@ DRAFT_ROUNDS="""- scrollUntilVisible:
     timeout: 12000
 - assertVisible: {id: rounds-2}
 """
-CLOSE_STEPS=(('close-overlay',CLOSE_OVERLAY),('draft-ready',READY.replace('direction: UP','direction: DOWN')),('draft-continue',DRAFT_CONTINUE))
+CLOSE_STEPS=CLOSE_PHASES+(('draft-ready',READY.replace('direction: UP','direction: DOWN')),('draft-continue',DRAFT_CONTINUE))
 CLOSE=''.join(text for _,text in CLOSE_STEPS)
 def run_close(flow,progress):
  for step,text in CLOSE_STEPS:

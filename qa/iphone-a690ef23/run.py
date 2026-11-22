@@ -45,9 +45,16 @@ def clean_npm_configs(home):
   path.chmod(0o600)
  return {key:str(path) for key,path in paths.items()}
 PHASES={'paywall','preflight','home','setup','scale','restore','cold-home','add-player'}
-STEPS={'close-overlay','draft-ready','draft-continue','draft-rounds','enter','host-prefill','guest-entry','tournament-toggle','round-count','game-step','round-step','start','appearance','open','close-draft','prepare','tap','entry','add-third','add-fourth','capture','set-readback','return-home','restore-category','restart','reveal','activate'}
+STEPS={'close-precondition','close-tap','close-dismiss','back-games-tap','back-games-scene','back-setup-tap','back-setup-scene','close-overlay','draft-ready','draft-continue','draft-rounds','enter','host-prefill','guest-entry','tournament-toggle','round-count','game-step','round-step','start','appearance','open','close-draft','prepare','tap','entry','add-third','add-fourth','capture','set-readback','return-home','restore-category','restart','reveal','activate'}
+class NavigationFailure(Exception):pass
+class CaptureBoundaryFailure(Exception):pass
+def paywall_attempt(fn,progress):
+ try:fn();return True
+ except NavigationFailure:
+  progress.categoryFailures.append(dict(progress.lastFailure))
+  return False
 class Progress:
- def __init__(self):self.failure=None;self.restoreFailed=False;self.category=None
+ def __init__(self):self.failure=None;self.restoreFailed=False;self.category=None;self.lastFailure=None;self.categoryFailures=[]
  def observe_category(self,value):
   if value not in CATEGORIES:raise ValueError('UNAPPROVED_OBSERVED_CATEGORY')
   self.category=value
@@ -55,12 +62,14 @@ class Progress:
   if phase not in PHASES or step not in STEPS:raise ValueError('INVALID_DIAGNOSTIC_STEP')
   try:return fn()
   except Exception:
+   self.lastFailure={'phase':phase,'sceneStep':step}
+   if self.category is not None:self.lastFailure['observedCategory']=self.category
    if self.failure is None:
     self.failure={'phase':phase,'sceneStep':step}
     if self.category is not None:self.failure['observedCategory']=self.category
    if phase=='restore':self.restoreFailed=True
    raise
- def receipt(self):return {'failure':self.failure,'restoreFailed':self.restoreFailed}
+ def receipt(self):return {'failure':self.failure,'restoreFailed':self.restoreFailed,**({'categoryFailures':self.categoryFailures} if self.categoryFailures else {})}
 
 SETUP_GUARD='- assertVisible:\n    id: "contest-step-setup"\n- assertVisible:\n    id: "new-contest-back"\n- assertNotVisible:\n    id: "home-new-contest"\n'
 def player_flow(index):
@@ -133,8 +142,12 @@ def _run(a,progress):
   (out/'build.json').write_text(json.dumps(manifest,indent=2)+'\n')
   def flow(text,name):
    f=tmp/(name+'.yaml');f.write_text('appId: '+BUNDLE+'\n---\n'+text)
-   call([tools['maestro'],'--device',a.udid,'test',str(f)],name,120)
-  def shot(scene,label,category,assertions,process_mode='warm'):
+   try:call([tools['maestro'],'--device',a.udid,'test',str(f)],name,120)
+   except RuntimeError:raise NavigationFailure('NATIVE_NAVIGATION_FAILED') from None
+  def shot(*args,**kwargs):
+   try:return capture_checked(*args,**kwargs)
+   except Exception:raise CaptureBoundaryFailure('CAPTURE_BOUNDARY_FAILED') from None
+  def capture_checked(scene,label,category,assertions,process_mode='warm'):
    flow(assertions,label+'-visible-before')
    hierarchy=json.loads(call([tools['maestro'],'--device',a.udid,'hierarchy'],label+'-hierarchy',30));screen(hierarchy,scene)
    before=category_readback(sim('ui',a.udid,'content_size',name=label+'-category-before'),category)
@@ -163,9 +176,14 @@ def _run(a,progress):
    for category in CATEGORIES:
     pid=progress.perform('cold-home','restart',lambda:cold_restart(sim,a.udid,category,pid))
     progress.perform('cold-home','capture',lambda:shot('home','home-cold-'+category,category,home,'cold'))
+   recovered=True
    for i,category in enumerate(CATEGORIES):
-    progress.perform('scale','set-readback',lambda:sim('ui',a.udid,'content_size',category,name='setup-category-'+str(i)))
-    if i:progress.perform('home','return-home',lambda:flow('- tapOn:\n    id: "new-contest-back"\n','return-home-'+str(i)))
+    progress.category=None
+    progress.perform('scale','set-readback',lambda:(sim('ui',a.udid,'content_size',category,name='setup-category-'+str(i)),progress.observe_category(category_readback(sim('ui',a.udid,'content_size',name='setup-read-'+str(i)),category))))
+    if i:
+     if recovered:progress.perform('home','return-home',lambda:flow('- tapOn:\n    id: "new-contest-back"\n','return-home-'+str(i)))
+     else:pid=progress.perform('cold-home','restart',lambda:cold_restart(sim,a.udid,category,pid))
+     progress.perform('home','entry',lambda:flow(home,'reacquire-home-'+str(i)))
     progress.perform('home','tap',lambda:flow(home+'- tapOn:\n    id: "home-new-contest"\n','home-tap-'+str(i)))
     progress.perform('setup','entry',lambda:flow('- extendedWaitUntil:\n    visible:\n      id: "contest-step-setup"\n    timeout: 15000\n'+SETUP_GUARD,'setup-entry-'+str(i)))
     for index,step in [(2,'add-third'),(3,'add-fourth')]:
@@ -175,25 +193,25 @@ def _run(a,progress):
     progress.perform('add-player','capture',lambda:shot('add-player','add-player-'+category,category,ADD_VISIBLE,'post-cold'))
     progress.perform('add-player','activate',lambda:flow(ADD_ACTIVATE,'add-activate-'+str(i)))
     (out/('add-player-action-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'fourPlayerCheckpointPreserved':True,'fifthPlayerVisibleAfterTap':True,'aggregatePass':False})+'\n')
-   from paywall import OPEN,CLOSE,VISIBLE,REOPEN,run_entry,run_close
-   from pricing import reveal,visible,RETURN_TOP,optional_sections
-   for i,category in enumerate(CATEGORIES):
-    progress.category=None
-    progress.perform('scale','set-readback',lambda:(sim('ui',a.udid,'content_size',category,name='paywall-set-'+str(i)),progress.observe_category(category_readback(sim('ui',a.udid,'content_size',name='paywall-read-'+str(i)),category))))
-    run_entry(lambda text,step:flow(text,'paywall-'+step+'-'+str(i)),progress,reopen=i!=0)
-    progress.perform('paywall','capture',lambda:shot('paywall','paywall-'+category,category,VISIBLE,'post-cold'))
-    def section_capture(section):
-     flow(RETURN_TOP,section+'-top-'+category)
-     flow(reveal(section),section+'-reveal-'+category)
-     shot(section,section+'-'+category,category,visible(section),'post-cold')
-    sections=optional_sections(section_capture)
-    (out/('paywall-sections-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'sections':sections,'aggregatePass':False})+'\n')
-    # Required recovery even if an optional section was inaccessible. Never tap a hidden Close.
-    progress.perform('paywall','close-draft',lambda:flow(RETURN_TOP,'paywall-return-top-'+str(i)))
-    names_observed=run_close(lambda text,step:flow(text,'paywall-'+step+'-'+str(i)),progress)
-    (out/('paywall-draft-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'namesRetained':names_observed,'functionalDraftRetained':True,'twoRoundControlVisible':True,'aggregatePass':False})+'\n')
+    from paywall import OPEN,CLOSE,VISIBLE,REOPEN,run_entry,run_close
+    from pricing import reveal,visible,RETURN_TOP,optional_sections,SectionUnavailable
+    def category_paywall():
+     run_entry(lambda text,step:flow(text,'paywall-'+step+'-'+str(i)),progress,reopen=False)
+     progress.perform('paywall','capture',lambda:shot('paywall','paywall-'+category,category,VISIBLE,'post-cold'))
+     def section_capture(section):
+      for step,text in [('return-top',RETURN_TOP),('reveal',reveal(section)),('visible',visible(section))]:
+       try:flow(text,section+'-'+step+'-'+category)
+       except NavigationFailure:raise SectionUnavailable(step) from None
+      shot(section,section+'-'+category,category,visible(section),'post-cold')
+     sections=optional_sections(section_capture)
+     (out/('paywall-sections-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'sections':sections,'aggregatePass':False})+'\n')
+     # Required recovery even if an optional section was inaccessible. Never tap a hidden Close.
+     progress.perform('paywall','close-draft',lambda:flow(RETURN_TOP,'paywall-return-top-'+str(i)))
+     names_observed=run_close(lambda text,step:flow(text,'paywall-'+step+'-'+str(i)),progress)
+     (out/('paywall-draft-'+category+'.json')).write_text(json.dumps({'sourceSha':SHA,'sourceTree':TREE,'category':category,'namesRetained':names_observed,'functionalDraftRetained':True,'twoRoundControlVisible':True,'aggregatePass':False})+'\n')
+    recovered=paywall_attempt(category_paywall,progress)
   finally:progress.perform('restore','restore-category',lambda:(sim('ui',a.udid,'content_size',original,name='restore-original-category'),category_readback(sim('ui',a.udid,'content_size',name='restored-category'),original)))
-  (out/'result.json').write_text(json.dumps({'status':'SUPPLEMENTAL_STOCK_CATEGORY_CAPTURES','aggregatePass':False,'runtimeRNScaleObserved':False,'paywall':'offline-fallback-header-and-draft-only','nativeJoin':'unrun','SE3':'unrun/report-only'})+'\n')
+  (out/'result.json').write_text(json.dumps({'status':'SUPPLEMENTAL_STOCK_CATEGORY_CAPTURES','aggregatePass':False,'runtimeRNScaleObserved':False,'paywall':'unrun-or-partial' if progress.categoryFailures else 'offline-fallback-header-and-draft-only','nativeJoin':'unrun','SE3':'unrun/report-only'})+'\n')
   return 78
 if __name__=='__main__':
  p=argparse.ArgumentParser();p.add_argument('--repo',required=True);p.add_argument('--udid',required=True);p.add_argument('--out',required=True);a=p.parse_args()

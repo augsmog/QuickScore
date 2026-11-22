@@ -26,11 +26,17 @@ def visible(section):
  return ''.join('- assertVisible:\n'+selector(t) for t in SECTIONS[section])+''.join('- assertNotVisible: {id: '+i+'}\n' for i in sorted(FOREIGN))
 def reveal(section):
  text='^'+re.escape(SECTIONS[section][0])+'$'
- return "- scrollUntilVisible:\n    element:\n      text: '"+text+"'\n    direction: DOWN\n    timeout: 12000\n    visibilityPercentage: 100\n    centerElement: true\n"+visible(section)
+ return "- scrollUntilVisible:\n    element:\n      text: '"+text+"'\n    direction: DOWN\n    timeout: 12000\n    visibilityPercentage: 100\n    centerElement: true\n"
 RETURN_TOP='- scrollUntilVisible:\n    element: {id: paywall-close}\n    direction: UP\n    timeout: 12000\n    visibilityPercentage: 100\n- assertVisible: {id: paywall-close}\n- assertVisible: "Run the game. We do the math."\n'
+SECTION_PHASES={'return-top','reveal','visible'}
+class SectionUnavailable(Exception):
+ def __init__(self,step):
+  if step not in SECTION_PHASES:raise ValueError('INVALID_SECTION_PHASE')
+  self.step=step
+  super().__init__('SECTION_VISIBILITY_OR_STATE_UNVERIFIED')
 def optional_sections(capture):
  results=[]
  for section in SECTIONS:
   try:capture(section);results.append({'section':section,'status':'captured'})
-  except Exception:results.append({'section':section,'status':'unavailable','reason':'SECTION_VISIBILITY_OR_STATE_UNVERIFIED'})
+  except SectionUnavailable as e:results.append({'section':section,'status':'unavailable','reason':'SECTION_VISIBILITY_OR_STATE_UNVERIFIED','step':e.step})
  return results
