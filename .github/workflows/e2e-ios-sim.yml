@@ -1,4 +1,4 @@
-name: E2E iOS simulator dual boot (Intel admission)
+name: iOS Simulator catalog shape (Intel read-only)
 on:
   workflow_dispatch:
 permissions: {}
@@ -34,12 +34,14 @@ jobs:
           g() { git --git-dir="$db" "$@"; }
           g -c credential.helper= -c submodule.recurse=false fetch -q --depth=1 --no-tags --no-recurse-submodules https://github.com/augsmog/QuickScore.git "$GITHUB_SHA"
           [[ "$(g rev-parse FETCH_HEAD)" == "$GITHUB_SHA" ]]
+          sole_parent="$(g cat-file -p "$GITHUB_SHA" | awk 'BEGIN { header=1 } header && /^parent / { print substr($0,8) } /^$/ { header=0 }')"
+          [[ "$sole_parent" == "82eaa972593356fc79ceaf0d64217d62a4b6eb6b" ]]
           for file in run.py two_iphone_preflight.py; do
             path="qa/hosted-dual-boot/$file"
             blob="$(g rev-parse "$GITHUB_SHA:$path")"
             case "$file" in
-              run.py) expected=ce5822862a8afa4a2460d6a0374b586a7c84c756 ;;
-              two_iphone_preflight.py) expected=6af93496bc7e93175a32ff9f66fd19de099469f7 ;;
+              run.py) expected=671991bbebc4ad2e99bb23146ad87b9f4a5d6c49 ;;
+              two_iphone_preflight.py) expected=dc012d8b5d4a840255cb6dc6881d95fc24521706 ;;
             esac
             [[ "$blob" == "$expected" ]]
             [[ "$(g ls-tree "$GITHUB_SHA" -- "$path")" == "100644 blob $blob"$'\t'"$path" ]]

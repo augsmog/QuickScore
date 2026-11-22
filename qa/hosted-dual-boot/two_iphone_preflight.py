@@ -48,7 +48,7 @@ HOST_STABILITY_GAP = 0.5
 STABILITY_READ_SECONDS = 4
 JOINT_READ_SECONDS = 10
 PRIMARY_STAGES = frozenset(("host-context", "transport-admission", "memory-readback", "sdk-readback", "disk-before",
-    "catalog-xcode", "catalog-runtime", "catalog-device-type", "catalog-runtime-devices", "catalog-ownership-scope",
+    "catalog-xcode", "catalog-runtime", "catalog-device-type", "catalog-runtime-devices", "catalog-help-list", "catalog-ownership-scope",
     "catalog-validation", "journal", "create", "create-readback",
     "preboot-readback", "host-boot-command", "host-stability-first", "host-stability-confirm",
     "guest-boot-command", "joint-booted-snapshot", "disk-both-booted", "completion", "disk-after-cleanup"))
@@ -137,7 +137,7 @@ def job_context():
     return tmp, marker
 
 
-def command(*args, timeout=15):
+def command(*args, timeout=15, help_text=False):
     # Process-local tool selection, no xcode-select or other settings changes.
     # Do not forward ambient Xcode/CoreSimulator overrides, tokens, or credentials.
     inherited = ("USER", "LOGNAME", "TMPDIR", "__CF_USER_TEXT_ENCODING")
@@ -156,6 +156,8 @@ def command(*args, timeout=15):
     if result.returncode:
         # Suppress raw CoreSimulator output: it can contain unrelated host paths and IDs.
         raise GateError(f"{label} exited {result.returncode}", "COMMAND_NONZERO")
+    if help_text and args == ("simctl", "help", "list"):
+        return (result.stdout + "\n" + result.stderr).strip()
     return result.stdout.strip()
 
 
@@ -208,8 +210,7 @@ def catalog_records(category, budget):
     return records
 
 
-def validate_catalog(diagnostic=None):
-    d = diagnostic or Diagnostic()
+def catalog_budget():
     deadline = time.monotonic() + CATALOG_SECONDS
 
     def budget(cap=CATALOG_SECONDS):
@@ -217,7 +218,10 @@ def validate_catalog(diagnostic=None):
         if remaining <= 0:
             raise GateError("read-only catalog deadline exhausted", "CATALOG_DEADLINE")
         return min(cap, remaining)
+    return budget
 
+
+def validate_catalog_pins(d, budget):
     d.at("catalog-xcode")
     if tuple(command("xcodebuild", "-version", timeout=budget(12)).splitlines()) != XCODE_ID:
         raise GateError("expected Xcode 26.4.1 (17E202)", "XCODE_MISMATCH")
@@ -238,6 +242,11 @@ def validate_catalog(diagnostic=None):
     if (not isinstance(supported, list) or
             sum(isinstance(item, dict) and item.get("identifier") == DEVICE for item in supported) != 1):
         raise GateError("installed runtime does not advertise exact support for iPhone 16 Pro", "RUNTIME_DEVICE_UNSUPPORTED")
+
+def validate_catalog(diagnostic=None):
+    d = diagnostic or Diagnostic()
+    budget = catalog_budget()
+    validate_catalog_pins(d, budget)
     d.at("catalog-runtime-devices")
     _, rows = inventory(timeout=budget(CATALOG_DEVICE_SECONDS))
     d.at("catalog-ownership-scope")
