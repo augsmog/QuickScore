@@ -1,0 +1,15 @@
+# device-layout New Contest — checkpoint 07: last player row scrolled to the bottom, must clear
+# the sticky Continue/Start bar (the "last player above footer" owner-shot regression). The
+# geometry engine derives the footer from the `contest-continue` CTA and flags any player row that
+# runs behind it.
+appId: com.scoresnap.app
+---
+- scrollUntilVisible:
+    element:
+      id: "contest-continue"
+    direction: DOWN
+    timeout: 12000
+    centerElement: false
+- assertVisible:
+    id: "contest-continue"
+- takeScreenshot: device-layout-new-contest-07-last-player-above-footer

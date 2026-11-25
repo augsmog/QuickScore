@@ -48,7 +48,7 @@ export default function PaywallScreen() {
   return <SafeScreen style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>
       <View style={s.top}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
+        <Pressable testID="paywall-close" accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
         <Pressable accessibilityRole="button" disabled={busy} style={s.topLink} onPress={() => act(async () => {
           const restored = await restorePurchases();
           showAlert(C.restore, restored ? C.restored : C.nothing);
@@ -67,11 +67,11 @@ export default function PaywallScreen() {
           {!!row.body && <Text style={s.body}>{row.body}</Text>}
           {!!row.alternate && <Pressable accessibilityRole="button" style={s.alternateLink} onPress={event => { event.stopPropagation(); setSelection({ tier: row.tier, period: selection.period === 'year' ? 'month' : 'year' }); }}><Text style={s.body}>{row.alternate}</Text></Pressable>}
         </View>
-        {!!row.price && <View style={{ alignItems: 'flex-end', gap: 4 }}><Text style={s.price}>{row.price}</Text>{!!row.trial && tag(row.trial)}</View>}
+        {!!row.price && <View style={s.priceCol}><Text style={s.price} numberOfLines={1}>{row.price}</Text>{!!row.trial && tag(row.trial)}</View>}
       </Pressable>)}</View>
       <View style={{ gap: 6, alignItems: 'center' }}>
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || v.disabled }} disabled={busy || v.disabled} style={[s.cta, (busy || v.disabled) && { opacity: 0.55 }]}
-          onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); posthog?.capture('subscription_purchase_completed', { selected_tier: selection.tier, billing_period: selection.period }); router.back(); } })}><Text style={s.ctaText}>{v.cta}</Text></Pressable>
+          onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); posthog?.capture('subscription_purchase_completed', { selected_tier: selection.tier, billing_period: selection.period }); router.back(); } })}><Text style={s.ctaText} numberOfLines={1} adjustsFontSizeToFit>{v.cta}</Text></Pressable>
         {!!v.billed && <Text style={s.billed}>{v.billed}</Text>}
         {!!v.oneTrial && <Text style={s.small}>{v.oneTrial}</Text>}
       </View>
@@ -101,10 +101,15 @@ const s = StyleSheet.create({
   body: { fontFamily: P.regular, fontSize: 13, lineHeight: 18, color: P.muted },
   plan: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: P.radius, backgroundColor: P.card, borderColor: P.rule, borderWidth: 1 },
   selected: { borderColor: P.green, borderWidth: 2 },
-  titleRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  planTitle: { fontFamily: P.semibold, fontSize: 16, color: P.ink },
+  // flexShrink/flexWrap so at large font scale (android-compact 1.3x) the plan name keeps its full
+  // text ("Free" not "Fre") and its badge wraps instead of clipping (AUG-1376 r7).
+  titleRow: { flexDirection: 'row', gap: 8, alignItems: 'center', flexShrink: 1, flexWrap: 'wrap' },
+  planTitle: { fontFamily: P.semibold, fontSize: 16, color: P.ink, flexShrink: 1 },
   tag: { fontFamily: P.semibold, fontSize: 11, color: P.green, backgroundColor: P.tint, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
   current: { color: P.muted, backgroundColor: P.neutral },
+  // The price column never shrinks, so the full "$price/interval" string ("$79.99/year") stays
+  // intact; the flexible title column absorbs the crowding instead.
+  priceCol: { alignItems: 'flex-end', gap: 4, flexShrink: 0 },
   price: { fontFamily: P.bold, fontSize: 16, color: P.ink },
   cta: { height: P.ctaHeight, width: '100%', borderRadius: P.radius, backgroundColor: P.green, alignItems: 'center', justifyContent: 'center' },
   ctaText: { fontFamily: P.semibold, fontSize: 17, color: P.card },
