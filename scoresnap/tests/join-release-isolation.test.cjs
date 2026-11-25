@@ -15,7 +15,7 @@ test('manual sharing never implicitly enables Leagues or native links', () => {
 test('every League service operation stops before an RPC when disabled', async () => {
   const rpc = jest.fn();
   const { leagueService } = load('src/services/leagues.ts', { '../config/features':{LEAGUES_ENABLED:false}, '../db/supabase':{supabase:{rpc}} });
-  for (const method of Object.values(leagueService)) await expect(method('fixture','contest','player','mapped')).rejects.toThrow('LEAGUES_DISABLED');
+  for (const method of Object.values(leagueService)) await expect(method('fixture','contest','player','mapped')).rejects.toThrow('Leagues are not available in this build.');
   expect(rpc).not.toHaveBeenCalled();
 });
 test('League tab is explicitly hidden and direct route is separately guarded', () => {
