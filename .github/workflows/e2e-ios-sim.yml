@@ -30,9 +30,9 @@ jobs:
           set -euo pipefail
           umask 077
           repo='https://github.com/augsmog/QuickScore.git'
-          expected_previous='72558fff91b58b07ae4a8715c4768f34c24c06cd'
-          expected_parent='d6d84c0979f66f2b5b24f9e9cb91d5e60277eec6'
-          expected_parent_tree='f30636418341c6a9f112f921ed797221d660e568'
+          expected_previous='d6d84c0979f66f2b5b24f9e9cb91d5e60277eec6'
+          expected_parent='c0a977c5f92861df3921be7bbba76d8dbabe95b3'
+          expected_parent_tree='0d74552819c2c2f0f20a1aaf54e6177049414dd8'
           product_sha='c828ebf5ef7372c19db9c73f8cb1adb04d157406'
           product_tree='8d2b59b9c2f814fbc54684973fa8e9ddfd2badc3'
           blocked() {

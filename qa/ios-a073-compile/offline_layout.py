@@ -21,9 +21,9 @@ import build
 from compile_only import DEVELOPER_DIR, FLOOR, REASONS, assert_port_unused, fixture, project_evidence, select_node
 
 REF = "refs/heads/qa/snapscore-c828-hosted-arm64-layout"
-PARENT = "d6d84c0979f66f2b5b24f9e9cb91d5e60277eec6"
-PARENT_TREE = "f30636418341c6a9f112f921ed797221d660e568"
-PREVIOUS = "72558fff91b58b07ae4a8715c4768f34c24c06cd"
+PARENT = "c0a977c5f92861df3921be7bbba76d8dbabe95b3"
+PARENT_TREE = "0d74552819c2c2f0f20a1aaf54e6177049414dd8"
+PREVIOUS = "d6d84c0979f66f2b5b24f9e9cb91d5e60277eec6"
 RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-26-4"
 DEVICE = "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro"
 BUNDLE = "com.scoresnap.app"
@@ -136,16 +136,46 @@ def owned(rows, uid, name, *, allow_absent=False):
     return row
 
 
-def cleanup(env, uid, name, native_home):
+def receipt_reason(exc):
+    code = str(exc) if isinstance(exc, build.Blocked) else ""
+    return code if code in ALLOWED_FAILURES | REASONS else "OFFLINE_QA_BLOCKED"
+
+
+def verify_boot(env, uid, name, record):
+    record["bootStep"] = "ownership"
+    rows = all_devices(env)
+    need(owned(rows, uid, name)["state"] == "Shutdown", "DEVICE_NOT_SHUTDOWN")
+    need(all(row["state"] == "Shutdown" for _, row in rows.values()), "UNOWNED_DEVICE_ACTIVE")
+    record["bootStep"] = "start"
+    sim(env, "boot", uid, seconds=45)
+    record["bootStep"] = "wait"
+    sim(env, "bootstatus", uid, seconds=220)
+    record["bootStep"] = "readback"
+    rows = all_devices(env)
+    need(owned(rows, uid, name)["state"] == "Booted", "DEVICE_NOT_BOOTED")
+    need(all(x == uid or row["state"] == "Shutdown" for x, (_, row) in rows.items()), "UNOWNED_DEVICE_ACTIVE")
+
+
+def ensure_shutdown(env, uid, name):
     row = owned(all_devices(env), uid, name)
     if row["state"] != "Shutdown":
-        sim(env, "shutdown", uid, seconds=30)
-        for attempt in range(3):
+        try:
+            sim(env, "shutdown", uid, seconds=30)
+        except build.Blocked as exc:
+            # A boot/shutdown race can make the command fail even though the device
+            # reaches Shutdown. Require a fresh exact ownership/state readback.
+            if str(exc) not in {"COMMAND_NONZERO", "COMMAND_TIMEOUT"}:
+                raise
+        for attempt in range(10):
             if owned(all_devices(env), uid, name)["state"] == "Shutdown":
                 break
-            if attempt < 2: time.sleep(1)
+            if attempt < 9: time.sleep(1)
         else:
             raise build.Blocked("CLEANUP_UNVERIFIED")
+
+
+def cleanup(env, uid, name, native_home):
+    ensure_shutdown(env, uid, name)
     sim(env, "delete", uid, seconds=30)
     consecutive = 0
     path = native_home / "Library/Developer/CoreSimulator/Devices" / uid
@@ -307,33 +337,6 @@ def diagnostic(harness, product, env):
             root = Path(folder)
             need(root.stat().st_mode & 0o777 == 0o700, "INVALID_HOST_PATHS")
             tool = install_maestro(root, native_env)
-            record["stage"] = "compile"
-            key, fixture_receipt = fixture(root)
-            out = root / "build"
-            args = SimpleNamespace(repo=str(product), out=str(out), relay=build.COMPILE_URL,
-                                   anon_file=str(key), stack_receipt=str(fixture_receipt),
-                                   developer_dir=DEVELOPER_DIR, minimum_free_bytes=FLOOR,
-                                   compile_only=True, offline_layout=True)
-            try:
-                full = build.build(args)
-                public = project_evidence(full, True)
-                need(full["packageLockSha256"] == product_lock, "SOURCE_CHANGED")
-                required = {"offlineModeBuildFlag":True,"crossDeviceUiBuildFlag":True,"realAuthSourceGuard":False,
-                            "sentryEnabledSourceGuard":False,"posthogConfigured":False,"revenueCatConfigured":False,
-                            "backendEndpoint":"synthetic-loopback-only","osEgressRestricted":False}
-                need(full.get("layoutPolicy") == required, "SOURCE_PRIVACY_POLICY_UNVERIFIED")
-                record["layoutPolicy"] = required
-            except Exception:
-                summary = out / "receipt.json"
-                if summary.is_file() and summary.stat().st_size <= EVIDENCE_LIMIT:
-                    record.update(project_evidence(json.loads(summary.read_text()), False))
-                raise
-            record.update(public, buildSucceeded=True)
-            need(full["appRelativePath"] == "DerivedData/Build/Products/Release-iphonesimulator/SnapScore.app",
-                 "BUILD_EVIDENCE_INVALID")
-            app = out / full["appRelativePath"]
-            need(app.is_dir() and not app.is_symlink() and
-                 build.artifact(app, True)["sha256"] == full["artifact"]["sha256"], "BUILD_EVIDENCE_INVALID")
             record["stage"] = "device-create"
             old = all_devices(native_env)
             need(all(row["state"] == "Shutdown" for _, row in old.values()), "UNOWNED_DEVICE_ACTIVE")
@@ -345,11 +348,40 @@ def diagnostic(harness, product, env):
                 need(UUID.fullmatch(fresh) and fresh not in old, "UUID_NOT_FRESH")
                 uid = fresh
                 need(owned(all_devices(native_env), uid, name)["state"] == "Shutdown", "DEVICE_NOT_SHUTDOWN")
+                record["stage"] = "boot-admission"
+                verify_boot(native_env, uid, name, record)
+                record["stage"] = "boot-admission-park"
+                ensure_shutdown(native_env, uid, name)
+                record["bootAdmissionVerified"] = True
+                record["stage"] = "compile"
+                key, fixture_receipt = fixture(root)
+                out = root / "build"
+                args = SimpleNamespace(repo=str(product), out=str(out), relay=build.COMPILE_URL,
+                                       anon_file=str(key), stack_receipt=str(fixture_receipt),
+                                       developer_dir=DEVELOPER_DIR, minimum_free_bytes=FLOOR,
+                                       compile_only=True, offline_layout=True)
+                try:
+                    full = build.build(args)
+                    public = project_evidence(full, True)
+                    need(full["packageLockSha256"] == product_lock, "SOURCE_CHANGED")
+                    required = {"offlineModeBuildFlag":True,"crossDeviceUiBuildFlag":True,"realAuthSourceGuard":False,
+                                "sentryEnabledSourceGuard":False,"posthogConfigured":False,"revenueCatConfigured":False,
+                                "backendEndpoint":"synthetic-loopback-only","osEgressRestricted":False}
+                    need(full.get("layoutPolicy") == required, "SOURCE_PRIVACY_POLICY_UNVERIFIED")
+                    record["layoutPolicy"] = required
+                except Exception:
+                    summary = out / "receipt.json"
+                    if summary.is_file() and summary.stat().st_size <= EVIDENCE_LIMIT:
+                        record.update(project_evidence(json.loads(summary.read_text()), False))
+                    raise
+                record.update(public, buildSucceeded=True)
+                need(full["appRelativePath"] == "DerivedData/Build/Products/Release-iphonesimulator/SnapScore.app",
+                     "BUILD_EVIDENCE_INVALID")
+                app = out / full["appRelativePath"]
+                need(app.is_dir() and not app.is_symlink() and
+                     build.artifact(app, True)["sha256"] == full["artifact"]["sha256"], "BUILD_EVIDENCE_INVALID")
                 record["stage"] = "boot"
-                sim(native_env, "bootstatus", uid, "-b", seconds=220)
-                rows = all_devices(native_env)
-                need(owned(rows, uid, name)["state"] == "Booted", "DEVICE_NOT_BOOTED")
-                need(all(x == uid or row["state"] == "Shutdown" for x, (_, row) in rows.items()), "UNOWNED_DEVICE_ACTIVE")
+                verify_boot(native_env, uid, name, record)
                 record["booted"] = True
                 record["stage"] = "content-size"
                 sim(native_env, "ui", uid, "content_size", "large")
@@ -360,6 +392,9 @@ def diagnostic(harness, product, env):
                 record["installed"] = True
                 record["installedExecutableAndJsMatch"] = True
                 record.update(capture(product, root, uid, native_env, tool, full["artifact"]["sha256"], record))
+            except Exception as exc:
+                record["primaryReason"] = receipt_reason(exc)
+                raise
             finally:
                 # Never guess at a returned UUID lost on create, nor roll somebody else's simulator back.
                 if uid is not None:
@@ -367,6 +402,7 @@ def diagnostic(harness, product, env):
                         cleanup(native_env, uid, name, native_home)
                         record["cleanupVerified"] = True
                     except Exception as exc:
+                        record["cleanupReason"] = receipt_reason(exc)
                         raise build.Blocked("CLEANUP_UNVERIFIED") from exc
             need(record["cleanupVerified"], "CLEANUP_UNVERIFIED")
         need(not root.exists(), "CLEANUP_UNVERIFIED")
@@ -376,8 +412,7 @@ def diagnostic(harness, product, env):
         record["status"] = "OFFLINE_LAYOUT_QA_COMPLETE" if record["geometryPass"] else "OFFLINE_LAYOUT_QA_FINDINGS"
         record["stage"] = "complete"
     except Exception as exc:
-        code = str(exc) if isinstance(exc, build.Blocked) else ""
-        record["reason"] = code if code in ALLOWED_FAILURES | REASONS else "OFFLINE_QA_BLOCKED"
+        record["reason"] = receipt_reason(exc)
     record["temporaryRootRemoved"] = root is None or not root.exists()
     if not record["temporaryRootRemoved"]:
         record.update(status="BLOCKED", reason="CLEANUP_UNVERIFIED")

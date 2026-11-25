@@ -14,9 +14,9 @@ import unittest
 HERE = Path(__file__).resolve().parent
 WORKFLOW = HERE.parents[1] / ".github/workflows/e2e-ios-sim.yml"
 HTTPS = "https://github.com/augsmog/QuickScore.git"
-BASE = "72558fff91b58b07ae4a8715c4768f34c24c06cd"
-REVIEWED_PARENT = "d6d84c0979f66f2b5b24f9e9cb91d5e60277eec6"
-REVIEWED_PARENT_TREE = "f30636418341c6a9f112f921ed797221d660e568"
+BASE = "d6d84c0979f66f2b5b24f9e9cb91d5e60277eec6"
+REVIEWED_PARENT = "c0a977c5f92861df3921be7bbba76d8dbabe95b3"
+REVIEWED_PARENT_TREE = "0d74552819c2c2f0f20a1aaf54e6177049414dd8"
 SOURCE = "c828ebf5ef7372c19db9c73f8cb1adb04d157406"
 SOURCE_TREE = "8d2b59b9c2f814fbc54684973fa8e9ddfd2badc3"
 LINK = "august-industries-site"

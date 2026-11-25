@@ -57,6 +57,43 @@ class Layout(unittest.TestCase):
                         qa.cleanup({},A,NAME,root)
         self.assertEqual(calls,[("shutdown",A),("delete",A)]*2)
 
+    def test_boot_step_proves_target_and_redacts_failures(self):
+        data = {}
+        with patch.object(qa, "all_devices", return_value={A:(qa.RUNTIME,row(A,NAME))}), patch.object(
+                qa, "sim", side_effect=["", qa.build.Blocked("COMMAND_TIMEOUT")]) as sim:
+            with self.assertRaisesRegex(qa.build.Blocked, "COMMAND_TIMEOUT"):
+                qa.verify_boot({}, A, NAME, data)
+        self.assertEqual(data, {"bootStep":"wait"})
+        self.assertEqual([c.args[1:] for c in sim.call_args_list], [("boot", A), ("bootstatus", A)])
+        self.assertEqual(qa.receipt_reason(RuntimeError("private")), "OFFLINE_QA_BLOCKED")
+        self.assertEqual(qa.receipt_reason(qa.build.Blocked("private")), "OFFLINE_QA_BLOCKED")
+        self.assertEqual(qa.receipt_reason(qa.build.Blocked("COMMAND_TIMEOUT")), "COMMAND_TIMEOUT")
+
+    def test_reboot_preflight_refuses_drift_or_unrelated_active_device(self):
+        for rows, reason in [
+            ({A:(qa.RUNTIME,row(A,"unowned"))}, "IDENTITY_DRIFT"),
+            ({A:(qa.RUNTIME,row(A,NAME)), B:("other",row(B,"other","Booted"))}, "UNOWNED_DEVICE_ACTIVE"),
+        ]:
+            with patch.object(qa, "all_devices", return_value=rows), patch.object(qa, "sim") as sim:
+                with self.assertRaisesRegex(qa.build.Blocked, reason):
+                    qa.verify_boot({}, A, NAME, {})
+                sim.assert_not_called()
+
+    def test_cleanup_shutdown_race_reconciles_only_owned_shutdown(self):
+        for drift in (False, True):
+            initial = {A:(qa.RUNTIME,row(A,NAME,"Booting"))}
+            readback = {A:(qa.RUNTIME,row(A,"unowned" if drift else NAME))}
+            with tempfile.TemporaryDirectory() as d, patch.object(
+                    qa, "all_devices", side_effect=[initial, readback, {}, {}]), patch.object(
+                    qa, "sim", side_effect=[qa.build.Blocked("COMMAND_NONZERO"), ""]) as sim, patch.object(qa.time,"sleep"):
+                if drift:
+                    with self.assertRaisesRegex(qa.build.Blocked, "IDENTITY_DRIFT"):
+                        qa.cleanup({}, A, NAME, Path(d))
+                else:
+                    qa.cleanup({}, A, NAME, Path(d))
+                self.assertEqual([c.args[1:] for c in sim.call_args_list],
+                                 [("shutdown", A)] if drift else [("shutdown", A), ("delete", A)])
+
     def test_install_binds_exact_executable_and_embedded_bundle(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
