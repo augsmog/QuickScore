@@ -32,6 +32,22 @@ case "${DEVICE_LAYOUT_LARGE_TEXT:-}" in
   *) echo "::error::invalid DEVICE_LAYOUT_LARGE_TEXT; expected true, false, 1 or 0"; exit 1 ;;
 esac
 
+case "${DEVICE_LAYOUT_ANDROID_AX_ONLY_QA:-0}" in
+  0) AX_ONLY=0 ;;
+  1) AX_ONLY=1 ;;
+  *) echo "::error::invalid standalone 1.3 Android QA mode"; exit 1 ;;
+esac
+if [ "$AX_ONLY" -eq 1 ]; then
+  if [ "$LARGE_TEXT" -ne 1 ] ||
+      [ "${GITHUB_REPOSITORY:-}" != augsmog/QuickScore ] ||
+      [ "${GITHUB_EVENT_NAME:-}" != workflow_dispatch ] ||
+      [ "${GITHUB_REF:-}" != refs/heads/qa/snapscore-android-ax-only ] ||
+      [ "${GITHUB_JOB:-}" != android-compact ]; then
+    echo "::error::standalone 1.3 Android QA requires dedicated workflow scope and DEVICE_LAYOUT_LARGE_TEXT"
+    exit 1
+  fi
+fi
+
 if [ ! -d "$FLOWS" ] || [ ! -f "$DL/scripts/build-android.sh" ] || [ ! -f "$DL/scripts/bundle-from-maestro.mjs" ]; then
   echo "::error::device-layout Android native harness not present yet (AUG-1376). No device capture produced."
   echo "PENDING-NATIVE-HARNESS AUG-1376"
@@ -217,6 +233,24 @@ gate_capture() {
 }
 
 OUTDIR="$OUTROOT/$PROFILE"
+# Standalone evidence only: the outer QA job caps build plus capture time.
+# Do not start the combined gate's latest-start clock before a cold APK build.
+if [ "$AX_ONLY" -eq 1 ]; then
+  printf '{"scope":"android-offline-layout-1p3-only","releaseVerdict":false,"baselineEvaluated":false,"sourceSha":"%s","apkSha256":"%s"}\n' \
+    "$SHA" "$BUILD_HASH" > "$OUTROOT/android-qa-scope.json"
+  trap restore_baseline EXIT
+  set_font_scale 1.3
+  CAPAX="$OUTROOT/$PROFILE-large-text"
+  capture_flows "$CAPAX" 1.3
+  gate_capture "$CAPAX" bundle.large-text.json --font-scale 1.3
+  set_font_scale 1.0
+  trap - EXIT
+  if [ "$FAIL" -eq 0 ]; then
+    echo "device-layout Android 1.3-only QA: complete; baseline not evaluated"
+  fi
+  exit "$FAIL"
+fi
+
 set_font_scale 1.0
 capture_flows "$OUTDIR" 1.0
 gate_capture "$OUTDIR" bundle.json --font-scale 1.0

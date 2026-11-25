@@ -28,6 +28,10 @@ on:
         description: "Android emulator rehearsal only; no release verdict"
         type: boolean
         default: false
+      android_ax_only_qa:
+        description: "Dedicated QA ref only: Android 1.3x capture, without a baseline or release verdict"
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -48,12 +52,23 @@ jobs:
       - id: filter
         name: Decide if this PR affects SnapScore UI
         shell: bash
+        env:
+          AX_ONLY_REQUEST: ${{ github.event_name == 'workflow_dispatch' && inputs.android_ax_only_qa }}
+          REHEARSAL_REQUEST: ${{ github.event_name == 'workflow_dispatch' && inputs.android_rehearsal }}
         run: |
           set -euo pipefail
+          qa_ref=refs/heads/qa/snapscore-android-ax-only
+          if [[ "$AX_ONLY_REQUEST" == true || "$GITHUB_REF" == "$qa_ref" ]]; then
+            if [[ "$GITHUB_REPOSITORY" != augsmog/QuickScore || "$GITHUB_EVENT_NAME" != workflow_dispatch ||
+                  "$GITHUB_REF" != "$qa_ref" || "$AX_ONLY_REQUEST" != true || "$REHEARSAL_REQUEST" != true ]]; then
+              echo "::error::Android 1.3-only QA requires the dedicated ref and both manual inputs"
+              exit 1
+            fi
+          fi
           base="${{ github.event.pull_request.base.sha }}"
           head="${{ github.sha }}"
           if [ -z "$base" ]; then base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"; fi
-          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.android_rehearsal }}" = "true" ]; then
+          if [ "$REHEARSAL_REQUEST" = "true" ]; then
             [ "$(git rev-parse HEAD)" = "${{ github.sha }}" ] || { echo "::error::rehearsal source mismatch"; exit 1; }
             printf 'ui=true\nnative=true\n' >> "$GITHUB_OUTPUT"
             exit 0
@@ -139,7 +154,7 @@ jobs:
     # harness lands. Owner card t1550s9640 (Nov 19 2026): both platforms, full native evidence.
     if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.android_rehearsal && inputs.android_ax_only_qa && github.repository == 'augsmog/QuickScore' && github.ref == 'refs/heads/qa/snapscore-android-ax-only' && 40 || 30 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -176,12 +191,13 @@ jobs:
           script: >-
             DEVICE_LAYOUT_OUT="${{ runner.temp }}/device-layout-out"
             DEVICE_LAYOUT_LARGE_TEXT=true
+            DEVICE_LAYOUT_ANDROID_AX_ONLY_QA="${{ github.event_name == 'workflow_dispatch' && inputs.android_rehearsal && inputs.android_ax_only_qa && github.repository == 'augsmog/QuickScore' && github.ref == 'refs/heads/qa/snapscore-android-ax-only' && '1' || '0' }}"
             bash scoresnap/e2e/device-layout/scripts/run-android-compact.sh
       - name: Upload Android capture bundle (candidate-bound; reviewed by vision-candidate)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: device-layout-android
+          name: ${{ github.event_name == 'workflow_dispatch' && inputs.android_rehearsal && inputs.android_ax_only_qa && github.repository == 'augsmog/QuickScore' && github.ref == 'refs/heads/qa/snapscore-android-ax-only' && 'qa-android-compact-1p3-only' || 'device-layout-android' }}
           path: ${{ runner.temp }}/device-layout-out
           if-no-files-found: ignore
           retention-days: 14

@@ -331,3 +331,56 @@ test('Android fails when the flow directory has zero checkpoints', () => {
   assert.equal(r.status, 1, r.stdout + r.stderr);
   assert.match(r.stdout, /missing Android checkpoints at font_scale 1\.0/);
 });
+
+const AX_QA_SCOPE = {
+  GITHUB_REPOSITORY: 'augsmog/QuickScore', GITHUB_EVENT_NAME: 'workflow_dispatch',
+  GITHUB_REF: 'refs/heads/qa/snapscore-android-ax-only', GITHUB_JOB: 'android-compact',
+  DEVICE_LAYOUT_LARGE_TEXT: 'true', DEVICE_LAYOUT_ANDROID_AX_ONLY_QA: '1',
+};
+
+test('standalone Android 1.3 rejects wrong hosted scope before build or device capture', () => {
+  const { dl, env, root } = fakeRepo();
+  for (const override of [
+    { GITHUB_REPOSITORY: 'other/QuickScore' },
+    { GITHUB_REF: 'refs/heads/main' },
+    { GITHUB_EVENT_NAME: 'pull_request' },
+    { GITHUB_JOB: 'another-job' },
+    { DEVICE_LAYOUT_LARGE_TEXT: 'false' },
+  ]) {
+    const r = run(join(dl, 'scripts/run-android-compact.sh'), [], { ...env, ...AX_QA_SCOPE, ...override }, '/');
+    assert.notEqual(r.status, 0);
+    assert.match(r.stdout, /requires dedicated workflow scope/);
+    assert.doesNotMatch(r.stdout, /built-android|checkpoint/);
+  }
+});
+
+test('standalone Android 1.3 QA cannot be displaced by baseline budget or claim full gate pass', () => {
+  const { dl, env, root } = fakeRepo();
+  const r = run(join(dl, 'scripts/run-android-compact.sh'), [], {
+    ...env, ...AX_QA_SCOPE,
+    DEVICE_LAYOUT_AX_BUDGET_S: '0',
+  }, '/');
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.doesNotMatch(r.stdout, /device-layout android: PASS/);
+  assert.match(r.stdout, /baseline not evaluated/);
+  const marker = JSON.parse(readFileSync(join(root, 'out/android-qa-scope.json'), 'utf8'));
+  assert.equal(marker.scope, 'android-offline-layout-1p3-only');
+  assert.equal(marker.releaseVerdict, false);
+  assert.equal(marker.baselineEvaluated, false);
+  assert.equal(marker.sourceSha, execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim());
+  assert.equal(marker.apkSha256, readFileSync(join(root, 'out/android-build-hash.txt'), 'utf8').trim());
+  assert.throws(() => readFileSync(join(root, 'out/android-compact/capture-manifest.json')), { code: 'ENOENT' });
+  const manifest = JSON.parse(readFileSync(join(root, 'out/android-compact-large-text/capture-manifest.json'), 'utf8'));
+  assert.equal(manifest.fontScale, 1.3);
+  assert.equal(manifest.checkpoints[0].fontScale, 1.3);
+  assert.equal(readFileSync(join(root, 'out/stub-font-scale'), 'utf8'), '1.0');
+});
+test('standalone Android 1.3 QA restores baseline and fails on drift', () => {
+  const { dl, env, root } = fakeRepo();
+  const r = run(join(dl, 'scripts/run-android-compact.sh'), [], {
+    ...env, ...AX_QA_SCOPE, STUB_SCALE_CASE: 'drift-1.3',
+  }, '/');
+  assert.notEqual(r.status, 0);
+  assert.match(r.stdout, /readback mismatch/);
+  assert.equal(readFileSync(join(root, 'out/stub-font-scale'), 'utf8'), '1.0');
+});
