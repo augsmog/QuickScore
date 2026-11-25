@@ -1,0 +1,120 @@
+{
+  "productSha": "c828ebf5ef7372c19db9c73f8cb1adb04d157406",
+  "productTree": "8d2b59b9c2f814fbc54684973fa8e9ddfd2badc3",
+  "sqlOrdered": [
+    {
+      "path": "scoresnap/supabase/migrations/20260320041248_create_revenue_events_and_marketing_tables.sql",
+      "sha256": "e64f520d1e464c388bef2373b58fb24dd7544af4eea18328e2c9947c35c82b25"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20260320042219_create_profiles_automation_log_and_rpc.sql",
+      "sha256": "db18b8ae438c41cbd54850e2352d7632e59107b082342e2721e9fe7c6c6a25fb"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20260320043052_create_feedback_and_funnel_tables.sql",
+      "sha256": "b623c1aec10b6ba30c4e2a58dc3d55e040a98fa676dddbb54776397564349b1d"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20260326032639_create_contest_sharing_tables.sql",
+      "sha256": "991f8b386f73675fbcc6263f841e4620d2a1d0531488af17010f8b9d728d936c"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261022080416_live_share_slice1.sql",
+      "sha256": "4c17598a8fd6f4e32dc1a55973b9286d67fa62b765e7ed5147f3c3c902ccd504"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261022090456_fix_contest_rls_recursion.sql",
+      "sha256": "c20b94b614b0ec7f2fbcf5c39a094ed849f5bff681c89bc4440f5827e44fc828"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261022090542_live_chat_slice2.sql",
+      "sha256": "a2051211c60ef18849a7220f9d9cbc1fbb09a8ae278a5ab462d7cd66afd3b519"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261027000000_live_baseline.sql",
+      "sha256": "cf4b9e403b985624e880af94a13f741fb72420d2f0a0504322cac5e4c972533b"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261027120000_sync_foundation.sql",
+      "sha256": "afc1e2a1808533b0c73c6522c65ecb13b0983579f5af0a8c1251b4cfba6379ed"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261027130000_guest_write_guard.sql",
+      "sha256": "bf1be8aa0e6539b7e979e6aec1b9f725031636148334cca2ffc139f70fc2a215"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261028162155_tournament_rounds_live.sql",
+      "sha256": "b1bfac6b2853e297455cea237d9561e7daa4fd34c56ad05bcbcf51f24cddb9ff"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261028223000_account_purge.sql",
+      "sha256": "b3a686f382f73495767137393921c8be822835f85f7d76c7958001e0a8c75f70"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261029180000_sync_api.sql",
+      "sha256": "674b4fff7b65a1baeee47343d665f56dacc2705ed1aa53280257379f7a1f2c94"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261031180000_chat_report_block.sql",
+      "sha256": "154472b499fcfd9192a2338a91eb7d256be854d7d23d11cc2f5cdc382c3d849c"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261101003300_signup_processing.sql",
+      "sha256": "9216c4f3630136ded5fa202da7c1459c67c623e9631e44c9a4cbc3cfb36c458c"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261101003400_signup_webhook_trigger.sql",
+      "sha256": "b772ffa2727171d9df8d809d1f4d4c5e8adbd297eda3d47f5dbc99a6b88f7cc9"
+    },
+    {
+      "path": "scoresnap/supabase/migrations/20261103010000_signup_webhook_vault_url.sql",
+      "sha256": "cab4707388810cec14ecb6fc53098ae387de983cb26aa99773bf5a7f75a0e920"
+    },
+    {
+      "path": "scoresnap/supabase/proposed/20261103071000_account_handoff.sql",
+      "sha256": "1da0774d89b89f37705b72bdfc56aa7194240388248603bde592fd8e34972ce3"
+    },
+    {
+      "path": "scoresnap/supabase/proposed/20261101020000_owner_discovery.sql",
+      "sha256": "d848df323e0c7ede648f39c47a3ae63146a60d142fbcbb391fc242690474db42"
+    },
+    {
+      "path": "scoresnap/supabase/proposed/20261031230000_restore_game_settings.sql",
+      "sha256": "e70e809580a33b12891325111fe653783e529039018f1c3ccd116407d52c3374"
+    },
+    {
+      "path": "scoresnap/supabase/proposed/20261101190000_owner_invite_snapshot.sql",
+      "sha256": "33e9414ac9c9ac332215cdc6e549443604f98abfe781320bd60d87da95ed3257"
+    }
+  ],
+  "nativeDriverFiles": {
+    "native-manual.mjs": "b4d51f68eace07eb48d0d2e2634308cdc8af3436547981273f795c5782fdd965",
+    "native-manual-flow.mjs": "0d7a06c9e614e4fdf3752d7baeb3781e1d1c9eab5bad343c96aaa39c2dff3f6a",
+    "native-manual-devices.mjs": "0b0328b03a75d5830ce21a9108cd145a9b26b17c8a4d629bb7c56f3172a59783",
+    "contract.mjs": "02a8cf1d702b917595b1c56c5bc4f96e7d3633897f8e22157c4f84461989f8fb"
+  },
+  "nativeDriverDeviceContract": {
+    "serialEnv": {
+      "INVITE_SERIAL_NEGATIVE": "true"
+    },
+    "deviceNamePrefix": "e2e-invite-",
+    "ownedDistinctDeviceVariables": [
+      "INVITE_HOST_UDID",
+      "INVITE_GUEST_UDID",
+      "INVITE_NEGATIVE_UDID"
+    ],
+    "initialStates": {
+      "host": "Booted",
+      "guest": "Booted",
+      "negative": "Shutdown"
+    },
+    "negativeStartsAfter": [
+      "durable positive proof",
+      "host Shutdown",
+      "guest Shutdown"
+    ],
+    "eraseOrReusePositive": false,
+    "admissionConcurrentBootLimit": 2,
+    "admissionCreatesNegativeDevice": false
+  }
+}

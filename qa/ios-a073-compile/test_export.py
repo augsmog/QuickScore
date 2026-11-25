@@ -87,8 +87,11 @@ class GitArchiveTests(unittest.TestCase):
         self.assertFalse(self.out.exists())
 
     def test_other_dotenv_names_fail_even_when_inert_or_nested(self):
+        # Use a nested case variant on case-insensitive volumes, where root .ENV.EXAMPLE
+        # aliases the pinned .env.example. Preserve the root-level test on case-sensitive hosts.
+        upper = 'scoresnap/src/.ENV.EXAMPLE' if (self.repo/'scoresnap/.ENV.EXAMPLE').exists() else 'scoresnap/.ENV.EXAMPLE'
         for example in ('scoresnap/.env.local', 'scoresnap/src/.env.example',
-                        'scoresnap/.ENV.EXAMPLE', 'scoresnap/.env.example.backup'):
+                        upper, 'scoresnap/.env.example.backup'):
             with self.subTest(name=example):
                 self.put(example, INERT)
                 with patch.multiple(build, **self.pin()):

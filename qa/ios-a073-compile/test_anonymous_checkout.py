@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import shlex
+import sys
 import subprocess
 from tempfile import TemporaryDirectory
 import textwrap
@@ -13,11 +14,11 @@ import unittest
 HERE = Path(__file__).resolve().parent
 WORKFLOW = HERE.parents[1] / ".github/workflows/e2e-ios-sim.yml"
 HTTPS = "https://github.com/augsmog/QuickScore.git"
-BASE = "5190f43261a42f108d54627c793d5be64046c840"
-REVIEWED_PARENT = "72558fff91b58b07ae4a8715c4768f34c24c06cd"
-REVIEWED_PARENT_TREE = "33cd90fc2621e3ea02d0744ef1c5dd536b6a8af3"
-SOURCE = "a073d5761b77f3e01610acebaf5d98f76a920fb5"
-SOURCE_TREE = "3cbda6ddde720b614c0ae3c2bccef7948d805e20"
+BASE = "72558fff91b58b07ae4a8715c4768f34c24c06cd"
+REVIEWED_PARENT = "d6d84c0979f66f2b5b24f9e9cb91d5e60277eec6"
+REVIEWED_PARENT_TREE = "f30636418341c6a9f112f921ed797221d660e568"
+SOURCE = "c828ebf5ef7372c19db9c73f8cb1adb04d157406"
+SOURCE_TREE = "8d2b59b9c2f814fbc54684973fa8e9ddfd2badc3"
 LINK = "august-industries-site"
 MODULES = '[submodule "different"]\n\tpath = other/path\n\turl = https://example.invalid/unused.git\n'
 SCRIPT = WORKFLOW.read_text().split("        run: |\n", 1)[1].split("\n# No checkout", 1)[0]
@@ -29,6 +30,7 @@ assert fetch_root.parent == product.parent
 assert pathlib.Path(os.environ["RUNNER_TEMP"]) == product.parent.parent
 assert os.environ.get("GH_TOKEN") is None and os.environ.get("GITHUB_TOKEN") is None
 assert os.environ.get("GIT_CONFIG_COUNT") is None
+assert pathlib.Path(os.environ["SIMULATOR_HOME"]) != pathlib.Path(os.environ["HOME"])
 assert os.environ.get("GIT_CONFIG_GLOBAL") == "/dev/null"
 assert os.environ.get("GIT_CONFIG_NOSYSTEM") == "1"
 for repo in (fetch_root, product):
@@ -93,7 +95,7 @@ class ExactAnonymousCheckout(unittest.TestCase):
         git(self.origin, "checkout", "-q", "--detach", self.main)
         qa = self.origin / "qa/ios-a073-compile"
         qa.mkdir(parents=True)
-        (qa / "compile_only.py").write_text(COMPILE_STUB)
+        (qa / "offline_layout.py").write_text(COMPILE_STUB)
         git(self.origin, "add", "qa")
         git(self.origin, "commit", "-qm", "reviewed prior harness with unmapped gitlink")
         self.reviewed_parent = git(self.origin, "rev-parse", "HEAD")
@@ -118,10 +120,10 @@ class ExactAnonymousCheckout(unittest.TestCase):
             REVIEWED_PARENT_TREE, self.reviewed_tree
         ).replace(SOURCE, self.product).replace(SOURCE_TREE, self.product_tree)
         self.env = dict(os.environ, GITHUB_ACTIONS="true", GITHUB_REPOSITORY="augsmog/QuickScore",
-                        GITHUB_EVENT_NAME="workflow_dispatch", GITHUB_REF="refs/heads/qa/snapscore-a073-hosted-compile-main",
+                        GITHUB_EVENT_NAME="workflow_dispatch", GITHUB_REF="refs/heads/qa/snapscore-c828-hosted-arm64-layout",
                         RUNNER_ARCH="ARM64", RUNNER_OS="macOS", RUNNER_ENVIRONMENT="github-hosted",
                         EXPECTED_HARNESS_SHA=self.head, EXPECTED_HARNESS_TREE=self.tree, GITHUB_SHA=self.head,
-                        RUNNER_TEMP=str(self.runner), DEVELOPER_DIR="/unneeded-on-Linux/",
+                        RUNNER_TEMP=str(self.runner), DEVELOPER_DIR=("/Applications/Xcode.app/Contents/Developer" if sys.platform == "darwin" else "/unneeded-on-Linux/"),
                         HOME=str(self.bad_home), GH_TOKEN="SHOULD_NOT_LEAVE_CALLER", GITHUB_TOKEN="NEITHER_SHOULD_THIS",
                         GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="submodule.recurse", GIT_CONFIG_VALUE_0="true")
 
@@ -178,7 +180,7 @@ class ExactAnonymousCheckout(unittest.TestCase):
         original = self.body
         for pin, actual, code in (
             ("expected_parent_tree", self.reviewed_tree, "HARNESS_PARENT_TREE"),
-            ("expected_main", self.main, "HARNESS_MAIN_ANCESTRY"),
+            ("expected_previous", self.main, "HARNESS_PREVIOUS_ANCESTRY"),
         ):
             with self.subTest(code=code):
                 self.body = original.replace(pin+"='"+actual+"'", pin+"='"+"d"*40+"'", 1)
@@ -204,7 +206,7 @@ class ExactAnonymousCheckout(unittest.TestCase):
         self.assertIn("repo='"+HTTPS+"'", BODY)
         self.assertIn("product_sha='"+SOURCE+"'", BODY)
         self.assertIn("product_tree='"+SOURCE_TREE+"'", BODY)
-        self.assertIn("expected_main='"+BASE+"'", BODY)
+        self.assertIn("expected_previous='"+BASE+"'", BODY)
         self.assertIn("expected_parent='"+REVIEWED_PARENT+"'", BODY)
         self.assertIn("expected_parent_tree='"+REVIEWED_PARENT_TREE+"'", BODY)
         self.assertIn(' "$EXPECTED_HARNESS_TREE" 3 HARNESS', BODY)
