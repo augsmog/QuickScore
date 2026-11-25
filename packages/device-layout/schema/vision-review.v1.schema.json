@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "device-layout/vision-review/v1",
+  "title": "device-layout/v1 vision review (one screenshot, one independent reviewer) — AUG-1373 section B",
+  "type": "object",
+  "required": ["schema", "sourceSha", "buildHash", "artifactHash", "device", "flow", "checkpoint", "reviewer", "findings", "verdict"],
+  "properties": {
+    "schema": {"const": "device-layout/vision-review/v1"},
+    "sourceSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "buildHash": {"type": "string", "minLength": 1},
+    "artifactHash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "device": {"type": "string"},
+    "flow": {"type": "string"},
+    "checkpoint": {"type": "string"},
+    "fixture": {"enum": ["negative", "positive"], "description": "set only on calibration fixtures"},
+    "reviewer": {"type": "object", "required": ["provider", "model", "effort"], "properties": {
+      "provider": {"type": "string", "minLength": 1},
+      "model": {"type": "string", "minLength": 1},
+      "effort": {"const": "high"}
+    }},
+    "findings": {"type": "array", "items": {"type": "object", "required": ["rule", "severity", "bbox", "reason"], "properties": {
+      "rule": {"type": "integer", "minimum": 1, "maximum": 8},
+      "severity": {"enum": ["critical", "major", "minor"]},
+      "bbox": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+      "reason": {"type": "string", "minLength": 1}
+    }}},
+    "verdict": {"enum": ["pass", "fail"]}
+  }
+}

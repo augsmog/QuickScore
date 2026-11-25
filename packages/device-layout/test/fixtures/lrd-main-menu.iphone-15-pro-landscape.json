@@ -1,0 +1,15 @@
+{
+  "schema": "device-layout/godot-dump/v1",
+  "screen": "main-menu",
+  "device": "iphone-15-pro-landscape",
+  "engine": "4.3.stable (fixture)",
+  "viewport": {"width": 1560.92, "height": 720},
+  "screenshot": "captures/main-menu.iphone-15-pro-landscape.png",
+  "nodes": [
+    {"path": "/root/Main/Menu", "name": "Menu", "class": "VBoxContainer", "rect": [600, 200, 360, 400], "visible": true, "interactive": false, "text": "", "parent_interactive": null},
+    {"path": "/root/Main/Menu/Title", "name": "Title", "class": "Label", "rect": [600, 200, 360, 80], "visible": true, "interactive": false, "text": "Locker Room Defense", "parent_interactive": null},
+    {"path": "/root/Main/Menu/Play", "name": "Play", "class": "Button", "rect": [640, 320, 280, 100], "visible": true, "interactive": true, "text": "Play", "parent_interactive": null},
+    {"path": "/root/Main/Menu/Settings", "name": "Settings", "class": "Button", "rect": [640, 440, 280, 100], "visible": true, "interactive": true, "text": "Settings", "parent_interactive": null},
+    {"path": "/root/Main/Hidden", "name": "Hidden", "class": "Button", "rect": [0, 0, 10, 10], "visible": false, "interactive": true, "text": "x", "parent_interactive": null}
+  ]
+}
