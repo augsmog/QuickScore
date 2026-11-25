@@ -48,6 +48,23 @@ if [ "$AX_ONLY" -eq 1 ]; then
   fi
 fi
 
+case "${DEVICE_LAYOUT_ANDROID_PAYWALL_DUAL_QA:-0}" in
+  0) PAYWALL_DUAL=0 ;;
+  1) PAYWALL_DUAL=1 ;;
+  *) echo "::error::invalid Android paywall dual QA mode"; exit 1 ;;
+esac
+if [ "$PAYWALL_DUAL" -eq 1 ]; then
+  if [ "$AX_ONLY" -ne 0 ] || [ "$LARGE_TEXT" -ne 1 ] || [ "$PROFILE" != android-compact ] ||
+      [ "${GITHUB_REPOSITORY:-}" != augsmog/QuickScore ] ||
+      [ "${GITHUB_EVENT_NAME:-}" != workflow_dispatch ] ||
+      [ "${GITHUB_REF:-}" != refs/heads/qa/snapscore-android-paywall-dual ] ||
+      [ "${GITHUB_JOB:-}" != android-compact ]; then
+    echo "::error::Android paywall dual QA requires dedicated workflow scope and DEVICE_LAYOUT_LARGE_TEXT"
+    exit 1
+  fi
+  [ -f "$FLOWS/paywall/00-tier-td.yaml" ] || { echo "::error::missing focused paywall checkpoint"; exit 1; }
+fi
+
 if [ ! -d "$FLOWS" ] || [ ! -f "$DL/scripts/build-android.sh" ] || [ ! -f "$DL/scripts/bundle-from-maestro.mjs" ]; then
   echo "::error::device-layout Android native harness not present yet (AUG-1376). No device capture produced."
   echo "PENDING-NATIVE-HARNESS AUG-1376"
@@ -187,6 +204,7 @@ capture_flows() {
     flow="$(basename "$flowdir")"
     for sub in "$flowdir"*.yaml; do
       [ -e "$sub" ] || continue
+      if [ "$PAYWALL_DUAL" -eq 1 ] && [ "$sub" != "$FLOWS/paywall/00-tier-td.yaml" ]; then continue; fi
       base="$(printf '%02d-%s-%s' "$order" "$flow" "$(basename "$sub" .yaml | sed 's/^[0-9]*-//')")"
       slug="$(basename "$sub" .yaml | sed 's/^[0-9]*-//; s/-/ /g')"
       echo "  checkpoint $base"
@@ -251,17 +269,22 @@ if [ "$AX_ONLY" -eq 1 ]; then
   exit "$FAIL"
 fi
 
+if [ "$PAYWALL_DUAL" -eq 1 ]; then
+  printf '{"scope":"android-offline-paywall-1p0-and-1p3","releaseVerdict":false,"fullLayoutGate":false,"sourceSha":"%s","apkSha256":"%s"}\n' \
+    "$SHA" "$BUILD_HASH" > "$OUTROOT/android-qa-scope.json"
+fi
+
 set_font_scale 1.0
 capture_flows "$OUTDIR" 1.0
 gate_capture "$OUTDIR" bundle.json --font-scale 1.0
 
 if [ "$LARGE_TEXT" -eq 1 ]; then
   ELAPSED=$(( $(date +%s) - START_TS ))
-  if [ "$ELAPSED" -ge "$AX_BUDGET_S" ]; then
+  if [ "$PAYWALL_DUAL" -eq 0 ] && [ "$ELAPSED" -ge "$AX_BUDGET_S" ]; then
     echo "::error::required Android font_scale 1.3 capture not attempted: elapsed ${ELAPSED}s >= ${AX_BUDGET_S}s budget"
     exit 1
   fi
-  echo "--- $PROFILE required large-text pass (font_scale 1.3, elapsed ${ELAPSED}s < ${AX_BUDGET_S}s) ---"
+  echo "--- $PROFILE required large-text pass (font_scale 1.3, elapsed ${ELAPSED}s) ---"
   # Always restore the emulator if setting, capture or geometry fails during the large-text leg.
   trap restore_baseline EXIT
   set_font_scale 1.3
@@ -274,5 +297,9 @@ else
   echo "device-layout: baseline only (Android 1.3 capture not requested)"
 fi
 
+if [ "$PAYWALL_DUAL" -eq 1 ]; then
+  [ "$FAIL" -ne 0 ] || echo "Android paywall dual QA: complete; no full gate or release verdict"
+  exit "$FAIL"
+fi
 [ "$FAIL" -eq 0 ] && echo "device-layout android: PASS" || echo "device-layout android: FAIL"
 exit "$FAIL"

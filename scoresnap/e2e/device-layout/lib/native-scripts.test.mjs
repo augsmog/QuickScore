@@ -143,7 +143,7 @@ const out = items.map(({ meta }) => {
 process.stdout.write(JSON.stringify(out));
 `;
 
-function fakeRepo({ harness = true } = {}) {
+function fakeRepo({ harness = true, paywall = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'dl-native-'));
   const dl = join(root, 'scoresnap/e2e/device-layout');
   cpSync(DL_SRC, dl, { recursive: true });
@@ -158,6 +158,10 @@ function fakeRepo({ harness = true } = {}) {
     mkdirSync(join(root, '.maestro/flows/device-layout'), { recursive: true });
     mkdirSync(join(root, '.maestro/flows/device-layout/new-contest'));
     writeFileSync(join(root, '.maestro/flows/device-layout/new-contest/00-empty-wizard.yaml'), 'appId: stub\n');
+    if (paywall) {
+      mkdirSync(join(root, '.maestro/flows/device-layout/paywall'));
+      writeFileSync(join(root, '.maestro/flows/device-layout/paywall/00-tier-td.yaml'), 'appId: stub\n');
+    }
     writeFileSync(join(dl, 'scripts/build-android.sh'), BUILD_ANDROID);
     writeFileSync(join(dl, 'scripts/build-ios-sim.sh'), 'echo built-ios\n');
     writeFileSync(join(dl, 'scripts/bundle-from-maestro.mjs'), BUNDLER);
@@ -383,4 +387,44 @@ test('standalone Android 1.3 QA restores baseline and fails on drift', () => {
   assert.notEqual(r.status, 0);
   assert.match(r.stdout, /readback mismatch/);
   assert.equal(readFileSync(join(root, 'out/stub-font-scale'), 'utf8'), '1.0');
+});
+
+
+const PAYWALL_DUAL_SCOPE = {
+  ...AX_QA_SCOPE, GITHUB_REF: 'refs/heads/qa/snapscore-android-paywall-dual',
+  DEVICE_LAYOUT_ANDROID_AX_ONLY_QA: '0', DEVICE_LAYOUT_ANDROID_PAYWALL_DUAL_QA: '1',
+};
+
+test('focused paywall dual QA captures exactly one labeled checkpoint at each scale from one APK and restores 1.0', () => {
+  const { dl, env, root } = fakeRepo({ paywall: true });
+  const r = run(join(dl, 'scripts/run-android-compact.sh'), [], {
+    ...env, ...PAYWALL_DUAL_SCOPE, DEVICE_LAYOUT_AX_BUDGET_S: '0',
+  }, '/');
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal((r.stdout.match(/built-android/g) || []).length, 1);
+  assert.doesNotMatch(r.stdout, /device-layout android: PASS|checkpoint .*new-contest/);
+  const marker = JSON.parse(readFileSync(join(root, 'out/android-qa-scope.json'), 'utf8'));
+  assert.equal(marker.scope, 'android-offline-paywall-1p0-and-1p3');
+  assert.equal(marker.releaseVerdict, false);
+  assert.equal(marker.fullLayoutGate, false);
+  assert.equal(marker.sourceSha, execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim());
+  for (const [suffix, scale] of [['', 1.0], ['-large-text', 1.3]]) {
+    const manifest = JSON.parse(readFileSync(join(root, 'out/android-compact' + suffix, 'capture-manifest.json'), 'utf8'));
+    assert.equal(manifest.fontScale, scale);
+    assert.deepEqual(manifest.checkpoints.map(c => [c.flow, c.fontScale]), [['paywall', scale]]);
+  }
+  assert.equal(readFileSync(join(root, 'out/stub-font-scale'), 'utf8').trim(), '1.0');
+});
+
+test('focused paywall dual QA refuses off-scope or absent checkpoint before Android build', () => {
+  const { dl, env } = fakeRepo();
+  for (const [extra, error] of [
+    [{ GITHUB_REF: 'refs/heads/main' }, /requires dedicated workflow scope/],
+    [{}, /missing focused paywall checkpoint/],
+  ]) {
+    const r = run(join(dl, 'scripts/run-android-compact.sh'), [], { ...env, ...PAYWALL_DUAL_SCOPE, ...extra }, '/');
+    assert.notEqual(r.status, 0);
+    assert.match(r.stdout, error);
+    assert.doesNotMatch(r.stdout, /built-android/);
+  }
 });
