@@ -1,4 +1,4 @@
-name: SnapScore a073 iOS compile diagnostic
+name: SnapScore c828 ARM64 iPhone 16 Pro offline QA
 on:
   workflow_dispatch:
     inputs:
@@ -16,25 +16,25 @@ concurrency:
   cancel-in-progress: false
 jobs:
   compile:
-    if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-a073-hosted-compile-main'
+    if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-c828-hosted-arm64-layout' && toJSON(github.event.repository.private) == 'false'
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 45
     env:
       EXPECTED_HARNESS_SHA: ${{ inputs.expected_harness_sha }}
       EXPECTED_HARNESS_TREE: ${{ inputs.expected_harness_tree }}
       DEVELOPER_DIR: /Applications/Xcode_26.4.1.app/Contents/Developer
     steps:
-      - name: Anonymous exact Git checkout and isolated compile
+      - name: Anonymous exact Git checkout, compile and one simulator QA
         shell: bash
         run: |
           set -euo pipefail
           umask 077
           repo='https://github.com/augsmog/QuickScore.git'
-          expected_main='5190f43261a42f108d54627c793d5be64046c840'
-          expected_parent='72558fff91b58b07ae4a8715c4768f34c24c06cd'
-          expected_parent_tree='33cd90fc2621e3ea02d0744ef1c5dd536b6a8af3'
-          product_sha='a073d5761b77f3e01610acebaf5d98f76a920fb5'
-          product_tree='3cbda6ddde720b614c0ae3c2bccef7948d805e20'
+          expected_previous='72558fff91b58b07ae4a8715c4768f34c24c06cd'
+          expected_parent='d6d84c0979f66f2b5b24f9e9cb91d5e60277eec6'
+          expected_parent_tree='f30636418341c6a9f112f921ed797221d660e568'
+          product_sha='c828ebf5ef7372c19db9c73f8cb1adb04d157406'
+          product_tree='8d2b59b9c2f814fbc54684973fa8e9ddfd2badc3'
           blocked() {
             printf '{"status":"BLOCKED","phase":"anonymous-checkout","reason":"%s"}\n' "$1"
             exit 78
@@ -42,7 +42,7 @@ jobs:
           valid_oid() { [[ "$1" =~ ^[0-9a-f]{40}$ ]]; }
           [[ "${GITHUB_REPOSITORY:-}" == augsmog/QuickScore &&
              "${GITHUB_EVENT_NAME:-}" == workflow_dispatch &&
-             "${GITHUB_REF:-}" == refs/heads/qa/snapscore-a073-hosted-compile-main &&
+             "${GITHUB_REF:-}" == refs/heads/qa/snapscore-c828-hosted-arm64-layout &&
              "${RUNNER_ENVIRONMENT:-}" == github-hosted &&
              "${RUNNER_OS:-}" == macOS && "${RUNNER_ARCH:-}" == ARM64 ]] || blocked HOSTED_SCOPE_MISMATCH
           valid_oid "${EXPECTED_HARNESS_SHA:-}" && valid_oid "${EXPECTED_HARNESS_TREE:-}" &&
@@ -91,17 +91,17 @@ jobs:
           [[ "$harness_parents" == "$EXPECTED_HARNESS_SHA $expected_parent" ]] || blocked HARNESS_PARENT
           parent_tree="$(git_clean -C "$scratch/harness" rev-parse "$expected_parent^{tree}" 2>/dev/null)" || blocked HARNESS_PARENT_TREE
           [[ "$parent_tree" == "$expected_parent_tree" ]] || blocked HARNESS_PARENT_TREE
-          parent_parents="$(git_clean -C "$scratch/harness" rev-list --parents -n 1 "$expected_parent" 2>/dev/null)" || blocked HARNESS_MAIN_ANCESTRY
-          [[ "$parent_parents" == "$expected_parent $expected_main" ]] || blocked HARNESS_MAIN_ANCESTRY
+          parent_parents="$(git_clean -C "$scratch/harness" rev-list --parents -n 1 "$expected_parent" 2>/dev/null)" || blocked HARNESS_PREVIOUS_ANCESTRY
+          [[ "$parent_parents" == "$expected_parent $expected_previous" ]] || blocked HARNESS_PREVIOUS_ANCESTRY
           read_checkout "$scratch/product" "$product_sha" "$product_tree" 1 PRODUCT
           /usr/bin/env -i "PATH=$PATH" "HOME=$git_home" "XDG_CONFIG_HOME=$git_home" \
             GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/usr/bin/false \
             "GITHUB_ACTIONS=$GITHUB_ACTIONS" "GITHUB_REPOSITORY=$GITHUB_REPOSITORY" "GITHUB_EVENT_NAME=$GITHUB_EVENT_NAME" \
             "GITHUB_REF=$GITHUB_REF" "GITHUB_SHA=$GITHUB_SHA" \
             "RUNNER_ARCH=$RUNNER_ARCH" "RUNNER_OS=$RUNNER_OS" "RUNNER_ENVIRONMENT=$RUNNER_ENVIRONMENT" \
-            "RUNNER_TEMP=$RUNNER_TEMP" "RUNNER_TOOL_CACHE=${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}" \
+            "RUNNER_TEMP=$RUNNER_TEMP" "SIMULATOR_HOME=$HOME" "RUNNER_TOOL_CACHE=${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}" \
             "EXPECTED_HARNESS_SHA=$EXPECTED_HARNESS_SHA" "EXPECTED_HARNESS_TREE=$EXPECTED_HARNESS_TREE" \
             "DEVELOPER_DIR=$DEVELOPER_DIR" \
-            python3 -B "$scratch/harness/qa/ios-a073-compile/compile_only.py" \
+            python3 -B "$scratch/harness/qa/ios-a073-compile/offline_layout.py" \
               --harness "$scratch/harness" --product "$scratch/product"
-# No checkout/setup action, recursive submodule command, credential, cache, artifact, simulator, backend or deploy.
+# No checkout/setup action, recursive submodule command, credential, cache, app upload, backend or deploy.

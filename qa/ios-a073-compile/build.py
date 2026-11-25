@@ -3,8 +3,8 @@
 import argparse,base64,hashlib,json,os,pathlib,platform,plistlib,re,shutil,signal,subprocess,sys,tarfile,tempfile,time
 from xml.parsers.expat import ExpatError
 import native_policy
-SHA='a073d5761b77f3e01610acebaf5d98f76a920fb5'
-TREE='3cbda6ddde720b614c0ae3c2bccef7948d805e20'
+SHA='c828ebf5ef7372c19db9c73f8cb1adb04d157406'
+TREE='8d2b59b9c2f814fbc54684973fa8e9ddfd2badc3'
 TEMPLATE_PATH='scoresnap/.env.example'
 TEMPLATE_GIT_BLOB='e8fbcc143d5d4356bd96768f8be21fd8a62540b7'
 TEMPLATE_SHA256='45e2a51930e8ec397f451e4a62f9b6e1a2777bcf7bc8321d249b254abc9ccf59'
@@ -44,6 +44,32 @@ def environment(home,path,url,key,developer_dir):
  home.mkdir(mode=0o700)
  for n in ('npm-user','npm-global'):(home/n).write_text('')
  return dict(FLAGS,PATH=path,HOME=str(home),CP_HOME_DIR=str(home/'pods'),NPM_CONFIG_USERCONFIG=str(home/'npm-user'),NPM_CONFIG_GLOBALCONFIG=str(home/'npm-global'),NPM_CONFIG_REGISTRY='https://registry.npmjs.org',LANG='en_US.UTF-8',DEVELOPER_DIR=developer_dir,EXPO_PUBLIC_SUPABASE_URL=url,EXPO_PUBLIC_SUPABASE_ANON_KEY=key,EXPO_PUBLIC_TURNSTILE_BASE_URL=url)
+def offline_layout_policy(repo, env):
+ # Audit only the pinned source paths. This proves configured product controls, not OS-level
+ # network isolation or an observed packet trace from the simulator.
+ app=repo/'scoresnap'
+ refs={
+  'src/config/offline.ts': 'process.env.EXPO_PUBLIC_OFFLINE_MODE === "true"',
+  'src/config/auth.ts': 'REAL_AUTH_CONFIGURED = !OFFLINE_MODE &&',
+  'src/config/features.ts': 'process.env.EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING === "true"',
+  'app/_layout.tsx': 'enabled: !isPublicShare && !CROSS_DEVICE_SHARING_ENABLED',
+  'src/config/posthog.tsx': 'Boolean(projectToken && host)',
+  'src/services/purchases.ts': 'if (!apiKey)',
+ }
+ must(all(marker in (app/path).read_text() for path,marker in refs.items()),'SOURCE_PRIVACY_POLICY_UNVERIFIED')
+ must(all(env.get(k)==v for k,v in {
+  'EXPO_PUBLIC_OFFLINE_MODE':'true', 'EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING':'true',
+  'EXPO_PUBLIC_FEATURE_NATIVE_LINKS':'false', 'EXPO_PUBLIC_PRO_ENABLED':'false',
+  'EXPO_PUBLIC_SUPABASE_URL':COMPILE_URL, 'EXPO_PUBLIC_TURNSTILE_BASE_URL':COMPILE_URL,
+ }.items()),'SOURCE_PRIVACY_POLICY_UNVERIFIED')
+ expected_public={k for k in FLAGS if k.startswith('EXPO_PUBLIC_')} | {
+  'EXPO_PUBLIC_E2E_COURSE_FIXTURE','EXPO_PUBLIC_SUPABASE_URL','EXPO_PUBLIC_SUPABASE_ANON_KEY',
+  'EXPO_PUBLIC_TURNSTILE_BASE_URL',
+ }
+ must({k for k in env if k.startswith('EXPO_PUBLIC_')}==expected_public,'SOURCE_PRIVACY_POLICY_UNVERIFIED')
+ return {'offlineModeBuildFlag':True,'crossDeviceUiBuildFlag':True,'realAuthSourceGuard':False,
+         'sentryEnabledSourceGuard':False,'posthogConfigured':False,'revenueCatConfigured':False,
+         'backendEndpoint':'synthetic-loopback-only','osEgressRestricted':False}
 def phase(argv,cwd,env,seconds,floor):
  must(shutil.disk_usage(cwd).free>=floor,'DISK_FLOOR')
  proc=subprocess.Popen(argv,cwd=cwd,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
@@ -206,6 +232,11 @@ def build(a):
  out.mkdir(mode=0o700);stage='toolchain';receipt={'source':SHA,'tree':TREE,'nativeAcceptance':False,'status':'BLOCKED'}
  try:
   env=environment(out/'home',os.environ['PATH'],a.relay,key,a.developer_dir)
+  if getattr(a,'offline_layout',False):
+   must(compile_only,'OFFLINE_LAYOUT_REQUIRES_SYNTHETIC_INPUT')
+   env.update(EXPO_PUBLIC_OFFLINE_MODE='true',EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING='true',
+              EXPO_PUBLIC_E2E_COURSE_FIXTURE='true')
+   receipt['layoutPolicy']=offline_layout_policy(repo,env)
   if compile_only:
    tmp=out/'home'/'tmp';tmp.mkdir(mode=0o700)
    env.update(TMPDIR=str(tmp),COCOAPODS_DISABLE_STATS='true',GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_GLOBAL='/dev/null')
