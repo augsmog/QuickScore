@@ -344,18 +344,14 @@ test('cross-leg detector: fires on a real normalized crossed capture (SE-3 profi
   assert.ok(windowViewportMismatch(nodes, se), 'the 402x874 window on the SE-3 leg is detected as crossed');
 });
 
-// ───────────── 10. Footer bisection: scroll-edge clip EXEMPT; real overlay / keyboard-hidden FAIL ──
-// new.tsx: the Continue footer is a flow sibling AFTER the KeyboardAvoidingView/ScrollView (verified in
-// code) and the ScrollView ends with a 96pt spacer. A card merely cut by the scroll edge (painted
-// bottom clamped to the scroll viewport, which ends at/above the footer top) is a plain scroll-edge
-// fragment — NOT a footer bisection. A footer that OVERLAYS content, or an input hidden by the
-// keyboard, still fails rule 2.
+// Checkpoint geometry is fail-closed. A required control must be fully painted
+// at its tested checkpoint, including at the scroll edge. Genuine footer
+// overlays and keyboard concealment are separate physical failures.
 const rowNode = (id, bbox, meta = {}) => ({ id, role: 'control', text: id, bbox, hitRegion: bbox, parentId: 'app', meta: { required: true, ...meta } });
 
-test('footer rule: a card cut at the scroll edge (footer is a flow sibling below) is EXEMPT from rule 2', () => {
+test('footer rule: caller clip flags cannot exempt an obstructed required card', () => {
   const viewport = { width: 375, height: 667 };
-  // Card raw bottom 560 reaches the footer, but it is scroll-clipped to the viewport bottom 520 (the
-  // footer sits BELOW the scroll area) → painted bottom 520 == footer.top → not a bisection.
+  // These caller flags are not measured evidence and cannot waive the observed intersection.
   const nodes = [
     { id: 'app', role: 'container', bbox: { left: 0, top: 0, right: 375, bottom: 667 }, parentId: null, meta: {} },
     rowNode('player-2', { left: 79, top: 480, right: 342, bottom: 560 },
@@ -363,7 +359,7 @@ test('footer rule: a card cut at the scroll edge (footer is a flow sibling below
   ];
   const ctx = { platform: 'ios', viewport, safeArea: { top: 20, bottom: 0 }, footer: { left: 0, top: 520, right: 375, bottom: 667 } };
   const hits = evaluateCheckpoint(nodes, ctx).findings.filter((f) => f.rule === 2 && f.nodes.includes('player-2'));
-  assert.equal(hits.length, 0, `scroll-edge-clipped card must be exempt: ${JSON.stringify(hits)}`);
+  assert.ok(hits.some(h=>h.reason.includes('sticky footer')));
 });
 
 test('footer rule: a footer that OVERLAYS content (card painted under it, not scroll-clipped) still FAILS', () => {
@@ -391,7 +387,7 @@ test('footer rule: a focused input hidden by the keyboard-raised inset still FAI
   assert.ok(hits.length >= 1, 'a keyboard-hidden focused input is still flagged');
 });
 
-test('footer rule (integration): a real contest-scroll card + flow-sibling footer is exempt', () => {
+test('footer rule (integration): required card clipped by a measured scroll viewport fails', () => {
   const viewport = { width: 375, height: 667 };
   const meta = {
     'app-window': { role: 'container', meta: {} },
@@ -409,5 +405,5 @@ test('footer rule (integration): a real contest-scroll card + flow-sibling foote
   const { nodes } = normalizeMaestroCapture(cap, { density: 1, viewport, resourceMeta: meta });
   const hits = evaluateCheckpoint(nodes, { platform: 'ios', viewport }).findings
     .filter((f) => f.rule === 2 && f.nodes.includes('player-2'));
-  assert.equal(hits.length, 0, `real scroll-edge card must not be flagged as footer-bisected: ${JSON.stringify(hits)}`);
+  assert.ok(hits.some(h=>h.reason.includes('measured scroll ancestors')));
 });

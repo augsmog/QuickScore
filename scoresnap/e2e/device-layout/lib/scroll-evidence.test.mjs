@@ -44,7 +44,20 @@ for(const [name,density] of [['ios-16pro-name-entry',1],['android-compact-name-e
   const capture=JSON.parse(readFileSync(new URL(`./fixtures/native-shape/${name}.json`,import.meta.url)));
   const nodes=normalize(capture,{density});
   assert.ok(nodes.some(n=>finiteRect(n.bbox)));
-  assert.ok(nodes.some(n=>!finiteRect(n.bbox)),'raw structural wrappers remain invalid, not invented measurements');
+  assert.ok(nodes.every(n=>finiteRect(n.bbox)), 'unmeasured structural wrappers never become proof nodes');
+  const measured=new Set();
+  function visit(n) {
+   const raw=String(n.attributes?.bounds||'');
+   const m=raw.match(/^\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]$/);
+   if(m) {
+    const r=m.slice(1).map(x=>Number(x)/density);
+    if(r[0]<r[2]&&r[1]<r[3]) measured.add(r.join(','));
+   }
+   for(const child of n.children||[]) visit(child);
+  }
+  visit(capture);
+  for(const n of nodes) assert.ok(measured.has([n.bbox.left,n.bbox.top,n.bbox.right,n.bbox.bottom].join(',')),
+    'each emitted rectangle must have raw measured provenance');
   for(const n of nodes.filter(n=>finiteRect(n.bbox))) {
    const findings=ruleTapTargets(indexTree([{...n,role:'control'}]),{platform:density===1?'ios':'android'});
    const min=density===1?44:48;
