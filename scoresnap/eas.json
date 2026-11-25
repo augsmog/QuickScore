@@ -53,7 +53,10 @@
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_FEATURE_COURSE_SEARCH": "true",
-        "EXPO_PUBLIC_PRO_ENABLED": "false"
+        "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": "true",
+        "EXPO_PUBLIC_PRO_ENABLED": "false",
+        "EXPO_PUBLIC_FEATURE_LEAGUES": "false",
+        "EXPO_PUBLIC_FEATURE_NATIVE_LINKS": "false"
       }
     },
     "production": {
@@ -62,7 +65,10 @@
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_FEATURE_COURSE_SEARCH": "true",
-        "EXPO_PUBLIC_PRO_ENABLED": "false"
+        "EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING": "true",
+        "EXPO_PUBLIC_PRO_ENABLED": "false",
+        "EXPO_PUBLIC_FEATURE_LEAGUES": "false",
+        "EXPO_PUBLIC_FEATURE_NATIVE_LINKS": "false"
       }
     }
   },

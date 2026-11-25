@@ -41,3 +41,12 @@ test('canonical invite is owner-only; guest score proof must not demand or expos
   assert.throws(()=>assertScores(fixture(),guest));
   assert.throws(()=>assertScores(fixture(),snapshot(),{owner:false}));
 });
+
+test('manual-only share requires the canonical entered code and rejects links', async () => {
+  const {assertManualShare}=await import('./contract.mjs');
+  const f={code:'ABC234'};
+  assertManualShare(f,'Open SnapScore, tap Join with code, and enter ABC234. The host must approve your request.');
+  assert.throws(()=>assertManualShare(f,'snapscore://join/ABC234'));
+  assert.throws(()=>assertManualShare(f,'https://snapscore.autumn8.me/join/ABC234'));
+  assert.throws(()=>assertManualShare(f,'Open SnapScore, tap Join with code, and enter DEF234. The host must approve your request.'));
+});

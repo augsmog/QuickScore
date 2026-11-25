@@ -9,7 +9,7 @@ function load(file, deps) {
   return m.exports;
 }
 
-function fixture(initialAuth, serviceOverrides = {}) {
+function fixture(initialAuth, serviceOverrides = {}, leaguesEnabled = true) {
   let auth = initialAuth;
   const subscribers = new Set();
   function useAuthStore(selector = state => state) {
@@ -39,7 +39,7 @@ function fixture(initialAuth, serviceOverrides = {}) {
     '../../src/ui/theme': { COLORS: { bg: 'bg', text: 'text', textDim: 'muted', primary: 'primary', onPrimary: 'on', surface: 'surface', danger: 'danger' }, FONTS: { headline: 'h', bold: 'b', regular: 'r' }, RADII: { md: 4, lg: 8 }, TYPOGRAPHY: { headline: {}, body: {}, label: {} } },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 16 }) },
     '../../src/ui/tab-bar-metrics': { tabBarHeight: bottom => 68 + Math.max(bottom - 8, 0) },
-    '../../src/config/features': { CROSS_DEVICE_SHARING_ENABLED: true },
+    '../../src/config/features': { CROSS_DEVICE_SHARING_ENABLED: true, LEAGUES_ENABLED: leaguesEnabled },
     '../../src/stores/auth-store': { useAuthStore },
     '../../src/stores/online-store': { useOnlineStore: selector => selector({ events: {} }) },
     '../../src/services/leagues': { leagueService: service },
@@ -51,6 +51,19 @@ function fixture(initialAuth, serviceOverrides = {}) {
 const league = { id: 'league-a', name: 'Weeknight', role: 'player', member_count: 2, event_count: 1 };
 const privateEvent = { id: 'event-private', name: 'Private round title', status: 'active', created_at: 'now', authorized: false, rounds: [] };
 const flatten = node => node == null ? '' : typeof node === 'string' ? node : Array.isArray(node) ? node.map(flatten).join('') : flatten(node.children);
+
+test.each([null, 'signed-in-host'])('direct League route is inert with Join on and Leagues off (identity %s)', async remoteUserId => {
+  const f = fixture({ remoteUserId, isAnonymous: false }, {}, false);
+  let tree;
+  try {
+    await act(async () => { tree = create(React.createElement(f.Screen)); });
+    expect(flatten(tree.toJSON())).toContain('Leagues are not available in this build.');
+    expect(tree.root.findAllByType('Pressable')).toHaveLength(0);
+    expect(tree.root.findAllByType('TextInput')).toHaveLength(0);
+    await act(async () => { f.auth.setState({ remoteUserId: 'another-host' }); });
+    for (const call of Object.values(f.service)) expect(call).not.toHaveBeenCalled();
+  } finally { if (tree) await act(async () => tree.unmount()); }
+});
 
 test('league guests load linked events and can request event-specific approval without a host roster query', async () => {
   const f = fixture({ remoteUserId: 'guest-a', isAnonymous: true }, {

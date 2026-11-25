@@ -9,8 +9,11 @@ test('current shipping profiles report committed defaults and remote auth status
   const eas = JSON.parse(fs.readFileSync(path.join(scoresnap, 'eas.json'), 'utf8'));
   const rows = Object.fromEntries(profileRows(eas.build).map((row) => [row.name, row]));
   for (const name of ['testflight', 'production']) {
-    assert.equal(rows[name].values.EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING, 'not committed');
-    assert.equal(rows[name].crossDeviceEnabled, false);
+    // AUG-1370 [hold]: release profiles now commit cross-device sharing = true so the Join entry
+    // point is visible in TestFlight/production builds (root cause: the flag was absent, defaulting
+    // false in src/config/features.ts). This PR is held for owner approval before merge.
+    assert.equal(rows[name].values.EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING, 'true');
+    assert.equal(rows[name].crossDeviceEnabled, true);
     assert.equal(rows[name].values.EXPO_PUBLIC_OFFLINE_MODE, 'not committed');
     assert.equal(rows[name].offlineMode, false);
     assert.equal(rows[name].realAuthConfigured, 'REMOTE/UNKNOWN');

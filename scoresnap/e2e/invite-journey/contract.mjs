@@ -20,6 +20,10 @@ export function assertShare(f,payload) {
   assert(urls.some(value=>new URL(value).pathname===(value.startsWith('snapscore:')?`/${f.code}`:`/join/${f.code}`) &&
     (!value.startsWith('snapscore:') || new URL(value).hostname==='join')),'Actual share URL must contain canonical invite');
 }
+export function assertManualShare(f,payload) {
+  assert.equal(payload, `Open SnapScore, tap Join with code, and enter ${f.code}. The host must approve your request.`,
+    'Actual share must contain the canonical manual code and no tap-to-open URL');
+}
 export function assertScores(f,s,{owner=true}={}) {
   assert.equal(s.contest_id,f.contestId);
   if(owner) assert.equal(s.invite_code,f.code);
