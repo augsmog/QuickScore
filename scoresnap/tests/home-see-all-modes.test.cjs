@@ -6,6 +6,12 @@ test('home See All opens the library instead of the first game', () => {
  expect(home).toContain('setShowGameLibrary(true)');
  expect(home).toContain('home-see-all-modes');
 });
+test('See All reserves a measurable Android 48dp frame without changing the iOS size', () => {
+ const home = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
+ expect(home).toContain('const SEE_ALL_TOUCH_SIZE = Platform.OS === "android" ? 48 : 44');
+ expect(home.slice(home.indexOf('testID="home-see-all-modes"'), home.indexOf('testID="home-see-all-modes"') + 200))
+   .toMatch(/minHeight: SEE_ALL_TOUCH_SIZE, minWidth: SEE_ALL_TOUCH_SIZE/);
+});
 test('library contains every playable capability exactly once', () => {
  const types = require('../src/engine/types.ts');
  const { GAME_MODE_LIBRARY } = require('../src/engine/game-mode-library.ts');
