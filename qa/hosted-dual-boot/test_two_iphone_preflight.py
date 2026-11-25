@@ -63,7 +63,7 @@ class Sim:
                               "supportedDeviceTypes": [{"identifier": supported}]}]}))
         if cmd == ["simctl", "list", "-j", "devicetypes"]:
             return result(json.dumps({"devicetypes": [{"identifier": subject.DEVICE}]}))
-        if cmd == ["simctl", "list", "-j", "devices", subject.RUNTIME]:
+        if cmd == ["simctl", "list", "-j", "devices", "26.4"]:
             if self.guest_boot_requested and self.failure == "joint-timeout" and self.devices.get(GUEST, {}).get("state") == "Booted":
                 self.failure = None  # only the joint read fails; cleanup remains observable
                 raise subprocess.TimeoutExpired(argv, timeout)
@@ -448,10 +448,11 @@ class PreflightTests(unittest.TestCase):
             subject.validate_catalog(d)
         calls=self.sim.calls
         self.assertEqual([c for c,_ in calls], [["xcodebuild","-version"],["simctl","list","-j","runtimes"],
-            ["simctl","list","-j","devicetypes"],["simctl","list","-j","devices",subject.RUNTIME]])
+            ["simctl","list","-j","devicetypes"],["simctl","list","-j","devices","26.4"]])
         self.assertTrue(all(0 < budget <= cap for (_,budget),cap in zip(calls,(12,22,12,15))))
         self.assertEqual(d.stage,"catalog-ownership-scope")
         self.assertTrue(d.catalog_verified)
+        self.assertEqual(d.fields()["catalogDeviceInventory"], "exact-nonempty")
         self.assertEqual(self.sim.mutations(), [])
 
     def test_catalog_timeout_has_exact_operation_stage_and_no_device_mutation(self):
@@ -459,7 +460,7 @@ class PreflightTests(unittest.TestCase):
             (["xcodebuild","-version"],"catalog-xcode"),
             (["simctl","list","-j","runtimes"],"catalog-runtime"),
             (["simctl","list","-j","devicetypes"],"catalog-device-type"),
-            (["simctl","list","-j","devices",subject.RUNTIME],"catalog-runtime-devices")]
+            (["simctl","list","-j","devices","26.4"],"catalog-runtime-devices")]
         for index,(argv,stage) in enumerate(catalog):
             with self.subTest(stage=stage):
                 self.sim.calls.clear()
@@ -484,12 +485,38 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(d.stage,"catalog-runtime")
         self.assertEqual([cmd for cmd,_ in self.sim.calls],[["xcodebuild","-version"]])
 
-    def test_broad_or_ambiguous_device_scope_is_rejected(self):
-        for doc in ({"devices":{subject.RUNTIME:[],"wrong.runtime":[]}},{"devices":{}},
-            {"devices":{subject.RUNTIME:[row(HOST,"x"),row(HOST,"y")]}},
-            {"devices":{subject.RUNTIME:[]},"runtimes":[]}):
-            with self.subTest(doc=doc),patch.object(subject,"command",return_value=json.dumps(doc)):
-                with self.assertRaisesRegex(subject.GateError,"inventory|category|ambiguous|identity"):subject.inventory()
+    def test_simctl_short_selector_retains_exact_runtime_validation(self):
+        def selection(*args, **kw):
+            self.assertEqual(args, ("simctl", "list", "-j", "devices", "26.4"))
+            self.assertEqual(kw, {"timeout": 7})
+            return json.dumps({"devices": {subject.RUNTIME: [row(EXISTING, "Private fixture name")]}})
+        with patch.object(subject, "command", side_effect=selection):
+            self.assertEqual(subject.inventory(timeout=7)[1][0][1]["udid"], EXISTING)
+
+    def test_exact_empty_runtime_is_distinguished_in_catalog_without_claiming_boot(self):
+        d = subject.Diagnostic()
+        self.sim.devices.clear()
+        baseline, _ = subject.validate_catalog(d)
+        self.assertEqual(baseline, {})
+        self.assertEqual(d.fields()["catalogDeviceInventory"], "exact-empty")
+        self.assertFalse(d.dual_boot_verified)
+        self.assertFalse(d.cleanup_attempted)
+        self.assertEqual(self.sim.mutations(), [])
+
+    def test_broad_or_ambiguous_device_scope_is_rejected_with_sanitized_codes(self):
+        cases = (
+            ({"devices": {}}, "RUNTIME_INVENTORY_KEY_ABSENT"),
+            ({"devices": {"private.runtime": [row(EXISTING, "private device")]}}, "RUNTIME_INVENTORY_KEY_ABSENT"),
+            ({"devices": {subject.RUNTIME: [], "private.runtime": []}}, "RUNTIME_INVENTORY_ADDITIONAL_KEYS"),
+            ({"devices": {subject.RUNTIME: [row(HOST, "x"), row(HOST, "y")]}}, "INVENTORY_INVALID"),
+            ({"devices": {subject.RUNTIME: []}, "runtimes": []}, "INVENTORY_INVALID"),
+        )
+        for doc, code in cases:
+            with self.subTest(code=code), patch.object(subject, "command", return_value=json.dumps(doc)):
+                with self.assertRaises(subject.GateError) as failure:
+                    subject.inventory()
+                redacted = subject.reason(failure.exception, "catalog-runtime-devices")
+                self.assertEqual(redacted, {"stage": "catalog-runtime-devices", "code": code})
 
     def test_unknown_scoped_device_blocks_before_guest_mutation(self):
         d=subject.Diagnostic()

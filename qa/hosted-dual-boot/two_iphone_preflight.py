@@ -24,6 +24,9 @@ HOST_ARCH = "x86_64"
 XCODE = "/Applications/Xcode_26.4.1.app/Contents/Developer"
 XCODE_ID = ("Xcode 26.4.1", "Build version 17E202")
 RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-26-4"
+# simctl's list filter uses the short display-version token, not the exact identifier used by
+# create and validation. The full identifier can return an empty group despite installed devices.
+RUNTIME_LIST_SELECTOR = "26.4"
 RUNTIME_VERSION = "26.4.1"
 RUNTIME_BUILD = "23E254a"
 DEVICE = "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro"
@@ -57,7 +60,8 @@ CLEANUP_STAGES = frozenset(("cleanup-identify", "cleanup-shutdown", "cleanup-shu
 CODES = frozenset(("HOST_SCOPE", "HOST_CONTEXT", "TRANSPORT_BUDGET_INVALID", "TRANSPORT_BUDGET_EXHAUSTED",
     "CATALOG_DEADLINE", "MEMORY_READBACK_INVALID", "INTEL_CAPACITY_PROFILE_MISMATCH", "SDK_READBACK_INVALID", "SDK_MISMATCH",
     "DISK_FLOOR", "XCODE_MISMATCH", "RUNTIME_MISMATCH", "DEVICE_TYPE_MISSING",
-    "RUNTIME_DEVICE_UNSUPPORTED", "INVENTORY_INVALID", "NONCE_COLLISION", "FRESH_UUID_REQUIRED",
+    "RUNTIME_DEVICE_UNSUPPORTED", "INVENTORY_INVALID", "RUNTIME_INVENTORY_KEY_ABSENT",
+    "RUNTIME_INVENTORY_ADDITIONAL_KEYS", "NONCE_COLLISION", "FRESH_UUID_REQUIRED",
     "DEVICE_SCOPE_UNVERIFIED", "UNKNOWN_DEVICE_IN_SCOPE", "UNOWNED_DEVICE_ACTIVE",
     "IDENTITY_DRIFT", "CREATED_NOT_SHUTDOWN", "PREBOOT_NOT_SHUTDOWN",
     "BOOT_DEADLINE", "HOST_NOT_STABLY_BOOTED", "GUEST_NOT_SHUTDOWN_BEFORE_BOOT", "POSTBOOT_NOT_BOOTED", "COMMAND_TIMEOUT", "COMMAND_NONZERO",
@@ -91,6 +95,7 @@ class Diagnostic:
         self.role = None
         self.primary = None
         self.catalog_verified = False
+        self.catalog_device_inventory = None
         self.host_boot_command_completed = False
         self.host_stable_before_guest = False
         self.guest_boot_requested = False
@@ -111,6 +116,7 @@ class Diagnostic:
     def fields(self):
         return {"primaryFailure": self.primary, "simultaneousBootVerified": self.dual_boot_verified,
                 "bootStrategy": "staged-host-then-guest", "catalogVerified": self.catalog_verified,
+                "catalogDeviceInventory": self.catalog_device_inventory,
                 "bootReadbacks": {"hostBootCommandCompleted": self.host_boot_command_completed,
                                   "hostStableBeforeGuest": self.host_stable_before_guest,
                                   "guestBootRequested": self.guest_boot_requested,
@@ -181,10 +187,14 @@ def json_category(category, timeout, *selector):
 
 def inventory(timeout=15):
     # Never enumerate pairs or other runtime device groups. Reject an ignored selector.
-    doc = json_category("devices", timeout, RUNTIME)
+    doc = json_category("devices", timeout, RUNTIME_LIST_SELECTOR)
     grouped = doc["devices"]
-    if not isinstance(grouped, dict) or set(grouped) != {RUNTIME}:
-        raise GateError("exact single runtime device inventory unverified", "INVENTORY_INVALID")
+    if not isinstance(grouped, dict):
+        raise GateError("malformed runtime device inventory grouping", "INVENTORY_INVALID")
+    if RUNTIME not in grouped:
+        raise GateError("exact runtime key absent from device inventory", "RUNTIME_INVENTORY_KEY_ABSENT")
+    if set(grouped) != {RUNTIME}:
+        raise GateError("additional keys in device inventory with exact runtime", "RUNTIME_INVENTORY_ADDITIONAL_KEYS")
     devices = grouped[RUNTIME]
     if not isinstance(devices, list) or len(devices) > DEVICE_SCOPE_LIMIT:
         raise GateError("malformed runtime device inventory", "INVENTORY_INVALID")
@@ -240,6 +250,9 @@ def validate_catalog(diagnostic=None):
         raise GateError("installed runtime does not advertise exact support for iPhone 16 Pro", "RUNTIME_DEVICE_UNSUPPORTED")
     d.at("catalog-runtime-devices")
     _, rows = inventory(timeout=budget(CATALOG_DEVICE_SECONDS))
+    # An exact empty key can be legitimate on a fresh runner. It is not proof of eventual boot,
+    # and creation, exact-UUID readbacks, ownership and cleanup checks remain mandatory.
+    d.catalog_device_inventory = "exact-nonempty" if rows else "exact-empty"
     d.at("catalog-ownership-scope")
     global_ids = device_set_baseline(lambda: budget())
     budget()
