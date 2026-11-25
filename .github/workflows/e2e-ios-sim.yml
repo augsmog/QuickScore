@@ -4,7 +4,7 @@ on:
 permissions: {}
 jobs:
   dual_boot:
-    if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-hosted-dual-boot-intel' && toJSON(github.event.repository.private) == 'false'
+    if: github.repository == 'augsmog/QuickScore' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/snapscore-dual-boot-short-selector-nov25' && toJSON(github.event.repository.private) == 'false'
     runs-on: macos-26-intel
     timeout-minutes: 8
     steps:
