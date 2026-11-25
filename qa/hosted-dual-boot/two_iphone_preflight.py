@@ -35,11 +35,13 @@ RECEIPT = "ownership.json"
 GIB = 1 << 30
 UUID_RE = re.compile(r"[0-9A-F]{8}(?:-[0-9A-F]{4}){3}-[0-9A-F]{12}")
 TOKEN_RE = re.compile(r"[0-9a-f]{32}")
+RUNTIME_KEY_RE = re.compile(r"com\.apple\.CoreSimulator\.SimRuntime\.[A-Za-z0-9.-]{1,96}")
 ROLES = ("host", "guest")
 CATALOG_SECONDS = 45
 CATALOG_KIND_SECONDS = 22
 CATALOG_DEVICE_SECONDS = 15
 DEVICE_SCOPE_LIMIT = 256
+RUNTIME_GROUP_LIMIT = 64
 PLIST_LIMIT = 65536
 ROLE_CLEANUP_SECONDS = 35
 SETTLE_SECONDS = 8
@@ -61,7 +63,7 @@ CODES = frozenset(("HOST_SCOPE", "HOST_CONTEXT", "TRANSPORT_BUDGET_INVALID", "TR
     "CATALOG_DEADLINE", "MEMORY_READBACK_INVALID", "INTEL_CAPACITY_PROFILE_MISMATCH", "SDK_READBACK_INVALID", "SDK_MISMATCH",
     "DISK_FLOOR", "XCODE_MISMATCH", "RUNTIME_MISMATCH", "DEVICE_TYPE_MISSING",
     "RUNTIME_DEVICE_UNSUPPORTED", "INVENTORY_INVALID", "RUNTIME_INVENTORY_KEY_ABSENT",
-    "RUNTIME_INVENTORY_ADDITIONAL_KEYS", "NONCE_COLLISION", "FRESH_UUID_REQUIRED",
+    "RUNTIME_INVENTORY_FOREIGN_CONTRADICTION", "NONCE_COLLISION", "FRESH_UUID_REQUIRED",
     "DEVICE_SCOPE_UNVERIFIED", "UNKNOWN_DEVICE_IN_SCOPE", "UNOWNED_DEVICE_ACTIVE",
     "IDENTITY_DRIFT", "CREATED_NOT_SHUTDOWN", "PREBOOT_NOT_SHUTDOWN",
     "BOOT_DEADLINE", "HOST_NOT_STABLY_BOOTED", "GUEST_NOT_SHUTDOWN_BEFORE_BOOT", "POSTBOOT_NOT_BOOTED", "COMMAND_TIMEOUT", "COMMAND_NONZERO",
@@ -96,6 +98,7 @@ class Diagnostic:
         self.primary = None
         self.catalog_verified = False
         self.catalog_device_inventory = None
+        self.catalog_additional_runtime_groups = None
         self.host_boot_command_completed = False
         self.host_stable_before_guest = False
         self.guest_boot_requested = False
@@ -117,6 +120,7 @@ class Diagnostic:
         return {"primaryFailure": self.primary, "simultaneousBootVerified": self.dual_boot_verified,
                 "bootStrategy": "staged-host-then-guest", "catalogVerified": self.catalog_verified,
                 "catalogDeviceInventory": self.catalog_device_inventory,
+                "catalogAdditionalRuntimeGroups": self.catalog_additional_runtime_groups,
                 "bootReadbacks": {"hostBootCommandCompleted": self.host_boot_command_completed,
                                   "hostStableBeforeGuest": self.host_stable_before_guest,
                                   "guestBootRequested": self.guest_boot_requested,
@@ -185,29 +189,39 @@ def json_category(category, timeout, *selector):
         raise GateError("unsupported simctl JSON category", "INVENTORY_INVALID") from exc
 
 
-def inventory(timeout=15):
-    # Never enumerate pairs or other runtime device groups. Reject an ignored selector.
+def inventory(timeout=15, *, token=None, owned_ids=(), cleanup=False):
+    # The short selector can return other runtime groups. Never use them to select a device
+    # for creation, boot, shutdown or delete. Inspect them only for contradictions to isolation.
     doc = json_category("devices", timeout, RUNTIME_LIST_SELECTOR)
     grouped = doc["devices"]
-    if not isinstance(grouped, dict):
+    if not isinstance(grouped, dict) or len(grouped) > RUNTIME_GROUP_LIMIT:
         raise GateError("malformed runtime device inventory grouping", "INVENTORY_INVALID")
     if RUNTIME not in grouped:
         raise GateError("exact runtime key absent from device inventory", "RUNTIME_INVENTORY_KEY_ABSENT")
-    if set(grouped) != {RUNTIME}:
-        raise GateError("additional keys in device inventory with exact runtime", "RUNTIME_INVENTORY_ADDITIONAL_KEYS")
-    devices = grouped[RUNTIME]
-    if not isinstance(devices, list) or len(devices) > DEVICE_SCOPE_LIMIT:
-        raise GateError("malformed runtime device inventory", "INVENTORY_INVALID")
     ids = set()
-    for row in devices:
-        if not isinstance(row, dict):
-            raise GateError("malformed device row", "INVENTORY_INVALID")
-        uid, name, state = (row.get(key) for key in ("udid", "name", "state"))
-        if not isinstance(uid, str) or not UUID_RE.fullmatch(uid) or uid in ids or not all(
-                isinstance(v, str) and 0 < len(v) <= 512 for v in (name, state)):
-            raise GateError("unknown, duplicate, or malformed runtime device identity", "INVENTORY_INVALID")
-        ids.add(uid)
-    return doc, [(RUNTIME, row) for row in devices]
+    reserved_names = {name_for(token, role) for role in ROLES} if token is not None else set()
+    reserved_ids = set(owned_ids)
+    for runtime, devices in grouped.items():
+        if not RUNTIME_KEY_RE.fullmatch(runtime) or not isinstance(devices, list):
+            raise GateError("malformed runtime device inventory group", "INVENTORY_INVALID")
+        if len(ids) + len(devices) > DEVICE_SCOPE_LIMIT:
+            raise GateError("runtime device inventory cap exceeded", "INVENTORY_INVALID")
+        for row in devices:
+            if not isinstance(row, dict):
+                raise GateError("malformed device row", "INVENTORY_INVALID")
+            uid, name, state = (row.get(key) for key in ("udid", "name", "state"))
+            if not isinstance(uid, str) or not UUID_RE.fullmatch(uid) or uid in ids or not all(
+                    isinstance(v, str) and 0 < len(v) <= 512 for v in (name, state)):
+                raise GateError("unknown, duplicate, or malformed runtime device identity", "INVENTORY_INVALID")
+            ids.add(uid)
+            if runtime != RUNTIME:
+                if uid in reserved_ids or name in reserved_names:
+                    raise GateError("other runtime conflicts with owned UUID or nonce", "RUNTIME_INVENTORY_FOREIGN_CONTRADICTION")
+                # Foreign state is only a negative capacity signal. During cleanup, a truly
+                # unrelated active device must not strand independently identified owned devices.
+                if not cleanup and state != "Shutdown":
+                    raise GateError("other runtime contains an active or unknown state", "UNOWNED_DEVICE_ACTIVE")
+    return doc, [(RUNTIME, row) for row in grouped[RUNTIME]]
 
 
 def catalog_records(category, budget):
@@ -249,18 +263,23 @@ def validate_catalog(diagnostic=None):
             sum(isinstance(item, dict) and item.get("identifier") == DEVICE for item in supported) != 1):
         raise GateError("installed runtime does not advertise exact support for iPhone 16 Pro", "RUNTIME_DEVICE_UNSUPPORTED")
     d.at("catalog-runtime-devices")
-    _, rows = inventory(timeout=budget(CATALOG_DEVICE_SECONDS))
+    doc, rows = inventory(timeout=budget(CATALOG_DEVICE_SECONDS))
     # An exact empty key can be legitimate on a fresh runner. It is not proof of eventual boot,
     # and creation, exact-UUID readbacks, ownership and cleanup checks remain mandatory.
     d.catalog_device_inventory = "exact-nonempty" if rows else "exact-empty"
+    d.catalog_additional_runtime_groups = len(doc["devices"]) > 1
     d.at("catalog-ownership-scope")
     global_ids = device_set_baseline(lambda: budget())
     budget()
+    # Cross-check every observed UUID/name against the bounded local device-set metadata.
+    # Only target-runtime rows enter the operating baseline.
+    for group in doc["devices"].values():
+        for row in group:
+            if global_ids.get(row["udid"]) != row["name"]:
+                raise GateError("runtime row lacks exact local device identity", "DEVICE_SCOPE_UNVERIFIED")
     baseline = {}
     for _, row in rows:
         uid, name = row["udid"], row["name"]
-        if global_ids.get(uid) != name:
-            raise GateError("runtime row lacks exact local device identity", "DEVICE_SCOPE_UNVERIFIED")
         if row["state"] != "Shutdown":
             raise GateError("pre-existing device is not Shutdown", "UNOWNED_DEVICE_ACTIVE")
         baseline[uid] = name
@@ -407,7 +426,7 @@ def remaining_until(deadline, limit):
 
 
 def fresh_owned(token, role, uid, deadline):
-    _, rows = inventory(timeout=remaining_until(deadline, 6))
+    _, rows = inventory(timeout=remaining_until(deadline, 6), token=token, owned_ids=(uid,), cleanup=True)
     row = lookup(rows, token, role, uid)
     if row is None and uid is not None:
         try:
@@ -559,7 +578,8 @@ def boot_pair(records, token, budget, d, baseline):
 
     def read_host_stability(stage):
         d.at(stage, "host")
-        _, rows = inventory(timeout=boot_remaining(host_phase_deadline, STABILITY_READ_SECONDS))
+        _, rows = inventory(timeout=boot_remaining(host_phase_deadline, STABILITY_READ_SECONDS),
+                            token=token, owned_ids=(*baseline, *records.values()))
         boot_remaining(host_phase_deadline, STABILITY_READ_SECONDS)
         scope_check(rows, baseline, records)
         require_state(rows, token, host, "host", "Booted", "HOST_NOT_STABLY_BOOTED")
@@ -581,7 +601,8 @@ def boot_pair(records, token, budget, d, baseline):
 
     # One fresh atomic inventory: historical host and guest observations cannot be paired.
     d.at("joint-booted-snapshot")
-    _, rows = inventory(timeout=boot_remaining(deadline, JOINT_READ_SECONDS))
+    _, rows = inventory(timeout=boot_remaining(deadline, JOINT_READ_SECONDS),
+                        token=token, owned_ids=(*baseline, *records.values()))
     boot_remaining(deadline, JOINT_READ_SECONDS)
     scope_check(rows, baseline, records)
     for role, uid in (("host", host), ("guest", guest)):
@@ -631,13 +652,13 @@ def _preflight(tmp, marker, minimum, budget, keep, d):
             data["records"][role] = uid
             write_receipt(receipt, data)
             d.at("create-readback", role)
-            _, rows = inventory()
+            _, rows = inventory(token=token, owned_ids=(*baseline, *data["records"].values()))
             scope_check(rows, baseline, data["records"])
             row = lookup(rows, token, role, uid)
             if not row or row.get("state") != "Shutdown" or row.get("isAvailable") is not True:
                 raise GateError(f"{role} newly created device is unavailable or not Shutdown", "CREATED_NOT_SHUTDOWN")
         d.at("preboot-readback")
-        _, rows = inventory()
+        _, rows = inventory(token=token, owned_ids=(*baseline, *data["records"].values()))
         scope_check(rows, baseline, data["records"])
         for role, uid in data["records"].items():
             d.at(d.stage, role)

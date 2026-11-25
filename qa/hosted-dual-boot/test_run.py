@@ -53,7 +53,7 @@ class Tests(unittest.TestCase):
    context.assert_not_called()
  def test_large_catalog_unique_exact_type(self):
   doc={'runtimes':[{'identifier':r.probe.RUNTIME,'isAvailable':True,'version':r.probe.RUNTIME_VERSION,'buildversion':r.probe.RUNTIME_BUILD,'supportedDeviceTypes':[{'identifier':r.probe.DEVICE}]}],'devicetypes':[{'identifier':'unrelated-'+str(i)} for i in range(250)]+[{'identifier':r.probe.DEVICE}]}
-  with patch.object(r.probe,'command',return_value='\n'.join(r.probe.XCODE_ID)),patch.object(r.probe,'catalog_records',side_effect=lambda name,_:doc[name]),patch.object(r.probe,'inventory',return_value=({},[])),patch.object(r.probe,'device_set_baseline',return_value={}):
+  with patch.object(r.probe,'command',return_value='\n'.join(r.probe.XCODE_ID)),patch.object(r.probe,'catalog_records',side_effect=lambda name,_:doc[name]),patch.object(r.probe,'inventory',return_value=({'devices':{r.probe.RUNTIME:[]}},[])),patch.object(r.probe,'device_set_baseline',return_value={}):
    self.assertEqual(r.probe.validate_catalog(),({},{ }))
    doc['devicetypes'].append({'identifier':r.probe.DEVICE})
    with self.assertRaises(r.probe.GateError):r.probe.validate_catalog()

@@ -17,6 +17,8 @@ HOST = "20000000-0000-4000-8000-000000000001"
 GUEST = "20000000-0000-4000-8000-000000000002"
 EXISTING = "10000000-0000-4000-8000-000000000003"
 FOREIGN = "30000000-0000-4000-8000-000000000004"
+FOREIGN_RUNTIME = "com.apple.CoreSimulator.SimRuntime.tvOS-26-4"
+OTHER_RUNTIME = "com.apple.CoreSimulator.SimRuntime.visionOS-26-4"
 MARK = "same-job"
 
 
@@ -28,6 +30,7 @@ class Sim:
     def __init__(self):
         self.devices = {EXISTING: row(EXISTING, "Already present", "Shutdown")}
         self.original = copy.deepcopy(self.devices[EXISTING])
+        self.extra_groups = {}
         self.calls = []
         self.host_stability_reads = 0
         self.guest_boot_requested = False
@@ -82,7 +85,7 @@ class Sim:
                     del self.devices[uid]
                     del self.delayed_delete[uid]
             devices = [dict(d) for d in self.devices.values()]
-            return result(json.dumps({"devices": {subject.RUNTIME: devices}}))
+            return result(json.dumps({"devices": {subject.RUNTIME: devices, **self.extra_groups}}))
         if cmd[:2] == ["simctl", "create"]:
             name = cmd[2]
             assert cmd[3:] == [subject.DEVICE, subject.RUNTIME]
@@ -507,7 +510,9 @@ class PreflightTests(unittest.TestCase):
         cases = (
             ({"devices": {}}, "RUNTIME_INVENTORY_KEY_ABSENT"),
             ({"devices": {"private.runtime": [row(EXISTING, "private device")]}}, "RUNTIME_INVENTORY_KEY_ABSENT"),
-            ({"devices": {subject.RUNTIME: [], "private.runtime": []}}, "RUNTIME_INVENTORY_ADDITIONAL_KEYS"),
+            ({"devices": {subject.RUNTIME: [], "private.runtime": []}}, "INVENTORY_INVALID"),
+            ({"devices": {subject.RUNTIME: [], FOREIGN_RUNTIME: {}}}, "INVENTORY_INVALID"),
+            ({"devices": {subject.RUNTIME: [row(HOST, "x")], FOREIGN_RUNTIME: [row(HOST, "y")]}}, "INVENTORY_INVALID"),
             ({"devices": {subject.RUNTIME: [row(HOST, "x"), row(HOST, "y")]}}, "INVENTORY_INVALID"),
             ({"devices": {subject.RUNTIME: []}, "runtimes": []}, "INVENTORY_INVALID"),
         )
@@ -517,6 +522,89 @@ class PreflightTests(unittest.TestCase):
                     subject.inventory()
                 redacted = subject.reason(failure.exception, "catalog-runtime-devices")
                 self.assertEqual(redacted, {"stage": "catalog-runtime-devices", "code": code})
+
+    def test_foreign_buckets_never_enter_target_scope_or_mutation(self):
+        self.sim.extra_groups = {FOREIGN_RUNTIME: [row(FOREIGN, "Independent fixture")], OTHER_RUNTIME: []}
+        ids = {EXISTING:"Already present", FOREIGN:"Independent fixture"}
+        d = subject.Diagnostic()
+        with patch.object(subject, "device_set_baseline", return_value=ids):
+            baseline, global_ids = subject.validate_catalog(d)
+            self.assertEqual(baseline, {EXISTING:"Already present"})
+            self.assertEqual(global_ids, ids)
+            self.assertTrue(d.fields()["catalogAdditionalRuntimeGroups"])
+            self.assertFalse(d.fields()["simultaneousBootVerified"])
+            verdict = self.probe()
+        self.assertEqual(verdict["disposition"], "deleted-and-verified")
+        self.assertEqual({uid for _, uid in self.sim.mutations()}, {HOST, GUEST})
+        self.assertEqual(self.sim.extra_groups[FOREIGN_RUNTIME][0]["state"], "Shutdown")
+        self.only_original()
+
+    def test_foreign_rows_must_agree_with_host_metadata_and_local_nonce_guard(self):
+        from types import SimpleNamespace
+        token = "c" * 32
+        name = subject.name_for(token, "host")
+        self.sim.extra_groups = {FOREIGN_RUNTIME: [row(FOREIGN, name)]}
+        with self.assertRaises(subject.GateError) as missing:
+            self.probe()
+        self.assertEqual(missing.exception.code, "DEVICE_SCOPE_UNVERIFIED")
+        with patch.object(subject, "device_set_baseline", return_value={EXISTING:"Already present", FOREIGN:name}), \
+                patch.object(subject.uuid, "uuid4", return_value=SimpleNamespace(hex=token)):
+            with self.assertRaises(subject.GateError) as collision:
+                self.probe()
+        self.assertEqual(collision.exception.code, "NONCE_COLLISION")
+        self.assertFalse(any(cmd[:2] == ["simctl", "create"] for cmd, _ in self.sim.calls))
+
+    def test_foreign_active_device_blocks_admission_but_never_gets_touched(self):
+        self.sim.extra_groups = {FOREIGN_RUNTIME: [row(FOREIGN, "Independent fixture", "Booted")]}
+        with self.assertRaises(subject.GateError) as failure:
+            self.probe()
+        self.assertEqual(failure.exception.code, "UNOWNED_DEVICE_ACTIVE")
+        self.assertFalse(any(cmd[:2] == ["simctl", "create"] for cmd, _ in self.sim.calls))
+        self.assertFalse(self.sim.mutations())
+
+    def test_foreign_uuid_or_nonce_only_blocks_owned_readback_including_cleanup(self):
+        token = "b" * 32
+        for foreign in [row(HOST, "Other label"), row(FOREIGN, subject.name_for(token, "guest"))]:
+            for cleanup in [False, True]:
+                self.sim.extra_groups = {FOREIGN_RUNTIME: [foreign]}
+                with self.assertRaises(subject.GateError) as failure:
+                    subject.inventory(token=token, owned_ids=(HOST,), cleanup=cleanup)
+                self.assertEqual(failure.exception.code, "RUNTIME_INVENTORY_FOREIGN_CONTRADICTION")
+        self.assertFalse(self.sim.mutations())
+
+    def test_owned_uuid_reappearing_outside_exact_runtime_blocks_boot_and_cleanup(self):
+        original = self.sim.run
+        def drift_after_create(argv, **kw):
+            response = original(argv, **kw)
+            if argv[1:3] == ["simctl", "create"]:
+                self.sim.extra_groups = {FOREIGN_RUNTIME: [self.sim.devices.pop(HOST)]}
+            return response
+        d = subject.Diagnostic()
+        with patch.object(subject.subprocess, "run", side_effect=drift_after_create):
+            with self.assertRaises(subject.GateError):
+                subject.preflight(self.tmp, MARK, 4*subject.GIB, subject.BOOT_SHARED_SECONDS, False, d)
+        self.assertEqual(d.primary, {"stage":"create-readback", "role":"host", "code":"RUNTIME_INVENTORY_FOREIGN_CONTRADICTION"})
+        self.assertFalse(d.cleanup_verified)
+        self.assertEqual(d.cleanup_failures, [
+            {"stage":"cleanup-identify", "role":"host", "code":"RUNTIME_INVENTORY_FOREIGN_CONTRADICTION"}])
+        self.assertFalse(self.sim.mutations())
+
+    def test_unrelated_active_foreign_device_does_not_prevent_safe_owned_cleanup(self):
+        original = self.sim.run
+        def active_after_host_boot(argv, **kw):
+            response = original(argv, **kw)
+            if argv[1:4] == ["simctl", "bootstatus", HOST]:
+                self.sim.extra_groups = {FOREIGN_RUNTIME: [row(FOREIGN, "Independent fixture", "Booted")]}
+            return response
+        d = subject.Diagnostic()
+        with patch.object(subject.subprocess, "run", side_effect=active_after_host_boot):
+            with self.assertRaises(subject.GateError):
+                subject.preflight(self.tmp, MARK, 4*subject.GIB, subject.BOOT_SHARED_SECONDS, False, d)
+        self.assertEqual(d.primary, {"stage":"host-stability-first", "role":"host", "code":"UNOWNED_DEVICE_ACTIVE"})
+        self.assertTrue(d.cleanup_verified)
+        self.assertFalse(d.guest_boot_requested)
+        self.assertFalse(any(uid == FOREIGN for _, uid in self.sim.mutations()))
+        self.only_original()
 
     def test_unknown_scoped_device_blocks_before_guest_mutation(self):
         d=subject.Diagnostic()
