@@ -1,7 +1,7 @@
 """Staged disposable dual boot only; bounded redacted terminal receipt."""
 import contextlib,json,os,re,signal,subprocess,sys,time
 import two_iphone_preflight as probe
-REF='refs/heads/qa/snapscore-hosted-dual-boot-intel'
+REF='refs/heads/qa/snapscore-dual-boot-short-selector-nov25'
 FLOOR=12*(1<<30)
 TRANSPORT_MAX_NS=30_000_000_000
 EXPECTED_SDK=("26.4", "23E252")

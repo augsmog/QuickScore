@@ -38,7 +38,7 @@ jobs:
             path="qa/hosted-dual-boot/$file"
             blob="$(g rev-parse "$GITHUB_SHA:$path")"
             case "$file" in
-              run.py) expected=ce5822862a8afa4a2460d6a0374b586a7c84c756 ;;
+              run.py) expected=b390ce01f68a5581a6338124a78ae62d69239ee3 ;;
               two_iphone_preflight.py) expected=64bbdf36baddf4d90c7afe57e5b49ea8f3299f00 ;;
             esac
             [[ "$blob" == "$expected" ]]
