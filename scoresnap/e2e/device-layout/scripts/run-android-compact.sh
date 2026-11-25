@@ -5,8 +5,8 @@
 # Builds the candidate debug APK, installs it, forces a compact ~360dp window, drives the Maestro
 # device-layout capture flows (one checkpoint per sub-flow, `maestro hierarchy` + screenshot after
 # each), turns the capture into a candidate-bound bundle, and scores it with the deterministic
-# geometry runner (rules 1–8). When the whole run stays under the wall-time budget it also runs a
-# 1.3 font-scale large-text geometry pass (DEVICE_LAYOUT_LARGE_TEXT).
+# geometry runner (rules 1–8). The baseline always verifies 1.0 font scale. When
+# DEVICE_LAYOUT_LARGE_TEXT is enabled, verified 1.3 evidence is mandatory, even on budget expiry.
 #
 # Paths resolve from the module dir ($DL) and repo root ($ROOT); DEVICE_LAYOUT_ROOT /
 # DEVICE_LAYOUT_OUT override them (lib/native-scripts.test.mjs proves the real script against a
@@ -22,9 +22,15 @@ SHA="$(git -C "$ROOT" rev-parse HEAD)"
 OUTROOT="${DEVICE_LAYOUT_OUT:-$(mktemp -d)}"
 export DEVICE_LAYOUT_OUT="$OUTROOT"
 FLOWS="$ROOT/.maestro/flows/device-layout"
-AX_BUDGET_S="${DEVICE_LAYOUT_AX_BUDGET_S:-900}"   # < 15 min total → also run the 1.3 large-text pass
+AX_BUDGET_S="${DEVICE_LAYOUT_AX_BUDGET_S:-900}"   # latest allowed start for the required 1.3 pass
 START_TS="$(date +%s)"
 mkdir -p "$OUTROOT"
+
+case "${DEVICE_LAYOUT_LARGE_TEXT:-}" in
+  true|1) LARGE_TEXT=1 ;;
+  false|0|"") LARGE_TEXT=0 ;;
+  *) echo "::error::invalid DEVICE_LAYOUT_LARGE_TEXT; expected true, false, 1 or 0"; exit 1 ;;
+esac
 
 if [ ! -d "$FLOWS" ] || [ ! -f "$DL/scripts/build-android.sh" ] || [ ! -f "$DL/scripts/bundle-from-maestro.mjs" ]; then
   echo "::error::device-layout Android native harness not present yet (AUG-1376). No device capture produced."
@@ -67,17 +73,98 @@ VPW="$(awk -v p="$PXW" -v d="$DENSITY" 'BEGIN{printf "%d", p/d}')"
 VPH="$(awk -v p="$PXH" -v d="$DENSITY" 'BEGIN{printf "%d", p/d}')"
 echo "device-layout: measured dpi=$DPI size=${PXW}x${PXH} density=$DENSITY viewport=${VPW}x${VPH}dp"
 
-# Build the candidate APK for the exact SHA, then install it (guarded so the stub harness, which
-# does not emit an apk path, does not abort).
+# A stale build receipt must not stand in for a newly built candidate. The build script emits
+# the absolute APK path and the lowercase SHA-256 of its bytes; check both before any capture.
+HASH_FILE="$OUTROOT/android-build-hash.txt"
+APK_FILE="$OUTROOT/android-apk-path.txt"
+for receipt in "$HASH_FILE" "$APK_FILE"; do
+  if [ -e "$receipt" ] || [ -L "$receipt" ]; then
+    echo "::error::refusing to reuse Android build receipt $receipt; choose a fresh DEVICE_LAYOUT_OUT"
+    exit 1
+  fi
+done
 bash "$DL/scripts/build-android.sh"
-BUILD_HASH="$(cat "$OUTROOT/android-build-hash.txt" 2>/dev/null || echo '')"
-APK="$(cat "$OUTROOT/android-apk-path.txt" 2>/dev/null || true)"
-[ -n "$APK" ] && adb -s "$SERIAL" install -r -t "$APK" || true
+if [ ! -s "$APK_FILE" ] || [ ! -f "$APK_FILE" ] || [ -L "$APK_FILE" ]; then
+  echo "::error::missing fresh Android APK path receipt"
+  exit 1
+fi
+APK="$(cat "$APK_FILE")"
+if [[ "$APK" != /*.apk ]] || [[ "$APK" == *$'\n'* ]] || [[ "$APK" == *$'\r'* ]] ||
+    [ ! -f "$APK" ] || [ ! -s "$APK" ] || [ -L "$APK" ]; then
+  echo "::error::Android APK path must name an absolute, nonempty regular .apk file"
+  exit 1
+fi
+if [ ! -s "$HASH_FILE" ] || [ ! -f "$HASH_FILE" ] || [ -L "$HASH_FILE" ]; then
+  echo "::error::missing fresh Android APK hash receipt"
+  exit 1
+fi
+BUILD_HASH="$(cat "$HASH_FILE")"
+if [[ ! "$BUILD_HASH" =~ ^[a-f0-9]{64}$ ]]; then
+  echo "::error::Android APK build hash must be a lowercase SHA-256 digest"
+  exit 1
+fi
+actual_hash="$(node -e '
+  const fs = require("node:fs"), crypto = require("node:crypto");
+  const fd = fs.openSync(process.argv[1], "r");
+  const header = Buffer.alloc(4);
+  const read = fs.readSync(fd, header, 0, header.length, 0);
+  if (read !== header.length || header.toString("hex") !== "504b0304") {
+    fs.closeSync(fd);
+    throw new Error("Android APK has no ZIP local file header");
+  }
+  const hash = crypto.createHash("sha256");
+  const input = fs.createReadStream(process.argv[1], { fd, start: 0 });
+  input.on("data", chunk => hash.update(chunk));
+  input.on("end", () => console.log(hash.digest("hex")));
+' "$APK")"
+if [ "$actual_hash" != "$BUILD_HASH" ]; then
+  echo "::error::Android APK SHA-256 does not match the candidate build receipt"
+  exit 1
+fi
+if ! install_result="$(adb -s "$SERIAL" install -r -t "$APK" 2>&1)" ||
+    ! printf '%s\n' "$install_result" | tr -d '\r' | grep -qx 'Success'; then
+  printf '::error::candidate Android APK install failed\n%s\n' "$install_result"
+  exit 1
+fi
+
+# A capture label records the verified device-wide setting, not the app's rendered text size.
+# Compare numerically (e.g. 1.30 is 1.3) after stripping adb's trailing CR/LF.
+verify_font_scale() {
+  local expected="$1" actual
+  if ! actual="$(adb -s "$SERIAL" shell settings get system font_scale)"; then
+    echo "::error::device-layout could not read Android font_scale (expected $expected)"
+    return 1
+  fi
+  if ! LC_ALL=C awk -v actual="$actual" -v expected="$expected" 'BEGIN {
+    gsub(/[[:space:]]+$/, "", actual)
+    if (actual !~ /^[0-9]+([.][0-9]+)?$/ || (actual+0)!=(expected+0)) exit 1
+  }'; then
+    echo "::error::device-layout Android font_scale readback mismatch (expected $expected)"
+    return 1
+  fi
+}
+set_font_scale() {
+  local expected="$1"
+  if ! adb -s "$SERIAL" shell settings put system font_scale "$expected" >/dev/null; then
+    echo "::error::device-layout could not set Android font_scale to $expected"
+    return 1
+  fi
+  verify_font_scale "$expected"
+}
+restore_baseline() {
+  local status=$?
+  if ! set_font_scale 1.0; then status=1; fi
+  exit "$status"
+}
 
 # Drive every checkpoint of every flow dir into $1, dumping hierarchy + screenshot per checkpoint.
-# $2 (optional) stamps a fontScale into each checkpoint context (large-text pass).
+# $2 is the required, verified fontScale stamped into each checkpoint context.
 capture_flows() {
-  local capdir="$1" fontscale="${2:-}" order=0 flowdir flow sub base slug
+  local capdir="$1" fontscale="$2" order=0 flowdir flow sub base slug
+  if [ -e "$capdir" ] || [ -L "$capdir" ]; then
+    echo "::error::refusing to reuse Android capture directory $capdir; choose a fresh DEVICE_LAYOUT_OUT"
+    return 1
+  fi
   mkdir -p "$capdir"
   for flowdir in "$FLOWS"/*/; do
     [ -d "$flowdir" ] || continue
@@ -88,19 +175,27 @@ capture_flows() {
       slug="$(basename "$sub" .yaml | sed 's/^[0-9]*-//; s/-/ /g')"
       echo "  checkpoint $base"
       if ! flow_test "$capdir/$base.maestro.log" maestro --device "$SERIAL" test "$sub"; then
-        echo "::warning::maestro sub-flow failed or timed out (>${FLOW_TIMEOUT_S}s): $sub"
+        echo "::error::maestro sub-flow failed or timed out (>${FLOW_TIMEOUT_S}s): $sub"
         tail -20 "$capdir/$base.maestro.log" || true
+        return 1
       fi
-      maestro --device "$SERIAL" hierarchy > "$capdir/$base.hierarchy.json" 2>/dev/null || echo '{"attributes":{},"children":[]}' > "$capdir/$base.hierarchy.json"
-      adb -s "$SERIAL" exec-out screencap -p > "$capdir/$base.png" 2>/dev/null || true
-      if [ -n "$fontscale" ]; then
-        printf '{"flow":"%s","checkpoint":"%s","screen":"%s","state":"default","fontScale":%s}\n' "$flow" "$slug" "$flow" "$fontscale" > "$capdir/$base.ctx.json"
-      else
-        printf '{"flow":"%s","checkpoint":"%s","screen":"%s","state":"default"}\n' "$flow" "$slug" "$flow" > "$capdir/$base.ctx.json"
+      verify_font_scale "$fontscale" || return 1
+      if ! maestro --device "$SERIAL" hierarchy > "$capdir/$base.hierarchy.json" 2>/dev/null ||
+          [ ! -s "$capdir/$base.hierarchy.json" ] ||
+          ! adb -s "$SERIAL" exec-out screencap -p > "$capdir/$base.png" 2>/dev/null ||
+          [ ! -s "$capdir/$base.png" ]; then
+        echo "::error::missing Android hierarchy or screenshot for $base at font_scale $fontscale"
+        return 1
       fi
+      printf '{"flow":"%s","checkpoint":"%s","screen":"%s","state":"default","fontScale":%s}\n' "$flow" "$slug" "$flow" "$fontscale" > "$capdir/$base.ctx.json"
       order=$((order+1))
     done
   done
+  if [ "$order" -eq 0 ]; then
+    echo "::error::missing Android checkpoints at font_scale $fontscale"
+    return 1
+  fi
+  verify_font_scale "$fontscale"
 }
 
 # Capture dir → manifest → candidate-bound bundle → geometry gate.
@@ -122,20 +217,27 @@ gate_capture() {
 }
 
 OUTDIR="$OUTROOT/$PROFILE"
-capture_flows "$OUTDIR"
-gate_capture "$OUTDIR" bundle.json
+set_font_scale 1.0
+capture_flows "$OUTDIR" 1.0
+gate_capture "$OUTDIR" bundle.json --font-scale 1.0
 
-# Large-text pass (font_scale 1.3) when enabled and comfortably under the wall-time budget.
-ELAPSED=$(( $(date +%s) - START_TS ))
-if [ -n "${DEVICE_LAYOUT_LARGE_TEXT:-}" ] && [ "$ELAPSED" -lt "$AX_BUDGET_S" ]; then
-  echo "--- $PROFILE large-text pass (font_scale 1.3, elapsed ${ELAPSED}s < ${AX_BUDGET_S}s) ---"
-  adb -s "$SERIAL" shell settings put system font_scale 1.3 >/dev/null 2>&1 || true
+if [ "$LARGE_TEXT" -eq 1 ]; then
+  ELAPSED=$(( $(date +%s) - START_TS ))
+  if [ "$ELAPSED" -ge "$AX_BUDGET_S" ]; then
+    echo "::error::required Android font_scale 1.3 capture not attempted: elapsed ${ELAPSED}s >= ${AX_BUDGET_S}s budget"
+    exit 1
+  fi
+  echo "--- $PROFILE required large-text pass (font_scale 1.3, elapsed ${ELAPSED}s < ${AX_BUDGET_S}s) ---"
+  # Always restore the emulator if setting, capture or geometry fails during the large-text leg.
+  trap restore_baseline EXIT
+  set_font_scale 1.3
   CAPAX="$OUTROOT/$PROFILE-large-text"
   capture_flows "$CAPAX" 1.3
   gate_capture "$CAPAX" bundle.large-text.json --font-scale 1.3
-  adb -s "$SERIAL" shell settings put system font_scale 1.0 >/dev/null 2>&1 || true
-elif [ -n "${DEVICE_LAYOUT_LARGE_TEXT:-}" ]; then
-  echo "::notice::skipping large-text pass for $PROFILE (elapsed ${ELAPSED}s >= ${AX_BUDGET_S}s) — nightly covers 1.3"
+  set_font_scale 1.0
+  trap - EXIT
+else
+  echo "device-layout: baseline only (Android 1.3 capture not requested)"
 fi
 
 [ "$FAIL" -eq 0 ] && echo "device-layout android: PASS" || echo "device-layout android: FAIL"

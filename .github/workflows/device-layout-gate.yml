@@ -23,6 +23,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      android_rehearsal:
+        description: "Android emulator rehearsal only; no release verdict"
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -48,6 +53,11 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           head="${{ github.sha }}"
           if [ -z "$base" ]; then base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"; fi
+          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.android_rehearsal }}" = "true" ]; then
+            [ "$(git rev-parse HEAD)" = "${{ github.sha }}" ] || { echo "::error::rehearsal source mismatch"; exit 1; }
+            printf 'ui=true\nnative=true\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           files="$(git diff --name-only "$base" "$head" || true)"
           echo "changed files:"; echo "$files"
           # UI-affecting: app routes, shared UI/theme/assets, native/config/deps, flows, the gate
@@ -180,7 +190,7 @@ jobs:
     needs: [changes, deterministic, vision-selfcheck]
     # iOS rows on the self-hosted Mac mini runner (labels self-hosted, ios-sim), owner card t1550s9640.
     # Every PR: iPhone 16 Pro (402x874) + iPhone SE 3 (375x667); AX3 text when the run stays < 15 min.
-    if: ${{ needs.changes.outputs.native == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    if: ${{ needs.changes.outputs.native == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && !(github.event_name == 'workflow_dispatch' && inputs.android_rehearsal) }}
     runs-on: [self-hosted, ios-sim]
     # Target is both profiles <= 25 min on a warm Mac (parallel sims + in-flow screenshot lift, see
     # run-ios-sim.sh). Cap raised 45→60 as a safety net while the per-phase timings from this run
@@ -225,7 +235,7 @@ jobs:
     # live rubric self-check on the owner negative fixtures with the same reviewer. Runs on the
     # Mac runner, where the reviewer command (DEVICE_LAYOUT_VISION_CMD) is configured runner-side;
     # no model credentials live in GitHub. Unset reviewer or missing bundles => FAIL (fail closed).
-    if: ${{ !cancelled() && needs.changes.outputs.native == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    if: ${{ !cancelled() && needs.changes.outputs.native == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && !(github.event_name == 'workflow_dispatch' && inputs.android_rehearsal) }}
     runs-on: [self-hosted, ios-sim]
     timeout-minutes: 30
     steps:
@@ -249,7 +259,7 @@ jobs:
     # The ONE aggregate status check. Its name is the contract: branch protection on main and
     # augie-os-control safe_merge.py both require a check named exactly `device-layout-gate`.
     # Always runs and always reports, so doc-only PRs are not blocked.
-    if: always()
+    if: ${{ always() && !(github.event_name == 'workflow_dispatch' && inputs.android_rehearsal) }}
     needs: [changes, deterministic, vision-selfcheck, android-compact, ios-sim, vision-candidate]
     runs-on: ubuntu-latest
     timeout-minutes: 5

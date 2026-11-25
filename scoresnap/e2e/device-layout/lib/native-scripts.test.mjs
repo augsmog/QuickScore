@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, cpSync, chmodSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, cpSync, chmodSync, readFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
@@ -20,20 +20,112 @@ const out = f('--out'); const profile = f('--profile'); const platform = f('--pl
 const cfgText = readFileSync(new URL('../config/device-layout.config.json', import.meta.url), 'utf8');
 const cfg = JSON.parse(cfgText);
 const prof = cfg.profiles.find((p) => p.id === profile);
-const context = { viewport: { width: prof.logicalSize[0], height: prof.logicalSize[1] }, safeArea: { top: 20, bottom: 0, left: 0, right: 0 } };
+const manifest = JSON.parse(readFileSync(join(a[0], 'capture-manifest.json'), 'utf8'));
+const geometryFault = process.env.STUB_SCALE_CASE === 'geometry-1.3' && manifest.fontScale === 1.3;
+const context = { viewport: { width: prof.logicalSize[0], height: prof.logicalSize[1] }, fontScale: manifest.fontScale ?? 1, safeArea: { top: 20, bottom: 0, left: 0, right: 0 } };
 mkdirSync(join(dirname(out), 'shots'), { recursive: true });
 const checkpoints = []; let i = 0;
 for (const fl of cfg.flows.filter((x) => x.cadence === 'per-pr')) for (const c of fl.checkpoints) {
   const rel = 'shots/' + (i++) + '.png'; const buf = Buffer.from(profile + rel);
   writeFileSync(join(dirname(out), rel), buf);
-  const box = { left: 20, top: 100, right: 340, bottom: 160 };
+  const box = { left: 20, top: 100, right: geometryFault ? 999 : 340, bottom: 160 };
   checkpoints.push({ flow: fl.id, checkpoint: c, screen: fl.id, deviceId: profile, platform, context,
     nodes: [{ id: 'b', role: 'control', text: 'b', bbox: box, hitRegion: box, enabled: true, parentId: null, meta: { required: true } }],
     screenshot: rel, screenshotSha256: createHash('sha256').update(buf).digest('hex') });
 }
-writeFileSync(out, JSON.stringify({ sourceSha: f('--source-sha'), buildHash: 'stub-build', profile, platform,
+writeFileSync(out, JSON.stringify({ sourceSha: f('--source-sha'), buildHash: platform === 'android' ? readFileSync(join(process.env.DEVICE_LAYOUT_OUT, 'android-build-hash.txt'), 'utf8').trim() : 'stub-build', profile, platform,
   configSha256: createHash('sha256').update(cfgText).digest('hex'), checkpoints }));
 `;
+
+// A minimal valid ZIP container with one AndroidManifest.xml entry. It is intentionally not a
+// signed/installable Android package: the fake adb is the install boundary in this test.
+const BUILD_ANDROID = `set -eu
+node --input-type=module <<'NODE'
+import { createHash } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+const out = process.env.DEVICE_LAYOUT_OUT;
+const fault = process.env.STUB_SCALE_CASE;
+const apk = join(out, 'app fixture.apk');
+const data = Buffer.from('UEsDBBQAAAAAAAAAIQAEQArSFwAAABcAAAATAAAAQW5kcm9pZE1hbmlmZXN0LnhtbFNuYXBTY29yZSB0ZXN0IFpJUCBvbmx5UEsBAhQDFAAAAAAAAAAhAARACtIXAAAAFwAAABMAAAAAAAAAAAAAAIABAAAAAEFuZHJvaWRNYW5pZmVzdC54bWxQSwUGAAAAAAEAAQBBAAAASAAAAAAA', 'base64');
+if (fault !== 'absent-apk') {
+  writeFileSync(apk, fault === 'nonzip-apk' ? 'not an apk' : data);
+}
+if (fault !== 'missing-path') {
+  const path = fault === 'relative-path' ? 'app fixture.apk' : apk;
+  writeFileSync(join(out, 'android-apk-path.txt'), path + '\\n');
+}
+if (fault !== 'missing-hash') {
+  const hash = fault === 'invalid-hash' ? 'not-a-sha256'
+    : fault === 'mismatch-hash' ? '0'.repeat(64) : createHash('sha256').update(data).digest('hex');
+  writeFileSync(join(out, 'android-build-hash.txt'), hash + '\\n');
+}
+NODE
+echo built-android
+`;
+
+const MAESTRO = `case "\${STUB_SCALE_CASE:-}:$*" in
+  failed-flow-1.3:*" test "*)
+    [ "$(cat "$DEVICE_LAYOUT_OUT/stub-font-scale")" != 1.3 ] || { echo "stub flow assertion failed"; exit 74; } ;;
+  timeout-flow-1.3:*" test "*)
+    [ "$(cat "$DEVICE_LAYOUT_OUT/stub-font-scale")" != 1.3 ] || { echo "stub flow timeout"; exit 124; } ;;
+  failed-hierarchy-1.3:*" hierarchy")
+    [ "$(cat "$DEVICE_LAYOUT_OUT/stub-font-scale")" != 1.3 ] || exit 74 ;;
+  empty-hierarchy-1.3:*" hierarchy")
+    [ "$(cat "$DEVICE_LAYOUT_OUT/stub-font-scale")" != 1.3 ] || exit 0 ;;
+esac
+echo "maestro $*"
+`;
+
+// Use an actual adb-shaped CLI stub with persisted system settings so the entry script, not a
+// copied implementation of its guard, sees write failure, read failure, drift and missing capture.
+const ADB = `set -eu
+if [ "\${1:-}" = -s ]; then shift 2; fi
+state="$DEVICE_LAYOUT_OUT/stub-font-scale"
+case "$*" in
+  wait-for-device) ;;
+  devices) echo "emulator-5554 device" ;;
+  "shell wm density") echo "Override density: 480" ;;
+  "shell wm size") echo "Override size: 1080x2400" ;;
+  "shell settings put system font_scale "*)
+    if [ "\${STUB_SCALE_CASE:-}" = "write-$6" ]; then exit 74; fi
+    printf '%s' "$6" > "$state"
+    printf 'put %s\n' "$6" >> "$state.log"
+    ;;
+  "shell settings get system font_scale")
+    current="$(cat "$state")"
+    printf 'get %s\n' "$current" >> "$state.log"
+    case "\${STUB_SCALE_CASE:-}:$current" in
+      "read-1.3:1.3") exit 74 ;;
+      "drift-1.3:1.3")
+        if [ "$(grep -c 'get 1.3' "$state.log")" -gt 1 ]; then current=1.0; fi ;;
+      "mismatch-1.0:1.0") current=1.3 ;;
+      "mismatch-1.3:1.3") current=1.0 ;;
+      "null-1.3:1.3") current=null ;;
+      "malformed-1.3:1.3") current=1.3x ;;
+      *) current="\${current}0" ;;
+    esac
+    printf '%s\r\n' "$current"
+    ;;
+  "install -r -t "*)
+    [ "$4" = "$DEVICE_LAYOUT_OUT/app fixture.apk" ] || exit 99
+    printf '%s' "$4" > "$DEVICE_LAYOUT_OUT/stub-installed-apk"
+    case "\${STUB_SCALE_CASE:-}" in
+      failed-install) echo 'Failure [INSTALL_FAILED_INVALID_APK]'; exit 74 ;;
+      no-install-success) echo 'Failure [INSTALL_FAILED_INVALID_APK]'; exit 0 ;;
+    esac
+    printf 'Performing Streamed Install\nSuccess\r\n'
+    ;;
+  "exec-out screencap -p")
+    current="$(cat "$state")"
+    case "\${STUB_SCALE_CASE:-}:$current" in
+      "empty-shot-1.3:1.3") exit 0 ;;
+      "failed-shot-1.0:1.0") exit 74 ;;
+    esac
+    printf 'nonempty-stub-png'
+    ;;
+  *) ;;
+esac`;
 
 // Stub reviewer: replays the committed calibration review for owner fixtures (live self-check),
 // and returns a clean, bound review for candidate screenshots.
@@ -56,19 +148,24 @@ function fakeRepo({ harness = true } = {}) {
   const dl = join(root, 'scoresnap/e2e/device-layout');
   cpSync(DL_SRC, dl, { recursive: true });
   const bin = join(root, '.stubbin'); mkdirSync(bin);
+  const home = join(root, '.stubhome'); mkdirSync(home);
   for (const [name, body] of Object.entries({
-    adb: 'echo "emulator-5554 device"', maestro: 'echo "maestro $*"', sw_vers: 'echo 26.4', xcodebuild: 'echo "Xcode 26.4.1"',
+    adb: ADB, maestro: MAESTRO, sw_vers: 'echo 26.4', xcodebuild: 'echo "Xcode 26.4.1"',
+    // Installed xcrun must never create/delete real simulators in this stub fixture.
+    xcrun: 'exit 1',
   })) { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); }
   if (harness) {
     mkdirSync(join(root, '.maestro/flows/device-layout'), { recursive: true });
-    writeFileSync(join(root, '.maestro/flows/device-layout/new-contest.yaml'), 'appId: stub\n');
-    writeFileSync(join(dl, 'scripts/build-android.sh'), 'echo built-android\n');
+    mkdirSync(join(root, '.maestro/flows/device-layout/new-contest'));
+    writeFileSync(join(root, '.maestro/flows/device-layout/new-contest/00-empty-wizard.yaml'), 'appId: stub\n');
+    writeFileSync(join(dl, 'scripts/build-android.sh'), BUILD_ANDROID);
     writeFileSync(join(dl, 'scripts/build-ios-sim.sh'), 'echo built-ios\n');
     writeFileSync(join(dl, 'scripts/bundle-from-maestro.mjs'), BUNDLER);
   }
   writeFileSync(join(root, 'reviewer.mjs'), REVIEWER);
   execFileSync('bash', ['-c', 'git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm stub'], { cwd: root });
-  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, DEVICE_LAYOUT_OUT: join(root, 'out'),
+  const env = { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}`, DEVICE_LAYOUT_OUT: join(root, 'out'),
+    DEVICE_LAYOUT_LARGE_TEXT: '', DEVICE_LAYOUT_AX_BUDGET_S: '', STUB_SCALE_CASE: '',
     CAL_DIR: join(dl, 'fixtures/negative/calibration') };
   return { root, dl, env };
 }
@@ -122,4 +219,115 @@ test('a stale bundle (different SHA) fails the geometry gate', () => {
     '--expect-sha', 'f'.repeat(40), '--profile', 'android-compact'], { encoding: 'utf8' });
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /stale evidence/);
+});
+
+test('Android baseline-only still verifies 1.0 and the enabled 1.3 pass captures fresh labeled evidence', () => {
+  const { dl, env, root } = fakeRepo();
+  const script = join(dl, 'scripts/run-android-compact.sh');
+  for (const required of [false, true]) {
+    const out = join(root, required ? 'required' : 'baseline');
+    const r = run(script, [], { ...env, DEVICE_LAYOUT_OUT: out, DEVICE_LAYOUT_LARGE_TEXT: String(required) }, '/');
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.equal((r.stdout.match(/GEOMETRY GATE: PASS/g) || []).length, required ? 2 : 1);
+    assert.equal(readFileSync(join(out, 'stub-installed-apk'), 'utf8'), join(out, 'app fixture.apk'));
+    const [baseline, large] = ['android-compact', 'android-compact-large-text'].map((device) =>
+      join(out, device, 'capture-manifest.json'));
+    for (const [file, scale] of required ? [[baseline, 1.0], [large, 1.3]] : [[baseline, 1.0]]) {
+      const manifest = JSON.parse(readFileSync(file, 'utf8'));
+      assert.equal(manifest.fontScale, scale);
+      assert.equal(manifest.checkpoints.length, 1);
+      assert.equal(manifest.checkpoints[0].fontScale, scale);
+      assert.ok(manifest.checkpoints[0].screenshot);
+    }
+    if (!required) assert.throws(() => readFileSync(large), { code: 'ENOENT' });
+    const settingLog = readFileSync(join(out, 'stub-font-scale.log'), 'utf8');
+    assert.match(settingLog, /put 1\.0\nget 1\.0\n/);
+    if (required) assert.match(settingLog, /put 1\.3\nget 1\.3[\s\S]*put 1\.0\nget 1\.0\n$/);
+    else assert.doesNotMatch(settingLog, /1\.3/);
+  }
+});
+
+test('required Android font-scale gate fails on adb/capture problems or expired budget', async (t) => {
+  const { dl, env, root } = fakeRepo();
+  const script = join(dl, 'scripts/run-android-compact.sh');
+  const cases = [
+    ['write-1.0', /could not set Android font_scale to 1\.0/],
+    ['mismatch-1.0', /readback mismatch \(expected 1\.0\)/],
+    ['write-1.3', /could not set Android font_scale to 1\.3/],
+    ['read-1.3', /could not read Android font_scale \(expected 1\.3\)/],
+    ['mismatch-1.3', /readback mismatch \(expected 1\.3\)/],
+    ['null-1.3', /readback mismatch \(expected 1\.3\)/],
+    ['malformed-1.3', /readback mismatch \(expected 1\.3\)/],
+    ['drift-1.3', /readback mismatch \(expected 1\.3\)/],
+    ['failed-shot-1.0', /missing Android hierarchy or screenshot/],
+    ['failed-flow-1.3', /maestro sub-flow failed or timed out[\s\S]*stub flow assertion failed/],
+    ['timeout-flow-1.3', /maestro sub-flow failed or timed out[\s\S]*stub flow timeout/],
+    ['failed-hierarchy-1.3', /missing Android hierarchy or screenshot/],
+    ['empty-hierarchy-1.3', /missing Android hierarchy or screenshot/],
+    ['empty-shot-1.3', /missing Android hierarchy or screenshot/],
+    ['budget', /required Android font_scale 1\.3 capture not attempted/],
+    ['reused-output', /refusing to reuse Android capture directory/],
+  ];
+  for (const [fault, message] of cases) await t.test(fault, () => {
+    const out = join(root, fault);
+    if (fault === 'reused-output') mkdirSync(join(out, 'android-compact-large-text'), { recursive: true });
+    const r = run(script, [], { ...env, DEVICE_LAYOUT_OUT: out, DEVICE_LAYOUT_LARGE_TEXT: 'true',
+      DEVICE_LAYOUT_AX_BUDGET_S: fault === 'budget' ? '0' : '', STUB_SCALE_CASE: fault }, '/');
+    assert.notEqual(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout + r.stderr, message);
+    assert.doesNotMatch(r.stdout, /device-layout android: PASS/);
+    assert.throws(() => readFileSync(join(out, 'android-compact-large-text', 'geometry-bundle.large-text.json')),
+      { code: 'ENOENT' });
+    if (fault.endsWith('-1.3')) assert.equal(readFileSync(join(out, 'stub-font-scale'), 'utf8'), '1.0');
+  });
+});
+
+test('Android refuses to capture until fresh candidate APK receipts, bytes, and install are verified', async (t) => {
+  const { dl, env, root } = fakeRepo();
+  const script = join(dl, 'scripts/run-android-compact.sh');
+  const cases = [
+    ['missing-path', /missing fresh Android APK path receipt/],
+    ['missing-hash', /missing fresh Android APK hash receipt/],
+    ['absent-apk', /must name an absolute, nonempty regular \.apk/],
+    ['relative-path', /must name an absolute, nonempty regular \.apk/],
+    ['nonzip-apk', /Android APK has no ZIP local file header/],
+    ['invalid-hash', /must be a lowercase SHA-256 digest/],
+    ['mismatch-hash', /does not match the candidate build receipt/],
+    ['failed-install', /candidate Android APK install failed/],
+    ['no-install-success', /candidate Android APK install failed/],
+    ['stale-receipt', /refusing to reuse Android build receipt/],
+  ];
+  for (const [fault, message] of cases) await t.test(fault, () => {
+    const out = join(root, fault);
+    if (fault === 'stale-receipt') {
+      mkdirSync(out);
+      writeFileSync(join(out, 'android-apk-path.txt'), '/old/candidate.apk\n');
+    }
+    const r = run(script, [], { ...env, DEVICE_LAYOUT_OUT: out, STUB_SCALE_CASE: fault }, '/');
+    assert.notEqual(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout + r.stderr, message);
+    assert.doesNotMatch(r.stdout, /device-layout android: PASS/);
+    assert.throws(() => readFileSync(join(out, 'stub-font-scale')), { code: 'ENOENT' });
+  });
+});
+
+test('Android exits nonzero for actual large-text geometry findings despite a passing baseline', () => {
+  const { dl, env, root } = fakeRepo();
+  const r = run(join(dl, 'scripts/run-android-compact.sh'), [], {
+    ...env, DEVICE_LAYOUT_LARGE_TEXT: 'true', STUB_SCALE_CASE: 'geometry-1.3',
+  }, '/');
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stdout, /GEOMETRY GATE: PASS/);
+  assert.match(r.stdout, /GEOMETRY GATE: FAIL/);
+  assert.match(r.stdout, /device-layout android: FAIL/);
+  const report = join(root, 'out/android-compact-large-text/geometry-bundle.large-text.json');
+  assert.equal(JSON.parse(readFileSync(report, 'utf8')).ok, false);
+});
+
+test('Android fails when the flow directory has zero checkpoints', () => {
+  const { dl, env, root } = fakeRepo();
+  unlinkSync(join(root, '.maestro/flows/device-layout/new-contest/00-empty-wizard.yaml'));
+  const r = run(join(dl, 'scripts/run-android-compact.sh'), [], env, '/');
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stdout, /missing Android checkpoints at font_scale 1\.0/);
 });
