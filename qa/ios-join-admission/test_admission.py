@@ -1,3 +1,5 @@
+import json
+import tempfile
 import unittest
 from unittest.mock import patch
 import admission as a
@@ -9,6 +11,30 @@ def row(uid,name,state="Booted"):
     return (a.RUNTIME,dict(udid=uid,name=name,state=state,deviceTypeIdentifier=a.DEVICE))
 
 class Guards(unittest.TestCase):
+    def test_all_darwin_arm64_pins_required(self):
+        lock=a.pathlib.Path(__file__).with_name("supabase.lock").read_bytes()
+        a.lock_platform_pins(lock)
+        for service in a.LOCK_SERVICES:
+            for changed in ("archive","manifest"):
+                d=json.loads(lock)
+                d["services"][service]["resolved"]["natives"]["darwin-arm64"][changed]="0"*63
+                with self.assertRaisesRegex(a.Blocked,"LOCK_PLATFORM_PINS"):
+                    a.lock_platform_pins(json.dumps(d).encode())
+        d=json.loads(lock); del d["services"]["auth"]
+        with self.assertRaisesRegex(a.Blocked,"LOCK_PLATFORM_PINS"):
+            a.lock_platform_pins(json.dumps(d).encode())
+
+    def test_frozen_copy_readback_requires_exact_bytes_and_regular_target(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=a.pathlib.Path(tmp)/"supabase.lock"
+            p.write_bytes(b"pin\n")
+            a.unchanged_lock(p,b"pin\n")
+            with self.assertRaisesRegex(a.Blocked,"LOCK_CHANGED_AFTER_FROZEN_START"):
+                a.unchanged_lock(p,b"nop\n")
+            q=p.with_name("symlink"); q.symlink_to(p)
+            with self.assertRaisesRegex(a.Blocked,"LOCK_CHANGED_AFTER_FROZEN_START"):
+                a.unchanged_lock(q,b"pin\n")
+
     def test_listener_inventory_darwin_file_records(self):
         with patch.object(a,"cmd",return_value="p52\nf9\nn127.0.0.1:54321\nf10\nn*:54010"):
             self.assertEqual(a.listener_rows({}),{(52,"127.0.0.1:54321"),(52,"*:54010")})

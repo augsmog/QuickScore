@@ -29,6 +29,8 @@ RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-26-4"
 DEVICE = "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro"
 UDID = re.compile(r"[0-9A-F]{8}(?:-[0-9A-F]{4}){3}-[0-9A-F]{12}")
 SHA = re.compile(r"[a-f0-9]{40}")
+SHA256 = re.compile(r"[a-f0-9]{64}")
+LOCK_SERVICES = frozenset("analytics auth database functions imgproxy mail pgmeta pooler realtime rest storage studio".split())
 FLOOR = 12 * 1024**3
 BUILD_BUDGET = 24 * 1024**3   # admission cannot assert two builds fit below this
 BASE_CONFIG = """project_id = "snapscore-join-admission"
@@ -65,6 +67,22 @@ def need(ok, code):
 
 def digest(p):
     with p.open("rb") as f: return hashlib.file_digest(f, "sha256").hexdigest()
+
+def lock_platform_pins(lock_bytes):
+    try:
+        lock = json.loads(lock_bytes)
+        services = lock["services"]
+        need(type(services) is dict and set(services) == LOCK_SERVICES, "LOCK_PLATFORM_PINS")
+        for value in services.values():
+            pins = value["resolved"]["natives"]["darwin-arm64"]
+            need(all(isinstance(pins[field],str) and SHA256.fullmatch(pins[field])
+                     for field in ("archive","manifest")), "LOCK_PLATFORM_PINS")
+    except (ValueError, KeyError, TypeError):
+        raise Blocked("LOCK_PLATFORM_PINS") from None
+
+def unchanged_lock(copy, pinned):
+    need(copy.is_file() and not copy.is_symlink() and
+         copy.stat().st_size == len(pinned) and copy.read_bytes() == pinned, "LOCK_CHANGED_AFTER_FROZEN_START")
 
 def reason(e):
     return str(e) if isinstance(e, Blocked) and re.fullmatch(r"[A-Z0-9_]+", str(e)) else "UNEXPECTED_FAILURE"
@@ -196,7 +214,11 @@ def admit(harness, product, env):
         rec["harnessSha"],rec["harnessTree"]=bind(harness,product,env,native)
         assets=pathlib.Path(__file__).resolve().parent
         lock=assets/"supabase.lock"; man=assets/"handoff-manifest.json"
-        need(digest(lock)==LOCK and digest(man)==MANIFEST,"PINNED_INPUT")
+        need(lock.is_file() and not lock.is_symlink() and lock.stat().st_size <= 128*1024 and digest(man)==MANIFEST,"PINNED_INPUT")
+        lock_bytes=lock.read_bytes()
+        need(hashlib.sha256(lock_bytes).hexdigest()==LOCK,"PINNED_INPUT")
+        lock_platform_pins(lock_bytes)
+        rec["darwinArm64PinsVerified"]=True
         for f in json.loads(man.read_text())["sqlOrdered"]:
             needle=product/f["path"]
             need(needle.is_file() and not needle.is_symlink() and digest(needle)==f["sha256"],"PRODUCT_SQL_BINDING")
@@ -224,7 +246,8 @@ def admit(harness, product, env):
         cfg=cwd/"supabase"
         cfg.mkdir(mode=0o700)
         (cfg/"config.toml").write_text(BASE_CONFIG)
-        shutil.copyfile(lock,cfg/"supabase.lock")
+        copied_lock=cfg/"supabase.lock"
+        copied_lock.write_bytes(lock_bytes)
         ar=root/"cli.tar.gz"; cli=root/"supabase"
         cmd(["/usr/bin/curl","--fail","--silent","--location","--max-time","65","--proto","=https",
              "--max-filesize","60000000","--output",str(ar),CLI_URL],se,70,"CLI_DOWNLOAD",discard=True)
@@ -240,9 +263,11 @@ def admit(harness, product, env):
         rec["stage"]="native-backend"
         need(shutil.disk_usage(base).free>=FLOOR,"DISK_FLOOR")
         backend_attempt=True
-        stock=json.loads(cmd([*stem,"start","--runtime","native","--frozen","--eager",
-                              "--exclude","storage,functions,studio,mail,analytics,pooler"],se,250,"STOCK_NATIVE_START"))
-        endpoint_check(stock)
+        raw_stock=cmd([*stem,"start","--runtime","native","--frozen","--eager",
+                       "--exclude","storage,functions,studio,mail,analytics,pooler"],se,250,"STOCK_NATIVE_START")
+        unchanged_lock(copied_lock,lock_bytes)
+        rec["frozenLockUnchanged"]=True
+        endpoint_check(json.loads(raw_stock))
         started_rows=listener_rows(native)-old
         backend_sockets(started_rows,set())
         health()
