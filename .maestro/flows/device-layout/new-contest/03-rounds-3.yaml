@@ -1,0 +1,8 @@
+# device-layout New Contest — checkpoint 03: 3-round tournament (round-count chip row).
+appId: com.scoresnap.app
+---
+- assertVisible:
+    id: "rounds-3"
+- tapOn:
+    id: "rounds-3"
+- takeScreenshot: device-layout-new-contest-03-rounds-3

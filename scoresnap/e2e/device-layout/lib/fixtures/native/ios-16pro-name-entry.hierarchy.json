@@ -1,0 +1,60 @@
+{
+  "attributes": {
+    "bounds": "[0,0][0,0]"
+  },
+  "children": [
+    {
+      "attributes": {
+        "accessibilityText": "SnapScore",
+        "bounds": "[0,0][402,874]"
+      },
+      "children": [
+        {
+          "attributes": {
+            "bounds": "[20,186][355,238]",
+            "clickable": "true",
+            "resource-id": "home-new-contest",
+            "text": "New Contest"
+          },
+          "children": []
+        },
+        {
+          "attributes": {
+            "bounds": "[0,634][402,874]"
+          },
+          "children": [
+            {
+              "attributes": {
+                "bounds": "[0,664][402,874]",
+                "resource-id": "UIKeyboardFixtureKey"
+              },
+              "children": []
+            },
+            {
+              "attributes": {
+                "bounds": "[0,638][200,660]",
+                "text": "Predictions"
+              },
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "bounds": "[0,0][402,54]"
+      },
+      "children": [
+        {
+          "attributes": {
+            "bounds": "[0,1][110,49]",
+            "text": "Wi-Fi bars"
+          },
+          "children": []
+        }
+      ]
+    }
+  ],
+  "fixture_provenance": "synthetic; not a native capture or release proof"
+}

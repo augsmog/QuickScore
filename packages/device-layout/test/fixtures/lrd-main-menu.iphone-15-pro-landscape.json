@@ -1,0 +1,61 @@
+{
+  "device": "iphone-15-pro-landscape",
+  "fixture_provenance": "synthetic; not a native capture or release proof",
+  "nodes": [
+    {
+      "interactive": true,
+      "name": "Play",
+      "path": "/Fixture/Play",
+      "rect": [
+        640,
+        330,
+        280,
+        90
+      ],
+      "visible": true
+    },
+    {
+      "interactive": true,
+      "name": "Settings",
+      "path": "/Fixture/Settings",
+      "rect": [
+        640,
+        450,
+        280,
+        84
+      ],
+      "visible": true
+    },
+    {
+      "interactive": true,
+      "name": "Hidden",
+      "path": "/Fixture/Hidden",
+      "rect": [
+        0,
+        0,
+        8,
+        8
+      ],
+      "visible": false
+    },
+    {
+      "interactive": false,
+      "name": "Title",
+      "path": "/Fixture/Title",
+      "rect": [
+        480,
+        140,
+        500,
+        70
+      ],
+      "text": "Locker Room Defense",
+      "visible": true
+    }
+  ],
+  "schema": "device-layout/godot-dump/v1",
+  "screen": "main-menu",
+  "viewport": {
+    "height": 720,
+    "width": 1560.92
+  }
+}

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
-import { backend, validateFixture, assertScores, assertBinding, assertShare, eventually } from './contract.mjs';
+import { backend, validateFixture, assertScores, assertBinding, assertManualShare, eventually } from './contract.mjs';
 import { selectHostPlayer } from '../xdevice-host-player.mjs';
 import { readHostScoreState } from './host-score-diagnostic.mjs';
 import { assertScoreControl } from './score-control.mjs';
@@ -49,7 +49,7 @@ try {
     await text(host,'Copy / share invite').click();
     // Restored-host share() awaits a rejoinHost round trip before writing the
     // clipboard; click() only dispatches the event, so the read must retry.
-    await eventually(async()=>assertShare(f,await host.evaluate(()=>navigator.clipboard.readText())));
+    await eventually(async()=>assertManualShare(f,await host.evaluate(()=>navigator.clipboard.readText())));
     await host.getByTestId('round-status-chip').filter({visible:true}).first().click();await text(host,'Online sync').click();
     await text(host,`Approve as ${f.players[1].name}`).click();
     await eventually(async()=>{const m=await db.read(`contest_memberships?contest_id=eq.${f.contestId}&user_id=eq.${request.requester}&select=*`);assert.equal(m.length,1);assertBinding(f,m[0],request.requester);});
@@ -93,7 +93,7 @@ try {
     assert.equal(await card.getByLabel('Journey Round hole 1 strokes').inputValue(),'6');
     const memberships=await db.read(`contest_memberships?contest_id=eq.${f.contestId}&user_id=eq.${request.requester}&select=*`);assert.equal(memberships.length,1);assertBinding(f,memberships[0],request.requester);
     await Promise.all([host.screenshot({path:`${out}/host-persisted.png`,fullPage:true}),guest.screenshot({path:`${out}/guest-rejoined.png`,fullPage:true})]);
-    await writeFile(`${out}/receipt.json`,JSON.stringify({mode,contestId:f.contestId,roundId:f.roundId,players:f.players,status:'PASS',checks:['canonical restored invite equals clipboard','anonymous pending then UI approval','intended binding','both groups persisted after reconnect/reload']}));
+    await writeFile(`${out}/receipt.json`,JSON.stringify({mode,contestId:f.contestId,roundId:f.roundId,players:f.players,status:'PASS',checks:['canonical restored manual code and no tap-to-open URL in clipboard','anonymous pending then UI approval','intended binding','both groups persisted after reconnect/reload']}));
   }
   console.log(`PASS anonymous ${mode} real join UI journey (browser evidence only)`);
 } finally {await browser.close();}

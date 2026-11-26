@@ -1,0 +1,50 @@
+{
+  "attributes": {},
+  "children": [
+    {
+      "attributes": {},
+      "children": [
+        {
+          "attributes": {
+            "bounds": "[0,136][1080,2256]",
+            "text": "App window"
+          },
+          "children": [
+            {
+              "attributes": {
+                "bounds": "[78,270][1008,426]",
+                "clickable": "true",
+                "resource-id": "home-new-contest",
+                "text": "New Contest"
+              },
+              "children": []
+            },
+            {
+              "attributes": {
+                "bounds": "[918,648][1056,729]",
+                "checked": "true",
+                "resource-id": "tournament-toggle"
+              },
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "bounds": "[0,0][1080,136]",
+        "resource-id": "com.android.systemui:id/status_bar"
+      },
+      "children": []
+    },
+    {
+      "attributes": {
+        "bounds": "[0,2256][1080,2400]",
+        "resource-id": "com.android.launcher3:id/taskbar_container"
+      },
+      "children": []
+    }
+  ],
+  "fixture_provenance": "synthetic; not a native capture or release proof"
+}

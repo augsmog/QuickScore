@@ -1,0 +1,71 @@
+{
+  "attributes": {},
+  "children": [
+    {
+      "attributes": {},
+      "children": [
+        {
+          "attributes": {
+            "bounds": "[0,136][1080,2256]",
+            "text": "App window"
+          },
+          "children": [
+            {
+              "attributes": {
+                "bounds": "[78,270][1008,426]",
+                "resource-id": "contest-name-input",
+                "text": "Ava"
+              },
+              "children": []
+            },
+            {
+              "attributes": {
+                "bounds": "[78,1770][1008,1902]",
+                "resource-id": "contest-continue",
+                "text": "Continue"
+              },
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "bounds": "[0,0][1080,136]",
+        "resource-id": "com.android.systemui:id/status_bar"
+      },
+      "children": []
+    },
+    {
+      "attributes": {
+        "bounds": "[0,2256][1080,2400]",
+        "resource-id": "com.android.launcher3:id/taskbar_container"
+      },
+      "children": []
+    },
+    {
+      "attributes": {
+        "bounds": "[0,1920][1080,2400]",
+        "resource-id": "com.android.inputmethod.fixture:id/keyboard"
+      },
+      "children": [
+        {
+          "attributes": {
+            "bounds": "[0,1920][1080,2028]",
+            "text": "Available"
+          },
+          "children": []
+        },
+        {
+          "attributes": {
+            "bounds": "[12,2040][130,2140]",
+            "text": "Voice input"
+          },
+          "children": []
+        }
+      ]
+    }
+  ],
+  "fixture_provenance": "synthetic; not a native capture or release proof"
+}

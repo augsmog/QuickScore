@@ -1,0 +1,38 @@
+{
+  "attributes": {
+    "bounds": "[0,0][0,0]"
+  },
+  "children": [
+    {
+      "attributes": {
+        "accessibilityText": "SnapScore",
+        "bounds": "[0,0][375,667]"
+      },
+      "children": [
+        {
+          "attributes": {
+            "bounds": "[18,762][357,815]",
+            "resource-id": "contest-continue",
+            "text": "Continue"
+          },
+          "children": []
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "bounds": "[0,0][375,54]"
+      },
+      "children": [
+        {
+          "attributes": {
+            "bounds": "[0,1][110,49]",
+            "text": "Wi-Fi bars"
+          },
+          "children": []
+        }
+      ]
+    }
+  ],
+  "fixture_provenance": "synthetic; not a native capture or release proof"
+}

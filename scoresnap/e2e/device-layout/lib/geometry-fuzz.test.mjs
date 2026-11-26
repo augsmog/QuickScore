@@ -24,6 +24,10 @@ const SHA = 'a'.repeat(40);
 const EMPTY_WAIVERS = { waivers: [] };
 const FLOWS = expectedFlows(CONFIG, 'per-pr');
 const EXPECT = { config: CONFIG, configSha256: CFG_SHA, flows: FLOWS };
+// The complete per-PR bundle covers every checkpoint of every per-PR flow. Derive the count from
+// the config (do NOT hardcode it) so the fuzz contract stays bound to whatever the real per-PR
+// checkpoint list is — each checkpoint must still reject its malformed geometry / FAIL the gate.
+const N = FLOWS.reduce((s, f) => s + f.checkpoints.length, 0);
 
 // A 46×46 Android control: a real rule-5 violation (< 48 dp) in every checkpoint, so the complete
 // bundle is a genuine FAIL. Each fuzz mutation must keep it from silently turning into a PASS.
@@ -62,13 +66,13 @@ const neverPass = (bundle, label) => {
   assert.equal(passed, false, `${label}: gate reported PASS with a violating control present`);
 };
 
-test('baseline: the complete 17-checkpoint bundle is structurally valid but FAILS (17 rule-5)', () => {
+test('baseline: the complete per-PR bundle is structurally valid but FAILS (one rule-5 per checkpoint)', () => {
   const b = completeBundle();
-  assert.equal(b.checkpoints.length, 17);
+  assert.equal(b.checkpoints.length, N);
   assert.deepEqual(validateBundle(b, EXPECT), []);
   const r = runBundle(b, EMPTY_WAIVERS, new Date(), EXPECT);
   assert.equal(r.ok, false);
-  assert.equal(r.keptCount, 17);
+  assert.equal(r.keptCount, N);
 });
 
 // Malformed *rect* values (a non-null hitRegion / a bbox) must be rejected outright.
@@ -87,7 +91,7 @@ test('named defect: malformed hitRegion={} / partial / non-finite is rejected (A
   for (const { label, v } of BAD_RECTS) {
     const b = completeBundle((node) => { node.hitRegion = v; });
     const errs = validateBundle(b, EXPECT);
-    assert.ok(errs.length >= 17, `hitRegion ${label}: expected rejection of all 17 checkpoints`);
+    assert.ok(errs.length >= N, `hitRegion ${label}: expected rejection of all ${N} checkpoints`);
     assert.match(errs.join('; '), /malformed hitRegion/, `hitRegion ${label}`);
     neverPass(b, `hitRegion ${label}`);
   }

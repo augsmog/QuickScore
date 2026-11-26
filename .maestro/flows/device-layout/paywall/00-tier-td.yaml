@@ -1,0 +1,26 @@
+# device-layout Paywall — checkpoint 00: /paywall?tier=td (tournament/"Director" upgrade view).
+# The plan cards' CTA must sit above the fold on the shortest screen (SE). Deep-linked so this
+# does not depend on the New Contest gate wiring.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../../subflows/finish-onboarding.yaml
+# The first deep link right after onboarding can be swallowed while the router settles (observed at
+# 433f1f8a: both iOS legs timed out here and SE-3 captured Home instead of the paywall). Mirror the
+# proven aug-271-paywall pattern: retry the open (same link, no writes), dismiss the iOS
+# 'Open in "SnapScore"?' custom-scheme alert, and wait on the paywall's own close control.
+# Wait by testID (Maestro selectors take id/text, not accessibilityLabel).
+- retry:
+    maxRetries: 3
+    commands:
+      - openLink: "snapscore://paywall?tier=td"
+      - tapOn:
+          text: "Open"  # iOS asks 'Open in "SnapScore"?' for a custom-scheme link
+          optional: true
+      - extendedWaitUntil:
+          visible:
+            id: "paywall-close"
+          timeout: 20000
+- takeScreenshot: device-layout-paywall-00-tier-td
