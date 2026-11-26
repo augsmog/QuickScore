@@ -151,6 +151,22 @@ def health():
 def sim(env, *args, sec=25, code="SIMCTL"):
     return cmd(["/usr/bin/xcrun","simctl",*args],env,sec,code)
 
+def probe(rec, phase, call, *args, **kwargs):
+    start=time.monotonic()
+    rec["lastStep"]=phase
+    try: return call(*args,**kwargs)
+    finally: rec.setdefault("stepSeconds",{})[phase]=round(time.monotonic()-start,3)
+
+def cleanup_inventory(env):
+    for attempt in range(2):
+        try: return inventory(env,seconds=12)
+        except Blocked as exc:
+            if attempt or reason(exc)!="SIM_INVENTORY_TIMEOUT": raise
+
+def empty_stack_list(value):
+    return (type(value) is dict and set(value) in ({"stacks"},{"stacks","message"}) and
+            value.get("stacks")==[] and value.get("message","")=="")
+
 def inventory(env, seconds=25):
     devices=json.loads(sim(env,"list","-j","devices",sec=seconds,code="SIM_INVENTORY"))
     groups=devices.get("devices")
@@ -177,21 +193,22 @@ def verify_pair(rows, pair, want):
     for uid,name in pair.items(): need(owned(rows,uid,name)["state"] == want,"SIM_PAIR_STATE")
     need(all(u in pair or r["state"] == "Shutdown" for u,(_,r) in rows.items()),"UNOWNED_SIM_ACTIVE")
 
-def clean_sim(env, home, uid, name):
-    row=owned(inventory(env, seconds=5),uid,name)
+def clean_sim(env, home, uid, name, trace):
+    row=owned(probe(trace,"verify-identity",cleanup_inventory,env),uid,name)
     if row["state"] != "Shutdown":
-        try: sim(env,"shutdown",uid,sec=15,code="SIM_SHUTDOWN")
+        try: probe(trace,"shutdown",sim,env,"shutdown",uid,sec=15,code="SIM_SHUTDOWN")
         except Blocked as e:
             if reason(e) not in {"SIM_SHUTDOWN","SIM_SHUTDOWN_TIMEOUT"}: raise
-        for _ in range(7):
-            if owned(inventory(env, seconds=5),uid,name)["state"]=="Shutdown": break
+        for attempt in range(3):
+            if owned(probe(trace,f"shutdown-readback-{attempt+1}",cleanup_inventory,env),uid,name)["state"]=="Shutdown": break
             time.sleep(1)
         else: raise Blocked("SIM_SHUTDOWN")
-    sim(env,"delete",uid,sec=20,code="SIM_DELETE")
+    probe(trace,"delete",sim,env,"delete",uid,sec=20,code="SIM_DELETE")
     path=home/"Library/Developer/CoreSimulator/Devices"/uid
     good=0
-    for _ in range(6):
-        good = good+1 if owned(inventory(env, seconds=5),uid,name,absent=True) is None and not os.path.lexists(path) else 0
+    for attempt in range(4):
+        rows=probe(trace,f"delete-readback-{attempt+1}",cleanup_inventory,env)
+        good = good+1 if owned(rows,uid,name,absent=True) is None and not os.path.lexists(path) else 0
         if good==2: return
         time.sleep(1)
     raise Blocked("SIM_DELETE_READBACK")
@@ -199,9 +216,10 @@ def clean_sim(env, home, uid, name):
 def admit(harness, product, env):
     rec={"stage":"host","status":"BLOCKED","productSha":SOURCE,"productTree":TREE,
          "appBuilt":False,"joinAccepted":False,"releaseVerdict":False,
-         "backendVerified":False,"twoOwnedBooted":False,"cleanupVerified":False}
+         "backendVerified":False,"pairBootedBeforeBackend":False,"twoOwnedBooted":False,
+         "cohabitationVerified":False,"cleanupVerified":False}
     pair={}; creating_unverified=False; backend_attempt=False; root=None
-    old=set(); started_rows=set(); cli=None; se={}; cwd=None; errs=[]
+    old=None; started_rows=set(); cli=None; se={}; cwd=None; errs=[]; teardown={}
     try:
         need(platform.system()=="Darwin" and platform.machine()=="arm64" and os.getuid()!=0 and
              (env.get("GITHUB_REPOSITORY"),env.get("GITHUB_EVENT_NAME"),env.get("GITHUB_REF"),
@@ -232,10 +250,35 @@ def admit(harness, product, env):
         need(len(rt)==1 and rt[0].get("version")=="26.4.1" and rt[0].get("buildversion")=="23E254a" and
              rt[0].get("isAvailable") is True and any(x.get("identifier")==DEVICE for x in rt[0].get("supportedDeviceTypes",[])),
              "SIM_RUNTIME")
-        initial=inventory(native)
+        initial=probe(rec,"baseline-inventory",inventory,native)
         need(all(r["state"]=="Shutdown" for _,r in initial.values()),"UNOWNED_SIM_ACTIVE")
         old=listener_rows(native)
         need(not any(a.rsplit(":",1)[-1] in {"54321","54322"} for _,a in old),"BACKEND_PORT_BUSY")
+        rec["stage"]="two-owned-sims"
+        fresh_rows=probe(rec,"pre-create-inventory",inventory,native)
+        need(fresh_rows==initial,"SIM_INVENTORY_DRIFT")
+        nonce=uuid.uuid4().hex
+        for actor in ("host","guest"):
+            name=f"snapscore-join-{actor}-{nonce}"
+            need(all(row["name"]!=name for _,row in fresh_rows.values()),"SIM_NAME_COLLISION")
+            creating_unverified=True
+            uid=probe(rec,f"{actor}-create",sim,native,"create",name,DEVICE,RUNTIME,sec=35,code="SIM_CREATE")
+            need(UDID.fullmatch(uid) and uid not in fresh_rows and uid not in pair,"SIM_UUID_FRESHNESS")
+            pair[uid]=name; creating_unverified=False
+            fresh_rows=probe(rec,f"{actor}-created-inventory",inventory,native)
+            need(owned(fresh_rows,uid,name)["state"]=="Shutdown","SIM_PAIR_STATE")
+        verify_pair(fresh_rows,pair,"Shutdown")
+        for actor,(uid,name) in zip(("host","guest"),pair.items()):
+            rows=probe(rec,f"{actor}-preboot-inventory",inventory,native)
+            need(owned(rows,uid,name)["state"]=="Shutdown" and
+                 all(u in pair or r["state"]=="Shutdown" for u,(_,r) in rows.items()),"SIM_PAIR_STATE")
+            probe(rec,f"{actor}-boot",sim,native,"boot",uid,sec=40,code="SIM_BOOT_START")
+        for actor,uid in zip(("host","guest"),pair):
+            probe(rec,f"{actor}-bootstatus",sim,native,"bootstatus",uid,sec=125,code="SIM_BOOT_WAIT")
+        verify_pair(probe(rec,"booted-pair-inventory",inventory,native),pair,"Booted")
+        rec["pairBootedBeforeBackend"]=True
+        pair_listeners=probe(rec,"running-pair-listeners",listener_rows,native)
+        need(not any(a.rsplit(":",1)[-1] in {"54321","54322"} for _,a in pair_listeners),"BACKEND_PORT_BUSY")
         rec["stage"]="private-cli"
         root=pathlib.Path(tempfile.mkdtemp(prefix="snapscore-join-admission-",dir=base))
         for name in ("home","state","tmp","project"): (root/name).mkdir(mode=0o700)
@@ -263,36 +306,19 @@ def admit(harness, product, env):
         rec["stage"]="native-backend"
         need(shutil.disk_usage(base).free>=FLOOR,"DISK_FLOOR")
         backend_attempt=True
-        raw_stock=cmd([*stem,"start","--runtime","native","--frozen","--eager",
+        raw_stock=probe(rec,"native-stack-start",cmd,[*stem,"start","--runtime","native","--frozen","--eager",
                        "--exclude","storage,functions,studio,mail,analytics,pooler"],se,250,"STOCK_NATIVE_START")
         unchanged_lock(copied_lock,lock_bytes)
         rec["frozenLockUnchanged"]=True
         endpoint_check(json.loads(raw_stock))
-        started_rows=listener_rows(native)-old
-        backend_sockets(started_rows,set())
-        health()
+        started_rows=backend_sockets(probe(rec,"cohabitation-listeners",listener_rows,native),pair_listeners)
+        probe(rec,"backend-health",health)
         rec["backendVerified"]=True
-        rec["stage"]="two-owned-sims"
-        fresh_rows=inventory(native)
-        need(fresh_rows==initial,"SIM_INVENTORY_DRIFT")
-        nonce=uuid.uuid4().hex
-        for actor in ("host","guest"):
-            name=f"snapscore-join-{actor}-{nonce}"
-            need(all(row["name"]!=name for _,row in fresh_rows.values()),"SIM_NAME_COLLISION")
-            creating_unverified=True
-            uid=sim(native,"create",name,DEVICE,RUNTIME,sec=35,code="SIM_CREATE")
-            need(UDID.fullmatch(uid) and uid not in fresh_rows and uid not in pair,"SIM_UUID_FRESHNESS")
-            pair[uid]=name; creating_unverified=False
-            fresh_rows=inventory(native)
-            need(owned(fresh_rows,uid,name)["state"]=="Shutdown","SIM_PAIR_STATE")
-        verify_pair(fresh_rows,pair,"Shutdown")
-        for uid,name in pair.items():
-            need(owned(inventory(native),uid,name)["state"]=="Shutdown","SIM_PAIR_STATE")
-            sim(native,"boot",uid,sec=40,code="SIM_BOOT_START")
-        for uid in pair: sim(native,"bootstatus",uid,sec=125,code="SIM_BOOT_WAIT")
-        verify_pair(inventory(native),pair,"Booted")
+        rec["stage"]="cohabitation"
+        verify_pair(probe(rec,"cohabitation-pair-inventory",inventory,native),pair,"Booted")
         rec["twoOwnedBooted"]=True
-        health()
+        probe(rec,"cohabitation-health",health)
+        rec["cohabitationVerified"]=True
         rec["freeBytesAfterBoot"]=shutil.disk_usage(base).free
         need(rec["freeBytesAfterBoot"]>=BUILD_BUDGET,"DISK_DUAL_BUILD")
         bind(harness,product,env,native)
@@ -300,17 +326,31 @@ def admit(harness, product, env):
     except Exception as e:
         rec["reason"]=reason(e)
     finally:
-        for uid,name in reversed(list(pair.items())):
-            try: clean_sim(native,home,uid,name)
+        if backend_attempt:
+            bt=teardown["backend"]={}
+            stem=[str(cli),"--workdir",str(cwd),"--output-format","json","stack"]
+            try: probe(bt,"destroy",cmd,[*stem,"destroy","--yes"],se,60,"BACKEND_DESTROY",discard=True)
+            except Exception as e: errs.append(reason(e))
+            try:
+                listed=json.loads(probe(bt,"list",cmd,[*stem,"list"],se,15,"BACKEND_INVENTORY"))
+                need(empty_stack_list(listed),"BACKEND_REMAINS")
+                registry=root/"state"/"stacks"
+                need(not os.path.lexists(registry) or (registry.is_dir() and not registry.is_symlink() and
+                     not any(x.is_dir() or x.is_symlink() for x in registry.iterdir())),"BACKEND_REGISTRY_REMAINS")
+            except Exception as e: errs.append(reason(e))
+            try:
+                remaining=probe(bt,"socket-readback",listener_rows,native)-pair_listeners
+                need(not (remaining & started_rows) and
+                     not any(a.rsplit(":",1)[-1] in {"54321","54322"} for _,a in remaining),"BACKEND_SOCKET_REMAINS")
+            except Exception as e: errs.append(reason(e))
+        for actor,(uid,name) in reversed(list(zip(("host","guest"),pair.items()))):
+            trace=teardown[actor]={}
+            try: clean_sim(native,home,uid,name,trace)
             except Exception as e: errs.append(reason(e))
         if creating_unverified: errs.append("SIM_CREATE_UNVERIFIED")
-        if backend_attempt:
+        if old is not None and (pair or backend_attempt):
             try:
-                stem=[str(cli),"--workdir",str(cwd),"--output-format","json","stack"]
-                cmd([*stem,"destroy","--yes"],se,60,"BACKEND_DESTROY",discard=True)
-                listed=json.loads(cmd([*stem,"list"],se,15,"BACKEND_INVENTORY"))
-                need(listed==[] or listed=={"stacks":[]},"BACKEND_REMAINS")
-                remaining=listener_rows(native)-old
+                remaining=probe(teardown.setdefault("final",{}),"socket-readback",listener_rows,native)-old
                 need(not remaining,"BACKEND_OR_SIM_SOCKET_REMAINS")
             except Exception as e: errs.append(reason(e))
         if root is not None:
@@ -319,6 +359,7 @@ def admit(harness, product, env):
                 need(not os.path.lexists(root),"SCRATCH_REMAINS")
             except Exception as e: errs.append(reason(e))
         rec["cleanupVerified"]=not errs
+        if teardown: rec["cleanupSteps"]=teardown
         if errs: rec["cleanupReasons"]=errs
     if rec["stage"]=="admission-complete" and not errs: rec["status"]="ADMISSION_ONLY"
     return rec

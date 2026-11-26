@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from unittest.mock import patch
+from contextlib import ExitStack
 import admission as a
 
 U="AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"
@@ -34,6 +35,61 @@ class Guards(unittest.TestCase):
             q=p.with_name("symlink"); q.symlink_to(p)
             with self.assertRaisesRegex(a.Blocked,"LOCK_CHANGED_AFTER_FROZEN_START"):
                 a.unchanged_lock(q,b"pin\n")
+
+    def test_exact_stock_empty_list_shape_and_nonempty_refusal(self):
+        self.assertTrue(a.empty_stack_list({"stacks":[],"message":""}))
+        self.assertTrue(a.empty_stack_list({"stacks":[]}))
+        for value in ([], {"stacks":[{"id":"synthetic"}],"message":""},
+                      {"stacks":[],"message":"failed"}, {"stacks":[],"other":False}):
+            self.assertFalse(a.empty_stack_list(value))
+
+    def test_inventory_timeout_reports_phase_and_cleanup_bounded_retry(self):
+        t={}
+        with patch.object(a,"inventory",side_effect=[a.Blocked("SIM_INVENTORY_TIMEOUT"),{}]) as c:
+            self.assertEqual(a.probe(t,"verify-identity",a.cleanup_inventory,{}),{})
+            self.assertEqual([o.kwargs for o in c.call_args_list],[{"seconds":12}]*2)
+        self.assertEqual(t["lastStep"],"verify-identity")
+        self.assertIn("verify-identity",t["stepSeconds"])
+        with patch.object(a,"inventory",side_effect=a.Blocked("SIM_INVENTORY_TIMEOUT")) as c:
+            with self.assertRaisesRegex(a.Blocked,"SIM_INVENTORY_TIMEOUT"):
+                a.cleanup_inventory({})
+            self.assertEqual(c.call_count,2)
+
+    def test_cleanup_never_mutates_on_unknown_identity(self):
+        with patch.object(a,"cleanup_inventory",return_value={U:row(U,"different")}), patch.object(a,"sim") as sim:
+            with self.assertRaisesRegex(a.Blocked,"SIM_OWNERSHIP"):
+                a.clean_sim({},a.pathlib.Path("/"),U,"ours",{})
+            sim.assert_not_called()
+
+    def test_primary_sim_failure_blocks_any_backend_preparation(self):
+        m=json.loads(a.pathlib.Path(__file__).with_name("handoff-manifest.json").read_bytes())
+        with tempfile.TemporaryDirectory() as t, ExitStack() as st:
+            root=a.pathlib.Path(t); product=root/"app"; scratch=root/"runner-temp"; harness=root/"qa"
+            scratch.mkdir(); harness.mkdir()
+            digests={"handoff-manifest.json":a.MANIFEST}
+            for item in m["sqlOrdered"]:
+                p=product/item["path"]; p.parent.mkdir(parents=True,exist_ok=True); p.write_text("fixture")
+                digests[p.name]=item["sha256"]
+            st.enter_context(patch.object(a,"digest",side_effect=lambda p:digests[p.name]))
+            st.enter_context(patch.object(a,"bind",return_value=("a"*40,"b"*40)))
+            st.enter_context(patch.object(a.platform,"system",return_value="Darwin"))
+            st.enter_context(patch.object(a.platform,"machine",return_value="arm64"))
+            st.enter_context(patch.object(a.shutil,"disk_usage",return_value=type("Disk",(),{"free":3*a.BUILD_BUDGET})()))
+            st.enter_context(patch.object(a,"listener_rows",return_value=set()))
+            cmd=st.enter_context(patch.object(a,"cmd",return_value="23E252"))
+            cat=dict(runtimes=[dict(identifier=a.RUNTIME,version="26.4.1",buildversion="23E254a",isAvailable=True,
+                                    supportedDeviceTypes=[dict(identifier=a.DEVICE)])])
+            sim=st.enter_context(patch.object(a,"sim",return_value=json.dumps(cat)))
+            st.enter_context(patch.object(a,"inventory",side_effect=[{},a.Blocked("SIM_INVENTORY_TIMEOUT")]))
+            env=dict(GITHUB_REPOSITORY="augsmog/QuickScore",GITHUB_EVENT_NAME="workflow_dispatch",
+                     GITHUB_REF=a.REF,RUNNER_ENVIRONMENT="github-hosted",RUNNER_OS="macOS",RUNNER_ARCH="ARM64",
+                     RUNNER_TEMP=str(scratch))
+            result=a.admit(harness,product,env)
+            self.assertEqual(result["lastStep"],"pre-create-inventory")
+            self.assertEqual(result["reason"],"SIM_INVENTORY_TIMEOUT")
+            self.assertFalse(result["backendVerified"]); self.assertFalse(result["cohabitationVerified"])
+            self.assertTrue(result["cleanupVerified"]); self.assertEqual(list(scratch.iterdir()),[])
+            self.assertEqual(cmd.call_count,1); self.assertEqual(sim.call_count,1)
 
     def test_listener_inventory_darwin_file_records(self):
         with patch.object(a,"cmd",return_value="p52\nf9\nn127.0.0.1:54321\nf10\nn*:54010"):
