@@ -84,6 +84,10 @@ FLOW_TIMEOUT_S="${DEVICE_LAYOUT_FLOW_TIMEOUT_S:-120}"
 if command -v timeout >/dev/null 2>&1; then TIMEOUT_BIN=timeout
 elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_BIN=gtimeout
 else TIMEOUT_BIN=""; fi
+if [ "$PAYWALL_DUAL" -eq 1 ] && [ -z "$TIMEOUT_BIN" ]; then
+  echo "::error::Android targeted capture requires a timeout utility"
+  exit 1
+fi
 flow_test() { local log="$1"; shift
   if [ -n "$TIMEOUT_BIN" ]; then "$TIMEOUT_BIN" "${FLOW_TIMEOUT_S}s" "$@" > "$log" 2>&1
   else "$@" > "$log" 2>&1; fi; }
@@ -204,7 +208,6 @@ capture_flows() {
     flow="$(basename "$flowdir")"
     for sub in "$flowdir"*.yaml; do
       [ -e "$sub" ] || continue
-      if [ "$PAYWALL_DUAL" -eq 1 ] && [ "$sub" != "$FLOWS/paywall/00-tier-td.yaml" ]; then continue; fi
       base="$(printf '%02d-%s-%s' "$order" "$flow" "$(basename "$sub" .yaml | sed 's/^[0-9]*-//')")"
       slug="$(basename "$sub" .yaml | sed 's/^[0-9]*-//; s/-/ /g')"
       echo "  checkpoint $base"
@@ -250,6 +253,68 @@ gate_capture() {
   [ -s "$capdir/geometry-${bundle%.json}.json" ] || { echo "::error::geometry produced no result file for ${bundle} (silent exit)"; FAIL=1; }
 }
 
+# This already-fenced manual lane captures at most two frames of the one
+# paywall state at each scale and never enters the full Rule 8 path.
+paywall_bundle() {
+  local dir="$1" scale="$2"
+  node "$DL/scripts/make-capture-manifest.mjs" "$dir" --profile "$PROFILE" --platform android \
+    --source-sha "$SHA" --build-hash "$BUILD_HASH" --density "$DENSITY" --viewport-w "$VPW" --viewport-h "$VPH" --font-scale "$scale"
+  node "$DL/scripts/bundle-from-maestro.mjs" "$dir" --platform android --profile "$PROFILE" \
+    --source-sha "$SHA" --out "$dir/bundle.json"
+}
+paywall_capture() {
+  local dir="$1" scale="$2" flow="$3" stem="00-paywall-tier-td"
+  mkdir "$dir"
+  # Both captures are exact same-state; the companion flow only scrolls.
+  flow_test "$dir/$stem.maestro.log" maestro --device "$SERIAL" test "$flow"
+  verify_font_scale "$scale"
+  "$TIMEOUT_BIN" 35s maestro --device "$SERIAL" hierarchy > "$dir/$stem.hierarchy.json"
+  "$TIMEOUT_BIN" 25s adb -s "$SERIAL" exec-out screencap -p > "$dir/$stem.png"
+  [ -s "$dir/$stem.hierarchy.json" ] && [ -s "$dir/$stem.png" ] || return 1
+  verify_font_scale "$scale"
+  printf '{"flow":"paywall","checkpoint":"tier td","screen":"paywall","state":"default","fontScale":%s}\n' \
+    "$scale" > "$dir/$stem.ctx.json"
+  paywall_bundle "$dir" "$scale"
+}
+paywall_leg() {
+  local name="$1" scale="$2" root="$OUTROOT/$1"
+  if [ "$scale" = 1 ]; then set_font_scale 1.0; else set_font_scale "$scale"; fi
+  paywall_capture "$root" "$scale" "$FLOWS/paywall/00-tier-td.yaml"
+  node "$DL/run-paywall-probe.mjs" "$root/bundle.json" "$SHA" "$BUILD_HASH" "$scale" "$root/probe.json"
+  if [ "$(node -e 'process.stdout.write(String(require(process.argv[1]).captureReady))' "$root/probe.json")" = false ]; then
+    paywall_capture "$OUTROOT/$name-scrolled" "$scale" "$DL/scripts/paywall-probe-scroll.yaml"
+    node "$DL/run-paywall-probe.mjs" "$root/bundle.json" "$SHA" "$BUILD_HASH" "$scale" "$root/probe.json" \
+      "$OUTROOT/$name-scrolled/bundle.json"
+  fi
+}
+
+if [ "$PAYWALL_DUAL" -eq 1 ]; then
+  printf '{"scope":"android-offline-paywall-1p0-and-1p3","releaseVerdict":false,"fullLayoutGate":false,"visualStatus":"required-not-evaluated","sourceSha":"%s","apkSha256":"%s"}\n' \
+    "$SHA" "$BUILD_HASH" > "$OUTROOT/android-qa-scope.json"
+  trap restore_baseline EXIT
+  paywall_leg "$PROFILE-1p0" 1
+  paywall_leg "$PROFILE-1p3" 1.3
+  set_font_scale 1.0
+  trap - EXIT
+  node - "$OUTROOT" <<'NODE'
+const fs = require('node:fs'), path = require('node:path');
+const root = process.argv[2];
+const read = file => JSON.parse(fs.readFileSync(path.join(root,file),'utf8'));
+const scope = read('android-qa-scope.json');
+const a = read('android-compact-1p0/probe.json'), b = read('android-compact-1p3/probe.json');
+if (![[a,1],[b,1.3]].every(([x,scale])=>x.fontScale===scale && x.sourceSha===scope.sourceSha &&
+    x.apkSha256===scope.apkSha256 && x.captureReady===true && x.geometryPassed===true &&
+    x.releaseVerdict===false && x.scopedVerdict===false) || a.screenshotSha256===b.screenshotSha256) {
+  console.error('::error::Android paywall dual QA capture evidence incomplete'); process.exit(1);
+}
+fs.writeFileSync(path.join(root,'android-qa-scope.json'),JSON.stringify({...scope, captureReady:true,
+  captures:[a,b].map(x=>({fontScale:x.fontScale,screenshotSha256:x.screenshotSha256,
+    scrollScreenshotSha256:x.scrollScreenshotSha256}))},null,2)+'\n');
+NODE
+  echo "Android paywall dual QA capture ready; independent rendered-text review required; no release verdict"
+  exit 0
+fi
+
 OUTDIR="$OUTROOT/$PROFILE"
 # Standalone evidence only: the outer QA job caps build plus capture time.
 # Do not start the combined gate's latest-start clock before a cold APK build.
@@ -269,18 +334,13 @@ if [ "$AX_ONLY" -eq 1 ]; then
   exit "$FAIL"
 fi
 
-if [ "$PAYWALL_DUAL" -eq 1 ]; then
-  printf '{"scope":"android-offline-paywall-1p0-and-1p3","releaseVerdict":false,"fullLayoutGate":false,"sourceSha":"%s","apkSha256":"%s"}\n' \
-    "$SHA" "$BUILD_HASH" > "$OUTROOT/android-qa-scope.json"
-fi
-
 set_font_scale 1.0
 capture_flows "$OUTDIR" 1.0
 gate_capture "$OUTDIR" bundle.json --font-scale 1.0
 
 if [ "$LARGE_TEXT" -eq 1 ]; then
   ELAPSED=$(( $(date +%s) - START_TS ))
-  if [ "$PAYWALL_DUAL" -eq 0 ] && [ "$ELAPSED" -ge "$AX_BUDGET_S" ]; then
+  if [ "$ELAPSED" -ge "$AX_BUDGET_S" ]; then
     echo "::error::required Android font_scale 1.3 capture not attempted: elapsed ${ELAPSED}s >= ${AX_BUDGET_S}s budget"
     exit 1
   fi
@@ -297,9 +357,5 @@ else
   echo "device-layout: baseline only (Android 1.3 capture not requested)"
 fi
 
-if [ "$PAYWALL_DUAL" -eq 1 ]; then
-  [ "$FAIL" -ne 0 ] || echo "Android paywall dual QA: complete; no full gate or release verdict"
-  exit "$FAIL"
-fi
 [ "$FAIL" -eq 0 ] && echo "device-layout android: PASS" || echo "device-layout android: FAIL"
 exit "$FAIL"

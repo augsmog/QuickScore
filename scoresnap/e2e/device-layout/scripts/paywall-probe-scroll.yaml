@@ -1,0 +1,9 @@
+appId: com.scoresnap.app
+---
+# Continue the exact same TD annual state. The offline CTA is disabled.
+- scrollUntilVisible:
+    element:
+      text: "Currently unavailable"
+    direction: DOWN
+    timeout: 5000
+    visibilityPercentage: 100

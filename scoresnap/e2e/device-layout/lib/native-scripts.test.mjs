@@ -23,6 +23,34 @@ const prof = cfg.profiles.find((p) => p.id === profile);
 const manifest = JSON.parse(readFileSync(join(a[0], 'capture-manifest.json'), 'utf8'));
 const geometryFault = process.env.STUB_SCALE_CASE === 'geometry-1.3' && manifest.fontScale === 1.3;
 const context = { viewport: { width: prof.logicalSize[0], height: prof.logicalSize[1] }, fontScale: manifest.fontScale ?? 1, safeArea: { top: 20, bottom: 0, left: 0, right: 0 } };
+if (process.env.DEVICE_LAYOUT_ANDROID_PAYWALL_DUAL_QA === '1') {
+  const r = manifest.checkpoints[0], scale = manifest.fontScale, scroll = a[0].endsWith('-scrolled');
+  const png = Buffer.alloc(26);
+  png.set(Buffer.from('89504e470d0a1a0a', 'hex'));
+  png.write('IHDR', 12); png.writeUInt32BE(1080, 16); png.writeUInt32BE(2400, 20);
+  png[24] = scale===1 ? 10 : 13; png[25] = Number(scroll);
+  writeFileSync(join(a[0], r.screenshot), png);
+  const item = (id,role,text,parentId,left,top,right,bottom,extra={}) => ({
+    id,role,text,parentId,bbox:{left,top,right,bottom},enabled:true,...extra,
+  });
+  const nodes = [
+    item('free','control','Free, Current plan',null,20,100,340,165),
+    item('free-label','text','Free','free',70,108,150,130),
+    item('paid','control','Tournament Director, $79.99/year',null,20,180,340,295,{checked:true}),
+    item('paid-label','text','Tournament Director','paid',70,188,250,212),
+  ];
+  if (scale === 1 || scroll) {
+    nodes.push(item('price','text','$79.99/year','paid',70,228,180,250));
+    if (process.env.STUB_SCALE_CASE !== 'companion-incomplete') {
+      nodes.push(item('cta','control','Currently unavailable',null,20,315,340,375,{enabled:false}));
+    }
+  }
+  writeFileSync(out, JSON.stringify({ sourceSha:f('--source-sha'), buildHash:manifest.buildHash,
+    profile, platform, configSha256:createHash('sha256').update(cfgText).digest('hex'),
+    checkpoints:[{flow:r.flow,checkpoint:r.checkpoint,screen:r.screen,state:r.state,deviceId:profile,platform,
+      nodes,context,screenshot:r.screenshot,screenshotSha256:createHash('sha256').update(png).digest('hex')}] }));
+  process.exit(0);
+}
 mkdirSync(join(dirname(out), 'shots'), { recursive: true });
 const checkpoints = []; let i = 0;
 for (const fl of cfg.flows.filter((x) => x.cadence === 'per-pr')) for (const c of fl.checkpoints) {
@@ -150,7 +178,7 @@ function fakeRepo({ harness = true, paywall = false } = {}) {
   const bin = join(root, '.stubbin'); mkdirSync(bin);
   const home = join(root, '.stubhome'); mkdirSync(home);
   for (const [name, body] of Object.entries({
-    adb: ADB, maestro: MAESTRO, sw_vers: 'echo 26.4', xcodebuild: 'echo "Xcode 26.4.1"',
+    adb: ADB, maestro: MAESTRO, timeout: 'shift; exec "$@"', sw_vers: 'echo 26.4', xcodebuild: 'echo "Xcode 26.4.1"',
     // Installed xcrun must never create/delete real simulators in this stub fixture.
     xcrun: 'exit 1',
   })) { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); }
@@ -408,12 +436,29 @@ test('focused paywall dual QA captures exactly one labeled checkpoint at each sc
   assert.equal(marker.releaseVerdict, false);
   assert.equal(marker.fullLayoutGate, false);
   assert.equal(marker.sourceSha, execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim());
-  for (const [suffix, scale] of [['', 1.0], ['-large-text', 1.3]]) {
+  assert.equal(marker.captureReady, true);
+  assert.equal(marker.visualStatus, 'required-not-evaluated');
+  assert.equal(marker.captures.length, 2);
+  assert.equal(marker.captures[0].scrollScreenshotSha256, undefined);
+  assert.match(marker.captures[1].scrollScreenshotSha256, /^[a-f0-9]{64}$/);
+  for (const [suffix, scale] of [['-1p0', 1.0], ['-1p3', 1.3], ['-1p3-scrolled', 1.3]]) {
     const manifest = JSON.parse(readFileSync(join(root, 'out/android-compact' + suffix, 'capture-manifest.json'), 'utf8'));
     assert.equal(manifest.fontScale, scale);
     assert.deepEqual(manifest.checkpoints.map(c => [c.flow, c.fontScale]), [['paywall', scale]]);
   }
   assert.equal(readFileSync(join(root, 'out/stub-font-scale'), 'utf8').trim(), '1.0');
+});
+
+test('focused paywall dual QA fails incomplete companion without release green and restores scale', () => {
+  const { dl, env, root } = fakeRepo({ paywall:true });
+  const r = run(join(dl,'scripts/run-android-compact.sh'),[],{...env,...PAYWALL_DUAL_SCOPE,STUB_SCALE_CASE:'companion-incomplete'},'/');
+  assert.notEqual(r.status,0);
+  assert.doesNotMatch(r.stdout,/device-layout android: PASS/);
+  assert.match(r.stderr,/capture evidence incomplete/);
+  const scope=JSON.parse(readFileSync(join(root,'out/android-qa-scope.json'),'utf8'));
+  assert.equal(scope.releaseVerdict,false);
+  assert.equal(scope.captureReady,undefined);
+  assert.equal(readFileSync(join(root,'out/stub-font-scale'),'utf8').trim(),'1.0');
 });
 
 test('focused paywall dual QA refuses off-scope or absent checkpoint before Android build', () => {

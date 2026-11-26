@@ -33,13 +33,13 @@ test('AC-PW2 four eligibility cases, throw, monthly never offers a trial',async(
  expect(view('year','pro','free',packages,{}).cta).not.toContain('trial');
 });
 // Render the actual screen and exercise its handlers with the same transpile loader.
-function screen({restore=async()=>true,owner='free',target,platform='ios',fontScale=1,proEnabled=true}={}){
+function screen({restore=async()=>true,owner='free',target,platform='ios',fontScale=1,width=393,proEnabled=true}={}){
  const states=[],effects=[];let cursor=0;
  const jsx=(type,props)=>({type,props});
  const alert=jest.fn(),openURL=jest.fn(),back=jest.fn();
  const react={useState:init=>{const i=cursor++;if(!(i in states))states[i]=init;return[states[i],v=>{states[i]=v;}];},useEffect:f=>effects.push(f)};
  const Screen=load('app/paywall.tsx',{
- react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{Platform:{OS:platform},useWindowDimensions:()=>({fontScale}),View:'View',Text:'Text',ScrollView:'ScrollView',Pressable:'Pressable',Alert:{alert},Linking:{openURL},StyleSheet:{create:x=>x}},
+ react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{Platform:{OS:platform},useWindowDimensions:()=>({width,fontScale}),View:'View',Text:'Text',ScrollView:'ScrollView',Pressable:'Pressable',Alert:{alert},Linking:{openURL},StyleSheet:{create:x=>x}},
  'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'expo-router':{useRouter:()=>({back}),useLocalSearchParams:()=>({tier:target})},
  '@expo-google-fonts/inter':{useFonts:()=>[true]},
  '../src/services/purchases':{getPackages:async()=>packages,purchasePackage:async()=>true,restorePurchases:restore,syncProStatus:async()=>{}},
@@ -146,8 +146,8 @@ const flattenStyle=s=>Array.isArray(s)?Object.assign({},...s.filter(Boolean).map
 const exactTextNode=(tree,label)=>nodes(tree).find(n=>n.type==='Text'&&text(n)===label);
 const planRow=(tree,label)=>nodes(tree).find(n=>n.props?.accessibilityRole==='radio'&&exactTextNode(n,label));
 
-test.each([1.3, Math.fround(1.3), 1.6])('Android phone large text %s gets full-width, natural wrapping without changing strings',fontScale=>{
- const h=screen({target:'td',platform:'android',fontScale,proEnabled:false}), tree=h.render();
+test.each([[360,1],[375,1],[393,1.3],[393,Math.fround(1.3)],[393,1.6]])('Android paywall %sdp at %sx wraps without changing strings', (width,fontScale)=>{
+ const h=screen({target:'td',platform:'android',width,fontScale,proEnabled:false}), tree=h.render();
  const free=planRow(tree,'Free'), td=planRow(tree,'Tournament Director');
  expect(free).toBeDefined(); expect(td).toBeDefined();
  expect(flattenStyle(free.props.style)).toMatchObject({alignItems:'flex-start'});
@@ -170,8 +170,8 @@ test.each([1.3, Math.fround(1.3), 1.6])('Android phone large text %s gets full-w
  expect(localized).toBeDefined(); expect(localized.props.numberOfLines).toBeUndefined();
 });
 
-test.each([['android',1],['ios',1.353],['web',1.3]])('%s %s keeps the existing paywall row/CTA layout', (platform,fontScale)=>{
- const tree=screen({target:'td',platform,fontScale}).render(), td=planRow(tree,'Tournament Director');
+test.each([['android',376,1],['ios',360,1.353],['web',360,1.3]])('%s %sdp at %sx keeps the existing paywall row/CTA layout', (platform,width,fontScale)=>{
+ const tree=screen({target:'td',platform,width,fontScale}).render(), td=planRow(tree,'Tournament Director');
  expect(flattenStyle(td.props.style).alignItems).toBe('center');
  expect(exactTextNode(td.props.children[1],'$79.99/year')).toBeUndefined();
  expect(exactTextNode(td.props.children[2],'$79.99/year').props.numberOfLines).toBe(1);

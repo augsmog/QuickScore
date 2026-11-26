@@ -17,9 +17,10 @@ import { useWindowDimensions } from 'react-native';
 
 export default function PaywallScreen() {
   const router = useRouter();
-  const { fontScale } = useWindowDimensions();
-  // Reflow before the Android 1.3 font setting, including its float32 representation.
-  const reflow = Platform.OS === 'android' && fontScale >= 1.25;
+  const { width, fontScale } = useWindowDimensions();
+  // Use the proven stacked rows on compact Android (~360dp), even at default
+  // text size. Reflow before the 1.3 font setting on wider Android too.
+  const reflow = Platform.OS === 'android' && (width <= 375 || fontScale >= 1.25);
   const { tier: target } = useLocalSearchParams<{ tier?: string }>();
   const tier = useScanStore(s => s.tier);
   useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
