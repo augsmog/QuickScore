@@ -735,6 +735,7 @@ export default function NewContestScreen() {
               return (
               <View
                 key={player.id}
+                testID={Platform.OS === "ios" ? `wizard-player-row-${idx + 1}` : undefined}
                 style={{
                   backgroundColor: COLORS.surfaceMid,
                   borderColor: nameEmpty ? COLORS.warn + "66" : COLORS.border,
@@ -766,6 +767,7 @@ export default function NewContestScreen() {
                   </View>
 
                   <TextInput
+                    testID={Platform.OS === "ios" ? `wizard-player-name-${idx + 1}` : undefined}
                     value={player.name}
                     onChangeText={(v) => updatePlayer(player.id, "name", v)}
                     placeholder={idx === 0 ? "Your name" : `Player ${idx + 1} name`}

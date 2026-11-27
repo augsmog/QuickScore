@@ -238,6 +238,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
           borderRadius: 12,
           paddingHorizontal: 14,
           paddingVertical: 12,
+          minHeight: Platform.OS === "android" ? 48 : undefined,
         }}
       >
         <MapPin size={16} color={COLORS.textDim} />

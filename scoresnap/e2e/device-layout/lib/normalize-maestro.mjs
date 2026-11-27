@@ -206,10 +206,10 @@ export function normalizeMaestroCapture(root, options = {}) {
   }
   walk(root, null, 0, null, false);
 
-  const { kept, chrome, safeArea } = stripSystemChrome(nodes, childrenOf, viewport);
+  const { kept, chrome, safeArea, keyboardInset } = stripSystemChrome(nodes, childrenOf, viewport);
   pairSwitchSlots(kept);
   for (const n of kept) { delete n.meta.systemPackage; delete n.meta.keyboardNode; } // internal markers
-  return { nodes: kept, chrome, safeArea };
+  return { nodes: kept, chrome, safeArea, keyboardInset };
 }
 
 // Reconcile each switch tap slot with the native switch it wraps. React Native FLATTENS the
@@ -371,8 +371,9 @@ function stripSystemChrome(nodes, childrenOf, viewport) {
       }
     }
   }
-  const safeArea = withKeyboardInset(measuredSafeArea(chrome, viewport), keyboardBottomInset(keyboard, viewport));
-  return { kept, chrome, safeArea };
+  const keyboardInset = keyboardBottomInset(keyboard, viewport);
+  const safeArea = withKeyboardInset(measuredSafeArea(chrome, viewport), keyboardInset);
+  return { kept, chrome, safeArea, keyboardInset };
 }
 
 // Fold the removed chrome bars into measured safe-area insets: a bar flush to the top edge raises

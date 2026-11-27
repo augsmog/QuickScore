@@ -21,6 +21,7 @@
 //
 // Covered by lib/bundle-from-maestro.test.mjs (node --test).
 
+import { verifyIOSWizard } from "../lib/ios-wizard-proof.mjs";
 import { readFileSync, writeFileSync, existsSync, statSync , realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -69,6 +70,8 @@ export const SNAPSCORE_META = {
 
 // A resource-id prefix map for the per-player dynamic testIDs (`player-handicap-<name>` etc).
 const PREFIX_META = [
+  { re: /^wizard-player-name-\d+$/, meta: { role: 'control', meta: { tappable: true } } },
+  { re: /^wizard-player-row-\d+$/, meta: { role: 'container', meta: {} } },
   { re: /^player-handicap-/, meta: { role: 'control', meta: { tappable: true, control: 'handicap' } } },
   { re: /^player-group-/, meta: { role: 'control', meta: { tappable: true } } },
   { re: /^player-team-/, meta: { role: 'control', meta: { tappable: true } } },
@@ -251,7 +254,7 @@ export function buildBundle({ manifest, dir }, { platform, profileId, config, so
     const resourceMeta = buildResourceMeta(rawRoot);
     // The logical viewport lets the normalizer separate the app window from OS status/nav chrome.
     const vp = viewportOverride || { width: profile.logicalSize[0], height: profile.logicalSize[1] };
-    const { nodes, safeArea: measuredSafeArea } = normalizeMaestroCapture(rawRoot, {
+    const { nodes, safeArea: measuredSafeArea, keyboardInset } = normalizeMaestroCapture(rawRoot, {
       density,
       resourceMeta,
       scrollState: cp.scrollState ?? null,
@@ -266,6 +269,7 @@ export function buildBundle({ manifest, dir }, { platform, profileId, config, so
         `Fix the capture, do not score this tree.`);
     }
     const context = contextForCheckpoint(profile, cp, nodes, { viewport: viewportOverride, measuredSafeArea });
+    if (platform === 'ios') context.measuredKeyboardInset = keyboardInset;
     // Bind the checkpoint to its screenshot by sha256 (the vision-candidate job rejects a stale or
     // swapped artifact). The path stays relative to the bundle dir so the reviewer resolves it.
     let screenshot = cp.screenshot || null;
@@ -332,6 +336,12 @@ function main() {
   const json = JSON.stringify(bundle, null, 2);
   if (outPath) writeFileSync(outPath, json);
   else process.stdout.write(json + '\n');
+  if (args.includes('--require-ios-wizard')) {
+    const buildHash = flag(args, '--expect-build');
+    if (cap.manifest.sourceSha !== sourceSha || cap.manifest.profile !== profileId || cap.manifest.platform !== 'ios')
+      throw new Error('iOS wizard capture: manifest does not match capture source/profile/platform');
+    verifyIOSWizard(bundle, { sourceSha, profileId, buildHash });
+  }
   console.error(`bundle: ${bundle.checkpoints.length} checkpoint(s) from ${bundle.profile} (${bundle.platform})`);
 }
 

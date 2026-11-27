@@ -84,20 +84,31 @@ BUILD_HASH="$(cat "$OUTROOT/ios-build-hash.txt" 2>/dev/null || echo '')"
 # Per checkpoint we time three phases and write them to <capdir>/phase-timings.tsv.
 capture_flows() {
   local capdir="$1" udid="$2" fontscale="${3:-}" prof="${4:-}" order=0 flowdir flow sub base slug devarg=""
-  local shotname dbg lifted t0 t1 t2 t3
+  local shotname dbg lifted t0 t1 t2 t3 override capture_failed=0
+  local -a steps
   [ -n "$udid" ] && devarg="--device $udid"
   mkdir -p "$capdir"
+  if find "$capdir" -name '*.ctx.json' -print -quit | grep -q .; then
+    echo "::error::refusing to mix a new run with retained captures in $capdir"; return 1
+  fi
   : > "$capdir/phase-timings.tsv"
   for flowdir in "$FLOWS"/*/; do
     [ -d "$flowdir" ] || continue
     flow="$(basename "$flowdir")"
-    for sub in "$flowdir"*.yaml; do
+    steps=("$flowdir"*.yaml)
+    if [ "$flow" = new-contest ]; then
+      override="$ROOT/.maestro/flows/device-layout-ios/new-contest"
+      steps+=("$override/08-rewind-remove-ava.yaml" "$override/09-four-players-add-group.yaml")
+    fi
+    for sub in "${steps[@]}"; do
+      if [ "$flow" = new-contest ] && [ -f "$override/$(basename "$sub")" ]; then sub="$override/$(basename "$sub")"; fi
       [ -e "$sub" ] || continue
       base="$(printf '%02d-%s-%s' "$order" "$flow" "$(basename "$sub" .yaml | sed 's/^[0-9]*-//')")"
       slug="$(basename "$sub" .yaml | sed 's/^[0-9]*-//; s/-/ /g')"
       # The sub-flow's own takeScreenshot name (device-layout-<flow>-<file-stem>) — we lift this PNG.
       shotname="device-layout-${flow}-$(basename "$sub" .yaml)"
-      dbg="$capdir/_dbg/$base"; mkdir -p "$dbg"
+      mkdir -p "$capdir/_dbg"
+      dbg="$(mktemp -d "$capdir/_dbg/$base.XXXXXX")" || return 1
       echo "  checkpoint $base"
       # Phase 1 — drive the sub-flow. --test-output-dir/--debug-output capture the in-flow
       # takeScreenshot so phase 3 needs no second (hanging) xcrun call on the happy path.
@@ -105,6 +116,7 @@ capture_flows() {
       if ! with_timeout "$FLOW_TIMEOUT_S" maestro $devarg test --test-output-dir "$dbg" --debug-output "$dbg/debug" "$sub" > "$capdir/$base.maestro.log" 2>&1; then
         echo "::warning::maestro sub-flow failed or timed out (>${FLOW_TIMEOUT_S}s): $sub (see $base.maestro.log)"
         tail -20 "$capdir/$base.maestro.log" || true
+        [ "$flow" != new-contest ] || capture_failed=1
       fi
       # Phase 2 — the live view hierarchy for the geometry engine (the one unavoidable per-checkpoint
       # maestro call: geometry needs the element tree at THIS state).
@@ -131,10 +143,14 @@ capture_flows() {
       # screenshot only if it is missing (never let a hung xcrun eat the job).
       t2="$(date +%s)"
       lifted="$(find "$dbg" -name "${shotname}.png" 2>/dev/null | head -1)"
-      [ -n "$lifted" ] || lifted="$(find "$dbg" -name '*.png' 2>/dev/null | head -1)"
+      if [ "$flow" = new-contest ] && [ ! -s "$lifted" ]; then
+        echo "::error::missing named wizard screenshot: $shotname"; capture_failed=1
+      elif [ -z "$lifted" ]; then
+        lifted="$(find "$dbg" -name '*.png' 2>/dev/null | head -1)"
+      fi
       if [ -n "$lifted" ] && [ -s "$lifted" ]; then
         cp "$lifted" "$capdir/$base.png"
-      elif command -v xcrun >/dev/null 2>&1; then
+      elif [ "$flow" != new-contest ] && command -v xcrun >/dev/null 2>&1; then
         with_timeout "$SHOT_TIMEOUT_S" xcrun simctl io "${udid:-booted}" screenshot "$capdir/$base.png" >/dev/null 2>&1 || true
       fi
       t3="$(date +%s)"
@@ -148,6 +164,7 @@ capture_flows() {
       order=$((order+1))
     done
   done
+  return "$capture_failed"
 }
 
 # Per-profile per-phase timing summary (where the minutes actually went).
@@ -165,11 +182,15 @@ print_timing_summary() {
 #   $3 profile id, rest → manifest flags.
 gate_capture() {
   local capdir="$1" bundle="$2" prof="$3"; shift 3
-  local rc=0
+  local rc=0 fresh
+  fresh="$(mktemp "$capdir/_bundle.XXXXXX")" || return 1
   node "$DL/scripts/make-capture-manifest.mjs" "$capdir" --profile "$prof" --platform ios \
     --source-sha "$SHA" --build-hash "$BUILD_HASH" "$@" || return 1
   node "$DL/scripts/bundle-from-maestro.mjs" "$capdir" --platform ios --profile "$prof" \
-    --source-sha "$SHA" --out "$capdir/$bundle" || return 1
+    --source-sha "$SHA" --require-ios-wizard --expect-build "$BUILD_HASH" --out "$fresh" || rc=1
+  # Keep matrix geometry even when wizard evidence fails. Never score a stale output.
+  [ -s "$fresh" ] || return 1
+  mv "$fresh" "$capdir/$bundle" || return 1
   if ! node "$DL/run-geometry.mjs" "$capdir/$bundle" --waivers "$DL/waivers.json" \
       --expect-sha "$SHA" --profile "$prof" --expect-build "$BUILD_HASH" --out "$capdir/geometry-${bundle%.json}.json"; then
     echo "::error::device-layout geometry findings on $prof (${bundle})"; rc=1
@@ -201,7 +222,7 @@ run_profile() {
   fi
 
   local OUTDIR="$OUTROOT/$prof"
-  capture_flows "$OUTDIR" "$UDID" "" "$prof"
+  capture_flows "$OUTDIR" "$UDID" "" "$prof" || pfail=1
   gate_capture "$OUTDIR" bundle.json "$prof" || pfail=1
   print_timing_summary "$prof" "$OUTDIR"
 
@@ -212,7 +233,7 @@ run_profile() {
       xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large >/dev/null 2>&1 || true
     fi
     CAPAX="$OUTROOT/$prof-ax3"
-    capture_flows "$CAPAX" "$UDID" 2.0 "$prof"
+    capture_flows "$CAPAX" "$UDID" 2.0 "$prof" || pfail=1
     gate_capture "$CAPAX" bundle.ax3.json "$prof" --font-scale 2.0 || pfail=1
     print_timing_summary "$prof-ax3" "$CAPAX"
   elif [ -n "${DEVICE_LAYOUT_LARGE_TEXT:-}" ]; then

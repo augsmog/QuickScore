@@ -1,0 +1,25 @@
+appId: com.scoresnap.app
+---
+# The Add Player control sits BELOW the player list (Players section → player cards → ADD PLAYER),
+# which is itself below the Team Mode toggle checkpoint 05 left us on — so scroll DOWN, not up.
+# Match it by testID (the old "+ ADD PLAYER" selector is parsed as a regex; the leading `+` made it
+# unmatchable, so the capture never added players).
+- scrollUntilVisible:
+    element:
+      id: "add-player"
+    direction: DOWN
+    timeout: 12000
+    centerElement: true
+# Two more players (seed is 2) → four total, for the player-card crowding capture.
+- tapOn:
+    id: "add-player"
+- tapOn:
+    id: "add-player"
+- scrollUntilVisible:
+    element:
+      id: "remove-player-Ava"
+    direction: UP
+    visibilityPercentage: 100
+    centerElement: true
+    timeout: 12000
+- takeScreenshot: device-layout-new-contest-06-four-players

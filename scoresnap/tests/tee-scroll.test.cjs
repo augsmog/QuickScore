@@ -1,11 +1,11 @@
 const fs = require('fs'), vm = require('vm'), ts = require('typescript');
 const read = f => fs.readFileSync(require('path').join(__dirname, '..', f), 'utf8');
-function render() {
+function render(platform = "ios") {
  const tees = Array.from({length:16}, (_,i)=>({name:`Tee ${i+1}`,totalYards:6000}));
  const course = {name:'Piping Rock Club',url:'https://www.golfcore.org/test',teeBoxes:tees,holes:18};
  const states=[false,'','','',true,'',[],false,course,tees[15],'',null,false];
  let i=0; const setters=states.map(()=>jest.fn());
- const deps={react:{useState:()=>{const n=i++;return [states[n],setters[n]]},useCallback:f=>f,useRef:()=>({current:null}),useEffect:()=>{}},'react/jsx-runtime':{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})},'react-native':new Proxy({Platform:{OS:'ios'}},{get:(o,k)=>o[k]||k}),'lucide-react-native':{},'./theme':{COLORS:{}},'../services/course-api':{teeBoxToCourse:()=>({holes:[]})}};
+ const deps={react:{useState:()=>{const n=i++;return [states[n],setters[n]]},useCallback:f=>f,useRef:()=>({current:null}),useEffect:()=>{}},'react/jsx-runtime':{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})},'react-native':new Proxy({Platform:{OS:platform}},{get:(o,k)=>o[k]||k}),'lucide-react-native':{},'./theme':{COLORS:{}},'../services/course-api':{teeBoxToCourse:()=>({holes:[]})}};
  const exports={}; vm.runInNewContext(ts.transpileModule(read('src/ui/CourseSearch.tsx'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,require:n=>{if(n==='./SafeScreen')return {SheetSurface:'View',FullScreenSheet:'Modal'};if(!(n in deps))throw Error(n);return deps[n]}});
  return {tree:exports.default({onSelect:jest.fn()}),setters,tees};
 }
@@ -25,4 +25,11 @@ test('entry and both setup steps use bounded nested scrolling with navigation ou
  expect(opening).toContain('flex: 1');expect(opening).toContain('nestedScrollEnabled');
  for(const step of [0,1,2])expect(s.slice(start,end)).toContain(`step === ${step}`);
  expect(s.indexOf('setStep(step + 1)',end)).toBeGreaterThan(end);
+});
+
+test('course search trigger reserves Android 48dp without changing the iOS style',()=>{
+ const trigger=platform=>render(platform).tree.props.children[0];
+ expect(trigger('android').type).toBe('Pressable');
+ expect(trigger('android').props.style.minHeight).toBe(48);
+ expect(trigger('ios').props.style.minHeight).toBeUndefined();
 });

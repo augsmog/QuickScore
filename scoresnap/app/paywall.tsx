@@ -1,7 +1,7 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../src/ui/SafeScreen";
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Alert, Linking, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert, Linking, Platform, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { getPackages, purchasePackage, restorePurchases, syncProStatus } from '../src/services/purchases';
@@ -88,14 +88,16 @@ export default function PaywallScreen() {
     </ScrollView>
   </SafeScreen>;
 }
+// Keep the native focus/touch bounds large enough on Android without changing iOS layout.
+const PAYWALL_TOUCH_SIZE = Platform.OS === 'android' ? 48 : 44;
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: P.paper },
   content: { paddingHorizontal: P.padding, paddingBottom: 10, gap: P.gap },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44, marginTop: 2 },
-  closeButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  topLink: { minHeight: 44, justifyContent: 'center' },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: PAYWALL_TOUCH_SIZE, marginTop: 2 },
+  closeButton: { minWidth: PAYWALL_TOUCH_SIZE, minHeight: PAYWALL_TOUCH_SIZE, alignItems: 'center', justifyContent: 'center' },
+  topLink: { minHeight: PAYWALL_TOUCH_SIZE, justifyContent: 'center' },
   footerLink: { minHeight: 44, justifyContent: 'center' },
-  alternateLink: { minHeight: 44, justifyContent: 'center' },
+  alternateLink: { minHeight: PAYWALL_TOUCH_SIZE, justifyContent: 'center' },
   link: { fontFamily: P.medium, fontSize: 12, color: P.green, textDecorationLine: 'underline' },
   eyebrow: { fontFamily: P.semibold, fontSize: 12, letterSpacing: 1.2, color: P.muted },
   headline: { fontFamily: P.bold, fontSize: 28, lineHeight: 32, letterSpacing: -0.6, color: P.ink },
