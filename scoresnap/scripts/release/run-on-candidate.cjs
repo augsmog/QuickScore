@@ -6,7 +6,8 @@
 //
 // It runs the command only if ALL of these hold, and otherwise exits non-zero without running it:
 //   - the checkout at --source has HEAD exactly equal to the receipt's SHA;
-//   - that checkout has no modified, staged or deleted tracked files (what gets built is the SHA);
+//   - that checkout has no modified, staged or deleted tracked files, and no untracked files that are
+//     not git-ignored (either can change what gets built; what gets built is the SHA);
 //   - candidate-check `verify` accepts the receipt for that SHA (tree, fix manifest, test list).
 // The command runs in <source>/scoresnap with CANDIDATE_SHA, CANDIDATE_TREE and CANDIDATE_RECEIPT
 // set, and this script exits with the command's exit status.
@@ -42,8 +43,11 @@ function admit({ source, receiptPath, fixesFile }) {
   let receipt;
   try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch { refuse('candidate receipt is not valid JSON'); }
   if (receipt.sha !== head) refuse(`the checkout at ${repo} is at ${head}, but the receipt is for ${receipt.sha}; build only the SHA that has the receipt`);
-  const dirty = git(repo, ['status', '--porcelain', '--untracked-files=no']);
-  if (dirty) refuse(`the checkout at ${repo} has changes to tracked files; what gets built must be exactly ${head}:\n${dirty}`);
+  const status = git(repo, ['status', '--porcelain', '--untracked-files=all']).split('\n').filter(Boolean);
+  const dirty = status.filter((line) => !line.startsWith('??'));
+  if (dirty.length) refuse(`the checkout at ${repo} has changes to tracked files; what gets built must be exactly ${head}:\n${dirty.join('\n')}`);
+  const untracked = status.filter((line) => line.startsWith('??'));
+  if (untracked.length) refuse(`the checkout at ${repo} has untracked files that are not git-ignored; they can change what gets built, so remove them (keep the receipt outside the checkout):\n${untracked.join('\n')}`);
   return { repo, receipt: verifyReceipt({ repo, sha: head, receiptPath, fixesFile }) };
 }
 
