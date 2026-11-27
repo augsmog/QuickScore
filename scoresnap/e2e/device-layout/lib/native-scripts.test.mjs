@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, cpSync, chmodSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, cpSync, chmodSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
@@ -122,4 +122,28 @@ test('a stale bundle (different SHA) fails the geometry gate', () => {
     '--expect-sha', 'f'.repeat(40), '--profile', 'android-compact'], { encoding: 'utf8' });
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /stale evidence/);
+});
+
+// AUG-1601: the largest-text pass. Over the time budget it used to be skipped, and a skipped pass is
+// green. With DEVICE_LAYOUT_LARGE_TEXT_REQUIRED it always runs.
+test('the large-text pass is skipped over budget unless it is required', () => {
+  const { dl, env, root } = fakeRepo();
+  const over = { ...env, DEVICE_LAYOUT_LARGE_TEXT: 'true', DEVICE_LAYOUT_AX_BUDGET_S: '0' };
+  for (const [script, bundles, skip, ran] of [
+    ['run-android-compact.sh', ['android-compact-large-text/bundle.large-text.json'], /skipping large-text pass/, /large-text pass \(font_scale 1\.3, elapsed \d+s; budget 0s; required=true\)/],
+    ['run-ios-sim.sh', ['iphone-16-pro-ax3/bundle.ax3.json', 'iphone-se-3-ax3/bundle.ax3.json'], /skipping AX3 pass/, /AX3 large-text pass \(elapsed \d+s; budget 0s; required=true\)/],
+  ]) {
+    rmSync(join(root, 'out'), { recursive: true, force: true });
+    const skipped = run(join(dl, 'scripts', script), [], over, '/');
+    assert.equal(skipped.status, 0, skipped.stdout + skipped.stderr);
+    assert.match(skipped.stdout, skip);
+    for (const b of bundles) assert.equal(existsSync(join(root, 'out', b)), false, `${b} should not exist when skipped`);
+
+    rmSync(join(root, 'out'), { recursive: true, force: true });
+    const required = run(join(dl, 'scripts', script), [], { ...over, DEVICE_LAYOUT_LARGE_TEXT_REQUIRED: 'true' }, '/');
+    assert.equal(required.status, 0, required.stdout + required.stderr);
+    assert.doesNotMatch(required.stdout, skip);
+    assert.match(required.stdout, ran);
+    for (const b of bundles) assert.equal(existsSync(join(root, 'out', b)), true, `${b} should exist when required`);
+  }
 });

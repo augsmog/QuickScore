@@ -127,8 +127,9 @@ gate_capture "$OUTDIR" bundle.json
 
 # Large-text pass (font_scale 1.3) when enabled and comfortably under the wall-time budget.
 ELAPSED=$(( $(date +%s) - START_TS ))
-if [ -n "${DEVICE_LAYOUT_LARGE_TEXT:-}" ] && [ "$ELAPSED" -lt "$AX_BUDGET_S" ]; then
-  echo "--- $PROFILE large-text pass (font_scale 1.3, elapsed ${ELAPSED}s < ${AX_BUDGET_S}s) ---"
+# AUG-1601: with DEVICE_LAYOUT_LARGE_TEXT_REQUIRED set, the pass always runs; a skipped pass is green.
+if [ -n "${DEVICE_LAYOUT_LARGE_TEXT:-}" ] && { [ -n "${DEVICE_LAYOUT_LARGE_TEXT_REQUIRED:-}" ] || [ "$ELAPSED" -lt "$AX_BUDGET_S" ]; }; then
+  echo "--- $PROFILE large-text pass (font_scale 1.3, elapsed ${ELAPSED}s; budget ${AX_BUDGET_S}s; required=${DEVICE_LAYOUT_LARGE_TEXT_REQUIRED:-no}) ---"
   adb -s "$SERIAL" shell settings put system font_scale 1.3 >/dev/null 2>&1 || true
   CAPAX="$OUTROOT/$PROFILE-large-text"
   capture_flows "$CAPAX" 1.3
