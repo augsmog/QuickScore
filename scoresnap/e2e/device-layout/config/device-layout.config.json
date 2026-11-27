@@ -15,7 +15,7 @@
     { "id": "iphone-16-pro-max", "platform": "ios", "name": "iPhone 16 Pro Max", "logicalSize": [440, 956], "scale": 3, "os": "26.4", "fontScale": 1.0, "safeArea": { "top": 62, "bottom": 34, "left": 0, "right": 0 }, "runner": "mac-mini", "cadence": "nightly", "trackedBy": "AUG-1376" }
   ],
   "flows": [
-    { "id": "new-contest", "cadence": "per-pr", "checkpoints": ["empty wizard", "name entry", "multi day on", "rounds 3", "rounds 4 scrolled", "team mode on", "four players", "last player above footer"] },
+    { "id": "new-contest", "cadence": "per-pr", "checkpoints": ["empty wizard", "name entry", "multi day on", "rounds 3", "rounds 4 scrolled", "team mode on", "four players", "last player above footer"], "scrollEnd": ["last player above footer"] },
     { "id": "join", "cadence": "per-pr", "checkpoints": ["entry"] },
     { "id": "leagues", "cadence": "nightly", "checkpoints": ["empty/loading/error", "create", "roster/event mapping", "leaderboard"] },
     { "id": "paywall", "cadence": "per-pr", "checkpoints": ["tier td"] }

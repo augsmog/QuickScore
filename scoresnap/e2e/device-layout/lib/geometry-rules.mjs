@@ -143,13 +143,39 @@ export function ruleClipping(tree, ctx) {
   const safe = ctx.safeArea; // {top,bottom,left,right} insets, optional
   const vp = ctx.viewport; // {width,height}
   const required = tree.nodes.filter((n) => n.meta?.required || n.role === 'control');
+  // Which controls outside their scroll area are findings (AUG-1601). Maestro reports every frame
+  // unmasked, so in any screen that scrolls some control is always partly or wholly outside its
+  // scroll area; flagging all of them means no scrolling screen can pass. A finding is:
+  //   - cut off SIDEWAYS: never "further down the list";
+  //   - a REQUIRED control cut at the bottom edge of its scroll area while partly showing: the
+  //     owner's defect, a card bisected where the list meets the pinned footer;
+  //   - at a SCROLL-TO-END checkpoint, anything still cut off or hidden at the bottom: it cannot
+  //     be scrolled clear. The bundler sets `ctx.scrollEnd` from the config; node meta cannot.
+  // Not a finding: a control wholly or partly scrolled off the TOP, or a non-required control
+  // further DOWN the list, at an ordinary checkpoint. Those are reachable by scrolling.
+  const scrollEnd = ctx.scrollEnd === true;
   for (const n of required) {
-    const r = n.bbox;
-    const clip = n.meta?.scrollViewport;
-    if (clip && (r.left < clip.left || r.top < clip.top ||
-        r.right > clip.right || r.bottom > clip.bottom)) {
-      findings.push({ rule: 2, severity: 'major', bbox: bboxArr(r), nodes: [n.id],
-        reason: 'Required/control frame is not fully painted within measured scroll ancestors; full visibility and reachability are unproven at this checkpoint.' });
+    const raw = n.bbox;
+    // Only the MEASURED scroll area counts. `clipRect` / `clippedOut` / `clipBottom` in meta are
+    // not used here: a caller could supply them, and they must never waive an observed overlap.
+    const clip = n.meta?.scrollViewport && finiteRect(n.meta.scrollViewport) ? n.meta.scrollViewport : null;
+    let r = raw;
+    if (clip) {
+      const sideways = raw.left < clip.left - 0.5 || raw.right > clip.right + 0.5;
+      const pastBottom = raw.bottom > clip.bottom + 0.5;
+      const partlyShowing = raw.top < clip.bottom - 0.5 && raw.bottom > clip.top + 0.5;
+      const bisectedRequired = pastBottom && partlyShowing && n.meta?.required === true;
+      const bottomAtEnd = scrollEnd && pastBottom;
+      if (sideways || bisectedRequired || bottomAtEnd) {
+        findings.push({ rule: 2, severity: 'major', bbox: bboxArr(raw), nodes: [n.id],
+          reason: 'Required/control frame is not fully painted within measured scroll ancestors; full visibility and reachability are unproven at this checkpoint.' +
+            (bottomAtEnd && !sideways ? ` At the scroll-to-end checkpoint it still extends ${(raw.bottom - clip.bottom).toFixed(0)}pt past the bottom of its scroll area: it cannot be scrolled clear.` : '') });
+      }
+      // What is actually drawn: the frame cut to its measured scroll area.
+      r = { left: Math.max(raw.left, clip.left), top: Math.max(raw.top, clip.top), right: Math.min(raw.right, clip.right), bottom: Math.min(raw.bottom, clip.bottom) };
+      // Wholly outside: not drawn anywhere at this checkpoint, so it cannot be behind the footer,
+      // under the keyboard or above the top inset.
+      if (r.right - r.left <= 0.5 || r.bottom - r.top <= 0.5) continue;
     }
     // Partially behind the sticky footer = clipped / not operable.
     if (footer && r.bottom > footer.top + 1 && r.top < footer.top - 1 &&
@@ -270,7 +296,11 @@ export function ruleTapTargets(tree, ctx) {
       }
       const paintedW = Math.max(0, Math.min(r.right, clip.right) - Math.max(r.left, clip.left));
       const paintedH = Math.max(0, Math.min(r.bottom, clip.bottom) - Math.max(r.top, clip.top));
-      if ((paintedW < min - 0.5 || paintedH < min - 0.5) && w >= min - 0.5 && h >= min - 0.5) {
+      // Same distinction as rule 2. Cut sideways: always. Cut at the bottom: only at a scroll-to-end
+      // checkpoint. A row cut at the top or bottom edge elsewhere is further up or down the list.
+      const cutSideways = paintedW < min - 0.5 && w >= min - 0.5;
+      const cutBottomAtEnd = ctx.scrollEnd === true && r.bottom > clip.bottom + 0.5 && paintedH < min - 0.5 && h >= min - 0.5;
+      if (cutSideways || cutBottomAtEnd) {
         findings.push({ rule: 5, severity: 'major', bbox: bboxArr(r), nodes: [t.id],
           reason: 'Measured scroll clipping leaves an undersized painted target; raw size does not prove an operable reachable target.' });
       }

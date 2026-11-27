@@ -198,6 +198,18 @@ export function mergeSafeArea(declared, measured) {
   return { top: pick('top'), bottom: pick('bottom'), left: pick('left'), right: pick('right') };
 }
 
+/** True when the config lists this checkpoint under its flow's `scrollEnd`: the flow has scrolled
+ * to the end there, so anything still cut off or hidden at the bottom cannot be scrolled clear. */
+export function isScrollEndCheckpoint(config, flowId, checkpoint) {
+  const flow = (config?.flows || []).find((f) => f.id === flowId);
+  const list = flow?.scrollEnd;
+  if (list === undefined) return false;
+  if (!Array.isArray(list) || list.some((c) => typeof c !== 'string' || !flow.checkpoints.includes(c))) {
+    throw new Error(`device-layout config: flow "${flowId}" scrollEnd must list checkpoints of that flow`);
+  }
+  return list.includes(checkpoint);
+}
+
 export function contextForCheckpoint(profile, checkpoint, nodes, overrides = {}) {
   const [w, h] = profile.logicalSize;
   // The emulator/simulator may not be exactly the profile's nominal size; prefer a measured
@@ -270,6 +282,9 @@ export function buildBundle({ manifest, dir }, { platform, profileId, config, so
     }
     const context = contextForCheckpoint(profile, cp, nodes, { viewport: viewportOverride, measuredSafeArea });
     if (platform === 'ios') context.measuredKeyboardInset = keyboardInset;
+    // Scroll-to-end checkpoints come from the config, per flow (`scrollEnd`). Set last, so neither the
+    // capture manifest nor a checkpoint's own context can claim or deny it (AUG-1601, rule 2).
+    context.scrollEnd = isScrollEndCheckpoint(config, cp.flow || manifest.flow, cp.checkpoint);
     // Bind the checkpoint to its screenshot by sha256 (the vision-candidate job rejects a stale or
     // swapped artifact). The path stays relative to the bundle dir so the reviewer resolves it.
     let screenshot = cp.screenshot || null;
