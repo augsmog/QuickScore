@@ -34,7 +34,7 @@ import { COLORS } from "../src/ui/theme";
 import "../global.css";
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
-import { assertNoDefaultPii, assertReplayMask, scrubSentryEvent, scrubSentryEventCrashOnly, sentryCapture, sentryReplayMask, sentrySendDefaultPii } from "../src/config/sentry-privacy";
+import { assertNoDefaultPii, assertReplayMask, scrubSentryEvent, scrubSentryEventCrashOnly, sentryCapture, sentryDsn, sentryReplayMask, sentrySendDefaultPii } from "../src/config/sentry-privacy";
 import { PostHogAppProvider, posthog } from "../src/config/posthog";
 import { reportAppOpened } from "../src/services/app-opened";
 import { screenNameFromSegments } from "../src/services/analytics-screen";
@@ -56,7 +56,7 @@ const capture = sentryCapture(CROSS_DEVICE_SHARING_ENABLED);
 
 Sentry.init({
   enabled: !isPublicShare,
-  dsn: 'https://e878c1d1d9a18b64ad7ddc2f6d2b5986@o4511068999385088.ingest.us.sentry.io/4511069003776000',
+  dsn: sentryDsn('https://e878c1d1d9a18b64ad7ddc2f6d2b5986@o4511068999385088.ingest.us.sentry.io/4511069003776000', process.env.EXPO_PUBLIC_SENTRY_PROOF_DSN, __DEV__),
 
   // Release & environment tracking
   release: Constants.expoConfig?.version

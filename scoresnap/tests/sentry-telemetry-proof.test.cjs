@@ -1,0 +1,72 @@
+// M6 "token privacy gate" (docs/xdevice/plan-rev4.md): code tests do not prove what Sentry
+// actually sends. The proof is run on a simulator: a dev build sends its Sentry traffic to a
+// listener on the same Mac, and the listener's files are searched for the secrets that were used.
+// These tests cover the tools for that proof and the guard that keeps a release build from ever
+// being pointed anywhere but the real Sentry project.
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const http = require('node:http');
+const zlib = require('node:zlib');
+const ts = require('typescript');
+const load = (file) => { const m = { exports: {} }; new Function('module', 'exports', ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(m, m.exports); return m.exports; };
+const { sentryDsn } = load('src/config/sentry-privacy.ts');
+const { scanText, startListener, checkDirectory } = require('../scripts/sentry-proof-listener.cjs');
+const REAL = 'https://key@o1.ingest.us.sentry.io/2';
+const JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwcm9vZiJ9.c2lnbmF0dXJlLXByb29m';
+
+test('only a dev build can be pointed at a listener, and only one on this machine', () => {
+  expect(sentryDsn(REAL, 'http://proof@127.0.0.1:9000/1', true)).toBe('http://proof@127.0.0.1:9000/1');
+  expect(sentryDsn(REAL, 'http://proof@localhost:9000/1', true)).toBe('http://proof@localhost:9000/1');
+  expect(sentryDsn(REAL, 'http://proof@127.0.0.1:9000/1', false)).toBe(REAL); // release build: never
+  for (const other of [undefined, '', 'https://x@evil.example/1', 'http://x@127.0.0.1.evil.example/1', 'not a url']) expect(sentryDsn(REAL, other, true)).toBe(REAL);
+});
+
+test('the app takes its DSN through that guard, and no build profile sets the proof variable', () => {
+  const layout = fs.readFileSync('app/_layout.tsx', 'utf8');
+  expect(layout).toMatch(/dsn: sentryDsn\(\s*'https:\/\/[^']+',\s*process\.env\.EXPO_PUBLIC_SENTRY_PROOF_DSN,\s*__DEV__\s*\)/);
+  expect(fs.readFileSync('eas.json', 'utf8')).not.toContain('SENTRY_PROOF');
+});
+
+test('the two test triggers exist in dev builds only', () => {
+  const profile = fs.readFileSync('app/(tabs)/profile.tsx', 'utf8');
+  const dev = profile.slice(profile.indexOf('{__DEV__ && ('));
+  expect(dev).toContain('Sentry.captureException(');
+  expect(dev).toContain('Sentry.nativeCrash()');
+  expect(profile.slice(0, profile.indexOf('{__DEV__ && ('))).not.toContain('nativeCrash');
+});
+
+test('the search finds named secrets, any session token and any email, and passes clean text', () => {
+  const secrets = ['QZ7K3M', 'feedfacefeedfacefeedfacefeedface'];
+  expect(scanText('{"exception":{"values":[{"type":"Error","value":"First error"}]},"event_id":"0123456789abcdef0123456789abcdef"}', secrets)).toEqual([]);
+  expect(scanText('url=/join/QZ7K3M', secrets)).toEqual([{ kind: 'named secret', match: 'QZ7K3M' }]);
+  expect(scanText('x qz7k3m x', secrets)).toEqual([{ kind: 'named secret', match: 'QZ7K3M' }]); // any letter case
+  expect(scanText(`/r/feedfacefeedfacefeedfacefeedface Bearer ${JWT}`, secrets).map((f) => f.kind).sort()).toEqual(['named secret', 'session token']);
+  expect(scanText('user a.b@example.com', secrets)).toEqual([{ kind: 'email', match: 'a.b@example.com' }]);
+});
+
+test('the listener stores what it is sent, gzip or not, and the check fails on a leak', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sentry-proof-'));
+  const server = await startListener({ dir, port: 0 });
+  const post = (body, headers = {}) => new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port: server.address().port, path: '/api/1/envelope/', method: 'POST', headers }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); });
+    req.on('error', reject); req.end(body);
+  });
+  expect(await post('{"event_id":"a"}\n{"type":"event"}\n{"exception":{"values":[{"value":"First error"}]}}')).toBe(200);
+  expect(checkDirectory(dir, ['QZ7K3M'])).toEqual({ files: 1, findings: [] });
+  expect(await post(zlib.gzipSync('{"breadcrumbs":[{"data":{"url":"https://x/join/QZ7K3M"}}]}'), { 'content-encoding': 'gzip' })).toBe(200);
+  const result = checkDirectory(dir, ['QZ7K3M']);
+  expect(result.files).toBe(2);
+  expect(result.findings).toHaveLength(1);
+  expect(result.findings[0]).toMatchObject({ kind: 'named secret', match: 'QZ7K3M' });
+  await new Promise((resolve) => server.close(resolve));
+});
+
+test('an empty folder is not a pass: nothing received proves nothing', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sentry-proof-empty-'));
+  expect(checkDirectory(dir, ['QZ7K3M'])).toEqual({ files: 0, findings: [] });
+  const { verdict } = require('../scripts/sentry-proof-listener.cjs');
+  expect(verdict({ files: 0, findings: [] })).toMatch(/^NO PROOF/);
+  expect(verdict({ files: 2, findings: [] })).toMatch(/^PASS/);
+  expect(verdict({ files: 2, findings: [{ kind: 'email', match: 'a@b.co', file: 'x' }] })).toMatch(/^FAIL/);
+});

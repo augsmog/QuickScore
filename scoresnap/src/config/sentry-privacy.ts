@@ -112,3 +112,13 @@ export function scrubSentryEventCrashOnly<T extends object>(input: T): T {
   }
   return input;
 }
+
+/**
+ * Where Sentry sends. Always the real project, except in a dev build that was given a listener on
+ * this machine for the telemetry privacy proof (scripts/sentry-proof-listener.cjs). A release
+ * build ignores the override, so no shipped app can be pointed anywhere else.
+ */
+export function sentryDsn(real: string, proofOverride: string | undefined, isDevBuild: boolean): string {
+  if (!isDevBuild || !proofOverride) return real;
+  return /^http:\/\/[^@/\s]+@(127\.0\.0\.1|localhost)(:\d+)?\/\d+$/.test(proofOverride) ? proofOverride : real;
+}

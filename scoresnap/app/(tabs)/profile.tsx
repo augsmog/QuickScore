@@ -603,6 +603,13 @@ export default function ProfileScreen() {
                 Sentry.captureException(new Error("First error"));
               }}
             />
+            <Button
+              title="Native crash (Sentry test)"
+              color={COLORS.error}
+              onPress={() => {
+                Sentry.nativeCrash();
+              }}
+            />
           </View>
         )}
       </ScrollView>
