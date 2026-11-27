@@ -19,3 +19,9 @@ export function ownerInviteCode(contest: string, event: { membership: Membership
   if (event?.membership.role !== 'host' || event.membership.status !== 'approved') return undefined;
   return snapshotOwnerInviteCode(contest, event.snapshot);
 }
+
+/** Rounds made before online sharing have a local-format id the server rejects. Never send one. */
+export const OLD_ROUND_NOT_SHAREABLE = 'This round was made before online sharing. Start a new round to share it.';
+export function canShareOnline(contestId: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contestId);
+}

@@ -6,7 +6,7 @@ import { client, onlineEnabled } from '../services/cross-device';
 import { useOnlineStore } from '../stores/online-store';
 import { useAuthStore } from '../stores/auth-store';
 import { hostOrDiscover } from '../services/online-client';
-import { ownerInviteCode, OWNER_INVITE_UNAVAILABLE } from '../services/owner-invite';
+import { ownerInviteCode, OWNER_INVITE_UNAVAILABLE, OLD_ROUND_NOT_SHAREABLE, canShareOnline } from '../services/owner-invite';
 import { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, Share, Platform } from "react-native";
 import { useContestStore, type Contest } from "../stores/contest-store";
@@ -27,7 +27,9 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
   const event = useOnlineStore(s => s.events[contest.id]);
   const enabled = event?.snapshot?.protocol === 1;
   const actor = useAuthStore(s => s.remoteUserId);
-  const [checking, setChecking] = useState(onlineEnabled);
+  // An old-format local round can never be shared; asking the server only yields an error.
+  const oldRound = !contest.remoteRestored && !canShareOnline(contest.id);
+  const [checking, setChecking] = useState(onlineEnabled && !oldRound);
   const [checkedContext, setCheckedContext] = useState<{ id: string; actor: string | null }>();
   const [failedSnapshot, setFailedSnapshot] = useState<object | null>();
   const checkFailed = failedSnapshot !== undefined && failedSnapshot === (event?.snapshot ?? null);
@@ -39,7 +41,7 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
     let mounted = true;
     setMessage('');
     setFailedSnapshot(undefined);
-    if (!onlineEnabled || !actor) { setChecking(false); setCheckedContext(undefined); }
+    if (!onlineEnabled || !actor || oldRound) { setChecking(false); setCheckedContext(undefined); }
     else {
       setChecking(true);
     // Owner-hosts need not have a membership row. Memory-only snapshots disappear
@@ -50,7 +52,7 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
       }).finally(() => { if (mounted) { setCheckedContext({ id: contest.id, actor }); setChecking(false); } });
     }
     return () => { mounted = false; if (context.current === operation) context.current = null; };
-  }, [contest.id, actor]);
+  }, [contest.id, actor, oldRound]);
   const [busy, setBusy] = useState(false);
   const enable = async () => {
     if (contest.remoteRestored) { setMessage(OWNER_INVITE_UNAVAILABLE); return; }
@@ -58,7 +60,7 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || session.user.is_anonymous) throw Error('Sign in with email or Apple to enable online sharing.');
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contest.id)) throw Error('Create a new round to enable online sharing. Older local rounds require import review.');
+      if (oldRound) throw Error(OLD_ROUND_NOT_SHAREABLE);
       await enrollNewRound(contest, session.user.id, {
         create: async row => { const {error} = await supabase.from('contests').insert(row); if (error && error.code !== '23505') throw error; },
         rpc: async (name, args) => { const {data,error} = await supabase.rpc(name,args); if(error) throw error; return data; },
@@ -120,7 +122,8 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
   
   const compact = Platform.OS === 'web' && typeof window !== 'undefined' && isCompactViewport({ width: window.innerWidth, height: window.innerHeight });
   return <View style={{ paddingHorizontal: 20, paddingBottom: compact ? 2 : 10 }}>
-    {onlineEnabled && !enabled && !contest.remoteRestored && <Pressable disabled={busy || checking} onPress={() => void enable()}><Text style={{color: COLORS.primary, paddingVertical: 12}}>{checking ? 'Checking online sharing…' : busy ? 'Enabling…' : 'Enable online sharing'}</Text></Pressable>}
+    {onlineEnabled && oldRound && <Text testID="old-round-not-shareable" style={{ color: COLORS.textDim, paddingVertical: 12 }}>{OLD_ROUND_NOT_SHAREABLE}</Text>}
+    {onlineEnabled && !oldRound && !enabled && !contest.remoteRestored && <Pressable disabled={busy || checking} onPress={() => void enable()}><Text style={{color: COLORS.primary, paddingVertical: 12}}>{checking ? 'Checking online sharing…' : busy ? 'Enabling…' : 'Enable online sharing'}</Text></Pressable>}
     {contest.remoteRestored && checking && <Text style={{ color: COLORS.textDim }}>Checking online sharing…</Text>}
     {!!code && (enabled || !onlineEnabled) && <><Text testID="organizer-join-code" style={{ color: COLORS.primary }}>Join code: {code}</Text>
 

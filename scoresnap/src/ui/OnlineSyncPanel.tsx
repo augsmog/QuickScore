@@ -1,6 +1,7 @@
 import { showAlert } from "@/services/platform-alert";
 import { TournamentCompletion } from './TournamentCompletion';
 import { hostOrDiscover } from '../services/online-client';
+import { canShareOnline } from '../services/owner-invite';
 import { useEffect, useState } from 'react';
 import { Alert, AppState, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { client, onlineEnabled, onlineQueue, replayOnlineScores, resolveOnlineConflict, watchOnline } from '../services/cross-device';
@@ -35,7 +36,7 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
     } catch { setMessage('Online sync unavailable. Local scores and queued requests stay on this device.'); return null; }
   }
   useEffect(() => {
-    if (!onlineEnabled || !open) return;
+    if (!onlineEnabled || !open || !canShareOnline(contest.id)) return;
     let stop: (() => void) | undefined;
     const change = (state: string) => {
       stop?.(); stop = undefined;
@@ -45,7 +46,8 @@ export function OnlineSyncPanel({ contest }: { contest: Contest }) {
     const subscription = AppState.addEventListener('change', change);
     return () => { subscription.remove(); stop?.(); };
   }, [open, contest.id, anonymous, actor]);
-  if (!onlineEnabled) return null;
+  // An old-format local round has nothing online to sync; the round screen says why.
+  if (!onlineEnabled || !canShareOnline(contest.id)) return null;
   const button = (label: string, action: () => void) => <Pressable accessibilityRole="button" onPress={action} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: COLORS.primary }}>{label}</Text></Pressable>;
   const resolve = (entry: Entry, choice: 'keep-current' | 'use-mine') => {
     const confirm = () => { void resolveOnlineConflict(entry.id, choice).then(refresh).catch(() => setMessage('Could not save your choice. Try again.')); };
