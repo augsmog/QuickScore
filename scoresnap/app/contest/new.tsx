@@ -478,6 +478,10 @@ export default function NewContestScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={60}
       >
+      {/* The list and its fade share this frame. The fade must not be a direct child of the
+          KeyboardAvoidingView: on iPhone that view makes room for the keyboard with padding, and an
+          absolutely positioned child ignores padding, so the fade would stay behind the keyboard. */}
+      <View testID="contest-list-frame" style={{ flex: 1 }}>
       <ScrollView
         testID="contest-scroll"
         nestedScrollEnabled
@@ -1321,6 +1325,7 @@ export default function NewContestScreen() {
         colors={wizardFooterFadeColors(COLORS.bg)}
         style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: WIZARD_FOOTER_FADE_PX }}
       />
+      </View>
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation */}

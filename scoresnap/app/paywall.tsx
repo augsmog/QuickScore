@@ -1,7 +1,7 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../src/ui/SafeScreen";
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Alert, Linking, Platform, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert, Linking, Platform, StyleSheet, type StyleProp, type TextStyle } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { getPackages, purchasePackage, restorePurchases, syncProStatus } from '../src/services/purchases';
@@ -43,21 +43,26 @@ export default function PaywallScreen() {
     catch (e: unknown) { showAlert(C.subscription, e instanceof Error ? e.message || C.retry : C.retry); }
     finally { setBusy(false); }
   }
-  // Draw no text until Inter is in. Android measures a line with the fallback font and does not
-  // measure again when Inter arrives, so text drawn early came out cut ("Fre", "$79.99/y…",
-  // "Cancel anytim"). If the fonts fail to load the paywall is still drawn, in the fallback font.
-  if (!fontsLoaded && !fontError) return <SafeScreen style={s.safe} testID="paywall-loading-fonts" />;
+  // Close and Restore Purchases are on the screen from its first frame, fonts or no fonts.
+  const top = (restoreStyle: StyleProp<TextStyle>) => <View style={s.top}>
+    <Pressable testID="paywall-close" accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
+    <Pressable accessibilityRole="button" disabled={busy} style={s.topLink} onPress={() => act(async () => {
+      const restored = await restorePurchases();
+      showAlert(C.restore, restored ? C.restored : C.nothing);
+    })}><Text style={restoreStyle}>{C.restore}</Text></Pressable>
+  </View>;
+  // Draw no Inter text until Inter is in. Android measures a line with the fallback font and does
+  // not measure again when Inter arrives, so text drawn early came out cut ("Fre", "$79.99/y…",
+  // "Cancel anytim"). While waiting, only the top bar is drawn, its one line in the system font.
+  // If the fonts fail to load the paywall is still drawn, in the fallback font.
+  if (!fontsLoaded && !fontError) return <SafeScreen style={s.safe} testID="paywall-loading-fonts">
+    <View style={s.waiting}>{top(s.linkBeforeFonts)}</View>
+  </SafeScreen>;
   const v = buildPaywallView(packages, eligible, tier, selection, proEnabled());
   const tag = (label: string) => <Text style={[s.tag, label === C.current && s.current]}>{label}</Text>;
   return <SafeScreen style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>
-      <View style={s.top}>
-        <Pressable testID="paywall-close" accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
-        <Pressable accessibilityRole="button" disabled={busy} style={s.topLink} onPress={() => act(async () => {
-          const restored = await restorePurchases();
-          showAlert(C.restore, restored ? C.restored : C.nothing);
-        })}><Text style={[s.link, { fontSize: 14 }]}>{v.restore}</Text></Pressable>
-      </View>
+      {top([s.link, { fontSize: 14 }])}
       <View style={{ gap: 4 }}><Text style={s.eyebrow}>{v.eyebrow}</Text><Text style={s.headline}>{v.headline}</Text></View>
       <View>{v.values.map((value, i) => <View key={value.icon} style={[s.value, i < 2 && s.rule]}>
         <PaywallIcon name={value.icon} /><View style={{ flex: 1, gap: 2 }}><Text style={s.valueTitle}>{value.title}</Text>{!!value.body && <Text style={s.body}>{value.body}</Text>}</View>
@@ -102,7 +107,11 @@ const s = StyleSheet.create({
   topLink: { minHeight: PAYWALL_TOUCH_SIZE, justifyContent: 'center' },
   footerLink: { minHeight: 44, justifyContent: 'center' },
   alternateLink: { minHeight: PAYWALL_TOUCH_SIZE, justifyContent: 'center' },
+  // Same horizontal inset as `content`, so the top bar does not move when the paywall arrives.
+  waiting: { paddingHorizontal: P.padding },
   link: { fontFamily: P.medium, fontSize: 12, color: P.green, textDecorationLine: 'underline' },
+  // Restore Purchases before Inter is in: the `link` look at its top-bar size, no font family.
+  linkBeforeFonts: { fontSize: 14, color: P.green, textDecorationLine: 'underline' },
   eyebrow: { fontFamily: P.semibold, fontSize: 12, letterSpacing: 1.2, color: P.muted },
   headline: { fontFamily: P.bold, fontSize: 28, lineHeight: 32, letterSpacing: -0.6, color: P.ink },
   value: { flexDirection: 'row', gap: 14, paddingVertical: 7 },

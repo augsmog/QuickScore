@@ -51,3 +51,26 @@ test('the list ends with the shared end space, not a bare number', () => {
   expect(screen).toMatch(/<View style=\{\{ height: WIZARD_END_SPACE_PX \}\} \/>\s*<\/ScrollView>/);
   expect(screen).not.toMatch(/<View style=\{\{ height: 96 \}\} \/>/);
 });
+
+// Review finding on fd714e2 (new.tsx:1322): the fade was a child of the KeyboardAvoidingView. On
+// iPhone that view makes room for the keyboard with bottom padding, and an absolutely positioned
+// child ignores its parent's padding: with the keyboard up the fade stayed at the old bottom edge,
+// behind the keyboard, and the list's real bottom edge was hard again. The fade now belongs to a
+// frame that holds only the list, so it is always on the list's bottom edge.
+test('the fade is anchored to the list frame, not to the keyboard-avoiding view', () => {
+  const file = ts.createSourceFile('new.tsx', screen, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const attr = (el, name) => el.attributes.properties.find((a) => a.name?.getText(file) === name)?.initializer?.getText(file);
+  let fade; (function walk(n) { if (ts.isJsxSelfClosingElement(n) && attr(n, 'testID') === '"contest-footer-fade"') fade = n; ts.forEachChild(n, walk); })(file);
+  const frame = fade.parent;
+  expect(ts.isJsxElement(frame)).toBe(true);
+  expect(frame.openingElement.tagName.getText(file)).toBe('View');
+  expect(attr(frame.openingElement, 'testID')).toBe('"contest-list-frame"');
+  expect(attr(frame.openingElement, 'style')).toBe('{{ flex: 1 }}');
+  // The frame holds the list and the fade, nothing else, and is itself the keyboard-avoiding view's only child.
+  const kids = (el) => el.children.filter((c) => ts.isJsxElement(c) || ts.isJsxSelfClosingElement(c));
+  expect(kids(frame)).toHaveLength(2);
+  expect(attr(kids(frame)[0].openingElement, 'testID')).toBe('"contest-scroll"');
+  expect(kids(frame)[1]).toBe(fade);
+  expect(frame.parent.openingElement.tagName.getText(file)).toBe('KeyboardAvoidingView');
+  expect(kids(frame.parent)).toEqual([frame]);
+});
