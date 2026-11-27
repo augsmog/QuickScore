@@ -22,9 +22,7 @@ test('only a dev build can be pointed at a listener, and only one on this machin
   for (const other of [undefined, '', 'https://x@evil.example/1', 'http://x@127.0.0.1.evil.example/1', 'not a url']) expect(sentryDsn(REAL, other, true)).toBe(REAL);
 });
 
-test('the app takes its DSN through that guard, and no build profile sets the proof variable', () => {
-  const layout = fs.readFileSync('app/_layout.tsx', 'utf8');
-  expect(layout).toMatch(/dsn: sentryDsn\(\s*'https:\/\/[^']+',\s*process\.env\.EXPO_PUBLIC_SENTRY_PROOF_DSN,\s*__DEV__\s*\)/);
+test('no build profile sets the proof variable', () => {
   expect(fs.readFileSync('eas.json', 'utf8')).not.toContain('SENTRY_PROOF');
 });
 
@@ -92,4 +90,42 @@ test('the proof itself can still run: a dev build pointed at the local listener 
   expect(sentryEnabled(dev)).toBe(true);
   expect(sentryEnabled({ ...dev, proofDsn: undefined })).toBe(false);
   expect(sentryEnabled({ ...dev, proofDsn: 'https://x@evil.example/1' })).toBe(false);
+});
+
+// Review finding (27 Nov, aec8e82): "off" was `enabled: false` with the real DSN still passed. The
+// Android native start in the locked SDK reads the DSN but not `enabled`, so native crash
+// reporting could still start there. Off now means: no DSN and no native SDK at all, which the
+// SDK honours on both platforms (wrapper.js initNativeSdk returns early on either).
+test('off means no DSN and no native start, for every release profile, on iPhone and Android', () => {
+  const { sentryStart } = load('src/config/sentry-privacy.ts');
+  const eas = JSON.parse(fs.readFileSync('eas.json', 'utf8')).build;
+  const releaseProfiles = ['testflight', 'production'];
+  for (const name of releaseProfiles) {
+    const env = eas[name].env;
+    expect(env.EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING).toBe('true');
+    expect(Object.keys(env).filter((key) => /SENTRY/.test(key) && key !== 'SENTRY_DISABLE_AUTO_UPLOAD')).toEqual([]);
+    for (const platform of ['ios', 'android']) {
+      const start = sentryStart(REAL, { isPublicShare: false, joinByCodeOn: env.EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING === 'true', isDevBuild: false, proofDsn: env.EXPO_PUBLIC_SENTRY_PROOF_DSN });
+      expect([name, platform, start]).toEqual([name, platform, { enabled: false, dsn: undefined, enableNative: false, autoInitializeNativeSdk: false }]);
+    }
+  }
+  // The start rule has no platform input at all, so it cannot differ between the two.
+  expect(sentryStart.length).toBeLessThanOrEqual(3);
+  expect(fs.readFileSync('src/config/sentry-privacy.ts', 'utf8')).not.toMatch(/Platform/);
+});
+
+test('on means the real DSN and the native SDK; the proof run means the local listener', () => {
+  const { sentryStart } = load('src/config/sentry-privacy.ts');
+  expect(sentryStart(REAL, { isPublicShare: false, joinByCodeOn: false, isDevBuild: false, proofDsn: undefined })).toEqual({ enabled: true, dsn: REAL, enableNative: true, autoInitializeNativeSdk: true });
+  expect(sentryStart(REAL, { isPublicShare: true, joinByCodeOn: false, isDevBuild: false, proofDsn: undefined }).dsn).toBeUndefined();
+  expect(sentryStart(REAL, { isPublicShare: false, joinByCodeOn: true, isDevBuild: true, proofDsn: 'http://proof@127.0.0.1:9000/1' })).toEqual({ enabled: true, dsn: 'http://proof@127.0.0.1:9000/1', enableNative: true, autoInitializeNativeSdk: true });
+});
+
+test('the app starts Sentry from that one rule and passes no DSN of its own', () => {
+  const layout = fs.readFileSync('app/_layout.tsx', 'utf8');
+  expect(layout).toMatch(/const sentryStartOptions = sentryStart\(\s*'https:\/\/[^']+',\s*\{ isPublicShare, joinByCodeOn: CROSS_DEVICE_SHARING_ENABLED, isDevBuild: __DEV__, proofDsn: process\.env\.EXPO_PUBLIC_SENTRY_PROOF_DSN \}\s*\);/);
+  const init = layout.slice(layout.indexOf('Sentry.init({'), layout.indexOf('});', layout.indexOf('Sentry.init({')));
+  expect(init).toMatch(/^Sentry\.init\(\{\s*\.\.\.sentryStartOptions,/);
+  expect(init).not.toMatch(/\bdsn:|\benabled:|enableNative:|autoInitializeNativeSdk:/);
+  expect(layout.split('ingest.us.sentry.io').length - 1).toBe(1);
 });

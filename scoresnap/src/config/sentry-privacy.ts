@@ -142,3 +142,18 @@ export function sentryEnabled(
   // Join by code on, proof not passed: only the proof run itself, on this machine.
   return build.isDevBuild && !!build.proofDsn && LOCAL_PROOF_DSN.test(build.proofDsn);
 }
+
+/**
+ * Everything Sentry.init needs to decide whether anything starts. Off is not "enabled: false" with
+ * a DSN: the Android native start reads the DSN and ignores "enabled". Off is no DSN and no
+ * native SDK, which stops both the JavaScript and the native side on iPhone and Android alike.
+ */
+export function sentryStart(
+  real: string,
+  build: { isPublicShare: boolean; joinByCodeOn: boolean; isDevBuild: boolean; proofDsn: string | undefined },
+  proofPassed: boolean = SENTRY_TELEMETRY_PROOF_PASSED,
+): { enabled: boolean; dsn: string | undefined; enableNative: boolean; autoInitializeNativeSdk: boolean } {
+  const enabled = sentryEnabled(build, proofPassed);
+  if (!enabled) return { enabled: false, dsn: undefined, enableNative: false, autoInitializeNativeSdk: false };
+  return { enabled: true, dsn: sentryDsn(real, build.proofDsn, build.isDevBuild), enableNative: true, autoInitializeNativeSdk: true };
+}
