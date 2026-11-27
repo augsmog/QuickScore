@@ -173,9 +173,22 @@ test('on iPhone every switch row is a 44pt control that toggles when pressed', (
   expect(switches).toHaveLength(14);
   const rows = nodes(tree).filter(node => node.type === 'Pressable' && hasSwitch(node));
   expect(rows).toHaveLength(14);
+  const scroll = nodes(tree).find(node => node.type === 'ScrollView');
+  const scrollStyle = Object.assign({}, ...[scroll.props.contentContainerStyle].flat());
+  const windowWidth = 320; // narrowest supported iPhone width
   for (const row of rows) {
     const style = Object.assign({}, ...[row.props.style].flat());
     expect(style.minHeight).toBeGreaterThanOrEqual(44);
+    // Width: build 33 required the switch to be at least 44 wide. The target is now the row, and
+    // the row is the full width of the list: it sets no width of its own, it is a direct child of
+    // the scroll view (which stretches its children), and its label column takes the spare room.
+    for (const key of ['width', 'maxWidth', 'alignSelf', 'flex', 'flexBasis']) expect(style[key]).toBeUndefined();
+    expect(style.flexDirection).toBe('row');
+    expect(scroll.props.children.flat(Infinity).filter(Boolean).some(child => child === row || child.props?.accessibilityLabel === row.props.accessibilityLabel)).toBe(true);
+    expect(scrollStyle.paddingHorizontal).toBe(16);
+    expect(windowWidth - 2 * scrollStyle.paddingHorizontal).toBeGreaterThanOrEqual(44 * 6); // 288pt on the narrowest phone
+    const labelColumn = [row.props.children].flat().find(child => child?.type === 'View');
+    expect(labelColumn.props.style.flex).toBe(1);
     expect(row.props.accessibilityRole).toBe('switch');
     const label = row.props.accessibilityLabel;
     const toggle = () => nodes(control(screen.render(), label).props.children).find(node => node.type === 'Switch');
@@ -213,5 +226,8 @@ test('on web the switch input itself carries the 44px target and the change', ()
     toggle.props.onValueChange(!before);
     expect(control(screen.render(), toggle.props.accessibilityLabel).props.value).toBe(!before);
   }
+  // Same safe-area check the build 33 test made on web.
+  const safeScreen = nodes(screen.render()).find(node => node.type === 'SafeScreen');
+  expect(safeScreen.props.edges).toEqual(expect.arrayContaining(['top', 'bottom', 'left', 'right']));
 });
 
