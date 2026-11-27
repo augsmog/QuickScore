@@ -9,7 +9,7 @@ import { localDate } from "../../src/utils/local-date";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useAuthStore } from "../../src/stores/auth-store";
 import { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, FlatList, Alert, useWindowDimensions } from "react-native";
+import { View, Text, ScrollView, Pressable, FlatList, Alert, Platform, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Camera, ChevronRight, X, Users, Plus, Hash } from "lucide-react-native";
@@ -25,6 +25,8 @@ import { ALL_GAMES, FREE_GAME_IDS, isGameImplemented, GameTypeInfo } from "../..
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 import type { Contest, ContestGroup } from "../../src/stores/contest-store";
 import { useOnboardingStore } from "../../src/stores/onboarding-store";
+
+const SEE_ALL_TOUCH_SIZE = Platform.OS === "android" ? 48 : 44;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -430,7 +432,7 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel="See all game modes"
               testID="home-see-all-modes"
-              style={{ minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "center" }}
+              style={{ minHeight: SEE_ALL_TOUCH_SIZE, minWidth: SEE_ALL_TOUCH_SIZE, justifyContent: "center", alignItems: "center" }}
             >
               <Text
                 style={{

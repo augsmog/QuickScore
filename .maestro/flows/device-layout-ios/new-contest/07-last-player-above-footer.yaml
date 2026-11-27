@@ -1,0 +1,10 @@
+appId: com.scoresnap.app
+---
+- scrollUntilVisible:
+    element:
+      id: "wizard-player-row-4"
+    direction: DOWN
+    visibilityPercentage: 100
+    centerElement: true
+    timeout: 12000
+- takeScreenshot: device-layout-new-contest-07-last-player-above-footer

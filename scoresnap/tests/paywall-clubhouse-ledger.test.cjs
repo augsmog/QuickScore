@@ -33,13 +33,13 @@ test('AC-PW2 four eligibility cases, throw, monthly never offers a trial',async(
  expect(view('year','pro','free',packages,{}).cta).not.toContain('trial');
 });
 // Render the actual screen and exercise its handlers with the same transpile loader.
-function screen({restore=async()=>true,owner='free',target}={}){
+function screen({restore=async()=>true,owner='free',target,platform='ios'}={}){
  const states=[],effects=[];let cursor=0;
  const jsx=(type,props)=>({type,props});
  const alert=jest.fn(),openURL=jest.fn(),back=jest.fn();
  const react={useState:init=>{const i=cursor++;if(!(i in states))states[i]=init;return[states[i],v=>{states[i]=v;}];},useEffect:f=>effects.push(f)};
  const Screen=load('app/paywall.tsx',{
- react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{View:'View',Text:'Text',ScrollView:'ScrollView',Pressable:'Pressable',Alert:{alert},Linking:{openURL},StyleSheet:{create:x=>x}},
+ react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{Platform:{OS:platform},View:'View',Text:'Text',ScrollView:'ScrollView',Pressable:'Pressable',Alert:{alert},Linking:{openURL},StyleSheet:{create:x=>x}},
  'react-native-safe-area-context':{SafeAreaView:'SafeAreaView'},'expo-router':{useRouter:()=>({back}),useLocalSearchParams:()=>({tier:target})},
  '@expo-google-fonts/inter':{useFonts:()=>[true]},
  '../src/services/purchases':{getPackages:async()=>packages,purchasePackage:async()=>true,restorePurchases:restore,syncProStatus:async()=>{}},
@@ -138,5 +138,16 @@ test('AC-PW10 selected plan exposes checked semantics; missing/wrong/multiple ch
  const rows=radios(screen({target:'td'}).render());
  for(const mutate of [r=>r.forEach(n=>delete n.props['aria-checked']),r=>r[2].props['aria-checked']=false,r=>r[1].props['aria-checked']=true,r=>{r[2].props['aria-checked']=false;r[2].props.accessibilityState={checked:false};r[1].props['aria-checked']=true;r[1].props.accessibilityState={checked:true};}]){
   const copy=rows.map(n=>({...n,props:{...n.props,accessibilityState:{...n.props.accessibilityState}}}));mutate(copy);expect(()=>verify(copy,2)).toThrow();
+ }
+});
+
+test('actual paywall reserves Android 48dp frames for Close, Restore and billing interval',()=>{
+ for(const [platform,min] of [['android',48],['ios',44]]){
+  const tree=screen({target:'td',platform}).render();
+  const close=nodes(tree).find(n=>n.props?.testID==='paywall-close');
+  const restore=button(tree,C.restore);
+  const alternate=button(tree,'or $12.99/month');
+  for(const pressable of [close,restore,alternate]) expect(pressable.props.style.minHeight).toBe(min);
+  expect(close.props.style.minWidth).toBe(min);
  }
 });

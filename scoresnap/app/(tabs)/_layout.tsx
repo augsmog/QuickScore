@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { View, StyleSheet } from "react-native";
+import { Platform, View, StyleSheet } from "react-native";
 import { Home, Trophy, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, FONTS } from "../../src/ui/theme";
@@ -42,6 +42,10 @@ export default function TabLayout() {
         },
         tabBarItemStyle: {
           paddingTop: 2,
+          // React Navigation applies margins to the outer tab wrappers, so
+          // adjacent Android pressables no longer share a hit-region edge.
+          // Symmetric 5dp margins give a 10dp gap without shifting tab centers.
+          ...(Platform.OS === "android" ? { marginHorizontal: 5 } : {}),
         },
         tabBarBackground: () => (
           <View

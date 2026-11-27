@@ -1,0 +1,10 @@
+appId: com.scoresnap.app
+---
+- scrollUntilVisible:
+    element:
+      id: "remove-player-Ava"
+    direction: UP
+    visibilityPercentage: 100
+    centerElement: true
+    timeout: 12000
+- takeScreenshot: device-layout-new-contest-08-rewind-remove-ava
