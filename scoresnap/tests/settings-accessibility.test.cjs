@@ -165,8 +165,7 @@ test.each(['ios', 'web'])('every switch has a 44px target on %s: its slot on iPh
     if (platform === 'ios') {
       expect(toggle.props.style).toBeUndefined();
       expect(toggle.props.thumbColor).toBeUndefined();
-      // Off colour is allowed only because the switch has no size: it is painted on the stock box.
-      expect(toggle.props.ios_backgroundColor).toBe('#878C82');
+      expect(toggle.props.ios_backgroundColor).toBeUndefined();
     } else {
       expect(toggle.props.style.minWidth).toBeGreaterThanOrEqual(44);
       expect(toggle.props.style.minHeight).toBeGreaterThanOrEqual(44);

@@ -18,15 +18,17 @@ export const SETTINGS_SWITCH_TARGET = {
 // 44pt-tall box shows as a rounded rectangle sticking out below the 31pt switch (build 33).
 export const SETTINGS_SWITCH_SLOT = { ...SETTINGS_SWITCH_TARGET, alignItems: 'center' as const, justifyContent: 'center' as const };
 
-// Off track on iPhone. The stock off track (#E9E9EA) is 1.11:1 against the cream row and all but
-// vanishes; this is 3.14:1 against the row (#FAF4E8) and 3.44:1 against the white knob.
+// Off colour for an iPhone switch: 3.14:1 against the cream row (#FAF4E8), 3.44:1 against the
+// white knob. It is passed as trackColor.false, which React Native gives to UISwitch as its
+// tintColor, so iOS draws it inside the control.
 export const SETTINGS_SWITCH_OFF_TRACK = '#878C82';
 
-// How a Settings switch looks. iPhone: the stock switch, brand colour on the "on" track and a
-// visible off track. No size on it: React Native then paints the off colour on the stock 51x31
-// box only. Android and web: as before.
+// How a Settings switch looks. iPhone: the stock switch with two track colours and nothing else.
+// Never paint behind it: no ios_backgroundColor (React Native paints that on its own 51x31 box,
+// which showed as a crescent past the iOS 26 switch, 27 Nov), no size, no style.
+// Android and web: as before.
 export function settingsSwitchProps(platformOS: string | undefined, value: boolean, colors: { primary: string; textDim: string; surfaceHigh: string }) {
-  if (platformOS === 'ios') return { trackColor: { true: colors.primary }, ios_backgroundColor: SETTINGS_SWITCH_OFF_TRACK };
+  if (platformOS === 'ios') return { trackColor: { false: SETTINGS_SWITCH_OFF_TRACK, true: colors.primary } };
   return {
     style: SETTINGS_SWITCH_TARGET,
     trackColor: { false: colors.surfaceHigh, true: colors.primary + '55' },

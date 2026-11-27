@@ -16,13 +16,10 @@ const screen = fs.readFileSync('app/settings.tsx', 'utf8');
 
 test('iPhone: a stock switch, with the brand colour only on the "on" track', () => {
   for (const value of [true, false]) {
-    expect(settingsSwitchProps('ios', value, COLORS)).toEqual({ trackColor: { true: COLORS.primary }, ios_backgroundColor: m.exports.SETTINGS_SWITCH_OFF_TRACK });
+    expect(settingsSwitchProps('ios', value, COLORS)).toEqual({ trackColor: { false: m.exports.SETTINGS_SWITCH_OFF_TRACK, true: COLORS.primary } });
   }
   const props = settingsSwitchProps('ios', true, COLORS);
-  // The off colour came back (27 Nov, contrast: tests/settings-off-switch-contrast.test.cjs). It is
-  // safe only while the switch carries no size, which is what made the build 33 rectangle.
-  for (const key of ['style', 'thumbColor']) expect(props).not.toHaveProperty(key);
-  expect(props.trackColor).not.toHaveProperty('false');
+  for (const key of ['style', 'thumbColor', 'ios_backgroundColor']) expect(props).not.toHaveProperty(key);
 });
 
 test('Android and web keep what they had', () => {
