@@ -6,8 +6,7 @@
 // therefore mechanical, with every exception written down by file name below:
 //   - a workflow may trigger on `workflow_dispatch` only;
 //   - the workflows in SCHEDULE_ALLOWED may also keep `schedule`, and nothing else;
-//   - the workflows in OWNER_PINNED are not changed by this rule and must keep exactly the
-//     triggers recorded here, so they cannot quietly gain one either;
+//   - for the scheduled workflows the whole `on:` block, cron included, is pinned (PINNED_ON);
 //   - no other workflow may have `push`, `pull_request`, `schedule` or any other trigger;
 //   - a job on the self-hosted Mac must declare NEED_GB and begin with the disk-need step, which
 //     records free disk and fails only when NEED_GB is set and less than that is free.
@@ -25,11 +24,11 @@ const DISK_NEED_EXEMPT = { 'mac-runner-hygiene.yml': { hygiene: 'this job is the
 // daily launch-readiness report; e2e-staging keeps a registry result fresher than its 36h limit.
 // Adding a file here is a decision, not a convenience.
 const SCHEDULE_ALLOWED = ['mac-runner-hygiene.yml', 'mac-runner-watch.yml', 'launch-ready.yml', 'e2e-staging.yml'];
-// Owner-approved required check (AUG-1380). Changing its triggers, its jobs or branch protection
-// is the owner's decision, so this rule leaves its triggers alone and only pins what it has today.
-// Its two self-hosted Mac jobs do carry the disk-need step: that is a safety step which changes
-// neither the triggers nor the required-check status.
-const OWNER_PINNED = { 'device-layout-gate.yml': { triggers: ['pull_request', 'push', 'workflow_dispatch'], ticket: 'AUG-1380' } };
+// No workflow is exempt by owner pin any more. device-layout-gate was pinned to pull_request +
+// push on main while AUG-1380 was open; the owner's answer (Nov 27 2026) is manual-only, so it now
+// follows the same rule as every other workflow. The table is kept, empty, so that pinning one
+// again is a visible decision.
+const OWNER_PINNED = {};
 // For every workflow that has any automatic trigger, the WHOLE approved `on:` block is pinned
 // here, filters included, not just the trigger names. `push` limited to main is not the same
 // trigger as `push` on every branch, and `pull_request` with no filter is not the same as one
@@ -40,7 +39,6 @@ const PINNED_ON = {
   'mac-runner-watch.yml': { schedule: [{ cron: '47 * * * *' }], workflow_dispatch: true },
   'launch-ready.yml': { schedule: [{ cron: '30 15 * * *' }], workflow_dispatch: true },
   'e2e-staging.yml': { schedule: [{ cron: '23 12 * * *' }], workflow_dispatch: true },
-  'device-layout-gate.yml': { pull_request: null, push: { branches: ['main'] }, workflow_dispatch: true },
 };
 
 // YAML 1.1 parsers read the bare key `on` as boolean true; accept either spelling.
@@ -127,5 +125,5 @@ if (require.main === module) {
   const { files, errors } = lintWorkflowDir(dir);
   for (const error of errors) console.error(`WORKFLOW LINT: ${error}`);
   if (errors.length) process.exitCode = 1;
-  else console.log(`workflow lint: ${files.length} workflow(s) pass; scheduled by name: ${SCHEDULE_ALLOWED.join(', ')}; owner-pinned: ${Object.keys(OWNER_PINNED).join(', ')}`);
+  else console.log(`workflow lint: ${files.length} workflow(s) pass; scheduled by name: ${SCHEDULE_ALLOWED.join(', ')}; owner-pinned: ${Object.keys(OWNER_PINNED).join(', ') || 'none'}`);
 }

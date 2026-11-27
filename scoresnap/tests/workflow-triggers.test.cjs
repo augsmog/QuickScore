@@ -21,7 +21,7 @@ test('every workflow in this repository passes: manual-only, apart from the name
 
 test('the exception lists are exactly the ones decided, and each named file exists', () => {
   assert.deepEqual(SCHEDULE_ALLOWED, ['mac-runner-hygiene.yml', 'mac-runner-watch.yml', 'launch-ready.yml', 'e2e-staging.yml']);
-  assert.deepEqual(Object.keys(OWNER_PINNED), ['device-layout-gate.yml']);
+  assert.deepEqual(Object.keys(OWNER_PINNED), []);
   for (const file of [...SCHEDULE_ALLOWED, ...Object.keys(OWNER_PINNED)]) assert.ok(fs.existsSync(path.join(WORKFLOWS, file)), file);
 });
 
@@ -43,33 +43,38 @@ test('a new scheduled workflow that is not on the list fails', () => {
   }
 });
 
-test('the owner-pinned workflow must keep exactly its recorded triggers', () => {
+test('device-layout-gate is manual-only (owner answer to AUG-1380): nothing starts its Mac jobs by itself', () => {
+  const yaml = require('js-yaml');
+  const text = fs.readFileSync(path.join(WORKFLOWS, 'device-layout-gate.yml'), 'utf8');
+  const doc = yaml.load(text);
+  assert.equal(JSON.stringify(normalizeOn(Object.hasOwn(doc, 'on') ? doc.on : doc.true)), '{"workflow_dispatch":true}');
+  assert.deepEqual(lintWorkflow('device-layout-gate.yml', text), []);
+  // It still has jobs on the self-hosted Mac, which is why this matters.
+  assert.ok(Object.values(doc.jobs).filter((job) => [].concat(job['runs-on']).includes('self-hosted')).length >= 2);
+  // A manual run runs the whole gate, not only what the last commit touched.
+  assert.match(text, /github\.event_name \}\}" = "workflow_dispatch" \]; then ui=true; native=true; fi/);
   const gate = (on) => lintWorkflow('device-layout-gate.yml', wf(on));
-  assert.deepEqual(gate('on:\n  pull_request:\n  push:\n    branches: [main]\n  workflow_dispatch:'), []);
-  assert.match(gate('on:\n  pull_request:\n  push:\n  workflow_dispatch:\n  schedule:\n    - cron: "5 * * * *"')[0], /pinned to \[pull_request, push, workflow_dispatch\] by owner decision \(AUG-1380\)/);
-  assert.match(gate('on:\n  workflow_dispatch:')[0], /pinned to/);
-  // DotBot's two negatives (AUG-1601): the trigger NAMES are unchanged, the filters are not.
-  // 1. push restricted to main replaced by unrestricted push.
-  assert.match(gate('on:\n  pull_request:\n  push:\n  workflow_dispatch:')[0], /the "on:" block is pinned, filters included.*found \{"pull_request":null,"push":null,"workflow_dispatch":true\}/);
-  // 2. pull_request narrowed to closed pull requests only.
-  assert.match(gate('on:\n  pull_request:\n    types: [closed]\n  push:\n    branches: [main]\n  workflow_dispatch:')[0], /is pinned, filters included.*"types":\["closed"\]/);
-  // And the neighbours: another branch, an extra branch, a paths filter, pull_request_target-style branches.
-  for (const changed of [
-    'on:\n  pull_request:\n  push:\n    branches: [release]\n  workflow_dispatch:',
-    'on:\n  pull_request:\n  push:\n    branches: [main, "claude/**"]\n  workflow_dispatch:',
-    'on:\n  pull_request:\n  push:\n    branches: [main]\n    paths: ["docs/**"]\n  workflow_dispatch:',
-    'on:\n  pull_request:\n    branches: [main]\n  push:\n    branches: [main]\n  workflow_dispatch:',
-    'on:\n  pull_request:\n  push:\n    tags: ["v*"]\n  workflow_dispatch:',
-  ]) assert.match(gate(changed)[0], /is pinned, filters included/, changed);
-  // Spelling and key order do not matter; workflow_dispatch inputs are free.
-  assert.deepEqual(gate('"on":\n  workflow_dispatch:\n    inputs:\n      sha:\n        required: true\n  push:\n    branches:\n      - main\n  pull_request:'), []);
-  // Its Mac jobs are not exempt from the disk-need step.
-  const gateTriggers = 'on:\n  pull_request:\n  push:\n    branches: [main]\n  workflow_dispatch:';
+  // What it had until today, and every variant of it, is now refused.
+  assert.match(gate('on:\n  pull_request:\n  push:\n    branches: [main]\n  workflow_dispatch:').join('\n'), /trigger "pull_request" is not allowed[\s\S]*trigger "push" is not allowed/);
+  // DotBot's two perturbations (AUG-1601): refused, as is any filtered form of an automatic trigger.
+  assert.match(gate('on:\n  pull_request:\n  push:\n  workflow_dispatch:').join('\n'), /trigger "push" is not allowed/);
+  assert.match(gate('on:\n  pull_request:\n    types: [closed]\n  workflow_dispatch:')[0], /trigger "pull_request" is not allowed/);
+  assert.match(gate('on:\n  push:\n    branches: [main]\n    paths: ["docs/**"]\n  workflow_dispatch:')[0], /trigger "push" is not allowed/);
+  assert.match(gate('on:\n  workflow_dispatch:\n  schedule:\n    - cron: "5 * * * *"')[0], /trigger "schedule" is not allowed/);
+  // Its Mac jobs still need the disk-need step.
   const macJob = (steps) => `  ios-sim:\n    runs-on: [self-hosted, ios-sim]\n    env:\n      NEED_GB: ""\n    steps:\n${steps}`;
-  assert.match(lintWorkflow('device-layout-gate.yml', wf(gateTriggers, macJob('      - uses: actions/checkout@v4\n')))[0], /must start with the "Disk need \(AUG-1601\)" step/);
-  assert.deepEqual(lintWorkflow('device-layout-gate.yml', wf(gateTriggers, macJob(`${NEED}      - uses: actions/checkout@v4\n`))), []);
-  // The pin is by file name: the same triggers anywhere else are refused.
-  assert.equal(lintWorkflow('another-gate.yml', wf('on:\n  pull_request:\n  push:\n  workflow_dispatch:')).length, 2);
+  assert.match(lintWorkflow('device-layout-gate.yml', wf('on:\n  workflow_dispatch:', macJob('      - uses: actions/checkout@v4\n')))[0], /must start with the "Disk need \(AUG-1601\)" step/);
+  assert.deepEqual(lintWorkflow('device-layout-gate.yml', wf('on:\n  workflow_dispatch:', macJob(`${NEED}      - uses: actions/checkout@v4\n`))), []);
+});
+
+test('filters count, not only trigger names: the comparison used for pinned blocks', () => {
+  const same = (a, b) => JSON.stringify(normalizeOn(a)) === JSON.stringify(normalizeOn(b));
+  const main = { pull_request: null, push: { branches: ['main'] }, workflow_dispatch: null };
+  assert.equal(same(main, { workflow_dispatch: { inputs: { sha: {} } }, push: { branches: ['main'] }, pull_request: null }), true);
+  assert.equal(same(main, { pull_request: null, push: null, workflow_dispatch: null }), false);
+  assert.equal(same(main, { pull_request: { types: ['closed'] }, push: { branches: ['main'] }, workflow_dispatch: null }), false);
+  assert.equal(same(main, { pull_request: null, push: { branches: ['main', 'claude/**'] }, workflow_dispatch: null }), false);
+  assert.equal(same('workflow_dispatch', ['workflow_dispatch']), true);
 });
 
 test('a manual-only workflow passes, with or without inputs', () => {

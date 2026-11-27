@@ -19,10 +19,11 @@ name: device-layout-gate
 # Making this a REQUIRED merge-blocking check (branch protection on augsmog/QuickScore main +
 # the safe_merge.py mandatory-named-check change) is an owner-approved control item, tracked in
 # the RECONCILED-PLAN owner items. The workflow is the always-start half of that contract.
+# AUG-1601 / AUG-1380 (owner decision, Nov 27 2026): MANUAL-ONLY. It runs when a lane starts it
+# on a release candidate; nothing starts it on its own. It is therefore no longer an always-start
+# check: if branch protection still lists it as required, that requirement must be removed by the
+# owner or pull requests to main will wait on it forever.
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -72,6 +73,9 @@ jobs:
                 ui=true; native=true ;;  # unknown impact → run the full gate (fail safe)
             esac
           done <<< "$files"
+          # A manual run is someone asking for the gate on this commit: run all of it, whatever the
+          # last commit happened to touch.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then ui=true; native=true; fi
           echo "ui=$ui" >> "$GITHUB_OUTPUT"
           echo "native=$native" >> "$GITHUB_OUTPUT"
           if [ "$ui" = "false" ]; then
