@@ -1,18 +1,17 @@
 {
   "schema": "snapscore-required-fixes/1",
-  "release": { "version": "1.0.1", "ticket": "AUG-1584" },
+  "release": {"version": "1.0.1", "ticket": "AUG-1584"},
   "base": "c5c43a60a28f6fe18d28d995745d3efcd31db9df",
   "fixes": [
-    { "ticket": "AUG-1583", "what": "six stale unit tests brought in line with the Join-by-code release contract", "commit": "36a60439e1e2532d05f8b572d436c5c8d7d3ab8a" },
-    { "ticket": "AUG-1582", "what": "iPhone only: ios.supportsTablet false, plus guard test", "commit": "c60c68b048f87347d224efccddd6e33993a82b43" },
-    { "ticket": "AUG-1369", "what": "Tournament Director paywall row gets full width for its body text", "commit": "840642563bf28bf7703078bfc36ea81cc4258685" },
-    { "ticket": "AUG-1369", "what": "persistent Tournament Director entry in Settings for free users", "commit": "409c685b77394e40274d9e4f67624483514e3ffb" },
-    { "ticket": "AUG-1582", "what": "owner-invite rehearsal guard runs on stock macOS Bash 3.2 (the build machine), with an empty-value test", "commit": "cb5e0816f3c47fe37b480c4f56e653ca03f766e7" },
-    { "ticket": "AUG-1582", "what": "Continue with Google is shown only when the build has a Google client id", "commit": "05c75664c835848b767b7f9fc7cdb37487879c9d" },
-    { "ticket": "AUG-1586", "what": "PostHog on iOS sends only events the app chose: no screen or lifecycle autocapture, no flag preloading, app=snapscore on every event", "commit": "ff75503f1ac146ddca1b064f22fd5445d9577d3e" },
-    { "ticket": "AUG-1601", "what": "layout: New Contest header inset and footer fade, paywall text not cut, Android targets (DotBot repair 580dd2e), Mac temp-dir test fixture, layout gate rules G1 and G3 (DotBot) and G4", "commit": "fd714e2e8e6f3208cc2f52a13c424fb8bebcbe13" },
-    { "ticket": "AUG-1601", "what": "layout gate early-reveal proof for the first six New Contest stops (DotBot patch 02acbd69): index-built test ids on iPhone, round chips report selected; selector test and iPhone invite journey follow the new ids", "commit": "f824a098d76f0eba491ed73943a158c3fa631e54" },
-    { "ticket": "AUG-1601", "what": "layout gate: iPhone roster proof covers the index-built player ids, Android reveal verifier (not yet used by the verdict), a proved control wholly below the list is not reported as under the footer (Astra build a64ddc6 of DotBot patches 292772a7 and d4e72f36)", "commit": "a23f3d86c74f1d46e282fd5416241ac10f703aee" }
+    {"ticket": "AUG-1582", "what": "iPhone only: ios.supportsTablet false, plus guard test", "commit": "c60c68b048f87347d224efccddd6e33993a82b43"},
+    {"ticket": "AUG-1369", "what": "Tournament Director paywall row gets full width for its body text", "commit": "840642563bf28bf7703078bfc36ea81cc4258685"},
+    {"ticket": "AUG-1369", "what": "persistent Tournament Director entry in Settings for free users", "commit": "409c685b77394e40274d9e4f67624483514e3ffb"},
+    {"ticket": "AUG-1582", "what": "Continue with Google is shown only when the build has a Google client id", "commit": "05c75664c835848b767b7f9fc7cdb37487879c9d"},
+    {"ticket": "AUG-1586", "what": "PostHog on iOS sends only events the app chose: no screen or lifecycle autocapture, no flag preloading, app=snapscore on every event", "commit": "ff75503f1ac146ddca1b064f22fd5445d9577d3e"},
+    {"ticket": "AUG-1601", "what": "New Contest sheet header sits at the top of the sheet on iPhone", "commit": "d55044e350b59a323fddaac6b0f21f6204cc6e8d"},
+    {"ticket": "AUG-1601", "what": "Android touch targets 48dp, tab spacing, and index-built player row ids on iPhone (DotBot repair 580dd2e)", "commit": "cea4bf9109cae60a9f86493e823b189a3554c506"},
+    {"ticket": "AUG-1601", "what": "New Contest list fades into the footer; paywall draws no text before its fonts are in", "commit": "b6917d0305f5cee554570153003efe58382d572c"},
+    {"ticket": "AUG-1601", "what": "New Contest test ids for the layout gate's early-reveal proof, and round chips report selected (DotBot patch 02acbd69)", "commit": "8f6f38f84935f471c3305b30d0736ae44680ccd7"}
   ],
   "allowedSkips": []
 }

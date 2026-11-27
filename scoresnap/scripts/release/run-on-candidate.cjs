@@ -51,12 +51,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { verifyReceipt, Refusal } = require('./candidate-check.cjs');
+const { verifyReceipt, appInputs, Refusal } = require('./candidate-check.cjs');
 
 const PREFIX = 'snapscore-candidate-';
 const OWNER = 'owner.json';
 
-const USAGE = 'usage: run-on-candidate.cjs --receipt <file> [--repo <dir> | --source <dir>] [--purpose <test|simulator|archive|upload>] [--profile <testflight|production>] [--keep] [--fixes <file>] -- <command ...>';
+const USAGE = 'usage: run-on-candidate.cjs --receipt <file> [--sha <40-hex>] [--app-inputs <64-hex>] [--repo <dir> | --source <dir>] [--purpose <test|simulator|archive|upload>] [--profile <testflight|production>] [--keep] [--fixes <file>] -- <command ...>';
 const PURPOSES = ['test', 'simulator', 'archive', 'upload'];
 const NEEDS_PROFILE = ['archive', 'upload'];
 // The five flags that decide what the released app does. A release profile must define every one.
@@ -197,10 +197,12 @@ function parse(argv) {
   const options = {};
   for (let i = 0; i < flags.length; i += 1) {
     if (flags[i] === '--keep') { options.keep = true; continue; }
-    if (!/^--(source|repo|receipt|fixes|profile|purpose)$/.test(flags[i]) || flags[i + 1] === undefined) refuse(`bad argument: ${flags[i]}`);
+    if (!/^--(source|repo|receipt|fixes|profile|purpose|sha|app-inputs)$/.test(flags[i]) || flags[i + 1] === undefined) refuse(`bad argument: ${flags[i]}`);
     options[flags[i].slice(2)] = flags[i + 1]; i += 1;
   }
   if (!options.receipt) refuse('--receipt is required');
+  if (options.sha !== undefined && !/^[0-9a-f]{40}$/.test(options.sha)) refuse('--sha must be one full 40-character commit SHA');
+  if (options['app-inputs'] !== undefined && !/^[0-9a-f]{64}$/.test(options['app-inputs'])) refuse('--app-inputs must be the full 64-character hash');
   if (options.source && options.repo) refuse('give --repo (fresh checkout, the default) or --source (existing checkout), not both');
   if (options.source && options.keep) refuse('--keep only applies to a fresh checkout; --source is never removed');
   if (options.profile !== undefined && !RELEASE_PROFILES.includes(options.profile)) refuse(`--profile must be one of: ${RELEASE_PROFILES.join(', ')}`);
@@ -236,20 +238,30 @@ function assertExact(repo, sha) {
 }
 
 // Existing-checkout mode.
-function admit({ source, receiptPath, fixesFile }) {
-  const sha = readReceipt(receiptPath).sha;
-  const repo = topLevel(source);
-  assertExact(repo, sha);
-  return { repo, receipt: verifyReceipt({ repo, sha, receiptPath, fixesFile }) };
+// The commit that gets built is the receipt's own unless --sha names another. Another commit is
+// admitted only if its app inputs are the receipt's (verifyReceipt refuses otherwise). An approval
+// is given for an app-inputs hash; --app-inputs states it and anything else is refused.
+function approved({ repo, sha, receipt, approvedInputs }) {
+  if (approvedInputs && approvedInputs !== receipt.appInputs.sha256) refuse(`approved app inputs are ${approvedInputs}, but ${sha} has ${appInputs(repo, sha).sha256}; this is not the app that was approved`);
+  return receipt;
 }
 
-// Fresh mode: verify, then a new checkout of the receipt's SHA in a directory that did not exist.
-function freshCheckout({ from, receiptPath, fixesFile, tmpRoot = os.tmpdir(), log }) {
-  const sha = readReceipt(receiptPath).sha;
+// Existing-checkout mode.
+function admit({ source, receiptPath, fixesFile, wantSha, approvedInputs }) {
+  const sha = wantSha ?? readReceipt(receiptPath).sha;
+  const repo = topLevel(source);
+  assertExact(repo, sha);
+  return { repo, sha, receipt: approved({ repo, sha, approvedInputs, receipt: verifyReceipt({ repo, sha, receiptPath, fixesFile }) }) };
+}
+
+// Fresh mode: verify, then a new checkout of the SHA (the receipt's own, or --sha with the same
+// app inputs) in a directory that did not exist.
+function freshCheckout({ from, receiptPath, fixesFile, tmpRoot = os.tmpdir(), log, wantSha, approvedInputs }) {
+  const sha = wantSha ?? readReceipt(receiptPath).sha;
   const origin = topLevel(from);
   if (!/^[0-9a-f]{40}$/.test(String(sha))) refuse('the receipt does not name a full commit SHA');
   try { git(origin, ['cat-file', '-e', `${sha}^{commit}`]); } catch { refuse(`the repository at ${origin} does not have commit ${sha}; fetch it first`); }
-  const receipt = verifyReceipt({ repo: origin, sha, receiptPath, fixesFile });
+  const receipt = approved({ repo: origin, sha, approvedInputs, receipt: verifyReceipt({ repo: origin, sha, receiptPath, fixesFile }) });
   const root = fs.realpathSync(tmpRoot);
   for (const left of findLeftBehind({ tmpRoot: root })) {
     log(left.kept
@@ -269,7 +281,7 @@ function freshCheckout({ from, receiptPath, fixesFile, tmpRoot = os.tmpdir(), lo
     assertExact(repo, sha);
   } catch (error) { remove(); throw error; }
   const keep = () => writeJson(path.join(holder, OWNER), { tool: 'run-on-candidate', pid: process.pid, startedAt: new Date().toISOString(), sha, origin, kept: true });
-  return { repo, receipt, remove, keep };
+  return { repo, sha, receipt, remove, keep };
 }
 
 function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = console.error, tmpRoot, environment = buildEnvironment, now = () => new Date(), env = process.env } = {}) {
@@ -278,12 +290,13 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
   const receiptPath = path.resolve(options.receipt);
   const fixesFile = path.resolve(options.fixes ?? path.join(scoresnap, 'release', 'required-fixes.json'));
   const fresh = !options.source;
-  const { repo, receipt, remove, keep } = fresh
-    ? freshCheckout({ from: path.resolve(options.repo ?? scoresnap), receiptPath, fixesFile, tmpRoot, log })
-    : admit({ source: path.resolve(options.source), receiptPath, fixesFile });
+  const { repo, sha, receipt, remove, keep } = fresh
+    ? freshCheckout({ from: path.resolve(options.repo ?? scoresnap), receiptPath, fixesFile, tmpRoot, log, wantSha: options.sha, approvedInputs: options['app-inputs'] })
+    : admit({ source: path.resolve(options.source), receiptPath, fixesFile, wantSha: options.sha, approvedInputs: options['app-inputs'] });
   let record; let recordPath; let commandStarted = false;
   try {
     if (!fresh) warn(`WARNING: --source uses an existing checkout (${repo}). Git-ignored paths in it (ios/, node_modules, .env, .expo) are NOT checked and can change what gets built. For an archive or upload, leave --source out so a fresh checkout is made.`);
+    const tree = git(repo, ['rev-parse', `${sha}^{tree}`]);
     const app = path.join(repo, 'scoresnap');
     const cwd = fs.existsSync(app) ? app : repo;
     const flags = options.profile ? releaseFlags({ app: cwd, profile: options.profile, env, command }) : null;
@@ -294,7 +307,8 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
     const started = now();
     record = {
       schema: 'snapscore-build-record/1',
-      sha: receipt.sha, tree: receipt.tree, receipt: receiptPath, testIdsSha256: receipt.suite.testIdsSha256,
+      // What is built: `sha`. What it is: `appInputsSha256`. Which commit the tests ran on: `receiptSha`.
+      sha, tree, appInputsSha256: receipt.appInputs.sha256, receiptSha: receipt.sha, receipt: receiptPath, testIdsSha256: receipt.suite.testIdsSha256,
       toolSha256: crypto.createHash('sha256').update(fs.readFileSync(__filename)).digest('hex'),
       mode: fresh ? 'fresh-checkout' : 'existing-checkout', checkout: repo, cwd, command, pid: process.pid,
       environment: environment(),
@@ -307,11 +321,11 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
     recordPath = `${receiptPath}.build-${record.startedAt.replace(/[-:.]/g, '')}-${process.pid}.json`;
     // Written before the command starts: if the record cannot be written, nothing runs.
     try { writeJson(recordPath, record); } catch (error) { refuse(`cannot write the build record ${recordPath}: ${error.message}`); }
-    log(`CANDIDATE ADMITTED: ${receipt.sha} (tree ${receipt.tree}), ${receipt.suite.tests} tests, test list ${receipt.suite.testIdsSha256}. ${fresh ? 'Fresh checkout' : 'Existing checkout'}. ${flags ? `Flags: ${flags.profile} profile (${Object.entries(flags.values).map(([k, v]) => `${k}=${v}`).join(', ')})` : 'Flags: NOT CHECKED'}. Running in ${cwd}: ${command.join(' ')}`);
+    log(`CANDIDATE ADMITTED: app inputs ${receipt.appInputs.sha256}; commit ${sha}${sha === receipt.sha ? '' : ` (same app as receipted commit ${receipt.sha})`} (tree ${tree}), ${receipt.suite.tests} tests, test list ${receipt.suite.testIdsSha256}. ${fresh ? 'Fresh checkout' : 'Existing checkout'}. ${flags ? `Flags: ${flags.profile} profile (${Object.entries(flags.values).map(([k, v]) => `${k}=${v}`).join(', ')})` : 'Flags: NOT CHECKED'}. Running in ${cwd}: ${command.join(' ')}`);
     commandStarted = true;
     const result = spawn(command[0], command.slice(1), {
       cwd, stdio: 'inherit',
-      env: { ...env, ...(flags?.values ?? {}), CANDIDATE_SHA: receipt.sha, CANDIDATE_TREE: receipt.tree, CANDIDATE_RECEIPT: receiptPath, CANDIDATE_CHECKOUT: repo, CANDIDATE_BUILD_RECORD: recordPath },
+      env: { ...env, ...(flags?.values ?? {}), CANDIDATE_SHA: sha, CANDIDATE_TREE: tree, CANDIDATE_APP_INPUTS: receipt.appInputs.sha256, CANDIDATE_RECEIPT_SHA: receipt.sha, CANDIDATE_RECEIPT: receiptPath, CANDIDATE_CHECKOUT: repo, CANDIDATE_BUILD_RECORD: recordPath },
     });
     const ended = now();
     Object.assign(record, {

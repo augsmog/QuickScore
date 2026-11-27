@@ -11,17 +11,30 @@
 //   node scripts/release/candidate-check.cjs verify --sha <40-hex> --receipt candidate-receipt.json
 //                                                   [--fixes release/required-fixes.json]
 //
-// The receipt binds three things to the SHA, each by hash, so that a receipt cannot merely look
-// positive: the tree; the required-fixes manifest (file hash, and the fix list itself); and the
-// ordered list of every test that ran (`suite.testIdsSha256`; the list is written next to the
-// receipt as <receipt>.tests.txt). Two receipts are compared by that hash, never by a headline
-// count.
+// CANDIDATE IDENTITY IS THE APP-INPUTS HASH (AUG-1601). A receipt, a review and an approval are
+// about an app, not about a commit id. The app-inputs hash covers every tracked file under
+// scoresnap/ except the directories and files named in NOT_APP below (tests, the layout gate,
+// release tooling, store listing, site, backend, docs). A receipt written for one commit verifies
+// for any commit with the same app-inputs hash, so a tooling or gate commit never voids a
+// candidate. Any change to an app input gives a new hash and is refused until it is checked.
+// The definition excludes by name rather than includes by name on purpose: a new file or
+// directory nobody thought about counts as part of the app.
+//
+// The receipt binds, each by hash, so that it cannot merely look positive: the app inputs; the
+// commit and tree it was run on; the required-fixes list (base, release, fix commits, allowed
+// skips; not its wording); and the ordered list of every test that ran (`suite.testIdsSha256`;
+// the list is written next to the receipt as <receipt>.tests.txt). Two receipts are compared by
+// those hashes, never by a headline count.
+//
+// The required-fixes list holds APP fixes only: every listed commit must change an app input.
+// Tooling and gate commits are never required fixes.
 //
 // `check` exits 0 and writes the receipt only if every required fix is in the SHA, the full unit
 // suite passes on the SHA with no failures and no skips beyond the named allow-list, and the
 // version matches. On any failure it exits non-zero and leaves NO receipt at the receipt path.
-// `verify` is what build, archive and upload steps call: it refuses unless the receipt is for
-// that exact SHA and tree and was written by this file as it currently is.
+// `verify` is what build, archive and upload steps call: it refuses unless the SHA has the same
+// app inputs as the receipt, every required fix is in it, and the receipt is true of its own SHA.
+// A change to this file does not void receipts; a change to what a receipt means bumps the schema.
 const { execFileSync } = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -29,8 +42,21 @@ const os = require('node:os');
 const path = require('node:path');
 
 const SHA = /^[0-9a-f]{40}$/;
-const RECEIPT_SCHEMA = 'snapscore-candidate-receipt/2';
+const RECEIPT_SCHEMA = 'snapscore-candidate-receipt/3';
 const FIXES_SCHEMA = 'snapscore-required-fixes/1';
+
+// Under scoresnap/, everything is an app input except these.
+const APP_ROOT = 'scoresnap/';
+const NOT_APP = {
+  directories: ['docs', 'e2e', 'release', 'reports', 'scripts', 'site', 'store', 'supabase', 'test-scorecards', 'tests'],
+  files: ['.env.example', '.gitignore', 'DESIGN-OVERHAUL.md', 'PERSONAS-AND-GAP-ANALYSIS.md', 'jest.config.cjs'],
+};
+function isAppInput(file) {
+  if (!file.startsWith(APP_ROOT)) return false;
+  const rest = file.slice(APP_ROOT.length);
+  if (NOT_APP.files.includes(rest)) return false;
+  return !NOT_APP.directories.some((dir) => rest === dir || rest.startsWith(`${dir}/`));
+}
 
 class Refusal extends Error {}
 const refuse = (message) => { throw new Refusal(message); };
@@ -45,6 +71,23 @@ function patchId(repo, commit) {
   const diff = execFileSync('git', ['-C', repo, 'show', '--no-color', '--format=', commit], { maxBuffer: 256 * 1024 * 1024 });
   const out = execFileSync('git', ['-C', repo, 'patch-id', '--stable'], { input: diff, encoding: 'utf8' }).trim();
   return out.split(/\s+/)[0] || null;
+}
+
+// sha256 over "<mode> <type> <blob>\t<path>" for every app-input file at the SHA, in git's order.
+// Content, path and mode all count; nothing outside the app inputs does.
+function appInputs(repo, sha) {
+  const out = execFileSync('git', ['-C', repo, '-c', 'core.quotepath=off', 'ls-tree', '-r', '-z', sha, '--', APP_ROOT.slice(0, -1)], { maxBuffer: 64 * 1024 * 1024 });
+  const lines = out.toString('utf8').split('\0').filter((line) => line && isAppInput(line.slice(line.indexOf('\t') + 1)));
+  if (lines.length === 0) refuse(`${sha} has no app inputs under ${APP_ROOT}`);
+  return { sha256: crypto.createHash('sha256').update(`${lines.join('\n')}\n`).digest('hex'), files: lines.length };
+}
+// What must not change for a receipt to stay valid. Wording ("what", tickets of fixes) is not in it.
+function fixesBinding(doc) {
+  return crypto.createHash('sha256').update(JSON.stringify({ base: doc.base, version: doc.release.version, ticket: doc.release.ticket, buildNumber: doc.release.buildNumber ?? null, fixes: doc.fixes.map((fix) => fix.commit), allowedSkips: [...(doc.allowedSkips ?? [])].sort() })).digest('hex');
+}
+function changesAppInput(repo, commit) {
+  const files = execFileSync('git', ['-C', repo, '-c', 'core.quotepath=off', 'show', '--no-color', '--format=', '--name-only', '-z', '-m', '--first-parent', commit], { maxBuffer: 64 * 1024 * 1024 }).toString('utf8').split('\0').filter(Boolean);
+  return files.some(isAppInput);
 }
 
 function validateFixes(doc) {
@@ -76,6 +119,7 @@ function locateFixes(repo, sha, doc) {
   let rangeIds = null;
   return doc.fixes.map((fix) => {
     if (!gitOk(repo, ['cat-file', '-e', `${fix.commit}^{commit}`])) refuse(`required fix ${fix.ticket} (${fix.what}): commit ${fix.commit} is not in this repository; fetch it first`);
+    if (!changesAppInput(repo, fix.commit)) refuse(`required-fixes: ${fix.ticket} ${fix.commit} (${fix.what}) changes no app input; tooling and gate commits are never required fixes`);
     if (gitOk(repo, ['merge-base', '--is-ancestor', fix.commit, sha])) return { ...fix, present: 'yes', how: 'ancestor', as: fix.commit };
     rangeIds ??= new Map(range.map((commit) => [patchId(repo, commit), commit]));
     const as = rangeIds.get(patchId(repo, fix.commit));
@@ -175,21 +219,22 @@ function candidateCheck({ repo, sha, fixesFile, receiptPath, runSuite = runSuite
   if (receiptPath) { fs.rmSync(receiptPath, { force: true }); fs.rmSync(`${receiptPath}.tests.txt`, { force: true }); }
   if (!SHA.test(sha ?? '')) refuse('--sha must be one full 40-character commit SHA');
   if (!gitOk(repo, ['cat-file', '-e', `${sha}^{commit}`])) refuse(`${sha} is not a commit in this repository`);
-  const fixesBytes = fs.readFileSync(fixesFile);
-  const doc = validateFixes(JSON.parse(fixesBytes.toString('utf8')));
+  const doc = validateFixes(JSON.parse(fs.readFileSync(fixesFile, 'utf8')));
   const fixes = locateFixes(repo, sha, doc);
   const release = checkVersion(repo, sha, doc);
+  const inputs = appInputs(repo, sha);
   const suite = runSuite(repo, sha, { reuseNodeModules });
   judgeSuite(suite, doc.allowedSkips ?? []);
   const receipt = {
     schema: RECEIPT_SCHEMA,
+    appInputs: inputs,
     sha,
     tree: git(repo, ['rev-parse', `${sha}^{tree}`]),
     base: doc.base,
     release: { ticket: doc.release.ticket, ...release },
     suite: { suites: suite.suites, tests: suite.tests, passed: suite.passed, failed: 0, skipped: suite.skipped, testIdsSha256: testIdsHash(suite.ids) },
     fixes: fixes.map(({ ticket, what, commit, present, how, as }) => ({ ticket, what, commit, present, how, as })),
-    requiredFixesSha256: crypto.createHash('sha256').update(fixesBytes).digest('hex'),
+    requiredFixesSha256: fixesBinding(doc),
     checkSha256: selfSha256(),
     node: process.version,
     checkedAt: now().toISOString(),
@@ -208,8 +253,16 @@ function verifyReceipt({ repo, sha, receiptPath, fixesFile }) {
   let receipt;
   try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch { refuse('candidate receipt is not valid JSON'); }
   if (receipt.schema !== RECEIPT_SCHEMA) refuse('candidate receipt has the wrong schema');
-  if (receipt.sha !== sha) refuse(`candidate receipt is for ${receipt.sha}, not ${sha}`);
-  if (receipt.tree !== git(repo, ['rev-parse', `${sha}^{tree}`])) refuse('candidate receipt tree does not match the SHA');
+  if (!gitOk(repo, ['cat-file', '-e', `${sha}^{commit}`])) refuse(`${sha} is not a commit in this repository`);
+  if (!/^[0-9a-f]{64}$/.test(receipt.appInputs?.sha256 ?? '')) refuse('candidate receipt does not record the app inputs (appInputs.sha256)');
+  // Identity: the SHA being built must be the same app as the one the receipt is about.
+  const inputs = appInputs(repo, sha);
+  if (inputs.sha256 !== receipt.appInputs.sha256) refuse(`app inputs differ: the receipt is for app inputs ${receipt.appInputs.sha256} (commit ${receipt.sha}), but ${sha} has ${inputs.sha256}. A change to the app needs its own check`);
+  // The receipt must be true of the commit it was run on, even when it is used for another.
+  if (!SHA.test(receipt.sha ?? '')) refuse('candidate receipt does not name a full commit SHA');
+  if (!gitOk(repo, ['cat-file', '-e', `${receipt.sha}^{commit}`])) refuse(`the receipt's own commit ${receipt.sha} is not in this repository; fetch it first`);
+  if (receipt.tree !== git(repo, ['rev-parse', `${receipt.sha}^{tree}`])) refuse('candidate receipt tree does not match its SHA');
+  if (receipt.sha !== sha && appInputs(repo, receipt.sha).sha256 !== receipt.appInputs.sha256) refuse(`candidate receipt app inputs are not those of its own commit ${receipt.sha}`);
   if (receipt.suite?.failed !== 0 || !(receipt.suite?.tests > 0)) refuse('candidate receipt does not record a green suite');
   if (receipt.suite.passed + (receipt.suite.skipped?.length ?? NaN) !== receipt.suite.tests) refuse('candidate receipt suite counts do not add up');
   // The test list: the receipt must carry its hash, and the list written beside the receipt must
@@ -224,27 +277,33 @@ function verifyReceipt({ repo, sha, receiptPath, fixesFile }) {
   if (listed.some((line) => !line.endsWith('::passed')) && (receipt.suite.skipped?.length ?? 0) === 0) refuse('the test list contains tests that did not pass');
   // The fix list: bound to the real manifest, not merely non-empty and positive-looking.
   if (!fixesFile || !fs.existsSync(fixesFile)) refuse('the required-fixes manifest is missing; the receipt cannot be checked against it');
-  const fixesBytes = fs.readFileSync(fixesFile);
-  const doc = validateFixes(JSON.parse(fixesBytes.toString('utf8')));
-  if (crypto.createHash('sha256').update(fixesBytes).digest('hex') !== receipt.requiredFixesSha256) refuse('candidate receipt was made against a different required-fixes manifest; run the check again');
+  const doc = validateFixes(JSON.parse(fs.readFileSync(fixesFile, 'utf8')));
+  if (fixesBinding(doc) !== receipt.requiredFixesSha256) refuse('candidate receipt was made against a different required-fixes manifest; run the check again');
   if (receipt.base !== doc.base) refuse('candidate receipt base does not match the manifest');
   if (receipt.release?.version !== doc.release.version || receipt.release?.ticket !== doc.release.ticket) refuse('candidate receipt release does not match the manifest');
   if (!Array.isArray(receipt.fixes) || receipt.fixes.length !== doc.fixes.length) refuse(`candidate receipt lists ${receipt.fixes?.length ?? 0} fix(es) but the manifest requires ${doc.fixes.length}`);
   // Where each fix is in the SHA is worked out again here from the manifest and the repository.
   // What the receipt says about it (`as`, `how`) is compared with that and never trusted: an
   // unrelated commit that merely is an ancestor of the SHA cannot stand in for a required fix.
-  const located = locateFixes(repo, sha, doc);
+  // The mapping is checked on the receipt's own commit; the SHA being built must hold every fix too.
+  const located = locateFixes(repo, receipt.sha, doc);
+  if (receipt.sha !== sha) locateFixes(repo, sha, doc);
   doc.fixes.forEach((fix, index) => {
     const got = receipt.fixes[index];
     const real = located[index];
     if (got?.commit !== fix.commit || got?.ticket !== fix.ticket) refuse(`candidate receipt fix ${index + 1} is not the manifest's (${fix.ticket} ${fix.commit})`);
     if (got.present !== 'yes') refuse(`candidate receipt does not record ${fix.ticket} ${fix.commit} as present`);
-    if (real.present !== 'yes') refuse(`${fix.ticket} ${fix.commit} is not in ${sha}, whatever the receipt says`);
-    if (!SHA.test(got.as ?? '') || !gitOk(repo, ['merge-base', '--is-ancestor', got.as, sha])) refuse(`candidate receipt says ${fix.ticket} is present as ${got.as}, which is not in ${sha}`);
-    if (got.as !== real.as || got.how !== real.how) refuse(`candidate receipt says ${fix.ticket} ${fix.commit} is present as ${got.as} (${got.how}), but in ${sha} it is ${real.as} (${real.how}); the receipt's fix mapping is not the real one`);
+    if (real.present !== 'yes') refuse(`${fix.ticket} ${fix.commit} is not in ${receipt.sha}, whatever the receipt says`);
+    if (!SHA.test(got.as ?? '') || !gitOk(repo, ['merge-base', '--is-ancestor', got.as, receipt.sha])) refuse(`candidate receipt says ${fix.ticket} is present as ${got.as}, which is not in ${receipt.sha}`);
+    if (got.as !== real.as || got.how !== real.how) refuse(`candidate receipt says ${fix.ticket} ${fix.commit} is present as ${got.as} (${got.how}), but in ${receipt.sha} it is ${real.as} (${real.how}); the receipt's fix mapping is not the real one`);
   });
-  if (receipt.checkSha256 !== selfSha256()) refuse('candidate receipt was written by a different version of candidate-check; run the check again');
   return receipt;
+}
+
+// One line that names the candidate by what it is: the app-inputs hash first, then the commit.
+function describeReceipt(receipt, forSha) {
+  const carried = forSha && forSha !== receipt.sha ? `${forSha}, same app as receipted commit ${receipt.sha}` : receipt.sha;
+  return `app inputs ${receipt.appInputs.sha256} (${receipt.appInputs.files} files); commit ${carried} (tree ${receipt.tree}); ${receipt.suite.tests} tests, 0 failed, test list ${receipt.suite.testIdsSha256}; ${receipt.fixes.length} required app fixes present`;
 }
 
 function parseArgs(argv) {
@@ -270,11 +329,11 @@ function main(argv) {
         fixesFile: path.resolve(options.fixes ?? path.join(scoresnap, 'release', 'required-fixes.json')),
         reuseNodeModules: options['reuse-node-modules'],
       });
-      console.log(`CANDIDATE CHECK PASSED for ${receipt.sha} (tree ${receipt.tree}): ${receipt.suite.tests} tests, 0 failed, test list ${receipt.suite.testIdsSha256}, ${receipt.fixes.length} required fixes present. Receipt: ${receiptPath} (+ .tests.txt)`);
-      console.log('This SHA is a candidate only once a different service has recomputed this receipt.');
+      console.log(`CANDIDATE CHECK PASSED: ${describeReceipt(receipt)}. Receipt: ${receiptPath} (+ .tests.txt)`);
+      console.log('These app inputs are a candidate only once a different service has recomputed this receipt. The receipt holds for any commit with the same app inputs.');
     } else if (command === 'verify') {
       const receipt = verifyReceipt({ repo, sha: options.sha, receiptPath, fixesFile: path.resolve(options.fixes ?? path.join(scoresnap, 'release', 'required-fixes.json')) });
-      console.log(`RECEIPT OK for ${receipt.sha} (tree ${receipt.tree}): ${receipt.suite.tests} tests, test list ${receipt.suite.testIdsSha256}, ${receipt.fixes.length} fixes bound to the manifest; checked ${receipt.checkedAt}`);
+      console.log(`RECEIPT OK: ${describeReceipt(receipt, options.sha)}; checked ${receipt.checkedAt}`);
     } else {
       refuse('usage: candidate-check.cjs check|verify --sha <40-hex> [--fixes file] [--receipt file] [--reuse-node-modules dir]');
     }
@@ -285,5 +344,5 @@ function main(argv) {
   }
 }
 
-module.exports = { candidateCheck, verifyReceipt, validateFixes, judgeSuite, summarizeJestReport, testIdsHash, Refusal, RECEIPT_SCHEMA, FIXES_SCHEMA };
+module.exports = { candidateCheck, verifyReceipt, appInputs, isAppInput, describeReceipt, validateFixes, judgeSuite, summarizeJestReport, testIdsHash, Refusal, RECEIPT_SCHEMA, FIXES_SCHEMA };
 if (require.main === module) main(process.argv.slice(2));

@@ -6,7 +6,7 @@ const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { candidateCheck, verifyReceipt, summarizeJestReport, testIdsHash, Refusal } = require('../scripts/release/candidate-check.cjs');
+const { candidateCheck, verifyReceipt, summarizeJestReport, testIdsHash, appInputs, describeReceipt, Refusal } = require('../scripts/release/candidate-check.cjs');
 const { runOnCandidate } = require('../scripts/release/run-on-candidate.cjs');
 
 const IDS = Array.from({ length: 10 }, (_, i) => `tests/s${i % 3}.test.cjs::case ${i}::passed`).sort();
@@ -159,7 +159,8 @@ test('verify refuses a missing receipt, a receipt for another SHA, and every pos
   refused(() => verify(), /is not a candidate/);
   run(f);
   assert.equal(verify().sha, f.both);
-  refused(() => verify({ sha: f.onlyA }), /receipt is for .* not /);
+  // Another commit with another app: refused on the app, not on the commit id.
+  refused(() => verify({ sha: f.onlyA }), /app inputs differ/);
   const receipt = JSON.parse(fs.readFileSync(f.receiptPath, 'utf8'));
   const list = fs.readFileSync(`${f.receiptPath}.tests.txt`, 'utf8');
   const withReceipt = (edit, pattern) => {
@@ -170,7 +171,9 @@ test('verify refuses a missing receipt, a receipt for another SHA, and every pos
   };
   withReceipt((r) => { r.suite.failed = 1; }, /does not record a green suite/);
   withReceipt((r) => { r.tree = '0'.repeat(40); }, /tree does not match/);
-  withReceipt((r) => { r.checkSha256 = 'x'; }, /different version of candidate-check/);
+  withReceipt((r) => { r.schema = 'snapscore-candidate-receipt/2'; }, /wrong schema/);
+  withReceipt((r) => { r.appInputs.sha256 = '0'.repeat(64); }, /app inputs differ/);
+  withReceipt((r) => { delete r.appInputs; }, /does not record the app inputs/);
   // Positive-looking but unbound: still says "present: yes" for everything it lists.
   withReceipt((r) => { r.fixes.pop(); }, /lists 1 fix\(es\) but the manifest requires 2/);
   withReceipt((r) => { r.fixes[1].commit = r.fixes[0].commit; }, /fix 2 is not the manifest's/);
@@ -202,8 +205,130 @@ test('the shipped 1.0.1 fix list is well formed', () => {
   const { validateFixes } = require('../scripts/release/candidate-check.cjs');
   const doc = validateFixes(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'release', 'required-fixes.json'), 'utf8')));
   assert.equal(doc.release.version, '1.0.1');
-  assert.equal(doc.fixes.length, 10);
+  assert.equal(doc.fixes.length, 9);
   assert.deepEqual(doc.allowedSkips, []);
+});
+
+// Candidate identity (AUG-1601, 27 Nov): three candidate SHAs were minted in one afternoon, the
+// last with no app change, and each one voided the reviews, receipts and approval of the one
+// before. The identity of a candidate is now the hash of what goes into the app. Tooling and gate
+// commits do not change it, are never required fixes, and never refuse a candidate.
+describe('candidate identity is the app-inputs hash', () => {
+  const TOOLING = ['scoresnap/e2e/device-layout/lib/rule.mjs', 'scoresnap/tests/extra.test.cjs', 'scoresnap/scripts/release/tool.cjs', 'scoresnap/release/note.json',
+    'scoresnap/store/listing.txt', 'scoresnap/site/index.html', 'scoresnap/supabase/migrations/1.sql', 'scoresnap/docs/RUNBOOK.md', 'scoresnap/jest.config.cjs',
+    '.github/workflows/gate.yml', '.maestro/flows/a.yaml', 'README.md'];
+  const APP = ['scoresnap/app/contest/new.tsx', 'scoresnap/src/ui/x.ts', 'scoresnap/assets/icon.png', 'scoresnap/app.json', 'scoresnap/eas.json', 'scoresnap/package.json',
+    'scoresnap/package-lock.json', 'scoresnap/babel.config.js', 'scoresnap/metro.config.js', 'scoresnap/index.ts', 'scoresnap/plugins/with-something.js', 'scoresnap/a-new-top-level-file.js'];
+  const verify = (f, sha, extra = {}) => verifyReceipt({ repo: f.repo, sha, receiptPath: f.receiptPath, fixesFile: f.fixesFile, ...extra });
+  const toolingCommit = (f, files = TOOLING) => { f.git('checkout', '-q', '--detach', f.both); for (const file of files) f.write(file, `tooling ${file}\n`); return f.commit('tooling only'); };
+
+  test('the receipt records the app-inputs hash of its SHA, and check and verify print it', () => {
+    const f = fixture();
+    const receipt = run(f);
+    assert.equal(receipt.schema, 'snapscore-candidate-receipt/3');
+    assert.match(receipt.appInputs.sha256, /^[0-9a-f]{64}$/);
+    assert.deepEqual(receipt.appInputs, appInputs(f.repo, f.both));
+    assert.equal(receipt.appInputs.files, 5); // app.json, eas.json, a.txt, b.txt, c.txt
+    assert.ok(describeReceipt(receipt).includes(`app inputs ${receipt.appInputs.sha256}`));
+    assert.ok(describeReceipt(receipt, f.both).includes(`app inputs ${receipt.appInputs.sha256}`));
+  });
+
+  test('a commit that changes only tooling, gate, test, store, site or workflow files keeps the identity, and the old receipt verifies for it', () => {
+    const f = fixture();
+    const receipt = run(f);
+    const later = toolingCommit(f);
+    assert.notEqual(later, f.both);
+    assert.notEqual(f.git('rev-parse', `${later}^{tree}`), receipt.tree);
+    assert.deepEqual(appInputs(f.repo, later), receipt.appInputs);
+    const got = verify(f, later);
+    assert.equal(got.sha, f.both); // the receipt is returned as written; it is not rewritten for the new commit
+    assert.ok(describeReceipt(got, later).includes(later));
+    // And one more tooling commit on top of that.
+    f.write('scoresnap/e2e/more.mjs', 'x\n'); const later2 = f.commit('more tooling');
+    assert.equal(verify(f, later2).appInputs.sha256, receipt.appInputs.sha256);
+  });
+
+  for (const file of APP) test(`a change to ${file} is a change to the app: new identity, old receipt refused`, () => {
+    const f = fixture();
+    const receipt = run(f);
+    f.git('checkout', '-q', '--detach', f.both); f.write(file, 'changed\n'); const changed = f.commit('app change');
+    assert.notEqual(appInputs(f.repo, changed).sha256, receipt.appInputs.sha256);
+    refused(() => verify(f, changed), /app inputs differ/);
+  });
+
+  test('removing or renaming an app file, or changing only its mode, is a change to the app', () => {
+    const f = fixture();
+    const receipt = run(f);
+    f.git('checkout', '-q', '--detach', f.both); f.git('mv', 'scoresnap/c.txt', 'scoresnap/c2.txt'); const renamed = f.commit('rename');
+    refused(() => verify(f, renamed), /app inputs differ/);
+    f.git('checkout', '-q', '--detach', f.both); f.git('rm', '-q', 'scoresnap/c.txt'); const removed = f.commit('remove');
+    refused(() => verify(f, removed), /app inputs differ/);
+    f.git('checkout', '-q', '--detach', f.both); fs.chmodSync(path.join(f.repo, 'scoresnap/c.txt'), 0o755); const mode = f.commit('mode');
+    assert.notEqual(appInputs(f.repo, mode).sha256, receipt.appInputs.sha256);
+  });
+
+  test('a tooling commit can never be a required fix', () => {
+    const f = fixture();
+    const tooling = toolingCommit(f);
+    f.writeFixes({ fixes: [{ ticket: 'AUG-A', what: 'fix a', commit: f.fixA }, { ticket: 'AUG-B', what: 'fix b', commit: f.fixB }, { ticket: 'AUG-GATE', what: 'a gate rule', commit: tooling }] });
+    refused(() => run(f, { sha: tooling }), /AUG-GATE .* changes no app input; tooling and gate commits are never required fixes/);
+    assert.equal(fs.existsSync(f.receiptPath), false);
+  });
+
+  test('rewording the fix list or changing the checker does not void a receipt; adding or removing a fix does', () => {
+    const f = fixture();
+    run(f);
+    f.writeFixes({ fixes: [{ ticket: 'AUG-A', what: 'fix a, described better', commit: f.fixA }, { ticket: 'AUG-B', what: 'fix b', commit: f.fixB }] });
+    assert.equal(verify(f, f.both).sha, f.both);
+    const receipt = JSON.parse(fs.readFileSync(f.receiptPath, 'utf8'));
+    fs.writeFileSync(f.receiptPath, JSON.stringify({ ...receipt, checkSha256: '0'.repeat(64) }));
+    assert.equal(verify(f, f.both).sha, f.both);
+    f.writeFixes({ fixes: [{ ticket: 'AUG-A', what: 'fix a', commit: f.fixA }] });
+    refused(() => verify(f, f.both), /different required-fixes manifest/);
+  });
+
+  test('a receipt carried to another commit is still checked against its own commit', () => {
+    const f = fixture();
+    run(f);
+    const later = toolingCommit(f);
+    const receipt = JSON.parse(fs.readFileSync(f.receiptPath, 'utf8'));
+    const withReceipt = (edit, pattern) => { const copy = structuredClone(receipt); edit(copy); fs.writeFileSync(f.receiptPath, JSON.stringify(copy)); refused(() => verify(f, later), pattern); fs.writeFileSync(f.receiptPath, JSON.stringify(receipt)); };
+    withReceipt((r) => { r.sha = '0'.repeat(40); }, /is not in this repository/);
+    withReceipt((r) => { r.sha = f.onlyA; }, /tree does not match|app inputs/);
+    withReceipt((r) => { r.tree = '0'.repeat(40); }, /tree does not match/);
+    withReceipt((r) => { r.fixes[0].as = f.base; }, /fix mapping is not the real one/);
+    withReceipt((r) => { r.appInputs.sha256 = appInputs(f.repo, f.onlyA).sha256; }, /app inputs/);
+  });
+
+  test('run-on-candidate builds another commit with the same app inputs, by --sha, and refuses a different app', () => {
+    const f = fixture();
+    const receipt = run(f);
+    const later = toolingCommit(f);
+    f.git('checkout', '-q', '--detach', f.both); f.write('scoresnap/src/x.ts', 'changed\n'); const changed = f.commit('app change');
+    const out = path.dirname(f.receiptPath);
+    const tmpRoot = fs.mkdtempSync(path.join(out, 'tmp-'));
+    const seen = path.join(out, 'seen.txt');
+    const probe = ['node', '-e', `require('fs').writeFileSync(${JSON.stringify(seen)}, [require('child_process').execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(), process.env.CANDIDATE_SHA, process.env.CANDIDATE_APP_INPUTS, process.env.CANDIDATE_RECEIPT_SHA].join('\\n'))`];
+    const args = (...rest) => ['--repo', f.repo, '--receipt', f.receiptPath, '--fixes', f.fixesFile, ...rest, '--', ...probe];
+    const opts = { log: () => {}, warn: () => {}, tmpRoot };
+    assert.equal(runOnCandidate(args('--sha', later), opts), 0);
+    assert.deepEqual(fs.readFileSync(seen, 'utf8').split('\n'), [later, later, receipt.appInputs.sha256, f.both]);
+    const record = JSON.parse(fs.readFileSync(path.join(out, fs.readdirSync(out).find((name) => /\.build-.*\.json$/.test(name))), 'utf8'));
+    assert.equal(record.sha, later);
+    assert.equal(record.receiptSha, f.both);
+    assert.equal(record.appInputsSha256, receipt.appInputs.sha256);
+    fs.rmSync(seen);
+    // An approval is given for an app-inputs hash: the right one admits, any other refuses.
+    assert.equal(runOnCandidate(args('--sha', later, '--app-inputs', receipt.appInputs.sha256), opts), 0);
+    assert.equal(runOnCandidate(args('--app-inputs', receipt.appInputs.sha256), opts), 0);
+    fs.rmSync(seen);
+    refused(() => runOnCandidate(args('--sha', later, '--app-inputs', appInputs(f.repo, changed).sha256), opts), /approved app inputs .* but .* has /);
+    refused(() => runOnCandidate(args('--app-inputs', 'abc'), opts), /--app-inputs must be the full 64-character hash/);
+    refused(() => runOnCandidate(args('--sha', changed), opts), /app inputs differ/);
+    refused(() => runOnCandidate(args('--sha', 'abc123'), opts), /--sha must be one full 40-character commit SHA/);
+    assert.equal(fs.existsSync(seen), false);
+    assert.equal(fs.readdirSync(tmpRoot).length, 0);
+  });
 });
 
 // The entry point for build / archive / upload: verify first, then run, or refuse and run nothing.
