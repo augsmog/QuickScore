@@ -59,7 +59,7 @@ test('validateBundle: stale SHA, wrong profile, cross-device and cross-platform 
 
 test('validateBundle: every expected per-PR checkpoint must be present (rule 8)', () => {
   const flows = expectedFlows(CONFIG, 'per-pr');
-  assert.deepEqual(flows.map((f) => f.id).sort(), ['join', 'new-contest', 'paywall']);
+  assert.deepEqual(flows.map((f) => f.id).sort(), ['join', 'new-contest', 'paywall', 'sign-in']);
   const all = flows.flatMap((f) => f.checkpoints.map((c) => cp([okNode()], {}, { flow: f.id, checkpoint: c })));
   assert.deepEqual(validateBundle(bundle(all), { flows }), []);
   const missingOne = all.filter((x) => !(x.flow === 'paywall' && x.checkpoint === flows.find((f) => f.id === 'paywall').checkpoints[0]));
