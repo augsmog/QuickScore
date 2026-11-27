@@ -50,6 +50,7 @@ function profileScreen(proEnabled, scan = { scansUsed: 0, isPro: false, getRemai
     '../../src/stores/contest-store': { useContestStore: select => select({ contests: [] }) },
     '../../src/stores/scan-store': { useScanStore: () => scan },
     '../../src/stores/auth-store': { useAuthStore: select => select({ user: { id: 'local', name: 'Avery' }, isAnonymous: false }) },
+    '../../src/services/member-since': { memberSinceYear: () => null },
     '../../src/services/purchases': { restorePurchases: jest.fn(), getCustomerInfo: jest.fn() },
     '../../src/services/entitlements': { proEnabled: () => proEnabled },
     '../../src/config/support-links': { openSupport: jest.fn() },

@@ -34,6 +34,7 @@ function screen(user, isAnonymous = false) {
     '../../src/stores/contest-store': { useContestStore: select => select({ contests: [] }) },
     '../../src/stores/scan-store': { useScanStore: () => ({ scansUsed: 0, isPro: false, getRemainingFreeScans: () => 3 }) },
     '../../src/stores/auth-store': { useAuthStore: select => select(state) },
+    '../../src/services/member-since': load('src/services/member-since.ts', {}),
     '../../src/services/purchases': {},
     // AUG-826: Pro affordances now gate on proEnabled(); this harness asserts the flag-ON rendering.
     '../../src/services/entitlements': { proEnabled: () => true },
@@ -55,8 +56,16 @@ describe.each([false, true])('identity with anonymous=%s', anonymous => {
     expect(text(tree)).not.toContain('Edit name');
     expect(control(tree, 'Settings')).toBeDefined();
     expect(control(tree, 'Account settings')).toBeDefined();
-    expect(text(tree)).toContain('Member since');
+    // 27 Nov: this used to require 'Member since' for everyone; the year shown was just the current
+    // year. A user with no known account creation date (as here, and every guest) now has no such line.
+    expect(text(tree)).not.toContain('Member since');
     expect(nodes(tree).find(n => n.props?.testID === 'profile-plan-badge')).toBeDefined();
+  });
+  test('Member since: the account creation year for a signed-in user, nothing for a guest', () => {
+    const signedIn = screen({ id: 'u1', name: 'Avery', provider: 'apple', createdAt: '2026-10-22T03:04:05Z' }, anonymous);
+    expect(text(signedIn.render())).toContain('Member since 2026');
+    const guest = screen({ id: 'u2', name: 'Golfer', provider: 'anonymous', createdAt: '2026-11-18T18:55:55Z' }, anonymous);
+    expect(text(guest.render())).not.toContain('Member since');
   });
   test('known name/initials retained and navigation handlers remain reachable on repeated entry', () => {
     const s = screen({ id: 'local', name: '  Avery Jones  ' }, anonymous);

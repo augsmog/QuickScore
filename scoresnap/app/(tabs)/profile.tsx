@@ -23,6 +23,7 @@ import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../../src/ui/theme";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 import { useContestStore, Contest } from "../../src/stores/contest-store";
 import { useScanStore } from "../../src/stores/scan-store";
+import { memberSinceYear } from "../../src/services/member-since";
 import { useAuthStore } from "../../src/stores/auth-store";
 import { restorePurchases, getCustomerInfo } from "../../src/services/purchases";
 import { proEnabled } from "../../src/services/entitlements";
@@ -154,7 +155,7 @@ export default function ProfileScreen() {
     }
   };
 
-  const memberYear = new Date().getFullYear();
+  const memberYear = memberSinceYear(authUser);
   const hasData = stats.totalRounds > 0;
 
   return (
@@ -172,7 +173,9 @@ export default function ProfileScreen() {
             {displayName && (
               <Text style={{ fontFamily: FONTS.headline, fontSize: 24, color: COLORS.text }}>{displayName}</Text>
             )}
-            <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>Member since {memberYear}</Text>
+            {memberYear !== null && (
+              <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>Member since {memberYear}</Text>
+            )}
             {/* AUG-826: Pro/Free plan badge is a Pro-membership affordance; hidden while pro_enabled is off. */}
             {proEnabled() && (
               <View testID="profile-plan-badge" accessibilityLabel={`Plan: ${isPro ? "Pro" : "Free"}`} style={{ alignSelf: "flex-start", borderRadius: RADII.full, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: isPro ? COLORS.primary : COLORS.outline, backgroundColor: COLORS.surface }}>

@@ -5,7 +5,8 @@ export function deriveSession(session: any) {
   const isAnonymous = source.is_anonymous === true;
   const candidate = source.app_metadata?.provider;
   const provider: 'anonymous' | 'apple' | 'google' | 'email' = isAnonymous ? 'anonymous' : candidate === 'apple' || candidate === 'google' ? candidate : 'email';
-  const user = { id: source.id, email: source.email, name: source.user_metadata?.full_name, provider };
+  const createdAt: string | undefined = typeof source.created_at === 'string' ? source.created_at : undefined;
+  const user = { id: source.id, email: source.email, name: source.user_metadata?.full_name, provider, createdAt };
   return { session: { user }, user, isAnonymous, remoteUserId: source.id };
 }
 

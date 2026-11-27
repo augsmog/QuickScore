@@ -18,6 +18,8 @@ interface UserProfile {
   lastName?: string;
   name?: string;
   provider?: "apple" | "google" | "email" | "anonymous";
+  /** When the server says the account was created (ISO date). Absent for a local guest. */
+  createdAt?: string;
 }
 
 let authSubscription: { unsubscribe(): void } | undefined;
