@@ -9,6 +9,9 @@ const { spawnSync } = require('node:child_process');
 const root = path.join(__dirname, '..');
 const script = path.join(root, 'scripts', 'inode-pnpm-pilot', 'run.sh');
 const source = fs.readFileSync(script, 'utf8');
+// A fixture directory under the PHYSICAL temp directory. On macOS os.tmpdir() is under /var, a
+// symlink to /private/var, and the script (rightly) refuses any path with a symlinked ancestor.
+const physicalTempDir = (prefix, tempRoot = os.tmpdir()) => fs.mkdtempSync(path.join(fs.realpathSync(tempRoot), prefix));
 const run = (env, args = []) =>
   spawnSync('bash', [script, ...args], { env: { PATH: process.env.PATH, ...env }, encoding: 'utf8' });
 
@@ -31,7 +34,7 @@ describe('inode pnpm pilot (AUG-227 phase C)', () => {
   });
 
   test('refuses missing, relative or unknown inputs before any install', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'inode-pilot-'));
+    const tmp = physicalTempDir('inode-pilot-');
     const ok = { AOS_PNPM_STORE: path.join(tmp, 'store'), AOS_PILOT_OUTPUT: path.join(tmp, 'out') };
     expect(run({}).status).not.toBe(0);
     expect(run({ ...ok, AOS_PNPM_STORE: 'relative/store' }).status).toBe(64);
@@ -41,7 +44,7 @@ describe('inode pnpm pilot (AUG-227 phase C)', () => {
   });
 
   test('refuses at the inode cap and refuses to reuse an output path', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'inode-pilot-'));
+    const tmp = physicalTempDir('inode-pilot-');
     const env = { AOS_PNPM_STORE: path.join(tmp, 'store'), AOS_PILOT_OUTPUT: path.join(tmp, 'out') };
     const capped = run({ ...env, AOS_PILOT_INODE_CAP: '0' });
     expect(capped.status).not.toBe(0);
@@ -55,12 +58,60 @@ describe('inode pnpm pilot (AUG-227 phase C)', () => {
   });
 
   test('wrong pnpm version stops before a checkout copy is made', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'inode-pilot-'));
+    const tmp = physicalTempDir('inode-pilot-');
     const env = { AOS_PNPM_STORE: path.join(tmp, 'store'), AOS_PILOT_OUTPUT: path.join(tmp, 'out') };
     const res = run({ ...env, AOS_PNPM_CMD: 'echo 0.0.0' });
     expect(res.status).toBe(65);
     expect(res.stderr).toMatch(/pnpm 10\.34\.6 required/);
     expect(fs.existsSync(path.join(tmp, 'out', 'checkout'))).toBe(false);
+  });
+});
+
+
+// The script refuses a store or output path that is a symlink or has a symlinked ancestor. That
+// refusal is right and stays. But these fixtures put their paths under os.tmpdir(), and on macOS
+// that is /var/folders/..., where /var is a symlink to /private/var: every fixture path then has a
+// symlinked ancestor and the script refuses them all, so the suite passed on Linux and failed on
+// the Mac (five tests, candidate ff75503, Nov 27). Fixtures must use the physical temp directory.
+describe('fixtures use the physical temp directory', () => {
+  const hasSymlinkedAncestor = (p) => {
+    for (let q = p; q !== path.dirname(q); q = path.dirname(q)) if (fs.lstatSync(q).isSymbolicLink()) return true;
+    return false;
+  };
+  // A temp root reached through a symlink: what os.tmpdir() is on macOS. (Jest gives tests a copy
+  // of the environment, so TMPDIR cannot be swapped under os.tmpdir() here; the root is passed in.)
+  let real, link;
+  beforeEach(() => {
+    real = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'physical-'));
+    link = `${real}-link`;
+    fs.symlinkSync(real, link, 'dir');
+  });
+
+  test('with a symlinked temp root, a fixture directory still has no symlinked ancestor', () => {
+    expect(hasSymlinkedAncestor(link)).toBe(true); // the situation is real in this test
+    // What the fixtures used to do: a directory made straight under the symlinked root.
+    expect(hasSymlinkedAncestor(fs.mkdtempSync(path.join(link, 'old-way-')))).toBe(true);
+    const dir = physicalTempDir('inode-pilot-', link);
+    expect(hasSymlinkedAncestor(dir)).toBe(false);
+    expect(dir.startsWith(real + path.sep)).toBe(true);
+  });
+
+  test('the script still refuses a path under a symlinked root, and accepts the physical one', () => {
+    const viaLink = path.join(link, 'via-link');
+    const refused = run({ AOS_PNPM_STORE: path.join(viaLink, 'store'), AOS_PILOT_OUTPUT: path.join(viaLink, 'out'), AOS_PNPM_CMD: 'echo 0.0.0' });
+    expect(refused.status).not.toBe(0);
+    expect(refused.stderr).toMatch(/symlink destination or ancestor; refusing/);
+    // Same request by the physical path gets past that check, to the next one (the pnpm version).
+    const dir = physicalTempDir('inode-pilot-', link);
+    const next = run({ AOS_PNPM_STORE: path.join(dir, 'store'), AOS_PILOT_OUTPUT: path.join(dir, 'out'), AOS_PNPM_CMD: 'echo 0.0.0' });
+    expect(next.stderr).not.toMatch(/symlink destination or ancestor/);
+    expect(next.status).toBe(65);
+  });
+
+  test('no fixture in this file builds a path from os.tmpdir() directly', () => {
+    const self = fs.readFileSync(__filename, 'utf8');
+    const direct = self.split('\n').filter((line) => /mkdtempSync\(path\.join\(os\.tmpdir\(\)/.test(line));
+    expect(direct).toEqual([]);
   });
 });
 
@@ -74,7 +125,7 @@ describe('pilot command regression controls', () => {
     return r.stdout.trim();
   };
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pnpm-controls-'));
+    tmp = physicalTempDir('pnpm-controls-');
     repo = path.join(tmp, 'source'); app = path.join(repo, 'scoresnap');
     const bin = path.join(tmp, 'bin');
     fs.mkdirSync(path.join(app, 'scripts/inode-pnpm-pilot'), { recursive: true });
