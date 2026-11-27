@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   loadConfig, SCREEN_ANCHORS, loadOverlayManifest, loadAcceptedRelease, loadListing,
   validateConfig, validateOverlayBinding, validateAcceptedRelease,
+  validateBuildForStoreCapture, validateCapturedScreen,
 } from './validate-capture.mjs';
 
 // Walk targets x frames in config order (the real capture sequence) and resolve each step's
@@ -26,6 +27,7 @@ export function buildCapturePlan({
   overlaysBaseDir = '.',
   accepted = loadAcceptedRelease(),
   listingMd = loadListing(),
+  env = process.env,
 } = {}) {
   const acceptedErrors = validateAcceptedRelease(accepted);
   const errors = [
@@ -33,7 +35,10 @@ export function buildCapturePlan({
     ...validateOverlayBinding(config, overlayManifest, overlaysBaseDir),
     ...acceptedErrors,
   ];
-  const acceptedOk = acceptedErrors.length === 0;
+  // AUG-399: never plan a store capture against a build without ML Kit, or one that does not say.
+  const buildErrors = acceptedErrors.length ? [] : validateBuildForStoreCapture(accepted, env);
+  errors.push(...buildErrors);
+  const acceptedOk = acceptedErrors.length === 0 && buildErrors.length === 0;
 
   const steps = [];
   for (const target of config.targets ?? []) {
@@ -82,6 +87,10 @@ export async function runCapture(provider, opts = {}) {
   const entries = [];
   for (const step of plan.steps) {
     const result = await provider.capture(step);
+    // AUG-399: look at what was on screen. One frame showing the simulator-only sentence stops the
+    // whole run; a partial set is not a store set.
+    const screenErrors = validateCapturedScreen(step, result);
+    if (screenErrors.length) throw new Error(`capture refused:\n${screenErrors.join('\n')}`);
     entries.push({ target: step.target, frame: step.frame, file: result.file, width: result.width, height: result.height, sha256: result.sha256 });
   }
   return {

@@ -30,6 +30,41 @@ export const SCREEN_ANCHORS = {
   'scan-card': { testID: 'parse-scorecard-button', file: '../../app/scan/index.tsx', caption: 'Got a paper card?' },
 };
 
+// AUG-399 rule (lead architect, Nov 27 2026): no App Store screenshot may come from a build made
+// with EXPO_PUBLIC_SIMULATOR_NO_MLKIT. That variable compiles Google ML Kit out so the app can run
+// on an arm64 simulator, and it makes the scan screen show the sentence below. Frame 8
+// ("Got a paper card?") is captured on that screen, so a frame taken from such a build would put
+// the sentence in a store screenshot. The other seven screens render the same either way; they are
+// listed in FRAMES_SAME_WITHOUT_ML_KIT as a fact about the screens, not as leave to capture them
+// from such a build: the rule covers all eight.
+export const NO_ML_KIT_VARIABLE = 'EXPO_PUBLIC_SIMULATOR_NO_MLKIT';
+export const NO_ML_KIT_TEST_ID = 'scan-unavailable-simulator';
+export const NO_ML_KIT_SENTENCE = 'Scanning is unavailable in simulator builds';
+export const FRAMES_SAME_WITHOUT_ML_KIT = ['setup-round', 'add-group', 'game-modes', 'score-hole', 'leaderboard', 'side-games', 'settle-up'];
+export const FRAMES_NEEDING_ML_KIT = ['scan-card'];
+
+// The accepted build must say which build variables it was made with (the build record written by
+// scripts/release/run-on-candidate.cjs has them as `buildVariables`). Not saying is refused: an
+// unknown build cannot be shown to have ML Kit in it. `env` is the capturing process's own
+// environment, refused too, so a capture cannot be started from a simulator-build shell.
+export function validateBuildForStoreCapture(accepted, env = process.env) {
+  const errs = [];
+  if (env?.[NO_ML_KIT_VARIABLE] !== undefined && env[NO_ML_KIT_VARIABLE] !== '') errs.push(`${NO_ML_KIT_VARIABLE} is set in this environment; store screenshots may not be captured from a build without ML Kit`);
+  const vars = accepted?.buildVariables;
+  if (!vars || typeof vars !== 'object' || Array.isArray(vars)) errs.push('accepted-release record must list buildVariables (from the build record), so the build can be shown to include ML Kit');
+  else if (Object.hasOwn(vars, NO_ML_KIT_VARIABLE)) errs.push(`the accepted build was made with ${NO_ML_KIT_VARIABLE}=${JSON.stringify(vars[NO_ML_KIT_VARIABLE])}; store screenshots may not come from a build without ML Kit (frame 8 would show "${NO_ML_KIT_SENTENCE}")`);
+  return errs;
+}
+
+// What was on screen when a frame was captured. A capture that does not report it is refused: the
+// check exists to look, so "nothing reported" cannot count as "nothing wrong".
+export function validateCapturedScreen(step, result) {
+  const seen = result?.visibleText;
+  if (!Array.isArray(seen) || seen.some(x => typeof x !== 'string')) return [`frame ${step.frame} ("${step.id}"): the capture must report visibleText (the text and testIDs on screen)`];
+  const hit = seen.find(x => x.includes(NO_ML_KIT_SENTENCE) || x.includes(NO_ML_KIT_TEST_ID));
+  return hit ? [`frame ${step.frame} ("${step.id}"): the screen shows "${hit}"; this build has no ML Kit and may not be used for a store screenshot`] : [];
+}
+
 export function verifyScreenAnchorsExist(anchors = SCREEN_ANCHORS) {
   const errs = [];
   for (const [id, a] of Object.entries(anchors)) {
