@@ -142,6 +142,15 @@ export function ruleClipping(tree, ctx) {
   const footer = ctx.footer; // {left,top,right,bottom} sticky footer, optional
   const safe = ctx.safeArea; // {top,bottom,left,right} insets, optional
   const vp = ctx.viewport; // {width,height}
+  // G3: score actual keyboard occlusion, not an already-masked ScrollView descendant.
+  // The independent rules for scroll reachability, footer and target size still run.
+  const contestScrolls = ctx.platform === 'ios' && ctx.measuredKeyboardInset > 0
+    ? tree.nodes.filter(n => n.id === 'contest-scroll' && n.meta?.scrollClip === true) : [];
+  const keyboardLine = vp && safe ? vp.height - (safe.bottom ?? 0) : NaN;
+  const keyboardMask = contestScrolls.length === 1 && finiteRect(contestScrolls[0].bbox) &&
+    Number.isFinite(ctx.measuredKeyboardInset) && ctx.measuredKeyboardInset < vp?.height &&
+    Number.isFinite(keyboardLine) && safe.bottom >= ctx.measuredKeyboardInset
+    ? contestScrolls[0].bbox : null;
   const required = tree.nodes.filter((n) => n.meta?.required || n.role === 'control');
   for (const n of required) {
     const r = n.bbox;
@@ -178,7 +187,14 @@ export function ruleClipping(tree, ctx) {
     if (safe && vp && !isFooterChrome) {
       const over = [];
       if (r.top < (safe.top ?? 0) - 1) over.push(`top<${safe.top ?? 0}`);
-      if (r.bottom > vp.height - (safe.bottom ?? 0) + 1) over.push(`bottom>${vp.height - (safe.bottom ?? 0)}`);
+      const alreadyMasked = keyboardMask && finiteRect(clip) &&
+        ['left', 'right', 'top', 'bottom'].every(k => clip[k] === keyboardMask[k]) &&
+        keyboardMask.bottom <= keyboardLine && r.top >= keyboardMask.bottom &&
+        r.left >= keyboardMask.left && r.right <= keyboardMask.right &&
+        rectOf(n).top >= keyboardMask.bottom;
+      if (!alreadyMasked && r.bottom > vp.height - (safe.bottom ?? 0) + 1) {
+        over.push(`bottom>${vp.height - (safe.bottom ?? 0)}`);
+      }
       if (r.left < (safe.left ?? 0) - 1) over.push(`left<${safe.left ?? 0}`);
       if (r.right > vp.width - (safe.right ?? 0) + 1) over.push(`right>${vp.width - (safe.right ?? 0)}`);
       if (over.length) {
