@@ -663,6 +663,53 @@ describe('run-on-candidate', () => {
     assert.equal(fs.existsSync(seenEnv), false);
   });
 
+  test('a service setting that is blank, padded or a placeholder is refused, and its value is never printed', () => {
+    const { f, freshArgs, opts, clean, records, tmpRoot } = flagSetup();
+    const { SERVICE_REQUIRED, SERVICE_OPTIONAL, releaseFlags } = require('../scripts/release/run-on-candidate.cjs');
+    const attempt = (env, ...command) => runOnCandidate([...freshArgs('--purpose', 'archive', '--profile', 'testflight'), '--', ...command], { ...opts, env });
+    const ok = ['node', '-e', '0'];
+    // Whitespace only: it is "set", and the app would treat it as configured.
+    for (const name of SERVICE_REQUIRED)
+      for (const blank of [' ', '   ', '\t', '\n', ' \t\r\n ', ' ', '​', '﻿'])
+        refused(() => attempt({ ...clean, [name]: blank }, ...ok), new RegExp(`service configuration is not usable: ${name} is blank \\(only spaces or invisible characters\\)`));
+    // Placeholders: the app's own fallbacks, template text, and the words a tool prints for "nothing".
+    for (const name of SERVICE_REQUIRED)
+      for (const fake of ['https://your-project.supabase.co', 'your-anon-key', 'YOUR_API_KEY', 'undefined', 'null', 'None', 'changeme', 'CHANGE_ME', 'placeholder', 'TODO', 'xxx', 'XXXXXXXX', '...', '<key>', '${SUPABASE_URL}', '$EXPO_PUBLIC_SUPABASE_URL', '""', "''", 'false', '0', 'REPLACE_ME', 'dummy', 'test', 'example'])
+        refused(() => attempt({ ...clean, [name]: fake }, ...ok), new RegExp(`service configuration is not usable: ${name} is a placeholder, not a real value`));
+    // A real-looking value with a space or newline stuck to it: the app does not trim, so it would fail at run time.
+    for (const name of SERVICE_REQUIRED)
+      for (const padded of [' appl_realLookingValue1234', 'appl_realLookingValue1234 ', 'appl_realLookingValue1234\n', '"appl_realLookingValue1234"', 'appl_real Looking'])
+        refused(() => attempt({ ...clean, [name]: padded }, ...ok), new RegExp(`service configuration is not usable: ${name} has (spaces|quotes) `));
+    // An optional setting may be absent or empty, but if it is given it must be usable too:
+    // a blank Google client id shows "Continue with Google" and the button fails.
+    for (const name of SERVICE_OPTIONAL) {
+      refused(() => attempt({ ...clean, [name]: '  ' }, ...ok), new RegExp(`service configuration is not usable: ${name} is blank`));
+      refused(() => attempt({ ...clean, [name]: 'undefined' }, ...ok), new RegExp(`service configuration is not usable: ${name} is a placeholder`));
+    }
+    // Several at once are all named, and no value is echoed back.
+    try { attempt({ ...clean, EXPO_PUBLIC_SUPABASE_URL: ' ', EXPO_PUBLIC_REVENUECAT_APPLE_KEY: 'appl_secretLookingValue9 ', EXPO_PUBLIC_GOOGLE_CLIENT_ID: 'changeme' }, ...ok); assert.fail('not refused'); }
+    catch (e) {
+      assert.match(e.message, /EXPO_PUBLIC_GOOGLE_CLIENT_ID is a placeholder.*EXPO_PUBLIC_REVENUECAT_APPLE_KEY has spaces.*EXPO_PUBLIC_SUPABASE_URL is blank/s);
+      assert.equal(e.message.includes('appl_secretLookingValue9'), false);
+    }
+    // Nothing ran, nothing was recorded, nothing was left.
+    assert.equal(records().length, 0);
+    assert.equal(fs.readdirSync(tmpRoot).length, 0);
+    assert.equal(f.git('worktree', 'list').split('\n').length, 1);
+    // An `eas build` does not need them locally, but an unusable one in the shell is still refused.
+    const app = path.join(path.dirname(f.receiptPath), 'eas-app-2');
+    fs.mkdirSync(app);
+    fs.writeFileSync(path.join(app, 'eas.json'), JSON.stringify({ build: { testflight: { environment: 'production', env: RELEASE_ENV } } }));
+    const easBuild = ['npx', 'eas', 'build', '--platform', 'ios', '--profile', 'testflight'];
+    refused(() => releaseFlags({ app, profile: 'testflight', env: { EXPO_PUBLIC_GOOGLE_CLIENT_ID: ' ' }, command: easBuild }), /EXPO_PUBLIC_GOOGLE_CLIENT_ID is blank/);
+    // An empty optional setting counts as not set, as before.
+    const fine = releaseFlags({ app, profile: 'testflight', env: { ...SERVICES, EXPO_PUBLIC_GOOGLE_CLIENT_ID: '' }, command: ['xcodebuild', 'archive'] });
+    assert.ok(fine.services.notSet.includes('EXPO_PUBLIC_GOOGLE_CLIENT_ID'));
+    // Real-shaped values pass: a URL, a JWT-shaped key, a RevenueCat-shaped key, a Google client id.
+    const real = { EXPO_PUBLIC_SUPABASE_URL: 'https://abcdefghijklmnopqrst.supabase.co', EXPO_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiJ9.c2lnbmF0dXJl', EXPO_PUBLIC_REVENUECAT_APPLE_KEY: 'appl_AbCdEfGhIjKlMnOpQrStUvWxYz', EXPO_PUBLIC_GOOGLE_CLIENT_ID: '123456789012-abcdefghijklmnop.apps.googleusercontent.com' };
+    assert.deepEqual(Object.keys(releaseFlags({ app, profile: 'testflight', env: real, command: ['xcodebuild', 'archive'] }).services.set), Object.keys(real).sort());
+  });
+
   test('every EXPO_PUBLIC variable the app reads is sorted into a release flag, service configuration or a test-only switch', () => {
     const { REQUIRED_RELEASE_FLAGS, SERVICE_REQUIRED, SERVICE_OPTIONAL, TEST_ONLY } = require('../scripts/release/run-on-candidate.cjs');
     const known = new Set([...REQUIRED_RELEASE_FLAGS, ...SERVICE_REQUIRED, ...SERVICE_OPTIONAL, ...TEST_ONLY]);

@@ -84,6 +84,21 @@ const TEST_ONLY = ['EXPO_PUBLIC_DEMO_MODE', 'EXPO_PUBLIC_E2E_COURSE_FIXTURE', 'E
 const SERVICE_VARIABLE = (name) => SERVICE_REQUIRED.includes(name) || SERVICE_OPTIONAL.includes(name);
 // `eas build` and `eas submit` read the service configuration from EAS themselves.
 const EAS_SUPPLIES_SERVICES = (command) => /\beas\s+(build|submit)\b/.test(command.join(' '));
+// A service setting that is "set" but cannot work. The app does not trim what it reads, and it treats
+// any non-empty text as configured, so a blank, a padded value or a template's placeholder builds an
+// app that looks configured and fails when used. Returns the reason, or null. Never returns the value.
+const INVISIBLE = /[\s ​-‍⁠﻿]/g;
+const PLACEHOLDER_WHOLE = /^(undefined|null|nil|none|n\/?a|false|true|0|1|todo|tbd|fixme|changeme|change[-_]me|replace[-_]?me|placeholder|dummy|test|example|sample|secret|key|x+|\*+|\.+|-+|_+|\?+|<.*>|\[.*\]|\{\{.*\}\}|\$\{?\w+\}?|""|''|``)$/i;
+const PLACEHOLDER_PART = /your[-_ ]?(project|anon|api|key|supabase|revenuecat|client|app|token|url|id)/i;
+function unusable(value) {
+  const text = String(value);
+  const bare = text.replace(INVISIBLE, '');
+  if (bare === '') return 'is blank (only spaces or invisible characters)';
+  if (PLACEHOLDER_WHOLE.test(text.trim()) || PLACEHOLDER_PART.test(text)) return 'is a placeholder, not a real value';
+  if (/^["'`]|["'`]$/.test(text.trim())) return 'has quotes around it, which the app would read as part of the value';
+  if (bare !== text) return 'has spaces or line breaks in or around it, which the app would read as part of the value';
+  return null;
+}
 const fingerprint = (value) => crypto.createHash('sha256').update(String(value)).digest('hex').slice(0, 12);
 const refuse = (message) => { throw new Refusal(message); };
 const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
@@ -152,6 +167,10 @@ function releaseFlags({ app, profile, env, command = [] }) {
   // makes cannot sign in or sell anything. `eas build` gets them from the EAS environment instead.
   const easEnvironment = eas.build[profile].environment ?? null;
   const fromEas = EAS_SUPPLIES_SERVICES(command);
+  // Given but unusable is refused for every service setting, required or optional, and for an
+  // `eas build` too: nothing good comes of a blank or placeholder setting in a release shell.
+  const bad = [...SERVICE_REQUIRED, ...SERVICE_OPTIONAL].sort().filter((name) => env[name]).map((name) => [name, unusable(env[name])]).filter(([, why]) => why);
+  if (bad.length) refuse(`service configuration is not usable: ${bad.map(([name, why]) => `${name} ${why}`).join('; ')}. Values are not shown. Export the real value, or unset the variable`);
   const absent = SERVICE_REQUIRED.filter((name) => !env[name]);
   if (!fromEas && absent.length) refuse(`service configuration is missing from this environment: ${absent.join(', ')}. A build made without it has no sign-in and no purchases. \`eas build --profile ${profile}\` takes it from the EAS environment${easEnvironment ? ` "${easEnvironment}"` : ''}; a build made by hand must export the same values (for example from \`eas env:pull --environment ${easEnvironment ?? 'production'}\`)`);
   const services = {
@@ -318,7 +337,7 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
   }
 }
 
-module.exports = { looksLikeStoreCommand, REQUIRED_RELEASE_FLAGS, SERVICE_REQUIRED, SERVICE_OPTIONAL, TEST_ONLY, releaseFlags, runOnCandidate, admit, freshCheckout, findLeftBehind, buildEnvironment };
+module.exports = { unusable, looksLikeStoreCommand, REQUIRED_RELEASE_FLAGS, SERVICE_REQUIRED, SERVICE_OPTIONAL, TEST_ONLY, releaseFlags, runOnCandidate, admit, freshCheckout, findLeftBehind, buildEnvironment };
 if (require.main === module) {
   try { process.exitCode = runOnCandidate(process.argv.slice(2)); } catch (error) {
     if (!(error instanceof Refusal)) throw error;
