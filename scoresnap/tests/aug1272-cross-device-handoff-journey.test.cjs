@@ -20,10 +20,13 @@ function loadModule(file, overrides) {
   return context.exports;
 }
 
-function loadNativeIntent(sharingEnabled) {
+// app/+native-intent.tsx reads NATIVE_LINKS_ENABLED (tap-to-open), not the Join-by-code switch.
+// 1.0.1 ships with native links off: a system share/join link must land on Home, never on a
+// share route, while non-share links (auth callbacks) pass through untouched.
+function loadNativeIntent(nativeLinksEnabled) {
   const universalLink = loadModule(path.join(__dirname, '../src/services/universal-link.ts'), {});
   return loadModule(path.join(__dirname, '../app/+native-intent.tsx'), {
-    '../src/config/features': { CROSS_DEVICE_SHARING_ENABLED: sharingEnabled },
+    '../src/config/features': { NATIVE_LINKS_ENABLED: nativeLinksEnabled },
     '../src/services/universal-link': universalLink,
   });
 }
@@ -32,7 +35,7 @@ const WEB_URL = 'https://snapscore.autumn8.me';
 const SCORECARD_TOKEN = 'b'.repeat(64);
 
 describe('AUG-596 cross-device journey: cold/warm deep links', () => {
-  test('cold start and warm start resolve a join-code deep link identically (sharing on)', () => {
+  test('cold start and warm start resolve a join-code deep link identically (native links on)', () => {
     const intent = loadNativeIntent(true);
     const coldStart = intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial: true });
     const warmStart = intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial: false });
@@ -40,7 +43,7 @@ describe('AUG-596 cross-device journey: cold/warm deep links', () => {
     assert.equal(warmStart, '/join/ABC234');
   });
 
-  test('cold start and warm start resolve a scorecard deep link identically (sharing on)', () => {
+  test('cold start and warm start resolve a scorecard deep link identically (native links on)', () => {
     const intent = loadNativeIntent(true);
     const coldStart = intent.redirectSystemPath({ path: `${WEB_URL}/r/${SCORECARD_TOKEN}`, initial: true });
     const warmStart = intent.redirectSystemPath({ path: `${WEB_URL}/r/${SCORECARD_TOKEN}`, initial: false });
@@ -48,11 +51,15 @@ describe('AUG-596 cross-device journey: cold/warm deep links', () => {
     assert.equal(warmStart, `/r/${SCORECARD_TOKEN}`);
   });
 
-  test('flag-off regression: both routes pass the raw path through unchanged, cold or warm', () => {
+  test('flag-off regression: both share routes are inert (Home) and non-share links pass through unchanged, cold or warm', () => {
     const intent = loadNativeIntent(false);
     for (const initial of [true, false]) {
-      assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial }), `${WEB_URL}/join/ABC234`);
-      assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/r/${SCORECARD_TOKEN}`, initial }), `${WEB_URL}/r/${SCORECARD_TOKEN}`);
+      assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial }), '/');
+      assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/r/${SCORECARD_TOKEN}`, initial }), '/');
+      assert.equal(intent.redirectSystemPath({ path: 'snapscore://join/ABC234', initial }), '/');
+      for (const passthrough of ['com.scoresnap.app://auth/callback?next=/join/ABC234', '/contest/123', '/auth/sign-in']) {
+        assert.equal(intent.redirectSystemPath({ path: passthrough, initial }), passthrough);
+      }
     }
   });
 });
@@ -170,7 +177,7 @@ describe('AUG-84 journey: handoff visibility, second-identity merge, onboarding,
     }), false);
 
     const intent = loadNativeIntent(false);
-    assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial: true }), `${WEB_URL}/join/ABC234`);
+    assert.equal(intent.redirectSystemPath({ path: `${WEB_URL}/join/ABC234`, initial: true }), '/');
 
     // The handoff/merge fixture itself is flag-agnostic (prepareAccountHandoff/finishAccountHandoff own the
     // onlineEnabled gate in src/services/account-handoff.ts, already covered by tests/account-round-history.test.cjs);
