@@ -316,7 +316,12 @@ export function ruleTapTargets(tree, ctx, paintedAtVerifiedScrollStop) {
           reason: 'Measured scroll clipping leaves an undersized painted target; raw size does not prove an operable reachable target.' });
       }
     }
-    if (w < min - 0.5 || h < min - 0.5) {
+    // Android reports only the visible part of a view, so a control half scrolled out of the list
+    // is measured here as a sliver. It is excused from the size check only with a native reveal
+    // proof for this exact control (lib/android-wizard-reveal-coverage.mjs). iPhone reports the
+    // whole frame and never takes this path.
+    const revealedWhole = ctx.platform === 'android' && paintedAtVerifiedScrollStop?.has(t) === true;
+    if (!revealedWhole && (w < min - 0.5 || h < min - 0.5)) {
       findings.push({
         rule: 5, severity: 'major', bbox: bboxArr(r), nodes: [t.id],
         reason: `Tap target "${t.text || t.id}" effective size ${w.toFixed(0)}×${h.toFixed(0)} < ${min}×${min}.`,

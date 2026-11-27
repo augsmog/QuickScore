@@ -74,6 +74,61 @@ BUILD_HASH="$(cat "$OUTROOT/android-build-hash.txt" 2>/dev/null || echo '')"
 APK="$(cat "$OUTROOT/android-apk-path.txt" 2>/dev/null || true)"
 [ -n "$APK" ] && adb -s "$SERIAL" install -r -t "$APK" || true
 
+# ── Scroll-only reveal captures for the New Contest wizard (A2/A3) ─────────────────────────────
+# Android reports only the visible part of a view, so a control half scrolled out of the list is
+# measured as a sliver and fails the 48dp rule. After each wizard checkpoint the list is dragged a
+# little down, captured, put back, dragged a little up, captured, and put back. The two captures
+# go to "<capdir>-reveal-down" and "<capdir>-reveal-up" under the same checkpoint name, and
+# lib/android-wizard-reveal.mjs proves from them that a sliver is the same control, whole.
+# Drags only: no tap, no text, no key. If the list cannot be put back exactly, the leg FAILS:
+# every later checkpoint would otherwise be captured at the wrong place.
+REVEAL_DP="${DEVICE_LAYOUT_REVEAL_DP:-96}"       # how far the list is dragged for a reveal
+RESTORE_TOL_DP=2                                 # "back where it was" means within this
+PROBE="$DL/scripts/wizard-scroll-probe.mjs"
+px() { awk -v d="$DENSITY" -v v="$1" 'BEGIN{printf "%d", d*v}'; }
+ui_dump() {  # $1 = file. Fast native dump; falls back to maestro's.
+  adb -s "$SERIAL" exec-out uiautomator dump /dev/tty 2>/dev/null | sed 's/UI hierchary dumped to: \/dev\/tty//' > "$1" || true
+  grep -q '<hierarchy' "$1" 2>/dev/null || maestro --device "$SERIAL" hierarchy > "$1" 2>/dev/null || true
+}
+drag() {  # $1 x, $2 from y, $3 to y (pixels). Slow, so the list follows the finger and does not fling.
+  adb -s "$SERIAL" shell input swipe "$1" "$2" "$1" "$3" 1500 >/dev/null 2>&1 || true
+  sleep 1
+}
+restore_scroll() {  # $1 baseline dump, $2 x, $3 list top, $4 list bottom. 0 = back in place.
+  local base="$1" x="$2" top="$3" bottom="$4" now dy try mid slop tol step
+  now="$(mktemp)"; mid=$(( (top + bottom) / 2 )); slop="$(px 8)"; tol="$(px "$RESTORE_TOL_DP")"
+  for try in 1 2 3 4 5; do
+    ui_dump "$now"
+    dy="$(node "$PROBE" delta "$base" "$now" 2>/dev/null)" || { rm -f "$now"; return 1; }
+    if [ "${dy#-}" -le "$tol" ]; then rm -f "$now"; return 0; fi
+    step=$(( ${dy#-} + slop ))
+    [ "$step" -gt $(( (bottom - top) / 2 - 20 )) ] && step=$(( (bottom - top) / 2 - 20 ))
+    # dy > 0: the content sits lower than it did, so drag it up; and the reverse.
+    if [ "$dy" -gt 0 ]; then drag "$x" "$mid" $(( mid - step )); else drag "$x" "$mid" $(( mid + step )); fi
+  done
+  rm -f "$now"; return 1
+}
+wizard_reveals() {  # $1 capture dir, $2 checkpoint file base
+  local capdir="$1" base="$2" baseline area x top bottom mid dist dir rdir
+  baseline="$(mktemp)"; ui_dump "$baseline"
+  area="$(node "$PROBE" area "$baseline" 2>/dev/null)" || { echo "::notice::no New Contest list at $base; no reveal captures"; rm -f "$baseline"; return 0; }
+  read -r x top bottom <<< "$area"
+  dist="$(px "$REVEAL_DP")"; mid=$(( (top + bottom) / 2 ))
+  if [ $(( bottom - top )) -le $(( dist + 80 )) ]; then echo "::notice::list too short to drag at $base; no reveal captures"; rm -f "$baseline"; return 0; fi
+  for dir in down up; do
+    rdir="$capdir-reveal-$dir"; mkdir -p "$rdir"
+    if [ "$dir" = down ]; then drag "$x" $(( mid - dist / 2 )) $(( mid + dist / 2 )); else drag "$x" $(( mid + dist / 2 )) $(( mid - dist / 2 )); fi
+    maestro --device "$SERIAL" hierarchy > "$rdir/$base.hierarchy.json" 2>/dev/null || echo '{"attributes":{},"children":[]}' > "$rdir/$base.hierarchy.json"
+    adb -s "$SERIAL" exec-out screencap -p > "$rdir/$base.png" 2>/dev/null || true
+    cp "$capdir/$base.ctx.json" "$rdir/$base.ctx.json"
+    if ! restore_scroll "$baseline" "$x" "$top" "$bottom"; then
+      echo "::error::could not put the New Contest list back after the reveal capture at $base; later checkpoints would be captured at the wrong scroll position"
+      FAIL=1; rm -f "$baseline"; return 0
+    fi
+  done
+  rm -f "$baseline"
+}
+
 # Drive every checkpoint of every flow dir into $1, dumping hierarchy + screenshot per checkpoint.
 # $2 (optional) stamps a fontScale into each checkpoint context (large-text pass).
 capture_flows() {
@@ -98,22 +153,39 @@ capture_flows() {
       else
         printf '{"flow":"%s","checkpoint":"%s","screen":"%s","state":"default"}\n' "$flow" "$slug" "$flow" > "$capdir/$base.ctx.json"
       fi
+      [ "$flow" = new-contest ] && [ -z "${DEVICE_LAYOUT_NO_REVEALS:-}" ] && wizard_reveals "$capdir" "$base"
       order=$((order+1))
     done
   done
 }
 
+FAIL=0
 # Capture dir → manifest → candidate-bound bundle → geometry gate.
 #   $1 capture dir, $2 bundle filename (bundle.json = vision-reviewed; other = geometry-only), rest → manifest flags.
-FAIL=0
 gate_capture() {
-  local capdir="$1" bundle="$2"; shift 2
+  local capdir="$1" bundle="$2" rdir rname; shift 2
+  local -a reveal_args=()
+  # Reveal captures become their own bundles (never named bundle.json: the screenshot review must
+  # not pick them up) and are offered to the geometry runner as proof, nothing more.
+  rname="reveal${bundle#bundle}"
+  for rdir in "$capdir-reveal-down" "$capdir-reveal-up"; do
+    ls "$rdir"/*.ctx.json >/dev/null 2>&1 || continue
+    if node "$DL/scripts/make-capture-manifest.mjs" "$rdir" --profile "$PROFILE" --platform android \
+         --source-sha "$SHA" --build-hash "$BUILD_HASH" --density "$DENSITY" --viewport-w "$VPW" --viewport-h "$VPH" "$@" \
+       && node "$DL/scripts/bundle-from-maestro.mjs" "$rdir" --platform android --profile "$PROFILE" \
+         --source-sha "$SHA" --out "$rdir/$rname"; then
+      reveal_args+=(--reveal "$rdir/$rname")
+    else
+      echo "::warning::reveal capture $rdir could not be bundled; it proves nothing and the findings it might have answered stay"
+    fi
+  done
   node "$DL/scripts/make-capture-manifest.mjs" "$capdir" --profile "$PROFILE" --platform android \
     --source-sha "$SHA" --build-hash "$BUILD_HASH" --density "$DENSITY" --viewport-w "$VPW" --viewport-h "$VPH" "$@"
   node "$DL/scripts/bundle-from-maestro.mjs" "$capdir" --platform android --profile "$PROFILE" \
     --source-sha "$SHA" --out "$capdir/$bundle"
   if ! node "$DL/run-geometry.mjs" "$capdir/$bundle" --waivers "$DL/waivers.json" \
-      --expect-sha "$SHA" --profile "$PROFILE" --expect-build "$BUILD_HASH" --out "$capdir/geometry-${bundle%.json}.json"; then
+      --expect-sha "$SHA" --profile "$PROFILE" --expect-build "$BUILD_HASH" --out "$capdir/geometry-${bundle%.json}.json" \
+      ${reveal_args[@]+"${reveal_args[@]}"}; then
     echo "::error::device-layout geometry findings on $PROFILE (${bundle})"
     FAIL=1
   fi

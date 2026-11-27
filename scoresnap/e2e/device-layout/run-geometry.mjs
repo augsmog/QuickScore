@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { evaluateCheckpoint, finiteRect } from './lib/geometry-rules.mjs';
 import { wizardScrollCoverage } from './lib/ios-wizard-scroll-coverage.mjs';
+import { androidWizardRevealCoverage, loadRevealCapture } from './lib/android-wizard-reveal-coverage.mjs';
 import { applyWaivers, validateWaivers } from './lib/waivers.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -176,7 +177,12 @@ export function runBundle(bundle, waiverDoc, now = new Date(), expect = {}) {
     return { ok: false, keptCount: 0, results, error: errors.join('; '), errors };
   }
   let revealed;
-  try { revealed = wizardScrollCoverage(bundle, expect); }
+  try {
+    revealed = wizardScrollCoverage(bundle, expect);
+    // Android: slivers proved whole by a scroll-only reveal capture (--reveal). Separate platforms,
+    // separate proofs; a checkpoint is only ever in one of the two maps.
+    for (const [cp, proofs] of androidWizardRevealCoverage(bundle, expect)) revealed.set(cp, proofs);
+  }
   catch (e) { return { ok: false, keptCount: 0, results, error: `wizard scroll evidence failed closed: ${e.message}` }; }
   for (const cp of bundle.checkpoints) {
     // Platform is bound to the validated checkpoint/bundle platform; context can never override it.
@@ -213,7 +219,7 @@ function main() {
   const args = process.argv.slice(2);
   if (args.includes('--help') || args.length === 0) {
     console.error('usage: node run-geometry.mjs <bundle.json> [--waivers w.json] [--out f.json] ' +
-      '[--expect-sha SHA] [--profile ID] [--cadence per-pr|nightly|none]');
+      '[--expect-sha SHA] [--profile ID] [--cadence per-pr|nightly|none] [--reveal <reveal-bundle.json>]...');
     process.exit(2);
   }
   const bundlePath = args[0];
@@ -223,7 +229,12 @@ function main() {
   const waiverDoc = JSON.parse(readFileSync(waiverPath, 'utf8'));
   const wv = validateWaivers(waiverDoc);
   if (!wv.ok) { console.error('FAIL waivers.json invalid:', wv.errors.join('; ')); process.exit(1); }
-  const expect = { ...expectFromArgs(args), evidenceDir: dirname(resolve(bundlePath)) };
+  // --reveal may be given more than once. A reveal file that cannot be read fails the run: a gate
+  // told to use evidence it cannot open must not carry on as if none had been offered.
+  let reveals;
+  try { reveals = flags(args, '--reveal').map(loadRevealCapture); }
+  catch (e) { console.error(`FAIL: ${e.message}`); process.exit(1); }
+  const expect = { ...expectFromArgs(args), evidenceDir: dirname(resolve(bundlePath)), reveals };
   const out = runBundle(bundle, waiverDoc, new Date(), expect);
   if (outPath) writeFileSync(outPath, JSON.stringify(out, null, 2));
   if (out.error) console.error(`FAIL: ${out.error}`);
@@ -250,6 +261,10 @@ export function expectFromArgs(args) {
     configSha256: configSha256(text),
     flows: cadence === 'none' ? [] : expectedFlows(config, cadence),
   };
+}
+
+function flags(args, name) {
+  return args.flatMap((arg, i) => (arg === name && i + 1 < args.length ? [args[i + 1]] : []));
 }
 
 function flag(args, name) {
