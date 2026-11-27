@@ -4,6 +4,7 @@ import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
 import { GOOGLE_CLIENT_ID, GOOGLE_SIGN_IN_AVAILABLE } from "../../src/config/google-sign-in";
 import { SUPPORT_BASE_URL } from "../../src/config/support";
 import { useState } from "react";
+import { signInTopSpace } from "../../src/ui/sign-in-layout";
 import {
   View,
   Text,
@@ -15,6 +16,7 @@ import {
   Linking,
   KeyboardAvoidingView,
   ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -36,6 +38,7 @@ type AuthMode = "options" | "signup" | "signin";
 
 export default function SignInScreen() {
   const router = useRouter();
+  const { height: windowHeight } = useWindowDimensions();
   const {
     signInWithApple,
     signInWithGoogle,
@@ -192,12 +195,13 @@ export default function SignInScreen() {
         <ScrollView
           contentContainerStyle={{
             flexGrow: 1,
-            justifyContent: "center",
+            justifyContent: "flex-start",
+            paddingTop: signInTopSpace(windowHeight),
+            paddingBottom: 24,
             paddingHorizontal: 32,
           }}
           keyboardShouldPersistTaps="handled"
         >
-          {CROSS_DEVICE_SHARING_ENABLED && (<Pressable onPress={() => router.push("/join/enter")} style={{ paddingVertical: 16 }}><Text style={{ color: COLORS.primary, textAlign: "center" }}>Join with code</Text></Pressable>)}
           {/* Logo */}
           <View style={{ alignItems: "center", marginBottom: 40 }}>
             <Text
@@ -360,6 +364,25 @@ export default function SignInScreen() {
                   Already have an account? Sign in
                 </Text>
               </Pressable>
+
+              {CROSS_DEVICE_SHARING_ENABLED && (
+                <Pressable
+                  testID="sign-in-join-code"
+                  accessibilityRole="button"
+                  onPress={() => router.push("/join/enter")}
+                  style={{ alignItems: "center", justifyContent: "center", minHeight: 44 }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: FONTS.medium,
+                      fontSize: 14,
+                      color: COLORS.primary,
+                    }}
+                  >
+                    Join with code
+                  </Text>
+                </Pressable>
+              )}
             </View>
           )}
 
