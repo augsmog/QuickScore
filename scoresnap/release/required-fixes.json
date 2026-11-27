@@ -9,7 +9,8 @@
     { "ticket": "AUG-1369", "what": "persistent Tournament Director entry in Settings for free users", "commit": "409c685b77394e40274d9e4f67624483514e3ffb" },
     { "ticket": "AUG-1582", "what": "owner-invite rehearsal guard runs on stock macOS Bash 3.2 (the build machine), with an empty-value test", "commit": "cb5e0816f3c47fe37b480c4f56e653ca03f766e7" },
     { "ticket": "AUG-1582", "what": "Continue with Google is shown only when the build has a Google client id", "commit": "05c75664c835848b767b7f9fc7cdb37487879c9d" },
-    { "ticket": "AUG-1586", "what": "PostHog on iOS sends only events the app chose: no screen or lifecycle autocapture, no flag preloading, app=snapscore on every event", "commit": "ff75503f1ac146ddca1b064f22fd5445d9577d3e" }
+    { "ticket": "AUG-1586", "what": "PostHog on iOS sends only events the app chose: no screen or lifecycle autocapture, no flag preloading, app=snapscore on every event", "commit": "ff75503f1ac146ddca1b064f22fd5445d9577d3e" },
+    { "ticket": "AUG-1601", "what": "layout: New Contest header inset and footer fade, paywall text not cut, Android targets (DotBot repair 580dd2e), Mac temp-dir test fixture, layout gate rules G1 and G3 (DotBot) and G4", "commit": "fd714e2e8e6f3208cc2f52a13c424fb8bebcbe13" }
   ],
   "allowedSkips": []
 }
