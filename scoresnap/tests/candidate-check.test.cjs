@@ -14,6 +14,7 @@ const GREEN = () => ({ suites: 3, suitesFailed: 0, suitesErrored: 0, tests: 10, 
 const dirs = [];
 afterAll(() => { for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true }); });
 
+const RELEASE_ENV = { EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: 'true', EXPO_PUBLIC_PRO_ENABLED: 'false', EXPO_PUBLIC_FEATURE_LEAGUES: 'false' };
 function fixture({ version = '1.0.1', appVersionSource = 'remote' } = {}) {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'candidate-check-test-'));
   dirs.push(repo);
@@ -22,7 +23,7 @@ function fixture({ version = '1.0.1', appVersionSource = 'remote' } = {}) {
   const commit = (message) => { git('add', '-A'); git('-c', 'user.name=t', '-c', 'user.email=t@example.invalid', 'commit', '-q', '-m', message); return git('rev-parse', 'HEAD'); };
   git('init', '-q', '-b', 'main');
   write('scoresnap/app.json', JSON.stringify({ expo: { version, ios: { buildNumber: '1' } } }));
-  write('scoresnap/eas.json', JSON.stringify({ cli: { appVersionSource } }));
+  write('scoresnap/eas.json', JSON.stringify({ cli: { appVersionSource }, build: { preview: {}, testflight: { env: RELEASE_ENV }, production: { env: { ...RELEASE_ENV } } } }));
   write('scoresnap/a.txt', 'a0\n'); write('scoresnap/b.txt', 'b0\n');
   const base = commit('base');
   // Two fixes made on side branches, the way release fixes are made.
@@ -364,10 +365,10 @@ describe('run-on-candidate', () => {
     const { args, record, freshArgs, opts } = freshSetup();
     const warnings = [];
     assert.equal(runOnCandidate(args(...record), { ...opts, warn: (l) => warnings.push(l) }), 0);
-    assert.equal(warnings.length, 1);
-    assert.match(warnings[0], /WARNING: --source uses an existing checkout .*Git-ignored paths .* are NOT checked/);
+    const about = (pattern) => warnings.filter((l) => pattern.test(l)).length;
+    assert.equal(about(/WARNING: --source uses an existing checkout .*Git-ignored paths .* are NOT checked/), 1);
     assert.equal(runOnCandidate([...freshArgs(), '--', ...record], { ...opts, warn: (l) => warnings.push(l) }), 0);
-    assert.equal(warnings.length, 1);
+    assert.equal(about(/--source uses an existing checkout/), 1);
     refused(() => runOnCandidate([...freshArgs('--source', '.'), '--', 'true'], opts), /not both/);
   });
 
@@ -472,5 +473,71 @@ describe('run-on-candidate', () => {
     assert.equal(linux.xcodePath, null);
     // A Mac where Xcode is not installed records null, it does not throw.
     assert.equal(buildEnvironment({ platform: 'darwin', run: () => { throw new Error('not found'); } }).xcode, null);
+  });
+
+  // --profile: the release flags the command runs with are the named eas.json profile's, or nothing runs.
+  const flagSetup = () => {
+    const s = freshSetup();
+    const seenEnv = path.join(path.dirname(s.f.receiptPath), 'env.json');
+    const dump = ['node', '-e', `require('fs').writeFileSync(${JSON.stringify(seenEnv)}, JSON.stringify(Object.fromEntries(Object.entries(process.env).filter(([k]) => /^(EXPO_PUBLIC_|APP_VARIANT)/.test(k)))))`];
+    const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(EXPO_PUBLIC_|APP_VARIANT)/.test(k)));
+    const go = (env, ...flags) => runOnCandidate([...s.freshArgs(...flags), '--', ...dump], { ...s.opts, env: { ...clean, ...env } });
+    const records = () => fs.readdirSync(path.dirname(s.f.receiptPath)).filter((n) => n.includes('.build-')).sort().map((n) => JSON.parse(fs.readFileSync(path.join(path.dirname(s.f.receiptPath), n), 'utf8')));
+    return { ...s, seenEnv, go, records, clean };
+  };
+
+  test('--profile starts the command with exactly the profile flags and records them', () => {
+    const { seenEnv, go, records } = flagSetup();
+    // Nothing set by the caller: the wrapper supplies every flag.
+    assert.equal(go({}, '--profile', 'testflight'), 0);
+    assert.equal(JSON.stringify(Object.entries(JSON.parse(fs.readFileSync(seenEnv, 'utf8'))).sort()), JSON.stringify(Object.entries(RELEASE_ENV).sort()));
+    // The caller already exported the same values: still admitted.
+    assert.equal(go({ ...RELEASE_ENV }, '--profile', 'production'), 0);
+    const [first, second] = records();
+    assert.equal(first.releaseFlags.checked, true);
+    assert.equal(first.releaseFlags.profile, 'testflight');
+    assert.equal(JSON.stringify(first.releaseFlags.values), JSON.stringify(Object.fromEntries(Object.entries(RELEASE_ENV).sort())));
+    assert.equal(first.releaseFlags.setByWrapper.length, 3);
+    assert.match(first.releaseFlags.easJsonSha256, /^[0-9a-f]{64}$/);
+    assert.equal(JSON.stringify(first.buildVariables), JSON.stringify(first.releaseFlags.values));
+    assert.equal(second.releaseFlags.profile, 'production');
+    assert.equal(second.releaseFlags.alreadySet.length, 3);
+  });
+
+  test('--profile refuses, and runs nothing, when a flag differs or a stray build variable is set', () => {
+    const { f, seenEnv, go, records, tmpRoot } = flagSetup();
+    // PRO switched on in the shell: the paywall would be live in a build that was tested with it off.
+    refused(() => go({ EXPO_PUBLIC_PRO_ENABLED: 'true' }, '--profile', 'testflight'), /EXPO_PUBLIC_PRO_ENABLED is "true" here but "false" in the testflight profile/);
+    refused(() => go({ EXPO_PUBLIC_FEATURE_LEAGUES: '' }, '--profile', 'testflight'), /EXPO_PUBLIC_FEATURE_LEAGUES is "" here/);
+    // A variable the profile does not have at all (left over from a simulator build).
+    refused(() => go({ EXPO_PUBLIC_OFFLINE_MODE: 'true' }, '--profile', 'production'), /EXPO_PUBLIC_OFFLINE_MODE is set here \("true"\) but is not in the production profile/);
+    refused(() => go({ APP_VARIANT: 'development' }, '--profile', 'production'), /APP_VARIANT is set here/);
+    // A profile that is not a release profile, or has no env block.
+    refused(() => go({}, '--profile', 'preview'), /--profile must be one of: testflight, production/);
+    assert.equal(fs.existsSync(seenEnv), false);
+    assert.equal(records().length, 0);
+    assert.equal(fs.readdirSync(tmpRoot).length, 0);
+    assert.equal(f.git('worktree', 'list').split('\n').length, 1);
+  });
+
+  test('the flags are read from the eas.json of the SHA being built, not the caller checkout', () => {
+    const { f, seenEnv, go } = flagSetup();
+    // The caller's checkout has an edited eas.json that turns PRO on. The receipt SHA does not.
+    f.write('scoresnap/eas.json', JSON.stringify({ cli: {}, build: { testflight: { env: { ...RELEASE_ENV, EXPO_PUBLIC_PRO_ENABLED: 'true' } } } }));
+    assert.equal(go({}, '--profile', 'testflight'), 0);
+    assert.equal(JSON.parse(fs.readFileSync(seenEnv, 'utf8')).EXPO_PUBLIC_PRO_ENABLED, 'false');
+  });
+
+  test('without --profile nothing is checked, it warns, and the record says so and lists what was set', () => {
+    const { seenEnv, go, records, opts, freshArgs, clean } = flagSetup();
+    const warnings = [];
+    assert.equal(runOnCandidate([...freshArgs(), '--', 'node', '-e', '0'], { ...opts, env: { ...clean, EXPO_PUBLIC_PRO_ENABLED: 'true' }, warn: (l) => warnings.push(l) }), 0);
+    assert.match(warnings.join('\n'), /WARNING: no --profile given\. The release feature flags are NOT checked/);
+    const [record] = records();
+    assert.equal(record.releaseFlags.checked, false);
+    assert.equal(JSON.stringify(record.buildVariables), JSON.stringify({ EXPO_PUBLIC_PRO_ENABLED: 'true' }));
+    assert.equal(fs.existsSync(seenEnv), false);
+    assert.equal(go({ EXPO_PUBLIC_PRO_ENABLED: 'true' }), 0);
+    assert.equal(JSON.parse(fs.readFileSync(seenEnv, 'utf8')).EXPO_PUBLIC_PRO_ENABLED, 'true');
   });
 });
