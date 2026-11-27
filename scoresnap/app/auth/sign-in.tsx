@@ -1,6 +1,7 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../../src/ui/SafeScreen";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../../src/config/features";
+import { GOOGLE_CLIENT_ID, GOOGLE_SIGN_IN_AVAILABLE } from "../../src/config/google-sign-in";
 import { SUPPORT_BASE_URL } from "../../src/config/support";
 import { useState } from "react";
 import {
@@ -26,8 +27,6 @@ import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 
 WebBrowser.maybeCompleteAuthSession();
 
-// Google OAuth config — replace with your own client ID
-const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "";
 const googleDiscovery = {
   authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
   tokenEndpoint: "https://oauth2.googleapis.com/token",
@@ -257,8 +256,10 @@ export default function SignInScreen() {
                 </AnimatedPressable>
               )}
 
-              {/* Google Sign-In */}
+              {/* Google Sign-In: only in a build that has a Google client id. */}
+              {GOOGLE_SIGN_IN_AVAILABLE && (
               <AnimatedPressable
+                testID="sign-in-google"
                 onPress={handleGoogleSignIn}
                 disabled={isLoading}
                 style={{
@@ -287,6 +288,7 @@ export default function SignInScreen() {
                   Continue with Google
                 </Text>
               </AnimatedPressable>
+              )}
 
               {/* Divider */}
               <View
