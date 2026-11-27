@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { candidateCheck, verifyReceipt, summarizeJestReport, testIdsHash, Refusal } = require('../scripts/release/candidate-check.cjs');
+const { runOnCandidate } = require('../scripts/release/run-on-candidate.cjs');
 
 const IDS = Array.from({ length: 10 }, (_, i) => `tests/s${i % 3}.test.cjs::case ${i}::passed`).sort();
 const GREEN = () => ({ suites: 3, suitesFailed: 0, suitesErrored: 0, tests: 10, passed: 10, failed: 0, skipped: [], ids: [...IDS], suitesListed: 3, suitesNotPassed: 0, success: true });
@@ -195,4 +196,69 @@ test('the shipped 1.0.1 fix list is well formed', () => {
   assert.equal(doc.release.version, '1.0.1');
   assert.equal(doc.fixes.length, 4);
   assert.deepEqual(doc.allowedSkips, []);
+});
+
+// The entry point for build / archive / upload: verify first, then run, or refuse and run nothing.
+describe('run-on-candidate', () => {
+  const setup = () => {
+    const f = fixture();
+    run(f);
+    f.git('checkout', '-q', '--detach', f.both);
+    const marker = path.join(path.dirname(f.receiptPath), 'ran.txt');
+    const args = (...command) => ['--source', f.repo, '--receipt', f.receiptPath, '--fixes', f.fixesFile, '--', ...command];
+    const record = ['node', '-e', `require('fs').writeFileSync(${JSON.stringify(marker)}, [process.cwd(), process.env.CANDIDATE_SHA, process.env.CANDIDATE_TREE].join('\\n'))`];
+    return { f, marker, args, record };
+  };
+  const quiet = { log: () => {} };
+
+  test('with a valid receipt for the exact HEAD it runs the command in scoresnap/ and passes the SHA on', () => {
+    const { f, marker, args, record } = setup();
+    assert.equal(runOnCandidate(args(...record), quiet), 0);
+    assert.deepEqual(fs.readFileSync(marker, 'utf8').split('\n'), [fs.realpathSync(path.join(f.repo, 'scoresnap')), f.both, f.git('rev-parse', `${f.both}^{tree}`)]);
+  });
+
+  test('the exit status of the command is returned', () => {
+    const { args } = setup();
+    assert.equal(runOnCandidate(args('node', '-e', 'process.exit(7)'), quiet), 7);
+  });
+
+  test('without a receipt, nothing runs', () => {
+    const { f, marker, args, record } = setup();
+    fs.rmSync(f.receiptPath);
+    refused(() => runOnCandidate(args(...record), quiet), /nothing may be built, archived or uploaded without one/);
+    assert.equal(fs.existsSync(marker), false);
+  });
+
+  test('a checkout at any other SHA is refused and nothing runs', () => {
+    const { f, marker, args, record } = setup();
+    f.git('checkout', '-q', '--detach', f.onlyA);
+    refused(() => runOnCandidate(args(...record), quiet), /is at .* but the receipt is for /);
+    // One commit past the receipted SHA is also another SHA.
+    f.git('checkout', '-q', '--detach', f.both); f.write('scoresnap/d.txt', 'd\n'); f.commit('one more');
+    refused(() => runOnCandidate(args(...record), quiet), /but the receipt is for /);
+    assert.equal(fs.existsSync(marker), false);
+  });
+
+  test('a checkout with edited tracked files is refused and nothing runs', () => {
+    const { f, marker, args, record } = setup();
+    f.write('scoresnap/a.txt', 'hot fix made on the build machine\n');
+    refused(() => runOnCandidate(args(...record), quiet), /has changes to tracked files/);
+    assert.equal(fs.existsSync(marker), false);
+  });
+
+  test('a receipt that verify rejects is refused and nothing runs', () => {
+    const { f, marker, args, record } = setup();
+    fs.rmSync(`${f.receiptPath}.tests.txt`);
+    refused(() => runOnCandidate(args(...record), quiet), /test list .* is missing/);
+    f.writeFixes({ fixes: [{ ticket: 'AUG-A', what: 'fix a', commit: f.fixA }] });
+    refused(() => runOnCandidate(args(...record), quiet), /./);
+    assert.equal(fs.existsSync(marker), false);
+  });
+
+  test('no command, or missing flags, is refused', () => {
+    const { f } = setup();
+    refused(() => runOnCandidate(['--source', f.repo, '--receipt', f.receiptPath, '--'], quiet), /no command given/);
+    refused(() => runOnCandidate(['--source', f.repo, '--', 'true'], quiet), /both required/);
+    refused(() => runOnCandidate(['--source', f.repo, '--receipt', f.receiptPath, 'true'], quiet), /usage/);
+  });
 });
