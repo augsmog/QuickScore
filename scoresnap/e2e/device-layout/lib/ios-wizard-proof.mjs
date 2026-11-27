@@ -2,6 +2,7 @@
 import {finiteRect} from './geometry-rules.mjs';
 
 const names = ['name entry', 'four players', 'last player above footer', 'rewind remove ava', 'four players add group'];
+const indexedPlayerControl = /^(?:wizard-player-(?:handicap|group)-[2-4]|wizard-player-team-[2-4]-[A-Z]|wizard-remove-player-[2-4])$/;
 function requireProof(ok, reason) {
   if (!ok) throw new Error('iOS wizard capture: ' + reason);
 }
@@ -28,7 +29,11 @@ function roster(cp) {
   }
   requireProof(one(cp,'wizard-player-name-1').text === 'Ava', cp.checkpoint + ': wrong player one');
   // Match player slot ordering, entered names, handicap, group and team-control states; excludes scroll geometry.
-  return JSON.stringify(cp.nodes.filter(n => /^(wizard-player-name-|player-(handicap|group|team)-|remove-player-)/.test(n.id))
+  const indexed = cp.nodes.filter(n => indexedPlayerControl.test(n.id));
+  requireProof(new Set(indexed.map(n => n.id)).size === indexed.length,
+    cp.checkpoint + ': duplicate indexed player control');
+  return JSON.stringify(cp.nodes.filter(n => indexedPlayerControl.test(n.id) ||
+    /^(wizard-player-name-|player-(?:handicap|group|team)-|remove-player-)/.test(n.id))
     .map(n => [n.id,n.text,n.enabled,n.selected,n.checked]));
 }
 export function verifyIOSWizard(bundle, {sourceSha,profileId,buildHash}) {
