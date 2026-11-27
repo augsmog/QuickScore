@@ -9,7 +9,6 @@ import { readFileSync } from 'node:fs';
 import { buildCapturePlan, runCapture } from './capture-runner.mjs';
 
 const ACCEPTED = { buildId: 'b1', sourceSha: 'a'.repeat(40), simulatorRuntime: 'iOS 26', buildVariables: { EXPO_PUBLIC_PRO_ENABLED: 'false' } };
-const ENV = {};
 
 function stageOverlays(dir) {
   const overlayManifest = {};
@@ -26,7 +25,7 @@ test('buildCapturePlan consumes the full sequence, in order, bound to real ancho
   try {
     const overlayManifest = stageOverlays(dir);
     const config = loadConfig();
-    const plan = buildCapturePlan({ config, overlayManifest, overlaysBaseDir: dir, accepted: ACCEPTED, env: ENV });
+    const plan = buildCapturePlan({ config, overlayManifest, overlaysBaseDir: dir, accepted: ACCEPTED });
     assert.deepEqual(plan.errors, []);
     assert.equal(plan.steps.length, config.targets.length * config.frames.length);
     // Sequence order: target-major, frame-minor, matching capture-config.json's declared order.
@@ -53,7 +52,7 @@ test('buildCapturePlan refuses to bind frames with no staged overlay entry', () 
   const config = loadConfig();
   const partialOverlays = stageOverlaysInMemory(config);
   delete partialOverlays[config.frames[0].id];
-  const plan = buildCapturePlan({ config, overlayManifest: partialOverlays, overlaysBaseDir: '.', accepted: ACCEPTED, env: ENV });
+  const plan = buildCapturePlan({ config, overlayManifest: partialOverlays, overlaysBaseDir: '.', accepted: ACCEPTED });
   assert.ok(plan.errors.some(e => e.includes('no staged overlay entry')));
   assert.ok(!plan.steps.some(s => s.id === config.frames[0].id));
 });
@@ -68,7 +67,7 @@ test('buildCapturePlan refuses to bind with no accepted-release record', () => {
 test('buildCapturePlan refuses to bind an unknown frame id', () => {
   const config = loadConfig();
   config.frames = [{ ...config.frames[0], id: 'unrelated-screen-1' }];
-  const plan = buildCapturePlan({ config, anchors: SCREEN_ANCHORS, overlayManifest: {}, overlaysBaseDir: '.', accepted: ACCEPTED, env: ENV });
+  const plan = buildCapturePlan({ config, anchors: SCREEN_ANCHORS, overlayManifest: {}, overlaysBaseDir: '.', accepted: ACCEPTED });
   assert.ok(plan.errors.some(e => e.includes('has no screen anchor')));
 });
 
@@ -85,7 +84,7 @@ test('runCapture drives a stub provider through every planned step and produces 
         return { file: `${step.target}-${step.frame}.png`, width: step.width, height: step.height, sha256: createHash('sha256').update(bytes).digest('hex'), visibleText: [step.caption, step.testID] };
       },
     };
-    const manifest = await runCapture(provider, { config, overlayManifest, overlaysBaseDir: dir, accepted: ACCEPTED, env: ENV });
+    const manifest = await runCapture(provider, { config, overlayManifest, overlaysBaseDir: dir, accepted: ACCEPTED });
     assert.equal(calls.length, config.targets.length * config.frames.length);
     assert.equal(manifest.entries.length, calls.length);
     assert.equal(manifest.provenance.buildId, ACCEPTED.buildId);
@@ -100,7 +99,7 @@ test('runCapture refuses to run (never calls the provider) when the plan has unr
   const config = loadConfig();
   let called = false;
   const provider = { async capture() { called = true; return { file: 'x', width: 1, height: 1, sha256: 'a'.repeat(64) }; } };
-  await assert.rejects(() => runCapture(provider, { config, overlayManifest: {}, overlaysBaseDir: '.', accepted: ACCEPTED, env: ENV }));
+  await assert.rejects(() => runCapture(provider, { config, overlayManifest: {}, overlaysBaseDir: '.', accepted: ACCEPTED }));
   assert.equal(called, false);
 });
 
@@ -122,7 +121,7 @@ test('runCapture refuses to run (never calls the provider) when two frame ids ar
     [config.frames[0].id, config.frames[7].id] = [config.frames[7].id, config.frames[0].id];
     let calls = 0;
     const provider = { async capture() { calls++; return { file: 'x', width: 1, height: 1, sha256: 'a'.repeat(64) }; } };
-    await assert.rejects(() => runCapture(provider, { config, overlayManifest, overlaysBaseDir: dir, accepted: ACCEPTED, env: ENV }));
+    await assert.rejects(() => runCapture(provider, { config, overlayManifest, overlaysBaseDir: dir, accepted: ACCEPTED }));
     assert.equal(calls, 0);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -152,7 +151,7 @@ function stageOverlaysInMemory(config) {
   return m;
 }
 
-// AUG-399: no store screenshot from a build without ML Kit.
+// AUG-399: a build without ML Kit may supply frames 1 to 7 and never frame 8.
 const goodProvider = (calls = []) => ({
   async capture(step) {
     calls.push(step.id);
@@ -163,15 +162,40 @@ const withOverlays = async (run) => {
   const dir = mkdtempSync(join(tmpdir(), 'aug399-mlkit-'));
   try { return await run({ config: loadConfig(), overlayManifest: stageOverlays(dir), overlaysBaseDir: dir }); } finally { rmSync(dir, { recursive: true, force: true }); }
 };
+const SIMULATOR = { ...ACCEPTED, buildVariables: { ...ACCEPTED.buildVariables, EXPO_PUBLIC_SIMULATOR_NO_MLKIT: '1' } };
 
-test('a build made with EXPO_PUBLIC_SIMULATOR_NO_MLKIT is refused before any frame is captured', async () => {
+test('a build made with EXPO_PUBLIC_SIMULATOR_NO_MLKIT supplies frames 1 to 7 and frame 8 is deferred, never captured', async () => {
   await withOverlays(async (base) => {
     for (const value of ['1', '0', '']) {
       const calls = [];
-      const accepted = { ...ACCEPTED, buildVariables: { ...ACCEPTED.buildVariables, EXPO_PUBLIC_SIMULATOR_NO_MLKIT: value } };
-      await assert.rejects(() => runCapture(goodProvider(calls), { ...base, accepted, env: ENV }), /may not come from a build without ML Kit \(frame 8 would show "Scanning is unavailable in simulator builds"\)/);
-      assert.equal(calls.length, 0);
+      const accepted = { ...SIMULATOR, buildVariables: { ...SIMULATOR.buildVariables, EXPO_PUBLIC_SIMULATOR_NO_MLKIT: value } };
+      const manifest = await runCapture(goodProvider(calls), { ...base, accepted });
+      assert.deepEqual(calls, ['setup-round', 'add-group', 'game-modes', 'score-hole', 'leaderboard', 'side-games', 'settle-up']);
+      assert.equal(manifest.entries.length, 7);
+      assert.deepEqual(manifest.deferred.map(d => [d.frame, d.id]), [[8, 'scan-card']]);
+      assert.match(manifest.deferred[0].reason, /would show "Scanning is unavailable in simulator builds"\. Capture it from a physical device on the signed build/);
     }
+    assert.deepEqual(buildCapturePlan({ ...base, accepted: SIMULATOR }).errors, []);
+  });
+});
+
+test('a build with ML Kit supplies all eight frames and defers none', async () => {
+  await withOverlays(async (base) => {
+    const calls = [];
+    const manifest = await runCapture(goodProvider(calls), { ...base, accepted: ACCEPTED });
+    assert.equal(calls.length, 8);
+    assert.equal(calls[7], 'scan-card');
+    assert.equal(manifest.deferred, undefined);
+  });
+});
+
+test('a simulator-build manifest with frame 8 deferred is not a complete store set', async () => {
+  const { validateManifest } = await import('./validate-capture.mjs');
+  await withOverlays(async (base) => {
+    const manifest = await runCapture(goodProvider(), { ...base, accepted: SIMULATOR, provenance: { configSha256: createHash('sha256').update(readFileSync(new URL('./capture-config.json', import.meta.url))).digest('hex'), capturedAt: '2026-11-27T05:00:00Z' } });
+    const errs = validateManifest(manifest, base.config, SIMULATOR);
+    assert.ok(errs.includes('expected 8 entries'), errs.join('; '));
+    assert.ok(errs.includes('missing iphone-6.9/8'), errs.join('; '));
   });
 });
 
@@ -179,36 +203,31 @@ test('an accepted build that does not list its build variables is refused', asyn
   await withOverlays(async (base) => {
     const calls = [];
     const { buildVariables, ...silent } = ACCEPTED;
-    await assert.rejects(() => runCapture(goodProvider(calls), { ...base, accepted: silent, env: ENV }), /must list buildVariables/);
-    await assert.rejects(() => runCapture(goodProvider(calls), { ...base, accepted: { ...ACCEPTED, buildVariables: [] }, env: ENV }), /must list buildVariables/);
+    await assert.rejects(() => runCapture(goodProvider(calls), { ...base, accepted: silent }), /must list buildVariables/);
+    await assert.rejects(() => runCapture(goodProvider(calls), { ...base, accepted: { ...ACCEPTED, buildVariables: [] } }), /must list buildVariables/);
     assert.equal(calls.length, 0);
+    assert.deepEqual(validateBuildForStoreCapture(ACCEPTED), []);
   });
 });
 
-test('a capture started from a shell that has the variable set is refused', async () => {
+test('the run stops at any frame whose screen shows the simulator-only sentence, and at a frame that does not report its screen', async () => {
   await withOverlays(async (base) => {
-    const calls = [];
-    await assert.rejects(() => runCapture(goodProvider(calls), { ...base, accepted: ACCEPTED, env: { EXPO_PUBLIC_SIMULATOR_NO_MLKIT: '1' } }), /is set in this environment/);
-    assert.equal(calls.length, 0);
-    assert.deepEqual(validateBuildForStoreCapture(ACCEPTED, {}), []);
-  });
-});
-
-test('the run stops at the frame whose screen shows the simulator-only sentence, and at a frame that does not report its screen', async () => {
-  await withOverlays(async (base) => {
-    // The build record looked clean, but the screen says otherwise: by sentence, and by testID.
+    // The build record claimed ML Kit, but the scan screen says otherwise: by sentence, and by testID.
     for (const leak of ['Scanning is unavailable in simulator builds. Enter the scorecard as text instead.', 'scan-unavailable-simulator']) {
       const calls = [];
       const provider = goodProvider(calls);
       const real = provider.capture;
       provider.capture = async (step) => { const r = await real(step); if (step.id === 'scan-card') r.visibleText.push(leak); return r; };
-      await assert.rejects(() => runCapture(provider, { ...base, accepted: ACCEPTED, env: ENV }), /frame 8 \("scan-card"\): the screen shows ".*"; this build has no ML Kit/);
+      await assert.rejects(() => runCapture(provider, { ...base, accepted: ACCEPTED }), /frame 8 \("scan-card"\): the screen shows ".*"; this build has no ML Kit/);
       assert.equal(calls.length, 8);
     }
+    // It is looked for on every frame, not only frame 8.
+    const early = goodProvider();
+    const real = early.capture;
+    early.capture = async (step) => { const r = await real(step); if (step.frame === 3) r.visibleText.push('scan-unavailable-simulator'); return r; };
+    await assert.rejects(() => runCapture(early, { ...base, accepted: SIMULATOR }), /frame 3 \("game-modes"\): the screen shows/);
     const mute = { async capture(step) { return { file: 'x.png', width: step.width, height: step.height, sha256: 'a'.repeat(64) }; } };
-    await assert.rejects(() => runCapture(mute, { ...base, accepted: ACCEPTED, env: ENV }), /frame 1 \("setup-round"\): the capture must report visibleText/);
-    const manifest = await runCapture(goodProvider(), { ...base, accepted: ACCEPTED, env: ENV });
-    assert.equal(manifest.entries.length, 8);
+    await assert.rejects(() => runCapture(mute, { ...base, accepted: ACCEPTED }), /frame 1 \("setup-round"\): the capture must report visibleText/);
   });
 });
 

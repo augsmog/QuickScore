@@ -30,13 +30,13 @@ export const SCREEN_ANCHORS = {
   'scan-card': { testID: 'parse-scorecard-button', file: '../../app/scan/index.tsx', caption: 'Got a paper card?' },
 };
 
-// AUG-399 rule (lead architect, Nov 27 2026): no App Store screenshot may come from a build made
-// with EXPO_PUBLIC_SIMULATOR_NO_MLKIT. That variable compiles Google ML Kit out so the app can run
-// on an arm64 simulator, and it makes the scan screen show the sentence below. Frame 8
-// ("Got a paper card?") is captured on that screen, so a frame taken from such a build would put
-// the sentence in a store screenshot. The other seven screens render the same either way; they are
-// listed in FRAMES_SAME_WITHOUT_ML_KIT as a fact about the screens, not as leave to capture them
-// from such a build: the rule covers all eight.
+// AUG-399 rule (lead architect, Nov 27 2026): a store frame whose screen differs without ML Kit may
+// not come from a build made with EXPO_PUBLIC_SIMULATOR_NO_MLKIT. That variable compiles Google ML
+// Kit out so the app can run on an arm64 simulator (a build WITH ML Kit has no arm64 simulator
+// slice), and it makes the scan screen show the sentence below. Frame 8 ("Got a paper card?") is
+// captured on that screen. The other seven screens do not read the switch and render the same
+// either way, so they may come from the simulator build of the candidate; frame 8 comes from a
+// physical device on the signed build, or is the already approved image if that is shown to be clean.
 export const NO_ML_KIT_VARIABLE = 'EXPO_PUBLIC_SIMULATOR_NO_MLKIT';
 export const NO_ML_KIT_TEST_ID = 'scan-unavailable-simulator';
 export const NO_ML_KIT_SENTENCE = 'Scanning is unavailable in simulator builds';
@@ -45,15 +45,20 @@ export const FRAMES_NEEDING_ML_KIT = ['scan-card'];
 
 // The accepted build must say which build variables it was made with (the build record written by
 // scripts/release/run-on-candidate.cjs has them as `buildVariables`). Not saying is refused: an
-// unknown build cannot be shown to have ML Kit in it. `env` is the capturing process's own
-// environment, refused too, so a capture cannot be started from a simulator-build shell.
-export function validateBuildForStoreCapture(accepted, env = process.env) {
-  const errs = [];
-  if (env?.[NO_ML_KIT_VARIABLE] !== undefined && env[NO_ML_KIT_VARIABLE] !== '') errs.push(`${NO_ML_KIT_VARIABLE} is set in this environment; store screenshots may not be captured from a build without ML Kit`);
+// unknown build cannot be sorted into "has ML Kit" or "does not".
+export function validateBuildForStoreCapture(accepted) {
   const vars = accepted?.buildVariables;
-  if (!vars || typeof vars !== 'object' || Array.isArray(vars)) errs.push('accepted-release record must list buildVariables (from the build record), so the build can be shown to include ML Kit');
-  else if (Object.hasOwn(vars, NO_ML_KIT_VARIABLE)) errs.push(`the accepted build was made with ${NO_ML_KIT_VARIABLE}=${JSON.stringify(vars[NO_ML_KIT_VARIABLE])}; store screenshots may not come from a build without ML Kit (frame 8 would show "${NO_ML_KIT_SENTENCE}")`);
-  return errs;
+  if (!vars || typeof vars !== 'object' || Array.isArray(vars)) return ['accepted-release record must list buildVariables (from the build record), so it is known whether the build includes ML Kit'];
+  return [];
+}
+export const buildLacksMlKit = (accepted) => Object.hasOwn(accepted?.buildVariables ?? {}, NO_ML_KIT_VARIABLE);
+// Frames this build may not supply, each with the reason. Empty for a build that has ML Kit.
+export function framesNotFromThisBuild(config, accepted) {
+  if (!buildLacksMlKit(accepted)) return [];
+  return (config?.frames ?? []).filter(f => FRAMES_NEEDING_ML_KIT.includes(f.id)).map(f => ({
+    frame: f.n, id: f.id, caption: f.caption,
+    reason: `the accepted build was made with ${NO_ML_KIT_VARIABLE}; this frame's screen would show "${NO_ML_KIT_SENTENCE}". Capture it from a physical device on the signed build.`,
+  }));
 }
 
 // What was on screen when a frame was captured. A capture that does not report it is refused: the

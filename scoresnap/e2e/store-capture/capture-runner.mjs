@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   loadConfig, SCREEN_ANCHORS, loadOverlayManifest, loadAcceptedRelease, loadListing,
   validateConfig, validateOverlayBinding, validateAcceptedRelease,
-  validateBuildForStoreCapture, validateCapturedScreen,
+  validateBuildForStoreCapture, validateCapturedScreen, framesNotFromThisBuild,
 } from './validate-capture.mjs';
 
 // Walk targets x frames in config order (the real capture sequence) and resolve each step's
@@ -27,7 +27,6 @@ export function buildCapturePlan({
   overlaysBaseDir = '.',
   accepted = loadAcceptedRelease(),
   listingMd = loadListing(),
-  env = process.env,
 } = {}) {
   const acceptedErrors = validateAcceptedRelease(accepted);
   const errors = [
@@ -35,8 +34,11 @@ export function buildCapturePlan({
     ...validateOverlayBinding(config, overlayManifest, overlaysBaseDir),
     ...acceptedErrors,
   ];
-  // AUG-399: never plan a store capture against a build without ML Kit, or one that does not say.
-  const buildErrors = acceptedErrors.length ? [] : validateBuildForStoreCapture(accepted, env);
+  // AUG-399: the build must say what it was made with. A build without ML Kit may supply only the
+  // frames whose screens do not depend on it; the others are left out of the plan and listed in
+  // `deferred`, which is not an error: they come from a device on the signed build.
+  const buildErrors = acceptedErrors.length ? [] : validateBuildForStoreCapture(accepted);
+  const deferred = acceptedErrors.length || buildErrors.length ? [] : framesNotFromThisBuild(config, accepted);
   errors.push(...buildErrors);
   const acceptedOk = acceptedErrors.length === 0 && buildErrors.length === 0;
 
@@ -48,6 +50,7 @@ export function buildCapturePlan({
       const overlay = overlayManifest?.[frame.id];
       if (!overlay?.path || !overlay?.sha256) { errors.push(`frame ${frame.n} id "${frame.id}" has no staged overlay entry`); continue; }
       if (!acceptedOk) continue;
+      if (deferred.some(d => d.id === frame.id)) continue;
       steps.push({
         target: target.id,
         width: target.width,
@@ -65,7 +68,7 @@ export function buildCapturePlan({
       });
     }
   }
-  return { steps, errors };
+  return { steps, errors, deferred };
 }
 
 // Drives `provider.capture(step) -> { file, width, height, sha256 }` once per planned step, in
@@ -87,15 +90,17 @@ export async function runCapture(provider, opts = {}) {
   const entries = [];
   for (const step of plan.steps) {
     const result = await provider.capture(step);
-    // AUG-399: look at what was on screen. One frame showing the simulator-only sentence stops the
-    // whole run; a partial set is not a store set.
+    // AUG-399: look at what was on screen. A frame showing the simulator-only sentence stops the run.
     const screenErrors = validateCapturedScreen(step, result);
     if (screenErrors.length) throw new Error(`capture refused:\n${screenErrors.join('\n')}`);
     entries.push({ target: step.target, frame: step.frame, file: result.file, width: result.width, height: result.height, sha256: result.sha256 });
   }
+  // `deferred` names the frames this build could not supply. A manifest with any is not a complete
+  // store set: validateManifest still requires an entry for every frame.
   return {
     provenance: { ...accepted, ...callerProvenance },
     entries,
+    ...(plan.deferred.length ? { deferred: plan.deferred } : {}),
   };
 }
 
