@@ -268,8 +268,6 @@ export default function NewContestScreen() {
   };
 
   const validPlayerCount = players.filter((p) => p.name.trim()).length;
-  const betAmount = parseFloat(betUnit) || 0;
-  const estimatedPot = betAmount * validPlayerCount * 18;
 
   const validateSetup = () => {
     const validPlayers = players.filter(p => p.name.trim());
@@ -1292,26 +1290,6 @@ export default function NewContestScreen() {
                   minWidth: 60,
                 }}
               />
-            </View>
-
-            {/* Estimated Total Pot - Hero Card */}
-            <View
-              style={{
-                backgroundColor: COLORS.surfaceHigh,
-                borderRadius: RADII.xl,
-                padding: 24,
-                alignItems: "center",
-                marginBottom: 20,
-                ...GLOW.primaryStrong,
-              }}
-            >
-              <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 8 }}>
-                ESTIMATED TOTAL POT
-              </Text>
-              <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 48, color: COLORS.primary, marginBottom: 8 }}>
-                ${estimatedPot}
-              </Text>
-
             </View>
           </View>
         )}

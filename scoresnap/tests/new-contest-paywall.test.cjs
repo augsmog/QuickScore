@@ -145,13 +145,17 @@ test('game mode cards expose stable selected state and save Skins toggle semanti
   expect(again.byId('game-mode-skins').accessibilityState.selected).toBe(false);
 });
 
-test('only two numbered steps; Round Settings contains only unit amount and estimated pot', () => {
+// 27 Nov: the "ESTIMATED TOTAL POT" card is gone. Its figure was unit x players x 18 whatever
+// games were picked ($360 for four players at $5), which is right only for Skins over 18 holes.
+test('only two numbered steps; Round Settings contains only the unit amount, and no money total', () => {
   const h = harness(); h.seed(2); expect(text(h.render())).not.toMatch(/Step \d/);
   h.press('Continue'); expect(text(h.render())).toContain('Step 1/2');
   h.press('Continue'); const settings = h.byId('contest-step-round-settings');
   expect(text(settings.children)).toContain('UNIT AMOUNT');
-  expect(text(settings.children)).toContain('ESTIMATED TOTAL POT');
-  expect(text(settings.children)).toContain('$180');
+  expect(text(settings.children)).not.toMatch(/POT/i);
+  expect(text(settings.children)).not.toMatch(/\$\s*\d{2,}/); // no computed dollar figure; the "$" before the amount field stays
+  const source = require('node:fs').readFileSync('app/contest/new.tsx', 'utf8');
+  expect(source).not.toMatch(/estimatedPot|ESTIMATED TOTAL POT|\* 18\b/);
   expect(nodes(settings.children).filter(n => n.type === 'TextInput')).toHaveLength(1);
   expect(nodes(settings.children).some(n => n.type === 'Switch')).toBe(false);
   expect(text(settings.children)).not.toMatch(/VARIATIONS|ENTRY FEE|Stroke Play|players|holes/);

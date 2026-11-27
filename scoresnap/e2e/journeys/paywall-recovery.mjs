@@ -17,7 +17,7 @@ async function run(q,order){
  const {page,act,check,step,enter}=q;
  const noPlans=async()=>{assert.equal(new URL(page.url()).pathname,'/contest/new');assert.equal(await page.getByRole('button',{name:'Close',exact:true}).count(),0);assert.equal((await page.evaluate(()=>JSON.parse(localStorage.getItem('snapscore-scans')))).state.tier,'free');};
  const modes=async()=>{await page.getByTestId('contest-step-gamemodes').waitFor({state:'visible'});await page.getByText('Step 1/2',{exact:true}).waitFor();await noPlans();};
- const settings=async()=>{const root=page.getByTestId('contest-step-round-settings');await root.waitFor({state:'visible'});await page.getByText('Step 2/2',{exact:true}).waitFor();await root.getByText('UNIT AMOUNT',{exact:true}).waitFor();await root.getByText('ESTIMATED TOTAL POT',{exact:true}).waitFor();assert.equal(await root.getByRole('textbox').count(),1);assert.equal(await root.getByRole('switch').count(),0);await noPlans();};
+ const settings=async()=>{const root=page.getByTestId('contest-step-round-settings');await root.waitFor({state:'visible'});await page.getByText('Step 2/2',{exact:true}).waitFor();await root.getByText('UNIT AMOUNT',{exact:true}).waitFor();assert.equal(await root.getByText('ESTIMATED TOTAL POT',{exact:true}).count(),0);assert.equal(await root.getByRole('textbox').count(),1);assert.equal(await root.getByRole('switch').count(),0);await noPlans();};
  await check('entry',async()=>assert.equal((await page.evaluate(()=>JSON.parse(localStorage.getItem('snapscore-scans')))).state.tier,'free'));
  await act.activate(page.getByTestId('home-new-contest'));await enter('create');await fillDraft(q);
  await check('draft-entered',()=>retained(page));await step('draft');
