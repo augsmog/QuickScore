@@ -289,6 +289,8 @@ export default function SignInScreen() {
                     color: COLORS.text,
                     fontFamily: FONTS.bold,
                     fontSize: 16,
+                    flexShrink: 1,
+                    textAlign: "center",
                   }}
                 >
                   Continue with Google

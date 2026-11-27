@@ -31,11 +31,15 @@ test('Terms and Privacy are their own 44pt links, not words inside the small sen
   expect(src).toContain('By continuing, you agree to our Terms of Service and Privacy Policy.');
 });
 
-test('the Apple label can shrink and wrap inside its button instead of overflowing', () => {
-  const at = src.indexOf('Continue with Apple');
+// Google is hidden in 1.0.1 (no client id in the build), but the two buttons share one pattern.
+test.each(['Continue with Apple', 'Continue with Google'])('the "%s" label can shrink and wrap inside its button instead of overflowing', (text) => {
+  const at = src.indexOf(text);
+  expect(at).toBeGreaterThan(-1);
+  expect(src.indexOf(text, at + 1)).toBe(-1);
   const label = src.slice(src.lastIndexOf('<Text', at), at);
   expect(label).toMatch(/flexShrink: 1/);
   expect(label).toMatch(/textAlign: "center"/);
+  expect(label).not.toContain('numberOfLines');
 });
 
 test('the Settings plan title and its line below may wrap', () => {
