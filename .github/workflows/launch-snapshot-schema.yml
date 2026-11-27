@@ -1,15 +1,8 @@
 name: Launch snapshot schema
 on:
-  pull_request:
-    paths:
-      - 'docs/launch/**'
-      - 'scoresnap/scripts/ci/launch-snapshot-schema.node.cjs'
-      - '.github/workflows/launch-snapshot-schema.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'docs/launch/**'
-      - 'scoresnap/scripts/ci/launch-snapshot-schema.node.cjs'
+  # AUG-1601: manual-only. No push, pull_request, schedule or other automatic trigger may be added;
+  # scoresnap/tests/workflow-triggers.test.cjs fails the unit suite if one is. Run with "Run workflow"
+  # or `gh workflow run`.
   workflow_dispatch:
 permissions:
   contents: read

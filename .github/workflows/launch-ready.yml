@@ -1,15 +1,12 @@
 name: Launch readiness
 on:
-  pull_request:
-    paths:
-      - 'scoresnap/scripts/launch-ready/**'
-      - 'scoresnap/docs/launch/evidence/launch-ready/**'
-      - '.github/workflows/launch-ready.yml'
-  push:
-    branches: [main]
+  # AUG-1601: no push or pull_request trigger may be added; only the schedule below is allowed;
+  # scoresnap/tests/workflow-triggers.test.cjs fails the unit suite if one is. Run with "Run workflow"
+  # or `gh workflow run`.
+  workflow_dispatch:
+  # Daily launch-readiness report. Schedule kept by name (lead architect, Nov 27 2026).
   schedule:
     - cron: '30 15 * * *'
-  workflow_dispatch:
 permissions:
   contents: read
   actions: read

@@ -127,11 +127,14 @@ def test_invalid_ids_or_malformed_payload_fail_closed_without_network():
     assert data['providers']['github']['status'] == 'UNKNOWN'
 
 
-def test_workflow_runs_main_daily_and_keeps_reporting_after_gate_failure():
+def test_workflow_runs_daily_or_by_hand_and_keeps_reporting_after_gate_failure():
+    # AUG-1601: no push or pull_request trigger; the daily schedule is kept by name.
     workflow = ROOT.parents[2] / '.github/workflows/launch-ready.yml'
     assert workflow.exists(), 'missing CI workflow'
     text = workflow.read_text()
-    assert 'branches: [main]' in text and 'schedule:' in text and 'cron:' in text
+    assert '\n  workflow_dispatch:' in text
+    assert 'schedule:' in text and 'cron:' in text
+    assert 'pull_request:' not in text and '\n  push:' not in text
     assert 'test_launch_ready_check.py' in text and 'test_launch_reporting.py' in text
     assert '--seed-missing-command' in text
     assert 'if: always()' in text and 'actions/upload-artifact@' in text
