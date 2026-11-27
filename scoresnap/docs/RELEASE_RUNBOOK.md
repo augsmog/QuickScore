@@ -38,7 +38,11 @@ Every build, archive and upload step starts with:
 ```sh
 node scripts/release/candidate-check.cjs verify --sha <same SHA> --receipt candidate-receipt.json
 ```
-and does not proceed if it exits non-zero. The receipt is refused if it is for another SHA or tree, records a red suite or a missing fix, or was written by a different version of the check.
+and does not proceed if it exits non-zero. Keep `candidate-receipt.json.tests.txt` beside the receipt; `verify` needs both. The receipt is refused if it is for another SHA or tree, if its fix list is not exactly the one in `release/required-fixes.json`, if the test list beside it does not match the hash in the receipt, if it records a red suite, or if it was written by a different version of the check.
+
+Compare two receipts by `suite.testIdsSha256` (the hash of the sorted list of every test that ran, with its result), never by the headline count. If the hashes differ, `diff` the two `.tests.txt` files to see which tests.
+
+**Not enforced yet:** no build script in this repository calls `verify`. Until the native archive step does, this is a rule people follow, not one a machine enforces.
 
 - The release lead owns `release/required-fixes.json`. A fix is added there when its ticket becomes launch-blocking, with the exact commit.
 - The build number is assigned at build time (`appVersionSource: remote`), so the receipt records the version only. Check the build number on the archive.
