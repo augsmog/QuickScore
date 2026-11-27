@@ -75,8 +75,10 @@ const cm = {
   'seven frames': c => { c.frames.pop(); },
   'frames reordered': c => { c.frames.reverse(); },
   'caption drift': c => { c.frames[2].caption = '60+ game modes'; },
-  'one target': c => { c.targets.pop(); },
-  'wrong ipad size': c => { c.targets[1].width = 2048; },
+  'no target': c => { c.targets.pop(); },
+  'wrong iphone size': c => { c.targets[0].width = 1290; },
+  'ipad target added back': c => { c.targets.push({ id: 'ipad-13', family: 'iPad', displayInches: 13, width: 2064, height: 2752 }); },
+  'iphone target relabelled as ipad': c => { c.targets[0].family = 'iPad'; },
   'unwired frame id': c => { c.frames[0].id = 'unrelated-screen-1'; },
   'weakened required provenance': c => { c.manifest.requiredProvenance = []; },
   'weakened required entry fields': c => { c.manifest.requiredEntryFields = []; },
@@ -134,7 +136,7 @@ test('validateManifestFiles binds entries to real files on disk, including decod
     assert.ok(validateManifestFiles(wrongDims, dir).some(e => e.includes('decoded PNG')));
 
     const textFile = join(dir, 'not-a-png.png');
-    const textBytes = Buffer.from('not a PNG; one identical unrelated file for all sixteen captures');
+    const textBytes = Buffer.from('not a PNG; one identical unrelated file for all captures');
     writeFileSync(textFile, textBytes);
     const textHash = createHash('sha256').update(textBytes).digest('hex');
     const fakedAsPng = { entries: [{ target: 'iphone-6.9', frame: 1, file: 'not-a-png.png', width: 1320, height: 2868, sha256: textHash }] };
@@ -267,7 +269,7 @@ test('PNG decoder enforces chunk ordering and terminal structure', () => {
   assert.deepEqual(decodePngDimensions(p), { width: 1, height: 1 });
 });
 
-test('manifest pipeline rejects all sixteen CRC-valid corrupt IDAT files and accepts real pixels', () => {
+test('manifest pipeline rejects every CRC-valid corrupt IDAT file (one per target x frame) and accepts real pixels', () => {
   const dir = mkdtempSync(join(tmpdir(), 'aug1303-pixels-'));
   try {
     for (const mode of ['corrupt', 'short', 'valid']) {
@@ -283,7 +285,7 @@ test('manifest pipeline rejects all sixteen CRC-valid corrupt IDAT files and acc
       assert.deepEqual(validateManifestAccepted(m), []);
       const errors = validateManifestFiles(m, dir);
       if (mode === 'valid') assert.deepEqual(errors, []);
-      else assert.equal(errors.filter(e => e.includes('is not a PNG')).length, 16);
+      else { assert.equal(m.entries.length, 8); assert.equal(errors.filter(e => e.includes('is not a PNG')).length, m.entries.length); }
     }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

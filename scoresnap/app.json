@@ -13,7 +13,7 @@
       "backgroundColor": "#FAF4E8"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.scoresnap.app",
       "buildNumber": "1",
       "infoPlist": {

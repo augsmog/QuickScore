@@ -13,8 +13,7 @@
   },
   "overlays": { "provider": "DotBot", "mode": "reuse-staged-unchanged" },
   "targets": [
-    { "id": "iphone-6.9", "family": "iPhone", "displayInches": 6.9, "width": 1320, "height": 2868 },
-    { "id": "ipad-13", "family": "iPad", "displayInches": 13, "width": 2064, "height": 2752 }
+    { "id": "iphone-6.9", "family": "iPhone", "displayInches": 6.9, "width": 1320, "height": 2868 }
   ],
   "frames": [
     { "n": 1, "id": "setup-round", "caption": "Set up your round" },

@@ -1,11 +1,12 @@
-// Static validation of the eight-frame x two-target store capture config + output manifest (AUG-1279). No device, network or ASC access.
+// Static validation of the eight-frame store capture config + output manifest (AUG-1279). No device, network or ASC access.
+// Launch is iPhone only (owner decision Nov 27 2026): the single target is iPhone 6.9"; an iPad target is rejected.
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import zlib from 'node:zlib';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const TARGETS = { 'iphone-6.9': [1320, 2868], 'ipad-13': [2064, 2752] };
+export const TARGETS = { 'iphone-6.9': [1320, 2868] };
 const here = p => new URL(p, import.meta.url);
 export const loadConfig = () => JSON.parse(readFileSync(here('./capture-config.json'), 'utf8'));
 export const loadListing = () => readFileSync(here('../../docs/APP_STORE_LISTING.md'), 'utf8');
@@ -59,7 +60,8 @@ export function validateConfig(c, listingMd = loadListing()) {
   if (ex.target !== 'existing-accepted-release-mapped-simulator-app') errs.push('target must be accepted-release-mapped simulator app');
   if (c?.overlays?.provider !== 'DotBot' || c?.overlays?.mode !== 'reuse-staged-unchanged') errs.push('overlays must reuse staged DotBot unchanged');
   const ts = c?.targets ?? [];
-  if (ts.length !== 2) errs.push('exactly two targets');
+  if (ts.length !== Object.keys(TARGETS).length) errs.push('exactly one target (iPhone 6.9")');
+  for (const t of ts) if (t?.family !== 'iPhone') errs.push(`target ${t?.id} family must be iPhone (launch is iPhone only)`);
   for (const [id, [w, h]] of Object.entries(TARGETS)) {
     const t = ts.find(x => x.id === id);
     if (!t) errs.push(`target ${id} missing`);

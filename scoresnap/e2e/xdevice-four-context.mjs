@@ -15,7 +15,7 @@ const devices = [
   { name: 'iPhone SE (375×667)', viewport: { width: 375, height: 667 } },
   { name: 'iPhone 15 Pro (393×852)', viewport: { width: 393, height: 852 } },
   { name: 'iPhone 15 Pro Max (430×932)', viewport: { width: 430, height: 932 } },
-  { name: 'iPad representative landscape (1024×768)', viewport: { width: 1024, height: 768 } },
+  { name: 'iPhone 16 Pro (402×874)', viewport: { width: 402, height: 874 } },
 ];
 const contexts = await Promise.all(devices.map(device => browser.newContext({
   viewport: device.viewport,
