@@ -109,8 +109,9 @@ test("selectors used by flows exist in the app source", () => {
       || (/^game-mode-/.test(id) && src.includes("testID={`game-mode-${game.id}`}"))
       // Round-count chips in the New Contest wizard are rendered [2,3,4].map((n) => <... testID={`rounds-${n}`}>.
       || (/^rounds-\d+$/.test(id) && src.includes("testID={`rounds-${n}`}"))
-      // Per-player controls are ids built from the player's name.
-      || (/^remove-player-/.test(id) && src.includes("testID={`remove-player-${player.name}`}"))
+      // Per-player controls: the first player's ids are built from the name on every platform;
+      // later players carry an index-built id on iPhone only (layout gate early-reveal proof).
+      || (/^remove-player-/.test(id) && src.includes('testID={Platform.OS === "ios" && idx > 0 ? `wizard-remove-player-${idx + 1}` : `remove-player-${player.name}`}'))
       // Player rows and name fields carry an index-built id on iPhone only (layout gate capture proof).
       || (/^wizard-player-(row|name)-\d+$/.test(id) && src.includes(`testID={Platform.OS === "ios" ? \`wizard-player-${id.split("-")[2]}-\${idx + 1}\` : undefined}`));
     expect([id, literal || templ]).toEqual([id, true]);

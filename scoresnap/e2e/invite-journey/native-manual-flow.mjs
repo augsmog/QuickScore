@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 export const hostName='JourneyHost', guestName='Journey Guest', guestVisitor='Journey Visitor';
+// The guest is Player 2. On iPhone every player after the first carries an index-built id
+// (app/contest/new.tsx), so the name-built id 'player-group-Journey Guest' no longer exists there.
+export const guestGroupId='wizard-player-group-2';
 export const id=id=>({id});
 export const tap=tapOn=>({tapOn});
 export const wait=visible=>({extendedWaitUntil:{visible,timeout:30000}});
@@ -18,7 +21,7 @@ export function hostCreateSteps(name) {
   assert.match(name,/^Native Journey [a-f0-9]{12}$/);
   return [wait(id('home-join-code')),tap(id('home-new-contest')),wait(id('contest-step-setup')),
     ...fill(newContestTitle,name),{hideKeyboard:{}},scroll('Player 2 name'),...fill('Player 2 name',guestName),{hideKeyboard:{}},
-    scroll(id('add-group')),tap(id('add-group')),scroll(id('player-group-'+guestName),'UP'),tap(id('player-group-'+guestName)),
+    scroll(id('add-group')),tap(id('add-group')),scroll(id(guestGroupId),'UP'),tap(id(guestGroupId)),
     tap(id('contest-continue')),wait(id('contest-step-gamemodes')),tap(id('contest-continue')),
     wait(id('contest-step-round-settings')),tap(id('contest-start')),wait(id('round-status-chip')),
     wait('Enable online sharing'),tap('Enable online sharing'),wait(id('organizer-join-code'))];

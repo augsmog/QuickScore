@@ -18,9 +18,12 @@ test('guest starts via onboarding UI and explicitly types the six-character code
 test('host uses setup, group assign, Start, and explicit sharing; no pre-seeded round',()=>{
   const steps=hostCreateSteps(name);
   const ids=steps.map(s=>s.tapOn?.id??s.tapOn).filter(Boolean);
-  assert.deepEqual(ids.slice(-6),['add-group','player-group-Journey Guest','contest-continue','contest-continue','contest-start','Enable online sharing']);
+  assert.deepEqual(ids.slice(-6),['add-group','wizard-player-group-2','contest-continue','contest-continue','contest-start','Enable online sharing']);
   assert(steps.some(s=>s.inputText===name));
   assert(!steps.some(s=>'openLink' in s));
+  // The id the host taps must be one the iPhone app renders for Player 2.
+  const app=readFileSync(new URL('../../app/contest/new.tsx',import.meta.url),'utf8');
+  assert(app.includes('testID={Platform.OS === "ios" && idx > 0 ? `wizard-player-group-${idx + 1}` : `player-group-${player.name}`}'));
 });
 test('cold re-entry only navigates app UI; never replays the guest request',()=>{
   const guest=guestReconnectSteps(name), host=hostReopenSteps(name);
