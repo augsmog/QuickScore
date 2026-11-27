@@ -50,7 +50,7 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
-import { setupTargets, SETUP_MIN_TARGET_PX, modalSheetSafeEdges, WIZARD_FOOTER_FADE_PX, WIZARD_END_SPACE_PX, wizardFooterFadeColors, playerControlTestId } from "../../src/ui/tournament-setup-layout";
+import { setupTargets, SETUP_MIN_TARGET_PX, modalSheetSafeEdges, WIZARD_FOOTER_FADE_PX, WIZARD_END_SPACE_PX, wizardFooterFadeColors, playerControlTestId, playerNameTestId } from "../../src/ui/tournament-setup-layout";
 import { LinearGradient } from "expo-linear-gradient";
 
 // AUG-1376: platform-aware setup tap-target styles. Android widens every control to 48dp
@@ -778,7 +778,7 @@ export default function NewContestScreen() {
                   </View>
 
                   <TextInput
-                    testID={Platform.OS === "ios" ? `wizard-player-name-${idx + 1}` : undefined}
+                    testID={playerNameTestId(Platform.OS, idx)}
                     value={player.name}
                     onChangeText={(v) => updatePlayer(player.id, "name", v)}
                     placeholder={idx === 0 ? "Your name" : `Player ${idx + 1} name`}

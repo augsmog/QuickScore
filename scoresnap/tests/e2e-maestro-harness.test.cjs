@@ -114,7 +114,9 @@ test("selectors used by flows exist in the app source", () => {
       // helper decides; tests/new-contest-android-blank-row-ids.test.cjs pins what it returns).
       || (/^remove-player-/.test(id) && src.includes('testID={playerControlTestId("remove", { platformOS: Platform.OS, index: idx, name: player.name })}'))
       // Player rows and name fields carry an index-built id on iPhone only (layout gate capture proof).
-      || (/^wizard-player-(row|name)-\d+$/.test(id) && src.includes(`testID={Platform.OS === "ios" ? \`wizard-player-${id.split("-")[2]}-\${idx + 1}\` : undefined}`));
+      || (/^wizard-player-row-\d+$/.test(id) && src.includes('testID={Platform.OS === "ios" ? `wizard-player-row-${idx + 1}` : undefined}'))
+      // The name field is numbered by position on iPhone and Android (playerNameTestId).
+      || (/^wizard-player-name-\d+$/.test(id) && src.includes('testID={playerNameTestId(Platform.OS, idx)}'));
     expect([id, literal || templ]).toEqual([id, true]);
   }
 });

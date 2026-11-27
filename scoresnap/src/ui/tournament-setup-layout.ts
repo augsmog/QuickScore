@@ -106,3 +106,9 @@ export function playerControlTestId(
     default: throw new Error(`playerControlTestId: unknown kind ${String(kind)}`);
   }
 }
+
+// The name field of a player row: numbered by position on both phones (a blank field has no text
+// to be found by), no id on web, where tests find it by its label.
+export function playerNameTestId(platformOS: string | undefined, index: number): string | undefined {
+  return platformOS === 'ios' || platformOS === 'android' ? `wizard-player-name-${index + 1}` : undefined;
+}

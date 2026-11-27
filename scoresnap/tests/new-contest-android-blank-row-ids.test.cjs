@@ -10,7 +10,7 @@ const ts = require('typescript');
 
 const m = { exports: {} };
 new Function('module', 'exports', ts.transpileModule(fs.readFileSync('src/ui/tournament-setup-layout.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(m, m.exports);
-const { playerControlTestId } = m.exports;
+const { playerControlTestId, playerNameTestId } = m.exports;
 const id = (kind, platformOS, index, name, teamId) => playerControlTestId(kind, { platformOS, index, name, teamId });
 const screen = fs.readFileSync('app/contest/new.tsx', 'utf8');
 
@@ -67,4 +67,16 @@ test('the screen takes all four per-player ids from the one helper', () => {
   // No hand-built per-player id is left behind.
   expect(screen).not.toMatch(/`(?:remove-player|player-handicap|player-group|player-team)-\$\{/);
   expect(screen).not.toMatch(/`wizard-(?:remove-player|player-handicap|player-group|player-team)-\$\{/);
+});
+
+// The name field itself was the anonymous node in the Android findings ("n45", "n46": a blank
+// name field has no text to be known by). It is numbered by position on both phones; web keeps none.
+test('the name field of every row is numbered by position on iPhone and Android, and has no id on web', () => {
+  expect([0, 1, 2, 3].map((index) => playerNameTestId('android', index))).toEqual(['wizard-player-name-1', 'wizard-player-name-2', 'wizard-player-name-3', 'wizard-player-name-4']);
+  expect(playerNameTestId('ios', 0)).toBe('wizard-player-name-1');
+  expect(playerNameTestId('ios', 3)).toBe('wizard-player-name-4');
+  expect(playerNameTestId('web', 0)).toBeUndefined();
+  expect(playerNameTestId(undefined, 0)).toBeUndefined();
+  expect(screen.split('testID={playerNameTestId(Platform.OS, idx)}').length - 1).toBe(1);
+  expect(screen).not.toMatch(/`wizard-player-name-\$\{/);
 });
