@@ -19,7 +19,10 @@
     { "id": "join", "cadence": "per-pr", "checkpoints": ["entry"] },
     { "id": "leagues", "cadence": "nightly", "checkpoints": ["empty/loading/error", "create", "roster/event mapping", "leaderboard"] },
     { "id": "paywall", "cadence": "per-pr", "checkpoints": ["tier td"] },
-    { "id": "sign-in", "cadence": "per-pr", "checkpoints": ["options", "email form"] }
+    { "id": "sign-in", "cadence": "per-pr", "checkpoints": ["options", "email form"] },
+    { "id": "settings", "cadence": "per-pr", "checkpoints": ["top", "subscription"] },
+    { "id": "round", "cadence": "per-pr", "checkpoints": ["score entry", "hole scored", "settlement"] },
+    { "id": "scan", "cadence": "per-pr", "checkpoints": ["text entry"] }
   ],
   "rules": [
     { "id": 1, "name": "overlap", "overlapTol": 1, "textOverlapTol": 2 },
