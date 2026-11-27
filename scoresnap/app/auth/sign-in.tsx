@@ -253,6 +253,8 @@ export default function SignInScreen() {
                       color: "#000",
                       fontFamily: FONTS.bold,
                       fontSize: 16,
+                      flexShrink: 1,
+                      textAlign: "center",
                     }}
                   >
                     Continue with Apple
@@ -352,7 +354,8 @@ export default function SignInScreen() {
               {/* Sign in link */}
               <Pressable
                 onPress={() => setMode("signin")}
-                style={{ alignItems: "center", paddingVertical: 8 }}
+                accessibilityRole="button"
+                style={{ alignItems: "center", justifyContent: "center", minHeight: 44 }}
               >
                 <Text
                   style={{
@@ -496,7 +499,8 @@ export default function SignInScreen() {
                   setMode("options");
                   setError(null);
                 }}
-                style={{ alignItems: "center", paddingVertical: 8 }}
+                accessibilityRole="button"
+                style={{ alignItems: "center", justifyContent: "center", minHeight: 44 }}
               >
                 <Text
                   style={{
@@ -584,7 +588,8 @@ export default function SignInScreen() {
                   setMode("options");
                   setError(null);
                 }}
-                style={{ alignItems: "center", paddingVertical: 8 }}
+                accessibilityRole="button"
+                style={{ alignItems: "center", justifyContent: "center", minHeight: 44 }}
               >
                 <Text
                   style={{
@@ -633,14 +638,30 @@ export default function SignInScreen() {
 
           {/* Legal — tappable links (App Store requirement) */}
           <Text style={{ color: COLORS.textDim, fontSize: 11, fontFamily: FONTS.regular, textAlign: "center", marginTop: 28, lineHeight: 16, paddingHorizontal: 20 }}>
-            By continuing, you agree to our{" "}
-            <Text onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/terms")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
-              Terms of Service
-            </Text>{" "}and{" "}
-            <Text onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/privacy")} style={{ color: COLORS.primary, textDecorationLine: "underline" }}>
-              Privacy Policy
-            </Text>
+            By continuing, you agree to our Terms of Service and Privacy Policy.
           </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", columnGap: 24 }}>
+            <Pressable
+              testID="sign-in-terms"
+              accessibilityRole="link"
+              onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/terms")}
+              style={{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" }}
+            >
+              <Text style={{ color: COLORS.primary, fontSize: 13, fontFamily: FONTS.medium, textDecorationLine: "underline" }}>
+                Terms of Service
+              </Text>
+            </Pressable>
+            <Pressable
+              testID="sign-in-privacy"
+              accessibilityRole="link"
+              onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/privacy")}
+              style={{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" }}
+            >
+              <Text style={{ color: COLORS.primary, fontSize: 13, fontFamily: FONTS.medium, textDecorationLine: "underline" }}>
+                Privacy Policy
+              </Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeScreen>
