@@ -26,6 +26,7 @@ opens with an `assertVisible` so a broken state fails loudly instead of capturin
 - `sign-in/` — deep-links `snapscore://auth/sign-in` and captures the sign-in options; asserts
   "Continue with Google" is absent (1.0.1 ships without Google sign-in; the button is shown only
   when the build has a Google client id) and, on iOS, that "Continue with Apple" is present.
+  Then the email and password form, the only route besides Apple and the one a review tester uses.
 
 ## Profiles & large text
 
