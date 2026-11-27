@@ -34,7 +34,7 @@ import { COLORS } from "../src/ui/theme";
 import "../global.css";
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
-import { assertNoDefaultPii, assertReplayMask, scrubSentryEvent, sentryReplayMask, sentrySendDefaultPii } from "../src/config/sentry-privacy";
+import { assertNoDefaultPii, assertReplayMask, scrubSentryEvent, scrubSentryEventCrashOnly, sentryCapture, sentryReplayMask, sentrySendDefaultPii } from "../src/config/sentry-privacy";
 import { PostHogAppProvider, posthog } from "../src/config/posthog";
 import { reportAppOpened } from "../src/services/app-opened";
 import { screenNameFromSegments } from "../src/services/analytics-screen";
@@ -50,8 +50,12 @@ const routingInstrumentation = Sentry.reactNavigationIntegration({
   enableTimeToInitialDisplay: true,
 });
 
+// With Join by code on, Sentry is crash-only (src/config/sentry-privacy.ts explains why). It was
+// switched off altogether for that case until build 33, which therefore reported no crashes.
+const capture = sentryCapture(CROSS_DEVICE_SHARING_ENABLED);
+
 Sentry.init({
-  enabled: !isPublicShare && !CROSS_DEVICE_SHARING_ENABLED,
+  enabled: !isPublicShare,
   dsn: 'https://e878c1d1d9a18b64ad7ddc2f6d2b5986@o4511068999385088.ingest.us.sentry.io/4511069003776000',
 
   // Release & environment tracking
@@ -62,33 +66,34 @@ Sentry.init({
   environment: __DEV__ ? "development" : "production",
 
   sendDefaultPii: sentrySendDefaultPii,
-  enableLogs: true,
+  enableLogs: capture.enableLogs,
 
   // Performance tracing — capture 20% of transactions
-  tracesSampleRate: 0.2,
-  enableAutoPerformanceTracing: true,
-  enableAppStartTracking: true,
-  enableStallTracking: true,
+  tracesSampleRate: capture.tracesSampleRate,
+  enableAutoPerformanceTracing: capture.enableAutoPerformanceTracing,
+  enableAppStartTracking: capture.enableAppStartTracking,
+  enableStallTracking: capture.enableStallTracking,
 
   // Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
+  replaysSessionSampleRate: capture.replaysSessionSampleRate,
+  replaysOnErrorSampleRate: capture.replaysOnErrorSampleRate,
 
   integrations: [
-    Sentry.mobileReplayIntegration(sentryReplayMask),
-    Sentry.feedbackIntegration(),
-    routingInstrumentation,
+    ...(capture.replay ? [Sentry.mobileReplayIntegration(sentryReplayMask)] : []),
+    ...(capture.feedback ? [Sentry.feedbackIntegration()] : []),
+    ...(capture.navigation ? [routingInstrumentation] : []),
   ],
 
   // Filter out noise. User context keeps an id and drops email and name.
   beforeSend(event) {
-    const scrubbed = scrubSentryEvent(event);
+    const scrubbed = capture.crashOnly ? scrubSentryEventCrashOnly(event) : scrubSentryEvent(event);
     if (__DEV__ && !scrubbed.tags?.["force_send"]) return null;
     return scrubbed;
   },
 
   // Breadcrumb filtering — keep navigation, user actions, network
   beforeBreadcrumb(breadcrumb) {
+    if (!capture.breadcrumbs) return null;
     if (breadcrumb.category === "console" && breadcrumb.level === "debug") return null;
     return breadcrumb;
   },
@@ -141,7 +146,7 @@ export default Sentry.wrap(function RootLayout() {
   const ref = useNavigationContainerRef();
 
   useEffect(() => {
-    if (ref?.current) {
+    if (ref?.current && capture.navigation) {
       routingInstrumentation.registerNavigationContainer(ref);
     }
   }, [ref]);
