@@ -170,6 +170,7 @@ jobs:
           script: >-
             DEVICE_LAYOUT_OUT="${{ runner.temp }}/device-layout-out"
             DEVICE_LAYOUT_LARGE_TEXT=true
+            DEVICE_LAYOUT_LARGE_TEXT_REQUIRED=true
             DEVICE_LAYOUT_JOIN_FLAG=on
             bash scoresnap/e2e/device-layout/scripts/run-android-compact.sh
       - name: Upload Android capture bundle (candidate-bound; reviewed by vision-candidate)
@@ -226,6 +227,9 @@ jobs:
           DEVICE_LAYOUT_REPORT_ONLY_PROFILES: iphone-se-3
           DEVICE_LAYOUT_OUT: ${{ runner.temp }}/device-layout-out
           DEVICE_LAYOUT_LARGE_TEXT: "true"
+          # AUG-1601: the largest-text pass is required, never skipped for time. A slow run fails on
+          # the job's timeout instead of passing without having looked.
+          DEVICE_LAYOUT_LARGE_TEXT_REQUIRED: "true"
           # The release ships join by code ON (eas.json testflight and production). The gate's build
           # has it on too, so the Home it captures is the Home that ships.
           DEVICE_LAYOUT_JOIN_FLAG: "on"
