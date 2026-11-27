@@ -33,6 +33,11 @@
 // `eas build` for a store profile, `eas submit`, fastlane, upload, .ipa). Tests and simulator
 // builds may run without --profile; nothing is checked then and the build record says so.
 //
+// Service configuration (Supabase URL and key, RevenueCat key, and the optional ones) is not in the
+// profile. `eas build` reads it from the EAS environment the profile names. A build made by hand
+// under --profile must have the required three in its shell or it is refused: without them the app
+// builds and has no sign-in and no purchases. The record keeps their names and a fingerprint.
+//
 // Each admitted run writes a build record beside the receipt, `<receipt>.build-<start>-<pid>.json`:
 // the SHA and tree, the command, Xcode / macOS / node / npm versions (Apple fields null off macOS),
 // start and end time, free GB before and after, and the exit code.
@@ -69,6 +74,17 @@ function looksLikeStoreCommand(command) {
 const RELEASE_PROFILES = ['testflight', 'production'];
 // Variables that change what app gets built. Any of these set outside the profile is refused.
 const BUILD_VARIABLE = /^(EXPO_PUBLIC_.+|APP_VARIANT)$/;
+// Service configuration the app needs to work at all. It is not in the eas.json profile: `eas build`
+// takes it from the EAS environment the profile names. A build made by hand gets it only from its
+// own shell. Without the first three the app has no sign-in and no purchases, and it still builds.
+const SERVICE_REQUIRED = ['EXPO_PUBLIC_REVENUECAT_APPLE_KEY', 'EXPO_PUBLIC_SUPABASE_ANON_KEY', 'EXPO_PUBLIC_SUPABASE_URL'];
+const SERVICE_OPTIONAL = ['EXPO_PUBLIC_CAPTCHA_MODE', 'EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'EXPO_PUBLIC_POSTHOG_ENABLED', 'EXPO_PUBLIC_POSTHOG_HOST', 'EXPO_PUBLIC_POSTHOG_PROJECT_KEY', 'EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN', 'EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY', 'EXPO_PUBLIC_TURNSTILE_BASE_URL', 'EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'EXPO_PUBLIC_WEB_URL'];
+// Switches that make a test or simulator build. Never allowed in a release build.
+const TEST_ONLY = ['EXPO_PUBLIC_DEMO_MODE', 'EXPO_PUBLIC_E2E_COURSE_FIXTURE', 'EXPO_PUBLIC_OFFLINE_MODE', 'EXPO_PUBLIC_SIMULATOR_NO_MLKIT'];
+const SERVICE_VARIABLE = (name) => SERVICE_REQUIRED.includes(name) || SERVICE_OPTIONAL.includes(name);
+// `eas build` and `eas submit` read the service configuration from EAS themselves.
+const EAS_SUPPLIES_SERVICES = (command) => /\beas\s+(build|submit)\b/.test(command.join(' '));
+const fingerprint = (value) => crypto.createHash('sha256').update(String(value)).digest('hex').slice(0, 12);
 const refuse = (message) => { throw new Refusal(message); };
 const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 
@@ -116,7 +132,7 @@ function buildEnvironment({ platform = process.platform, run = (cmd, args) => ex
 
 // Reads the named profile from the checkout's own eas.json and compares the calling environment
 // with it. Returns the values the command must run with. Refuses on any difference.
-function releaseFlags({ app, profile, env }) {
+function releaseFlags({ app, profile, env, command = [] }) {
   const file = path.join(app, 'eas.json');
   let eas;
   try { eas = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return refuse(`cannot read ${file}; --profile needs the checkout's eas.json`); }
@@ -127,11 +143,26 @@ function releaseFlags({ app, profile, env }) {
   for (const [name, value] of Object.entries(wanted)) if (typeof value !== 'string') refuse(`eas.json ${profile}.env.${name} is not a string`);
   const differs = Object.entries(wanted).filter(([name, value]) => env[name] !== undefined && env[name] !== value)
     .map(([name, value]) => `${name} is "${env[name]}" here but "${value}" in the ${profile} profile`);
-  const stray = Object.keys(env).filter((name) => BUILD_VARIABLE.test(name) && !(name in wanted)).sort()
-    .map((name) => `${name} is set here ("${env[name]}") but is not in the ${profile} profile`);
+  const stray = Object.keys(env).filter((name) => BUILD_VARIABLE.test(name) && !(name in wanted) && !SERVICE_VARIABLE(name)).sort()
+    .map((name) => TEST_ONLY.includes(name)
+      ? `${name} is set here ("${env[name]}"); it makes a test or simulator build and is never allowed in a release build`
+      : `${name} is set here ("${env[name]}") but is not in the ${profile} profile and is not known service configuration`);
   if (differs.length || stray.length) refuse(`the environment does not match the ${profile} profile in eas.json; the app built would not be the app that was tested:\n${[...differs, ...stray].join('\n')}`);
+  // Service configuration. A hand build must have the required three in its shell, or the app it
+  // makes cannot sign in or sell anything. `eas build` gets them from the EAS environment instead.
+  const easEnvironment = eas.build[profile].environment ?? null;
+  const fromEas = EAS_SUPPLIES_SERVICES(command);
+  const absent = SERVICE_REQUIRED.filter((name) => !env[name]);
+  if (!fromEas && absent.length) refuse(`service configuration is missing from this environment: ${absent.join(', ')}. A build made without it has no sign-in and no purchases. \`eas build --profile ${profile}\` takes it from the EAS environment${easEnvironment ? ` "${easEnvironment}"` : ''}; a build made by hand must export the same values (for example from \`eas env:pull --environment ${easEnvironment ?? 'production'}\`)`);
+  const services = {
+    suppliedBy: fromEas ? `eas (environment ${easEnvironment ?? 'not named in the profile'})` : 'this environment',
+    // Names, and a short fingerprint of each value so two builds can be compared. Never the value.
+    set: Object.fromEntries([...SERVICE_REQUIRED, ...SERVICE_OPTIONAL].filter((name) => env[name]).sort().map((name) => [name, fingerprint(env[name])])),
+    notSet: [...SERVICE_REQUIRED, ...SERVICE_OPTIONAL].filter((name) => !env[name]).sort(),
+  };
   const names = Object.keys(wanted).sort();
   return {
+    services,
     profile, easJsonSha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
     values: Object.fromEntries(names.map((name) => [name, wanted[name]])),
     alreadySet: names.filter((name) => env[name] !== undefined), setByWrapper: names.filter((name) => env[name] === undefined),
@@ -231,14 +262,16 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
   const { repo, receipt, remove, keep } = fresh
     ? freshCheckout({ from: path.resolve(options.repo ?? scoresnap), receiptPath, fixesFile, tmpRoot, log })
     : admit({ source: path.resolve(options.source), receiptPath, fixesFile });
-  let record; let recordPath;
+  let record; let recordPath; let commandStarted = false;
   try {
     if (!fresh) warn(`WARNING: --source uses an existing checkout (${repo}). Git-ignored paths in it (ios/, node_modules, .env, .expo) are NOT checked and can change what gets built. For an archive or upload, leave --source out so a fresh checkout is made.`);
     const app = path.join(repo, 'scoresnap');
     const cwd = fs.existsSync(app) ? app : repo;
-    const flags = options.profile ? releaseFlags({ app: cwd, profile: options.profile, env }) : null;
+    const flags = options.profile ? releaseFlags({ app: cwd, profile: options.profile, env, command }) : null;
     if (!flags) warn('WARNING: no --profile given (allowed only for tests and simulator builds). The release feature flags are NOT checked. Whatever EXPO_PUBLIC_* values this environment has are what the command gets; the build record lists them.');
-    const buildVariables = Object.fromEntries(Object.keys({ ...env, ...(flags?.values ?? {}) }).filter((name) => BUILD_VARIABLE.test(name)).sort().map((name) => [name, flags?.values[name] ?? env[name]]));
+    // Every build variable the command is started with. Service configuration is recorded as a
+    // fingerprint, not a value: the record is posted on tickets.
+    const buildVariables = Object.fromEntries(Object.keys({ ...env, ...(flags?.values ?? {}) }).filter((name) => BUILD_VARIABLE.test(name)).sort().map((name) => [name, SERVICE_VARIABLE(name) ? `sha256:${fingerprint(env[name])}` : flags?.values[name] ?? env[name]]));
     const started = now();
     record = {
       schema: 'snapscore-build-record/1',
@@ -256,6 +289,7 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
     // Written before the command starts: if the record cannot be written, nothing runs.
     try { writeJson(recordPath, record); } catch (error) { refuse(`cannot write the build record ${recordPath}: ${error.message}`); }
     log(`CANDIDATE ADMITTED: ${receipt.sha} (tree ${receipt.tree}), ${receipt.suite.tests} tests, test list ${receipt.suite.testIdsSha256}. ${fresh ? 'Fresh checkout' : 'Existing checkout'}. ${flags ? `Flags: ${flags.profile} profile (${Object.entries(flags.values).map(([k, v]) => `${k}=${v}`).join(', ')})` : 'Flags: NOT CHECKED'}. Running in ${cwd}: ${command.join(' ')}`);
+    commandStarted = true;
     const result = spawn(command[0], command.slice(1), {
       cwd, stdio: 'inherit',
       env: { ...env, ...(flags?.values ?? {}), CANDIDATE_SHA: receipt.sha, CANDIDATE_TREE: receipt.tree, CANDIDATE_RECEIPT: receiptPath, CANDIDATE_CHECKOUT: repo, CANDIDATE_BUILD_RECORD: recordPath },
@@ -271,7 +305,9 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
     if (result.error) refuse(`could not start the command: ${result.error.message}`);
     return result.status ?? 1;
   } finally {
-    if (fresh && options.keep) { keep(); log(`KEPT: the fresh checkout is at ${repo}. No later run removes it; remove it yourself with: git worktree remove --force ${repo}`); }
+    // --keep keeps what a command produced. A run refused before its command started has produced
+    // nothing, so its checkout is removed whatever was asked.
+    if (fresh && options.keep && commandStarted) { keep(); log(`KEPT: the fresh checkout is at ${repo}. No later run removes it; remove it yourself with: git worktree remove --force ${repo}`); }
     else if (fresh) remove();
     if (record && recordPath && record.endedAt) {
       record.kept = Boolean(fresh && options.keep);
@@ -282,7 +318,7 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
   }
 }
 
-module.exports = { looksLikeStoreCommand, REQUIRED_RELEASE_FLAGS, releaseFlags, runOnCandidate, admit, freshCheckout, findLeftBehind, buildEnvironment };
+module.exports = { looksLikeStoreCommand, REQUIRED_RELEASE_FLAGS, SERVICE_REQUIRED, SERVICE_OPTIONAL, TEST_ONLY, releaseFlags, runOnCandidate, admit, freshCheckout, findLeftBehind, buildEnvironment };
 if (require.main === module) {
   try { process.exitCode = runOnCandidate(process.argv.slice(2)); } catch (error) {
     if (!(error instanceof Refusal)) throw error;
