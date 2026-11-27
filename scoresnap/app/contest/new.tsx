@@ -50,8 +50,7 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
-import { setupTargets, SETUP_MIN_TARGET_PX, modalSheetSafeEdges, WIZARD_FOOTER_FADE_PX, WIZARD_END_SPACE_PX, wizardFooterFadeColors } from "../../src/ui/tournament-setup-layout";
-import { LinearGradient } from "expo-linear-gradient";
+import { setupTargets, SETUP_MIN_TARGET_PX, modalSheetSafeEdges, WIZARD_END_SPACE_PX } from "../../src/ui/tournament-setup-layout";
 
 // AUG-1376: platform-aware setup tap-target styles. Android widens every control to 48dp
 // (device-layout gate rule 5); iOS/web keep the 44pt baseline. Built once at module scope.
@@ -1319,15 +1318,6 @@ export default function NewContestScreen() {
 
         <View style={{ height: WIZARD_END_SPACE_PX }} />
       </ScrollView>
-      {/* The list fades into the footer instead of ending at a hard edge that slices a card. */}
-      <LinearGradient
-        testID="contest-footer-fade"
-        pointerEvents="none"
-        accessible={false}
-        importantForAccessibility="no-hide-descendants"
-        colors={wizardFooterFadeColors(COLORS.bg)}
-        style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: WIZARD_FOOTER_FADE_PX }}
-      />
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation */}
