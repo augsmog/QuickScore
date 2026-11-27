@@ -53,7 +53,7 @@ test('the release profiles do not set the client id, so this gate decides what t
 test('the layout gate has a per-PR sign-in checkpoint that asserts the Google button is absent', () => {
   const yaml = require('js-yaml');
   const config = JSON.parse(fs.readFileSync('e2e/device-layout/config/device-layout.config.json', 'utf8'));
-  expect(config.flows.find((f) => f.id === 'sign-in')).toEqual({ id: 'sign-in', cadence: 'per-pr', checkpoints: ['options'] });
+  expect(config.flows.find((f) => f.id === 'sign-in')).toEqual({ id: 'sign-in', cadence: 'per-pr', checkpoints: ['options', 'email form'] });
   const [, steps] = yaml.loadAll(fs.readFileSync('../.maestro/flows/device-layout/sign-in/00-options.yaml', 'utf8'));
   const absent = steps.filter((s) => s.assertNotVisible).map((s) => s.assertNotVisible);
   // By the id the screen gives the button, and by its words, in case the id is ever dropped.
@@ -67,4 +67,22 @@ test('the layout gate has a per-PR sign-in checkpoint that asserts the Google bu
   expect(wait.find((c) => c.openLink).openLink).toBe('snapscore://auth/sign-in');
   expect(wait.find((c) => c.extendedWaitUntil).extendedWaitUntil.visible).toBe('Create Account');
   expect(fs.readFileSync('app/auth/sign-in.tsx', 'utf8')).toMatch(/^\s*Create Account\s*$/m);
+});
+
+// With Google hidden, email and password is the only route besides Apple; the gate captures that form.
+test('the layout gate captures the email and password form, reached from the options screen', () => {
+  const yaml = require('js-yaml');
+  const [, steps] = yaml.loadAll(fs.readFileSync('../.maestro/flows/device-layout/sign-in/01-email-form.yaml', 'utf8'));
+  const src = fs.readFileSync('app/auth/sign-in.tsx', 'utf8');
+  // A continuation: it does not relaunch the app, and it opens by checking it is on the options screen.
+  expect(steps.some((s) => s.launchApp)).toBe(false);
+  expect(steps[0]).toEqual({ assertVisible: 'Create Account' });
+  // Every text it taps or waits for is text the screen has.
+  expect(steps.find((s) => s.tapOn).tapOn.replace(/\\/g, '')).toBe('Already have an account? Sign in');
+  expect(src).toMatch(/^\s*Already have an account\? Sign in\s*$/m);
+  for (const field of ['Email address', 'Password']) expect(src).toContain(`placeholder="${field}"`);
+  expect(steps.find((s) => s.extendedWaitUntil).extendedWaitUntil.visible).toBe('Email address');
+  expect(steps).toContainEqual({ assertVisible: 'Password' });
+  // It types nothing: no credentials in a capture flow.
+  expect(steps.some((s) => s.inputText)).toBe(false);
 });

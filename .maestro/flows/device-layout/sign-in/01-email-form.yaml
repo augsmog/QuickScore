@@ -1,0 +1,15 @@
+# device-layout Sign-in — checkpoint 01: the email and password form.
+# With Google hidden, email and password is the only way in besides Apple, and the only way an App
+# Review tester can use the demo account. Continue from the options screen (same session as 00),
+# open the form, and capture it with both fields on screen. No text is typed: the capture is the
+# form's layout, and nothing here signs in.
+appId: com.scoresnap.app
+---
+- assertVisible: "Create Account"
+- tapOn: "Already have an account\\? Sign in"
+- extendedWaitUntil:
+    visible: "Email address"
+    timeout: 15000
+- assertVisible: "Password"
+- assertNotVisible: "Continue with Google"
+- takeScreenshot: device-layout-sign-in-01-email-form
