@@ -23,6 +23,9 @@ opens with an `assertVisible` so a broken state fails loudly instead of capturin
 - `join/` — the Home join-code entry; asserts present when `DEVICE_LAYOUT_JOIN_FLAG=on`, hidden
   otherwise (the offline build ships the flag off).
 - `paywall/` — deep-links `snapscore://paywall?tier=td` and captures the tournament upgrade view.
+- `sign-in/` — deep-links `snapscore://auth/sign-in` and captures the sign-in options; asserts
+  "Continue with Google" is absent (1.0.1 ships without Google sign-in; the button is shown only
+  when the build has a Google client id) and, on iOS, that "Continue with Apple" is present.
 
 ## Profiles & large text
 

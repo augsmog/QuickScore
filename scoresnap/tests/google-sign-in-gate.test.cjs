@@ -48,3 +48,23 @@ test('the release profiles do not set the client id, so this gate decides what t
   const eas = require('../eas.json');
   for (const profile of ['testflight', 'production']) expect(eas.build[profile].env.EXPO_PUBLIC_GOOGLE_CLIENT_ID).toBeUndefined();
 });
+
+// The layout gate captures the sign-in screen and refuses a capture that shows the Google button.
+test('the layout gate has a per-PR sign-in checkpoint that asserts the Google button is absent', () => {
+  const yaml = require('js-yaml');
+  const config = JSON.parse(fs.readFileSync('e2e/device-layout/config/device-layout.config.json', 'utf8'));
+  expect(config.flows.find((f) => f.id === 'sign-in')).toEqual({ id: 'sign-in', cadence: 'per-pr', checkpoints: ['options'] });
+  const [, steps] = yaml.loadAll(fs.readFileSync('../.maestro/flows/device-layout/sign-in/00-options.yaml', 'utf8'));
+  const absent = steps.filter((s) => s.assertNotVisible).map((s) => s.assertNotVisible);
+  // By the id the screen gives the button, and by its words, in case the id is ever dropped.
+  expect(absent).toEqual([{ id: 'sign-in-google' }, 'Continue with Google']);
+  expect(fs.readFileSync('app/auth/sign-in.tsx', 'utf8')).toMatch(/testID="sign-in-google"/);
+  // The absence is asserted before the capture, so a capture cannot exist without it.
+  const order = steps.map((s) => Object.keys(s)[0]);
+  expect(order.lastIndexOf('assertNotVisible')).toBeLessThan(order.indexOf('takeScreenshot'));
+  // The screen is reached and recognised by something both platforms show.
+  const wait = steps.find((s) => s.retry).retry.commands;
+  expect(wait.find((c) => c.openLink).openLink).toBe('snapscore://auth/sign-in');
+  expect(wait.find((c) => c.extendedWaitUntil).extendedWaitUntil.visible).toBe('Create Account');
+  expect(fs.readFileSync('app/auth/sign-in.tsx', 'utf8')).toMatch(/^\s*Create Account\s*$/m);
+});

@@ -18,7 +18,8 @@
     { "id": "new-contest", "cadence": "per-pr", "checkpoints": ["empty wizard", "name entry", "multi day on", "rounds 3", "rounds 4 scrolled", "team mode on", "four players", "last player above footer"], "scrollEnd": ["last player above footer"] },
     { "id": "join", "cadence": "per-pr", "checkpoints": ["entry"] },
     { "id": "leagues", "cadence": "nightly", "checkpoints": ["empty/loading/error", "create", "roster/event mapping", "leaderboard"] },
-    { "id": "paywall", "cadence": "per-pr", "checkpoints": ["tier td"] }
+    { "id": "paywall", "cadence": "per-pr", "checkpoints": ["tier td"] },
+    { "id": "sign-in", "cadence": "per-pr", "checkpoints": ["options"] }
   ],
   "rules": [
     { "id": 1, "name": "overlap", "overlapTol": 1, "textOverlapTol": 2 },
