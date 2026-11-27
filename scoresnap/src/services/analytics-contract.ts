@@ -3,7 +3,8 @@
 const entries: Record<string, { files: string[]; allowedProps: string[] }> = {
   "app_opened": {
     "files": [
-      "app/_layout.tsx"
+      "app/_layout.tsx",
+      "src/services/app-opened.ts"
     ],
     "allowedProps": []
   },

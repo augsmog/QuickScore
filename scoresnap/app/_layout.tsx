@@ -35,7 +35,8 @@ import "../global.css";
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { assertNoDefaultPii, assertReplayMask, scrubSentryEvent, sentryReplayMask, sentrySendDefaultPii } from "../src/config/sentry-privacy";
-import { PostHogAppProvider } from "../src/config/posthog";
+import { PostHogAppProvider, posthog } from "../src/config/posthog";
+import { reportAppOpened } from "../src/services/app-opened";
 import { screenNameFromSegments } from "../src/services/analytics-screen";
 import { webAnalytics } from "../src/services/analytics";
 import { shouldShowAccountHandoff } from "../src/services/account-handoff-screen";
@@ -234,9 +235,10 @@ function RootLayoutNav() {
   const screenName = screenNameFromSegments(segments);
 
   useEffect(() => {
-    if (Platform.OS !== "web" || reportedAppOpen.current) return;
+    if (reportedAppOpen.current) return;
     reportedAppOpen.current = true;
-    void webAnalytics.capture("app_opened");
+    if (Platform.OS === "web") void webAnalytics.capture("app_opened");
+    else reportAppOpened(posthog);
   }, []);
 
   useEffect(() => {
