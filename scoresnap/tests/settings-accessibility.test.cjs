@@ -71,14 +71,25 @@ const text = node => node == null || typeof node === 'boolean' ? '' : typeof nod
 
 const control = (tree, label) => nodes(tree).find(node => node.props?.accessibilityLabel === label);
 
+const hasSwitch = node => nodes(node.props.children).some(child => child.type === 'Switch');
+
 test.each(['ios', 'web'])('all expanded Settings controls have explicit names and roles on %s', platform => {
   const screen = settingsScreen(platform);
-  const controls = nodes(screen.render()).filter(node => ['Pressable', 'Switch'].includes(node.type));
+  // iPhone: every control is a pressable; a switch row is one. Web: the browser's own switch input
+  // is the control (tests/settings-accessibility-web.test.cjs renders it for real).
+  const controls = nodes(screen.render()).filter(node => node.type === 'Pressable' || (platform === 'web' && node.type === 'Switch'));
   expect(controls.length).toBeGreaterThan(20);
   for (const node of controls) {
     expect(node.props.accessibilityLabel).toEqual(expect.any(String));
     expect(node.props.accessibilityLabel.trim().length).toBeGreaterThan(0);
-    expect(node.props.accessibilityRole).toBe(node.type === 'Switch' ? (platform === 'web' ? undefined : 'switch') : 'button');
+    expect(node.props.accessibilityRole).toBe(node.type === 'Switch' ? undefined : hasSwitch(node) ? 'switch' : 'button');
+  }
+  // iPhone: the row is the one control. The native switch inside it is not a second, unnamed one.
+  for (const toggle of platform === 'web' ? [] : nodes(screen.render()).filter(node => node.type === 'Switch')) {
+    expect(toggle.props.accessible).toBe(false);
+    expect(toggle.props.importantForAccessibility).toBe('no');
+    expect(toggle.props.accessibilityElementsHidden).toBe(true);
+    expect(toggle.props.accessibilityLabel).toBeUndefined();
   }
   expect(control(screen.render(), platform === 'web' ? 'Score Display, Gross (74, 82)' : 'Score Display').props.accessibilityValue).toEqual({ text: 'Gross (74, 82)' });
   expect(control(screen.render(), platform === 'web' ? 'Distance Unit, Yards' : 'Distance Unit').props.accessibilityValue).toEqual({ text: 'Yards' });
@@ -86,14 +97,20 @@ test.each(['ios', 'web'])('all expanded Settings controls have explicit names an
   expect(screen.deletion).not.toHaveBeenCalled();
 });
 
-test('switch name, hint and checked state follow the real row props after a setting change', () => {
+test('switch name, hint and checked state follow the real row; pressing the row changes the setting', () => {
   const screen = settingsScreen();
   const row = control(screen.render(), 'Show Net Scores');
+  expect(row.type).toBe('Pressable');
+  expect(row.props.accessibilityRole).toBe('switch');
   expect(row.props.accessibilityState).toEqual({ checked: false });
   expect(row.props.accessibilityHint).toBe('Apply handicap strokes to displayed scores');
-  row.props.onValueChange(true);
+  row.props.onPress(); // a tap anywhere on the row
   expect(screen.settings.updateSetting).toHaveBeenCalledWith('showNetScores', true);
-  expect(control(screen.render(), 'Show Net Scores').props.accessibilityState).toEqual({ checked: true });
+  const after = control(screen.render(), 'Show Net Scores');
+  expect(after.props.accessibilityState).toEqual({ checked: true });
+  expect(nodes(after.props.children).find(node => node.type === 'Switch').props.value).toBe(true);
+  after.props.onPress();
+  expect(screen.settings.updateSetting).toHaveBeenLastCalledWith('showNetScores', false);
 });
 
 test.each(['ios', 'web'])('delete is in Account before preferences; repeated open/cancel never deletes on %s', platform => {
@@ -145,35 +162,56 @@ test('existing single Profile gear is named Settings and remains in first conten
 });
 
 
-// Build 33: on iPhone the 44pt target used to be put on the Switch itself, and iOS painted the
-// switch's background on that whole 51x44 box (a rounded rectangle sticking out below every
-// switch on the owner's phone). On iPhone the target is now the plain slot around a stock switch;
-// on web the switch still owns it.
-test.each(['ios', 'web'])('every switch has a 44px target on %s: its slot on iPhone, itself on web', platform => {
+// Build 33: on iPhone the 44pt target was put on the Switch itself, and iOS painted the switch's
+// background on that whole 51x44 box. A plain View around the switch (the first fix) had the size
+// but did nothing when touched. The target is now real: the whole row is the control.
+test('on iPhone every switch row is a 44pt control that toggles when pressed', () => {
+  const platform = 'ios';
   const screen = settingsScreen(platform);
   const tree = screen.render();
   const switches = nodes(tree).filter(node => node.type === 'Switch');
   expect(switches).toHaveLength(14);
-  const slots = nodes(tree).filter(node => node.type === 'View' && [node.props.children].flat().some(child => child?.type === 'Switch'));
-  expect(slots).toHaveLength(14);
-  for (const slot of slots) {
-    expect(slot.props.style.minWidth).toBeGreaterThanOrEqual(44);
-    expect(slot.props.style.minHeight).toBeGreaterThanOrEqual(44);
-    expect(slot.props.style.backgroundColor).toBeUndefined();
-  }
-  for (const toggle of switches) {
+  const rows = nodes(tree).filter(node => node.type === 'Pressable' && hasSwitch(node));
+  expect(rows).toHaveLength(14);
+  for (const row of rows) {
+    const style = Object.assign({}, ...[row.props.style].flat());
+    expect(style.minHeight).toBeGreaterThanOrEqual(44);
+    expect(row.props.accessibilityRole).toBe('switch');
+    const label = row.props.accessibilityLabel;
+    const toggle = () => nodes(control(screen.render(), label).props.children).find(node => node.type === 'Switch');
+    // nothing sized or painted between the row and the stock switch
+    const wrappers = nodes(row.props.children).filter(node => node.type === 'View' && [node.props.children].flat().some(child => child?.type === 'Switch'));
+    expect(wrappers).toHaveLength(0);
     if (platform === 'ios') {
-      expect(toggle.props.style).toBeUndefined();
-      expect(toggle.props.thumbColor).toBeUndefined();
-      expect(toggle.props.ios_backgroundColor).toBeUndefined();
-    } else {
-      expect(toggle.props.style.minWidth).toBeGreaterThanOrEqual(44);
-      expect(toggle.props.style.minHeight).toBeGreaterThanOrEqual(44);
+      expect(toggle().props.style).toBeUndefined();
+      expect(toggle().props.thumbColor).toBeUndefined();
+      expect(toggle().props.ios_backgroundColor).toBeUndefined();
     }
-    const before = toggle.props.value;
-    toggle.props.onValueChange(!before);
-    expect(control(screen.render(), toggle.props.accessibilityLabel).props.value).toBe(!before);
+    // press path 1: the row
+    const before = toggle().props.value;
+    expect(control(screen.render(), label).props.accessibilityState).toEqual({ checked: before });
+    control(screen.render(), label).props.onPress();
+    expect(toggle().props.value).toBe(!before);
+    expect(control(screen.render(), label).props.accessibilityState).toEqual({ checked: !before });
+    // press path 2: the native switch itself
+    toggle().props.onValueChange(before);
+    expect(toggle().props.value).toBe(before);
   }
   const safeScreen = nodes(tree).find(node => node.type === 'SafeScreen');
   expect(safeScreen.props.edges).toEqual(expect.arrayContaining(['top', 'bottom', 'left', 'right']));
 });
+
+test('on web the switch input itself carries the 44px target and the change', () => {
+  const screen = settingsScreen('web');
+  const switches = nodes(screen.render()).filter(node => node.type === 'Switch');
+  expect(switches).toHaveLength(14);
+  expect(nodes(screen.render()).filter(node => node.type === 'Pressable' && hasSwitch(node))).toHaveLength(0);
+  for (const toggle of switches) {
+    expect(toggle.props.style.minWidth).toBeGreaterThanOrEqual(44);
+    expect(toggle.props.style.minHeight).toBeGreaterThanOrEqual(44);
+    const before = toggle.props.value;
+    toggle.props.onValueChange(!before);
+    expect(control(screen.render(), toggle.props.accessibilityLabel).props.value).toBe(!before);
+  }
+});
+

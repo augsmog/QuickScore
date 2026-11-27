@@ -13,11 +13,6 @@ export const SETTINGS_SWITCH_TARGET = {
   minHeight: Math.max(SETTINGS_MIN_TARGET_PX, SETTINGS_SWITCH_SIZE.height),
 };
 
-// The slot that carries the 44pt touch target around a switch. Never give the size or a
-// background to the Switch itself on iPhone: iOS paints the background on the whole box, and a
-// 44pt-tall box shows as a rounded rectangle sticking out below the 31pt switch (build 33).
-export const SETTINGS_SWITCH_SLOT = { ...SETTINGS_SWITCH_TARGET, alignItems: 'center' as const, justifyContent: 'center' as const };
-
 // How a Settings switch looks. iPhone: the stock switch; the brand colour is the ON track only.
 // Nothing is set for the off state and nothing is ever painted behind the switch (27 Nov:
 // ios_backgroundColor showed as a crescent past the iOS 26 switch; trackColor.false left the off

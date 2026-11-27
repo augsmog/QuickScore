@@ -30,17 +30,19 @@ test('Android and web keep what they had', () => {
   }
 });
 
-test('the 44pt touch target is a plain slot around the switch: no background, no radius', () => {
-  const at = screen.indexOf('<View style={SETTINGS_SWITCH_SLOT}>');
-  expect(at).toBeGreaterThan(-1);
-  expect(screen.slice(at, screen.indexOf('</View>', at))).toContain('<Switch');
-  const slot = m.exports.SETTINGS_SWITCH_SLOT;
-  expect(slot).toEqual({ minWidth: 51, minHeight: 44, alignItems: 'center', justifyContent: 'center' });
+test('the 44pt touch target is the row itself, a pressable switch; nothing sits between it and the stock switch', () => {
+  const row = screen.slice(screen.indexOf('// The whole row is the switch'), screen.indexOf('function PickerRow'));
+  expect(row).toMatch(/<AnimatedPressable\s+accessibilityRole="switch"/);
+  expect(row).toContain('onPress={() => onToggle(!value)}');
+  expect(row).toContain('accessibilityState={{ checked: value }}');
+  expect(row).toContain('minHeight: 44');
+  expect(row).not.toMatch(/<View[^>]*>\s*<Switch/);
+  expect(m.exports).not.toHaveProperty('SETTINGS_SWITCH_SLOT');
 });
 
 test('the screen takes the switch look from the one helper and sets none of it by hand', () => {
   expect(screen).toContain('{...settingsSwitchProps(Platform.OS, value, COLORS)}');
   const start = screen.indexOf('<Switch'); const tag = screen.slice(start, screen.indexOf('/>', start));
   for (const prop of ['style=', 'thumbColor=', 'trackColor=', 'ios_backgroundColor=']) expect(tag).not.toContain(prop);
-  expect(screen.split('<Switch').length - 1).toBe(1); // every Settings toggle goes through ToggleRow
+  expect(screen.split('<Switch').length - 1).toBe(2); // ToggleRow only: its iPhone shape and its web shape
 });

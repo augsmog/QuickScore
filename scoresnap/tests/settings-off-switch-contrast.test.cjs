@@ -23,17 +23,13 @@ test('iPhone switch: the ON colour and nothing else, in either state', () => {
   expect(layout).not.toHaveProperty('SETTINGS_SWITCH_OFF_TRACK');
 });
 
-test('the slot around the switch paints nothing', () => {
-  for (const key of ['backgroundColor', 'borderWidth', 'borderColor', 'borderRadius']) expect(layout.SETTINGS_SWITCH_SLOT).not.toHaveProperty(key);
-});
-
 test('every Settings row is white with a hairline edge, on the cream page', () => {
   expect(layout.settingsRowSurface(COLORS)).toEqual({ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: COLORS.border });
   expect(COLORS.bg).toBe('#FAF4E8');
   expect(screen).not.toContain('backgroundColor: COLORS.surfaceLow');
-  expect(screen.split('...SETTINGS_ROW_SURFACE').length - 1).toBe(12); // all twelve rows and cards
-  const row = screen.slice(screen.indexOf('function ToggleRow'), screen.indexOf('<Switch'));
-  expect(row).toContain('...SETTINGS_ROW_SURFACE');
+  expect(screen.split('...SETTINGS_ROW_SURFACE').length - 1).toBe(13); // twelve rows and cards; the toggle row is written twice (iPhone, web)
+  const row = screen.slice(screen.indexOf('function ToggleRow'), screen.indexOf('function PickerRow'));
+  expect(row.split('...SETTINGS_ROW_SURFACE').length - 1).toBe(2); // iPhone shape and web shape
 });
 
 test('what the numbers are on a white row', () => {

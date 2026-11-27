@@ -3,7 +3,6 @@ import { SafeScreen } from "../src/ui/SafeScreen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   settingsLayout,
-  SETTINGS_SWITCH_SLOT,
   settingsSwitchProps,
   settingsRowSurface,
   SETTINGS_SECTION_HEADER_MARGIN_TOP,
@@ -97,8 +96,50 @@ function ToggleRow({
   value: boolean;
   onToggle: (v: boolean) => void;
 }) {
+  // Web keeps its own shape: the browser's switch input is already the one named, focusable
+  // control, so the row around it is not a second one.
+  if (Platform.OS === "web") {
+    return (
+      <View
+        style={{
+          ...SETTINGS_ROW_SURFACE,
+          borderRadius: RADII.lg,
+          paddingHorizontal: 16,
+          paddingVertical: compact ? 2 : 14,
+          minHeight: 44,
+          marginBottom: 6,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        {icon}
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>{label}</Text>
+          {sublabel && (
+            <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{sublabel}</Text>
+          )}
+        </View>
+        <Switch
+          {...settingsSwitchProps(Platform.OS, value, COLORS)}
+          accessibilityLabel={label}
+          accessibilityHint={sublabel}
+          value={value}
+          onValueChange={onToggle}
+        />
+      </View>
+    );
+  }
+  // The whole row is the switch: a tap anywhere on it toggles, so the target is the row (44pt or
+  // more), and assistive technology meets one named control. The native switch inside stays stock:
+  // no size, no wrapper, nothing painted behind it.
   return (
-    <View
+    <AnimatedPressable
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityHint={sublabel}
+      accessibilityState={{ checked: value }}
+      onPress={() => onToggle(!value)}
       style={{
         ...SETTINGS_ROW_SURFACE,
         borderRadius: RADII.lg,
@@ -129,18 +170,15 @@ function ToggleRow({
           </Text>
         )}
       </View>
-      <View style={SETTINGS_SWITCH_SLOT}>
-        <Switch
-          {...settingsSwitchProps(Platform.OS, value, COLORS)}
-          accessibilityRole={Platform.OS === "web" ? undefined : "switch"}
-          accessibilityLabel={label}
-          accessibilityHint={sublabel}
-          accessibilityState={Platform.OS === "web" ? undefined : { checked: value }}
-          value={value}
-          onValueChange={onToggle}
-        />
-      </View>
-    </View>
+      <Switch
+        {...settingsSwitchProps(Platform.OS, value, COLORS)}
+        accessible={false}
+        importantForAccessibility="no"
+        accessibilityElementsHidden
+        value={value}
+        onValueChange={onToggle}
+      />
+    </AnimatedPressable>
   );
 }
 
@@ -755,8 +793,8 @@ export default function SettingsScreen() {
             style={{ minHeight: 44, ...SETTINGS_ROW_SURFACE, borderRadius: RADII.lg, paddingVertical: 10, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
             <Trophy size={18} color={COLORS.primary} />
             <View style={{ flex: 1 }}>
-              <Text numberOfLines={1} style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>{C.td}</Text>
-              <Text numberOfLines={1} style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{C.tdBodyNoPro}</Text>
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>{C.td}</Text>
+              <Text style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{C.tdBodyNoPro}</Text>
             </View>
             <ChevronRight size={14} color={COLORS.textDim} />
           </AnimatedPressable>
