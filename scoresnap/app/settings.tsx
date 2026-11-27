@@ -5,6 +5,7 @@ import {
   settingsLayout,
   settingsSwitchProps,
   settingsRowSurface,
+  SETTINGS_VALUE_COLUMN,
   SETTINGS_SECTION_HEADER_MARGIN_TOP,
   SETTINGS_SCORING_HEADER_MARGIN_TOP,
 } from "../src/ui/settings-layout";
@@ -236,7 +237,7 @@ function PickerRow({
       <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text, flex: 1 }}>
         {label}
       </Text>
-      <Text style={{ fontFamily: FONTS.medium, fontSize: 13, color: COLORS.primary }}>
+      <Text style={{ fontFamily: FONTS.medium, fontSize: 13, color: COLORS.primary, ...SETTINGS_VALUE_COLUMN }}>
         {displayValue}
       </Text>
       <ChevronRight size={14} color={COLORS.textDim} />
@@ -289,7 +290,7 @@ function NumberRow({
           </Text>
         )}
       </View>
-      <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 16, color: COLORS.primary }}>
+      <Text style={{ fontFamily: FONTS.score, fontVariant: ['tabular-nums'], fontSize: 16, color: COLORS.primary, ...SETTINGS_VALUE_COLUMN }}>
         {value}
       </Text>
       <ChevronRight size={14} color={COLORS.textDim} />

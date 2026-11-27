@@ -33,6 +33,11 @@ export function settingsRowSurface(colors: { border: string }) {
   return { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border };
 }
 
+// The value on the right of a row ("White", "Tournament Director", "5"). It may take at most half
+// the row, gives way before the label does, and wraps right-aligned, so at large text sizes on a
+// narrow phone the row grows taller instead of the value running off it.
+export const SETTINGS_VALUE_COLUMN = { flexShrink: 1, maxWidth: '50%' as const, textAlign: 'right' as const };
+
 export function settingsLayout(insets: { top: number; bottom: number; left?: number; right?: number }) {
   const left = insets.left ?? 0;
   const right = insets.right ?? 0;
