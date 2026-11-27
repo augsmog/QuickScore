@@ -227,8 +227,10 @@ run_profile() {
   print_timing_summary "$prof" "$OUTDIR"
 
   ELAPSED=$(( $(date +%s) - START_TS ))
-  if [ -n "${DEVICE_LAYOUT_LARGE_TEXT:-}" ] && [ "$ELAPSED" -lt "$AX_BUDGET_S" ]; then
-    echo "--- $prof AX3 large-text pass (elapsed ${ELAPSED}s < ${AX_BUDGET_S}s) ---"
+  # AUG-1601: with DEVICE_LAYOUT_LARGE_TEXT_REQUIRED set, the largest-text pass always runs. Without
+  # it the pass is skipped when the run is already over the time budget, and a skipped pass is green.
+  if [ -n "${DEVICE_LAYOUT_LARGE_TEXT:-}" ] && { [ -n "${DEVICE_LAYOUT_LARGE_TEXT_REQUIRED:-}" ] || [ "$ELAPSED" -lt "$AX_BUDGET_S" ]; }; then
+    echo "--- $prof AX3 large-text pass (elapsed ${ELAPSED}s; budget ${AX_BUDGET_S}s; required=${DEVICE_LAYOUT_LARGE_TEXT_REQUIRED:-no}) ---"
     if [ -n "$UDID" ] && command -v xcrun >/dev/null 2>&1; then
       xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large >/dev/null 2>&1 || true
     fi
