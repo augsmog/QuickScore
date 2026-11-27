@@ -57,3 +57,4 @@ dist-ios/
 /dist-web-scorecard/
 /dist-web-sharing/
 .env
+dist-site/
