@@ -1,7 +1,7 @@
 import { showAlert } from "@/services/platform-alert";
 import { SafeScreen } from "../src/ui/SafeScreen";
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Alert, Linking, Platform, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert, Linking, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { getPackages, purchasePackage, restorePurchases, syncProStatus } from '../src/services/purchases';
@@ -18,7 +18,7 @@ export default function PaywallScreen() {
   const router = useRouter();
   const { tier: target } = useLocalSearchParams<{ tier?: string }>();
   const tier = useScanStore(s => s.tier);
-  const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
+  useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
   // AUG-1263: the Pro row is hidden while pro_enabled is off (below), so never default-select it.
   const [selection, setSelection] = useState<PaywallSelection>({ tier: target === 'td' || !proEnabled() ? 'td' : 'pro', period: 'year' });
   const [packages, setPackages] = useState<Awaited<ReturnType<typeof getPackages>>>({ annual: null, monthly: null, td_annual: null, td_monthly: null });
@@ -43,16 +43,12 @@ export default function PaywallScreen() {
     catch (e: unknown) { showAlert(C.subscription, e instanceof Error ? e.message || C.retry : C.retry); }
     finally { setBusy(false); }
   }
-  // Draw no text until Inter is in. Android measures a line with the fallback font and does not
-  // measure again when Inter arrives, so text drawn early came out cut ("Fre", "$79.99/y…",
-  // "Cancel anytim"). If the fonts fail to load the paywall is still drawn, in the fallback font.
-  if (!fontsLoaded && !fontError) return <SafeScreen style={s.safe} testID="paywall-loading-fonts" />;
   const v = buildPaywallView(packages, eligible, tier, selection, proEnabled());
   const tag = (label: string) => <Text style={[s.tag, label === C.current && s.current]}>{label}</Text>;
   return <SafeScreen style={s.safe}>
     <ScrollView contentContainerStyle={s.content}>
       <View style={s.top}>
-        <Pressable testID="paywall-close" accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={s.closeButton}><PaywallIcon name="close" /></Pressable>
         <Pressable accessibilityRole="button" disabled={busy} style={s.topLink} onPress={() => act(async () => {
           const restored = await restorePurchases();
           showAlert(C.restore, restored ? C.restored : C.nothing);
@@ -63,23 +59,19 @@ export default function PaywallScreen() {
         <PaywallIcon name={value.icon} /><View style={{ flex: 1, gap: 2 }}><Text style={s.valueTitle}>{value.title}</Text>{!!value.body && <Text style={s.body}>{value.body}</Text>}</View>
       </View>)}</View>
       <Text style={s.body}>{v.scans}</Text>
-      <View style={{ gap: 8 }}>{v.rows.map(row => {
-        const title = <View style={[s.titleRow, row.tier === "td" && s.tdPlanTitle]}><Text style={s.planTitle}>{row.name}</Text>{!!row.tag && tag(row.tag)}</View>;
-        const price = row.price ? <View style={s.priceCol}><Text style={s.price} numberOfLines={1}>{row.price}</Text>{!!row.trial && tag(row.trial)}</View> : null;
-        return <Pressable key={row.tier} accessibilityRole="radio" accessibilityState={{ checked: row.selected }} aria-checked={row.selected}
+      <View style={{ gap: 8 }}>{v.rows.map(row => <Pressable key={row.tier} accessibilityRole="radio" accessibilityState={{ checked: row.selected }} aria-checked={row.selected}
         onPress={() => setSelection({ ...selection, tier: row.tier })} style={[s.plan, row.selected && s.selected]}>
         <PaywallRadio selected={row.selected} />
         <View style={{ flex: 1, gap: 2 }}>
-          {row.tier === "td" ? <View style={s.tdTitleAndPrice}>{title}{price}</View> : title}
+          <View style={s.titleRow}><Text style={s.planTitle}>{row.name}</Text>{!!row.tag && tag(row.tag)}</View>
           {!!row.body && <Text style={s.body}>{row.body}</Text>}
           {!!row.alternate && <Pressable accessibilityRole="button" style={s.alternateLink} onPress={event => { event.stopPropagation(); setSelection({ tier: row.tier, period: selection.period === 'year' ? 'month' : 'year' }); }}><Text style={s.body}>{row.alternate}</Text></Pressable>}
         </View>
-        {row.tier !== "td" && price}
-      </Pressable>;
-      })}</View>
+        {!!row.price && <View style={{ alignItems: 'flex-end', gap: 4 }}><Text style={s.price}>{row.price}</Text>{!!row.trial && tag(row.trial)}</View>}
+      </Pressable>)}</View>
       <View style={{ gap: 6, alignItems: 'center' }}>
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || v.disabled }} disabled={busy || v.disabled} style={[s.cta, (busy || v.disabled) && { opacity: 0.55 }]}
-          onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); posthog?.capture('subscription_purchase_completed', { selected_tier: selection.tier, billing_period: selection.period }); router.back(); } })}><Text style={s.ctaText} numberOfLines={1} adjustsFontSizeToFit>{v.cta}</Text></Pressable>
+          onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); posthog?.capture('subscription_purchase_completed', { selected_tier: selection.tier, billing_period: selection.period }); router.back(); } })}><Text style={s.ctaText}>{v.cta}</Text></Pressable>
         {!!v.billed && <Text style={s.billed}>{v.billed}</Text>}
         {!!v.oneTrial && <Text style={s.small}>{v.oneTrial}</Text>}
       </View>
@@ -92,16 +84,14 @@ export default function PaywallScreen() {
     </ScrollView>
   </SafeScreen>;
 }
-// Keep the native focus/touch bounds large enough on Android without changing iOS layout.
-const PAYWALL_TOUCH_SIZE = Platform.OS === 'android' ? 48 : 44;
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: P.paper },
   content: { paddingHorizontal: P.padding, paddingBottom: 10, gap: P.gap },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: PAYWALL_TOUCH_SIZE, marginTop: 2 },
-  closeButton: { minWidth: PAYWALL_TOUCH_SIZE, minHeight: PAYWALL_TOUCH_SIZE, alignItems: 'center', justifyContent: 'center' },
-  topLink: { minHeight: PAYWALL_TOUCH_SIZE, justifyContent: 'center' },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44, marginTop: 2 },
+  closeButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  topLink: { minHeight: 44, justifyContent: 'center' },
   footerLink: { minHeight: 44, justifyContent: 'center' },
-  alternateLink: { minHeight: PAYWALL_TOUCH_SIZE, justifyContent: 'center' },
+  alternateLink: { minHeight: 44, justifyContent: 'center' },
   link: { fontFamily: P.medium, fontSize: 12, color: P.green, textDecorationLine: 'underline' },
   eyebrow: { fontFamily: P.semibold, fontSize: 12, letterSpacing: 1.2, color: P.muted },
   headline: { fontFamily: P.bold, fontSize: 28, lineHeight: 32, letterSpacing: -0.6, color: P.ink },
@@ -111,17 +101,10 @@ const s = StyleSheet.create({
   body: { fontFamily: P.regular, fontSize: 13, lineHeight: 18, color: P.muted },
   plan: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: P.radius, backgroundColor: P.card, borderColor: P.rule, borderWidth: 1 },
   selected: { borderColor: P.green, borderWidth: 2 },
-  // flexShrink/flexWrap so at large font scale (android-compact 1.3x) the plan name keeps its full
-  // text ("Free" not "Fre") and its badge wraps instead of clipping (AUG-1376 r7).
-  tdTitleAndPrice: { flexDirection: "row", alignItems: "center", gap: 12 },
-  tdPlanTitle: { flex: 1, minWidth: 0 },
-  titleRow: { flexDirection: 'row', gap: 8, alignItems: 'center', flexShrink: 1, flexWrap: 'wrap' },
-  planTitle: { fontFamily: P.semibold, fontSize: 16, color: P.ink, flexShrink: 1 },
+  titleRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  planTitle: { fontFamily: P.semibold, fontSize: 16, color: P.ink },
   tag: { fontFamily: P.semibold, fontSize: 11, color: P.green, backgroundColor: P.tint, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
   current: { color: P.muted, backgroundColor: P.neutral },
-  // The price column never shrinks, so the full "$price/interval" string ("$79.99/year") stays
-  // intact; the flexible title column absorbs the crowding instead.
-  priceCol: { alignItems: 'flex-end', gap: 4, flexShrink: 0 },
   price: { fontFamily: P.bold, fontSize: 16, color: P.ink },
   cta: { height: P.ctaHeight, width: '100%', borderRadius: P.radius, backgroundColor: P.green, alignItems: 'center', justifyContent: 'center' },
   ctaText: { fontFamily: P.semibold, fontSize: 17, color: P.card },
