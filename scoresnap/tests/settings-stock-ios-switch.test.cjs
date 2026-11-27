@@ -3,8 +3,8 @@
 // on a near-white track when off. Cause (code unchanged since 16 Nov, AUG-1163 "44px targets"):
 // the Switch itself was given minHeight 44 plus ios_backgroundColor, so iOS painted that colour
 // on a 51x44 box behind a 31pt switch; and thumbColor/trackColor replaced the system colours.
-// On iPhone the switch is now the stock one: no size on it, no background, system thumb, system
-// off track, brand green only for "on". The 44pt touch target is the row's slot around it.
+// On iPhone the switch is now the stock one: no size on it, no background, system thumb, brand
+// green for "on", and (since 27 Nov) a visible off colour painted on the stock 51x31 box. The 44pt touch target is the row's slot around it.
 const fs = require('node:fs');
 const ts = require('typescript');
 
@@ -16,10 +16,12 @@ const screen = fs.readFileSync('app/settings.tsx', 'utf8');
 
 test('iPhone: a stock switch, with the brand colour only on the "on" track', () => {
   for (const value of [true, false]) {
-    expect(settingsSwitchProps('ios', value, COLORS)).toEqual({ trackColor: { true: COLORS.primary } });
+    expect(settingsSwitchProps('ios', value, COLORS)).toEqual({ trackColor: { true: COLORS.primary }, ios_backgroundColor: m.exports.SETTINGS_SWITCH_OFF_TRACK });
   }
   const props = settingsSwitchProps('ios', true, COLORS);
-  for (const key of ['style', 'thumbColor', 'ios_backgroundColor']) expect(props).not.toHaveProperty(key);
+  // The off colour came back (27 Nov, contrast: tests/settings-off-switch-contrast.test.cjs). It is
+  // safe only while the switch carries no size, which is what made the build 33 rectangle.
+  for (const key of ['style', 'thumbColor']) expect(props).not.toHaveProperty(key);
   expect(props.trackColor).not.toHaveProperty('false');
 });
 
