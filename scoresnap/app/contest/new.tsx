@@ -50,7 +50,7 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
-import { setupTargets, SETUP_MIN_TARGET_PX } from "../../src/ui/tournament-setup-layout";
+import { setupTargets, SETUP_MIN_TARGET_PX, modalSheetSafeEdges } from "../../src/ui/tournament-setup-layout";
 
 // AUG-1376: platform-aware setup tap-target styles. Android widens every control to 48dp
 // (device-layout gate rule 5); iOS/web keep the 44pt baseline. Built once at module scope.
@@ -432,7 +432,7 @@ export default function NewContestScreen() {
   };
 
   return (
-    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top", "bottom"]}>
+    <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }} edges={modalSheetSafeEdges(Platform.OS)}>
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, flexDirection: "row", alignItems: "center", gap: 12 }}>
         <AnimatedPressable

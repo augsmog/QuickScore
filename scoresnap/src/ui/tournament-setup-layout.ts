@@ -52,3 +52,16 @@ export const groupChipStyle = baseline.groupChipStyle;
 export const switchTapSlot = baseline.switchTapSlot;
 export const nameInputMinHeight = baseline.nameInputMinHeight;
 export const handicapInputBox = baseline.handicapInputBox;
+
+/**
+ * Safe-area edges for a screen presented as a modal (`presentation: "modal"`), such as New Contest.
+ *
+ * On iPhone that presentation is a sheet whose top already sits below the status bar. Applying the
+ * status-bar inset again inside it leaves dead space above the header: 59pt on an iPhone 16 Pro,
+ * which with the header's own 8pt is 67pt against the 32pt the layout gate allows (rule 4). So on
+ * iPhone the sheet applies the bottom inset only. Android and web show the same route full screen
+ * and still need the top inset. tests/new-contest-sheet-header.test.cjs pins this.
+ */
+export function modalSheetSafeEdges(platformOS?: string): readonly ('top' | 'bottom')[] {
+  return platformOS === 'ios' ? ['bottom'] : ['top', 'bottom'];
+}

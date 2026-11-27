@@ -25,7 +25,14 @@ test('tap targets are sized from the platform-aware setupTargets(Platform.OS) mi
 });
 
 test('screen root clears the bottom safe-area band for the fixed footer', () => {
-  assert.match(src, /<SafeScreen style=\{\{ flex: 1, backgroundColor: COLORS\.bg \}\} edges=\{\["top", "bottom"\]\}>/);
+  // The edges now come from modalSheetSafeEdges(Platform.OS): on iPhone the sheet drops the TOP
+  // inset (tests/new-contest-sheet-header.test.cjs). The BOTTOM inset, which is what keeps the
+  // fixed footer clear of the home indicator, must be there on every platform.
+  assert.match(src, /<SafeScreen style=\{\{ flex: 1, backgroundColor: COLORS\.bg \}\} edges=\{modalSheetSafeEdges\(Platform\.OS\)\}>/);
+  const ts = require('typescript');
+  const m = { exports: {} };
+  new Function('module', 'exports', ts.transpileModule(fs.readFileSync('src/ui/tournament-setup-layout.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(m, m.exports);
+  for (const os of ['ios', 'android', 'web', undefined]) assert.ok(m.exports.modalSheetSafeEdges(os).includes('bottom'), `bottom inset missing on ${os}`);
 });
 
 test('Add Team control meets the platform tap target', () => {
