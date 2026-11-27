@@ -80,6 +80,45 @@ test('real previously clipped owner target remains failing if it is never reveal
   assert.ok(targets(b,o,2,'add-player').some(f=>f.rule===2));
   assert.ok(targets(b,o,2,'add-player').some(f=>f.rule===5));
 });
+for (const delta of [25,200]) test(`G1: wholly below the scroll aperture (${delta}pt lower) needs a bound reveal, not a footer waiver`,t=>{
+  const [b,o]=fixture(t);
+  for (const stop of [1,2,3,4]) {
+    const n=node(b,stop,'add-group');
+    for (const r of [n.bbox,n.hitRegion]) {r.top+=delta;r.bottom+=delta;}
+  }
+  assert.ok(proof(b,o,1,'add-group'));
+  assert.ok(targets(b,{},1,'add-group').some(f=>f.rule===2));
+  assert.ok(targets(b,{},1,'add-group').some(f=>f.rule===5));
+  assert.equal(targets(b,o,1,'add-group').filter(f=>[2,5].includes(f.rule)).length,0);
+  writeFileSync(join(o.evidenceDir,cp(b,2).screenshot),'tampered');
+  assert.ok(!proof(b,o,1,'add-group'));
+  assert.ok(targets(b,o,1,'add-group').some(f=>f.rule===2));
+  assert.ok(targets(b,o,1,'add-group').some(f=>f.rule===5));
+});
+test('G1: a partially visible control cut by the pinned footer stays red with a valid reveal',t=>{
+  const [b,o]=fixture(t);
+  assert.ok(proof(b,o,1,'add-group'));
+  assert.ok(node(b,1,'add-group').bbox.top<vp.bottom);
+  assert.ok(targets(b,o,1,'add-group').some(f=>f.rule===2&&/sticky footer/.test(f.reason)));
+});
+for (const [id,field,value] of [
+  ['wizard-player-handicap-2','text','12'],
+  ['wizard-player-group-3','text','G2'],
+  ['wizard-player-team-4-A','selected',true],
+  ['wizard-remove-player-2','enabled',false],
+]) test(`G1: changed roster ${id}.${field} revokes an unrelated target's reveal`,t=>{
+  const [b,o]=fixture(t);
+  for (const stop of [1,2,3,4]) {
+    const base=node(b,stop,'wizard-player-name-2');
+    cp(b,stop).nodes.push({...structuredClone(base),id,text:'unchanged',meta:{...base.meta,resourceId:id}});
+  }
+  assert.ok(proof(b,o,1,'add-player'));
+  assert.notEqual(node(b,2,id)[field],value);
+  node(b,2,id)[field]=value;
+  assert.ok(!proof(b,o,1,'add-player'));
+  assert.ok(targets(b,o,1,'add-player').some(f=>f.rule===2));
+  assert.ok(targets(b,o,1,'add-player').some(f=>f.rule===5));
+});
 for (const [label,mutate] of Object.entries({
   'wrong build':(b,o)=>o.buildHash='c'.repeat(64),
   'forged bundle context without proof':(b,o)=>{cp(b,1).context.verifiedScrollReveals=['add-group'];delete o.evidenceDir;},

@@ -157,13 +157,24 @@ export function ruleClipping(tree, ctx, paintedAtVerifiedScrollStop) {
   for (const n of required) {
     const r = n.bbox;
     const clip = n.meta?.scrollViewport;
+    // A full same-state reveal can establish reachability for a control wholly below
+    // the measured scroll aperture. Its retained frame is not painted under the footer
+    // or safe-area boundary. A control partially visible at rest keeps both checks.
+    const verifiedBelowScroll = paintedAtVerifiedScrollStop?.has(n) && contestAperture &&
+      finiteRect(clip) && ['left', 'right', 'top', 'bottom'].every(k => clip[k] === contestAperture[k]) &&
+      r.top >= clip.bottom && rectOf(n).top >= clip.bottom &&
+      r.left >= clip.left && r.right <= clip.right &&
+      rectOf(n).left >= clip.left && rectOf(n).right <= clip.right &&
+      footer && clip.bottom <= footer.top && safe && vp &&
+      clip.bottom <= vp.height - (safe.bottom ?? 0) &&
+      !n.meta?.required && !n.meta?.requiredAtCheckpoint;
     if (clip && !paintedAtVerifiedScrollStop?.has(n) && (r.left < clip.left || r.top < clip.top ||
         r.right > clip.right || r.bottom > clip.bottom)) {
       findings.push({ rule: 2, severity: 'major', bbox: bboxArr(r), nodes: [n.id],
         reason: 'Required/control frame is not fully painted within measured scroll ancestors; full visibility and reachability are unproven at this checkpoint.' });
     }
     // Partially behind the sticky footer = clipped / not operable.
-    if (footer && r.bottom > footer.top + 1 && r.top < footer.top - 1 &&
+    if (!verifiedBelowScroll && footer && r.bottom > footer.top + 1 && r.top < footer.top - 1 &&
         intersect(r, footer).width > 1) {
       findings.push({
         rule: 2, severity: 'major', bbox: bboxArr(r), nodes: [n.id],
@@ -205,7 +216,7 @@ export function ruleClipping(tree, ctx, paintedAtVerifiedScrollStop) {
         keyboardMask.bottom <= keyboardLine && r.top >= keyboardMask.bottom &&
         r.left >= keyboardMask.left && r.right <= keyboardMask.right &&
         rectOf(n).top >= keyboardMask.bottom;
-      if (!alreadyMasked && r.bottom > vp.height - (safe.bottom ?? 0) + 1) {
+      if (!alreadyMasked && !verifiedBelowScroll && r.bottom > vp.height - (safe.bottom ?? 0) + 1) {
         over.push(`bottom>${vp.height - (safe.bottom ?? 0)}`);
       }
       if (r.left < (safe.left ?? 0) - 1) over.push(`left<${safe.left ?? 0}`);
