@@ -73,9 +73,8 @@ test('an event with no user and no exception is still scrubbed, not thrown on', 
   expect(scrubSentryEvent({ user: { email: 'a@b.co' } }).user).toBeUndefined(); // the build 32 scrubber is unchanged
 });
 
-test('the app turns Sentry on again, and takes every capture setting from the one rule', () => {
-  expect(layout).toContain('enabled: !isPublicShare,');
-  expect(layout).not.toMatch(/enabled:[^\n]*CROSS_DEVICE_SHARING_ENABLED/);
+test('the app takes on/off and every capture setting from the rules in one file', () => {
+  expect(layout).toContain('enabled: sentryEnabled({ isPublicShare, joinByCodeOn: CROSS_DEVICE_SHARING_ENABLED, isDevBuild: __DEV__, proofDsn: process.env.EXPO_PUBLIC_SENTRY_PROOF_DSN }),');
   expect(layout).toContain('const capture = sentryCapture(CROSS_DEVICE_SHARING_ENABLED);');
   for (const key of ['tracesSampleRate', 'replaysSessionSampleRate', 'replaysOnErrorSampleRate', 'enableLogs', 'enableAutoPerformanceTracing', 'enableAppStartTracking', 'enableStallTracking']) {
     expect(layout).toContain(`${key}: capture.${key},`);

@@ -120,5 +120,25 @@ export function scrubSentryEventCrashOnly<T extends object>(input: T): T {
  */
 export function sentryDsn(real: string, proofOverride: string | undefined, isDevBuild: boolean): string {
   if (!isDevBuild || !proofOverride) return real;
-  return /^http:\/\/[^@/\s]+@(127\.0\.0\.1|localhost)(:\d+)?\/\d+$/.test(proofOverride) ? proofOverride : real;
+  return LOCAL_PROOF_DSN.test(proofOverride) ? proofOverride : real;
+}
+
+/**
+ * Has the telemetry privacy proof (M6, scripts/sentry-proof-listener.cjs) been run and passed for
+ * crash-only capture? Until it has, a build with Join by code on sends nothing to Sentry, exactly
+ * as build 33. Turn this on only with the proof's PASS line recorded on the release ticket.
+ */
+export const SENTRY_TELEMETRY_PROOF_PASSED = false;
+
+const LOCAL_PROOF_DSN = /^http:\/\/[^@/\s]+@(127\.0\.0\.1|localhost)(:\d+)?\/\d+$/;
+
+/** Whether Sentry runs at all. */
+export function sentryEnabled(
+  build: { isPublicShare: boolean; joinByCodeOn: boolean; isDevBuild: boolean; proofDsn: string | undefined },
+  proofPassed: boolean = SENTRY_TELEMETRY_PROOF_PASSED,
+): boolean {
+  if (build.isPublicShare) return false;
+  if (!build.joinByCodeOn || proofPassed) return true;
+  // Join by code on, proof not passed: only the proof run itself, on this machine.
+  return build.isDevBuild && !!build.proofDsn && LOCAL_PROOF_DSN.test(build.proofDsn);
 }
