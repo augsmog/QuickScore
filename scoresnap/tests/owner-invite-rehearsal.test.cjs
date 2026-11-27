@@ -33,6 +33,10 @@ test.each(['PGHOSTADDR','PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD','PG
   const r = probe([local], { SNAPSCORE_DISPOSABLE_TEST: '1', [name]: 'override-value-do-not-print' });
   expect(r.status).toBe(1); expect(r.stderr).toContain('AUG331_GUARD: libpq'); expect(r.stderr).not.toContain('override-value-do-not-print'); expect(r.connected).toBe(false);
 });
+test('explicitly empty libpq setting is still rejected before psql', () => {
+  const r = probe([local], { SNAPSCORE_DISPOSABLE_TEST: '1', PGHOST: '' });
+  expect(r.status).toBe(1); expect(r.stderr).toContain('AUG331_GUARD: libpq'); expect(r.connected).toBe(false);
+});
 test('allowed URL still requires actual PG17 disposable server before writes', () => {
   const r = probe([local], { SNAPSCORE_DISPOSABLE_TEST: '1' }); expect(r.status).toBe(1); expect(r.connected).toBe(true); expect(r.stderr).toContain('requires actual PostgreSQL 17');
 });

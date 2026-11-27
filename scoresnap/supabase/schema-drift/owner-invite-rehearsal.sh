@@ -7,7 +7,7 @@ fail() { echo "AUG331_GUARD: $*" >&2; exit 1; }
 [[ $# == 1 ]] || fail 'exactly one disposable connection argument required'
 # Reject routing/config overrides BEFORE the first psql call. Never print values.
 for name in PGHOSTADDR PGHOST PGPORT PGDATABASE PGUSER PGPASSWORD PGPASSFILE PGSERVICE PGSERVICEFILE PGSYSCONFDIR PGOPTIONS PGSSLMODE PGSSLKEY PGSSLCERT PGSSLROOTCERT PGGSSENCMODE PGKRBSRVNAME PGREQUIREAUTH; do
-  [[ ! -v $name ]] || fail 'libpq connection/config override is forbidden'
+  [[ -z ${!name+x} ]] || fail 'libpq connection/config override is forbidden'
 done
 url=$1
 python3 - "$url" <<'PY'
