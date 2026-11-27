@@ -37,13 +37,19 @@ A commit is a **candidate** only when both of these are true. Until then call it
 **Every build, archive and upload goes through one entry point.** Do not call `eas`, `xcodebuild`, `fastlane` or an upload tool directly for a release; wrap the same command:
 ```sh
 node scripts/release/run-on-candidate.cjs \
-  --source <the checkout being built, at the release SHA> \
-  --receipt candidate-receipt.json \
+  --receipt /path/outside/any/checkout/candidate-receipt.json \
   -- <the build, archive or upload command, exactly as you would have typed it>
 ```
-It runs the command only if the checkout's `HEAD` is exactly the receipt's SHA, the checkout has no changes to tracked files and no untracked files that are not git-ignored, and `verify` accepts the receipt. Otherwise it prints `REFUSED: …`, exits non-zero and runs nothing. The command runs in `<source>/scoresnap` with `CANDIDATE_SHA`, `CANDIDATE_TREE` and `CANDIDATE_RECEIPT` set, and its exit status is passed through.
+Run it from a checkout of the default branch that has the release SHA fetched. After `verify` accepts the receipt, it makes a **fresh checkout** of exactly the receipt's SHA in a new temporary directory, runs the command in `<that directory>/scoresnap`, and removes the directory afterwards. Nothing left over from an earlier build (`ios/`, `node_modules`, `.env`, `.expo`, any other git-ignored path) can be there, because the directory did not exist before. Consequences:
+- The command starts with no `node_modules` and no `ios/`. It must install and prebuild itself (for example `sh -c 'npm ci && npx expo prebuild --platform ios && …'`).
+- Anything you want to keep (the `.xcarchive`, the `.ipa`, logs) must be written outside the checkout, or it is removed with it. `--keep` leaves the directory in place and prints its path.
+- The directory is made under the system temporary directory; set `TMPDIR` to put it elsewhere. `--repo <dir>` takes the commit from another clone of this repository.
 
-Keep `candidate-receipt.json.tests.txt` beside the receipt; `verify` needs both. Keep both outside the checkout being built: inside it they are untracked files and the entry point refuses. Git-ignored paths (`node_modules/`, `ios/`, `.env`, `.expo/`) are not checked; start a release build from a fresh checkout so a leftover `ios/` cannot be reused. A receipt is refused if it is for another SHA or tree, if its fix list is not exactly the one in `release/required-fixes.json`, if the test list beside it does not match the hash in the receipt, if it records a red suite, or if it was written by a different version of the check. To check a receipt without running anything: `node scripts/release/candidate-check.cjs verify --sha <SHA> --receipt candidate-receipt.json`.
+Otherwise it prints `REFUSED: …`, exits non-zero and runs nothing. The command gets `CANDIDATE_SHA`, `CANDIDATE_TREE`, `CANDIDATE_RECEIPT` and `CANDIDATE_CHECKOUT`, and its exit status is passed through.
+
+`--source <existing checkout>` (in place of the fresh checkout) is for cases that need an existing checkout. It refuses unless `HEAD` is exactly the receipt's SHA with no changes to tracked files and no untracked files that are not git-ignored. It cannot see git-ignored paths and prints a warning saying so every time. Do not use it for an archive or an upload.
+
+Keep `candidate-receipt.json.tests.txt` beside the receipt; `verify` needs both. A receipt is refused if it is for another SHA or tree, if its fix list is not exactly the one in `release/required-fixes.json`, if the test list beside it does not match the hash in the receipt, if it records a red suite, or if it was written by a different version of the check. To check a receipt without running anything: `node scripts/release/candidate-check.cjs verify --sha <SHA> --receipt candidate-receipt.json`.
 
 Compare two receipts by `suite.testIdsSha256` (the hash of the sorted list of every test that ran, with its result), never by the headline count. If the hashes differ, `diff` the two `.tests.txt` files to see which tests.
 
