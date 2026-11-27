@@ -1,0 +1,18 @@
+# device-layout Round — checkpoint 00: score entry on hole 1.
+# A two-player Skins round made on the device (the shared subflow the offline journeys use), then
+# the Scorecard tab before any score is entered. No network, no account.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../../subflows/finish-onboarding.yaml
+- runFlow: ../../../subflows/create-two-player-skins.yaml
+- tapOn: "Scorecard"
+- extendedWaitUntil:
+    visible:
+      id: "score-plus-Ava"
+    timeout: 15000
+- assertVisible:
+    id: "score-next-hole"
+- takeScreenshot: device-layout-round-00-score-entry
