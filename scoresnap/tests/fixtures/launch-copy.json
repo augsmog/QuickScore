@@ -10,7 +10,10 @@
   "app/(tabs)/index.tsx": [
     "Build contests. Settle up.",
     "Add your group, pick your games, and see who owes what. Scan a card if you've got one.",
-    "Join with code"
+    "Join with code",
+    "YOUR ROUNDS",
+    "No rounds yet",
+    "Rounds you start show up here, and stay after you settle up."
   ],
   "src/ui/paywall-copy.ts": [
     "Run the game. We do the math.",
