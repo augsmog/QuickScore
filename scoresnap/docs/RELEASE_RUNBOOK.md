@@ -22,6 +22,28 @@ Decision (Augie, Oct 21 2026): TestFlight goes through **Expo EAS**, so releases
 3. **EXPO_TOKEN**: expo.dev → Account settings → Access tokens → create a robot/personal token. Store it as a secret (box secret store and/or GitHub Actions secret `EXPO_TOKEN`). Every `eas` command below reads it from the environment; never echo it.
 4. Existing config already in `eas.json`: `submit.testflight.ios` → `ascAppId 6761034352`, `appleTeamId 3357G2T3KS`; build profile `testflight` → `distribution: store`, `autoIncrement`, `channel: testflight`; `appVersionSource: remote`; `runtimeVersion.policy: appVersion`.
 
+## 0.5 Before anything is called a candidate (AUG-1602)
+
+A commit is a **candidate** only when both of these are true. Until then call it "the assembled SHA", in tickets and in chat.
+
+1. `candidate-check` has written a receipt for that exact SHA:
+   ```sh
+   cd scoresnap
+   node scripts/release/candidate-check.cjs check --sha <full 40-character SHA> --receipt candidate-receipt.json
+   ```
+   It checks out exactly that SHA in a clean worktree and refuses unless: every fix in `release/required-fixes.json` is in the SHA (as an ancestor, or as an identical patch when fixes were combined by cherry-pick); the full unit suite passes with 0 failed and no skipped test beyond `allowedSkips`; and the version matches the release. On any failure it exits non-zero and leaves no receipt.
+2. A **different service** from the one that ran step 1 has run the same command on the same SHA and got the same `sha`, `tree`, suite counts and fix list. Post both receipts on the release ticket.
+
+Every build, archive and upload step starts with:
+```sh
+node scripts/release/candidate-check.cjs verify --sha <same SHA> --receipt candidate-receipt.json
+```
+and does not proceed if it exits non-zero. The receipt is refused if it is for another SHA or tree, records a red suite or a missing fix, or was written by a different version of the check.
+
+- The release lead owns `release/required-fixes.json`. A fix is added there when its ticket becomes launch-blocking, with the exact commit.
+- The build number is assigned at build time (`appVersionSource: remote`), so the receipt records the version only. Check the build number on the archive.
+- The receipt proves the unit suite and the fix list. It does not prove layout, purchase or device behaviour; those have their own evidence.
+
 ## 1. Every TestFlight release
 
 1. **Release PR**: changes land on a PR; CI (`web-smoke`) must be green. Tater writes a 3-line changelog in the PR.
