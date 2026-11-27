@@ -9,6 +9,13 @@
 //   node scripts/release/candidate-check.cjs check  --sha <40-hex> [--fixes release/required-fixes.json]
 //                                                   [--receipt candidate-receipt.json] [--reuse-node-modules <dir>]
 //   node scripts/release/candidate-check.cjs verify --sha <40-hex> --receipt candidate-receipt.json
+//                                                   [--fixes release/required-fixes.json]
+//
+// The receipt binds three things to the SHA, each by hash, so that a receipt cannot merely look
+// positive: the tree; the required-fixes manifest (file hash, and the fix list itself); and the
+// ordered list of every test that ran (`suite.testIdsSha256`; the list is written next to the
+// receipt as <receipt>.tests.txt). Two receipts are compared by that hash, never by a headline
+// count.
 //
 // `check` exits 0 and writes the receipt only if every required fix is in the SHA, the full unit
 // suite passes on the SHA with no failures and no skips beyond the named allow-list, and the
@@ -22,7 +29,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const SHA = /^[0-9a-f]{40}$/;
-const RECEIPT_SCHEMA = 'snapscore-candidate-receipt/1';
+const RECEIPT_SCHEMA = 'snapscore-candidate-receipt/2';
 const FIXES_SCHEMA = 'snapscore-required-fixes/1';
 
 class Refusal extends Error {}
@@ -111,19 +118,35 @@ function runSuiteAtSha(repo, sha, { reuseNodeModules } = {}) {
     } catch { /* a red suite exits non-zero; the JSON report below is what is judged */ }
     if (!fs.existsSync(out)) refuse('the unit suite did not produce a report; it did not run to completion');
     const report = JSON.parse(fs.readFileSync(out, 'utf8'));
-    const skipped = [];
-    for (const file of report.testResults ?? []) for (const test of file.assertionResults ?? []) {
-      if (test.status === 'pending' || test.status === 'skipped' || test.status === 'todo') skipped.push(test.fullName);
-    }
-    return {
-      suites: report.numTotalTestSuites, suitesFailed: report.numFailedTestSuites, suitesErrored: report.numRuntimeErrorTestSuites,
-      tests: report.numTotalTests, passed: report.numPassedTests, failed: report.numFailedTests, skipped,
-    };
+    return summarizeJestReport(report, fs.realpathSync(app));
   } finally {
     try { git(repo, ['worktree', 'remove', '--force', tree]); } catch { /* best effort */ }
     fs.rmSync(dir, { recursive: true, force: true });
   }
 }
+
+// One line per test that ran: "<file relative to scoresnap>::<full test name>::<status>".
+// Sorted, so the same set of tests always gives the same hash whatever order Jest ran them in.
+function summarizeJestReport(report, appDir) {
+  const skipped = []; const ids = []; let suitesListed = 0; let suitesNotPassed = 0;
+  for (const file of report.testResults ?? []) {
+    suitesListed += 1;
+    if (file.status !== 'passed') suitesNotPassed += 1;
+    const rel = path.relative(appDir, file.name ?? '').split(path.sep).join('/');
+    for (const test of file.assertionResults ?? []) {
+      if (test.status === 'pending' || test.status === 'skipped' || test.status === 'todo') skipped.push(test.fullName);
+      ids.push(`${rel}::${test.fullName}::${test.status}`);
+    }
+  }
+  ids.sort();
+  return {
+    suites: report.numTotalTestSuites, suitesFailed: report.numFailedTestSuites, suitesErrored: report.numRuntimeErrorTestSuites,
+    tests: report.numTotalTests, passed: report.numPassedTests, failed: report.numFailedTests, skipped,
+    ids, suitesListed, suitesNotPassed, success: report.success === true,
+  };
+}
+const testIdsText = (ids) => `${ids.join('\n')}\n`;
+const testIdsHash = (ids) => crypto.createHash('sha256').update(testIdsText(ids)).digest('hex');
 
 function judgeSuite(suite, allowedSkips) {
   for (const key of ['suites', 'tests', 'passed', 'failed', 'suitesFailed', 'suitesErrored']) {
@@ -134,13 +157,22 @@ function judgeSuite(suite, allowedSkips) {
   const extra = (suite.skipped ?? []).filter((name) => !allowedSkips.includes(name));
   if (extra.length) refuse(`unit suite has ${extra.length} skipped test(s) not on the allow-list: ${extra.slice(0, 5).join(' | ')}`);
   if (suite.passed + suite.skipped.length !== suite.tests) refuse('unit suite counts do not add up (passed + skipped != total)');
+  // A report can be non-empty and still incomplete. The totals must be backed by the listed
+  // suites and tests, one for one; a headline count on its own proves nothing.
+  if (suite.success !== true) refuse('unit suite report does not say the run succeeded');
+  if (!Array.isArray(suite.ids)) refuse('unit suite report is incomplete (no per-test list)');
+  if (suite.ids.length !== suite.tests) refuse(`unit suite report is incomplete: it lists ${suite.ids.length} test(s) but claims ${suite.tests}`);
+  if (suite.suitesListed !== suite.suites) refuse(`unit suite report is incomplete: it lists ${suite.suitesListed} suite(s) but claims ${suite.suites}`);
+  if (suite.suitesNotPassed !== 0) refuse(`unit suite report has ${suite.suitesNotPassed} suite(s) that did not pass`);
+  const notPassed = suite.ids.filter((id) => !id.endsWith('::passed')).length;
+  if (notPassed !== suite.skipped.length) refuse('unit suite report lists tests that neither passed nor are counted as skipped');
 }
 
 const selfSha256 = () => crypto.createHash('sha256').update(fs.readFileSync(__filename)).digest('hex');
 
 function candidateCheck({ repo, sha, fixesFile, receiptPath, runSuite = runSuiteAtSha, reuseNodeModules, now = () => new Date() }) {
   // A stale receipt must never survive a failed run.
-  if (receiptPath) fs.rmSync(receiptPath, { force: true });
+  if (receiptPath) { fs.rmSync(receiptPath, { force: true }); fs.rmSync(`${receiptPath}.tests.txt`, { force: true }); }
   if (!SHA.test(sha ?? '')) refuse('--sha must be one full 40-character commit SHA');
   if (!gitOk(repo, ['cat-file', '-e', `${sha}^{commit}`])) refuse(`${sha} is not a commit in this repository`);
   const fixesBytes = fs.readFileSync(fixesFile);
@@ -155,19 +187,22 @@ function candidateCheck({ repo, sha, fixesFile, receiptPath, runSuite = runSuite
     tree: git(repo, ['rev-parse', `${sha}^{tree}`]),
     base: doc.base,
     release: { ticket: doc.release.ticket, ...release },
-    suite: { suites: suite.suites, tests: suite.tests, passed: suite.passed, failed: 0, skipped: suite.skipped },
+    suite: { suites: suite.suites, tests: suite.tests, passed: suite.passed, failed: 0, skipped: suite.skipped, testIdsSha256: testIdsHash(suite.ids) },
     fixes: fixes.map(({ ticket, what, commit, present, how, as }) => ({ ticket, what, commit, present, how, as })),
     requiredFixesSha256: crypto.createHash('sha256').update(fixesBytes).digest('hex'),
     checkSha256: selfSha256(),
     node: process.version,
     checkedAt: now().toISOString(),
   };
-  if (receiptPath) fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+  if (receiptPath) {
+    fs.writeFileSync(`${receiptPath}.tests.txt`, testIdsText(suite.ids));
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+  }
   return receipt;
 }
 
 // What build, archive and upload steps call before they do anything.
-function verifyReceipt({ repo, sha, receiptPath }) {
+function verifyReceipt({ repo, sha, receiptPath, fixesFile }) {
   if (!SHA.test(sha ?? '')) refuse('--sha must be one full 40-character commit SHA');
   if (!receiptPath || !fs.existsSync(receiptPath)) refuse(`no candidate receipt at ${receiptPath}; ${sha} is not a candidate`);
   let receipt;
@@ -176,7 +211,31 @@ function verifyReceipt({ repo, sha, receiptPath }) {
   if (receipt.sha !== sha) refuse(`candidate receipt is for ${receipt.sha}, not ${sha}`);
   if (receipt.tree !== git(repo, ['rev-parse', `${sha}^{tree}`])) refuse('candidate receipt tree does not match the SHA');
   if (receipt.suite?.failed !== 0 || !(receipt.suite?.tests > 0)) refuse('candidate receipt does not record a green suite');
-  if (!Array.isArray(receipt.fixes) || receipt.fixes.length === 0 || receipt.fixes.some((fix) => fix.present !== 'yes')) refuse('candidate receipt does not record every required fix as present');
+  if (receipt.suite.passed + (receipt.suite.skipped?.length ?? NaN) !== receipt.suite.tests) refuse('candidate receipt suite counts do not add up');
+  // The test list: the receipt must carry its hash, and the list written beside the receipt must
+  // still hash to it and have exactly as many lines as the receipt claims tests.
+  if (!/^[0-9a-f]{64}$/.test(receipt.suite.testIdsSha256 ?? '')) refuse('candidate receipt does not bind the ordered test list (suite.testIdsSha256)');
+  const listPath = `${receiptPath}.tests.txt`;
+  if (!fs.existsSync(listPath)) refuse(`the test list ${listPath} is missing; the receipt cannot be checked against the tests that ran`);
+  const listBytes = fs.readFileSync(listPath);
+  if (crypto.createHash('sha256').update(listBytes).digest('hex') !== receipt.suite.testIdsSha256) refuse('the test list beside the receipt does not match suite.testIdsSha256');
+  const listed = listBytes.toString('utf8').split('\n').filter(Boolean);
+  if (listed.length !== receipt.suite.tests) refuse(`the test list has ${listed.length} line(s) but the receipt claims ${receipt.suite.tests} test(s)`);
+  if (listed.some((line) => !line.endsWith('::passed')) && (receipt.suite.skipped?.length ?? 0) === 0) refuse('the test list contains tests that did not pass');
+  // The fix list: bound to the real manifest, not merely non-empty and positive-looking.
+  if (!fixesFile || !fs.existsSync(fixesFile)) refuse('the required-fixes manifest is missing; the receipt cannot be checked against it');
+  const fixesBytes = fs.readFileSync(fixesFile);
+  const doc = validateFixes(JSON.parse(fixesBytes.toString('utf8')));
+  if (crypto.createHash('sha256').update(fixesBytes).digest('hex') !== receipt.requiredFixesSha256) refuse('candidate receipt was made against a different required-fixes manifest; run the check again');
+  if (receipt.base !== doc.base) refuse('candidate receipt base does not match the manifest');
+  if (receipt.release?.version !== doc.release.version || receipt.release?.ticket !== doc.release.ticket) refuse('candidate receipt release does not match the manifest');
+  if (!Array.isArray(receipt.fixes) || receipt.fixes.length !== doc.fixes.length) refuse(`candidate receipt lists ${receipt.fixes?.length ?? 0} fix(es) but the manifest requires ${doc.fixes.length}`);
+  doc.fixes.forEach((fix, index) => {
+    const got = receipt.fixes[index];
+    if (got?.commit !== fix.commit || got?.ticket !== fix.ticket) refuse(`candidate receipt fix ${index + 1} is not the manifest's (${fix.ticket} ${fix.commit})`);
+    if (got.present !== 'yes') refuse(`candidate receipt does not record ${fix.ticket} ${fix.commit} as present`);
+    if (!SHA.test(got.as ?? '') || !gitOk(repo, ['merge-base', '--is-ancestor', got.as, sha])) refuse(`candidate receipt says ${fix.ticket} is present as ${got.as}, which is not in ${sha}`);
+  });
   if (receipt.checkSha256 !== selfSha256()) refuse('candidate receipt was written by a different version of candidate-check; run the check again');
   return receipt;
 }
@@ -204,11 +263,11 @@ function main(argv) {
         fixesFile: path.resolve(options.fixes ?? path.join(scoresnap, 'release', 'required-fixes.json')),
         reuseNodeModules: options['reuse-node-modules'],
       });
-      console.log(`CANDIDATE CHECK PASSED for ${receipt.sha} (tree ${receipt.tree}): ${receipt.suite.tests} tests, 0 failed, ${receipt.fixes.length} required fixes present. Receipt: ${receiptPath}`);
+      console.log(`CANDIDATE CHECK PASSED for ${receipt.sha} (tree ${receipt.tree}): ${receipt.suite.tests} tests, 0 failed, test list ${receipt.suite.testIdsSha256}, ${receipt.fixes.length} required fixes present. Receipt: ${receiptPath} (+ .tests.txt)`);
       console.log('This SHA is a candidate only once a different service has recomputed this receipt.');
     } else if (command === 'verify') {
-      const receipt = verifyReceipt({ repo, sha: options.sha, receiptPath });
-      console.log(`RECEIPT OK for ${receipt.sha} (tree ${receipt.tree}), checked ${receipt.checkedAt}`);
+      const receipt = verifyReceipt({ repo, sha: options.sha, receiptPath, fixesFile: path.resolve(options.fixes ?? path.join(scoresnap, 'release', 'required-fixes.json')) });
+      console.log(`RECEIPT OK for ${receipt.sha} (tree ${receipt.tree}): ${receipt.suite.tests} tests, test list ${receipt.suite.testIdsSha256}, ${receipt.fixes.length} fixes bound to the manifest; checked ${receipt.checkedAt}`);
     } else {
       refuse('usage: candidate-check.cjs check|verify --sha <40-hex> [--fixes file] [--receipt file] [--reuse-node-modules dir]');
     }
@@ -219,5 +278,5 @@ function main(argv) {
   }
 }
 
-module.exports = { candidateCheck, verifyReceipt, validateFixes, judgeSuite, Refusal, RECEIPT_SCHEMA, FIXES_SCHEMA };
+module.exports = { candidateCheck, verifyReceipt, validateFixes, judgeSuite, summarizeJestReport, testIdsHash, Refusal, RECEIPT_SCHEMA, FIXES_SCHEMA };
 if (require.main === module) main(process.argv.slice(2));
