@@ -71,6 +71,7 @@ function distanceMiles(a: Coords, b: Coords): number {
 interface CourseSearchProps {
   onSelect: (course: EngineCourse, courseName: string, teeBox: TeeBox | null) => void;
   initialCourseName?: string;
+  testID?: string;
 }
 
 interface CourseWithDistance extends CourseSearchResult {
@@ -97,7 +98,7 @@ function getTeeColor(tee: TeeBox): string {
 }
 
 // ── Component ──
-export default function CourseSearch({ onSelect, initialCourseName }: CourseSearchProps) {
+export default function CourseSearch({ onSelect, initialCourseName, testID }: CourseSearchProps) {
   const [resting, setResting] = useState(false);
   const [manualName, setManualName] = useState("");
   const [manualCard, setManualCard] = useState("");
@@ -227,6 +228,7 @@ export default function CourseSearch({ onSelect, initialCourseName }: CourseSear
     <View>
       {/* Trigger Button */}
       <Pressable
+        testID={testID}
         onPress={() => setShowModal(true)}
         style={{
           flexDirection: "row",

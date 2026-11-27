@@ -144,10 +144,12 @@ export function ruleClipping(tree, ctx, paintedAtVerifiedScrollStop) {
   const vp = ctx.viewport; // {width,height}
   // G3: score actual keyboard occlusion, not an already-masked ScrollView descendant.
   // The independent rules for scroll reachability, footer and target size still run.
-  const contestScrolls = ctx.platform === 'ios' && ctx.measuredKeyboardInset > 0
-    ? tree.nodes.filter(n => n.id === 'contest-scroll' && n.meta?.scrollClip === true) : [];
+  const contestScrolls = ctx.platform === 'ios'
+    ? tree.nodes.filter(n => n.id === 'contest-scroll') : [];
   const keyboardLine = vp && safe ? vp.height - (safe.bottom ?? 0) : NaN;
-  const keyboardMask = contestScrolls.length === 1 && finiteRect(contestScrolls[0].bbox) &&
+  const contestAperture = contestScrolls.length === 1 && contestScrolls[0].meta?.scrollClip === true && finiteRect(contestScrolls[0].bbox)
+    ? contestScrolls[0].bbox : null;
+  const keyboardMask = contestAperture && ctx.measuredKeyboardInset > 0 &&
     Number.isFinite(ctx.measuredKeyboardInset) && ctx.measuredKeyboardInset < vp?.height &&
     Number.isFinite(keyboardLine) && safe.bottom >= ctx.measuredKeyboardInset
     ? contestScrolls[0].bbox : null;
@@ -186,11 +188,18 @@ export function ruleClipping(tree, ctx, paintedAtVerifiedScrollStop) {
     const isFooterChrome = n.meta?.footerAnchor || n.meta?.footer || n.meta?.cta;
     if (safe && vp && !isFooterChrome) {
       const over = [];
-      // G4: judge the top of what is DRAWN. A row scrolled up out of its measured scroll area is
-      // masked by it; Maestro still reports the unmasked frame. If the scroll area itself runs
-      // above the inset, the row is drawn there and still fails.
-      const drawnTop = finiteRect(clip) ? Math.max(r.top, clip.top) : r.top;
-      if (drawnTop < (safe.top ?? 0) - 1) over.push(`top<${safe.top ?? 0}`);
+      // G4 applies only to an actually masked iOS frame, not arbitrary clip metadata.
+      const aboveMeasuredAperture = contestAperture && finiteRect(clip) &&
+        ['left', 'right', 'top', 'bottom'].every(k => clip[k] === contestAperture[k]) &&
+        contestAperture.top >= safe.top &&
+        r.left >= contestAperture.left && r.right <= contestAperture.right &&
+        rectOf(n).left >= contestAperture.left && rectOf(n).right <= contestAperture.right &&
+        (r.bottom <= contestAperture.top
+          ? n.meta.clippedOut === true && rectOf(n).bottom <= contestAperture.top
+          : finiteRect(n.meta.clipRect) && n.meta.clipRect.left === r.left &&
+            n.meta.clipRect.right === r.right && n.meta.clipRect.top === contestAperture.top &&
+            n.meta.clipRect.bottom === Math.min(r.bottom, contestAperture.bottom));
+      if (!aboveMeasuredAperture && r.top < (safe.top ?? 0) - 1) over.push(`top<${safe.top ?? 0}`);
       const alreadyMasked = keyboardMask && finiteRect(clip) &&
         ['left', 'right', 'top', 'bottom'].every(k => clip[k] === keyboardMask[k]) &&
         keyboardMask.bottom <= keyboardLine && r.top >= keyboardMask.bottom &&

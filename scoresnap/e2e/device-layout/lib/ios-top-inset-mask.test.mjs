@@ -10,9 +10,9 @@ import { indexTree, ruleClipping } from './geometry-rules.mjs';
 
 const raw = (box, children = [], extra = {}) => ({ attributes: { bounds: `[${box[0]},${box[1]}][${box[2]},${box[3]}]`, ...extra }, children });
 const ctx = { platform: 'ios', viewport: { width: 402, height: 874 }, safeArea: { top: 59, bottom: 34, left: 0, right: 0 } };
-const topFindings = (tree) => ruleClipping(indexTree(normalize(tree, { resourceMeta: { row: { role: 'control', meta: { tappable: true } } } })), ctx)
+const topFindings = (tree) => ruleClipping(indexTree(normalize(tree, { resourceMeta: { 'contest-scroll': { meta: { scrollClip: true } }, row: { role: 'control', meta: { tappable: true } } } })), ctx)
   .filter((f) => /extends outside the safe area/.test(f.reason) && /top</.test(f.reason));
-const inScroll = (scrollBox, rowBox) => raw([0, 0, 402, 874], [raw(scrollBox, [raw(rowBox, [], { 'resource-id': 'row', clickable: true })], { scrollable: true })]);
+const inScroll = (scrollBox, rowBox) => raw([0, 0, 402, 874], [raw(scrollBox, [raw(rowBox, [], { 'resource-id': 'row', clickable: true })], { 'resource-id': 'contest-scroll', scrollable: true })]);
 
 test('a row scrolled up out of a scroll area that starts below the inset is not "above the safe area"', () => {
   assert.equal(topFindings(inScroll([0, 120, 402, 700], [20, 20, 380, 70])).length, 0, 'wholly scrolled off the top');

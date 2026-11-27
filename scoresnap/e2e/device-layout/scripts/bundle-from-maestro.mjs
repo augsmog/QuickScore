@@ -21,6 +21,7 @@
 //
 // Covered by lib/bundle-from-maestro.test.mjs (node --test).
 
+import { requireEarlyWizardRevealStops } from "../lib/ios-wizard-scroll-coverage.mjs";
 import { verifyIOSWizard } from "../lib/ios-wizard-proof.mjs";
 import { readFileSync, writeFileSync, existsSync, statSync , realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -70,6 +71,7 @@ export const SNAPSCORE_META = {
 
 // A resource-id prefix map for the per-player dynamic testIDs (`player-handicap-<name>` etc).
 const PREFIX_META = [
+  { re: /^wizard-(?:contest-name|course|add-team|remove-group|team-name-[A-Z]|remove-player-\d+|player-(?:handicap|group)-\d+|player-team-\d+-[A-Z])$/, meta: { role: 'control', meta: { tappable: true } } },
   { re: /^wizard-player-name-\d+$/, meta: { role: 'control', meta: { tappable: true } } },
   { re: /^wizard-player-row-\d+$/, meta: { role: 'container', meta: {} } },
   { re: /^player-handicap-/, meta: { role: 'control', meta: { tappable: true, control: 'handicap' } } },
@@ -340,6 +342,7 @@ function main() {
     const buildHash = flag(args, '--expect-build');
     if (cap.manifest.sourceSha !== sourceSha || cap.manifest.profile !== profileId || cap.manifest.platform !== 'ios')
       throw new Error('iOS wizard capture: manifest does not match capture source/profile/platform');
+    requireEarlyWizardRevealStops(bundle);
     verifyIOSWizard(bundle, { sourceSha, profileId, buildHash });
   }
   console.error(`bundle: ${bundle.checkpoints.length} checkpoint(s) from ${bundle.profile} (${bundle.platform})`);

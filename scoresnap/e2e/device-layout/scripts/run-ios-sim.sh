@@ -82,10 +82,29 @@ BUILD_HASH="$(cat "$OUTROOT/ios-build-hash.txt" 2>/dev/null || echo '')"
 # Drive every checkpoint of every flow dir into $1 against simulator $2 (udid; empty => default/
 # pre-booted). $3 (optional) stamps a fontScale into each checkpoint context (AX3 pass).
 # Per checkpoint we time three phases and write them to <capdir>/phase-timings.tsv.
+# Insert scroll-only same-state stops before the next mutating workflow. No taps, input, or resets.
+wizard_reveal_steps() {
+  local stem="$1" dir="$2" restore="$3" action target direction file
+  for action in first bottom restore; do
+    case "$action" in
+      first) target=wizard-player-row-1; direction=DOWN ;;
+      bottom) target=add-group; direction=DOWN ;;
+      restore) target="$restore"; direction=UP ;;
+    esac
+    file="$dir/$stem-reveal-$action.yaml"
+    printf '%s\n' 'appId: com.scoresnap.app' '---' \
+      '- scrollUntilVisible:' '    element:' "      id: \"$target\"" \
+      "    direction: $direction" '    visibilityPercentage: 100' '    centerElement: true' \
+      '    timeout: 15000' "- takeScreenshot: device-layout-new-contest-$stem-reveal-$action" > "$file" || return 1
+    printf '%s\n' "$file"
+  done
+}
+
 capture_flows() {
   local capdir="$1" udid="$2" fontscale="${3:-}" prof="${4:-}" order=0 flowdir flow sub base slug devarg=""
   local shotname dbg lifted t0 t1 t2 t3 override capture_failed=0
   local -a steps
+  local candidate stem restore generated reveal_dir
   [ -n "$udid" ] && devarg="--device $udid"
   mkdir -p "$capdir"
   if find "$capdir" -name '*.ctx.json' -print -quit | grep -q .; then
@@ -98,6 +117,23 @@ capture_flows() {
     steps=("$flowdir"*.yaml)
     if [ "$flow" = new-contest ]; then
       override="$ROOT/.maestro/flows/device-layout-ios/new-contest"
+      reveal_dir="$(mktemp -d "$capdir/_wizard-reveals.XXXXXX")" || return 1
+      steps=()
+      for candidate in "$flowdir"*.yaml; do
+        steps+=("$candidate")
+        stem="$(basename "$candidate" .yaml)"
+        case "$stem" in
+          00-empty-wizard) restore=wizard-contest-name ;;
+          01-name-entry) restore=wizard-player-name-1 ;;
+          02-multi-day-on) restore=rounds-3 ;;
+          03-rounds-3) restore=rounds-4 ;;
+          04-rounds-4-scrolled) restore=team-mode ;;
+          05-team-mode-on) restore=team-mode ;;
+          *) continue ;;
+        esac
+        generated="$(wizard_reveal_steps "$stem" "$reveal_dir" "$restore")" || return 1
+        while IFS= read -r candidate; do steps+=("$candidate"); done <<< "$generated"
+      done
       steps+=("$override/08-rewind-remove-ava.yaml" "$override/09-four-players-add-group.yaml")
     fi
     for sub in "${steps[@]}"; do

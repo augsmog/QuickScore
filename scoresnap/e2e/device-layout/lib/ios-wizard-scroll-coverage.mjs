@@ -8,8 +8,11 @@ import {finiteRect, rectOf} from './geometry-rules.mjs';
 import {verifyIOSWizard} from './ios-wizard-proof.mjs';
 
 const STOPS = new Set(['four players','last player above footer','rewind remove ava','four players add group']);
-const NAMED = /^(?:wizard-player-name-[1-4]|remove-player-Ava|player-(?:handicap|group)-Ava|player-team-Ava-(?:A|B)|add-player|add-group)$/;
+const EARLY = ['empty wizard','name entry','multi day on','rounds 3','rounds 4 scrolled','team mode on'];
+const REVEAL = ['first','bottom','restore'];
+const NAMED = /^(?:wizard-(?:contest-name|course|add-team|remove-group|team-name-[A-Z]|remove-player-[1-4]|player-(?:name|handicap|group)-[1-4]|player-team-[1-4]-[A-Z])|remove-player-Ava|player-(?:handicap|group)-Ava|player-team-Ava-[A-Z]|add-player|add-group|rounds-[2-4]|(?:tournament-toggle|team-mode)(?:-slot)?)$/;
 const REQUIRED = {
+  'name entry': 'wizard-player-name-1',
   'four players': 'remove-player-Ava',
   'last player above footer': 'wizard-player-name-4',
   'rewind remove ava': 'remove-player-Ava',
@@ -33,10 +36,10 @@ function scroll(cp,n) {
 }
 function safety(cp) {
   const {safeArea:a,viewport:v,footer:f,measuredKeyboardInset:k}=cp.context;
-  if (!a || !v || !finiteRect(f) || k!==0 ||
+  if (!a || !v || !finiteRect(f) || !Number.isFinite(k) || k<0 ||
       ![a.left,a.right,a.top,a.bottom,v.width,v.height].every(Number.isFinite)) return null;
   const r={left:a.left,top:a.top,right:v.width-a.right,bottom:v.height-a.bottom};
-  if (!finiteRect(r) || f.top<=r.top || f.top>r.bottom) return null;
+  if (!finiteRect(r) || f.top<=r.top || f.top>v.height) return null;
   return r;
 }
 const sized = r=>finiteRect(r) && r.right-r.left>=MIN && r.bottom-r.top>=MIN;
@@ -49,22 +52,63 @@ function screenshotIsBound(cp,dir) {
   return f.startsWith(dir+sep) && createHash('sha256').update(readFileSync(f)).digest('hex')===cp.screenshotSha256;
 }
 
+// Witnesses are named by the capture orchestrator and must be consecutive before the
+// next primary mutates state. Duplicates and cross-device files are never evidence.
+function earlyGroups(bundle,dir) {
+  const wizard=bundle.checkpoints.filter(cp=>cp.flow==='new-contest');
+  const unique=name=>wizard.filter(cp=>cp.checkpoint===name).length===1;
+  return EARLY.map(root=>{
+    const names=[root,...REVEAL.map(s=>root+' reveal '+s)];
+    const index=wizard.findIndex(x=>x.checkpoint===root);
+    const cps=wizard.slice(index,index+names.length);
+    if (!names.every(unique)||cps.length!==names.length ||
+        !cps.every((cp,i)=>cp.checkpoint===names[i]&&cp.deviceId===bundle.profile&&cp.screen==='new-contest'&&cp.platform==='ios'&&
+          /^\d+-new-contest-/.test(cp.screenshot)&&cp.screenshot.endsWith('-'+cp.checkpoint.replaceAll(' ','-')+'.png')&&
+          /^[a-f0-9]{64}$/.test(cp.screenshotSha256))) return null;
+    if (dir&&!cps.every(cp=>screenshotIsBound(cp,dir))) return null;
+    return cps;
+  });
+}
+export function requireEarlyWizardRevealStops(bundle) {
+  if (earlyGroups(bundle).some(x=>!x)) {
+    throw new Error('iOS wizard capture: missing, repeated or out-of-order same-state reveal stops');
+  }
+}
+function sceneSignature(cp) {
+  // The pinned title carries non-personal wizard state even if Maestro doesn't emit offscreen
+  // controls. Any stable control captured in both stops must also retain its text/action state.
+  const marker=cp.nodes.filter(n=>/^wizard-scene-\d+-\d+-2-\d+$/.test(n.id) && n.meta?.resourceId===n.id);
+  if(marker.length!==1)return null;
+  const controls=cp.nodes.filter(n=>NAMED.test(n.id)&&n.meta?.resourceId===n.id);
+  if(new Set(controls.map(n=>n.id)).size!==controls.length)return null;
+  return {marker:marker[0].id,controls};
+}
+function sameScene(a,b) {
+  return b && a.marker===b.marker &&
+    a.controls.every(n=>!b.controls.some(x=>x.id===n.id&&!same(n,x)));
+}
+
 export function wizardScrollCoverage(bundle,expect={}) {
   const proved=new Map();
   // Legacy captures and nonwizard/profile runs retain every original finding.
   if (!expect.evidenceDir || !expect.sourceSha || !expect.profile || !expect.buildHash) return proved;
   const stops=bundle.checkpoints.filter(cp=>cp.flow==='new-contest'&&STOPS.has(cp.checkpoint));
+  let groups=[];
   try {
     verifyIOSWizard(bundle,{sourceSha:expect.sourceSha,profileId:expect.profile,buildHash:expect.buildHash});
     const dir=realpathSync(expect.evidenceDir);
     const entry=bundle.checkpoints.find(cp=>cp.flow==='new-contest'&&cp.checkpoint==='name entry');
     if (![entry,...stops].every(cp=>screenshotIsBound(cp,dir))) return proved;
+    groups=earlyGroups(bundle,dir).filter(Boolean);
   } catch {
     return proved; // missing, tampered or incompatible evidence grants no exception
   }
-  for(const cp of stops) {
+  for(const [siblings,early] of [[stops,false],...groups.map(group=>[group,true])]) for(const cp of siblings) {
+    const state=early?sceneSignature(cp):null;
+    if (early&&!state) continue;
+    const anchorId=early?'contest-step-setup':'wizard-player-row-4';
     const safe=safety(cp);
-    const anchor=sole(cp,'wizard-player-row-4');
+    const anchor=sole(cp,anchorId);
     const viewport=scroll(cp,anchor);
     if (!safe || !viewport) continue;
     // Real footer occlusion and safe-area collisions are still evaluated below. Requiring the
@@ -76,9 +120,10 @@ export function wizardScrollCoverage(bundle,expect={}) {
           !verticalOnly(r,viewport)) continue;
       if (node.enabled!==true || node.meta?.required===true || node.meta?.requiredAtCheckpoint===true ||
           REQUIRED[cp.checkpoint]===node.id) continue;
-      for(const reveal of stops) {
+      for(const reveal of siblings) {
         if (reveal===cp || reveal.screenshotSha256===cp.screenshotSha256) continue;
-        const b=sole(reveal,node.id), nextAnchor=sole(reveal,'wizard-player-row-4');
+        if (early && (!sameScene(state,sceneSignature(reveal)) || reveal.context.measuredKeyboardInset!==cp.context.measuredKeyboardInset)) continue;
+        const b=sole(reveal,node.id), nextAnchor=sole(reveal,anchorId);
         if (!b || !nextAnchor || b.meta?.resourceId!==node.id || !same(node,b) ||
             !equal(safety(reveal),safe)||!equal(reveal.context.footer,cp.context.footer) ||
             !equal(scroll(reveal,b),viewport)||!equal(scroll(reveal,nextAnchor),viewport)) continue;

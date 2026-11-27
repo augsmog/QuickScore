@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {mkdtempSync, writeFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {wizardScrollCoverage as coverage} from './ios-wizard-scroll-coverage.mjs';
+import {wizardScrollCoverage as coverage, requireEarlyWizardRevealStops} from './ios-wizard-scroll-coverage.mjs';
 import {evaluateCheckpoint} from './geometry-rules.mjs';
 import {runBundle} from '../run-geometry.mjs';
 import {verifyIOSWizard} from './ios-wizard-proof.mjs';
@@ -68,6 +68,7 @@ test('genuine scroll revealed exact same fully usable target; footer, safe area 
   // assertion the wizard fails at every checkpoint where a row has scrolled off the top, which is
   // every scrolled one (4 such findings in run 46008363328). lib/ios-top-inset-mask.test.mjs keeps
   // the real case failing: a control drawn above the inset. The gate owner reviews this line.
+  node(b,2,'remove-player-Ava').meta.clippedOut=true; // normalized from its wholly masked frame
   assert.ok(!targets(b,o,2,'remove-player-Ava').some(f=>/top<59/.test(f.reason)));
 });
 test('real previously clipped owner target remains failing if it is never revealed',t=>{
@@ -107,4 +108,77 @@ test('historical 16 Pro keyboard case keeps strict Add group at y808–852 with 
   assert.ok(g.findings.some(x=>x.rule===2&&/scroll ancestors/.test(x.reason)));
   assert.ok(g.findings.some(x=>x.rule===2&&/bottom>583/.test(x.reason)));
   assert.ok(g.findings.some(x=>x.rule===5&&/undersized painted/.test(x.reason)));
+});
+
+
+function addEarlyScenes(t) {
+  const [b,o]=fixture(t);
+  const prior=b.checkpoints[0];
+  const late=b.checkpoints.slice(1);
+  const early=['empty wizard','name entry','multi day on','rounds 3','rounds 4 scrolled','team mode on'];
+  let serial=10;
+  function putShot(cp) {
+    const pixels=Buffer.from('test-only early scene '+serial);
+    cp.screenshot=(serial++)+'-new-contest-'+cp.checkpoint.replaceAll(' ','-')+'.png';
+    writeFileSync(join(o.evidenceDir,cp.screenshot),pixels);
+    cp.screenshotSha256=createHash('sha256').update(pixels).digest('hex');
+  }
+  const first=(checkpoint,hasKeyboard)=>{
+    const x=structuredClone(prior);
+    x.checkpoint=checkpoint;
+    if(!hasKeyboard){x.context.measuredKeyboardInset=0;x.context.safeArea.bottom=34;}
+    else { // realistic keyboard aperture: stored footer independently beyond keyboard.
+      for(const n of x.nodes) {
+        if(n.meta?.scrollViewport)n.meta.scrollViewport.bottom=580;
+        if(n.id==='contest-scroll'){n.bbox.bottom=580;n.hitRegion.bottom=580;}
+      }
+    }
+    function control(id,y) {
+      const bbox=rect(230,y,274,y+44);
+      return {id,text:id,role:'control',enabled:true,selected:false,checked:false,bbox,hitRegion:{...bbox},
+        meta:{resourceId:id,scrollViewport:{...x.nodes.find(n=>n.id==='contest-scroll').bbox}}};
+    }
+    const anchor=control('contest-step-setup',110);
+    anchor.role='container';anchor.bbox.bottom+= 800;anchor.hitRegion={...anchor.bbox};x.nodes.push(anchor);
+    const marker=control(hasKeyboard?'wizard-scene-0-0-2-2':'wizard-scene-3-0-2-1',22);
+    marker.role='text';x.nodes.push(marker);
+    for(const [id,y] of [['wizard-contest-name',125],['tournament-toggle',190],['team-mode',260]]) x.nodes.push(control(id,y));
+    const g=x.nodes.find(n=>n.id==='add-group');g.bbox=rect(330,735,374,779);g.hitRegion={...g.bbox};
+    if(hasKeyboard){g.bbox.top=570;g.bbox.bottom=614;g.hitRegion={...g.bbox};}
+    return x;
+  };
+  b.checkpoints=early.flatMap(key=>{
+    const origin=first(key,key==='name entry');putShot(origin);
+    return [origin,...['first','bottom','restore'].map((tag,i)=>{
+      const cp=structuredClone(origin);cp.checkpoint=key+' reveal '+tag;putShot(cp);
+      const dy=[-95,-250,0][i];
+      for(const n of cp.nodes.filter(n=>n.id!=='contest-scroll' && !n.id.startsWith('wizard-scene-'))) for(const r of [n.bbox,n.hitRegion]) {r.top+=dy;r.bottom+=dy;}
+      return cp;
+    })];
+  }).concat(late);
+  return [b,o,early];
+}
+test('six early wizard stops require ordered witnesses and can prove same-state, bound vertical reach with keyboard kept',t=>{
+  const [b,o,names]=addEarlyScenes(t); requireEarlyWizardRevealStops(b);
+  const m=coverage(b,o);
+  for(const n of names) {
+    const cp=b.checkpoints.find(x=>x.checkpoint===n);
+    assert.ok(m.get(cp)?.has(cp.nodes.find(node=>node.id==='add-group')),n);
+    const findings=evaluateCheckpoint(cp.nodes,{...cp.context,platform:'ios'},m.get(cp)).findings.filter(f=>f.nodes.includes('add-group'));
+    assert.ok(!findings.some(f=>/scroll ancestors/.test(f.reason)),n);
+  }
+});
+for(const [label,mutate] of Object.entries({
+  'later state changed':(b,o,c)=>{for(const x of c.slice(1))x.nodes.find(n=>n.id==='team-mode').checked=true;},
+  'different round/team state marker':(b,o,c)=>{for(const x of c.slice(1)){const n=x.nodes.find(n=>n.id.startsWith('wizard-scene-'));n.id=n.meta.resourceId='wizard-scene-4-0-2-2';}},
+  'keyboard changed':(b,o,c)=>{for(const x of c.slice(1))x.context.measuredKeyboardInset=280;},
+  'stored photos cropped/replaced':(b,o,c)=>writeFileSync(join(o.evidenceDir,c[1].screenshot),'tampered'),
+  'unbound duplicate stop':(b,o,c)=>b.checkpoints.push(c[0]),
+  'unnamed control':(b,o,c)=>c[0].nodes.find(n=>n.id==='add-group').meta.resourceId='',
+  'required controls never cleared':(b,o,c)=>c[0].nodes.find(n=>n.id==='add-group').meta.required=true,
+  'legitimate horizontal clip preserved':(b,o,c)=>c[0].nodes.find(n=>n.id==='add-group').bbox.right=410,
+})) test('early reveal fails closed with '+label,t=>{
+  const [b,o]=addEarlyScenes(t);const i=b.checkpoints.findIndex(cp=>cp.checkpoint==='name entry');
+  const c=b.checkpoints.slice(i,i+4);mutate(b,o,c);
+  assert.ok(!coverage(b,o).get(c[0])?.has(c[0].nodes.find(n=>n.id==='add-group')));
 });

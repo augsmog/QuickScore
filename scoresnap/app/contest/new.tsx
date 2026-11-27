@@ -450,7 +450,7 @@ export default function NewContestScreen() {
         >
           <ChevronLeft size={20} color={COLORS.textDim} />
         </AnimatedPressable>
-        <Text style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text, flex: 1 }}>
+        <Text testID={Platform.OS === "ios" && step === 0 ? `wizard-scene-${isTournament ? numRounds : 0}-${hasTeams ? teams.length : 0}-${players.length}-${numGroups}` : undefined} style={{ fontFamily: FONTS.headline, fontSize: 20, color: COLORS.text, flex: 1 }}>
           New Contest
         </Text>
         <Text style={{ fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textDim }}>
@@ -502,6 +502,7 @@ export default function NewContestScreen() {
               </Text>
             </View>
             <TextInput
+              testID="wizard-contest-name"
               value={contestName}
               onChangeText={setContestName}
               placeholder={courseName ? `${dayName} at ${courseName}` : `${dayName} Round`}
@@ -563,6 +564,7 @@ export default function NewContestScreen() {
                     <AnimatedPressable
                       key={n}
                       testID={`rounds-${n}`}
+                      accessibilityState={{ selected: numRounds === n }}
                       onPress={() => {
                         setNumRounds(n);
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -596,6 +598,7 @@ export default function NewContestScreen() {
             <View style={{ marginBottom: compactViewport ? 8 : 16 }}>
               {COURSE_SEARCH_ENABLED ? (
                 <CourseSearch
+                  testID="wizard-course"
                   initialCourseName={courseName}
                   onSelect={(course, name, teeBox) => {
                     setSelectedCourse(course);
@@ -605,6 +608,7 @@ export default function NewContestScreen() {
                 />
               ) : (
                 <TextInput
+                  testID="wizard-course"
                   accessibilityLabel="Course name"
                   value={courseName}
                   onChangeText={setCourseName}
@@ -678,6 +682,7 @@ export default function NewContestScreen() {
                       <Text style={{ fontFamily: FONTS.bold, fontSize: 12, color: COLORS.onPrimary }}>{t.id}</Text>
                     </View>
                     <TextInput
+                      testID={`wizard-team-name-${t.id}`}
                       value={t.name}
                       onChangeText={(v) => updateTeamName(t.id, v)}
                       style={{
@@ -701,6 +706,7 @@ export default function NewContestScreen() {
                 ))}
                 {teams.length < 20 && (
                   <AnimatedPressable
+                    testID="wizard-add-team"
                     onPress={addTeam}
                     style={{
                       flexDirection: "row",
@@ -788,7 +794,7 @@ export default function NewContestScreen() {
 
                   {players.length > 2 && (
                     <AnimatedPressable
-                      testID={`remove-player-${player.name}`}
+                      testID={Platform.OS === "ios" && idx > 0 ? `wizard-remove-player-${idx + 1}` : `remove-player-${player.name}`}
                       accessibilityLabel={`Remove ${player.name || "player"}`}
                       onPress={() => removePlayer(player.id)}
                       style={{ minWidth: SETUP_MIN_TARGET, minHeight: SETUP_MIN_TARGET, alignItems: "center", justifyContent: "center" }}
@@ -807,7 +813,7 @@ export default function NewContestScreen() {
                     </Text>
                     <TextInput
                       accessibilityLabel={`Handicap for ${player.name || "player"}`}
-                      testID={`player-handicap-${player.name}`}
+                      testID={Platform.OS === "ios" && idx > 0 ? `wizard-player-handicap-${idx + 1}` : `player-handicap-${player.name}`}
                       value={player.handicap}
                       onChangeText={(v) => {
                         // Allow +, -, digits, and decimal point
@@ -844,7 +850,7 @@ export default function NewContestScreen() {
                   </View>
 
                   {numGroups > 1 && (
-                    <AnimatedPressable testID={`player-group-${player.name}`} accessibilityLabel={`Change group for ${player.name}`}
+                    <AnimatedPressable testID={Platform.OS === "ios" && idx > 0 ? `wizard-player-group-${idx + 1}` : `player-group-${player.name}`} accessibilityLabel={`Change group for ${player.name}`}
                       onPress={() =>
                         updatePlayer(
                           player.id,
@@ -872,7 +878,7 @@ export default function NewContestScreen() {
                         return (
                           <AnimatedPressable
                             key={t.id}
-                            testID={`player-team-${player.name}-${t.id}`}
+                            testID={Platform.OS === "ios" && idx > 0 ? `wizard-player-team-${idx + 1}-${t.id}` : `player-team-${player.name}-${t.id}`}
                             onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}
                             style={{
                               ...teamChipStyle,
@@ -951,6 +957,7 @@ export default function NewContestScreen() {
 
               <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <AnimatedPressable
+                  testID="wizard-remove-group"
                   onPress={() => {
                     if (numGroups > 1) {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
