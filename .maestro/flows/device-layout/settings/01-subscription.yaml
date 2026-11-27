@@ -1,0 +1,12 @@
+# device-layout Settings — checkpoint 01: the Subscription group.
+# The only purchase in 1.0.1 is found here: the "Tournament Director" row and "Restore purchases"
+# (AUG-1369). Continue from the top of Settings, scroll the group into view and capture both rows.
+appId: com.scoresnap.app
+---
+- assertVisible: "(?i)course & play"
+- scrollUntilVisible:
+    element: "Restore purchases"
+    direction: DOWN
+- assertVisible: "Tournament Director"
+- assertVisible: "Restore purchases"
+- takeScreenshot: device-layout-settings-01-subscription
