@@ -24,9 +24,7 @@ test('it returns an empty paywall-coloured screen until the fonts are in, before
   expect(gate).toBeGreaterThan(-1);
   const stmt = body[gate];
   // Loaded, or failed: either way the paywall is drawn. A font that fails must never leave a blank paywall.
-  // Android only: the cut text was an Android measuring fault. On iPhone the gate only added a
-  // blank sheet with no Close and no Restore while the font loaded (review finding, build 33).
-  expect(text(stmt.expression)).toBe("Platform.OS === 'android' && !fontsLoaded && !fontError");
+  expect(text(stmt.expression)).toBe('!fontsLoaded && !fontError');
   expect(text(stmt.thenStatement)).toBe('return <SafeScreen style={s.safe} testID="paywall-loading-fonts" />;');
   // Every hook comes before the early return (React's rule), and the view is built after it.
   const hooks = body.map((n, i) => (/\buse[A-Z]\w*\(/.test(text(n)) ? i : -1)).filter((i) => i >= 0);

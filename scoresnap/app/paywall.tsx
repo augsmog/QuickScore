@@ -46,9 +46,7 @@ export default function PaywallScreen() {
   // Draw no text until Inter is in. Android measures a line with the fallback font and does not
   // measure again when Inter arrives, so text drawn early came out cut ("Fre", "$79.99/y…",
   // "Cancel anytim"). If the fonts fail to load the paywall is still drawn, in the fallback font.
-  // Android only. Build 32 had no such gate and no cut text was reported on iPhone; there the gate
-  // only added a blank sheet with no Close and no Restore while the font loaded.
-  if (Platform.OS === 'android' && !fontsLoaded && !fontError) return <SafeScreen style={s.safe} testID="paywall-loading-fonts" />;
+  if (!fontsLoaded && !fontError) return <SafeScreen style={s.safe} testID="paywall-loading-fonts" />;
   const v = buildPaywallView(packages, eligible, tier, selection, proEnabled());
   const tag = (label: string) => <Text style={[s.tag, label === C.current && s.current]}>{label}</Text>;
   return <SafeScreen style={s.safe}>
