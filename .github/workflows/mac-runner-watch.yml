@@ -5,6 +5,8 @@ on:
   schedule:
     - cron: "47 * * * *"
   workflow_dispatch:
+  # AUG-1601: schedule kept by name (scoresnap/scripts/ci/workflow-triggers-lint.cjs). No push or
+  # pull_request trigger may be added.
 permissions:
   issues: write
 jobs:

@@ -3,19 +3,9 @@ name: iOS StoreKit proof
 # Clean expo prebuild -> inject StoreKit unit-test target (scoresnap/e2e/storekit) -> xcodebuild test on a simulator.
 # No secrets. Local StoreKit only: not RevenueCat offerings, server eligibility or a live sandbox price.
 on:
-  pull_request:
-    paths:
-      - 'scoresnap/e2e/storekit/**'
-      - 'scoresnap/src/services/purchases.ts'
-      - 'scoresnap/src/services/paywall-plans.ts'
-      - '.github/workflows/ios-storekit.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'scoresnap/e2e/storekit/**'
-      - 'scoresnap/src/services/purchases.ts'
-      - 'scoresnap/src/services/paywall-plans.ts'
-      - '.github/workflows/ios-storekit.yml'
+  # AUG-1601: manual-only. No push, pull_request, schedule or other automatic trigger may be added;
+  # scoresnap/tests/workflow-triggers.test.cjs fails the unit suite if one is. Run with "Run workflow"
+  # or `gh workflow run`.
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

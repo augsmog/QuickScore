@@ -1,25 +1,8 @@
 name: First-round activation candidate
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/activation-candidate.yml'
-      - 'scoresnap/supabase/proposed/20261103170000_first_round_finished.sql'
-      - 'scoresnap/supabase/proposed/20261104090000_activation_retention.sql'
-      - 'scoresnap/supabase/proposed/20261104110000_activation_share_rate.sql'
-      - 'scoresnap/supabase/proposed/20261111120000_joined_round_finishes.sql'
-      - 'scoresnap/supabase/proposed/README-first-round-finished.md'
-      - 'scoresnap/supabase/rollbacks/20261103170000_first_round_finished.sql'
-      - 'scoresnap/supabase/rollbacks/20261104090000_activation_retention.sql'
-      - 'scoresnap/supabase/rollbacks/20261104110000_activation_share_rate.sql'
-      - 'scoresnap/supabase/rollbacks/20261111120000_joined_round_finishes.sql'
-      - 'scoresnap/scripts/ci/test-first-round-finished.sql'
-      - 'scoresnap/scripts/ci/test-activation-retention.sql'
-      - 'scoresnap/scripts/ci/test-activation-share-rate.sql'
-      - 'scoresnap/scripts/ci/test-joined-round-finishes.sql'
-      - 'scoresnap/scripts/ci/test-joined-round-finishes-rollback.sql'
-      - 'scoresnap/scripts/ci/test-day14-report.sql'
-      - 'scoresnap/scripts/ci/test-day14-report.py'
-      - 'scoresnap/scripts/analytics/day14-report.sql'
+  # AUG-1601: manual-only. No push, pull_request, schedule or other automatic trigger may be added;
+  # scoresnap/tests/workflow-triggers.test.cjs fails the unit suite if one is. Run with "Run workflow"
+  # or `gh workflow run`.
   workflow_dispatch:
 permissions:
   contents: read
