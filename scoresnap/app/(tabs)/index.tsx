@@ -474,6 +474,7 @@ export default function HomeScreen() {
                     paddingVertical: 8,
                     flexDirection: "row",
                     alignItems: "center",
+                    justifyContent: "center",
                     gap: 6,
                     opacity: implemented ? 1 : 0.55,
                   }}
@@ -485,6 +486,7 @@ export default function HomeScreen() {
                       fontSize: 12,
                       color: COLORS.secondary,
                       flexShrink: 1,
+                      textAlign: "center",
                     }}
                   >
                     {item.name}
