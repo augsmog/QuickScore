@@ -116,12 +116,9 @@ test('aggregate rejects absent/extra dependency and missing results', () => {
   assert.throws(() => assertWebGate({ ...success(), unexpected: { result: 'success' } }));
   for (const invalid of [null, [], {}, 'success']) assert.throws(() => assertWebGate(invalid));
 });
-test('workflow retains triggers, permissions and established required check', () => {
-  assert.deepEqual(workflow.on.push.branches, ['main']);
-  assert.ok(workflow.on.pull_request.paths.includes('scoresnap/**'));
-  assert.ok(workflow.on.pull_request.paths.includes('.maestro/**'));
-  assert.ok(workflow.on.pull_request.paths.includes('.github/workflows/web-smoke.yml'));
-  assert.ok(Object.hasOwn(workflow.on, 'workflow_dispatch'));
+// AUG-1601: manual-only. The trigger list is exactly workflow_dispatch; jobs and permissions are unchanged.
+test('workflow is manual-only and retains permissions and the established required check', () => {
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
   assert.deepEqual(workflow.permissions, { contents: 'read' });
   assert.deepEqual(Object.keys(workflow.jobs).sort(), [...REQUIRED_WEB_JOBS, 'web-smoke'].sort());
   assert.deepEqual(workflow.jobs['web-smoke'].needs, REQUIRED_WEB_JOBS);

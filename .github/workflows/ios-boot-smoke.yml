@@ -1,31 +1,8 @@
 name: iOS boot smoke
 on:
-  push:
-    branches: [main]
-  # CI trim 2026-10-30 (Augie yes 4:21 PM PT): PRs run this suite only when files it tests change.
-  # Main pushes and manual runs are unfiltered.
-  pull_request:
-    paths:
-      - 'scoresnap/app/**'
-      - 'scoresnap/src/**'
-      - 'scoresnap/assets/**'
-      - 'scoresnap/package.json'
-      - 'scoresnap/package-lock.json'
-      - 'scoresnap/app.json'
-      - 'scoresnap/babel.config.js'
-      - 'scoresnap/metro.config.js'
-      - 'scoresnap/tsconfig.json'
-      - 'scoresnap/index.ts'
-      - 'scoresnap/global.css'
-      - 'scoresnap/tailwind.config.js'
-      - 'scoresnap/nativewind-env.d.ts'
-      - 'scoresnap/.npmrc'
-      - 'scoresnap/pnpm-lock.yaml'
-      - 'scoresnap/supabase/functions/**'
-      - 'docs/xdevice/**'
-      - 'scoresnap/eas.json'
-      - 'scoresnap/e2e/ios-boot-smoke.cjs'
-      - '.github/workflows/ios-boot-smoke.yml'
+  # AUG-1601: manual-only. No push, pull_request, schedule or other automatic trigger may be added;
+  # scoresnap/tests/workflow-triggers.test.cjs fails the unit suite if one is. Run with "Run workflow"
+  # or `gh workflow run`.
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

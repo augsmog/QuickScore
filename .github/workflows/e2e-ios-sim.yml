@@ -2,6 +2,9 @@ name: E2E iOS simulator
 # Runs .maestro flows (aos-e2e/v1) against a source-built or supplied EAS iOS simulator app.
 # Manual only. No secrets used. Evidence: artifact e2e-<product>-<run_id> (manifest.json + screenshots).
 on:
+  # AUG-1601: manual-only. No push, pull_request, schedule or other automatic trigger may be added;
+  # scoresnap/tests/workflow-triggers.test.cjs fails the unit suite if one is. Run with "Run workflow"
+  # or `gh workflow run`.
   workflow_dispatch:
     inputs:
       app_url:
