@@ -44,6 +44,7 @@ function handoffService(enabled=true) {
   'expo-crypto':{randomUUID:()=> 'random'},
   zustand:{create:factory=>{let state=factory();return {setState:patch=>Object.assign(state,patch),getState:()=>state}}},
   '../db/supabase':{supabase:{auth:{getSession:async()=>({data:{session},error:null})}}},
+  '../config/features':{ACCOUNT_HANDOFF_ENABLED:enabled},
   './cross-device':{onlineEnabled:enabled,replayOnlineScores:async()=>{replay++},onlineQueue:async()=>({entries}),client:{discover:async()=>{}}},
   './account-round-history':{stageGuestHistory:async()=>{},claimGuestHistory:async()=>0},
   '../stores/auth-store':{useAuthStore:{getState:()=>({isAnonymous:true})}},

@@ -3,6 +3,7 @@ import * as Crypto from 'expo-crypto';
 import { create } from 'zustand';
 import { supabase } from '../db/supabase';
 import { onlineEnabled, replayOnlineScores, client } from './cross-device';
+import { ACCOUNT_HANDOFF_ENABLED } from '../config/features';
 import { stageGuestHistory, claimGuestHistory } from './account-round-history';
 import { useAuthStore } from '../stores/auth-store';
 import { ACCOUNT_HANDOFF_KEY, GUEST_HISTORY_HANDOFF_KEY, accountHandoff } from './account-merge';
@@ -16,7 +17,7 @@ const handoff = accountHandoff(AsyncStorage, async (name, args) => {
 }, () => (Crypto.randomUUID() + Crypto.randomUUID()).replace(/-/g, ''));
 
 export async function prepareAccountHandoff() {
-  if (!onlineEnabled) return;
+  if (!ACCOUNT_HANDOFF_ENABLED || !onlineEnabled) return;
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
   if (!data.session?.user.is_anonymous) {
@@ -33,7 +34,7 @@ export async function prepareAccountHandoff() {
 }
 let claiming: Promise<void> | undefined;
 export function finishAccountHandoff(): Promise<void> {
-  if (!onlineEnabled) return Promise.resolve();
+  if (!ACCOUNT_HANDOFF_ENABLED || !onlineEnabled) return Promise.resolve();
   if (claiming) return claiming;
   claiming = (async () => {
     const { data, error } = await supabase.auth.getSession();

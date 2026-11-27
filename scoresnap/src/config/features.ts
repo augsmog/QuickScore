@@ -7,6 +7,13 @@ export const COURSE_SEARCH_ENABLED =
 export const CROSS_DEVICE_SHARING_ENABLED =
   process.env.EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING === "true";
 
+// Carrying a guest's rounds into the account they sign in to. Its own release decision: it needs
+// database objects (supabase/proposed/20261103071000_account_handoff.sql) that are NOT in
+// production. With Join by code on and this riding on the same switch, build 33 showed every
+// signed-in user "Round handoff paused" on Home and Settings. Off unless set.
+export const ACCOUNT_HANDOFF_ENABLED = CROSS_DEVICE_SHARING_ENABLED &&
+  process.env.EXPO_PUBLIC_FEATURE_ACCOUNT_HANDOFF === "true";
+
 // Separate release decisions: neither follows the Join-by-code switch.
 export const LEAGUES_ENABLED = CROSS_DEVICE_SHARING_ENABLED &&
   process.env.EXPO_PUBLIC_FEATURE_LEAGUES === "true";

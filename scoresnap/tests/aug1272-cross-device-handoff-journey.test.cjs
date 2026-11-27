@@ -234,6 +234,8 @@ function buildFullHandoffService(sharingEnabled, existingAccounts = new Map()) {
     'expo-crypto': { randomUUID: () => `tok${tokenCalls++}` },
     zustand: { create: fakeZustandCreate },
     '../db/supabase': { supabase: { auth: { getSession: async () => ({ data: { session }, error: null }) }, rpc } },
+    // Account handoff has its own switch since build 33; these journeys run with both on or both off.
+    '../config/features': { ACCOUNT_HANDOFF_ENABLED: sharingEnabled },
     './cross-device': { onlineEnabled: sharingEnabled, replayOnlineScores: async () => {}, onlineQueue: async () => ({ entries: [] }), client: { discover: async () => {} } },
     './account-round-history': { stageGuestHistory: async () => {}, claimGuestHistory: async () => 0 },
     '../stores/auth-store': { useAuthStore: { getState: () => ({ isAnonymous: session.user.is_anonymous }) } },
