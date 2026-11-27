@@ -1,0 +1,27 @@
+# device-layout Scan — checkpoint 00: what "Scan Scorecard" opens in the gate's build.
+# The gate's build has no ML Kit and runs offline, so this is the type-it-in screen with the line
+# "Scanning is unavailable in simulator builds", NOT the camera screen the store build shows. It is
+# asserted here so nobody mistakes this capture for the store build's scan screen: that one can
+# only be checked on a device (AUG-399, AUG-1586 row F3).
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../../subflows/finish-onboarding.yaml
+- retry:
+    maxRetries: 3
+    commands:
+      - openLink: "snapscore://scan"
+      - tapOn:
+          text: "Open"  # iOS asks 'Open in "SnapScore"?' for a custom-scheme link
+          optional: true
+      - extendedWaitUntil:
+          visible:
+            id: "scorecard-text-input"
+          timeout: 20000
+- assertVisible:
+    id: "scan-unavailable-simulator"
+- assertVisible:
+    id: "parse-scorecard-button"
+- takeScreenshot: device-layout-scan-00-text-entry

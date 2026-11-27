@@ -1,0 +1,13 @@
+# device-layout Round — checkpoint 01: hole 1 with both scores entered.
+# Continue from score entry: par for each player, then capture the scored hole.
+appId: com.scoresnap.app
+---
+- assertVisible:
+    id: "score-plus-Ava"
+- tapOn:
+    id: "score-par-Ava"
+- tapOn:
+    id: "score-par-Ben"
+- assertVisible:
+    id: "score-next-hole"
+- takeScreenshot: device-layout-round-01-hole-scored
