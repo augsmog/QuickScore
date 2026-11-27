@@ -62,7 +62,13 @@ test('genuine scroll revealed exact same fully usable target; footer, safe area 
   assert.ok(!result.results[1].kept.some(f=>f.nodes.includes('add-player')));
   assert.ok(result.results[1].verifiedScrollReveals.some(r=>r.id==='add-player' && r.verticalMotion<0 && r.checkpoint===tail));
   assert.ok(proof(b,o,2,'remove-player-Ava'),'verified rewind reveals exact Remove Ava');
-  assert.ok(targets(b,o,2,'remove-player-Ava').some(f=>/top<59/.test(f.reason)));
+  // G4 (Claude, AUG-1601): DotBot's patch asserted the opposite here, that Remove Ava, scrolled up
+  // out of a scroll area that starts at y=100, still "extends outside the safe area (top<59)". It
+  // is at y=-206 only in Maestro's unmasked report; nothing is drawn above y=100. With that
+  // assertion the wizard fails at every checkpoint where a row has scrolled off the top, which is
+  // every scrolled one (4 such findings in run 46008363328). lib/ios-top-inset-mask.test.mjs keeps
+  // the real case failing: a control drawn above the inset. The gate owner reviews this line.
+  assert.ok(!targets(b,o,2,'remove-player-Ava').some(f=>/top<59/.test(f.reason)));
 });
 test('real previously clipped owner target remains failing if it is never revealed',t=>{
   const [b,o]=fixture(t);

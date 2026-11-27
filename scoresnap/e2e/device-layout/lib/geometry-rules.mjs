@@ -186,7 +186,11 @@ export function ruleClipping(tree, ctx, paintedAtVerifiedScrollStop) {
     const isFooterChrome = n.meta?.footerAnchor || n.meta?.footer || n.meta?.cta;
     if (safe && vp && !isFooterChrome) {
       const over = [];
-      if (r.top < (safe.top ?? 0) - 1) over.push(`top<${safe.top ?? 0}`);
+      // G4: judge the top of what is DRAWN. A row scrolled up out of its measured scroll area is
+      // masked by it; Maestro still reports the unmasked frame. If the scroll area itself runs
+      // above the inset, the row is drawn there and still fails.
+      const drawnTop = finiteRect(clip) ? Math.max(r.top, clip.top) : r.top;
+      if (drawnTop < (safe.top ?? 0) - 1) over.push(`top<${safe.top ?? 0}`);
       const alreadyMasked = keyboardMask && finiteRect(clip) &&
         ['left', 'right', 'top', 'bottom'].every(k => clip[k] === keyboardMask[k]) &&
         keyboardMask.bottom <= keyboardLine && r.top >= keyboardMask.bottom &&
