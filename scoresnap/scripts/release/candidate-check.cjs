@@ -230,11 +230,18 @@ function verifyReceipt({ repo, sha, receiptPath, fixesFile }) {
   if (receipt.base !== doc.base) refuse('candidate receipt base does not match the manifest');
   if (receipt.release?.version !== doc.release.version || receipt.release?.ticket !== doc.release.ticket) refuse('candidate receipt release does not match the manifest');
   if (!Array.isArray(receipt.fixes) || receipt.fixes.length !== doc.fixes.length) refuse(`candidate receipt lists ${receipt.fixes?.length ?? 0} fix(es) but the manifest requires ${doc.fixes.length}`);
+  // Where each fix is in the SHA is worked out again here from the manifest and the repository.
+  // What the receipt says about it (`as`, `how`) is compared with that and never trusted: an
+  // unrelated commit that merely is an ancestor of the SHA cannot stand in for a required fix.
+  const located = locateFixes(repo, sha, doc);
   doc.fixes.forEach((fix, index) => {
     const got = receipt.fixes[index];
+    const real = located[index];
     if (got?.commit !== fix.commit || got?.ticket !== fix.ticket) refuse(`candidate receipt fix ${index + 1} is not the manifest's (${fix.ticket} ${fix.commit})`);
     if (got.present !== 'yes') refuse(`candidate receipt does not record ${fix.ticket} ${fix.commit} as present`);
+    if (real.present !== 'yes') refuse(`${fix.ticket} ${fix.commit} is not in ${sha}, whatever the receipt says`);
     if (!SHA.test(got.as ?? '') || !gitOk(repo, ['merge-base', '--is-ancestor', got.as, sha])) refuse(`candidate receipt says ${fix.ticket} is present as ${got.as}, which is not in ${sha}`);
+    if (got.as !== real.as || got.how !== real.how) refuse(`candidate receipt says ${fix.ticket} ${fix.commit} is present as ${got.as} (${got.how}), but in ${sha} it is ${real.as} (${real.how}); the receipt's fix mapping is not the real one`);
   });
   if (receipt.checkSha256 !== selfSha256()) refuse('candidate receipt was written by a different version of candidate-check; run the check again');
   return receipt;
