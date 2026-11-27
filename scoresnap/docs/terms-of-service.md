@@ -1,4 +1,4 @@
-← August Industries
+← Autumn8me, Inc.
 
 SnapScore Golf
 
@@ -6,7 +6,7 @@ SnapScore Golf
 
 Effective Date: March 24, 2026
 
-These Terms of Service ("Terms") govern your use of the SnapScore Golf mobile application (the "App") operated by August Industries ("we," "us," or "our"). By downloading, installing, or using the App, you agree to these Terms.
+These Terms of Service ("Terms") govern your use of the SnapScore Golf mobile application (the "App") operated by Autumn8me, Inc. ("we," "us," or "our"). By downloading, installing, or using the App, you agree to these Terms.
 
 ## 1. Eligibility
 
@@ -61,17 +61,17 @@ While we strive for accuracy in score calculations and settlement amounts, the A
 - Course data from third-party providers will be current or accurate
 - The App will be available without interruption
 
-**TO THE MAXIMUM EXTENT PERMITTED BY LAW, AUGUST INDUSTRIES DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.**
+**TO THE MAXIMUM EXTENT PERMITTED BY LAW, AUTUMN8ME, INC. DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.**
 
 ## 8. Limitation of Liability
 
-TO THE MAXIMUM EXTENT PERMITTED BY LAW, AUGUST INDUSTRIES SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, DATA, OR GOODWILL, ARISING OUT OF OR IN CONNECTION WITH YOUR USE OF THE APP.
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, AUTUMN8ME, INC. SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, DATA, OR GOODWILL, ARISING OUT OF OR IN CONNECTION WITH YOUR USE OF THE APP.
 
 OUR TOTAL LIABILITY FOR ANY CLAIM ARISING OUT OF OR RELATING TO THESE TERMS OR THE APP SHALL NOT EXCEED THE AMOUNT YOU PAID US IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.
 
 ## 9. Intellectual Property
 
-The App and its original content, features, and functionality are owned by August Industries and are protected by copyright, trademark, and other intellectual property laws. "SnapScore," "SnapScore Golf," and associated logos are trademarks of August Industries.
+The App and its original content, features, and functionality are owned by Autumn8me, Inc. and are protected by copyright, trademark, and other intellectual property laws. "SnapScore," "SnapScore Golf," and associated logos are trademarks of Autumn8me, Inc..
 
 ## 10. Termination
 
@@ -89,6 +89,6 @@ These Terms shall be governed by and construed in accordance with the laws of th
 
 If you have questions about these Terms, please contact us at:
 
-August Industries
+Autumn8me, Inc.
 
 Email: augie@autumn8.me

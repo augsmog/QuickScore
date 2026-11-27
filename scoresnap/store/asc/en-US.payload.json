@@ -24,5 +24,8 @@
     "name": "SnapScore Golf",
     "subtitle": "Score, games and who owes what",
     "privacyPolicyUrl": "https://snapscore.autumn8.me/privacy"
+  },
+  "appStoreVersion": {
+    "copyright": "2026 Autumn8me, Inc."
   }
 }

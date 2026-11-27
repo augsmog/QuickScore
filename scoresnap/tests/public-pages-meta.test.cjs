@@ -3,9 +3,10 @@ const path = require('node:path');
 const cp = require('node:child_process');
 const root = path.resolve(__dirname,'..');
 const crypto = require('node:crypto');
-// SHA-256 of body HTML and headers extracted from reviewed main 501bdae.
+// SHA-256 of body HTML and headers extracted from reviewed main 501bdae. /privacy and /terms were
+// re-pinned for AUG-1639 (operator named as Autumn8me, Inc.; no other wording changed).
 // Pinned digests also work in shallow CI checkouts.
-const baseline = {"site/index.html": "1629c5195b87c8a6ad8b21a3ed9a92c3a7eb62dcd43dde29465c09e5efc0c730", "site/support/index.html": "cc9605e264300ca136bdac55772a795570366da0c39e67dc5e8945d28854d746", "site/privacy/index.html": "46f6abeb46370043f6b9184b03d19059ffaf1beb1ade2190068a8efef390b7e2", "site/terms/index.html": "c40452d9f332c61ae6655e39248b6495c4b5020986f8dc19c6fb2612c0af7e2f"};
+const baseline = {"site/index.html": "1629c5195b87c8a6ad8b21a3ed9a92c3a7eb62dcd43dde29465c09e5efc0c730", "site/support/index.html": "cc9605e264300ca136bdac55772a795570366da0c39e67dc5e8945d28854d746", "site/privacy/index.html": "af9a463a652bf0c8519d855851ac56864746100a2bed175f043c67663bf58c3e", "site/terms/index.html": "2c8d281c28ade86c87c76f9aefe89a8f72a0b00ec34cc91213bd4afde9fce946"};
 const digest = text => crypto.createHash('sha256').update(text).digest('hex');
 const routes = ['', 'support','privacy','terms'];
 const file = route => `site/${route ? route+'/' : ''}index.html`;

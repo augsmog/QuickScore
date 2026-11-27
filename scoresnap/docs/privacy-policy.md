@@ -2,7 +2,7 @@
 
 Effective date: October 30, 2026
 
-SnapScore is operated by John August Jones ("we", "us"). For privacy questions or requests, email augie@autumn8.me. This policy is published at https://snapscore.autumn8.me/privacy and the support page is https://snapscore.autumn8.me/support.
+SnapScore is operated by Autumn8me, Inc. ("we", "us"). For privacy questions or requests, email augie@autumn8.me. This policy is published at https://snapscore.autumn8.me/privacy and the support page is https://snapscore.autumn8.me/support.
 
 ## Information you provide
 
@@ -79,4 +79,4 @@ If we change this policy, we will post the updated version at https://snapscore.
 
 ## Contact
 
-John August Jones, operator of SnapScore. Email: augie@autumn8.me
+Autumn8me, Inc., operator of SnapScore. Email: augie@autumn8.me

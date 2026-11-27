@@ -1,8 +1,10 @@
 /** Offline ASC lint and field diff. No credentials or network. */
 import * as fs from 'fs';
 import * as path from 'path';
+import { LEGAL_ENTITY } from '../../src/config/legal';
 export const LIMITS:Record<string,number>={name:30,subtitle:30,keywords:100,promotionalText:170,description:4000};
 export const URL_FIELDS=['supportUrl','marketingUrl','privacyPolicyUrl'];
+export const COPYRIGHT=new RegExp('^20\\d\\d '+LEGAL_ENTITY.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$');
 export function flatten(p:any):Record<string,string> {return {...(p.appInfoLocalization??{}),...(p.versionLocalization??{})};}
 export function validate(p:any):string[] {
  const errors:string[]=[],fields=flatten(p);
@@ -25,6 +27,9 @@ export function validate(p:any):string[] {
   for(const claim of value.matchAll(/\b\d+\+?\s+game modes\b/gi)) if(claim[0]!=='50+ game modes') errors.push(key+': noncanonical mode claim');
  }
  if(!fields.description?.includes('50+ game modes')) errors.push('description: exact 50+ game modes phrase required');
+ // AUG-1639: the copyright line names the one legal entity. App Store Connect adds the (c) sign itself.
+ for(const key of Object.keys(p.appStoreVersion??{})) if(key!=='copyright') errors.push('appStoreVersion.'+key+': unapproved field');
+ if(!COPYRIGHT.test(p.appStoreVersion?.copyright??'')) errors.push('appStoreVersion.copyright: must be "<year> '+LEGAL_ENTITY+'"');
  return errors;
 }
 export function diff(staged:Record<string,string>,live:Record<string,string>):string[] {

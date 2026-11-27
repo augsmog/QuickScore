@@ -117,10 +117,10 @@ test("support route renders the contact email, deletion request, and no external
   const pages = load("src/web/public-pages.ts");
   const privacyMarkdown = fs.readFileSync(path.join(root, "docs/privacy-policy.md"), "utf8");
   expect(crypto.createHash("sha256").update(privacyMarkdown).digest("hex")).toBe(
-    "5389a5794af7d427bdce87ff0fa566b8c7bf518a93145df67335037a3c09645f",
+    "1fa4d1c4afbefbeb42e4b9f432108a9ae3e10730a926e0ffb35842e77bfebeaf",
   );
   expect(privacyMarkdown).toContain("Effective date: October 30, 2026");
-  expect(privacyMarkdown).toContain("SnapScore is operated by John August Jones");
+  expect(privacyMarkdown).toContain("SnapScore is operated by Autumn8me, Inc.");
   expect(privacyMarkdown).toContain("email augie@autumn8.me");
   expect(privacyMarkdown).not.toMatch(/\bOPEN\b/);
   expect(privacyMarkdown).not.toMatch(/\[E\d+\]/);
@@ -160,7 +160,7 @@ test("support route renders the contact email, deletion request, and no external
     expect(privacyBody).toContain('id="children"');
     expect(privacyBody).toContain("It does not delete your account or data on SnapScore's servers");
     expect(privacyBody).toContain("Effective date: October 30, 2026");
-    expect(privacyBody).toContain("SnapScore is operated by John August Jones");
+    expect(privacyBody).toContain("SnapScore is operated by Autumn8me, Inc.");
     expect(privacyBody).toContain("To ask us to delete your account and the data stored on SnapScore's servers");
     expect(privacyBody).toContain("forwards it to Anthropic's API");
     expect(privacyBody).not.toContain("Draft dated");
