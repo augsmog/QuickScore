@@ -174,6 +174,12 @@ test('verify refuses a missing receipt, a receipt for another SHA, and every pos
   withReceipt((r) => { r.fixes[1].commit = r.fixes[0].commit; }, /fix 2 is not the manifest's/);
   withReceipt((r) => { r.fixes[0].present = 'no'; }, /does not record AUG-A .* as present/);
   withReceipt((r) => { r.fixes[0].as = f.base.replace(/^./, (c) => (c === 'a' ? 'b' : 'a')); }, /which is not in/);
+  // DotBot's negative (AUG-1602 706aa05d): the replacement is a REAL commit that IS an ancestor of
+  // the SHA, but is not the fix. The base, and the other fix, both qualify.
+  withReceipt((r) => { r.fixes[0].as = f.base; }, /fix mapping is not the real one/);
+  withReceipt((r) => { r.fixes[0].as = r.fixes[1].as; }, /fix mapping is not the real one/);
+  withReceipt((r) => { [r.fixes[0].as, r.fixes[1].as] = [r.fixes[1].as, r.fixes[0].as]; }, /fix mapping is not the real one/);
+  withReceipt((r) => { r.fixes[0].how = r.fixes[0].how === 'ancestor' ? 'identical-patch' : 'ancestor'; }, /fix mapping is not the real one/);
   withReceipt((r) => { r.requiredFixesSha256 = '0'.repeat(64); }, /different required-fixes manifest/);
   withReceipt((r) => { delete r.suite.testIdsSha256; }, /does not bind the ordered test list/);
   withReceipt((r) => { r.suite.testIdsSha256 = '0'.repeat(64); }, /does not match suite.testIdsSha256/);
@@ -194,7 +200,7 @@ test('the shipped 1.0.1 fix list is well formed', () => {
   const { validateFixes } = require('../scripts/release/candidate-check.cjs');
   const doc = validateFixes(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'release', 'required-fixes.json'), 'utf8')));
   assert.equal(doc.release.version, '1.0.1');
-  assert.equal(doc.fixes.length, 4);
+  assert.equal(doc.fixes.length, 5);
   assert.deepEqual(doc.allowedSkips, []);
 });
 
@@ -365,7 +371,7 @@ describe('run-on-candidate', () => {
     refused(() => runOnCandidate([...freshArgs('--source', '.'), '--', 'true'], opts), /not both/);
   });
 
-  test('a fresh checkout left by a killed run is removed at the next start; one whose owner is alive is never touched', () => {
+  test('a fresh checkout left by a dead wrapper is reported with its removal command and never deleted', () => {
     const { f, tmpRoot, record, freshArgs, opts } = freshSetup();
     const { spawnSync } = require('node:child_process');
     const deadPid = spawnSync('node', ['-e', '0']).pid;
@@ -375,23 +381,47 @@ describe('run-on-candidate', () => {
       if (asWorktree) f.git('worktree', 'add', '-q', '--detach', path.join(holder, 'checkout'), f.both);
       else fs.mkdirSync(path.join(holder, 'checkout'));
       if (owner) fs.writeFileSync(path.join(holder, 'owner.json'), JSON.stringify(owner));
+      fs.writeFileSync(path.join(holder, 'checkout', 'archive-output.txt'), 'must survive\n');
       return holder;
     };
-    const dead = leave('snapscore-candidate-dead', { tool: 'run-on-candidate', pid: deadPid, startedAt: 'earlier' }, true);
-    const running = leave('snapscore-candidate-live', { tool: 'run-on-candidate', pid: process.pid, startedAt: 'now' }, true);
-    const unknown = leave('snapscore-candidate-noowner', null);
-    const foreign = leave('snapscore-candidate-other', { tool: 'something-else', pid: deadPid });
-    const unrelated = leave('some-other-directory', { tool: 'run-on-candidate', pid: deadPid });
-    assert.equal(f.git('worktree', 'list').split('\n').length, 3);
+    const all = [
+      leave('snapscore-candidate-dead', { tool: 'run-on-candidate', pid: deadPid, startedAt: 'earlier' }, true),
+      leave('snapscore-candidate-kept', { tool: 'run-on-candidate', pid: deadPid, startedAt: 'earlier', kept: true }, true),
+      leave('snapscore-candidate-live', { tool: 'run-on-candidate', pid: process.pid, startedAt: 'now' }),
+      leave('snapscore-candidate-noowner', null),
+      leave('some-other-directory', { tool: 'run-on-candidate', pid: deadPid }),
+    ];
     const lines = [];
     assert.equal(runOnCandidate([...freshArgs(), '--', ...record], { ...opts, log: (l) => lines.push(l) }), 0);
-    assert.equal(fs.existsSync(dead), false);
-    assert.match(lines.join('\n'), new RegExp(`REMOVED STALE: .*snapscore-candidate-dead \\(left by pid ${deadPid}`));
-    for (const kept of [running, unknown, foreign, unrelated]) assert.equal(fs.existsSync(path.join(kept, 'checkout')), true, kept);
-    // The dead run's worktree entry is pruned; the live one's is still registered.
-    assert.equal(f.git('worktree', 'list').split('\n').length, 2);
-    assert.equal(fs.readdirSync(tmpRoot).length, 4);
-    f.git('worktree', 'remove', '--force', path.join(running, 'checkout'));
+    for (const holder of all) assert.equal(fs.readFileSync(path.join(holder, 'checkout', 'archive-output.txt'), 'utf8'), 'must survive\n', holder);
+    assert.equal(f.git('worktree', 'list').split('\n').length, 3);
+    const out = lines.join('\n');
+    assert.match(out, new RegExp(`LEFT BEHIND: .*snapscore-candidate-dead/checkout \\(its wrapper, pid ${deadPid}.*NOT removed.*worktree remove --force`));
+    assert.match(out, /KEPT EARLIER: .*snapscore-candidate-kept\/checkout .*Not touched/);
+    assert.doesNotMatch(out, /snapscore-candidate-(live|noowner)|some-other-directory/);
+    assert.doesNotMatch(out, /REMOVED/);
+  });
+
+  test('two real runs: what the first keeps with --keep is still there, with its output, after the second', () => {
+    const { f, tmpRoot } = freshSetup();
+    const { spawnSync } = require('node:child_process');
+    const cli = path.join(__dirname, '..', 'scripts', 'release', 'run-on-candidate.cjs');
+    const real = (...rest) => spawnSync('node', [cli, '--repo', f.repo, '--receipt', f.receiptPath, '--fixes', f.fixesFile, ...rest], { encoding: 'utf8', env: { ...process.env, TMPDIR: tmpRoot } });
+    const one = real('--keep', '--', 'node', '-e', "require('fs').writeFileSync('SnapScore.xcarchive','archive bytes')");
+    assert.equal(one.status, 0, one.stderr);
+    const kept = one.stdout.match(/KEPT: the fresh checkout is at (\S+?)\. /)[1];
+    const archive = path.join(kept, 'scoresnap', 'SnapScore.xcarchive');
+    assert.equal(fs.readFileSync(archive, 'utf8'), 'archive bytes');
+    // The first wrapper process has exited. A second and a third real run must not remove what it kept.
+    for (const flags of [[], ['--keep']]) {
+      const next = real(...flags, '--', 'node', '-e', '0');
+      assert.equal(next.status, 0, next.stderr);
+      assert.doesNotMatch(next.stdout + next.stderr, /REMOVED/);
+      assert.match(next.stdout, /KEPT EARLIER: /);
+      assert.equal(fs.readFileSync(archive, 'utf8'), 'archive bytes');
+      assert.equal(f.git('-C', kept, 'rev-parse', 'HEAD'), f.both);
+    }
+    assert.equal(fs.readdirSync(tmpRoot).filter((n) => n.startsWith('snapscore-candidate-')).length, 2);
   });
 
   test('each admitted run leaves a build record beside the receipt, outside the checkout', () => {
