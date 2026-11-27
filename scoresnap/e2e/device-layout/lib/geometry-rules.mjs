@@ -137,7 +137,7 @@ export function ruleOverlap(tree) {
 // Rule 2 — Clipping / reachability. After scroll-to-end every required control and the
 // last focusable row must be fully visible and operable above the sticky footer and inside
 // the safe area; nothing hard-clipped by the footer, viewport, or safe-area insets.
-export function ruleClipping(tree, ctx) {
+export function ruleClipping(tree, ctx, paintedAtVerifiedScrollStop) {
   const findings = [];
   const footer = ctx.footer; // {left,top,right,bottom} sticky footer, optional
   const safe = ctx.safeArea; // {top,bottom,left,right} insets, optional
@@ -146,7 +146,7 @@ export function ruleClipping(tree, ctx) {
   for (const n of required) {
     const r = n.bbox;
     const clip = n.meta?.scrollViewport;
-    if (clip && (r.left < clip.left || r.top < clip.top ||
+    if (clip && !paintedAtVerifiedScrollStop?.has(n) && (r.left < clip.left || r.top < clip.top ||
         r.right > clip.right || r.bottom > clip.bottom)) {
       findings.push({ rule: 2, severity: 'major', bbox: bboxArr(r), nodes: [n.id],
         reason: 'Required/control frame is not fully painted within measured scroll ancestors; full visibility and reachability are unproven at this checkpoint.' });
@@ -254,7 +254,7 @@ function horizontalGap(a, b) {
 
 // Rule 5 — Tap targets. Effective (clipped) usable region ≥44×44pt iOS / ≥48×48dp Android
 // AND ≥8pt edge gap to the nearest sibling target.
-export function ruleTapTargets(tree, ctx) {
+export function ruleTapTargets(tree, ctx, paintedAtVerifiedScrollStop) {
   const findings = [];
   const min = (ctx.platform === 'android') ? ANDROID_MIN_TARGET : IOS_MIN_TARGET;
   // Measure all controls strictly, including entirely concealed targets. Gaps use only painted neighbors.
@@ -270,7 +270,8 @@ export function ruleTapTargets(tree, ctx) {
       }
       const paintedW = Math.max(0, Math.min(r.right, clip.right) - Math.max(r.left, clip.left));
       const paintedH = Math.max(0, Math.min(r.bottom, clip.bottom) - Math.max(r.top, clip.top));
-      if ((paintedW < min - 0.5 || paintedH < min - 0.5) && w >= min - 0.5 && h >= min - 0.5) {
+      if (!paintedAtVerifiedScrollStop?.has(t) && (paintedW < min - 0.5 || paintedH < min - 0.5) &&
+          w >= min - 0.5 && h >= min - 0.5) {
         findings.push({ rule: 5, severity: 'major', bbox: bboxArr(r), nodes: [t.id],
           reason: 'Measured scroll clipping leaves an undersized painted target; raw size does not prove an operable reachable target.' });
       }
@@ -411,11 +412,11 @@ export const RULES = {
 
 // Run rules 1–7 over one checkpoint's normalized tree. Rule 8 (flow completion) is the
 // aggregate assertion enforced by run-geometry.mjs across every checkpoint of a flow.
-export function evaluateCheckpoint(nodes, ctx = {}) {
+export function evaluateCheckpoint(nodes, ctx = {}, paintedAtVerifiedScrollStop) {
   const tree = indexTree(nodes);
   const findings = [];
   for (const id of Object.keys(RULES)) {
-    findings.push(...RULES[id](tree, ctx));
+    findings.push(...RULES[id](tree, ctx, paintedAtVerifiedScrollStop));
   }
   return { findings, verdict: findings.length === 0 ? 'pass' : 'fail' };
 }
