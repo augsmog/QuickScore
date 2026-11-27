@@ -16,10 +16,11 @@ const screen = fs.readFileSync('app/settings.tsx', 'utf8');
 
 test('iPhone: a stock switch, with the brand colour only on the "on" track', () => {
   for (const value of [true, false]) {
-    expect(settingsSwitchProps('ios', value, COLORS)).toEqual({ trackColor: { false: m.exports.SETTINGS_SWITCH_OFF_TRACK, true: COLORS.primary } });
+    expect(settingsSwitchProps('ios', value, COLORS)).toEqual({ trackColor: { true: COLORS.primary } });
   }
   const props = settingsSwitchProps('ios', true, COLORS);
   for (const key of ['style', 'thumbColor', 'ios_backgroundColor']) expect(props).not.toHaveProperty(key);
+  expect(props.trackColor).not.toHaveProperty('false');
 });
 
 test('Android and web keep what they had', () => {

@@ -18,22 +18,24 @@ export const SETTINGS_SWITCH_TARGET = {
 // 44pt-tall box shows as a rounded rectangle sticking out below the 31pt switch (build 33).
 export const SETTINGS_SWITCH_SLOT = { ...SETTINGS_SWITCH_TARGET, alignItems: 'center' as const, justifyContent: 'center' as const };
 
-// Off colour for an iPhone switch: 3.14:1 against the cream row (#FAF4E8), 3.44:1 against the
-// white knob. It is passed as trackColor.false, which React Native gives to UISwitch as its
-// tintColor, so iOS draws it inside the control.
-export const SETTINGS_SWITCH_OFF_TRACK = '#878C82';
-
-// How a Settings switch looks. iPhone: the stock switch with two track colours and nothing else.
-// Never paint behind it: no ios_backgroundColor (React Native paints that on its own 51x31 box,
-// which showed as a crescent past the iOS 26 switch, 27 Nov), no size, no style.
+// How a Settings switch looks. iPhone: the stock switch; the brand colour is the ON track only.
+// Nothing is set for the off state and nothing is ever painted behind the switch (27 Nov:
+// ios_backgroundColor showed as a crescent past the iOS 26 switch; trackColor.false left the off
+// track the colour of the row). The off state is made visible by the row being white instead.
 // Android and web: as before.
 export function settingsSwitchProps(platformOS: string | undefined, value: boolean, colors: { primary: string; textDim: string; surfaceHigh: string }) {
-  if (platformOS === 'ios') return { trackColor: { false: SETTINGS_SWITCH_OFF_TRACK, true: colors.primary } };
+  if (platformOS === 'ios') return { trackColor: { true: colors.primary } };
   return {
     style: SETTINGS_SWITCH_TARGET,
     trackColor: { false: colors.surfaceHigh, true: colors.primary + '55' },
     thumbColor: value ? colors.primary : colors.textDim,
   };
+}
+
+// Every Settings row and card: white with a hairline edge on the cream page, the standard iOS
+// grouped-list look, so stock controls read as they do in any iOS list.
+export function settingsRowSurface(colors: { border: string }) {
+  return { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border };
 }
 
 export function settingsLayout(insets: { top: number; bottom: number; left?: number; right?: number }) {

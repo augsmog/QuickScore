@@ -5,6 +5,7 @@ import {
   settingsLayout,
   SETTINGS_SWITCH_SLOT,
   settingsSwitchProps,
+  settingsRowSurface,
   SETTINGS_SECTION_HEADER_MARGIN_TOP,
   SETTINGS_SCORING_HEADER_MARGIN_TOP,
 } from "../src/ui/settings-layout";
@@ -60,6 +61,8 @@ import { SUPPORT_BASE_URL } from "../src/config/support";
 
 // ─── Reusable row components ──────────────────────────────────
 
+const SETTINGS_ROW_SURFACE = settingsRowSurface(COLORS);
+
 function SectionHeader({ title, marginTop = SETTINGS_SECTION_HEADER_MARGIN_TOP }: { title: string; marginTop?: number }) {
   return (
     <Text
@@ -97,7 +100,7 @@ function ToggleRow({
   return (
     <View
       style={{
-        backgroundColor: COLORS.surfaceLow,
+        ...SETTINGS_ROW_SURFACE,
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
         paddingVertical: compact ? 2 : 14,
@@ -180,7 +183,7 @@ function PickerRow({
       accessibilityValue={{ text: displayValue }}
       onPress={handlePress}
       style={{
-        backgroundColor: COLORS.surfaceLow,
+        ...SETTINGS_ROW_SURFACE,
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
         paddingVertical: compact ? 8 : 14,
@@ -226,7 +229,7 @@ function NumberRow({
       accessibilityValue={{ text: String(value) }}
       onPress={onPress}
       style={{
-        backgroundColor: COLORS.surfaceLow,
+        ...SETTINGS_ROW_SURFACE,
         borderRadius: RADII.lg,
         paddingHorizontal: 16,
         paddingVertical: compact ? 2 : 14,
@@ -387,7 +390,7 @@ export default function SettingsScreen() {
         <SectionHeader title="Account" />
         <View
           style={{
-            backgroundColor: COLORS.surfaceLow,
+            ...SETTINGS_ROW_SURFACE,
             borderRadius: RADII.lg,
             padding: 16,
             marginBottom: 6,
@@ -463,7 +466,7 @@ export default function SettingsScreen() {
                 paddingVertical: 12,
                 minHeight: 44,
                 alignItems: "center",
-                backgroundColor: COLORS.surfaceLow,
+                ...SETTINGS_ROW_SURFACE,
               }}
             >
               <Text style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>
@@ -749,7 +752,7 @@ export default function SettingsScreen() {
             hidden while pro_enabled is off. */}
         {tier !== "td" && (
           <AnimatedPressable accessibilityRole="button" accessibilityLabel={C.td} accessibilityHint={C.tdBodyNoPro} onPress={() => router.push("/paywall?tier=td")}
-            style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, paddingVertical: 10, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
+            style={{ minHeight: 44, ...SETTINGS_ROW_SURFACE, borderRadius: RADII.lg, paddingVertical: 10, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
             <Trophy size={18} color={COLORS.primary} />
             <View style={{ flex: 1 }}>
               <Text numberOfLines={1} style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>{C.td}</Text>
@@ -759,7 +762,7 @@ export default function SettingsScreen() {
           </AnimatedPressable>
         )}
         <AnimatedPressable accessibilityRole="button" accessibilityLabel="Restore purchases" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
-          style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
+          style={{ minHeight: 44, ...SETTINGS_ROW_SURFACE, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
           <RotateCcw size={18} color={COLORS.textDim} />
           <Text style={{ flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>Restore purchases</Text>
           <ChevronRight size={14} color={COLORS.textDim} />
@@ -767,7 +770,7 @@ export default function SettingsScreen() {
 
         <SectionHeader title="Help" />
         <AnimatedPressable accessibilityRole="button" accessibilityLabel="Contact support" onPress={openSupport}
-          style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
+          style={{ minHeight: 44, ...SETTINGS_ROW_SURFACE, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
           <HelpCircle size={18} color={COLORS.textDim} />
           <Text style={{ flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>Contact support</Text>
           <ChevronRight size={14} color={COLORS.textDim} />
@@ -781,7 +784,7 @@ export default function SettingsScreen() {
           accessibilityLabel="Privacy Policy"
           onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/privacy")}
           style={{
-            backgroundColor: COLORS.surfaceLow,
+            ...SETTINGS_ROW_SURFACE,
             borderRadius: RADII.lg,
             paddingHorizontal: 16,
             paddingVertical: 14,
@@ -804,7 +807,7 @@ export default function SettingsScreen() {
           accessibilityLabel="Terms of Service"
           onPress={() => Linking.openURL(SUPPORT_BASE_URL + "/terms")}
           style={{
-            backgroundColor: COLORS.surfaceLow,
+            ...SETTINGS_ROW_SURFACE,
             borderRadius: RADII.lg,
             paddingHorizontal: 16,
             paddingVertical: 14,
@@ -824,7 +827,7 @@ export default function SettingsScreen() {
 
         <View
           style={{
-            backgroundColor: COLORS.surfaceLow,
+            ...SETTINGS_ROW_SURFACE,
             borderRadius: RADII.lg,
             paddingHorizontal: 16,
             paddingVertical: 14,
@@ -851,7 +854,7 @@ export default function SettingsScreen() {
             accessibilityLabel="Reset to Defaults"
             onPress={handleResetDefaults}
             style={{
-              backgroundColor: COLORS.surfaceLow,
+              ...SETTINGS_ROW_SURFACE,
               borderRadius: RADII.lg,
               paddingHorizontal: 16,
               paddingVertical: 14,
