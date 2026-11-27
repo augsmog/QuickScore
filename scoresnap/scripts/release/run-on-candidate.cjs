@@ -22,6 +22,14 @@
 // CANDIDATE_RECEIPT and CANDIDATE_CHECKOUT set, and this script exits with the command's status.
 // On any refusal it exits non-zero and the command is not started.
 //
+// --profile <testflight|production> ties the run to that build profile in the checkout's own
+// scoresnap/eas.json. The release feature flags live in that profile's `env`, so a build made by
+// hand (xcodebuild, not `eas build`) only matches the tested app if it runs with the same values.
+// With --profile the run is refused if the calling environment gives any of the profile's
+// variables a different value, or sets any other EXPO_PUBLIC_* variable or APP_VARIANT; the
+// command is then started with exactly the profile's values. Without --profile nothing is checked
+// and the build record says so.
+//
 // Each admitted run writes a build record beside the receipt, `<receipt>.build-<start>-<pid>.json`:
 // the SHA and tree, the command, Xcode / macOS / node / npm versions (Apple fields null off macOS),
 // start and end time, free GB before and after, and the exit code.
@@ -40,7 +48,10 @@ const { verifyReceipt, Refusal } = require('./candidate-check.cjs');
 const PREFIX = 'snapscore-candidate-';
 const OWNER = 'owner.json';
 
-const USAGE = 'usage: run-on-candidate.cjs --receipt <file> [--repo <dir> | --source <dir>] [--keep] [--fixes <file>] -- <command ...>';
+const USAGE = 'usage: run-on-candidate.cjs --receipt <file> [--repo <dir> | --source <dir>] [--profile <testflight|production>] [--keep] [--fixes <file>] -- <command ...>';
+const RELEASE_PROFILES = ['testflight', 'production'];
+// Variables that change what app gets built. Any of these set outside the profile is refused.
+const BUILD_VARIABLE = /^(EXPO_PUBLIC_.+|APP_VARIANT)$/;
 const refuse = (message) => { throw new Refusal(message); };
 const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 
@@ -86,6 +97,28 @@ function buildEnvironment({ platform = process.platform, run = (cmd, args) => ex
   };
 }
 
+// Reads the named profile from the checkout's own eas.json and compares the calling environment
+// with it. Returns the values the command must run with. Refuses on any difference.
+function releaseFlags({ app, profile, env }) {
+  const file = path.join(app, 'eas.json');
+  let eas;
+  try { eas = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return refuse(`cannot read ${file}; --profile needs the checkout's eas.json`); }
+  const wanted = eas?.build?.[profile]?.env;
+  if (!wanted || typeof wanted !== 'object' || Object.keys(wanted).length === 0) refuse(`eas.json has no build profile "${profile}" with an env block`);
+  for (const [name, value] of Object.entries(wanted)) if (typeof value !== 'string') refuse(`eas.json ${profile}.env.${name} is not a string`);
+  const differs = Object.entries(wanted).filter(([name, value]) => env[name] !== undefined && env[name] !== value)
+    .map(([name, value]) => `${name} is "${env[name]}" here but "${value}" in the ${profile} profile`);
+  const stray = Object.keys(env).filter((name) => BUILD_VARIABLE.test(name) && !(name in wanted)).sort()
+    .map((name) => `${name} is set here ("${env[name]}") but is not in the ${profile} profile`);
+  if (differs.length || stray.length) refuse(`the environment does not match the ${profile} profile in eas.json; the app built would not be the app that was tested:\n${[...differs, ...stray].join('\n')}`);
+  const names = Object.keys(wanted).sort();
+  return {
+    profile, easJsonSha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+    values: Object.fromEntries(names.map((name) => [name, wanted[name]])),
+    alreadySet: names.filter((name) => env[name] !== undefined), setByWrapper: names.filter((name) => env[name] === undefined),
+  };
+}
+
 const writeJson = (file, value) => fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 
 function parse(argv) {
@@ -95,12 +128,13 @@ function parse(argv) {
   const options = {};
   for (let i = 0; i < flags.length; i += 1) {
     if (flags[i] === '--keep') { options.keep = true; continue; }
-    if (!/^--(source|repo|receipt|fixes)$/.test(flags[i]) || flags[i + 1] === undefined) refuse(`bad argument: ${flags[i]}`);
+    if (!/^--(source|repo|receipt|fixes|profile)$/.test(flags[i]) || flags[i + 1] === undefined) refuse(`bad argument: ${flags[i]}`);
     options[flags[i].slice(2)] = flags[i + 1]; i += 1;
   }
   if (!options.receipt) refuse('--receipt is required');
   if (options.source && options.repo) refuse('give --repo (fresh checkout, the default) or --source (existing checkout), not both');
   if (options.source && options.keep) refuse('--keep only applies to a fresh checkout; --source is never removed');
+  if (options.profile !== undefined && !RELEASE_PROFILES.includes(options.profile)) refuse(`--profile must be one of: ${RELEASE_PROFILES.join(', ')}`);
   if (command.length === 0) refuse('no command given after --');
   return { options, command };
 }
@@ -162,7 +196,7 @@ function freshCheckout({ from, receiptPath, fixesFile, tmpRoot = os.tmpdir(), lo
   return { repo, receipt, remove, keep };
 }
 
-function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = console.error, tmpRoot, environment = buildEnvironment, now = () => new Date() } = {}) {
+function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = console.error, tmpRoot, environment = buildEnvironment, now = () => new Date(), env = process.env } = {}) {
   const { options, command } = parse(argv);
   const scoresnap = path.resolve(__dirname, '..', '..');
   const receiptPath = path.resolve(options.receipt);
@@ -176,6 +210,9 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
     if (!fresh) warn(`WARNING: --source uses an existing checkout (${repo}). Git-ignored paths in it (ios/, node_modules, .env, .expo) are NOT checked and can change what gets built. For an archive or upload, leave --source out so a fresh checkout is made.`);
     const app = path.join(repo, 'scoresnap');
     const cwd = fs.existsSync(app) ? app : repo;
+    const flags = options.profile ? releaseFlags({ app: cwd, profile: options.profile, env }) : null;
+    if (!flags) warn('WARNING: no --profile given. The release feature flags are NOT checked. Whatever EXPO_PUBLIC_* values this environment has are what the command gets; the build record lists them.');
+    const buildVariables = Object.fromEntries(Object.keys({ ...env, ...(flags?.values ?? {}) }).filter((name) => BUILD_VARIABLE.test(name)).sort().map((name) => [name, flags?.values[name] ?? env[name]]));
     const started = now();
     record = {
       schema: 'snapscore-build-record/1',
@@ -183,16 +220,18 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
       toolSha256: crypto.createHash('sha256').update(fs.readFileSync(__filename)).digest('hex'),
       mode: fresh ? 'fresh-checkout' : 'existing-checkout', checkout: repo, cwd, command, pid: process.pid,
       environment: environment(),
+      releaseFlags: flags ? { checked: true, ...flags } : { checked: false, profile: null },
+      buildVariables,
       startedAt: started.toISOString(), endedAt: null, seconds: null, exitCode: null, signal: null,
       freeGbMeasuredAt: cwd, freeGbBefore: freeGb(cwd), freeGbAfterCommand: null, freeGbAfterCleanup: null, usedGbByCommand: null,
     };
     recordPath = `${receiptPath}.build-${record.startedAt.replace(/[-:.]/g, '')}-${process.pid}.json`;
     // Written before the command starts: if the record cannot be written, nothing runs.
     try { writeJson(recordPath, record); } catch (error) { refuse(`cannot write the build record ${recordPath}: ${error.message}`); }
-    log(`CANDIDATE ADMITTED: ${receipt.sha} (tree ${receipt.tree}), ${receipt.suite.tests} tests, test list ${receipt.suite.testIdsSha256}. ${fresh ? 'Fresh checkout' : 'Existing checkout'}. Running in ${cwd}: ${command.join(' ')}`);
+    log(`CANDIDATE ADMITTED: ${receipt.sha} (tree ${receipt.tree}), ${receipt.suite.tests} tests, test list ${receipt.suite.testIdsSha256}. ${fresh ? 'Fresh checkout' : 'Existing checkout'}. ${flags ? `Flags: ${flags.profile} profile (${Object.entries(flags.values).map(([k, v]) => `${k}=${v}`).join(', ')})` : 'Flags: NOT CHECKED'}. Running in ${cwd}: ${command.join(' ')}`);
     const result = spawn(command[0], command.slice(1), {
       cwd, stdio: 'inherit',
-      env: { ...process.env, CANDIDATE_SHA: receipt.sha, CANDIDATE_TREE: receipt.tree, CANDIDATE_RECEIPT: receiptPath, CANDIDATE_CHECKOUT: repo, CANDIDATE_BUILD_RECORD: recordPath },
+      env: { ...env, ...(flags?.values ?? {}), CANDIDATE_SHA: receipt.sha, CANDIDATE_TREE: receipt.tree, CANDIDATE_RECEIPT: receiptPath, CANDIDATE_CHECKOUT: repo, CANDIDATE_BUILD_RECORD: recordPath },
     });
     const ended = now();
     Object.assign(record, {
@@ -216,7 +255,7 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
   }
 }
 
-module.exports = { runOnCandidate, admit, freshCheckout, findLeftBehind, buildEnvironment };
+module.exports = { releaseFlags, runOnCandidate, admit, freshCheckout, findLeftBehind, buildEnvironment };
 if (require.main === module) {
   try { process.exitCode = runOnCandidate(process.argv.slice(2)); } catch (error) {
     if (!(error instanceof Refusal)) throw error;
