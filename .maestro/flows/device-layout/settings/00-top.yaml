@@ -1,0 +1,21 @@
+# device-layout Settings — checkpoint 00: the top of Settings.
+# The gate's build runs offline with the local guest session the app makes for itself; there is no
+# account and no network. Settings is opened by link and captured from the top.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../../subflows/finish-onboarding.yaml
+- retry:
+    maxRetries: 3
+    commands:
+      - openLink: "snapscore://settings"
+      - tapOn:
+          text: "Open"  # iOS asks 'Open in "SnapScore"?' for a custom-scheme link
+          optional: true
+      - extendedWaitUntil:
+          visible:
+            text: "(?i)course & play"
+          timeout: 20000
+- takeScreenshot: device-layout-settings-00-top
