@@ -1,12 +1,8 @@
 name: Lightweight leagues candidate
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/league-candidate.yml'
-      - 'scoresnap/app/(tabs)/leagues.tsx'
-      - 'scoresnap/src/services/leagues.ts'
-      - 'scoresnap/supabase/proposed/20261103150000_lightweight_leagues.sql'
-      - 'scoresnap/scripts/ci/test-league-candidate.sql'
+  # AUG-1601: manual-only. No push, pull_request, schedule or other automatic trigger may be added;
+  # scoresnap/tests/workflow-triggers.test.cjs fails the unit suite if one is. Run with "Run workflow"
+  # or `gh workflow run`.
   workflow_dispatch:
 permissions:
   contents: read
