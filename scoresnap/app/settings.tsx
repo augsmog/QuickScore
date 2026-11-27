@@ -20,6 +20,7 @@ import {
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { APP_VERSION_LABEL } from "../src/config/app-version";
 import {
   ChevronLeft,
   ChevronRight,
@@ -882,7 +883,7 @@ export default function SettingsScreen() {
             Version
           </Text>
           <Text style={{ fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textDim }}>
-            1.0.0
+            {APP_VERSION_LABEL}
           </Text>
         </View>
 
