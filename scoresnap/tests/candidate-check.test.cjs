@@ -6,9 +6,10 @@ const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { candidateCheck, verifyReceipt, Refusal } = require('../scripts/release/candidate-check.cjs');
+const { candidateCheck, verifyReceipt, summarizeJestReport, testIdsHash, Refusal } = require('../scripts/release/candidate-check.cjs');
 
-const GREEN = () => ({ suites: 3, suitesFailed: 0, suitesErrored: 0, tests: 10, passed: 10, failed: 0, skipped: [] });
+const IDS = Array.from({ length: 10 }, (_, i) => `tests/s${i % 3}.test.cjs::case ${i}::passed`).sort();
+const GREEN = () => ({ suites: 3, suitesFailed: 0, suitesErrored: 0, tests: 10, passed: 10, failed: 0, skipped: [], ids: [...IDS], suitesListed: 3, suitesNotPassed: 0, success: true });
 const dirs = [];
 afterAll(() => { for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true }); });
 
@@ -52,12 +53,13 @@ test('green case writes a receipt bound to the exact SHA and tree, with every fi
   assert.deepEqual(JSON.parse(fs.readFileSync(f.receiptPath, 'utf8')), receipt);
   assert.equal(receipt.sha, f.both);
   assert.equal(receipt.tree, f.git('rev-parse', `${f.both}^{tree}`));
-  assert.deepEqual(receipt.suite, { suites: 3, tests: 10, passed: 10, failed: 0, skipped: [] });
+  assert.deepEqual(receipt.suite, { suites: 3, tests: 10, passed: 10, failed: 0, skipped: [], testIdsSha256: testIdsHash(IDS) });
+  assert.equal(fs.readFileSync(`${f.receiptPath}.tests.txt`, 'utf8'), `${IDS.join('\n')}\n`);
   assert.deepEqual(receipt.fixes.map((fix) => [fix.ticket, fix.present, fix.how]), [['AUG-A', 'yes', 'identical-patch'], ['AUG-B', 'yes', 'identical-patch']]);
   assert.equal(receipt.release.version, '1.0.1');
   assert.match(receipt.release.buildNumber, /assigned at build time/);
   assert.equal(receipt.checkedAt, '2026-11-27T03:00:00.000Z');
-  assert.equal(verifyReceipt({ repo: f.repo, sha: f.both, receiptPath: f.receiptPath }).sha, f.both);
+  assert.equal(verifyReceipt({ repo: f.repo, sha: f.both, receiptPath: f.receiptPath, fixesFile: f.fixesFile }).sha, f.both);
 });
 
 test('a fix that is a plain ancestor is accepted as an ancestor', () => {
@@ -73,6 +75,7 @@ test('missing fix is refused, the suite is never run, and no receipt is left beh
   refused(() => run(f, { sha: f.onlyA, runSuite: () => { suiteRan = true; return GREEN(); } }), /required fix missing: AUG-B/);
   assert.equal(suiteRan, false);
   assert.equal(fs.existsSync(f.receiptPath), false);
+  assert.equal(fs.existsSync(`${f.receiptPath}.tests.txt`), false);
 });
 
 test('a fix altered while being combined is refused', () => {
@@ -93,7 +96,7 @@ test('red test is refused and writes no receipt', () => {
 
 test('a skipped test is refused unless it is named on the allow-list', () => {
   const f = fixture();
-  const withSkip = () => ({ ...GREEN(), passed: 9, skipped: ['suite quarantined case'] });
+  const withSkip = () => ({ ...GREEN(), passed: 9, skipped: ['suite quarantined case'], ids: [...IDS.slice(0, 9), 'tests/s0.test.cjs::suite quarantined case::pending'].sort() });
   refused(() => run(f, { runSuite: withSkip }), /skipped test\(s\) not on the allow-list: suite quarantined case/);
   f.writeFixes({ allowedSkips: ['suite quarantined case'] });
   assert.deepEqual(run(f, { runSuite: withSkip }).suite.skipped, ['suite quarantined case']);
@@ -122,17 +125,68 @@ test('an abbreviated or unknown SHA and a malformed fix list are refused', () =>
   refused(() => run(f), /full 40-character SHA/);
 });
 
-test('verify refuses a missing receipt, a receipt for another SHA, and an edited receipt', () => {
+test('a non-empty but incomplete report is refused', () => {
   const f = fixture();
-  refused(() => verifyReceipt({ repo: f.repo, sha: f.both, receiptPath: f.receiptPath }), /is not a candidate/);
+  // Totals claim ten tests in three suites; the per-test list backs only part of that.
+  refused(() => run(f, { runSuite: () => ({ ...GREEN(), ids: IDS.slice(0, 9) }) }), /incomplete: it lists 9 test\(s\) but claims 10/);
+  refused(() => run(f, { runSuite: () => ({ ...GREEN(), suitesListed: 2 }) }), /incomplete: it lists 2 suite\(s\) but claims 3/);
+  refused(() => run(f, { runSuite: () => { const s = GREEN(); delete s.ids; return s; } }), /no per-test list/);
+  refused(() => run(f, { runSuite: () => ({ ...GREEN(), success: false }) }), /does not say the run succeeded/);
+  refused(() => run(f, { runSuite: () => ({ ...GREEN(), suitesNotPassed: 1 }) }), /suite\(s\) that did not pass/);
+  refused(() => run(f, { runSuite: () => ({ ...GREEN(), ids: [...IDS.slice(0, 9), 'tests/s0.test.cjs::case x::failed'] }) }), /neither passed nor are counted as skipped/);
+  assert.equal(fs.existsSync(f.receiptPath), false);
+});
+
+test('a real Jest report is summarized into sorted per-test IDs, independent of run order', () => {
+  const file = (name, tests) => ({ name: `/app/${name}`, status: 'passed', assertionResults: tests.map((t) => ({ fullName: t, status: 'passed' })) });
+  const report = (results) => ({ success: true, numTotalTestSuites: 2, numFailedTestSuites: 0, numRuntimeErrorTestSuites: 0, numTotalTests: 3, numPassedTests: 3, numFailedTests: 0, testResults: results });
+  const one = summarizeJestReport(report([file('tests/b.test.cjs', ['b one']), file('tests/a.test.cjs', ['a two', 'a one'])]), '/app');
+  const two = summarizeJestReport(report([file('tests/a.test.cjs', ['a one', 'a two']), file('tests/b.test.cjs', ['b one'])]), '/app');
+  assert.deepEqual(one.ids, ['tests/a.test.cjs::a one::passed', 'tests/a.test.cjs::a two::passed', 'tests/b.test.cjs::b one::passed']);
+  assert.equal(testIdsHash(one.ids), testIdsHash(two.ids));
+  // Same headline count, one different test: the hash differs.
+  const other = summarizeJestReport(report([file('tests/a.test.cjs', ['a one', 'a three']), file('tests/b.test.cjs', ['b one'])]), '/app');
+  assert.equal(other.tests, one.tests);
+  assert.notEqual(testIdsHash(other.ids), testIdsHash(one.ids));
+});
+
+test('verify refuses a missing receipt, a receipt for another SHA, and every positive-looking edit', () => {
+  const f = fixture();
+  const verify = (overrides = {}) => verifyReceipt({ repo: f.repo, sha: f.both, receiptPath: f.receiptPath, fixesFile: f.fixesFile, ...overrides });
+  refused(() => verify(), /is not a candidate/);
   run(f);
-  refused(() => verifyReceipt({ repo: f.repo, sha: f.onlyA, receiptPath: f.receiptPath }), /receipt is for .* not /);
+  assert.equal(verify().sha, f.both);
+  refused(() => verify({ sha: f.onlyA }), /receipt is for .* not /);
   const receipt = JSON.parse(fs.readFileSync(f.receiptPath, 'utf8'));
-  for (const edit of [(r) => { r.suite.failed = 1; }, (r) => { r.fixes[0].present = 'no'; }, (r) => { r.tree = '0'.repeat(40); }, (r) => { r.checkSha256 = 'x'; }]) {
+  const list = fs.readFileSync(`${f.receiptPath}.tests.txt`, 'utf8');
+  const withReceipt = (edit, pattern) => {
     const copy = structuredClone(receipt); edit(copy);
     fs.writeFileSync(f.receiptPath, JSON.stringify(copy));
-    assert.throws(() => verifyReceipt({ repo: f.repo, sha: f.both, receiptPath: f.receiptPath }), Refusal);
-  }
+    refused(() => verify(), pattern);
+    fs.writeFileSync(f.receiptPath, JSON.stringify(receipt));
+  };
+  withReceipt((r) => { r.suite.failed = 1; }, /does not record a green suite/);
+  withReceipt((r) => { r.tree = '0'.repeat(40); }, /tree does not match/);
+  withReceipt((r) => { r.checkSha256 = 'x'; }, /different version of candidate-check/);
+  // Positive-looking but unbound: still says "present: yes" for everything it lists.
+  withReceipt((r) => { r.fixes.pop(); }, /lists 1 fix\(es\) but the manifest requires 2/);
+  withReceipt((r) => { r.fixes[1].commit = r.fixes[0].commit; }, /fix 2 is not the manifest's/);
+  withReceipt((r) => { r.fixes[0].present = 'no'; }, /does not record AUG-A .* as present/);
+  withReceipt((r) => { r.fixes[0].as = f.base.replace(/^./, (c) => (c === 'a' ? 'b' : 'a')); }, /which is not in/);
+  withReceipt((r) => { r.requiredFixesSha256 = '0'.repeat(64); }, /different required-fixes manifest/);
+  withReceipt((r) => { delete r.suite.testIdsSha256; }, /does not bind the ordered test list/);
+  withReceipt((r) => { r.suite.testIdsSha256 = '0'.repeat(64); }, /does not match suite.testIdsSha256/);
+  withReceipt((r) => { r.suite.tests = 11; r.suite.passed = 11; }, /test list has 10 line\(s\) but the receipt claims 11/);
+  // The manifest changes after the receipt was written.
+  f.writeFixes({ fixes: [{ ticket: 'AUG-A', what: 'fix a', commit: f.fixA }] });
+  refused(() => verify(), /different required-fixes manifest/);
+  f.writeFixes();
+  refused(() => verify({ fixesFile: path.join(f.repo, 'nope.json') }), /manifest is missing/);
+  // The test list beside the receipt is edited or removed.
+  fs.writeFileSync(`${f.receiptPath}.tests.txt`, list.replace('case 0', 'case zero'));
+  refused(() => verify(), /does not match suite.testIdsSha256/);
+  fs.rmSync(`${f.receiptPath}.tests.txt`);
+  refused(() => verify(), /test list .* is missing/);
 });
 
 test('the shipped 1.0.1 fix list is well formed', () => {
