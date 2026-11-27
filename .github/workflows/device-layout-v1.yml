@@ -1,14 +1,7 @@
 name: device-layout/v1 package
+# AUG-1601: manual-only, like every workflow in this repository. It used to run on pull requests
+# and pushes to main that touched packages/device-layout. Run it by hand after changing that package.
 on:
-  pull_request:
-    paths:
-      - 'packages/device-layout/**'
-      - 'scoresnap/e2e/interactive-target-geometry.mjs'
-      - '.github/workflows/device-layout-v1.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'packages/device-layout/**'
   workflow_dispatch:
 permissions:
   contents: read

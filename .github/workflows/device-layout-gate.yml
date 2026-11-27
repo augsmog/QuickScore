@@ -18,10 +18,11 @@ name: device-layout-gate
 # Making this a REQUIRED merge-blocking check (branch protection on augsmog/QuickScore main +
 # the safe_merge.py mandatory-named-check change) is an owner-approved control item, tracked in
 # the RECONCILED-PLAN owner items. The workflow is the always-start half of that contract.
+# AUG-1601 / AUG-1380 (owner decision, Nov 27 2026): MANUAL-ONLY. It runs when a lane starts it
+# on a release candidate; nothing starts it on its own. It is therefore no longer an always-start
+# check: if branch protection still lists it as required, that requirement must be removed by the
+# owner or pull requests to main will wait on it forever.
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -71,6 +72,9 @@ jobs:
                 ui=true; native=true ;;  # unknown impact → run the full gate (fail safe)
             esac
           done <<< "$files"
+          # A manual run is someone asking for the gate on this commit: run all of it, whatever the
+          # last commit happened to touch.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then ui=true; native=true; fi
           echo "ui=$ui" >> "$GITHUB_OUTPUT"
           echo "native=$native" >> "$GITHUB_OUTPUT"
           if [ "$ui" = "false" ]; then
@@ -186,7 +190,22 @@ jobs:
     # run-ios-sim.sh). Cap raised 45→60 as a safety net while the per-phase timings from this run
     # confirm the real cost; it is a ceiling, not the expected wall time (AUG-1376 round 2).
     timeout-minutes: 60
+    # GB of free disk this job needs on the Mac. Empty = not measured yet: record, never fail.
+    env:
+      NEED_GB: ""
     steps:
+      # AUG-1601 safety step. It records free disk on the Mac and fails only when NEED_GB is set and
+      # less than that is free. NEED_GB is unset until a real build has been measured: record only.
+      - name: "Disk need (AUG-1601): record free GB; fail only if below NEED_GB"
+        shell: bash
+        run: |
+          vol=/System/Volumes/Data; [ -d "$vol" ] || vol=/
+          free=$(df -g "$vol" | awk 'NR==2 {print $4}')
+          echo "disk before: ${free} GB free on $vol; NEED_GB=${NEED_GB:-unset}" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ -n "${NEED_GB:-}" ] && [ "$free" -lt "$NEED_GB" ]; then
+            echo "::error::Mac disk: ${free} GB free is less than the ${NEED_GB} GB this job needs."
+            exit 1
+          fi
       # Self-hosted Mac mini has a persistent workspace. The repo carries a dangling gitlink
       # (`august-industries-site`, mode 160000, no .gitmodules entry), so checkout's default clean /
       # submodule phase fails ("no submodule mapping found") and recreates the workspace from scratch
@@ -217,6 +236,12 @@ jobs:
           path: ${{ runner.temp }}/device-layout-out
           if-no-files-found: ignore
           retention-days: 14
+      - name: "Disk need (AUG-1601): record free GB after the job"
+        if: always()
+        shell: bash
+        run: |
+          vol=/System/Volumes/Data; [ -d "$vol" ] || vol=/
+          echo "disk after: $(df -g "$vol" | awk 'NR==2 {print $4}') GB free on $vol" | tee -a "$GITHUB_STEP_SUMMARY"
 
   vision-candidate:
     needs: [changes, android-compact, ios-sim]
@@ -228,7 +253,22 @@ jobs:
     if: ${{ !cancelled() && needs.changes.outputs.native == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: [self-hosted, ios-sim]
     timeout-minutes: 30
+    # GB of free disk this job needs on the Mac. Empty = not measured yet: record, never fail.
+    env:
+      NEED_GB: ""
     steps:
+      # AUG-1601 safety step. It records free disk on the Mac and fails only when NEED_GB is set and
+      # less than that is free. NEED_GB is unset until a real build has been measured: record only.
+      - name: "Disk need (AUG-1601): record free GB; fail only if below NEED_GB"
+        shell: bash
+        run: |
+          vol=/System/Volumes/Data; [ -d "$vol" ] || vol=/
+          free=$(df -g "$vol" | awk 'NR==2 {print $4}')
+          echo "disk before: ${free} GB free on $vol; NEED_GB=${NEED_GB:-unset}" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ -n "${NEED_GB:-}" ] && [ "$free" -lt "$NEED_GB" ]; then
+            echo "::error::Mac disk: ${free} GB free is less than the ${NEED_GB} GB this job needs."
+            exit 1
+          fi
       # Same persistent-workspace / dangling-gitlink caveat as the ios-sim job above.
       - uses: actions/checkout@v4
         with:
@@ -244,6 +284,12 @@ jobs:
         env:
           DEVICE_LAYOUT_REPORT_ONLY_PROFILES: iphone-se-3
         run: bash scoresnap/e2e/device-layout/scripts/run-vision-candidate.sh "${{ runner.temp }}/device-layout-candidate"
+      - name: "Disk need (AUG-1601): record free GB after the job"
+        if: always()
+        shell: bash
+        run: |
+          vol=/System/Volumes/Data; [ -d "$vol" ] || vol=/
+          echo "disk after: $(df -g "$vol" | awk 'NR==2 {print $4}') GB free on $vol" | tee -a "$GITHUB_STEP_SUMMARY"
 
   device-layout-gate:
     # The ONE aggregate status check. Its name is the contract: branch protection on main and
