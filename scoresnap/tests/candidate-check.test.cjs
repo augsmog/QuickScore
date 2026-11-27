@@ -15,6 +15,7 @@ const dirs = [];
 afterAll(() => { for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true }); });
 
 const RELEASE_ENV = { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: 'true', EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: 'true', EXPO_PUBLIC_PRO_ENABLED: 'false', EXPO_PUBLIC_FEATURE_LEAGUES: 'false', EXPO_PUBLIC_FEATURE_NATIVE_LINKS: 'false' };
+const SERVICES = { EXPO_PUBLIC_SUPABASE_URL: 'https://example.supabase.co', EXPO_PUBLIC_SUPABASE_ANON_KEY: 'anon-key-not-real', EXPO_PUBLIC_REVENUECAT_APPLE_KEY: 'appl_not_real' };
 function fixture({ version = '1.0.1', appVersionSource = 'remote' } = {}) {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'candidate-check-test-'));
   dirs.push(repo);
@@ -407,11 +408,20 @@ describe('run-on-candidate', () => {
     const { f, tmpRoot } = freshSetup();
     const { spawnSync } = require('node:child_process');
     const cli = path.join(__dirname, '..', 'scripts', 'release', 'run-on-candidate.cjs');
-    const real = (...rest) => spawnSync('node', [cli, '--repo', f.repo, '--receipt', f.receiptPath, '--fixes', f.fixesFile, ...rest], { encoding: 'utf8', env: { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(EXPO_PUBLIC_|APP_VARIANT)/.test(k))), TMPDIR: tmpRoot } });
+    let extra = {};
+    const real = (...rest) => spawnSync('node', [cli, '--repo', f.repo, '--receipt', f.receiptPath, '--fixes', f.fixesFile, ...rest], { encoding: 'utf8', env: { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(EXPO_PUBLIC_|APP_VARIANT)/.test(k))), TMPDIR: tmpRoot, ...extra } });
     // The command writes an .xcarchive, so it is an archive: without a profile it is refused outright.
     const bare = real('--keep', '--', 'node', '-e', "require('fs').writeFileSync('SnapScore.xcarchive','archive bytes')");
     assert.equal(bare.status, 1);
     assert.match(bare.stderr, /REFUSED: an archive or an upload must name its release profile/);
+    // With a profile but no service configuration in the shell, the real CLI still refuses.
+    const noServices = real('--keep', '--profile', 'testflight', '--', 'node', '-e', "require('fs').writeFileSync('SnapScore.xcarchive','x')");
+    assert.equal(noServices.status, 1);
+    assert.match(noServices.stderr, /REFUSED: service configuration is missing from this environment/);
+    // Refused before its command started: nothing to keep, so no checkout is left behind even with --keep.
+    assert.equal(fs.readdirSync(tmpRoot).filter((n) => n.startsWith('snapscore-candidate-')).length, 0);
+    assert.equal(f.git('worktree', 'list').split('\n').length, 1);
+    extra = SERVICES;
     const one = real('--keep', '--profile', 'testflight', '--', 'node', '-e', "require('fs').writeFileSync('SnapScore.xcarchive','archive bytes')");
     assert.equal(one.status, 0, one.stderr);
     const kept = one.stdout.match(/KEPT: the fresh checkout is at (\S+?)\. /)[1];
@@ -484,17 +494,19 @@ describe('run-on-candidate', () => {
     const s = freshSetup();
     const seenEnv = path.join(path.dirname(s.f.receiptPath), 'env.json');
     const dump = ['node', '-e', `require('fs').writeFileSync(${JSON.stringify(seenEnv)}, JSON.stringify(Object.fromEntries(Object.entries(process.env).filter(([k]) => /^(EXPO_PUBLIC_|APP_VARIANT)/.test(k)))))`];
-    const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(EXPO_PUBLIC_|APP_VARIANT)/.test(k)));
+    const bare = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(EXPO_PUBLIC_|APP_VARIANT)/.test(k)));
+    // A release shell: no flags, but the service configuration a hand build needs.
+    const clean = { ...bare, ...SERVICES };
     const go = (env, ...flags) => runOnCandidate([...s.freshArgs(...flags), '--', ...dump], { ...s.opts, env: { ...clean, ...env } });
     const records = () => fs.readdirSync(path.dirname(s.f.receiptPath)).filter((n) => n.includes('.build-')).sort().map((n) => JSON.parse(fs.readFileSync(path.join(path.dirname(s.f.receiptPath), n), 'utf8')));
-    return { ...s, seenEnv, go, records, clean };
+    return { ...s, seenEnv, go, records, clean, bare };
   };
 
   test('--profile starts the command with exactly the profile flags and records them', () => {
     const { seenEnv, go, records } = flagSetup();
     // Nothing set by the caller: the wrapper supplies every flag.
     assert.equal(go({}, '--profile', 'testflight'), 0);
-    assert.equal(JSON.stringify(Object.entries(JSON.parse(fs.readFileSync(seenEnv, 'utf8'))).sort()), JSON.stringify(Object.entries(RELEASE_ENV).sort()));
+    assert.equal(JSON.stringify(Object.entries(JSON.parse(fs.readFileSync(seenEnv, 'utf8'))).sort()), JSON.stringify(Object.entries({ ...RELEASE_ENV, ...SERVICES }).sort()));
     // The caller already exported the same values: still admitted.
     assert.equal(go({ ...RELEASE_ENV }, '--profile', 'production'), 0);
     const [first, second] = records();
@@ -503,7 +515,15 @@ describe('run-on-candidate', () => {
     assert.equal(JSON.stringify(first.releaseFlags.values), JSON.stringify(Object.fromEntries(Object.entries(RELEASE_ENV).sort())));
     assert.equal(first.releaseFlags.setByWrapper.length, 5);
     assert.match(first.releaseFlags.easJsonSha256, /^[0-9a-f]{64}$/);
-    assert.equal(JSON.stringify(first.buildVariables), JSON.stringify(first.releaseFlags.values));
+    // Flags are recorded by value; service configuration by fingerprint only, never by value.
+    for (const [name, value] of Object.entries(RELEASE_ENV)) assert.equal(first.buildVariables[name], value);
+    for (const [name, value] of Object.entries(SERVICES)) {
+      assert.match(first.buildVariables[name], /^sha256:[0-9a-f]{12}$/);
+      assert.equal(JSON.stringify(first).includes(value), false, name);
+    }
+    assert.deepEqual(Object.keys(first.releaseFlags.services.set), Object.keys(SERVICES).sort());
+    assert.equal(first.releaseFlags.services.suppliedBy, 'this environment');
+    assert.ok(first.releaseFlags.services.notSet.includes('EXPO_PUBLIC_GOOGLE_CLIENT_ID'));
     assert.equal(second.releaseFlags.profile, 'production');
     assert.equal(second.releaseFlags.alreadySet.length, 5);
   });
@@ -514,7 +534,7 @@ describe('run-on-candidate', () => {
     refused(() => go({ EXPO_PUBLIC_PRO_ENABLED: 'true' }, '--profile', 'testflight'), /EXPO_PUBLIC_PRO_ENABLED is "true" here but "false" in the testflight profile/);
     refused(() => go({ EXPO_PUBLIC_FEATURE_LEAGUES: '' }, '--profile', 'testflight'), /EXPO_PUBLIC_FEATURE_LEAGUES is "" here/);
     // A variable the profile does not have at all (left over from a simulator build).
-    refused(() => go({ EXPO_PUBLIC_OFFLINE_MODE: 'true' }, '--profile', 'production'), /EXPO_PUBLIC_OFFLINE_MODE is set here \("true"\) but is not in the production profile/);
+    refused(() => go({ EXPO_PUBLIC_OFFLINE_MODE: 'true' }, '--profile', 'production'), /EXPO_PUBLIC_OFFLINE_MODE is set here \("true"\); it makes a test or simulator build and is never allowed in a release build/);
     refused(() => go({ APP_VARIANT: 'development' }, '--profile', 'production'), /APP_VARIANT is set here/);
     // A profile that is not a release profile, or has no env block.
     refused(() => go({}, '--profile', 'preview'), /--profile must be one of: testflight, production/);
@@ -539,7 +559,8 @@ describe('run-on-candidate', () => {
     assert.match(warnings.join('\n'), /WARNING: no --profile given \(allowed only for tests and simulator builds\)\. The release feature flags are NOT checked/);
     const [record] = records();
     assert.equal(record.releaseFlags.checked, false);
-    assert.equal(JSON.stringify(record.buildVariables), JSON.stringify({ EXPO_PUBLIC_PRO_ENABLED: 'true' }));
+    assert.equal(record.buildVariables.EXPO_PUBLIC_PRO_ENABLED, 'true');
+    assert.match(record.buildVariables.EXPO_PUBLIC_SUPABASE_URL, /^sha256:/);
     assert.equal(fs.existsSync(seenEnv), false);
     assert.equal(go({ EXPO_PUBLIC_PRO_ENABLED: 'true' }), 0);
     assert.equal(JSON.parse(fs.readFileSync(seenEnv, 'utf8')).EXPO_PUBLIC_PRO_ENABLED, 'true');
@@ -602,5 +623,63 @@ describe('run-on-candidate', () => {
       refused(() => releaseFlags({ app, profile: 'production', env: {} }), new RegExp(`missing: ${name}\\.`));
     }
     assert.equal(runOnCandidate([...freshArgs('--profile', 'testflight'), '--', 'node', '-e', '0'], { ...opts, env: clean }), 0);
+  });
+
+  test('a hand-made release build without the service configuration is refused; eas build is not', () => {
+    const { f, seenEnv, freshArgs, opts, bare, clean, records, tmpRoot } = flagSetup();
+    const { SERVICE_REQUIRED } = require('../scripts/release/run-on-candidate.cjs');
+    assert.deepEqual(SERVICE_REQUIRED, ['EXPO_PUBLIC_REVENUECAT_APPLE_KEY', 'EXPO_PUBLIC_SUPABASE_ANON_KEY', 'EXPO_PUBLIC_SUPABASE_URL']);
+    const attempt = (env, ...command) => runOnCandidate([...freshArgs('--purpose', 'archive', '--profile', 'testflight'), '--', ...command], { ...opts, env });
+    const ok = ['node', '-e', '0'];
+    // Nothing exported: the app would build with no sign-in and no purchases.
+    refused(() => attempt(bare, ...ok), /service configuration is missing from this environment: EXPO_PUBLIC_REVENUECAT_APPLE_KEY, EXPO_PUBLIC_SUPABASE_ANON_KEY, EXPO_PUBLIC_SUPABASE_URL\. A build made without it has no sign-in and no purchases/);
+    // Each one missing, or empty, by itself.
+    for (const name of SERVICE_REQUIRED) {
+      const env = { ...clean }; delete env[name];
+      refused(() => attempt(env, ...ok), new RegExp(`is missing from this environment: ${name}\\.`));
+      refused(() => attempt({ ...clean, [name]: '' }, ...ok), new RegExp(`is missing from this environment: ${name}\\.`));
+    }
+    assert.equal(records().length, 0);
+    assert.equal(fs.readdirSync(tmpRoot).length, 0);
+    assert.equal(f.git('worktree', 'list').split('\n').length, 1);
+    // With them: admitted. Optional service configuration is allowed and recorded by fingerprint.
+    assert.equal(attempt({ ...clean, EXPO_PUBLIC_GOOGLE_CLIENT_ID: 'client-id-not-real', EXPO_PUBLIC_POSTHOG_HOST: 'https://eu.posthog.example' }, ...ok), 0);
+    const hand = records().at(-1);
+    assert.deepEqual(Object.keys(hand.releaseFlags.services.set), ['EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'EXPO_PUBLIC_POSTHOG_HOST', ...SERVICE_REQUIRED].sort());
+    assert.equal(JSON.stringify(hand).includes('client-id-not-real'), false);
+    // The test-only switches are still refused in a release build, by name and with the reason.
+    for (const name of ['EXPO_PUBLIC_SIMULATOR_NO_MLKIT', 'EXPO_PUBLIC_OFFLINE_MODE', 'EXPO_PUBLIC_DEMO_MODE', 'EXPO_PUBLIC_E2E_COURSE_FIXTURE'])
+      refused(() => attempt({ ...clean, [name]: '1' }, ...ok), new RegExp(`${name} is set here \\("1"\\); it makes a test or simulator build and is never allowed in a release build`));
+    refused(() => attempt({ ...clean, EXPO_PUBLIC_SOMETHING_NEW: 'x' }, ...ok), /EXPO_PUBLIC_SOMETHING_NEW is set here \("x"\) but is not in the testflight profile and is not known service configuration/);
+    // `eas build` takes the service configuration from the EAS environment, so its absence here is
+    // not a refusal. (The command is only parsed; `eas` is not installed, so it is not started.)
+    const { releaseFlags } = require('../scripts/release/run-on-candidate.cjs');
+    const app = path.join(path.dirname(f.receiptPath), 'eas-app');
+    fs.mkdirSync(app);
+    fs.writeFileSync(path.join(app, 'eas.json'), JSON.stringify({ build: { testflight: { environment: 'production', env: RELEASE_ENV } } }));
+    const viaEas = releaseFlags({ app, profile: 'testflight', env: {}, command: ['npx', 'eas', 'build', '--platform', 'ios', '--profile', 'testflight', '--local'] });
+    assert.equal(viaEas.services.suppliedBy, 'eas (environment production)');
+    refused(() => releaseFlags({ app, profile: 'testflight', env: {}, command: ['xcodebuild', 'archive'] }), /takes it from the EAS environment "production"; a build made by hand must export the same values/);
+    assert.equal(fs.existsSync(seenEnv), false);
+  });
+
+  test('every EXPO_PUBLIC variable the app reads is sorted into a release flag, service configuration or a test-only switch', () => {
+    const { REQUIRED_RELEASE_FLAGS, SERVICE_REQUIRED, SERVICE_OPTIONAL, TEST_ONLY } = require('../scripts/release/run-on-candidate.cjs');
+    const known = new Set([...REQUIRED_RELEASE_FLAGS, ...SERVICE_REQUIRED, ...SERVICE_OPTIONAL, ...TEST_ONLY]);
+    assert.equal(known.size, REQUIRED_RELEASE_FLAGS.length + SERVICE_REQUIRED.length + SERVICE_OPTIONAL.length + TEST_ONLY.length);
+    const root = path.join(__dirname, '..');
+    const found = new Set();
+    const walk = (dir) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === 'node_modules' || entry.name === '__tests__' || entry.name.startsWith('.')) continue;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(ts|tsx|js)$/.test(entry.name) && !/\.test\./.test(entry.name)) for (const m of fs.readFileSync(full, 'utf8').matchAll(/EXPO_PUBLIC_[A-Z0-9_]+/g)) found.add(m[0]);
+      }
+    };
+    walk(path.join(root, 'app')); walk(path.join(root, 'src'));
+    for (const file of ['app.config.js', 'react-native.config.js']) if (fs.existsSync(path.join(root, file))) for (const m of fs.readFileSync(path.join(root, file), 'utf8').matchAll(/EXPO_PUBLIC_[A-Z0-9_]+/g)) found.add(m[0]);
+    assert.ok(found.size >= 10, `expected the app's variables, found ${found.size}`);
+    assert.deepEqual([...found].filter((name) => !known.has(name)).sort(), []);
   });
 });
