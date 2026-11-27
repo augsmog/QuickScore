@@ -18,6 +18,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { evaluateCheckpoint, finiteRect } from './lib/geometry-rules.mjs';
+import { wizardScrollCoverage } from './lib/ios-wizard-scroll-coverage.mjs';
 import { applyWaivers, validateWaivers } from './lib/waivers.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -174,11 +175,14 @@ export function runBundle(bundle, waiverDoc, now = new Date(), expect = {}) {
   if (errors.length) {
     return { ok: false, keptCount: 0, results, error: errors.join('; '), errors };
   }
+  let revealed;
+  try { revealed = wizardScrollCoverage(bundle, expect); }
+  catch (e) { return { ok: false, keptCount: 0, results, error: `wizard scroll evidence failed closed: ${e.message}` }; }
   for (const cp of bundle.checkpoints) {
     // Platform is bound to the validated checkpoint/bundle platform; context can never override it.
     let findings;
     try {
-      ({ findings } = evaluateCheckpoint(cp.nodes, { ...cp.context, platform: cp.platform }));
+      ({ findings } = evaluateCheckpoint(cp.nodes, { ...cp.context, platform: cp.platform }, revealed.get(cp)));
     } catch (e) {
       // A malformed geometry leaf that slipped past validateBundle must FAIL the checkpoint, never
       // silently pass. Record it as an unwaivable kept finding (rule 0 = evaluator integrity).
@@ -190,6 +194,7 @@ export function runBundle(bundle, waiverDoc, now = new Date(), expect = {}) {
       kept += 1;
       continue;
     }
+    const acceptedReveals = revealed.get(cp);
     const applied = applyWaivers(findings, waiverDoc, {
       screen: cp.screen, deviceId: cp.deviceId, state: cp.state,
     }, now);
@@ -197,6 +202,7 @@ export function runBundle(bundle, waiverDoc, now = new Date(), expect = {}) {
       flow: cp.flow, checkpoint: cp.checkpoint, deviceId: cp.deviceId,
       kept: applied.kept, waived: applied.waived.map((w) => w.finding.rule),
       verdict: applied.kept.length === 0 ? 'pass' : 'fail',
+      ...(acceptedReveals?.size ? { verifiedScrollReveals: [...acceptedReveals.values()] } : {}),
     });
     kept += applied.kept.length;
   }
@@ -217,7 +223,7 @@ function main() {
   const waiverDoc = JSON.parse(readFileSync(waiverPath, 'utf8'));
   const wv = validateWaivers(waiverDoc);
   if (!wv.ok) { console.error('FAIL waivers.json invalid:', wv.errors.join('; ')); process.exit(1); }
-  const expect = expectFromArgs(args);
+  const expect = { ...expectFromArgs(args), evidenceDir: dirname(resolve(bundlePath)) };
   const out = runBundle(bundle, waiverDoc, new Date(), expect);
   if (outPath) writeFileSync(outPath, JSON.stringify(out, null, 2));
   if (out.error) console.error(`FAIL: ${out.error}`);
