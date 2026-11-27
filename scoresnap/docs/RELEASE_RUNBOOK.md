@@ -34,15 +34,20 @@ A commit is a **candidate** only when both of these are true. Until then call it
    It checks out exactly that SHA in a clean worktree and refuses unless: every fix in `release/required-fixes.json` is in the SHA (as an ancestor, or as an identical patch when fixes were combined by cherry-pick); the full unit suite passes with 0 failed and no skipped test beyond `allowedSkips`; and the version matches the release. On any failure it exits non-zero and leaves no receipt.
 2. A **different service** from the one that ran step 1 has run the same command on the same SHA and got the same `sha`, `tree`, suite counts and fix list. Post both receipts on the release ticket.
 
-Every build, archive and upload step starts with:
+**Every build, archive and upload goes through one entry point.** Do not call `eas`, `xcodebuild`, `fastlane` or an upload tool directly for a release; wrap the same command:
 ```sh
-node scripts/release/candidate-check.cjs verify --sha <same SHA> --receipt candidate-receipt.json
+node scripts/release/run-on-candidate.cjs \
+  --source <the checkout being built, at the release SHA> \
+  --receipt candidate-receipt.json \
+  -- <the build, archive or upload command, exactly as you would have typed it>
 ```
-and does not proceed if it exits non-zero. Keep `candidate-receipt.json.tests.txt` beside the receipt; `verify` needs both. The receipt is refused if it is for another SHA or tree, if its fix list is not exactly the one in `release/required-fixes.json`, if the test list beside it does not match the hash in the receipt, if it records a red suite, or if it was written by a different version of the check.
+It runs the command only if the checkout's `HEAD` is exactly the receipt's SHA, the checkout has no changes to tracked files, and `verify` accepts the receipt. Otherwise it prints `REFUSED: …`, exits non-zero and runs nothing. The command runs in `<source>/scoresnap` with `CANDIDATE_SHA`, `CANDIDATE_TREE` and `CANDIDATE_RECEIPT` set, and its exit status is passed through.
+
+Keep `candidate-receipt.json.tests.txt` beside the receipt; `verify` needs both. A receipt is refused if it is for another SHA or tree, if its fix list is not exactly the one in `release/required-fixes.json`, if the test list beside it does not match the hash in the receipt, if it records a red suite, or if it was written by a different version of the check. To check a receipt without running anything: `node scripts/release/candidate-check.cjs verify --sha <SHA> --receipt candidate-receipt.json`.
 
 Compare two receipts by `suite.testIdsSha256` (the hash of the sorted list of every test that ran, with its result), never by the headline count. If the hashes differ, `diff` the two `.tests.txt` files to see which tests.
 
-**Not enforced yet:** no build script in this repository calls `verify`. Until the native archive step does, this is a rule people follow, not one a machine enforces.
+**What is and is not enforced.** The entry point refuses by itself. Nothing stops a person or an agent from bypassing it and typing the build command directly, and other entry points (for example `eas_run.sh` in the Control repository) do not call it. Using only this entry point for release builds is the rule.
 
 - The release lead owns `release/required-fixes.json`. A fix is added there when its ticket becomes launch-blocking, with the exact commit.
 - The build number is assigned at build time (`appVersionSource: remote`), so the receipt records the version only. Check the build number on the archive.
