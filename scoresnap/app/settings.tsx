@@ -3,7 +3,8 @@ import { SafeScreen } from "../src/ui/SafeScreen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   settingsLayout,
-  SETTINGS_SWITCH_TARGET,
+  SETTINGS_SWITCH_SLOT,
+  settingsSwitchProps,
   SETTINGS_SECTION_HEADER_MARGIN_TOP,
   SETTINGS_SCORING_HEADER_MARGIN_TOP,
 } from "../src/ui/settings-layout";
@@ -125,18 +126,17 @@ function ToggleRow({
           </Text>
         )}
       </View>
-      <Switch
-        style={SETTINGS_SWITCH_TARGET}
-        accessibilityRole={Platform.OS === "web" ? undefined : "switch"}
-        accessibilityLabel={label}
-        accessibilityHint={sublabel}
-        accessibilityState={Platform.OS === "web" ? undefined : { checked: value }}
-        value={value}
-        onValueChange={onToggle}
-        trackColor={{ false: COLORS.surfaceHigh, true: COLORS.primary + "55" }}
-        thumbColor={value ? COLORS.primary : COLORS.textDim}
-        ios_backgroundColor={COLORS.surfaceHigh}
-      />
+      <View style={SETTINGS_SWITCH_SLOT}>
+        <Switch
+          {...settingsSwitchProps(Platform.OS, value, COLORS)}
+          accessibilityRole={Platform.OS === "web" ? undefined : "switch"}
+          accessibilityLabel={label}
+          accessibilityHint={sublabel}
+          accessibilityState={Platform.OS === "web" ? undefined : { checked: value }}
+          value={value}
+          onValueChange={onToggle}
+        />
+      </View>
     </View>
   );
 }

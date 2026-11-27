@@ -12,6 +12,8 @@ function rows(){
   if(id.endsWith('/AnimatedPressable'))return {AnimatedPressable:RNW.Pressable};
   if(id.endsWith('/theme'))return {COLORS:{primary:'#000',text:'#000',textDim:'#444'},FONTS:{},RADII:{}};
   if(id==='lucide-react-native')return new Proxy({},{get:()=>()=>null});
+  // The real layout rules: the switch's look comes from settingsSwitchProps (build 33 fix).
+  if(id.endsWith('/settings-layout')){const m={exports:{}};new Function('module','exports',ts.transpileModule(fs.readFileSync('src/ui/settings-layout.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(m,m.exports);return m.exports;}
   return {};
  },module,module.exports);
  return module.exports;

@@ -13,6 +13,22 @@ export const SETTINGS_SWITCH_TARGET = {
   minHeight: Math.max(SETTINGS_MIN_TARGET_PX, SETTINGS_SWITCH_SIZE.height),
 };
 
+// The slot that carries the 44pt touch target around a switch. Never give the size or a
+// background to the Switch itself on iPhone: iOS paints the background on the whole box, and a
+// 44pt-tall box shows as a rounded rectangle sticking out below the 31pt switch (build 33).
+export const SETTINGS_SWITCH_SLOT = { ...SETTINGS_SWITCH_TARGET, alignItems: 'center' as const, justifyContent: 'center' as const };
+
+// How a Settings switch looks. iPhone: the stock switch, brand colour on the "on" track only.
+// Android and web: as before.
+export function settingsSwitchProps(platformOS: string | undefined, value: boolean, colors: { primary: string; textDim: string; surfaceHigh: string }) {
+  if (platformOS === 'ios') return { trackColor: { true: colors.primary } };
+  return {
+    style: SETTINGS_SWITCH_TARGET,
+    trackColor: { false: colors.surfaceHigh, true: colors.primary + '55' },
+    thumbColor: value ? colors.primary : colors.textDim,
+  };
+}
+
 export function settingsLayout(insets: { top: number; bottom: number; left?: number; right?: number }) {
   const left = insets.left ?? 0;
   const right = insets.right ?? 0;

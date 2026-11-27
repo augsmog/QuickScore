@@ -145,14 +145,31 @@ test('existing single Profile gear is named Settings and remains in first conten
 });
 
 
-test.each(['ios', 'web'])('the named switch itself owns the 44px target on %s', platform => {
+// Build 33: on iPhone the 44pt target used to be put on the Switch itself, and iOS painted the
+// switch's background on that whole 51x44 box (a rounded rectangle sticking out below every
+// switch on the owner's phone). On iPhone the target is now the plain slot around a stock switch;
+// on web the switch still owns it.
+test.each(['ios', 'web'])('every switch has a 44px target on %s: its slot on iPhone, itself on web', platform => {
   const screen = settingsScreen(platform);
   const tree = screen.render();
   const switches = nodes(tree).filter(node => node.type === 'Switch');
   expect(switches).toHaveLength(14);
+  const slots = nodes(tree).filter(node => node.type === 'View' && [node.props.children].flat().some(child => child?.type === 'Switch'));
+  expect(slots).toHaveLength(14);
+  for (const slot of slots) {
+    expect(slot.props.style.minWidth).toBeGreaterThanOrEqual(44);
+    expect(slot.props.style.minHeight).toBeGreaterThanOrEqual(44);
+    expect(slot.props.style.backgroundColor).toBeUndefined();
+  }
   for (const toggle of switches) {
-    expect(toggle.props.style.minWidth).toBeGreaterThanOrEqual(44);
-    expect(toggle.props.style.minHeight).toBeGreaterThanOrEqual(44);
+    if (platform === 'ios') {
+      expect(toggle.props.style).toBeUndefined();
+      expect(toggle.props.thumbColor).toBeUndefined();
+      expect(toggle.props.ios_backgroundColor).toBeUndefined();
+    } else {
+      expect(toggle.props.style.minWidth).toBeGreaterThanOrEqual(44);
+      expect(toggle.props.style.minHeight).toBeGreaterThanOrEqual(44);
+    }
     const before = toggle.props.value;
     toggle.props.onValueChange(!before);
     expect(control(screen.render(), toggle.props.accessibilityLabel).props.value).toBe(!before);
