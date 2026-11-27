@@ -202,7 +202,7 @@ test('the shipped 1.0.1 fix list is well formed', () => {
   const { validateFixes } = require('../scripts/release/candidate-check.cjs');
   const doc = validateFixes(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'release', 'required-fixes.json'), 'utf8')));
   assert.equal(doc.release.version, '1.0.1');
-  assert.equal(doc.fixes.length, 5);
+  assert.equal(doc.fixes.length, 6);
   assert.deepEqual(doc.allowedSkips, []);
 });
 
