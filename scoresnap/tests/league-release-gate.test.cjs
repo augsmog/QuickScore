@@ -39,7 +39,7 @@ test.each([false, true])('League tab visibility follows separate gate (%s)', ena
   const { default: Layout } = load('app/(tabs)/_layout.tsx', {
     'react/jsx-runtime': require('react/jsx-runtime'),
     'expo-router': { Tabs },
-    'react-native': { View: 'View', StyleSheet: {} },
+    'react-native': { View: 'View', StyleSheet: {}, Platform: { OS: 'ios' } },
     'lucide-react-native': {},
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 0 }) },
     '../../src/ui/theme': { COLORS: {}, FONTS: {} },

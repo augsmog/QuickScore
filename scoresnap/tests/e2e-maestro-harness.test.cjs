@@ -29,7 +29,9 @@ test("config shape, app id and build profiles match the app", () => {
 
 // The device-layout capture flows are a SEPARATE contract (device-layout/v1), asserted below;
 // they are intentionally not part of the aos-e2e/v1 flow registry.
-const DEVICE_LAYOUT_SUBDIR = `${path.sep}flows${path.sep}device-layout${path.sep}`;
+// `device-layout/` and its iPhone-only companion `device-layout-ios/` (extra wizard stops the iOS
+// leg adds; DotBot layout repair 580dd2e) are both capture flows under the device-layout contract.
+const DEVICE_LAYOUT_SUBDIR = `${path.sep}flows${path.sep}device-layout`;
 
 test("every flow is listed once, exists, targets the app and names its ticket", () => {
   const listed = config.flows.map((f) => path.join(repo, f.file)).sort();
@@ -106,7 +108,11 @@ test("selectors used by flows exist in the app source", () => {
     const templ = (/^score-(minus|par|plus)-/.test(id) && src.includes(`testID={\`score-${id.split("-")[1]}-\${player.name}\`}`))
       || (/^game-mode-/.test(id) && src.includes("testID={`game-mode-${game.id}`}"))
       // Round-count chips in the New Contest wizard are rendered [2,3,4].map((n) => <... testID={`rounds-${n}`}>.
-      || (/^rounds-\d+$/.test(id) && src.includes("testID={`rounds-${n}`}"));
+      || (/^rounds-\d+$/.test(id) && src.includes("testID={`rounds-${n}`}"))
+      // Per-player controls are ids built from the player's name.
+      || (/^remove-player-/.test(id) && src.includes("testID={`remove-player-${player.name}`}"))
+      // Player rows and name fields carry an index-built id on iPhone only (layout gate capture proof).
+      || (/^wizard-player-(row|name)-\d+$/.test(id) && src.includes(`testID={Platform.OS === "ios" ? \`wizard-player-${id.split("-")[2]}-\${idx + 1}\` : undefined}`));
     expect([id, literal || templ]).toEqual([id, true]);
   }
 });
