@@ -15,7 +15,12 @@ function fixture(){
     const nodes=[];
     for(let j=0;j<(i?4:2);j++) {
       nodes.push(n('wizard-player-row-'+(j+1),'',top+130*j,120),n('wizard-player-name-'+(j+1),j?'Player '+(j+1)+' name':'Ava',top+130*j));
-      if(i) nodes.push(n('remove-player-'+(j?'':'Ava'),j?'Remove player':'Remove Ava',top+130*j));
+      if(i) {
+        const y=top+130*j, player=j+1;
+        nodes.push(n(j?'wizard-remove-player-'+player:'remove-player-Ava',j?'Remove player':'Remove Ava',y));
+        if(j) nodes.push(n('wizard-player-handicap-'+player,'0',y),
+          n('wizard-player-group-'+player,'G1',y),n('wizard-player-team-'+player+'-A','A',y));
+      }
     }
     nodes.push(n('add-group','Add group',top+550));
     return {flow:'new-contest',screen:'new-contest',checkpoint:name,platform:'ios',deviceId:opt.profileId,
@@ -49,6 +54,28 @@ for(const [why,mutate] of Object.entries({
   'stale candidate':b=>{b.sourceSha='c'.repeat(40)},
   'stale binary':b=>{b.buildHash='c'.repeat(64)}
 })) test('reject: '+why,()=>{const b=fixture();mutate(b);assert.throws(()=>verify(b,opt),/iOS wizard capture/);});
+for(const [id,field,value] of [
+  ['wizard-player-handicap-2','text','12'],
+  ['wizard-player-group-3','text','G2'],
+  ['wizard-player-team-4-A','selected',true],
+  ['wizard-remove-player-2','enabled',false],
+]) test('reject: same wizard state cannot change indexed '+id,()=>{
+  const b=fixture();
+  const n=at(b,2,id);
+  assert.notEqual(n[field],value);
+  n[field]=value;
+  assert.throws(()=>verify(b,opt),/four-player state changed/);
+});
+test('reject: same wizard state cannot lose an indexed player control',()=>{
+  const b=fixture(),cp=b.checkpoints[3];
+  cp.nodes=cp.nodes.filter(n=>n.id!=='wizard-player-group-2');
+  assert.throws(()=>verify(b,opt),/four-player state changed/);
+});
+test('reject: duplicate indexed identities even if consistently repeated at every scroll stop',()=>{
+  const b=fixture();
+  for(const cp of b.checkpoints.slice(1)) cp.nodes.push({...cp.nodes.find(n=>n.id==='wizard-player-handicap-2')});
+  assert.throws(()=>verify(b,opt),/duplicate indexed player control/);
+});
 test('historical native name entry measures a keyboard distinct from a declared safe area',()=>{
   const load = name => JSON.parse(readFileSync(new URL('fixtures/native/'+name+'.hierarchy.json',import.meta.url),'utf8'));
   const up=normalizeMaestroCapture(load('ios-16pro-name-entry'),{viewport:{width:402,height:874}});
