@@ -21,7 +21,7 @@ test('CI runs independent real-UI anonymous-enabled and disabled stacks and keep
   const upload=job.steps.find(s=>s.uses==='actions/upload-artifact@v4');
   assert.equal(upload.with.path,'invite-journey-evidence');
   assert(commands.includes('rm -f "$RUNNER_TEMP/invite-private.json"'));
-  assert(workflow.on.pull_request.paths.includes('scoresnap/e2e/**'));
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']); // AUG-1601: manual-only
 });
 test('native orchestrator preserves installations, checks source ancestry and emits proof only after readback',()=>{
   const native=read('./native.mjs');

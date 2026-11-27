@@ -3,23 +3,14 @@ name: E2E disposable staging
 # A never-linked local Supabase stack on a GitHub-hosted runner, with the full migration chain,
 # five synthetic test accounts and one seeded contest. No hosted project, no customer data, $0.
 on:
-  # Main pushes (same paths) and a daily run keep the registry's latest-main result fresh. Free: public repo, ubuntu-latest.
-  push:
-    branches: [main]
-    paths:
-      - 'scoresnap/e2e/staging/**'
-      - 'scoresnap/supabase/migrations/**'
-      - 'scoresnap/supabase/config.toml'
-      - '.github/workflows/e2e-staging.yml'
-  schedule:
-    - cron: '23 12 * * *'   # daily: registry freshness limit is 36h
-  pull_request:
-    paths:
-      - 'scoresnap/e2e/staging/**'
-      - 'scoresnap/supabase/migrations/**'
-      - 'scoresnap/supabase/config.toml'
-      - '.github/workflows/e2e-staging.yml'
+  # AUG-1601: no push or pull_request trigger may be added; only the schedule below is allowed;
+  # scoresnap/tests/workflow-triggers.test.cjs fails the unit suite if one is. Run with "Run workflow"
+  # or `gh workflow run`.
   workflow_dispatch:
+  # Daily run keeps the registry's latest result fresh (its freshness limit is 36h). Schedule kept
+  # by name (lead architect, Nov 27 2026).
+  schedule:
+    - cron: '23 12 * * *'
 permissions:
   contents: read
   packages: read

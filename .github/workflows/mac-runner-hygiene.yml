@@ -14,10 +14,9 @@ on:
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
-  pull_request:
-    paths:
-      - .github/workflows/mac-runner-hygiene.yml
-      - .github/mac-runner/**
+  # AUG-1601: the pull_request trigger is removed; no workflow may start from a push or a pull
+  # request. The hourly schedule stays: this and mac-runner-watch are the only automatic cleaning
+  # and watching of the Mac, and are named in scoresnap/scripts/ci/workflow-triggers-lint.cjs.
 permissions:
   contents: read
   issues: write
