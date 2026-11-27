@@ -82,3 +82,27 @@ export function wizardFooterFadeColors(background: string): readonly [string, st
   if (!/^#[0-9A-Fa-f]{6}$/.test(background)) throw new Error('wizardFooterFadeColors needs a #RRGGBB colour');
   return [`${background}00`, background];
 }
+
+// Test ids of a player row's own controls (remove, handicap, group chip, team chip).
+// - By name where a test addresses a row by the player it typed: web always; Android when the row
+//   has a name; iPhone for player one.
+// - By position (1-based) where a name cannot identify the row: iPhone for every later player
+//   (the layout gate's same-state proof), and Android for a blank row. Blank rows all share the
+//   empty name, so their name-built ids collide and the gate cannot follow one control through a
+//   scroll.
+export type PlayerControlKind = 'remove' | 'handicap' | 'group' | 'team';
+export function playerControlTestId(
+  kind: PlayerControlKind,
+  row: { platformOS?: string; index: number; name: string; teamId?: string },
+): string {
+  if (kind === 'team' && !row.teamId) throw new Error('playerControlTestId: a team chip needs its team id');
+  const byPosition = (row.platformOS === 'ios' && row.index > 0) || (row.platformOS === 'android' && row.name.trim() === '');
+  const n = row.index + 1;
+  switch (kind) {
+    case 'remove': return byPosition ? `wizard-remove-player-${n}` : `remove-player-${row.name}`;
+    case 'handicap': return byPosition ? `wizard-player-handicap-${n}` : `player-handicap-${row.name}`;
+    case 'group': return byPosition ? `wizard-player-group-${n}` : `player-group-${row.name}`;
+    case 'team': return byPosition ? `wizard-player-team-${n}-${row.teamId}` : `player-team-${row.name}-${row.teamId}`;
+    default: throw new Error(`playerControlTestId: unknown kind ${String(kind)}`);
+  }
+}

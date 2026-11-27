@@ -50,7 +50,7 @@ import {
   validateVariationSetup,
 } from "../../src/engine/types";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
-import { setupTargets, SETUP_MIN_TARGET_PX, modalSheetSafeEdges, WIZARD_FOOTER_FADE_PX, WIZARD_END_SPACE_PX, wizardFooterFadeColors } from "../../src/ui/tournament-setup-layout";
+import { setupTargets, SETUP_MIN_TARGET_PX, modalSheetSafeEdges, WIZARD_FOOTER_FADE_PX, WIZARD_END_SPACE_PX, wizardFooterFadeColors, playerControlTestId } from "../../src/ui/tournament-setup-layout";
 import { LinearGradient } from "expo-linear-gradient";
 
 // AUG-1376: platform-aware setup tap-target styles. Android widens every control to 48dp
@@ -478,6 +478,10 @@ export default function NewContestScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={60}
       >
+      {/* The list and its fade share this frame. The fade must not be a direct child of the
+          KeyboardAvoidingView: on iPhone that view makes room for the keyboard with padding, and an
+          absolutely positioned child ignores padding, so the fade would stay behind the keyboard. */}
+      <View testID="contest-list-frame" style={{ flex: 1 }}>
       <ScrollView
         testID="contest-scroll"
         nestedScrollEnabled
@@ -794,7 +798,7 @@ export default function NewContestScreen() {
 
                   {players.length > 2 && (
                     <AnimatedPressable
-                      testID={Platform.OS === "ios" && idx > 0 ? `wizard-remove-player-${idx + 1}` : `remove-player-${player.name}`}
+                      testID={playerControlTestId("remove", { platformOS: Platform.OS, index: idx, name: player.name })}
                       accessibilityLabel={`Remove ${player.name || "player"}`}
                       onPress={() => removePlayer(player.id)}
                       style={{ minWidth: SETUP_MIN_TARGET, minHeight: SETUP_MIN_TARGET, alignItems: "center", justifyContent: "center" }}
@@ -813,7 +817,7 @@ export default function NewContestScreen() {
                     </Text>
                     <TextInput
                       accessibilityLabel={`Handicap for ${player.name || "player"}`}
-                      testID={Platform.OS === "ios" && idx > 0 ? `wizard-player-handicap-${idx + 1}` : `player-handicap-${player.name}`}
+                      testID={playerControlTestId("handicap", { platformOS: Platform.OS, index: idx, name: player.name })}
                       value={player.handicap}
                       onChangeText={(v) => {
                         // Allow +, -, digits, and decimal point
@@ -850,7 +854,7 @@ export default function NewContestScreen() {
                   </View>
 
                   {numGroups > 1 && (
-                    <AnimatedPressable testID={Platform.OS === "ios" && idx > 0 ? `wizard-player-group-${idx + 1}` : `player-group-${player.name}`} accessibilityLabel={`Change group for ${player.name}`}
+                    <AnimatedPressable testID={playerControlTestId("group", { platformOS: Platform.OS, index: idx, name: player.name })} accessibilityLabel={`Change group for ${player.name}`}
                       onPress={() =>
                         updatePlayer(
                           player.id,
@@ -878,7 +882,7 @@ export default function NewContestScreen() {
                         return (
                           <AnimatedPressable
                             key={t.id}
-                            testID={Platform.OS === "ios" && idx > 0 ? `wizard-player-team-${idx + 1}-${t.id}` : `player-team-${player.name}-${t.id}`}
+                            testID={playerControlTestId("team", { platformOS: Platform.OS, index: idx, name: player.name, teamId: t.id })}
                             onPress={() => updatePlayer(player.id, "team", isActive ? null : t.id)}
                             style={{
                               ...teamChipStyle,
@@ -1328,6 +1332,7 @@ export default function NewContestScreen() {
         colors={wizardFooterFadeColors(COLORS.bg)}
         style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: WIZARD_FOOTER_FADE_PX }}
       />
+      </View>
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation */}

@@ -23,7 +23,9 @@ test('host uses setup, group assign, Start, and explicit sharing; no pre-seeded 
   assert(!steps.some(s=>'openLink' in s));
   // The id the host taps must be one the iPhone app renders for Player 2.
   const app=readFileSync(new URL('../../app/contest/new.tsx',import.meta.url),'utf8');
-  assert(app.includes('testID={Platform.OS === "ios" && idx > 0 ? `wizard-player-group-${idx + 1}` : `player-group-${player.name}`}'));
+  assert(app.includes('testID={playerControlTestId("group", { platformOS: Platform.OS, index: idx, name: player.name })}'));
+  const rule=readFileSync(new URL('../../src/ui/tournament-setup-layout.ts',import.meta.url),'utf8');
+  assert(rule.includes("(row.platformOS === 'ios' && row.index > 0)") && rule.includes("case 'group': return byPosition ? `wizard-player-group-${n}`"));
 });
 test('cold re-entry only navigates app UI; never replays the guest request',()=>{
   const guest=guestReconnectSteps(name), host=hostReopenSteps(name);
