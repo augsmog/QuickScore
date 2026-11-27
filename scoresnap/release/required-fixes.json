@@ -1,0 +1,12 @@
+{
+  "schema": "snapscore-required-fixes/1",
+  "release": { "version": "1.0.1", "ticket": "AUG-1584" },
+  "base": "c5c43a60a28f6fe18d28d995745d3efcd31db9df",
+  "fixes": [
+    { "ticket": "AUG-1583", "what": "six stale unit tests brought in line with the Join-by-code release contract", "commit": "36a60439e1e2532d05f8b572d436c5c8d7d3ab8a" },
+    { "ticket": "AUG-1582", "what": "iPhone only: ios.supportsTablet false, plus guard test", "commit": "c60c68b048f87347d224efccddd6e33993a82b43" },
+    { "ticket": "AUG-1369", "what": "Tournament Director paywall row gets full width for its body text", "commit": "840642563bf28bf7703078bfc36ea81cc4258685" },
+    { "ticket": "AUG-1369", "what": "persistent Tournament Director entry in Settings for free users", "commit": "409c685b77394e40274d9e4f67624483514e3ffb" }
+  ],
+  "allowedSkips": []
+}
