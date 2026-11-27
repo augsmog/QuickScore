@@ -45,7 +45,11 @@ Run it from a checkout of the default branch that has the release SHA fetched. A
 - Anything you want to keep (the `.xcarchive`, the `.ipa`, logs) must be written outside the checkout, or it is removed with it. `--keep` leaves the directory in place and prints its path.
 - The directory is made under the system temporary directory; set `TMPDIR` to put it elsewhere. `--repo <dir>` takes the commit from another clone of this repository.
 
-Otherwise it prints `REFUSED: …`, exits non-zero and runs nothing. The command gets `CANDIDATE_SHA`, `CANDIDATE_TREE`, `CANDIDATE_RECEIPT` and `CANDIDATE_CHECKOUT`, and its exit status is passed through.
+Otherwise it prints `REFUSED: …`, exits non-zero and runs nothing. The command gets `CANDIDATE_SHA`, `CANDIDATE_TREE`, `CANDIDATE_RECEIPT`, `CANDIDATE_CHECKOUT` and `CANDIDATE_BUILD_RECORD`, and its exit status is passed through.
+
+**Build record.** Every admitted run writes `<receipt>.build-<start time>-<pid>.json` beside the receipt (never inside the checkout): the SHA and tree, the command, Xcode, macOS, node and npm versions (the Apple fields are `null` off a Mac), start and end time, the exit code, and free GB before the command, after it, and after clean-up. Post it with the archive evidence. `usedGbByCommand` is the difference at the end of the command, not the peak during it. The command's arguments are written into the record, so do not pass secrets as arguments. A record with `endedAt: null` is a run that was killed.
+
+**After a kill.** A fresh checkout records its owner's process id. If a run is killed before it can clean up, the next fresh-mode run removes that directory once that process is gone (`REMOVED STALE: …`). A directory whose process is still running is never touched, so runs in parallel are safe.
 
 `--source <existing checkout>` (in place of the fresh checkout) is for cases that need an existing checkout. It refuses unless `HEAD` is exactly the receipt's SHA with no changes to tracked files and no untracked files that are not git-ignored. It cannot see git-ignored paths and prints a warning saying so every time. Do not use it for an archive or an upload.
 
