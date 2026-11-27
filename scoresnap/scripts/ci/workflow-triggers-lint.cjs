@@ -30,6 +30,18 @@ const SCHEDULE_ALLOWED = ['mac-runner-hygiene.yml', 'mac-runner-watch.yml', 'lau
 // Its two self-hosted Mac jobs do carry the disk-need step: that is a safety step which changes
 // neither the triggers nor the required-check status.
 const OWNER_PINNED = { 'device-layout-gate.yml': { triggers: ['pull_request', 'push', 'workflow_dispatch'], ticket: 'AUG-1380' } };
+// For every workflow that has any automatic trigger, the WHOLE approved `on:` block is pinned
+// here, filters included, not just the trigger names. `push` limited to main is not the same
+// trigger as `push` on every branch, and `pull_request` with no filter is not the same as one
+// limited to closed pull requests; with names alone both changes passed (DotBot, AUG-1601).
+// Only the inputs of workflow_dispatch are left free. Changing an entry is a decision.
+const PINNED_ON = {
+  'mac-runner-hygiene.yml': { schedule: [{ cron: '17 * * * *' }], workflow_dispatch: true },
+  'mac-runner-watch.yml': { schedule: [{ cron: '47 * * * *' }], workflow_dispatch: true },
+  'launch-ready.yml': { schedule: [{ cron: '30 15 * * *' }], workflow_dispatch: true },
+  'e2e-staging.yml': { schedule: [{ cron: '23 12 * * *' }], workflow_dispatch: true },
+  'device-layout-gate.yml': { pull_request: null, push: { branches: ['main'] }, workflow_dispatch: true },
+};
 
 // YAML 1.1 parsers read the bare key `on` as boolean true; accept either spelling.
 const triggersOf = (doc) => (doc && Object.hasOwn(doc, 'on') ? doc.on : doc?.true);
@@ -41,6 +53,21 @@ function triggerNames(on) {
   if (typeof on === 'object') return Object.keys(on);
   return [String(on)];
 }
+// The `on:` block in one comparable form: every spelling becomes an object, keys are sorted at
+// every depth, and workflow_dispatch is reduced to "present" (its inputs are not a trigger).
+function normalizeOn(on) {
+  let object;
+  if (on === undefined || on === null) object = {};
+  else if (typeof on === 'string') object = { [on]: null };
+  else if (Array.isArray(on)) object = Object.fromEntries(on.map((name) => [String(name), null]));
+  else object = { ...on };
+  if (Object.hasOwn(object, 'workflow_dispatch')) object.workflow_dispatch = true;
+  const sort = (value) => (Array.isArray(value) ? value.map(sort)
+    : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, sort(value[key])]))
+      : value);
+  return sort(object);
+}
+const sameOn = (a, b) => JSON.stringify(normalizeOn(a)) === JSON.stringify(normalizeOn(b));
 const runsOnMac = (job) => [].concat(job?.['runs-on'] ?? []).map(String).includes('self-hosted');
 
 function lintWorkflow(name, text) {
@@ -63,6 +90,10 @@ function lintWorkflow(name, text) {
     else errors.push(`${name}: trigger "${trigger}" is not allowed; workflows in this repository are manual-only (workflow_dispatch). See AUG-1601.`);
   }
   if (!names.includes(ALLOWED_TRIGGER) && names.length && errors.length === 0) errors.push(`${name}: must also be runnable by hand (workflow_dispatch)`);
+  }
+  // Names can match while the filters do not. For the pinned files the whole block must match.
+  if (PINNED_ON[name] && errors.length === 0 && !sameOn(triggersOf(doc), PINNED_ON[name])) {
+    errors.push(`${name}: the "on:" block is pinned, filters included, to ${JSON.stringify(normalizeOn(PINNED_ON[name]))}; found ${JSON.stringify(normalizeOn(triggersOf(doc)))}. A trigger's branches, types, paths or schedule may not change without a decision. See AUG-1601.`);
   }
   for (const [id, job] of Object.entries(doc.jobs ?? {})) {
     if (!runsOnMac(job)) continue;
@@ -89,7 +120,7 @@ function lintWorkflowDir(dir) {
   return { files, errors };
 }
 
-module.exports = { lintWorkflow, lintWorkflowDir, ALLOWED_TRIGGER, DISK_NEED_EXEMPT, SCHEDULE_ALLOWED, OWNER_PINNED };
+module.exports = { lintWorkflow, lintWorkflowDir, normalizeOn, ALLOWED_TRIGGER, DISK_NEED_EXEMPT, SCHEDULE_ALLOWED, OWNER_PINNED, PINNED_ON };
 
 if (require.main === module) {
   const dir = path.resolve(process.argv[2] ?? path.join(__dirname, '..', '..', '..', '.github', 'workflows'));

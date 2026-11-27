@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
-const { lintWorkflow, lintWorkflowDir, SCHEDULE_ALLOWED, OWNER_PINNED } = require('../scripts/ci/workflow-triggers-lint.cjs');
+const { lintWorkflow, lintWorkflowDir, normalizeOn, SCHEDULE_ALLOWED, OWNER_PINNED, PINNED_ON } = require('../scripts/ci/workflow-triggers-lint.cjs');
 
 const NEED = `      - name: "Disk need (AUG-1601): record free GB; fail only if below NEED_GB"
         run: |
@@ -29,12 +29,17 @@ test('a new scheduled workflow that is not on the list fails', () => {
   const scheduled = wf('on:\n  schedule:\n    - cron: "5 * * * *"\n  workflow_dispatch:');
   assert.deepEqual(lintWorkflow('nightly-anything.yml', scheduled), ['nightly-anything.yml: trigger "schedule" is not allowed; only mac-runner-hygiene.yml, mac-runner-watch.yml, launch-ready.yml, e2e-staging.yml may run on a schedule. See AUG-1601.']);
   assert.deepEqual(lintWorkflow('mac-runner-hygiene-2.yml', scheduled).length, 1);
-  // The two named workflows may keep schedule, and nothing more.
+  // The named workflows may keep their own schedule, and nothing more.
   for (const file of SCHEDULE_ALLOWED) {
-    assert.deepEqual(lintWorkflow(file, scheduled), []);
-    assert.match(lintWorkflow(file, wf('on:\n  schedule:\n    - cron: "5 * * * *"\n  workflow_dispatch:\n  pull_request:'))[0], /trigger "pull_request" is not allowed/);
-    assert.match(lintWorkflow(file, wf('on:\n  schedule:\n    - cron: "5 * * * *"\n  workflow_dispatch:\n  push:'))[0], /trigger "push" is not allowed/);
-    assert.match(lintWorkflow(file, wf('on:\n  schedule:\n    - cron: "5 * * * *"'))[0], /must also be runnable by hand/);
+    const cron = PINNED_ON[file].schedule[0].cron;
+    const own = `on:\n  schedule:\n    - cron: "${cron}"\n  workflow_dispatch:`;
+    assert.deepEqual(lintWorkflow(file, wf(own)), []);
+    assert.match(lintWorkflow(file, wf(`${own}\n  pull_request:`))[0], /trigger "pull_request" is not allowed/);
+    assert.match(lintWorkflow(file, wf(`${own}\n  push:`))[0], /trigger "push" is not allowed/);
+    assert.match(lintWorkflow(file, wf(`on:\n  schedule:\n    - cron: "${cron}"`))[0], /must also be runnable by hand/);
+    // Same trigger names, different schedule: every minute, or a second cron line.
+    assert.match(lintWorkflow(file, wf('on:\n  schedule:\n    - cron: "* * * * *"\n  workflow_dispatch:'))[0], /the "on:" block is pinned, filters included/);
+    assert.match(lintWorkflow(file, wf(`on:\n  schedule:\n    - cron: "${cron}"\n    - cron: "*/5 * * * *"\n  workflow_dispatch:`))[0], /is pinned, filters included/);
   }
 });
 
@@ -43,8 +48,23 @@ test('the owner-pinned workflow must keep exactly its recorded triggers', () => 
   assert.deepEqual(gate('on:\n  pull_request:\n  push:\n    branches: [main]\n  workflow_dispatch:'), []);
   assert.match(gate('on:\n  pull_request:\n  push:\n  workflow_dispatch:\n  schedule:\n    - cron: "5 * * * *"')[0], /pinned to \[pull_request, push, workflow_dispatch\] by owner decision \(AUG-1380\)/);
   assert.match(gate('on:\n  workflow_dispatch:')[0], /pinned to/);
+  // DotBot's two negatives (AUG-1601): the trigger NAMES are unchanged, the filters are not.
+  // 1. push restricted to main replaced by unrestricted push.
+  assert.match(gate('on:\n  pull_request:\n  push:\n  workflow_dispatch:')[0], /the "on:" block is pinned, filters included.*found \{"pull_request":null,"push":null,"workflow_dispatch":true\}/);
+  // 2. pull_request narrowed to closed pull requests only.
+  assert.match(gate('on:\n  pull_request:\n    types: [closed]\n  push:\n    branches: [main]\n  workflow_dispatch:')[0], /is pinned, filters included.*"types":\["closed"\]/);
+  // And the neighbours: another branch, an extra branch, a paths filter, pull_request_target-style branches.
+  for (const changed of [
+    'on:\n  pull_request:\n  push:\n    branches: [release]\n  workflow_dispatch:',
+    'on:\n  pull_request:\n  push:\n    branches: [main, "claude/**"]\n  workflow_dispatch:',
+    'on:\n  pull_request:\n  push:\n    branches: [main]\n    paths: ["docs/**"]\n  workflow_dispatch:',
+    'on:\n  pull_request:\n    branches: [main]\n  push:\n    branches: [main]\n  workflow_dispatch:',
+    'on:\n  pull_request:\n  push:\n    tags: ["v*"]\n  workflow_dispatch:',
+  ]) assert.match(gate(changed)[0], /is pinned, filters included/, changed);
+  // Spelling and key order do not matter; workflow_dispatch inputs are free.
+  assert.deepEqual(gate('"on":\n  workflow_dispatch:\n    inputs:\n      sha:\n        required: true\n  push:\n    branches:\n      - main\n  pull_request:'), []);
   // Its Mac jobs are not exempt from the disk-need step.
-  const gateTriggers = 'on:\n  pull_request:\n  push:\n  workflow_dispatch:';
+  const gateTriggers = 'on:\n  pull_request:\n  push:\n    branches: [main]\n  workflow_dispatch:';
   const macJob = (steps) => `  ios-sim:\n    runs-on: [self-hosted, ios-sim]\n    env:\n      NEED_GB: ""\n    steps:\n${steps}`;
   assert.match(lintWorkflow('device-layout-gate.yml', wf(gateTriggers, macJob('      - uses: actions/checkout@v4\n')))[0], /must start with the "Disk need \(AUG-1601\)" step/);
   assert.deepEqual(lintWorkflow('device-layout-gate.yml', wf(gateTriggers, macJob(`${NEED}      - uses: actions/checkout@v4\n`))), []);
@@ -91,4 +111,17 @@ test('a job on the self-hosted Mac must declare NEED_GB and start with the disk-
   assert.match(lintWorkflow('mac.yml', mac(`${NEED}      - uses: actions/checkout@v4\n`, ''))[0], /must declare NEED_GB/);
   // Hosted macOS runners are not the Mac mini and need neither.
   assert.deepEqual(lintWorkflow('hosted.yml', wf('on:\n  workflow_dispatch:', '  ios:\n    runs-on: macos-15\n    steps:\n      - run: "true"\n')), []);
+});
+
+test('the pinned "on:" blocks are exactly what the files have today, and every file with an automatic trigger is pinned', () => {
+  const yaml = require('js-yaml');
+  const automatic = [];
+  for (const file of fs.readdirSync(WORKFLOWS).filter((f) => /\.ya?ml$/.test(f))) {
+    const doc = yaml.load(fs.readFileSync(path.join(WORKFLOWS, file), 'utf8'));
+    const on = normalizeOn(Object.hasOwn(doc, 'on') ? doc.on : doc.true);
+    if (Object.keys(on).some((name) => name !== 'workflow_dispatch')) automatic.push(file);
+    if (PINNED_ON[file]) assert.deepEqual(JSON.stringify(on), JSON.stringify(normalizeOn(PINNED_ON[file])), file);
+  }
+  assert.deepEqual(automatic.sort(), Object.keys(PINNED_ON).sort());
+  assert.deepEqual(Object.keys(PINNED_ON).sort(), [...SCHEDULE_ALLOWED, ...Object.keys(OWNER_PINNED)].sort());
 });
