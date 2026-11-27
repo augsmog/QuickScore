@@ -2,9 +2,9 @@
 // player card that happens to sit at that edge when the screen is at rest looks sliced by the
 // footer: the layout gate's screenshot review failed four wizard checkpoints on iPhone 16 Pro, two
 // on iPhone SE and five on Android for exactly that (run 46008363328, rule 2), and it is what the
-// owner's negative screenshots from build 32 show. Rows now dissolve into the footer through a
-// short fade, and the list keeps enough space at its end for the last card to scroll fully clear
-// of both the fade and the footer.
+// owner's negative screenshots from build 32 show. A short fade over the list was tried
+// for that in build 33 and removed again (see below). What remains is the space at the end of the
+// list, enough for the last card to scroll fully clear of the footer.
 const fs = require('node:fs');
 const ts = require('typescript');
 
