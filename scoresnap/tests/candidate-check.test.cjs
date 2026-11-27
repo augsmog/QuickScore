@@ -246,6 +246,26 @@ describe('run-on-candidate', () => {
     assert.equal(fs.existsSync(marker), false);
   });
 
+  test('a checkout with an untracked file that is not git-ignored is refused and nothing runs', () => {
+    const { f, marker, args, record } = setup();
+    f.write('scoresnap/stray.config.js', 'module.exports = {};\n');
+    refused(() => runOnCandidate(args(...record), quiet), /untracked files that are not git-ignored[\s\S]*stray\.config\.js/);
+    assert.equal(fs.existsSync(marker), false);
+    // A new file staged but not committed counts as a change to tracked files.
+    f.git('add', 'scoresnap/stray.config.js');
+    refused(() => runOnCandidate(args(...record), quiet), /has changes to tracked files/);
+    assert.equal(fs.existsSync(marker), false);
+  });
+
+  test('git-ignored files in the checkout do not refuse', () => {
+    const { f, marker, args, record } = setup();
+    fs.mkdirSync(path.join(f.repo, '.git', 'info'), { recursive: true });
+    fs.writeFileSync(path.join(f.repo, '.git', 'info', 'exclude'), 'scoresnap/node_modules/\n');
+    f.write('scoresnap/node_modules/x/index.js', '1\n');
+    assert.equal(runOnCandidate(args(...record), quiet), 0);
+    assert.equal(fs.existsSync(marker), true);
+  });
+
   test('a receipt that verify rejects is refused and nothing runs', () => {
     const { f, marker, args, record } = setup();
     fs.rmSync(`${f.receiptPath}.tests.txt`);
