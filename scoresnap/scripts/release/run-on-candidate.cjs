@@ -27,8 +27,9 @@
 // start and end time, free GB before and after, and the exit code.
 //
 // A fresh checkout records its owner's pid. If a run is killed before it can clean up, the next
-// fresh-mode run removes that directory once the pid is gone. One whose pid is alive is never
-// touched, so parallel runs are safe.
+// fresh-mode run REPORTS the directory left behind and prints the command to remove it. It never
+// removes one itself: a kept checkout outlives its wrapper on purpose, and a killed wrapper's
+// build command can still be running in one.
 const { execFileSync, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -48,22 +49,20 @@ const alive = (pid) => {
   try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
 };
 
-// Removes fresh checkouts left by a run that was killed. Only directories this tool made (they
-// hold owner.json) and only when the recorded pid is gone. Anything else is left alone.
-function removeStale({ tmpRoot, origin, log = () => {} }) {
-  const removed = [];
+// Finds fresh checkouts whose owning wrapper process is gone. It only REPORTS them. Nothing is
+// ever deleted on the strength of a pid: a checkout kept with --keep outlives its wrapper on
+// purpose, and after a wrapper is killed its build command can still be running inside one.
+function findLeftBehind({ tmpRoot }) {
+  const found = [];
   for (const name of fs.readdirSync(tmpRoot)) {
     if (!name.startsWith(PREFIX)) continue;
     const holder = path.join(tmpRoot, name);
     let owner;
     try { owner = JSON.parse(fs.readFileSync(path.join(holder, OWNER), 'utf8')); } catch { continue; }
     if (owner.tool !== 'run-on-candidate' || alive(owner.pid)) continue;
-    fs.rmSync(holder, { recursive: true, force: true });
-    removed.push(holder);
-    log(`REMOVED STALE: ${holder} (left by pid ${owner.pid}, started ${owner.startedAt}, which is no longer running)`);
+    found.push({ holder, checkout: path.join(holder, 'checkout'), pid: owner.pid, startedAt: owner.startedAt, kept: owner.kept === true });
   }
-  if (removed.length) { try { git(origin, ['worktree', 'prune']); } catch { /* nothing to prune */ } }
-  return removed;
+  return found;
 }
 
 function freeGb(dir) {
@@ -142,7 +141,11 @@ function freshCheckout({ from, receiptPath, fixesFile, tmpRoot = os.tmpdir(), lo
   try { git(origin, ['cat-file', '-e', `${sha}^{commit}`]); } catch { refuse(`the repository at ${origin} does not have commit ${sha}; fetch it first`); }
   const receipt = verifyReceipt({ repo: origin, sha, receiptPath, fixesFile });
   const root = fs.realpathSync(tmpRoot);
-  removeStale({ tmpRoot: root, origin, log });
+  for (const left of findLeftBehind({ tmpRoot: root })) {
+    log(left.kept
+      ? `KEPT EARLIER: ${left.checkout} (kept with --keep by pid ${left.pid}, started ${left.startedAt}). Not touched.`
+      : `LEFT BEHIND: ${left.checkout} (its wrapper, pid ${left.pid}, started ${left.startedAt}, is no longer running). NOT removed: a build command may still be running in it. When you have checked nothing is, remove it with: git -C ${origin} worktree remove --force ${left.checkout} && rm -r ${left.holder}`);
+  }
   const holder = fs.mkdtempSync(path.join(root, PREFIX));
   writeJson(path.join(holder, OWNER), { tool: 'run-on-candidate', pid: process.pid, startedAt: new Date().toISOString(), sha, origin });
   const repo = path.join(holder, 'checkout');
@@ -155,7 +158,8 @@ function freshCheckout({ from, receiptPath, fixesFile, tmpRoot = os.tmpdir(), lo
     git(origin, ['worktree', 'add', '--detach', repo, sha]);
     assertExact(repo, sha);
   } catch (error) { remove(); throw error; }
-  return { repo, receipt, remove };
+  const keep = () => writeJson(path.join(holder, OWNER), { tool: 'run-on-candidate', pid: process.pid, startedAt: new Date().toISOString(), sha, origin, kept: true });
+  return { repo, receipt, remove, keep };
 }
 
 function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = console.error, tmpRoot, environment = buildEnvironment, now = () => new Date() } = {}) {
@@ -164,7 +168,7 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
   const receiptPath = path.resolve(options.receipt);
   const fixesFile = path.resolve(options.fixes ?? path.join(scoresnap, 'release', 'required-fixes.json'));
   const fresh = !options.source;
-  const { repo, receipt, remove } = fresh
+  const { repo, receipt, remove, keep } = fresh
     ? freshCheckout({ from: path.resolve(options.repo ?? scoresnap), receiptPath, fixesFile, tmpRoot, log })
     : admit({ source: path.resolve(options.source), receiptPath, fixesFile });
   let record; let recordPath;
@@ -201,7 +205,7 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
     if (result.error) refuse(`could not start the command: ${result.error.message}`);
     return result.status ?? 1;
   } finally {
-    if (fresh && options.keep) log(`KEPT: the fresh checkout is at ${repo}; remove it with: git worktree remove --force ${repo}`);
+    if (fresh && options.keep) { keep(); log(`KEPT: the fresh checkout is at ${repo}. No later run removes it; remove it yourself with: git worktree remove --force ${repo}`); }
     else if (fresh) remove();
     if (record && recordPath && record.endedAt) {
       record.kept = Boolean(fresh && options.keep);
@@ -212,7 +216,7 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
   }
 }
 
-module.exports = { runOnCandidate, admit, freshCheckout, removeStale, buildEnvironment };
+module.exports = { runOnCandidate, admit, freshCheckout, findLeftBehind, buildEnvironment };
 if (require.main === module) {
   try { process.exitCode = runOnCandidate(process.argv.slice(2)); } catch (error) {
     if (!(error instanceof Refusal)) throw error;
