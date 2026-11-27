@@ -14,7 +14,7 @@ const GREEN = () => ({ suites: 3, suitesFailed: 0, suitesErrored: 0, tests: 10, 
 const dirs = [];
 afterAll(() => { for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true }); });
 
-const RELEASE_ENV = { EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: 'true', EXPO_PUBLIC_PRO_ENABLED: 'false', EXPO_PUBLIC_FEATURE_LEAGUES: 'false' };
+const RELEASE_ENV = { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: 'true', EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: 'true', EXPO_PUBLIC_PRO_ENABLED: 'false', EXPO_PUBLIC_FEATURE_LEAGUES: 'false', EXPO_PUBLIC_FEATURE_NATIVE_LINKS: 'false' };
 function fixture({ version = '1.0.1', appVersionSource = 'remote' } = {}) {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'candidate-check-test-'));
   dirs.push(repo);
@@ -407,8 +407,12 @@ describe('run-on-candidate', () => {
     const { f, tmpRoot } = freshSetup();
     const { spawnSync } = require('node:child_process');
     const cli = path.join(__dirname, '..', 'scripts', 'release', 'run-on-candidate.cjs');
-    const real = (...rest) => spawnSync('node', [cli, '--repo', f.repo, '--receipt', f.receiptPath, '--fixes', f.fixesFile, ...rest], { encoding: 'utf8', env: { ...process.env, TMPDIR: tmpRoot } });
-    const one = real('--keep', '--', 'node', '-e', "require('fs').writeFileSync('SnapScore.xcarchive','archive bytes')");
+    const real = (...rest) => spawnSync('node', [cli, '--repo', f.repo, '--receipt', f.receiptPath, '--fixes', f.fixesFile, ...rest], { encoding: 'utf8', env: { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(EXPO_PUBLIC_|APP_VARIANT)/.test(k))), TMPDIR: tmpRoot } });
+    // The command writes an .xcarchive, so it is an archive: without a profile it is refused outright.
+    const bare = real('--keep', '--', 'node', '-e', "require('fs').writeFileSync('SnapScore.xcarchive','archive bytes')");
+    assert.equal(bare.status, 1);
+    assert.match(bare.stderr, /REFUSED: an archive or an upload must name its release profile/);
+    const one = real('--keep', '--profile', 'testflight', '--', 'node', '-e', "require('fs').writeFileSync('SnapScore.xcarchive','archive bytes')");
     assert.equal(one.status, 0, one.stderr);
     const kept = one.stdout.match(/KEPT: the fresh checkout is at (\S+?)\. /)[1];
     const archive = path.join(kept, 'scoresnap', 'SnapScore.xcarchive');
@@ -497,11 +501,11 @@ describe('run-on-candidate', () => {
     assert.equal(first.releaseFlags.checked, true);
     assert.equal(first.releaseFlags.profile, 'testflight');
     assert.equal(JSON.stringify(first.releaseFlags.values), JSON.stringify(Object.fromEntries(Object.entries(RELEASE_ENV).sort())));
-    assert.equal(first.releaseFlags.setByWrapper.length, 3);
+    assert.equal(first.releaseFlags.setByWrapper.length, 5);
     assert.match(first.releaseFlags.easJsonSha256, /^[0-9a-f]{64}$/);
     assert.equal(JSON.stringify(first.buildVariables), JSON.stringify(first.releaseFlags.values));
     assert.equal(second.releaseFlags.profile, 'production');
-    assert.equal(second.releaseFlags.alreadySet.length, 3);
+    assert.equal(second.releaseFlags.alreadySet.length, 5);
   });
 
   test('--profile refuses, and runs nothing, when a flag differs or a stray build variable is set', () => {
@@ -532,12 +536,71 @@ describe('run-on-candidate', () => {
     const { seenEnv, go, records, opts, freshArgs, clean } = flagSetup();
     const warnings = [];
     assert.equal(runOnCandidate([...freshArgs(), '--', 'node', '-e', '0'], { ...opts, env: { ...clean, EXPO_PUBLIC_PRO_ENABLED: 'true' }, warn: (l) => warnings.push(l) }), 0);
-    assert.match(warnings.join('\n'), /WARNING: no --profile given\. The release feature flags are NOT checked/);
+    assert.match(warnings.join('\n'), /WARNING: no --profile given \(allowed only for tests and simulator builds\)\. The release feature flags are NOT checked/);
     const [record] = records();
     assert.equal(record.releaseFlags.checked, false);
     assert.equal(JSON.stringify(record.buildVariables), JSON.stringify({ EXPO_PUBLIC_PRO_ENABLED: 'true' }));
     assert.equal(fs.existsSync(seenEnv), false);
     assert.equal(go({ EXPO_PUBLIC_PRO_ENABLED: 'true' }), 0);
     assert.equal(JSON.parse(fs.readFileSync(seenEnv, 'utf8')).EXPO_PUBLIC_PRO_ENABLED, 'true');
+  });
+
+  test('an archive or an upload is refused without --profile; tests and simulator builds are not', () => {
+    const { f, seenEnv, freshArgs, opts, clean, records, tmpRoot } = flagSetup();
+    const attempt = (flags, ...command) => runOnCandidate([...freshArgs(...flags), '--', ...command], { ...opts, env: clean });
+    const ok = ['node', '-e', '0'];
+    // Stated by the caller.
+    refused(() => attempt(['--purpose', 'archive'], ...ok), /an archive or an upload must name its release profile/);
+    refused(() => attempt(['--purpose', 'upload'], ...ok), /must name its release profile/);
+    refused(() => attempt(['--purpose', 'release'], ...ok), /--purpose must be one of/);
+    // Not stated: read from the command's own words.
+    for (const command of [
+      ['xcodebuild', '-workspace', 'SnapScore.xcworkspace', '-scheme', 'SnapScore', 'archive', '-archivePath', '/out/SnapScore.xcarchive'],
+      ['sh', '-c', 'npm ci && npx expo prebuild --platform ios && xcodebuild -scheme SnapScore archive'],
+      ['xcodebuild', '-exportArchive', '-archivePath', 'a', '-exportPath', 'b'],
+      ['xcrun', 'altool', '--upload-app', '-f', 'SnapScore.ipa'],
+      ['npx', 'eas', 'build', '--platform', 'ios', '--local'],
+      ['npx', 'eas', 'build', '--platform', 'ios', '--profile', 'testflight'],
+      ['npx', 'eas', 'submit', '--platform', 'ios'],
+      ['bash', 'eas_run.sh', 'upload'],
+    ]) refused(() => attempt([], ...command), /must name its release profile .*the command contains "/);
+    // Saying "simulator" does not get an archive command through.
+    refused(() => attempt(['--purpose', 'simulator'], 'xcodebuild', '-scheme', 'SnapScore', 'archive'), /--purpose simulator was given, but the command contains "archive"/);
+    refused(() => attempt(['--purpose', 'test'], 'xcrun', 'altool', '--upload-app'), /--purpose test was given, but the command contains/);
+    assert.equal(records().length, 0);
+    assert.equal(fs.readdirSync(tmpRoot).length, 0);
+    assert.equal(f.git('worktree', 'list').split('\n').length, 1);
+    // Allowed without a profile: a test run, a simulator build, an eas simulator build (not started here, only parsed).
+    assert.equal(attempt(['--purpose', 'simulator'], ...ok), 0);
+    assert.equal(attempt(['--purpose', 'test'], ...ok), 0);
+    assert.equal(attempt([], ...ok), 0);
+    const { looksLikeStoreCommand } = require('../scripts/release/run-on-candidate.cjs');
+    assert.equal(looksLikeStoreCommand(['npx', 'eas', 'build', '--profile', 'simulator', '--platform', 'ios']), null);
+    assert.equal(looksLikeStoreCommand(['xcodebuild', '-scheme', 'SnapScore', '-destination', 'generic/platform=iOS Simulator', 'build']), null);
+    assert.equal(looksLikeStoreCommand(['npx', 'jest']), null);
+    assert.equal(records().map((r) => r.purpose).join(','), 'simulator,test,not stated');
+    // With the profile, the archive purpose is admitted and recorded.
+    assert.equal(attempt(['--purpose', 'archive', '--profile', 'production'], ...ok), 0);
+    const last = records().at(-1);
+    assert.equal(last.purpose, 'archive');
+    assert.equal(last.releaseFlags.profile, 'production');
+    assert.equal(fs.existsSync(seenEnv), false);
+  });
+
+  test('--profile refuses a release profile that does not define all five release flags', () => {
+    const { f, freshArgs, opts, clean } = flagSetup();
+    const { REQUIRED_RELEASE_FLAGS, releaseFlags } = require('../scripts/release/run-on-candidate.cjs');
+    assert.equal(REQUIRED_RELEASE_FLAGS.length, 5);
+    // The shape main has today: only course search and PRO in the profile.
+    const app = path.join(path.dirname(f.receiptPath), 'two-flags');
+    fs.mkdirSync(app);
+    fs.writeFileSync(path.join(app, 'eas.json'), JSON.stringify({ build: { testflight: { env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: 'true', EXPO_PUBLIC_PRO_ENABLED: 'false' } } } }));
+    refused(() => releaseFlags({ app, profile: 'testflight', env: {} }), /does not define every release flag; missing: EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING, EXPO_PUBLIC_FEATURE_LEAGUES, EXPO_PUBLIC_FEATURE_NATIVE_LINKS\. Do not build from it/);
+    for (const name of REQUIRED_RELEASE_FLAGS) {
+      const env = { ...RELEASE_ENV }; delete env[name];
+      fs.writeFileSync(path.join(app, 'eas.json'), JSON.stringify({ build: { production: { env } } }));
+      refused(() => releaseFlags({ app, profile: 'production', env: {} }), new RegExp(`missing: ${name}\\.`));
+    }
+    assert.equal(runOnCandidate([...freshArgs('--profile', 'testflight'), '--', 'node', '-e', '0'], { ...opts, env: clean }), 0);
   });
 });
