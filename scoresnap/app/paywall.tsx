@@ -18,7 +18,7 @@ export default function PaywallScreen() {
   const router = useRouter();
   const { tier: target } = useLocalSearchParams<{ tier?: string }>();
   const tier = useScanStore(s => s.tier);
-  useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
+  const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
   // AUG-1263: the Pro row is hidden while pro_enabled is off (below), so never default-select it.
   const [selection, setSelection] = useState<PaywallSelection>({ tier: target === 'td' || !proEnabled() ? 'td' : 'pro', period: 'year' });
   const [packages, setPackages] = useState<Awaited<ReturnType<typeof getPackages>>>({ annual: null, monthly: null, td_annual: null, td_monthly: null });
@@ -43,6 +43,10 @@ export default function PaywallScreen() {
     catch (e: unknown) { showAlert(C.subscription, e instanceof Error ? e.message || C.retry : C.retry); }
     finally { setBusy(false); }
   }
+  // Draw no text until Inter is in. Android measures a line with the fallback font and does not
+  // measure again when Inter arrives, so text drawn early came out cut ("Fre", "$79.99/y…",
+  // "Cancel anytim"). If the fonts fail to load the paywall is still drawn, in the fallback font.
+  if (!fontsLoaded && !fontError) return <SafeScreen style={s.safe} testID="paywall-loading-fonts" />;
   const v = buildPaywallView(packages, eligible, tier, selection, proEnabled());
   const tag = (label: string) => <Text style={[s.tag, label === C.current && s.current]}>{label}</Text>;
   return <SafeScreen style={s.safe}>

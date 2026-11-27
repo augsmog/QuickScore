@@ -65,3 +65,20 @@ export const handicapInputBox = baseline.handicapInputBox;
 export function modalSheetSafeEdges(platformOS?: string): readonly ('top' | 'bottom')[] {
   return platformOS === 'ios' ? ['bottom'] : ['top', 'bottom'];
 }
+
+/**
+ * Where the New Contest list meets the pinned Continue footer (layout gate rule 2).
+ *
+ * The footer sits below the list, so the list ends at a hard edge and the card at that edge when
+ * the screen is at rest looked sliced by the footer. The list now fades into the background over
+ * its last `WIZARD_FOOTER_FADE_PX`, and ends with `WIZARD_END_SPACE_PX` of empty space so that,
+ * scrolled to the end, the last card is fully above the fade. tests/new-contest-footer-fade.test.cjs.
+ */
+export const WIZARD_FOOTER_FADE_PX = 24;
+export const WIZARD_END_SPACE_PX = 96;
+
+/** Gradient stops for the fade: the background colour from fully clear to fully solid. */
+export function wizardFooterFadeColors(background: string): readonly [string, string] {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(background)) throw new Error('wizardFooterFadeColors needs a #RRGGBB colour');
+  return [`${background}00`, background];
+}

@@ -16,6 +16,7 @@ function harness(initialTier = 'free', {comingSoon = false, validate} = {}) {
     'expo-router': {useRouter: () => ({push, replace, back: jest.fn()}), useFocusEffect: callback => {focus = callback;}},
     'lucide-react-native': new Proxy({}, {get: (_, k) => k}),
     'expo-crypto': {randomUUID: () => `contest-${++id}`},
+    'expo-linear-gradient': {LinearGradient: 'LinearGradient'}, // the fade above the Continue footer
     'expo-haptics': {impactAsync: jest.fn(), notificationAsync: jest.fn(), ImpactFeedbackStyle: {}, NotificationFeedbackType: {}},
     '../../src/ui/alert': {showAlert: jest.fn()}, '../../src/ui/SafeScreen': {SafeScreen: 'SafeScreen'},
     '../../src/ui/AnimatedPressable': {AnimatedPressable: 'Pressable'},
