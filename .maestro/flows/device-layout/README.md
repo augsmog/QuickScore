@@ -20,8 +20,8 @@ opens with an `assertVisible` so a broken state fails loudly instead of capturin
 - `new-contest/` — the New Contest wizard: empty wizard, name entry (keyboard up), multi-day on,
   3 rounds, 4 rounds (scrolled), team mode on, four players, last player above the sticky footer.
   The footer (`contest-continue` / `contest-start` CTA) anchors rule 2's clip/occlusion check.
-- `join/` — the Home join-code entry; asserts present when `DEVICE_LAYOUT_JOIN_FLAG=on`, hidden
-  otherwise (the offline build ships the flag off).
+- `join/` — the Home join-code entry. The release ships join by code on, so the gate's build has it
+  on (`DEVICE_LAYOUT_JOIN_FLAG` in the workflow) and the flow asserts the entry is present.
 - `paywall/` — deep-links `snapscore://paywall?tier=td` and captures the tournament upgrade view.
 - `sign-in/` — deep-links `snapscore://auth/sign-in` and captures the sign-in options; asserts
   "Continue with Google" is absent (1.0.1 ships without Google sign-in; the button is shown only
