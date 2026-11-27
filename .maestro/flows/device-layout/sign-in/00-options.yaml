@@ -1,0 +1,32 @@
+# device-layout Sign-in — checkpoint 00: the sign-in options.
+# SnapScore 1.0.1 ships without Google sign-in: "Continue with Google" is shown only when the build
+# has a Google client id (src/config/google-sign-in.ts), and neither the release build nor this
+# gate build has one. Assert the button is absent, so a capture never silently covers a sign-in
+# screen that has grown the button back, and assert Apple is present so the capture is really the
+# options screen and not a blank or redirected one. "Create Account" is the anchor because it is on
+# both platforms; the Apple button exists on iOS only, so it is asserted there only.
+appId: com.scoresnap.app
+---
+- launchApp:
+    clearState: true
+    permissions: { all: allow }
+- runFlow: ../../../subflows/finish-onboarding.yaml
+- retry:
+    maxRetries: 3
+    commands:
+      - openLink: "snapscore://auth/sign-in"
+      - tapOn:
+          text: "Open"  # iOS asks 'Open in "SnapScore"?' for a custom-scheme link
+          optional: true
+      - extendedWaitUntil:
+          visible: "Create Account"
+          timeout: 20000
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible: "Continue with Apple"
+- assertNotVisible:
+    id: "sign-in-google"
+- assertNotVisible: "Continue with Google"
+- takeScreenshot: device-layout-sign-in-00-options
