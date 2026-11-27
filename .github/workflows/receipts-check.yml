@@ -1,8 +1,9 @@
 name: Receipt report check
 on:
-  pull_request:
-    paths:
-      - 'reports/**'
+  # AUG-1601: manual-only. No push, pull_request, schedule or other automatic trigger may be added;
+  # scoresnap/tests/workflow-triggers.test.cjs fails the unit suite if one is. Run with "Run workflow"
+  # or `gh workflow run`.
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
