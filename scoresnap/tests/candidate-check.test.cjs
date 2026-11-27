@@ -364,4 +364,83 @@ describe('run-on-candidate', () => {
     assert.equal(warnings.length, 1);
     refused(() => runOnCandidate([...freshArgs('--source', '.'), '--', 'true'], opts), /not both/);
   });
+
+  test('a fresh checkout left by a killed run is removed at the next start; one whose owner is alive is never touched', () => {
+    const { f, tmpRoot, record, freshArgs, opts } = freshSetup();
+    const { spawnSync } = require('node:child_process');
+    const deadPid = spawnSync('node', ['-e', '0']).pid;
+    const leave = (name, owner, asWorktree) => {
+      const holder = path.join(tmpRoot, name);
+      fs.mkdirSync(holder);
+      if (asWorktree) f.git('worktree', 'add', '-q', '--detach', path.join(holder, 'checkout'), f.both);
+      else fs.mkdirSync(path.join(holder, 'checkout'));
+      if (owner) fs.writeFileSync(path.join(holder, 'owner.json'), JSON.stringify(owner));
+      return holder;
+    };
+    const dead = leave('snapscore-candidate-dead', { tool: 'run-on-candidate', pid: deadPid, startedAt: 'earlier' }, true);
+    const running = leave('snapscore-candidate-live', { tool: 'run-on-candidate', pid: process.pid, startedAt: 'now' }, true);
+    const unknown = leave('snapscore-candidate-noowner', null);
+    const foreign = leave('snapscore-candidate-other', { tool: 'something-else', pid: deadPid });
+    const unrelated = leave('some-other-directory', { tool: 'run-on-candidate', pid: deadPid });
+    assert.equal(f.git('worktree', 'list').split('\n').length, 3);
+    const lines = [];
+    assert.equal(runOnCandidate([...freshArgs(), '--', ...record], { ...opts, log: (l) => lines.push(l) }), 0);
+    assert.equal(fs.existsSync(dead), false);
+    assert.match(lines.join('\n'), new RegExp(`REMOVED STALE: .*snapscore-candidate-dead \\(left by pid ${deadPid}`));
+    for (const kept of [running, unknown, foreign, unrelated]) assert.equal(fs.existsSync(path.join(kept, 'checkout')), true, kept);
+    // The dead run's worktree entry is pruned; the live one's is still registered.
+    assert.equal(f.git('worktree', 'list').split('\n').length, 2);
+    assert.equal(fs.readdirSync(tmpRoot).length, 4);
+    f.git('worktree', 'remove', '--force', path.join(running, 'checkout'));
+  });
+
+  test('each admitted run leaves a build record beside the receipt, outside the checkout', () => {
+    const { f, seen, probe, freshArgs, opts } = freshSetup();
+    const records = () => fs.readdirSync(path.dirname(f.receiptPath)).filter((n) => n.startsWith(`${path.basename(f.receiptPath)}.build-`)).sort();
+    const lines = [];
+    assert.equal(runOnCandidate([...freshArgs(), '--', ...probe], { ...opts, log: (l) => lines.push(l) }), 0);
+    assert.equal(records().length, 1);
+    const file = path.join(path.dirname(f.receiptPath), records()[0]);
+    const r = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const got = JSON.parse(fs.readFileSync(seen, 'utf8'));
+    assert.equal(r.schema, 'snapscore-build-record/1');
+    assert.equal(r.sha, f.both);
+    assert.equal(r.tree, f.git('rev-parse', `${f.both}^{tree}`));
+    assert.equal(r.mode, 'fresh-checkout');
+    assert.equal(r.checkout, got.checkout);
+    assert.equal(file.startsWith(r.checkout), false);
+    assert.equal(r.exitCode, 0);
+    assert.equal(r.command[0], 'node');
+    assert.equal(r.environment.node, process.version);
+    assert.equal(r.environment.platform, process.platform);
+    if (process.platform !== 'darwin') { assert.equal(r.environment.xcode, null); assert.equal(r.environment.macOS, null); }
+    assert.equal(Date.parse(r.startedAt) <= Date.parse(r.endedAt), true);
+    for (const key of ['freeGbBefore', 'freeGbAfterCommand', 'freeGbAfterCleanup', 'usedGbByCommand']) assert.equal(typeof r[key], 'number', key);
+    assert.match(r.toolSha256, /^[0-9a-f]{64}$/);
+    assert.match(lines.join('\n'), /BUILD RECORD: .* \(exit 0, free GB /);
+    // A failing command is recorded with its exit code; a refusal leaves no record.
+    assert.equal(runOnCandidate([...freshArgs(), '--', 'node', '-e', 'process.exit(7)'], opts), 7);
+    assert.equal(records().length, 2);
+    const codes = records().map((n) => JSON.parse(fs.readFileSync(path.join(path.dirname(f.receiptPath), n), 'utf8')).exitCode).sort();
+    assert.equal(codes.join(','), '0,7');
+    fs.rmSync(`${f.receiptPath}.tests.txt`);
+    refused(() => runOnCandidate([...freshArgs(), '--', 'node', '-e', '0'], opts), /test list .* is missing/);
+    assert.equal(records().length, 2);
+  });
+
+  test('the build record carries Xcode and macOS versions on a Mac and nulls elsewhere', () => {
+    const { buildEnvironment } = require('../scripts/release/run-on-candidate.cjs');
+    const answers = { 'sw_vers -productVersion': '15.6', 'sw_vers -buildVersion': '24G84', 'xcodebuild -version': 'Xcode 16.4\nBuild version 16F6', 'xcode-select -p': '/Applications/Xcode.app/Contents/Developer', 'npm --version': '10.9.0' };
+    const run = (cmd, a) => { const k = `${cmd} ${a.join(' ')}`; if (!(k in answers)) throw new Error('missing'); return answers[k]; };
+    const mac = buildEnvironment({ platform: 'darwin', run });
+    assert.equal(mac.macOS, '15.6');
+    assert.equal(mac.xcode, 'Xcode 16.4 / Build version 16F6');
+    assert.equal(mac.npm, '10.9.0');
+    const linux = buildEnvironment({ platform: 'linux', run });
+    assert.equal(linux.xcode, null);
+    assert.equal(linux.macOS, null);
+    assert.equal(linux.xcodePath, null);
+    // A Mac where Xcode is not installed records null, it does not throw.
+    assert.equal(buildEnvironment({ platform: 'darwin', run: () => { throw new Error('not found'); } }).xcode, null);
+  });
 });
