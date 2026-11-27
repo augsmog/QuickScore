@@ -35,7 +35,6 @@ import {
   Zap,
   Info,
   CreditCard,
-  Trophy,
   HelpCircle,
 } from "lucide-react-native";
 import { COLORS, FONTS, TYPOGRAPHY, RADII } from "../src/ui/theme";
@@ -518,10 +517,18 @@ export default function SettingsScreen() {
           </AnimatedPressable>
         )}
 
-        {/* AUG-1369/AUG-1228: the whole Subscription group (Manage plan, the persistent Tournament
-            Director entry, Restore purchases) is rendered lower — after Course & Play — so adding the
-            TD row never pushes the first-paint-guarded Default Unit Amount / Distance Unit rows below
-            the fold on any safe-area profile. See the "Subscription" section below. */}
+        <SectionHeader title="Subscription" />
+        {/* Keep plan management for existing subscribers while the Pro upgrade path is dormant. */}
+        {(proEnabled() || tier === "pro" || tier === "td") && (
+          <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[tier]} onPress={() => router.push("/paywall")} />
+        )}
+        <AnimatedPressable accessibilityRole="button" accessibilityLabel="Restore purchases" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
+          style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <RotateCcw size={18} color={COLORS.textDim} />
+          <Text style={{ flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>Restore purchases</Text>
+          <ChevronRight size={14} color={COLORS.textDim} />
+        </AnimatedPressable>
+
         {/* Compact Scoring spacing keeps Distance Unit above the 15 Pro safe-area fold. */}
         {/* ── Scoring ── */}
         <SectionHeader title="Scoring" marginTop={SETTINGS_SCORING_HEADER_MARGIN_TOP} />
@@ -732,38 +739,6 @@ export default function SettingsScreen() {
           value={settings.showInLeaderboards}
           onToggle={(v) => settings.updateSetting("showInLeaderboards", v)}
         />
-
-        {/* AUG-1369: Subscription management lives here, below the Scoring/Course & Play rows the
-            first-paint fold guard protects (AUG-1228), so the persistent Tournament Director entry
-            never pushes Default Unit Amount / Distance Unit under the fold on any profile. */}
-        <SectionHeader title="Subscription" />
-        {/* Keep plan management for existing subscribers while the Pro upgrade path is dormant. */}
-        {(proEnabled() || tier === "pro" || tier === "td") && (
-          <NumberRow icon={<CreditCard size={18} color={COLORS.textDim} />} label="Manage plan" value={C[tier]} onPress={() => router.push("/paywall")} />
-        )}
-        {/* Tournament Director is the only live IAP, so it must stay discoverable even while the Pro
-            upgrade path is dormant. Without a persistent entry here a free user has no route to the
-            TD paywall outside the contest-edit flow (owner smoke test, t1544u). Shown to every
-            non-TD tier; TD subscribers manage it via "Manage plan" above. This does not reintroduce
-            a dormant-Pro surface (AUG-1263): it targets the TD paywall, where the Pro row stays
-            hidden while pro_enabled is off. */}
-        {tier !== "td" && (
-          <AnimatedPressable accessibilityRole="button" accessibilityLabel={C.td} accessibilityHint={C.tdBodyNoPro} onPress={() => router.push("/paywall?tier=td")}
-            style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, paddingVertical: 10, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Trophy size={18} color={COLORS.primary} />
-            <View style={{ flex: 1 }}>
-              <Text numberOfLines={1} style={{ fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>{C.td}</Text>
-              <Text numberOfLines={1} style={{ fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{C.tdBodyNoPro}</Text>
-            </View>
-            <ChevronRight size={14} color={COLORS.textDim} />
-          </AnimatedPressable>
-        )}
-        <AnimatedPressable accessibilityRole="button" accessibilityLabel="Restore purchases" disabled={restoring} accessibilityState={{ disabled: restoring }} onPress={handleRestore}
-          style={{ minHeight: 44, backgroundColor: COLORS.surfaceLow, borderRadius: RADII.lg, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <RotateCcw size={18} color={COLORS.textDim} />
-          <Text style={{ flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.text }}>Restore purchases</Text>
-          <ChevronRight size={14} color={COLORS.textDim} />
-        </AnimatedPressable>
 
         <SectionHeader title="Help" />
         <AnimatedPressable accessibilityRole="button" accessibilityLabel="Contact support" onPress={openSupport}
