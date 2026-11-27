@@ -59,16 +59,20 @@ export default function PaywallScreen() {
         <PaywallIcon name={value.icon} /><View style={{ flex: 1, gap: 2 }}><Text style={s.valueTitle}>{value.title}</Text>{!!value.body && <Text style={s.body}>{value.body}</Text>}</View>
       </View>)}</View>
       <Text style={s.body}>{v.scans}</Text>
-      <View style={{ gap: 8 }}>{v.rows.map(row => <Pressable key={row.tier} accessibilityRole="radio" accessibilityState={{ checked: row.selected }} aria-checked={row.selected}
+      <View style={{ gap: 8 }}>{v.rows.map(row => {
+        const title = <View style={[s.titleRow, row.tier === "td" && s.tdPlanTitle]}><Text style={s.planTitle}>{row.name}</Text>{!!row.tag && tag(row.tag)}</View>;
+        const price = row.price ? <View style={s.priceCol}><Text style={s.price} numberOfLines={1}>{row.price}</Text>{!!row.trial && tag(row.trial)}</View> : null;
+        return <Pressable key={row.tier} accessibilityRole="radio" accessibilityState={{ checked: row.selected }} aria-checked={row.selected}
         onPress={() => setSelection({ ...selection, tier: row.tier })} style={[s.plan, row.selected && s.selected]}>
         <PaywallRadio selected={row.selected} />
         <View style={{ flex: 1, gap: 2 }}>
-          <View style={s.titleRow}><Text style={s.planTitle}>{row.name}</Text>{!!row.tag && tag(row.tag)}</View>
+          {row.tier === "td" ? <View style={s.tdTitleAndPrice}>{title}{price}</View> : title}
           {!!row.body && <Text style={s.body}>{row.body}</Text>}
           {!!row.alternate && <Pressable accessibilityRole="button" style={s.alternateLink} onPress={event => { event.stopPropagation(); setSelection({ tier: row.tier, period: selection.period === 'year' ? 'month' : 'year' }); }}><Text style={s.body}>{row.alternate}</Text></Pressable>}
         </View>
-        {!!row.price && <View style={s.priceCol}><Text style={s.price} numberOfLines={1}>{row.price}</Text>{!!row.trial && tag(row.trial)}</View>}
-      </Pressable>)}</View>
+        {row.tier !== "td" && price}
+      </Pressable>;
+      })}</View>
       <View style={{ gap: 6, alignItems: 'center' }}>
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || v.disabled }} disabled={busy || v.disabled} style={[s.cta, (busy || v.disabled) && { opacity: 0.55 }]}
           onPress={() => act(async () => { if (v.package && await purchasePackage(v.package)) { await syncProStatus(); posthog?.capture('subscription_purchase_completed', { selected_tier: selection.tier, billing_period: selection.period }); router.back(); } })}><Text style={s.ctaText} numberOfLines={1} adjustsFontSizeToFit>{v.cta}</Text></Pressable>
@@ -103,6 +107,8 @@ const s = StyleSheet.create({
   selected: { borderColor: P.green, borderWidth: 2 },
   // flexShrink/flexWrap so at large font scale (android-compact 1.3x) the plan name keeps its full
   // text ("Free" not "Fre") and its badge wraps instead of clipping (AUG-1376 r7).
+  tdTitleAndPrice: { flexDirection: "row", alignItems: "center", gap: 12 },
+  tdPlanTitle: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: 'row', gap: 8, alignItems: 'center', flexShrink: 1, flexWrap: 'wrap' },
   planTitle: { fontFamily: P.semibold, fontSize: 16, color: P.ink, flexShrink: 1 },
   tag: { fontFamily: P.semibold, fontSize: 11, color: P.green, backgroundColor: P.tint, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
