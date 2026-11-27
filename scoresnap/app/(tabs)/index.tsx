@@ -567,6 +567,31 @@ export default function HomeScreen() {
             })}
           </View>
         )}
+
+        {/* ── No rounds yet ── */}
+        {activeContests.length === 0 && completedContests.length === 0 && (
+          <View testID="home-rounds-empty" accessible style={{ paddingHorizontal: 20, marginBottom: 20 }}>
+            <Text style={{ ...TYPOGRAPHY.label, color: COLORS.textDim, marginBottom: 12 }}>
+              YOUR ROUNDS
+            </Text>
+            <View
+              style={{
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                paddingVertical: 20,
+                paddingHorizontal: 16,
+              }}
+            >
+              <Text style={{ fontFamily: FONTS.bold, fontSize: 14, color: COLORS.text, marginBottom: 4 }}>
+                No rounds yet
+              </Text>
+              <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim, lineHeight: 19 }}>
+                Rounds you start show up here, and stay after you settle up.
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <FullScreenSheet visible={showGameLibrary} animationType="slide" onRequestClose={() => setShowGameLibrary(false)}>
