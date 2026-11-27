@@ -106,4 +106,19 @@ describe('the gate captures Settings, a round and the scan entry', () => {
   });
 });
 
+describe('the largest-text pass is required, not skipped for time', () => {
+  test('both native jobs of the gate ask for the large-text pass and require it', () => {
+    const ios = workflow.jobs['ios-sim'].steps.find((s) => /run-ios-sim\.sh/.test(s.run ?? ''));
+    expect(ios.env.DEVICE_LAYOUT_LARGE_TEXT).toBe('true');
+    expect(ios.env.DEVICE_LAYOUT_LARGE_TEXT_REQUIRED).toBe('true');
+    const android = workflow.jobs['android-compact'].steps.find((s) => /run-android-compact\.sh/.test(s.with?.script ?? ''));
+    expect(android.with.script).toMatch(/DEVICE_LAYOUT_LARGE_TEXT=true\s+DEVICE_LAYOUT_LARGE_TEXT_REQUIRED=true\s+(\S+=\S+\s+)*bash scoresnap\/e2e\/device-layout\/scripts\/run-android-compact\.sh/);
+  });
+  // What the scripts do with it is run for real, with stubs, in e2e/device-layout/lib/native-scripts.test.mjs.
+  test('both capture scripts honour the switch', () => {
+    for (const script of ['run-ios-sim.sh', 'run-android-compact.sh'])
+      expect(read('scoresnap', 'e2e', 'device-layout', 'scripts', script)).toContain('{ [ -n "${DEVICE_LAYOUT_LARGE_TEXT_REQUIRED:-}" ] || [ "$ELAPSED" -lt "$AX_BUDGET_S" ]; }');
+  });
+});
+
 module.exports = { read, flow, workflow, config, eas };
