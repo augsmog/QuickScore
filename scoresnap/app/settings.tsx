@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   settingsLayout,
   settingsSwitchProps,
+  settingsSwitchFrame,
   settingsRowSurface,
   SETTINGS_VALUE_COLUMN,
   SETTINGS_SECTION_HEADER_MARGIN_TOP,
@@ -174,6 +175,7 @@ function ToggleRow({
       </View>
       <Switch
         {...settingsSwitchProps(Platform.OS, value, COLORS)}
+        style={settingsSwitchFrame(Platform.OS, Platform.Version)}
         accessible={false}
         importantForAccessibility="no"
         accessibilityElementsHidden
