@@ -27,6 +27,11 @@ opens with an `assertVisible` so a broken state fails loudly instead of capturin
   "Continue with Google" is absent (1.0.1 ships without Google sign-in; the button is shown only
   when the build has a Google client id) and, on iOS, that "Continue with Apple" is present.
   Then the email and password form, the only route besides Apple and the one a review tester uses.
+- `settings/` — Settings by link: the top, then the Subscription group with the "Tournament Director"
+  row and "Restore purchases". The offline build's local guest session; no account, no network.
+- `round/` — a two-player Skins round made on the device: score entry, hole 1 scored, Settlement.
+- `scan/` — what "Scan Scorecard" opens in this build: the type-it-in screen with the
+  simulator-only line. It is not the store build's camera screen, which needs a device.
 
 ## Profiles & large text
 

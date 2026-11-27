@@ -1,0 +1,12 @@
+# device-layout Round — checkpoint 02: the Settlement tab of the same round.
+# One hole is scored; the capture is the settle-up screen's layout, not a finished round's totals.
+appId: com.scoresnap.app
+---
+- assertVisible:
+    id: "score-next-hole"
+- tapOn: "Settlement"
+- extendedWaitUntil:
+    visible:
+      id: "settlement-scroll"
+    timeout: 15000
+- takeScreenshot: device-layout-round-02-settlement
