@@ -27,8 +27,11 @@
 // hand (xcodebuild, not `eas build`) only matches the tested app if it runs with the same values.
 // With --profile the run is refused if the calling environment gives any of the profile's
 // variables a different value, or sets any other EXPO_PUBLIC_* variable or APP_VARIANT; the
-// command is then started with exactly the profile's values. Without --profile nothing is checked
-// and the build record says so.
+// command is then started with exactly the profile's values. The profile must define all five
+// release flags. An archive or an upload is refused without --profile: that is --purpose archive
+// or --purpose upload, or any command whose own words say so (archive, exportArchive, altool,
+// `eas build` for a store profile, `eas submit`, fastlane, upload, .ipa). Tests and simulator
+// builds may run without --profile; nothing is checked then and the build record says so.
 //
 // Each admitted run writes a build record beside the receipt, `<receipt>.build-<start>-<pid>.json`:
 // the SHA and tree, the command, Xcode / macOS / node / npm versions (Apple fields null off macOS),
@@ -48,7 +51,21 @@ const { verifyReceipt, Refusal } = require('./candidate-check.cjs');
 const PREFIX = 'snapscore-candidate-';
 const OWNER = 'owner.json';
 
-const USAGE = 'usage: run-on-candidate.cjs --receipt <file> [--repo <dir> | --source <dir>] [--profile <testflight|production>] [--keep] [--fixes <file>] -- <command ...>';
+const USAGE = 'usage: run-on-candidate.cjs --receipt <file> [--repo <dir> | --source <dir>] [--purpose <test|simulator|archive|upload>] [--profile <testflight|production>] [--keep] [--fixes <file>] -- <command ...>';
+const PURPOSES = ['test', 'simulator', 'archive', 'upload'];
+const NEEDS_PROFILE = ['archive', 'upload'];
+// The five flags that decide what the released app does. A release profile must define every one.
+const REQUIRED_RELEASE_FLAGS = ['EXPO_PUBLIC_FEATURE_COURSE_SEARCH', 'EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING', 'EXPO_PUBLIC_FEATURE_LEAGUES', 'EXPO_PUBLIC_FEATURE_NATIVE_LINKS', 'EXPO_PUBLIC_PRO_ENABLED'];
+// A command that makes or sends a store build, read from its own words. `eas build` counts unless
+// it names a simulator or development profile.
+const NON_STORE_EAS_PROFILE = /--profile[= ]+(simulator|simulator-offline|preview|development)\b/;
+const STORE_COMMAND = [/\barchive\b/i, /-exportArchive\b/, /\baltool\b/, /\bnotarytool\b/, /\beas\s+submit\b/, /\bfastlane\b/i, /\bupload\b/i, /\.ipa\b/i, /\bTransporter\b/];
+function looksLikeStoreCommand(command) {
+  const text = command.join(' ');
+  if (/\beas\s+build\b/.test(text) && !NON_STORE_EAS_PROFILE.test(text)) return 'eas build';
+  const hit = STORE_COMMAND.map((pattern) => text.match(pattern)).find(Boolean);
+  return hit ? hit[0] : null;
+}
 const RELEASE_PROFILES = ['testflight', 'production'];
 // Variables that change what app gets built. Any of these set outside the profile is refused.
 const BUILD_VARIABLE = /^(EXPO_PUBLIC_.+|APP_VARIANT)$/;
@@ -105,6 +122,8 @@ function releaseFlags({ app, profile, env }) {
   try { eas = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return refuse(`cannot read ${file}; --profile needs the checkout's eas.json`); }
   const wanted = eas?.build?.[profile]?.env;
   if (!wanted || typeof wanted !== 'object' || Object.keys(wanted).length === 0) refuse(`eas.json has no build profile "${profile}" with an env block`);
+  const missing = REQUIRED_RELEASE_FLAGS.filter((name) => !(name in wanted));
+  if (missing.length) refuse(`the ${profile} profile in this SHA's eas.json does not define every release flag; missing: ${missing.join(', ')}. Do not build from it`);
   for (const [name, value] of Object.entries(wanted)) if (typeof value !== 'string') refuse(`eas.json ${profile}.env.${name} is not a string`);
   const differs = Object.entries(wanted).filter(([name, value]) => env[name] !== undefined && env[name] !== value)
     .map(([name, value]) => `${name} is "${env[name]}" here but "${value}" in the ${profile} profile`);
@@ -128,14 +147,21 @@ function parse(argv) {
   const options = {};
   for (let i = 0; i < flags.length; i += 1) {
     if (flags[i] === '--keep') { options.keep = true; continue; }
-    if (!/^--(source|repo|receipt|fixes|profile)$/.test(flags[i]) || flags[i + 1] === undefined) refuse(`bad argument: ${flags[i]}`);
+    if (!/^--(source|repo|receipt|fixes|profile|purpose)$/.test(flags[i]) || flags[i + 1] === undefined) refuse(`bad argument: ${flags[i]}`);
     options[flags[i].slice(2)] = flags[i + 1]; i += 1;
   }
   if (!options.receipt) refuse('--receipt is required');
   if (options.source && options.repo) refuse('give --repo (fresh checkout, the default) or --source (existing checkout), not both');
   if (options.source && options.keep) refuse('--keep only applies to a fresh checkout; --source is never removed');
   if (options.profile !== undefined && !RELEASE_PROFILES.includes(options.profile)) refuse(`--profile must be one of: ${RELEASE_PROFILES.join(', ')}`);
+  if (options.purpose !== undefined && !PURPOSES.includes(options.purpose)) refuse(`--purpose must be one of: ${PURPOSES.join(', ')}`);
   if (command.length === 0) refuse('no command given after --');
+  // An archive or an upload must name its release profile. The purpose is what the caller says, or,
+  // when the caller says nothing or says it is not a store build, what the command's own words say.
+  const store = looksLikeStoreCommand(command);
+  if (store && options.purpose && !NEEDS_PROFILE.includes(options.purpose)) refuse(`--purpose ${options.purpose} was given, but the command contains "${store}", which makes or sends a store build; use --purpose archive or --purpose upload with --profile`);
+  options.purpose ??= store ? 'archive' : undefined;
+  if (NEEDS_PROFILE.includes(options.purpose) && !options.profile) refuse(`an archive or an upload must name its release profile so the release flags are checked${store ? ` (the command contains "${store}")` : ''}; add --profile testflight or --profile production`);
   return { options, command };
 }
 
@@ -211,7 +237,7 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
     const app = path.join(repo, 'scoresnap');
     const cwd = fs.existsSync(app) ? app : repo;
     const flags = options.profile ? releaseFlags({ app: cwd, profile: options.profile, env }) : null;
-    if (!flags) warn('WARNING: no --profile given. The release feature flags are NOT checked. Whatever EXPO_PUBLIC_* values this environment has are what the command gets; the build record lists them.');
+    if (!flags) warn('WARNING: no --profile given (allowed only for tests and simulator builds). The release feature flags are NOT checked. Whatever EXPO_PUBLIC_* values this environment has are what the command gets; the build record lists them.');
     const buildVariables = Object.fromEntries(Object.keys({ ...env, ...(flags?.values ?? {}) }).filter((name) => BUILD_VARIABLE.test(name)).sort().map((name) => [name, flags?.values[name] ?? env[name]]));
     const started = now();
     record = {
@@ -220,6 +246,7 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
       toolSha256: crypto.createHash('sha256').update(fs.readFileSync(__filename)).digest('hex'),
       mode: fresh ? 'fresh-checkout' : 'existing-checkout', checkout: repo, cwd, command, pid: process.pid,
       environment: environment(),
+      purpose: options.purpose ?? 'not stated',
       releaseFlags: flags ? { checked: true, ...flags } : { checked: false, profile: null },
       buildVariables,
       startedAt: started.toISOString(), endedAt: null, seconds: null, exitCode: null, signal: null,
@@ -255,7 +282,7 @@ function runOnCandidate(argv, { spawn = spawnSync, log = console.log, warn = con
   }
 }
 
-module.exports = { releaseFlags, runOnCandidate, admit, freshCheckout, findLeftBehind, buildEnvironment };
+module.exports = { looksLikeStoreCommand, REQUIRED_RELEASE_FLAGS, releaseFlags, runOnCandidate, admit, freshCheckout, findLeftBehind, buildEnvironment };
 if (require.main === module) {
   try { process.exitCode = runOnCandidate(process.argv.slice(2)); } catch (error) {
     if (!(error instanceof Refusal)) throw error;
