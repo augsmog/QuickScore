@@ -1,20 +1,23 @@
-// Sign-off sheet for 0853a23 (iPhone 17 Pro, iOS 26.4): every Settings switch sat high in its row,
-// 3pt from the top and 14pt from the bottom. The iOS 26 switch is 28pt tall and is drawn at the top
-// of a taller layout box (39pt, measured from the sheet). On iOS 26 and later the box is now the
-// switch's own 28pt, so the row centres the switch itself. Older iOS is left exactly as it was.
+// Settings switches sat at the top of their rows on iOS 26 (measured on the simulator: 2pt above,
+// 14pt below, in a 43.7pt row). Giving the switch a 28pt box did not move it, and that style also
+// replaced Android's 51x44 target. Now: the switch sits in a wrapper that centres itself in the row
+// and sets no size and paints nothing; the switch keeps exactly the props its platform rule gives.
 const fs = require('node:fs');
 const ts = require('typescript');
 const m = { exports: {} };
 new Function('module', 'exports', ts.transpileModule(fs.readFileSync('src/ui/settings-layout.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(m, m.exports);
+const { COLORS } = (() => { const t = { exports: {} }; new Function('module', 'exports', ts.transpileModule(fs.readFileSync('src/ui/theme.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(t, t.exports); return t.exports; })();
 
-test('the switch box is the height of the switch on iOS 26+, untouched elsewhere, and the iPhone row uses it', () => {
-  const { settingsSwitchFrame } = m.exports;
-  for (const version of ['26.0', '26.4', 26, '27.1']) expect(settingsSwitchFrame('ios', version)).toEqual({ height: 28 });
-  for (const version of ['18.5', 17, undefined, 'x']) expect(settingsSwitchFrame('ios', version)).toBeUndefined();
-  for (const os of ['android', 'web']) expect(settingsSwitchFrame(os, '26.4')).toBeUndefined();
+test('the switch is centred by a wrapper that only aligns, and receives its platform props untouched', () => {
+  expect(m.exports.SETTINGS_SWITCH_CENTRE).toEqual({ alignSelf: 'center', alignItems: 'center', justifyContent: 'center' });
+  expect(m.exports).not.toHaveProperty('settingsSwitchFrame');
   const screen = fs.readFileSync('app/settings.tsx', 'utf8');
   const row = screen.slice(screen.indexOf('// The whole row is the switch'), screen.indexOf('function PickerRow'));
-  expect(row).toContain('style={settingsSwitchFrame(Platform.OS, Platform.Version)}');
-  expect(row).toMatch(/alignItems: "center"/);
-  expect(row).not.toMatch(/backgroundColor: |ios_backgroundColor/); // a height only: nothing painted
+  const tag = row.slice(row.indexOf('<Switch'), row.indexOf('/>', row.indexOf('<Switch')));
+  expect(row.slice(0, row.indexOf('<Switch'))).toMatch(/<View style=\{SETTINGS_SWITCH_CENTRE\}>\s*$/);
+  expect(tag).toContain('{...settingsSwitchProps(Platform.OS, value, COLORS)}');
+  expect(tag).not.toMatch(/\bstyle=/); // nothing may replace the style the platform rule gives
+  // what the Switch actually receives
+  expect(m.exports.settingsSwitchProps('android', true, COLORS).style).toEqual({ minWidth: 51, minHeight: 44 });
+  expect(m.exports.settingsSwitchProps('ios', true, COLORS)).toEqual({ trackColor: { true: COLORS.primary } });
 });

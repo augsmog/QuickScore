@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   settingsLayout,
   settingsSwitchProps,
-  settingsSwitchFrame,
+  SETTINGS_SWITCH_CENTRE,
   settingsRowSurface,
   SETTINGS_VALUE_COLUMN,
   SETTINGS_SECTION_HEADER_MARGIN_TOP,
@@ -173,15 +173,16 @@ function ToggleRow({
           </Text>
         )}
       </View>
-      <Switch
-        {...settingsSwitchProps(Platform.OS, value, COLORS)}
-        style={settingsSwitchFrame(Platform.OS, Platform.Version)}
-        accessible={false}
-        importantForAccessibility="no"
-        accessibilityElementsHidden
-        value={value}
-        onValueChange={onToggle}
-      />
+      <View style={SETTINGS_SWITCH_CENTRE}>
+        <Switch
+          {...settingsSwitchProps(Platform.OS, value, COLORS)}
+          accessible={false}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+          value={value}
+          onValueChange={onToggle}
+        />
+      </View>
     </AnimatedPressable>
   );
 }

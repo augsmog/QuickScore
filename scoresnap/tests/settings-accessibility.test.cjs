@@ -195,7 +195,9 @@ test('on iPhone every switch row is a 44pt control that toggles when pressed', (
     const toggle = () => nodes(control(screen.render(), label).props.children).find(node => node.type === 'Switch');
     // nothing sized or painted between the row and the stock switch
     const wrappers = nodes(row.props.children).filter(node => node.type === 'View' && [node.props.children].flat().some(child => child?.type === 'Switch'));
-    expect(wrappers).toHaveLength(0);
+    // one wrapper is allowed, and only to centre the switch: no size, nothing painted
+    expect(wrappers).toHaveLength(1);
+    expect(Object.keys(wrappers[0].props.style).sort()).toEqual(['alignItems', 'alignSelf', 'justifyContent']);
     if (platform === 'ios') {
       expect(toggle().props.style).toBeUndefined();
       expect(toggle().props.thumbColor).toBeUndefined();

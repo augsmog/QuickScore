@@ -27,13 +27,9 @@ export function settingsSwitchProps(platformOS: string | undefined, value: boole
   };
 }
 
-// The layout box of an iPhone Settings switch. The iOS 26 switch is 28pt tall and is drawn at the
-// top of whatever box it is given; left alone that box is taller, so the switch sat high in its
-// row. A height only: no width, no background. Older iOS keeps the default box.
-export function settingsSwitchFrame(platformOS: string | undefined, version: unknown): { height: number } | undefined {
-  const major = parseInt(String(version), 10);
-  return platformOS === 'ios' && major >= 26 ? { height: 28 } : undefined;
-}
+// The wrapper around a Settings switch in a pressable row. It centres itself in the row and its
+// switch within it. Alignment only: no size, no background, so nothing can be painted or clipped.
+export const SETTINGS_SWITCH_CENTRE = { alignSelf: 'center' as const, alignItems: 'center' as const, justifyContent: 'center' as const };
 
 // Every Settings row and card: white with a hairline edge on the cream page, the standard iOS
 // grouped-list look, so stock controls read as they do in any iOS list.

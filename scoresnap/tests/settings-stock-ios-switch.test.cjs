@@ -36,7 +36,8 @@ test('the 44pt touch target is the row itself, a pressable switch; nothing sits 
   expect(row).toContain('onPress={() => onToggle(!value)}');
   expect(row).toContain('accessibilityState={{ checked: value }}');
   expect(row).toContain('minHeight: 44');
-  expect(row).not.toMatch(/<View[^>]*>\s*<Switch/);
+  // the only thing around the switch is the alignment-only wrapper
+  expect(row.match(/<View[^>]*>\s*<Switch/g)).toEqual([expect.stringMatching(/^<View style=\{SETTINGS_SWITCH_CENTRE\}>\s*<Switch$/)]);
   expect(m.exports).not.toHaveProperty('SETTINGS_SWITCH_SLOT');
 });
 
