@@ -139,6 +139,16 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
   AND ((m.role='scorer' AND EXISTS(SELECT 1 FROM public.round_scorer_scopes s WHERE s.contest_id=h.contest_id AND s.round_id=h.round_id AND s.group_id=h.group_id AND s.user_id=h.user_id AND s.status='approved'))
     OR (m.role='player' AND EXISTS(SELECT 1 FROM public.round_player_assignments a WHERE a.contest_id=h.contest_id AND a.round_id=h.round_id AND a.group_id=h.group_id AND a.player_id=m.player_id)))));
 $$;
+-- Internal: who may decide a flagged change for this player NOW: the host of the group the
+-- player is in today. A flag keeps the group it was raised in, but the organizer can move a
+-- player afterwards; the old group's host must not decide a score that has left their card.
+-- A player in no group has no host, so only the organizer can decide. (Package review, B.)
+CREATE FUNCTION public.flag_host(p_contest uuid, p_round uuid, p_player uuid) RETURNS uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+ SELECT public.group_card_host($1,$2,a.group_id) FROM public.round_player_assignments a
+ WHERE a.contest_id=$1 AND a.round_id=$2 AND a.player_id=$3;
+$$;
+
 CREATE FUNCTION public.claim_group_cards(p_contest uuid, p_user uuid) RETURNS void
 LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog AS $$
  INSERT INTO public.group_card_hosts(contest_id,round_id,group_id,user_id)
@@ -406,9 +416,9 @@ BEGIN
  RETURN (SELECT coalesce(jsonb_agg(jsonb_build_object('id',f.id,'round_id',f.round_id,'group_id',f.group_id,'player_id',f.player_id,'player_name',p.name,'hole',f.hole,
    'current_strokes',(SELECT e.strokes FROM public.score_events e WHERE e.contest_id=f.contest_id AND e.round_id=f.round_id AND e.player_id=f.player_id AND e.hole=f.hole AND e.cell_version IS NOT NULL ORDER BY e.cell_version DESC LIMIT 1),
    'proposed_strokes',f.proposed_strokes,'mine',f.proposed_by=uid,
-   'can_resolve',org OR coalesce(public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid,false),'created_at',f.created_at) ORDER BY f.created_at,f.id),'[]'::jsonb)
+   'can_resolve',org OR coalesce(public.flag_host(f.contest_id,f.round_id,f.player_id)=uid,false),'created_at',f.created_at) ORDER BY f.created_at,f.id),'[]'::jsonb)
   FROM public.score_flags f JOIN public.contest_players p ON p.id=f.player_id
-  WHERE f.contest_id=$1 AND f.status='pending' AND (org OR f.proposed_by=uid OR coalesce(public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid,false)));
+  WHERE f.contest_id=$1 AND f.status='pending' AND (org OR f.proposed_by=uid OR coalesce(public.flag_host(f.contest_id,f.round_id,f.player_id)=uid,false)));
 END $$;
 
 -- The group host or the organizer accepts (the proposed score replaces the entered one)
@@ -423,7 +433,7 @@ BEGIN
  org := c.owner_id=uid AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false);
  -- Fails closed (review finding 1): with no valid host the lookup is NULL, and NULL must refuse.
  IF uid IS NULL OR c.id IS NULL OR f.id IS NULL OR org IS NULL
-   OR NOT (org OR coalesce(public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid,false))
+   OR NOT (org OR coalesce(public.flag_host(f.contest_id,f.round_id,f.player_id)=uid,false))
   THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;
  IF f.status<>'pending' OR accept IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;
  open_now := c.status='active' OR (c.status='completed' AND EXISTS(SELECT 1 FROM public.contest_finalizations z WHERE z.contest_id=c.id AND z.finalized_at>now()-interval '1 hour'));
@@ -435,7 +445,10 @@ BEGIN
   INSERT INTO public.score_events(contest_id,round_id,player_id,hole,action,strokes,entered_by,actor,cell_version,contest_revision,op_id,request_hash)
    VALUES(f.contest_id,f.round_id,f.player_id,f.hole,f.proposed_action,f.proposed_strokes,uid,uid,version+1,c.sync_revision,gen_random_uuid(),'flag:'||f.id::text);
   IF c.status='active' THEN
-   DELETE FROM public.group_submissions s WHERE s.contest_id=f.contest_id AND s.round_id=f.round_id AND s.group_id=f.group_id;
+   -- The card that changes is the player's group today, which may not be the group saved on the flag.
+   DELETE FROM public.group_submissions s USING public.round_player_assignments a
+    WHERE a.contest_id=f.contest_id AND a.round_id=f.round_id AND a.player_id=f.player_id
+    AND s.contest_id=a.contest_id AND s.round_id=a.round_id AND s.group_id=a.group_id;
   END IF;
   -- Other people who asked for the same value are settled by this too.
   UPDATE public.score_flags x SET status='reconciled',resolved_by=uid,resolved_at=now()
@@ -452,7 +465,7 @@ REVOKE ALL ON FUNCTION public.round_link_contest(text,text),public.new_round_lin
  public.create_player_link(uuid),public.create_spectator_link(uuid),public.revoke_player_links(uuid),public.revoke_spectator_links(uuid),
  public.player_link_roster(text),public.join_player_link(text,uuid),public.spectator_board(text),
  public.list_player_link_members(uuid),public.assign_player_link_member(uuid,uuid,uuid),
- public.group_card_host(uuid,uuid,uuid),public.claim_group_cards(uuid,uuid),public.watch_code(text),public.reopen_card(uuid),
+ public.group_card_host(uuid,uuid,uuid),public.flag_host(uuid,uuid,uuid),public.claim_group_cards(uuid,uuid),public.watch_code(text),public.reopen_card(uuid),
  public.list_score_flags(uuid),public.resolve_score_flag(uuid,boolean) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.create_player_link(uuid),public.create_spectator_link(uuid),public.revoke_player_links(uuid),public.revoke_spectator_links(uuid),
  public.player_link_roster(text),public.join_player_link(text,uuid),

@@ -39,6 +39,7 @@ DROP FUNCTION public.create_player_link(uuid);
 DROP FUNCTION public.new_round_link(uuid,text);
 DROP FUNCTION public.round_link_contest(text,text);
 DROP FUNCTION public.claim_group_cards(uuid,uuid);
+DROP FUNCTION public.flag_host(uuid,uuid,uuid);
 DROP FUNCTION public.group_card_host(uuid,uuid,uuid);
 DROP TABLE public.watch_code_members;
 DROP TABLE public.card_reopens;

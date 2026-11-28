@@ -51,6 +51,26 @@ SELECT pg_temp.assert(pg_temp.w('1',1,4)->>'status'='accepted','B re-enters the 
 SELECT pg_temp.assert(pg_temp.w('1',1,6)->>'flagged'='true' AND pg_temp.cell('1',1)=4,'B then changes it: still held for the group host, score unchanged');
 INSERT INTO t SELECT 'flag', pg_temp.flags()->0->>'id';
 
+-- Package review, B (stale flag). The organizer moves the PLAYER to another group while the old
+-- group keeps its host. The old group's host must not decide a score that is no longer theirs.
+RESET ROLE;
+UPDATE public.round_player_assignments SET group_id='86000000-0000-0000-0000-000000000002' WHERE contest_id='82000000-0000-0000-0000-000000000001' AND player_id='83000000-0000-0000-0000-000000000001';
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000002","is_anonymous":true,"role":"authenticated"}';
+SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM jsonb_array_elements(pg_temp.flags()) f WHERE f->>'can_resolve'='true'),'old group''s host is not offered a decision on a player who left the group');
+SELECT pg_temp.denied(format($q$SELECT public.resolve_score_flag(%L,true)$q$,(SELECT v FROM t WHERE k='flag')),'42501');
+SELECT pg_temp.denied(format($q$SELECT public.resolve_score_flag(%L,false)$q$,(SELECT v FROM t WHERE k='flag')),'42501');
+SELECT pg_temp.assert(pg_temp.cell('1',1)=4,'score not changed by the old group''s host');
+-- A player taken out of every group: only the organizer may decide.
+RESET ROLE;
+DELETE FROM public.round_player_assignments WHERE contest_id='82000000-0000-0000-0000-000000000001' AND player_id='83000000-0000-0000-0000-000000000001';
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.denied(format($q$SELECT public.resolve_score_flag(%L,true)$q$,(SELECT v FROM t WHERE k='flag')),'42501');
+RESET ROLE;
+INSERT INTO public.round_player_assignments(contest_id,round_id,player_id,group_id) VALUES('82000000-0000-0000-0000-000000000001','85000000-0000-0000-0000-000000000001','83000000-0000-0000-0000-000000000001','86000000-0000-0000-0000-000000000001');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.assert(EXISTS(SELECT 1 FROM jsonb_array_elements(pg_temp.flags()) f WHERE f->>'can_resolve'='true'),'back in the group: its host may decide again');
+
 -- Finding 2. A host moved to another card loses authority over the old group.
 SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000001","is_anonymous":false,"role":"authenticated"}';
 SELECT public.assign_player_link_member('82000000-0000-0000-0000-000000000001','81000000-0000-0000-0000-000000000002','83000000-0000-0000-0000-000000000003');
@@ -74,6 +94,8 @@ SELECT pg_temp.denied(format($q$SELECT public.resolve_score_flag(%L,true)$q$,(SE
 SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000001","is_anonymous":false,"role":"authenticated"}';
 SELECT pg_temp.assert(public.resolve_score_flag((SELECT v FROM t WHERE k='flag')::uuid,false)->>'status'='denied','the organizer can still settle it');
 RESET ROLE;
+
+SELECT pg_temp.assert(NOT has_function_privilege('authenticated','public.flag_host(uuid,uuid,uuid)','execute') AND NOT has_function_privilege('anon','public.flag_host(uuid,uuid,uuid)','execute'),'the host lookup is internal: no client can call it');
 
 -- Finding 5. Deleting an account must not be blocked by the new tables.
 SELECT pg_temp.assert((SELECT count(*) FROM pg_constraint k WHERE k.contype='f' AND k.confrelid='auth.users'::regclass
