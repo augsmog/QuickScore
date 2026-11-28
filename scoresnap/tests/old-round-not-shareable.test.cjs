@@ -62,10 +62,9 @@ test('Online sync panel is not offered for an old-format round', () => {
 });
 
 // Owner decision 16 (AUG-1601): sharing is on by default for a new round when the organizer is signed in.
-async function mountNew({ isAnonymous, scores = [0, 0], status = 'active' }) {
-  const id = '22222222-2222-4222-8222-222222222222';
+async function mountNew({ isAnonymous, scores = [0, 0], status = 'active', id = '22222222-2222-4222-8222-222222222222', offline = false }) {
   const client = { rejoinHost: jest.fn(async () => { throw Object.assign(Error('FORBIDDEN'), { code: '42501' }); }), discover: jest.fn(async () => {}) };
-  const enroll = jest.fn(async () => 'ABC234');
+  const enroll = jest.fn(async () => { if (offline) throw Error('Network request failed'); return 'ABC234'; });
   const contest = { id, remoteRestored: false, joinCode: 'ABC234', status, groups: [{ id: 'g', name: 'G', players: [{ id: 'p', name: 'P', scores }] }] };
   const load = loader({
     '../services/cross-device': { onlineEnabled: true, client },
@@ -96,8 +95,16 @@ test.each([
   ['a guest (not signed in)', { isAnonymous: true }],
   ['a round that already has a score', { isAnonymous: false, scores: [4, 0] }],
   ['a finished round', { isAnonymous: false, status: 'completed' }],
+  ['a round made before online sharing', { isAnonymous: false, id: '1793314256130-d3svkci' }],
 ])('sharing is not switched on automatically for %s', async (_name, options) => {
   const h = await mountNew(options);
   expect(h.enroll).not.toHaveBeenCalled();
   expect(h.text).not.toContain('Sign in with email or Apple to enable');
+});
+
+test('offline: the quiet try fails without an error on screen, and the manual button is still there', async () => {
+  const h = await mountNew({ isAnonymous: false, offline: true });
+  expect(h.enroll).toHaveBeenCalledTimes(1);
+  expect(h.text).toContain('Enable online sharing');
+  expect(h.text).not.toContain('Network request failed');
 });
