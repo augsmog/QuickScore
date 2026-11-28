@@ -158,6 +158,18 @@ const text = async (page, id) => (await page.getByTestId(id).first().innerText()
     step('a wrong code gets a plain message', true, await text(E, 'watch-error'));
     step('no page errors for the code watcher', eErrors.length === 0, eErrors.join(' | '));
 
+    // Poor signal (AUG-1775): cut the network, enter a score, reconnect. Nothing may be lost silently.
+    await onHole(B.page, 2);
+    await B.page.context().setOffline(true);
+    await B.page.getByTestId('guest-plus-Chris').click();
+    await B.page.waitForTimeout(3000);
+    const offShown = await text(B.page, 'guest-score-Chris'), offSaid = (await B.page.getByTestId('guest-status').count()) ? await text(B.page, 'guest-status') : '(no message)';
+    step('signal cut: the score stays on the page and the card says it is not sent yet', offShown === '4' && /not sent|will send|not saved/i.test(offSaid) && holeOf('Chris', 2) == null, `shown ${offShown} | "${offSaid}" | server ${holeOf('Chris', 2)}`);
+    await B.page.screenshot({ path: path.join(OUT, 'web-links-3b-offline.png') });
+    await B.page.context().setOffline(false);
+    let sent = null; for (let i = 0; i < 40 && sent !== 4; i++) { await B.page.waitForTimeout(1000); sent = holeOf('Chris', 2); }
+    step('signal back: the score is sent without another tap', sent === 4 && (await text(B.page, 'guest-score-Chris')) === '4', `server ${sent}`);
+
     // The organizer changes a score (as the phone would); A sees it after reopening the page.
     asHost(`select public.write_score('72000000-0000-4000-8000-000000000001','75000000-0000-4000-8000-000000000001','73000000-0000-4000-8000-000000000002',1,'set',6,1,gen_random_uuid(),'host')`);
     await A.page.reload();

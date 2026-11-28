@@ -26,6 +26,8 @@ export function GuestGroupCard({ contestId, playerId, onGone }: { contestId: str
   const [flags, setFlags] = useState<ScoreFlag[]>([]);
   // After the organizer finalizes, a scorer can reopen for one hour to fix a score.
   const [reopenedUntil, setReopenedUntil] = useState<string | null>(null);
+  // Scores entered with no signal: queued on this device, shown as not sent until the server has them.
+  const [unsent, setUnsent] = useState<Record<string, number | null>>({});
   const revision = event?.snapshot.revision;
   useEffect(() => {
     let alive = true;
@@ -51,6 +53,20 @@ export function GuestGroupCard({ contestId, playerId, onGone }: { contestId: str
     if (event) { seen.current = true; return; }
     if (seen.current) onGone('The organizer ended web access for this round, or the round is finished.');
   }, [event, onGone]);
+
+  // A score entered with no signal stops being "not sent" once the server shows it.
+  const cellsNow = event?.snapshot;
+  useEffect(() => {
+    if (!cellsNow || !Object.keys(unsent).length) return;
+    const arrived = Object.keys(unsent).filter(key => {
+      const [round, player, hole] = key.split(':');
+      const cell = cellsNow.rounds.find(r => r.id === round)?.players.find(p => p.id === player)?.cells.find(c => c.hole === Number(hole));
+      return (cell?.strokes ?? null) === unsent[key];
+    });
+    if (!arrived.length) return;
+    setUnsent(u => { const next = { ...u }; for (const key of arrived) delete next[key]; return next; });
+    if (arrived.length === Object.keys(unsent).length) setStatus(s => s.startsWith('Not sent yet') ? 'Back online. Your scores were sent.' : s);
+  }, [cellsNow, unsent]);
 
   if (!event) return <Text style={styles.note}>Loading the round…</Text>;
   const { snapshot } = event;
@@ -81,6 +97,7 @@ export function GuestGroupCard({ contestId, playerId, onGone }: { contestId: str
         return;
       }
       await queueSnapshotScore(contestId, card.round.id, player, current, strokes);
+      setUnsent(u => { if (!(key in u)) return u; const next = { ...u }; delete next[key]; return next; });
       await client.discover();
       const queue = await onlineQueue();
       const mine = queue.entries.filter(e => e.draft.contest_id === contestId);
@@ -95,7 +112,13 @@ export function GuestGroupCard({ contestId, playerId, onGone }: { contestId: str
       if (mine.some(e => e.state === 'denied')) setStatus('That score was not accepted. You can only score your own group.');
       await client.discover();
     } catch (e) {
-      setStatus(snapshot.completed ? ((e as Error).message || 'Could not save the fix. Check your connection and try again.') : 'Saved on this device. It will send when you are back online.');
+      if (snapshot.completed) setStatus((e as Error).message || 'Could not save the fix. Check your connection and try again.');
+      else {
+        // No signal: the score is in this device's queue. Keep showing it, marked as not sent,
+        // until the server has it. It is sent again by itself when the connection returns.
+        setUnsent(u => ({ ...u, [key]: strokes }));
+        setStatus('Not sent yet. Your score is kept on this device and will send when you are back online.');
+      }
     } finally {
       setPending(p => { const next = { ...p }; delete next[key]; return next; });
     }
@@ -120,7 +143,7 @@ export function GuestGroupCard({ contestId, playerId, onGone }: { contestId: str
         <Text style={[styles.tabText, tab === name && { color: COLORS.onPrimary }]}>{name === 'card' ? 'Scorecard' : 'Leaderboard'}</Text>
       </Pressable>)}
     </View>
-    {!!status && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.status}>{status}</Text>}
+    {!!status && <Text testID="guest-status" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.status}>{status}</Text>}
 
     {tab === 'card' && !card && <Text style={styles.note}>Your player is not in a group yet. Ask the organizer.</Text>}
     {tab === 'card' && card && <View style={{ gap: 12 }}>
@@ -151,12 +174,13 @@ export function GuestGroupCard({ contestId, playerId, onGone }: { contestId: str
         const server = player.cells.find(c => c.hole === current)?.strokes ?? null;
         const asked = flags.find(f => f.mine && f.player_id === player.id && f.round_id === card.round.id && f.hole === current);
         // While my change waits for approval, + and − step from what I asked for.
-        const value = key in pending ? pending[key] : asked ? asked.proposed_strokes : server;
+        const waiting = key in unsent;
+        const value = key in pending ? pending[key] : waiting ? unsent[key] : asked ? asked.proposed_strokes : server;
         const total = player.cells.reduce((sum, c) => sum + (c.strokes ?? 0), 0);
         return <View key={player.id} style={styles.row}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text numberOfLines={1} style={styles.name}>{player.displayName}</Text>
-            <Text testID={`guest-row-note-${player.displayName}`} style={styles.note}>{asked ? `Counts as ${server ?? 'no score'} · your change is waiting` : total ? `${total} so far` : 'No scores yet'}</Text>
+            <Text testID={`guest-row-note-${player.displayName}`} style={styles.note}>{waiting ? 'Not sent yet' : asked ? `Counts as ${server ?? 'no score'} · your change is waiting` : total ? `${total} so far` : 'No scores yet'}</Text>
           </View>
           <Pressable testID={`guest-minus-${player.displayName}`} accessibilityRole="button" accessibilityLabel={`One fewer for ${player.displayName}`} disabled={closed || !value || value <= 1}
             onPress={() => void save(player.id, (value ?? par) - 1)} style={[styles.step, (closed || !value || value <= 1) && styles.off]}><Text style={styles.stepText}>−</Text></Pressable>
