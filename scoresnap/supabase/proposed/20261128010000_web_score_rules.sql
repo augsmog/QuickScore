@@ -23,16 +23,17 @@ DO $guard$ BEGIN
   RAISE EXCEPTION 'submit_score is not the expected version; do not apply';
  END IF;
 END $guard$;
--- Internal. True when the caller's app sent the header that says it can show a held change
--- (builds from 35 on send "x-snapscore-holds: 1"). A missing, different or unreadable header
--- is a no, so an older app, or anything odd, gets today's behaviour and its score is saved.
--- A client could leave the header out to get the old overwrite; that is exactly what every
--- app scorer can do in production today, so it grants nothing new. Web guests are never
--- asked: the rule above always applies to them.
+-- Internal. True when the app sending this request says it can show a held change: the
+-- website and the app from build 35 on put the mark "snapscore-holds-1" in the client-name
+-- header every Supabase client already sends (X-Client-Info), so no new header has to be let
+-- through by the browser's cross-origin rules. A missing, stock or unreadable header is a no,
+-- so an older app, or anything odd, gets today's behaviour and its score is saved.
+-- Anyone can leave the mark out to get the old overwrite; that is what every scorer can do in
+-- production today, so it grants no new reach, but the hold is only as strong as the client.
 CREATE FUNCTION public.client_shows_held_changes() RETURNS boolean
 LANGUAGE plpgsql STABLE SET search_path=pg_catalog AS $$
 BEGIN
- RETURN coalesce((current_setting('request.headers',true)::jsonb->>'x-snapscore-holds')='1',false);
+ RETURN coalesce(position('snapscore-holds-1' in (current_setting('request.headers',true)::jsonb->>'x-client-info'))>0,false);
 EXCEPTION WHEN OTHERS THEN RETURN false;
 END $$;
 REVOKE ALL ON FUNCTION public.client_shows_held_changes() FROM PUBLIC, anon, authenticated;
@@ -95,10 +96,12 @@ BEGIN
  -- Answered as a conflict so app versions that do not know flags still show the entered score.
  ELSIF gid IS NOT NULL AND NOT is_org AND host_uid<>uid AND cell.strokes IS NOT NULL AND cell.entered_by IS DISTINCT FROM uid
    AND NOT ($5='set' AND $6=cell.strokes)
-   -- Only for a client that can show "waiting for approval". App builds 32 to 34 cannot, and
-   -- would be left with a conflict they cannot explain or withdraw; for them this write is
-   -- saved exactly as it is today. Web guests always can. (Review finding 3.)
-   AND (public.client_shows_held_changes() OR EXISTS(SELECT 1 FROM public.player_link_members j WHERE j.contest_id=$1 AND j.user_id=uid)) THEN
+   -- Only when the app SENDING THIS REQUEST can show "waiting for approval". App builds 32 to
+   -- 34 cannot, and would be left with a conflict they cannot explain or withdraw; for them
+   -- this write is saved exactly as it is today. It is the requesting app that counts, never
+   -- the account's history: an account that once joined by link in a browser and now opens an
+   -- older app is an older app. (Review finding 3; delta review 2.)
+   AND public.client_shows_held_changes() THEN
   -- One pending proposal per person per cell: asking again replaces their earlier ask.
   UPDATE public.score_flags x SET proposed_action=$5,proposed_strokes=$6,created_at=now()
    WHERE x.contest_id=$1 AND x.round_id=resolved AND x.player_id=$3 AND x.hole=$4 AND x.proposed_by=uid AND x.status='pending';
@@ -134,7 +137,7 @@ BEGIN
 END $$;
 -- The result must be exactly the body reviewed in this file.
 DO $guard$ BEGIN
- IF (SELECT md5(p.prosrc) FROM pg_proc p WHERE p.oid='public.submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)'::regprocedure) IS DISTINCT FROM 'e21707d6aaf3ac049731ab1d3898d633' THEN
+ IF (SELECT md5(p.prosrc) FROM pg_proc p WHERE p.oid='public.submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)'::regprocedure) IS DISTINCT FROM 'd3b8758c06e5ed0a624ffaf8adf215b1' THEN
   RAISE EXCEPTION 'submit_score did not end as the reviewed body';
  END IF;
 END $guard$;

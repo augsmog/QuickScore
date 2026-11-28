@@ -43,7 +43,7 @@ http.createServer((q, s) => {
         const named = signature(fn).replace(/PLACEHOLDER/g, ":'args'");
         const jwt = claims && claims.sub ? JSON.stringify({ sub: claims.sub, role: 'authenticated', is_anonymous: !!claims.is_anonymous }) : '{}';
         try {
-          const out = psql(`begin; set local role ${claims && claims.sub ? 'authenticated' : 'anon'}; select set_config('request.jwt.claims', :'jwt', true) \\g /dev/null\nselect to_json(public.${fn.replace(/[^a-z_]/g, '')}(${named})); commit;`, { args: body || '{}', jwt });
+          const out = psql(`begin; set local role ${claims && claims.sub ? 'authenticated' : 'anon'}; select set_config('request.jwt.claims', :'jwt', true), set_config('request.headers', :'hdr', true) \\g /dev/null\nselect to_json(public.${fn.replace(/[^a-z_]/g, '')}(${named})); commit;`, { args: body || '{}', jwt, hdr: JSON.stringify(Object.fromEntries(Object.entries(q.headers).filter(([k]) => /^x-[a-z-]+$/.test(k)).map(([k, v]) => [k, String(v).replace(/[^\x20-\x7e]/g, '')]))) });
           calls.push(`${fn} ok`); return s.end(out.trim() || 'null');
         } catch (e) {
           const text = String(e.stderr || e.message);

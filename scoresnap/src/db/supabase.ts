@@ -5,8 +5,14 @@ import { secureSessionStorage } from "./secure-session-storage";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../config/features";
 import { Platform } from "react-native";
 
-/** Must match public.client_shows_held_changes() in the score-rules migration. */
-export const HELD_CHANGES_HEADER = { "x-snapscore-holds": "1" } as const;
+/**
+ * The client name every request carries. The mark "snapscore-holds-1" tells the server this
+ * build can show a score change that is waiting for the group scorekeeper; without it the
+ * server saves the change the way older builds expect. Must match
+ * public.client_shows_held_changes() in the score-rules migration. X-Client-Info is the header
+ * every Supabase client already sends, so browsers need no extra cross-origin permission.
+ */
+export const HELD_CHANGES_HEADER = { "X-Client-Info": "snapscore-app snapscore-holds-1" } as const;
 
 // These will be replaced with real values when you create a Supabase project
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "https://your-project.supabase.co";
@@ -60,9 +66,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     detectSessionInUrl: false,
   },
-  // Tells the server this build can show a score change that is waiting for the group
-  // scorekeeper. Without it the server saves the change as older builds expect (AUG-1601,
-  // review finding 3). Not sent from a browser: a custom header there needs the backend's
-  // cross-origin allow-list, and web guests are held to the rule without it.
-  ...(Platform.OS === "web" ? {} : { global: { headers: HELD_CHANGES_HEADER } }),
+  // The website and the app both say so; the server goes by the app sending the request,
+  // never by the account (AUG-1601, review finding 3 and delta review 2).
+  global: { headers: HELD_CHANGES_HEADER },
 });

@@ -19,6 +19,9 @@ CREATE FUNCTION pg_temp.ver(p text, h integer) RETURNS bigint LANGUAGE sql SECUR
 CREATE FUNCTION pg_temp.w(p text, h integer, s integer) RETURNS jsonb LANGUAGE sql AS $$
  SELECT public.write_score('82000000-0000-0000-0000-000000000001','85000000-0000-0000-0000-000000000001',('83000000-0000-0000-0000-00000000000'||p)::uuid,h,'set',s,pg_temp.ver(p,h),gen_random_uuid(),'t') $$;
 CREATE FUNCTION pg_temp.flags() RETURNS jsonb LANGUAGE sql AS $$ SELECT public.list_score_flags('82000000-0000-0000-0000-000000000001') $$;
+-- Every request in this file comes from a client that can show a held change (the website, or
+-- the app from build 35). Older builds are covered in web-review-findings.sql.
+SET LOCAL request.headers='{"x-client-info":"snapscore-app snapscore-holds-1"}';
 CREATE TEMP TABLE t(k text PRIMARY KEY, v text);
 GRANT ALL ON t TO authenticated, anon;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO authenticated,anon;
@@ -102,8 +105,6 @@ SELECT pg_temp.assert(pg_temp.w('1',1,5)->>'status'='accepted' AND pg_temp.cell(
 SELECT pg_temp.assert(pg_temp.w('4',1,5)->>'status'='accepted','organizer enters Dave hole 1 and takes Group B');
 SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000004","is_anonymous":true,"role":"authenticated"}';
 SELECT pg_temp.assert(pg_temp.w('4',2,4)->>'status'='accepted' AND pg_temp.w('4',2,5)->>'status'='accepted','app player enters and corrects their own hole');
--- An app that can show a held change says so with a header (build 35 on). Older builds are covered in web-review-findings.sql.
-SET LOCAL request.headers='{"x-snapscore-holds":"1"}';
 SELECT pg_temp.assert(pg_temp.w('4',1,4)->>'flagged'='true' AND pg_temp.cell('4',1)=5,'app player changing the organizer''s entry is flagged');
 
 -- 8. If the group host is removed, the next scorer takes the card.

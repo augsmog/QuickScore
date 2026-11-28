@@ -5,12 +5,13 @@ const client = fs.readFileSync('src/db/supabase.ts', 'utf8');
 const server = fs.readFileSync('supabase/proposed/20261128010000_web_score_rules.sql', 'utf8');
 
 test('the app and the server agree on the header name and value', () => {
-  expect(client).toContain('export const HELD_CHANGES_HEADER = { "x-snapscore-holds": "1" } as const;');
-  expect(server).toContain("(current_setting('request.headers',true)::jsonb->>'x-snapscore-holds')='1'");
+  expect(client).toContain('export const HELD_CHANGES_HEADER = { "X-Client-Info": "snapscore-app snapscore-holds-1" } as const;');
+  expect(server).toContain("position('snapscore-holds-1' in (current_setting('request.headers',true)::jsonb->>'x-client-info'))>0");
 });
 
-test('the iPhone app sends it on every request; a browser does not', () => {
-  expect(client).toContain('...(Platform.OS === "web" ? {} : { global: { headers: HELD_CHANGES_HEADER } }),');
+test('the app and the website both send it on every request', () => {
+  expect(client).toContain('global: { headers: HELD_CHANGES_HEADER },');
+  expect(client).not.toContain('Platform.OS === "web" ? {} : { global');
 });
 
 test('the screens that show a held change exist in this build', () => {
@@ -19,6 +20,7 @@ test('the screens that show a held change exist in this build', () => {
   expect(fs.readFileSync('app/contest/[id]/_layout.tsx', 'utf8')).toContain('<ScoreFlags contest={contest} />');
 });
 
-test('web guests are held to the rule without the header', () => {
-  expect(server).toContain('public.client_shows_held_changes() OR EXISTS(SELECT 1 FROM public.player_link_members j WHERE j.contest_id=$1 AND j.user_id=uid)');
+test('the server goes by the requesting app only, never by how the account once joined', () => {
+  expect(server).toContain('AND public.client_shows_held_changes() THEN');
+  expect(server).not.toMatch(/client_shows_held_changes\(\) OR EXISTS/);
 });

@@ -39,12 +39,26 @@ SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000001","is_anonymous":false,"role":"authenticated"}';
 INSERT INTO t SELECT 'token', public.create_player_link('82000000-0000-0000-0000-000000000001');
 
+-- Every request below comes from a client that can show a held change (the website, or the app
+-- from build 35), unless a section says otherwise.
+SET LOCAL request.headers='{"x-client-info":"snapscore-app snapscore-holds-1"}';
+
 -- Setup: A hosts Group A and enters Matt 4; B joins the same card.
 SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000002","is_anonymous":true,"role":"authenticated"}';
 SELECT public.join_player_link(v,'83000000-0000-0000-0000-000000000001') FROM t WHERE k='token';
 SELECT pg_temp.assert(pg_temp.w('1',1,4)->>'status'='accepted','A enters Matt 4');
 SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000003","is_anonymous":true,"role":"authenticated"}';
 SELECT public.join_player_link(v,'83000000-0000-0000-0000-000000000002') FROM t WHERE k='token';
+
+-- Delta review 2. The hold follows the APP sending the request, not the account. B joined by
+-- player link in a browser; the same account then opens an older app (no mark in the client
+-- name). Its change to a score A entered is saved as today, not held.
+SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000002","is_anonymous":true,"role":"authenticated"}';
+SELECT pg_temp.assert(pg_temp.w('1',2,4)->>'status'='accepted','A enters Matt 4 on hole 2');
+SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000003","is_anonymous":true,"role":"authenticated"}';
+SET LOCAL request.headers='{"x-client-info":"supabase-js-react-native/2.45.0"}';
+SELECT pg_temp.assert((pg_temp.w('1',2,6)->>'status')='accepted' AND pg_temp.cell('1',2)=6 AND jsonb_array_length(pg_temp.flags())=0,'link account on an older app: saved as today, nothing held');
+SET LOCAL request.headers='{"x-client-info":"snapscore-app snapscore-holds-1"}';
 
 -- Finding 4. Re-entering the number already there must not make someone else's score "mine".
 SELECT pg_temp.assert(pg_temp.w('1',1,4)->>'status'='accepted','B re-enters the same 4: nothing to hold');
@@ -146,17 +160,17 @@ SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000004","is_
 SELECT pg_temp.assert(pg_temp.w('4',2,4)->>'status'='accepted' AND pg_temp.w('4',3,4)->>'status'='accepted','Dave enters his own 4 on two holes');
 SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000007","is_anonymous":false,"role":"authenticated"}';
 -- An installed older build: no header. Exactly today's behaviour.
+SET LOCAL request.headers='{}';
 SELECT pg_temp.assert((pg_temp.w('4',2,6)->>'status')='accepted' AND pg_temp.cell('4',2)=6,'older app: the change is saved as it is today, nothing is held');
 SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM jsonb_array_elements(pg_temp.flags()) f WHERE f->>'player_name'='Dave'),'older app: no request is left waiting');
 -- A build that can show it says so with a header.
-SET LOCAL request.headers='{"x-snapscore-holds":"1"}';
+SET LOCAL request.headers='{"x-client-info":"snapscore-app snapscore-holds-1"}';
 SELECT pg_temp.assert((pg_temp.w('4',3,6)->>'flagged')='true' AND pg_temp.cell('4',3)=4,'newer app: the change is held and the entered score counts');
 -- Anything else in that header slot is not a yes.
-SET LOCAL request.headers='{"x-snapscore-holds":"0"}';
-SELECT pg_temp.assert((pg_temp.w('4',3,7)->>'status')='accepted' AND pg_temp.cell('4',3)=7,'header present but not "1": treated as an older app');
+SET LOCAL request.headers='{"x-client-info":"supabase-js-react-native/2.45.0"}';
+SELECT pg_temp.assert((pg_temp.w('4',3,7)->>'status')='accepted' AND pg_temp.cell('4',3)=7,'the stock client name with no SnapScore mark: treated as an older app');
 SET LOCAL request.headers='not json';
 SELECT pg_temp.assert((pg_temp.w('4',3,8)->>'status')='accepted','a broken header never stops a score from saving');
-RESET request.headers;
 RESET ROLE;
 SELECT pg_temp.assert(NOT has_function_privilege('authenticated','public.client_shows_held_changes()','execute'),'the header check is internal');
 
