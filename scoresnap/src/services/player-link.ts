@@ -35,6 +35,18 @@ export function playerLinkMessage(error: { code?: string; message?: string } | n
   return 'Could not reach the round. Check your connection and try again.';
 }
 
+/**
+ * A web guest has no account to sign in to, so the app's "sign in with email or Apple" advice is a
+ * dead end on the website. The hosted backend allows a limited number of new guest sessions per
+ * network per hour (AUG-1776); say so when that is what happened.
+ */
+export function guestSessionMessage(error: unknown): string {
+  const e = error as { guestSignIn?: boolean; status?: number; message?: string };
+  if (!e?.guestSignIn) return e?.message || 'Something went wrong. Try again.';
+  if (e.status === 429) return 'Too many people joined from this wifi network in the last hour. Wait a few minutes and try again, or turn wifi off and use mobile data.';
+  return 'Could not open the round. Check your connection and try again.';
+}
+
 export function playerLinkApi(rpc: Rpc) {
   async function call(name: string, args: Record<string, unknown>) {
     const { data, error } = await rpc(name, args);

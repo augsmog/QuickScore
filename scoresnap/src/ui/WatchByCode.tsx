@@ -3,7 +3,7 @@ import { AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 import Head from 'expo-router/head';
 import { supabase } from '../db/supabase';
 import { client, onlineEnabled, refreshOnline, remoteIdentity, watchOnline } from '../services/cross-device';
-import { playerLinkApi } from '../services/player-link';
+import { guestSessionMessage, playerLinkApi } from '../services/player-link';
 import { useOnlineStore } from '../stores/online-store';
 import { RoundBoard } from './RoundBoard';
 import { SafeScreen } from './SafeScreen';
@@ -31,7 +31,7 @@ export function WatchByCode({ initialCode }: { initialCode: string }) {
       const id = await api.watchCode(entered);
       await client.discover();
       setContestId(id);
-    } catch (e) { setError((e as Error).message); }
+    } catch (e) { setError(guestSessionMessage(e)); }
     finally { setBusy(false); }
   }
   useEffect(() => { if (initialCode) void watch(initialCode); }, [initialCode]);

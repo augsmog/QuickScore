@@ -4,7 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import Head from 'expo-router/head';
 import { supabase } from '../../src/db/supabase';
 import { client, onlineEnabled, remoteIdentity } from '../../src/services/cross-device';
-import { playerLinkApi, validPlayerToken, type LinkRoster } from '../../src/services/player-link';
+import { guestSessionMessage, playerLinkApi, validPlayerToken, type LinkRoster } from '../../src/services/player-link';
 import { GuestGroupCard } from '../../src/ui/GuestGroupCard';
 import { SafeScreen } from '../../src/ui/SafeScreen';
 import { COLORS, FONTS } from '../../src/ui/theme';
@@ -29,7 +29,7 @@ export default function PlayerLink() {
       const found = await api.roster(token);
       setRoster(found);
       if (found.me) { await client.discover(); setPlayer(found.me); }
-    } catch (e) { setError((e as Error).message); }
+    } catch (e) { setError(guestSessionMessage(e)); }
   }, [token]);
   useEffect(() => { void open(); }, [open]);
 

@@ -1,6 +1,6 @@
 // A web guest with a player link keeps one group's card, and sees the board and the money.
 const loader = require('./helpers/load-ts.cjs');
-const { validPlayerToken, playerLinkApi, playerLinkMessage, memberLabel, flagLabel, webOrigin, linkUrl, groupCard, nextHole, leaderboard, money, formatDollars } = loader({})('src/services/player-link.ts');
+const { guestSessionMessage, validPlayerToken, playerLinkApi, playerLinkMessage, memberLabel, flagLabel, webOrigin, linkUrl, groupCard, nextHole, leaderboard, money, formatDollars } = loader({})('src/services/player-link.ts');
 
 const id = '11111111-1111-4111-8111-111111111111';
 const capabilities = { api_version: 1, contract: 'snapscore-sync-v1', protocol: 1, enabled: true, revision: 1, channel: { private: true, event: 'revision', topic: `snapscore:${id}` } };
@@ -115,4 +115,13 @@ test('flags, reopen and a fix on a reopened card call the right server functions
   expect((await api.correct({ contest_id: 'c1', round_id: 'r1', player_id: 'p1', hole: 3, strokes: null, version: 2 }, 'op-2')).args.action).toBe('clear');
   expect(playerLinkMessage({ code: '55000', message: 'REOPEN_CLOSED' })).toMatch('locked');
   expect(flagLabel({ player_name: 'Matt', hole: 4, current_strokes: 4, proposed_strokes: 6 })).toBe('Matt, hole 4: 4 → 6');
+});
+
+test('a guest who cannot get a session is never told to sign in: the website has no sign-in', () => {
+  const failed = status => Object.assign(Error('Guest sign-in unavailable. Sign in with email or Apple, then reopen your invite.'), { guestSignIn: true, status });
+  expect(guestSessionMessage(failed(429))).toBe('Too many people joined from this wifi network in the last hour. Wait a few minutes and try again, or turn wifi off and use mobile data.');
+  expect(guestSessionMessage(failed(500))).toBe('Could not open the round. Check your connection and try again.');
+  expect(guestSessionMessage(failed(undefined))).not.toMatch(/sign in/i);
+  // Anything else keeps its own message.
+  expect(guestSessionMessage(Error('This link is no longer active. Ask the organizer for a new one.'))).toBe('This link is no longer active. Ask the organizer for a new one.');
 });

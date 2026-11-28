@@ -82,7 +82,8 @@ export async function remoteIdentity() {
   if (data.session) return data.session.user.id;
   if (!signingIn) signingIn = (async () => {
     const result = await supabase.auth.signInAnonymously(await anonymousSignInOptions());
-    if (result.error) throw Error('Guest sign-in unavailable. Sign in with email or Apple, then reopen your invite.');
+    // The status rides along so the website can tell "too many from this network" (429) from an outage.
+    if (result.error) throw Object.assign(Error('Guest sign-in unavailable. Sign in with email or Apple, then reopen your invite.'), { guestSignIn: true, status: (result.error as { status?: number }).status });
     if (!result.data.session) throw Error('Guest session unavailable');
     return result.data.session.user.id;
   })().finally(() => { signingIn = undefined; });
