@@ -8,11 +8,44 @@ import { LiveChat } from '../../src/ui/LiveChat';
 import { CHAT_POLL_MS } from '../../src/services/live-chat-model';
 import { getSharedRound } from '../../src/services/live-share';
 import type { SharedRound } from '../../src/services/live-share-snapshot';
+import type { SyncSnapshotV1 } from '../../../docs/xdevice/sync-contract-v1';
+import { supabase } from '../../src/db/supabase';
+import { playerLinkApi } from '../../src/services/player-link';
+import { RoundBoard } from '../../src/ui/RoundBoard';
+const links = playerLinkApi((name, args) => supabase.rpc(name, args) as unknown as Promise<{ data: any; error: any }>);
+/** Spectator links read the live round every few seconds. No session, no score entry. */
+const LIVE_POLL_MS = 10000;
 export default function SharedScoreboard() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const [round, setRound] = useState<SharedRound | null>(null);
   const [error, setError] = useState('');
+  // A spectator link shows the same live board and money the players see. Older share
+  // links (a copy uploaded by the organizer's phone) keep working below.
+  const [live, setLive] = useState<SyncSnapshotV1 | null>(null);
+  const [legacy, setLegacy] = useState(false);
   useEffect(() => {
+    let alive = true; let fetching = false; let shown = false; let older = false;
+    setLive(null); setLegacy(false);
+    async function refresh() {
+      if (fetching || older) return;
+      fetching = true;
+      try {
+        const snapshot = await links.board(token);
+        if (alive) { shown = true; setLive(snapshot); setError(''); }
+      } catch (e) {
+        if (!alive) return;
+        // Not a spectator link, or one the organizer ended. It may be an older share link.
+        if ((e as { code?: string }).code === '22023' || !/^[a-f0-9]{64}$/.test(String(token))) { older = true; setLive(null); setLegacy(true); }
+        // A dropped connection keeps the last board on screen.
+        else if (!shown) setError((e as Error).message);
+      } finally { fetching = false; }
+    }
+    void refresh();
+    const timer = setInterval(refresh, LIVE_POLL_MS);
+    return () => { alive = false; clearInterval(timer); };
+  }, [token]);
+  useEffect(() => {
+    if (!legacy) return;
     let alive = true; let fetching = false;
     async function refresh() {
       if (fetching) return;
@@ -26,7 +59,15 @@ export default function SharedScoreboard() {
     void refresh();
     const timer = setInterval(refresh, CHAT_POLL_MS);
     return () => { alive = false; clearInterval(timer); };
-  }, [token]);
+  }, [token, legacy]);
+  if (live) return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}><ScrollView style={styles.page} contentContainerStyle={styles.content}>
+    <Head><title>Live scoreboard · SnapScore</title><meta name="referrer" content="no-referrer" /><meta name="robots" content="noindex,nofollow" /></Head>
+    <Text style={styles.note}>SNAPSCORE · live scoreboard</Text>
+    <Text testID="spectator-title" accessibilityRole="header" style={styles.title}>{live.name}</Text>
+    <Text style={styles.note}>{live.completed ? 'Round complete' : 'Round in progress · updates every 10 seconds'}</Text>
+    <RoundBoard snapshot={live} />
+    <Text style={[styles.note, { textAlign: 'center', marginTop: 24 }]}>Set up your own games and settle up in the SnapScore app.</Text>
+  </ScrollView></SafeScreen>;
   return <SafeScreen style={{ flex: 1, backgroundColor: COLORS.bg }}><ScrollView style={styles.page} contentContainerStyle={styles.content}>
     <Head><title>Live scoreboard · SnapScore</title><meta name="referrer" content="no-referrer" /><meta name="robots" content="noindex,nofollow" /></Head>
     <Text style={styles.title}>Live scoreboard</Text>

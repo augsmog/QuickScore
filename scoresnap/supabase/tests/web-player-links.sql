@@ -93,9 +93,55 @@ SET LOCAL request.jwt.claims='{"sub":"51000000-0000-0000-0000-000000000004","is_
 SELECT pg_temp.denied(format($q$SELECT public.join_player_link(%L,'53000000-0000-0000-0000-000000000001')$q$,(SELECT v FROM t WHERE k='token')),'23505');
 SELECT pg_temp.assert(public.my_sync_status()->'memberships'->0->>'role'='player','approved player unchanged');
 
+-- 5a. Spectator link: everything a player sees, money inputs included; never a way to score.
+SET LOCAL request.jwt.claims='{"sub":"51000000-0000-0000-0000-000000000002","is_anonymous":true,"role":"authenticated"}';
+SELECT pg_temp.denied($q$SELECT public.create_spectator_link('52000000-0000-0000-0000-000000000001')$q$,'42501');
+SET LOCAL request.jwt.claims='{"sub":"51000000-0000-0000-0000-000000000001","is_anonymous":false,"role":"authenticated"}';
+INSERT INTO t SELECT 'watch', public.create_spectator_link('52000000-0000-0000-0000-000000000001');
+INSERT INTO t SELECT 'hostview', (public.fetch_snapshot('52000000-0000-0000-0000-000000000001') - 'capabilities' - 'invite_code' - 'id_map')::text;
+RESET ROLE;
+SET LOCAL ROLE anon;
+SET LOCAL request.jwt.claims='{}';
+SELECT pg_temp.assert((SELECT (public.spectator_board(w.v) - 'id_map')::text = h.v FROM t w, t h WHERE w.k='watch' AND h.k='hostview'),'spectator board equals the organizer snapshot minus owner-only fields');
+SELECT pg_temp.assert((SELECT public.spectator_board(v)->'game_settings' IS NOT NULL AND NOT (public.spectator_board(v) ? 'invite_code') AND public.spectator_board(v)->'rounds'->0->'players'->0->'cells'->0->>'strokes'='4' FROM t WHERE k='watch'),'spectator sees scores and stakes, never the invite code');
+SELECT pg_temp.denied(format($q$SELECT public.spectator_board(%L)$q$,(SELECT v FROM t WHERE k='token')),'22023');
+SELECT pg_temp.denied($q$SELECT public.spectator_board(repeat('0',64))$q$,'22023');
+SELECT pg_temp.denied($q$SELECT public.write_score('52000000-0000-0000-0000-000000000001','55000000-0000-0000-0000-000000000001','53000000-0000-0000-0000-000000000001',1,'set',9,1,'61000000-0000-0000-0000-0000000000a1','s')$q$,'42501');
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+-- A spectator token is not a player link.
+SET LOCAL request.jwt.claims='{"sub":"51000000-0000-0000-0000-000000000005","is_anonymous":true,"role":"authenticated"}';
+SELECT pg_temp.denied(format($q$SELECT public.player_link_roster(%L)$q$,(SELECT v FROM t WHERE k='watch')),'22023');
+SELECT pg_temp.denied(format($q$SELECT public.join_player_link(%L,'53000000-0000-0000-0000-000000000001')$q$,(SELECT v FROM t WHERE k='watch')),'22023');
+
+-- 5b. The organizer sees who keeps which card, can move one and remove one. Nobody else can.
+SELECT pg_temp.denied($q$SELECT public.list_player_link_members('52000000-0000-0000-0000-000000000001')$q$,'42501');
+SELECT pg_temp.denied($q$SELECT public.assign_player_link_member('52000000-0000-0000-0000-000000000001','51000000-0000-0000-0000-000000000002','53000000-0000-0000-0000-000000000003')$q$,'42501');
+SET LOCAL request.jwt.claims='{"sub":"51000000-0000-0000-0000-000000000001","is_anonymous":false,"role":"authenticated"}';
+INSERT INTO t SELECT 'members', public.list_player_link_members('52000000-0000-0000-0000-000000000001')::text;
+SELECT pg_temp.assert((SELECT jsonb_array_length(v::jsonb)=2 AND v::jsonb->0->>'player_name'='Matt' AND v::jsonb->0->'groups'->0->>'name'='Group A'
+  AND v::jsonb->1->>'player_name'='Chris' AND v::jsonb->1->'groups'->0->>'name'='Group B' FROM t WHERE k='members'),'list shows each web scorer, the player they picked and their group');
+SELECT pg_temp.denied($q$SELECT public.assign_player_link_member('52000000-0000-0000-0000-000000000001','51000000-0000-0000-0000-000000000004','53000000-0000-0000-0000-000000000001')$q$,'22023');
+SELECT pg_temp.assert(public.assign_player_link_member('52000000-0000-0000-0000-000000000001','51000000-0000-0000-0000-000000000002','53000000-0000-0000-0000-000000000004')->>'status'='assigned','organizer moves guest A to Dave''s group');
+SET LOCAL request.jwt.claims='{"sub":"51000000-0000-0000-0000-000000000002","is_anonymous":true,"role":"authenticated"}';
+SELECT pg_temp.assert((SELECT public.player_link_roster(v)->>'me' FROM t WHERE k='token')='53000000-0000-0000-0000-000000000004','moved guest is told their new player');
+SELECT pg_temp.denied($q$SELECT public.write_score('52000000-0000-0000-0000-000000000001','55000000-0000-0000-0000-000000000001','53000000-0000-0000-0000-000000000001',2,'set',4,0,'61000000-0000-0000-0000-0000000000b1','m')$q$,'42501');
+SELECT pg_temp.assert(public.write_score('52000000-0000-0000-0000-000000000001','55000000-0000-0000-0000-000000000001','53000000-0000-0000-0000-000000000004',2,'set',4,0,'61000000-0000-0000-0000-0000000000b2','n')->>'status'='accepted','moved guest scores the new group');
+SET LOCAL request.jwt.claims='{"sub":"51000000-0000-0000-0000-000000000001","is_anonymous":false,"role":"authenticated"}';
+SELECT pg_temp.assert(public.revoke_membership('52000000-0000-0000-0000-000000000001','51000000-0000-0000-0000-000000000003')->>'status'='revoked','organizer removes guest B');
+SELECT pg_temp.assert(jsonb_array_length(public.list_player_link_members('52000000-0000-0000-0000-000000000001'))=1,'removed scorer leaves the list');
+SET LOCAL request.jwt.claims='{"sub":"51000000-0000-0000-0000-000000000003","is_anonymous":true,"role":"authenticated"}';
+SELECT pg_temp.denied($q$SELECT public.fetch_snapshot('52000000-0000-0000-0000-000000000001')$q$,'42501');
+SELECT pg_temp.denied(format($q$SELECT public.join_player_link(%L,'53000000-0000-0000-0000-000000000001')$q$,(SELECT v FROM t WHERE k='token')),'42501');
+
 -- 6. Revoking the links removes link guests at once and leaves their scores and the approved player.
 SET LOCAL request.jwt.claims='{"sub":"51000000-0000-0000-0000-000000000001","is_anonymous":false,"role":"authenticated"}';
-SELECT pg_temp.assert(public.revoke_player_links('52000000-0000-0000-0000-000000000001')->>'members'='2','two link guests removed');
+SELECT pg_temp.assert(public.revoke_player_links('52000000-0000-0000-0000-000000000001')->>'members'='1','the remaining link guest is removed');
+RESET ROLE; SET LOCAL ROLE anon;
+SELECT pg_temp.assert((SELECT public.spectator_board(v)->>'name' FROM t WHERE k='watch')='Saturday foursome','spectator link survives ending the player links');
+RESET ROLE; SET LOCAL ROLE authenticated;
+SELECT pg_temp.assert(public.revoke_spectator_links('52000000-0000-0000-0000-000000000001')->>'links'='1','organizer ends the spectator link');
+SELECT pg_temp.denied(format($q$SELECT public.spectator_board(%L)$q$,(SELECT v FROM t WHERE k='watch')),'22023');
 SELECT pg_temp.assert(public.fetch_snapshot('52000000-0000-0000-0000-000000000001')->'rounds'->0->'players'->0->'cells'->0->>'strokes'='4','scores stay after revoke');
 SET LOCAL request.jwt.claims='{"sub":"51000000-0000-0000-0000-000000000002","is_anonymous":true,"role":"authenticated"}';
 SELECT pg_temp.denied($q$SELECT public.fetch_snapshot('52000000-0000-0000-0000-000000000001')$q$,'42501');
@@ -116,7 +162,8 @@ SELECT pg_temp.assert((SELECT public.join_player_link(v,'53000000-0000-0000-0000
 -- 8. No sign-in at all: nothing is reachable. Tables are closed to clients.
 RESET ROLE;
 SELECT pg_temp.assert(NOT has_function_privilege('anon','public.player_link_roster(text)','execute') AND NOT has_function_privilege('anon','public.join_player_link(text,uuid)','execute')
- AND NOT has_function_privilege('authenticated','public.player_link_contest(text)','execute'),'anon cannot call; helper is internal');
+ AND NOT has_function_privilege('authenticated','public.round_link_contest(text,text)','execute') AND NOT has_function_privilege('authenticated','public.new_round_link(uuid,text)','execute'),'anon cannot call; helpers are internal');
+SELECT pg_temp.assert(has_function_privilege('anon','public.spectator_board(text)','execute') AND NOT has_function_privilege('anon','public.list_player_link_members(uuid)','execute') AND NOT has_function_privilege('anon','public.create_spectator_link(uuid)','execute'),'the spectator board is the only function open without a session');
 SELECT pg_temp.assert(NOT has_table_privilege('authenticated','public.player_links','select') AND NOT has_table_privilege('anon','public.player_link_members','select'),'tables closed to clients');
 
 -- 9. A finished round takes no new guests.

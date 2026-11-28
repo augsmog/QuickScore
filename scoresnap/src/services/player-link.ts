@@ -9,6 +9,9 @@ export interface LinkRoster {
   contest_id: string; name: string; open: boolean; me: string | null;
   rounds: { id: string; number: number; name: string; groups: { id: string; name: string; players: { id: string; displayName: string }[] }[] }[];
 }
+export interface LinkMember { member_id: string; player_id: string; player_name: string; joined_at: string; groups: { round_id: string; group_id: string; name: string }[] }
+/** The organizer's list has no names for web scorers: the card they keep identifies them. */
+export const memberLabel = (m: LinkMember) => `Web scorer on ${m.groups[0]?.name ?? 'no group'} (picked ${m.player_name})`;
 type Rpc = (name: string, args: Record<string, unknown>) => Promise<{ data: any; error: any }>;
 
 /** Server refusals in words a golfer can act on. Unknown failures stay retryable. */
@@ -19,6 +22,9 @@ export function playerLinkMessage(error: { code?: string; message?: string } | n
   if (reason.includes('HOST_SLOT')) return 'You are the organizer of this round. Keep score in the app.';
   if (reason.includes('ALREADY_APPROVED')) return 'You already have a spot in this round. Keep score from where you joined.';
   if (reason.includes('MEMBER_LIMIT')) return 'This round has reached its limit for web scorers. Ask the organizer.';
+  if (reason.includes('HOST_REQUIRED')) return 'Only the organizer can do that.';
+  if (reason.includes('LINK_LIMIT')) return 'This round already has the most links allowed. End the old ones first.';
+  if (reason.includes('INVALID_MEMBER')) return 'That web scorer is no longer in the round.';
   if (reason.includes('INVALID_PLAYER')) return 'That player is not in a group yet. Ask the organizer.';
   if (error?.code === '42501') return 'The organizer removed web access for this round.';
   return 'Could not reach the round. Check your connection and try again.';
@@ -41,6 +47,17 @@ export function playerLinkApi(rpc: Rpc) {
     },
     create: (contestId: string): Promise<string> => call('create_player_link', { contest_id: contestId }),
     revoke: (contestId: string) => call('revoke_player_links', { contest_id: contestId }),
+    /** Spectator link: the live round, read-only. Needs no session. */
+    async board(token: string): Promise<SyncSnapshotV1> {
+      if (!validPlayerToken(token)) throw Error(playerLinkMessage({ message: 'INVALID_LINK' }));
+      return call('spectator_board', { p_token: token });
+    },
+    createSpectator: (contestId: string): Promise<string> => call('create_spectator_link', { contest_id: contestId }),
+    revokeSpectator: (contestId: string) => call('revoke_spectator_links', { contest_id: contestId }),
+    /** Organizer only: who keeps which card on the web. */
+    members: (contestId: string): Promise<LinkMember[]> => call('list_player_link_members', { contest_id: contestId }),
+    assign: (contestId: string, memberId: string, playerId: string) => call('assign_player_link_member', { p_contest_id: contestId, p_member_id: memberId, p_player_id: playerId }),
+    remove: (contestId: string, memberId: string) => call('revoke_membership', { contest_id: contestId, member_id: memberId }),
   };
 }
 
@@ -100,3 +117,11 @@ export function money(snapshot: SyncSnapshotV1): Money {
 }
 
 export const formatDollars = (amount: number) => `${amount < 0 ? '−' : ''}$${Math.abs(amount).toFixed(2)}`;
+
+/** Where web guests go. Set per build; the public site is the default so a link is never dead. */
+export function webOrigin(configured: string | undefined = process.env.EXPO_PUBLIC_WEB_URL, location: { origin?: string } | undefined = typeof window !== 'undefined' ? (window as { location?: { origin?: string } }).location : undefined): string {
+  const origin = location?.origin && /^https?:\/\//.test(location.origin) ? location.origin : configured;
+  return (origin && /^https?:\/\//.test(origin) ? origin : 'https://snapscore.autumn8.me').replace(/\/+$/, '');
+}
+/** /p/<token> is a player link (can score); /r/<token> is a spectator link (watch only). */
+export const linkUrl = (origin: string, kind: 'player' | 'spectator', token: string) => `${origin.replace(/\/+$/, '')}/${kind === 'player' ? 'p' : 'r'}/${token}`;

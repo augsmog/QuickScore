@@ -1,6 +1,6 @@
 // A web guest with a player link keeps one group's card, and sees the board and the money.
 const loader = require('./helpers/load-ts.cjs');
-const { validPlayerToken, playerLinkApi, playerLinkMessage, groupCard, nextHole, leaderboard, money, formatDollars } = loader({})('src/services/player-link.ts');
+const { validPlayerToken, playerLinkApi, playerLinkMessage, memberLabel, webOrigin, linkUrl, groupCard, nextHole, leaderboard, money, formatDollars } = loader({})('src/services/player-link.ts');
 
 const id = '11111111-1111-4111-8111-111111111111';
 const capabilities = { api_version: 1, contract: 'snapscore-sync-v1', protocol: 1, enabled: true, revision: 1, channel: { private: true, event: 'revision', topic: `snapscore:${id}` } };
@@ -73,4 +73,24 @@ test('money: standings sum to zero and each pair of players appears once, owing 
 test('money: a round with no games shows no money, and dollars read plainly', () => {
   expect(money(snapshot({}, { games: [] }))).toEqual({ pending: false, net: [], payments: [] });
   expect([formatDollars(5), formatDollars(-12.5), formatDollars(0)]).toEqual(['$5.00', '−$12.50', '$0.00']);
+});
+
+test('spectator board needs a well-formed token; the organizer list names a web scorer by the card they keep', async () => {
+  const rpc = jest.fn(async (name, args) => ({ data: { name, args }, error: null }));
+  await expect(playerLinkApi(rpc).board('short')).rejects.toThrow('no longer active');
+  expect(rpc).not.toHaveBeenCalled();
+  expect(await playerLinkApi(rpc).board('b'.repeat(64))).toEqual({ name: 'spectator_board', args: { p_token: 'b'.repeat(64) } });
+  expect(await playerLinkApi(rpc).assign('c1', 'u1', 'p1')).toEqual({ name: 'assign_player_link_member', args: { p_contest_id: 'c1', p_member_id: 'u1', p_player_id: 'p1' } });
+  expect(await playerLinkApi(rpc).remove('c1', 'u1')).toEqual({ name: 'revoke_membership', args: { contest_id: 'c1', member_id: 'u1' } });
+  expect(memberLabel({ member_id: 'u1', player_id: 'p1', player_name: 'Matt', joined_at: '', groups: [{ round_id: 'r1', group_id: 'gA', name: 'Group A' }] })).toBe('Web scorer on Group A (picked Matt)');
+  expect(playerLinkMessage({ code: '42501', message: 'HOST_REQUIRED' })).toBe('Only the organizer can do that.');
+});
+
+test('links point at the public site by default, and the two kinds use different paths', () => {
+  expect(webOrigin(undefined, undefined)).toBe('https://snapscore.autumn8.me');
+  expect(webOrigin('https://staging.example/', undefined)).toBe('https://staging.example');
+  expect(webOrigin('not a url', {})).toBe('https://snapscore.autumn8.me');
+  expect(webOrigin('https://configured.example', { origin: 'https://opened.example' })).toBe('https://opened.example');
+  expect(linkUrl('https://snapscore.autumn8.me/', 'player', 'a'.repeat(64))).toBe(`https://snapscore.autumn8.me/p/${'a'.repeat(64)}`);
+  expect(linkUrl('https://snapscore.autumn8.me', 'spectator', 'b'.repeat(64))).toBe(`https://snapscore.autumn8.me/r/${'b'.repeat(64)}`);
 });

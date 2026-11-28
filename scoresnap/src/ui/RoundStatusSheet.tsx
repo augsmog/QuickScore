@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Contest } from "../stores/contest-store";
 import { OnlineSyncPanel } from "./OnlineSyncPanel";
 import { LiveShare } from "./LiveShare";
+import { WebLinks } from "./WebLinks";
 import { COLORS, FONTS, RADII } from "./theme";
 
 // The sheet stays mounted while hidden so an open Online sync session keeps
@@ -36,6 +37,7 @@ export function RoundStatusSheet({ contest, visible, onClose }: {
         <ScrollView>
           <OnlineSyncPanel contest={contest} />
           <LiveShare contest={contest} />
+          <WebLinks contest={contest} />
         </ScrollView>
         <Pressable testID="round-status-done" accessibilityRole="button" onPress={onClose}
           style={{ minHeight: 52, width: "100%", backgroundColor: COLORS.primary,
