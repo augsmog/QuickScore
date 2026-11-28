@@ -47,8 +47,9 @@ function main(argv) {
     const missing = REQUIRED_ENV.filter(name => !process.env[name]);
     if (missing.length) { console.error(`Missing build variables: ${missing.join(', ')}`); process.exit(2); }
     fs.rmSync(exportDir, { recursive: true, force: true });
+    // The public site only opens the guest pages; the rest of the app stays in the app.
     // --clear: a reused cache keeps old build variables and ships a dead backend address.
-    const run = spawnSync('npx', ['expo', 'export', '--platform', 'web', '--clear', '--output-dir', exportDir], { cwd: root, stdio: 'inherit', env: { ...process.env, CI: '1' } });
+    const run = spawnSync('npx', ['expo', 'export', '--platform', 'web', '--clear', '--output-dir', exportDir], { cwd: root, stdio: 'inherit', env: { ...process.env, CI: '1', EXPO_PUBLIC_WEB_GUEST_ONLY: 'true' } });
     if (run.status !== 0) process.exit(run.status ?? 1);
   }
   const result = compose(exportDir, path.join(root, 'site'), path.join(root, 'dist-site'));

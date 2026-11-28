@@ -15,11 +15,12 @@ import { useOnlineStore } from "../src/stores/online-store";
 import { CAPTCHA_MODE } from "../src/config/captcha";
 import { TurnstileHost } from "../src/components/TurnstileHost";
 import { isPublicShare } from "../src/config/public-share";
+import { WEB_GUEST_ONLY, guestOnlyBlocks } from "../src/config/web-guest";
 import { OFFLINE_MODE } from "../src/config/offline";
 import { useEffect, useRef, useState } from "react";
 import { Stack, useRouter, useSegments, useNavigationContainerRef } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator } from "react-native";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { ErrorBoundary } from "../src/ui/ErrorBoundary";
@@ -30,7 +31,7 @@ import { initPurchases } from "../src/services/purchases";
 // before any gating runs. Default false keeps SnapScore Pro dormant / all features free.
 import "../src/config/pro-membership";
 import { flushQuickSettleCompletionOutbox } from "../src/services/quick-settle-completion-sync";
-import { COLORS } from "../src/ui/theme";
+import { COLORS, FONTS } from "../src/ui/theme";
 import "../global.css";
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
@@ -112,6 +113,11 @@ function useProtectedRoute() {
   const router = useRouter();
 
   useEffect(() => {
+    // Public website: anything but a guest page goes back to the site's home page.
+    if (guestOnlyBlocks(Platform.OS, WEB_GUEST_ONLY, segments[0])) {
+      if (typeof window !== "undefined" && window.location.pathname !== "/") window.location.replace("/");
+      return;
+    }
     if (CROSS_DEVICE_SHARING_ENABLED && !isInitialized) return;
     if (__DEV__ && segments[0] === "dev") return;
 
@@ -253,6 +259,17 @@ function RootLayoutNav() {
   useEffect(() => {
     if (Platform.OS === "web") void webAnalytics.capture("screen_viewed", { screen_name: screenName });
   }, [screenName]);
+
+  // Public website, not a guest page: show nothing of the app while the browser returns home.
+  if (guestOnlyBlocks(Platform.OS, WEB_GUEST_ONLY, segments[0])) {
+    return (
+      <View testID="guest-only-blocked" style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <Text style={{ fontFamily: FONTS.regular, fontSize: 17, lineHeight: 26, color: COLORS.text, textAlign: "center" }}>
+          To join a round, open the link the organizer sent you. Everything else is in the SnapScore app.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <PostHogAppProvider>
