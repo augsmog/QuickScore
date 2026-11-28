@@ -128,6 +128,30 @@ SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000007","is_
 SELECT pg_temp.assert(public.watch_code('RULES1')->>'status'='unknown','over the per-round limit: same answer as a wrong code');
 RESET ROLE;
 
+-- Finding 3. An app that cannot show "waiting for approval" (builds 32 to 34) must behave as it
+-- does today: its change is saved, never held. Only a client that says it can show a held
+-- change, or a web guest (the website always can), gets one.
+INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status) VALUES('82000000-0000-0000-0000-000000000001','81000000-0000-0000-0000-000000000007','scorer',NULL,'approved');
+INSERT INTO public.round_scorer_scopes(contest_id,round_id,group_id,user_id,status) VALUES('82000000-0000-0000-0000-000000000001','85000000-0000-0000-0000-000000000001','86000000-0000-0000-0000-000000000002','81000000-0000-0000-0000-000000000007','approved');
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000004","is_anonymous":false,"role":"authenticated"}';
+SELECT pg_temp.assert(pg_temp.w('4',2,4)->>'status'='accepted' AND pg_temp.w('4',3,4)->>'status'='accepted','Dave enters his own 4 on two holes');
+SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000007","is_anonymous":false,"role":"authenticated"}';
+-- An installed older build: no header. Exactly today's behaviour.
+SELECT pg_temp.assert((pg_temp.w('4',2,6)->>'status')='accepted' AND pg_temp.cell('4',2)=6,'older app: the change is saved as it is today, nothing is held');
+SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM jsonb_array_elements(pg_temp.flags()) f WHERE f->>'player_name'='Dave'),'older app: no request is left waiting');
+-- A build that can show it says so with a header.
+SET LOCAL request.headers='{"x-snapscore-holds":"1"}';
+SELECT pg_temp.assert((pg_temp.w('4',3,6)->>'flagged')='true' AND pg_temp.cell('4',3)=4,'newer app: the change is held and the entered score counts');
+-- Anything else in that header slot is not a yes.
+SET LOCAL request.headers='{"x-snapscore-holds":"0"}';
+SELECT pg_temp.assert((pg_temp.w('4',3,7)->>'status')='accepted' AND pg_temp.cell('4',3)=7,'header present but not "1": treated as an older app');
+SET LOCAL request.headers='not json';
+SELECT pg_temp.assert((pg_temp.w('4',3,8)->>'status')='accepted','a broken header never stops a score from saving');
+RESET request.headers;
+RESET ROLE;
+SELECT pg_temp.assert(NOT has_function_privilege('authenticated','public.client_shows_held_changes()','execute'),'the header check is internal');
+
 -- Package review, B (ownership). When the organizer deletes their account, the round must not
 -- pass to a watcher, a web guest, a removed member or someone whose request is still waiting.
 -- Here: users 2 and 3 are web guests (3 was removed), 5 is a watcher, 6 has a request waiting;

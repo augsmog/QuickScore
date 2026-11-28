@@ -102,6 +102,8 @@ SELECT pg_temp.assert(pg_temp.w('1',1,5)->>'status'='accepted' AND pg_temp.cell(
 SELECT pg_temp.assert(pg_temp.w('4',1,5)->>'status'='accepted','organizer enters Dave hole 1 and takes Group B');
 SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000004","is_anonymous":true,"role":"authenticated"}';
 SELECT pg_temp.assert(pg_temp.w('4',2,4)->>'status'='accepted' AND pg_temp.w('4',2,5)->>'status'='accepted','app player enters and corrects their own hole');
+-- An app that can show a held change says so with a header (build 35 on). Older builds are covered in web-review-findings.sql.
+SET LOCAL request.headers='{"x-snapscore-holds":"1"}';
 SELECT pg_temp.assert(pg_temp.w('4',1,4)->>'flagged'='true' AND pg_temp.cell('4',1)=5,'app player changing the organizer''s entry is flagged');
 
 -- 8. If the group host is removed, the next scorer takes the card.

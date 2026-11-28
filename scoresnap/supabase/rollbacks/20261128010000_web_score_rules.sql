@@ -60,5 +60,6 @@ DO $guard$ BEGIN
  END IF;
 END $guard$;
 DROP FUNCTION IF EXISTS public.finalize_window(uuid);
+DROP FUNCTION IF EXISTS public.client_shows_held_changes();
 NOTIFY pgrst, 'reload schema';
 COMMIT;

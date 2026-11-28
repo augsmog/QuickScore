@@ -5,6 +5,9 @@ import { secureSessionStorage } from "./secure-session-storage";
 import { CROSS_DEVICE_SHARING_ENABLED } from "../config/features";
 import { Platform } from "react-native";
 
+/** Must match public.client_shows_held_changes() in the score-rules migration. */
+export const HELD_CHANGES_HEADER = { "x-snapscore-holds": "1" } as const;
+
 // These will be replaced with real values when you create a Supabase project
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "https://your-project.supabase.co";
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "your-anon-key";
@@ -57,4 +60,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+  // Tells the server this build can show a score change that is waiting for the group
+  // scorekeeper. Without it the server saves the change as older builds expect (AUG-1601,
+  // review finding 3). Not sent from a browser: a custom header there needs the backend's
+  // cross-origin allow-list, and web guests are held to the rule without it.
+  ...(Platform.OS === "web" ? {} : { global: { headers: HELD_CHANGES_HEADER } }),
 });
