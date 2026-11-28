@@ -15,6 +15,9 @@ import { COLORS } from "./theme";
 import { CROSS_DEVICE_SHARING_ENABLED, NATIVE_LINKS_ENABLED } from "../config/features";
 import { isCompactViewport } from './compact-viewport';
 
+// Rounds this app session already tried to switch sharing on for; one quiet try each.
+const autoTried = new Set<string>();
+
 export function ContestJoinCode({ contest }: { contest: Contest }) {
   const [message, setMessage] = useState("");
   useEffect(() => {
@@ -54,7 +57,7 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
     return () => { mounted = false; if (context.current === operation) context.current = null; };
   }, [contest.id, actor, oldRound]);
   const [busy, setBusy] = useState(false);
-  const enable = async () => {
+  const enable = async (quiet = false) => {
     if (contest.remoteRestored) { setMessage(OWNER_INVITE_UNAVAILABLE); return; }
     setBusy(true);
     try {
@@ -67,9 +70,20 @@ export function ContestJoinCode({ contest }: { contest: Contest }) {
       });
       await client.rejoinHost(contest.id);
       setMessage('Online sharing enabled. Share this invite with signed-in players.');
-    } catch(e: any) { setMessage(e.message || 'Could not enable online sharing. Try again.'); }
+    } catch(e: any) { setMessage(quiet ? '' : e.message || 'Could not enable online sharing. Try again.'); }
     finally { setBusy(false); }
   };
+  // Sharing is on by default for a new round when the organizer is signed in (owner decision 16,
+  // AUG-1601). It can only be switched on before the first score, so do it as the round opens.
+  // If it cannot be done now (offline, say), the manual "Enable online sharing" stays.
+  const signedIn = useAuthStore(s => (s as { isAnonymous?: boolean }).isAnonymous) === false;
+  const unscored = !(contest.rounds ?? [{ groups: contest.groups }]).some(r => (r.groups ?? []).some(g => (g.players ?? []).some(p => (p.scores ?? []).some(n => n !== 0))));
+  useEffect(() => {
+    if (!onlineEnabled || !signedIn || !actor || checking || enabled || oldRound || contest.remoteRestored || !unscored || contest.status !== 'active') return;
+    if (autoTried.has(contest.id)) return;
+    autoTried.add(contest.id);
+    void enable(true);
+  }, [contest.id, signedIn, actor, checking, enabled, oldRound, unscored]);
   const share = async () => {
     if (sharing.current) return;
     const operation = context.current;

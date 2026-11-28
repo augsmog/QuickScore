@@ -9,7 +9,17 @@ import { useGuestStore } from "../../src/stores/guest-store";
 import { localContestJoinService, claimGuestHistory } from "../../src/services/guest-join";
 import { COLORS, FONTS } from "../../src/ui/theme";
 import { LocalJoinLimitationBanner } from "../../src/ui/LocalJoinLimitationBanner";
-export default function JoinContest() {
+import { Platform } from "react-native";
+import { WEB_GUEST_ONLY } from "../../src/config/web-guest";
+import { WatchByCode } from "../../src/ui/WatchByCode";
+// On the public website the code is watch-only (owner decision 14, AUG-1601). The home
+// page's "Join a round" box arrives as /join/enter?code=ABC123.
+export default function JoinRoute() {
+  const { code: initial, code_entry: typed } = useLocalSearchParams<{ code: string; code_entry?: string }>();
+  if (Platform.OS === "web" && WEB_GUEST_ONLY) return <WatchByCode initialCode={(typed ?? (initial === "enter" ? "" : initial) ?? "").toString()} />;
+  return <JoinContest />;
+}
+function JoinContest() {
   const router = useRouter();
   const { code: initial } = useLocalSearchParams<{ code: string }>();
   const [code, setCode] = useState(initial === "enter" ? "" : initial || "");

@@ -60,3 +60,44 @@ test('Online sync panel is not offered for an old-format round', () => {
   expect(root.toJSON()).toBeNull();
   act(() => root.unmount());
 });
+
+// Owner decision 16 (AUG-1601): sharing is on by default for a new round when the organizer is signed in.
+async function mountNew({ isAnonymous, scores = [0, 0], status = 'active' }) {
+  const id = '22222222-2222-4222-8222-222222222222';
+  const client = { rejoinHost: jest.fn(async () => { throw Object.assign(Error('FORBIDDEN'), { code: '42501' }); }), discover: jest.fn(async () => {}) };
+  const enroll = jest.fn(async () => 'ABC234');
+  const contest = { id, remoteRestored: false, joinCode: 'ABC234', status, groups: [{ id: 'g', name: 'G', players: [{ id: 'p', name: 'P', scores }] }] };
+  const load = loader({
+    '../services/cross-device': { onlineEnabled: true, client },
+    '../services/online-enrollment': { enrollNewRound: enroll },
+    '../db/supabase': { supabase: { auth: { getSession: async () => ({ data: { session: { user: { id: 'owner', is_anonymous: isAnonymous } } } }) } } },
+    '../stores/online-store': { useOnlineStore: createStore(() => ({ events: {} })) },
+    '../stores/auth-store': { useAuthStore: createStore(() => ({ remoteUserId: 'owner', isAnonymous })) },
+    '../stores/contest-store': { useContestStore: createStore(() => ({ contests: [contest], updateContest() {} })) },
+    'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable', Platform: { OS: 'ios' }, Share: { share: jest.fn() } },
+    './theme': { COLORS: {} }, './LocalJoinLimitationBanner': { LocalJoinLimitationBanner: () => null },
+    '../config/features': { CROSS_DEVICE_SHARING_ENABLED: true, NATIVE_LINKS_ENABLED: false },
+  });
+  const { ContestJoinCode } = load('src/ui/ContestJoinCode.tsx');
+  let root;
+  await act(async () => { root = create(React.createElement(ContestJoinCode, { contest })); });
+  await act(async () => {});
+  const text = JSON.stringify(root.toJSON());
+  await act(() => root.unmount());
+  return { enroll, text };
+}
+
+test('a signed-in organizer opening a new, unscored round gets sharing switched on without tapping', async () => {
+  const h = await mountNew({ isAnonymous: false });
+  expect(h.enroll).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  ['a guest (not signed in)', { isAnonymous: true }],
+  ['a round that already has a score', { isAnonymous: false, scores: [4, 0] }],
+  ['a finished round', { isAnonymous: false, status: 'completed' }],
+])('sharing is not switched on automatically for %s', async (_name, options) => {
+  const h = await mountNew(options);
+  expect(h.enroll).not.toHaveBeenCalled();
+  expect(h.text).not.toContain('Sign in with email or Apple to enable');
+});

@@ -78,7 +78,17 @@ const CSS = `
   }
 `;
 
-function shell(path: string, title: string, main: string) {
+// Only the home page carries the join box, so the other pages stay byte-identical.
+const JOIN_CSS = `
+  .join { margin: 20px 0 24px; padding: 20px; border: 1px solid #E3D9C6; border-radius: 16px; background: #FFFFFF; }
+  .join h2 { margin-top: 0; }
+  .join label { display: block; margin-bottom: 6px; font-weight: 600; }
+  .join input { display: block; width: 100%; min-height: 52px; padding: 0 14px; border: 1px solid #8A8F84; border-radius: 12px; font: inherit; font-size: 1.25rem; letter-spacing: 0.15em; text-transform: uppercase; color: #17251E; background: #FFFFFF; }
+  .join button { display: block; width: 100%; min-height: 52px; margin-top: 12px; border: 0; border-radius: 12px; background: #175C3A; color: #FFFFFF; font: inherit; font-weight: 600; cursor: pointer; }
+  .join input:focus-visible, .join button:focus-visible { outline: 3px solid #175C3A; outline-offset: 3px; }
+`;
+
+function shell(path: string, title: string, main: string, extraCss = "") {
   const supportCurrent = path === SUPPORT_PATH ? ' aria-current="page"' : "";
   const privacyCurrent = path === PRIVACY_PATH ? ' aria-current="page"' : "";
   const termsCurrent = path === TERMS_PATH ? ' aria-current="page"' : "";
@@ -95,7 +105,7 @@ function shell(path: string, title: string, main: string) {
 <meta property="og:site_name" content="SnapScore">
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta name="twitter:card" content="summary">
-<style>${CSS}</style>
+<style>${CSS}${extraCss}</style>
 </head>
 <body>
 <a class="skip" href="#content">Skip to content</a>
@@ -122,8 +132,15 @@ function contactLink() {
 export function renderHomePage() {
   return shell("/", "SnapScore", `<h1>SnapScore</h1>
 <p class="lede">Scan a scorecard, check the scores, and settle the game.</p>
+<form class="join" action="/join/enter" method="get">
+<h2 id="join-heading">Join a round</h2>
+<p>Enter the code from the organizer to follow the round live. No app or account needed.</p>
+<label for="join-code">Round code</label>
+<input id="join-code" name="code_entry" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" required>
+<button type="submit">Watch the round</button>
+</form>
 <p>Help, account deletion, and how a round works are on the <a href="${SUPPORT_PATH}">support page</a>. How SnapScore handles information is in the <a href="${PRIVACY_PATH}">privacy policy</a>.</p>
-<p>Email ${contactLink()}.</p>`);
+<p>Email ${contactLink()}.</p>`, JOIN_CSS);
 }
 
 export function renderSupportPage() {

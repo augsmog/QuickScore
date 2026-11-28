@@ -1,6 +1,6 @@
 // A web guest with a player link keeps one group's card, and sees the board and the money.
 const loader = require('./helpers/load-ts.cjs');
-const { validPlayerToken, playerLinkApi, playerLinkMessage, memberLabel, webOrigin, linkUrl, groupCard, nextHole, leaderboard, money, formatDollars } = loader({})('src/services/player-link.ts');
+const { validPlayerToken, playerLinkApi, playerLinkMessage, memberLabel, flagLabel, webOrigin, linkUrl, groupCard, nextHole, leaderboard, money, formatDollars } = loader({})('src/services/player-link.ts');
 
 const id = '11111111-1111-4111-8111-111111111111';
 const capabilities = { api_version: 1, contract: 'snapscore-sync-v1', protocol: 1, enabled: true, revision: 1, channel: { private: true, event: 'revision', topic: `snapscore:${id}` } };
@@ -93,4 +93,26 @@ test('links point at the public site by default, and the two kinds use different
   expect(webOrigin('https://configured.example', { origin: 'https://opened.example' })).toBe('https://opened.example');
   expect(linkUrl('https://snapscore.autumn8.me/', 'player', 'a'.repeat(64))).toBe(`https://snapscore.autumn8.me/p/${'a'.repeat(64)}`);
   expect(linkUrl('https://snapscore.autumn8.me', 'spectator', 'b'.repeat(64))).toBe(`https://snapscore.autumn8.me/r/${'b'.repeat(64)}`);
+});
+
+test('watching by code: the code is tidied, a wrong code gets one plain message, and a watcher never gets a scoring call', async () => {
+  const rpc = jest.fn(async (name, args) => ({ data: args.code === 'RULES1' ? { status: 'watching', contest_id: 'c1' } : { status: 'unknown' }, error: null }));
+  const api = playerLinkApi(rpc);
+  expect(await api.watchCode(' rules1 ')).toBe('c1');
+  expect(rpc).toHaveBeenLastCalledWith('watch_code', { code: 'RULES1' });
+  await expect(api.watchCode('NOSUCH')).rejects.toThrow('No round found for that code');
+  await expect(api.watchCode('!!')).rejects.toThrow('Enter the code');
+  expect(rpc).toHaveBeenCalledTimes(2);
+});
+
+test('flags, reopen and a fix on a reopened card call the right server functions', async () => {
+  const rpc = jest.fn(async (name, args) => ({ data: { name, args }, error: null }));
+  const api = playerLinkApi(rpc);
+  expect(await api.resolveFlag('f1', true)).toEqual({ name: 'resolve_score_flag', args: { flag_id: 'f1', accept: true } });
+  expect((await api.reopen('c1')).name).toBe('reopen_card');
+  expect((await api.correct({ contest_id: 'c1', round_id: 'r1', player_id: 'p1', hole: 3, strokes: 5, version: 2 }, 'op-1')).args)
+    .toEqual({ contest_id: 'c1', round_id: 'r1', player_id: 'p1', hole: 3, action: 'set', strokes: 5, expected_version: 2, op_id: 'op-1', request_hash: 'web-fix:op-1' });
+  expect((await api.correct({ contest_id: 'c1', round_id: 'r1', player_id: 'p1', hole: 3, strokes: null, version: 2 }, 'op-2')).args.action).toBe('clear');
+  expect(playerLinkMessage({ code: '55000', message: 'REOPEN_CLOSED' })).toMatch('locked');
+  expect(flagLabel({ player_name: 'Matt', hole: 4, current_strokes: 4, proposed_strokes: 6 })).toBe('Matt, hole 4: 4 → 6');
 });

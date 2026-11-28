@@ -13,6 +13,9 @@ export interface LinkRoster {
 export interface LinkMember { member_id: string; player_id: string; player_name: string; joined_at: string; groups: { round_id: string; group_id: string; name: string }[] }
 /** The organizer's list has no names for web scorers: the card they keep identifies them. */
 export const memberLabel = (m: LinkMember) => `Web scorer on ${m.groups[0]?.name ?? 'no group'} (picked ${m.player_name})`;
+/** A change someone asked for on a score another person entered, waiting for a decision. */
+export interface ScoreFlag { id: string; round_id: string; group_id: string; player_id: string; player_name: string; hole: number; current_strokes: number | null; proposed_strokes: number | null; mine: boolean; can_resolve: boolean; created_at: string }
+export const flagLabel = (f: ScoreFlag) => `${f.player_name}, hole ${f.hole}: ${f.current_strokes ?? 'no score'} → ${f.proposed_strokes ?? 'no score'}`;
 type Rpc = (name: string, args: Record<string, unknown>) => Promise<{ data: any; error: any }>;
 
 /** Server refusals in words a golfer can act on. Unknown failures stay retryable. */
@@ -23,6 +26,7 @@ export function playerLinkMessage(error: { code?: string; message?: string } | n
   if (reason.includes('HOST_SLOT')) return 'You are the organizer of this round. Keep score in the app.';
   if (reason.includes('ALREADY_APPROVED')) return 'You already have a spot in this round. Keep score from where you joined.';
   if (reason.includes('MEMBER_LIMIT')) return 'This round has reached its limit for web scorers. Ask the organizer.';
+  if (reason.includes('REOPEN_CLOSED')) return 'This round is locked. Scores could be fixed for one hour after it was finalized.';
   if (reason.includes('HOST_REQUIRED')) return 'Only the organizer can do that.';
   if (reason.includes('LINK_LIMIT')) return 'This round already has the most links allowed. End the old ones first.';
   if (reason.includes('INVALID_MEMBER')) return 'That web scorer is no longer in the round.';
@@ -59,6 +63,25 @@ export function playerLinkApi(rpc: Rpc) {
     members: (contestId: string): Promise<LinkMember[]> => call('list_player_link_members', { contest_id: contestId }),
     assign: (contestId: string, memberId: string, playerId: string) => call('assign_player_link_member', { p_contest_id: contestId, p_member_id: memberId, p_player_id: playerId }),
     remove: (contestId: string, memberId: string) => call('revoke_membership', { contest_id: contestId, member_id: memberId }),
+    /** Pending changes the caller may see: their own, their group's if they host it, all if organizer. */
+    flags: (contestId: string): Promise<ScoreFlag[]> => call('list_score_flags', { contest_id: contestId }),
+    resolveFlag: (flagId: string, accept: boolean) => call('resolve_score_flag', { flag_id: flagId, accept }),
+    /** After the organizer finalizes: one hour in which a scorer may reopen to fix a score. */
+    reopen: (contestId: string): Promise<{ status: 'reopened'; until: string }> => call('reopen_card', { contest_id: contestId }),
+    /**
+     * A fix on a reopened, finalized card. Sent directly: the offline queue is closed for a
+     * finished round, so this needs a connection and says so if it fails.
+     */
+    correct: (cell: { contest_id: string; round_id: string; player_id: string; hole: number; strokes: number | null; version: number }, opId: string): Promise<{ status: 'accepted' | 'conflict'; flagged?: boolean; strokes: number | null; version: number }> =>
+      call('write_score', { contest_id: cell.contest_id, round_id: cell.round_id, player_id: cell.player_id, hole: cell.hole, action: cell.strokes === null ? 'clear' : 'set', strokes: cell.strokes, expected_version: cell.version, op_id: opId, request_hash: `web-fix:${opId}` }),
+    /** The 6-letter code on the website: watch only. A wrong code and a used-up budget look the same. */
+    async watchCode(code: string): Promise<string> {
+      const clean = code.trim().toUpperCase();
+      if (!/^[A-Z0-9]{4,12}$/.test(clean)) throw Error('Enter the code the organizer gave you.');
+      const result = await call('watch_code', { code: clean });
+      if (result?.status !== 'watching' || !result.contest_id) throw Error('No round found for that code. Check it and try again in a minute.');
+      return result.contest_id;
+    },
   };
 }
 
