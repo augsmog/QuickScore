@@ -175,5 +175,10 @@ SELECT pg_temp.assert(public.watch_code('RULES2')->>'status'='watching','a watch
 RESET ROLE;
 SELECT public.purge_account('81000000-0000-0000-0000-000000000004');
 SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM public.contests WHERE id='82000000-0000-0000-0000-000000000002'),'a round with only a watcher left does not pass to the watcher');
+-- Delta review 1. A scorer the organizer appointed is a legitimate successor: when they are the
+-- only such person left, the round passes to them. It is not deleted.
+SELECT pg_temp.assert((SELECT owner_id FROM public.contests WHERE id='82000000-0000-0000-0000-000000000001')='81000000-0000-0000-0000-000000000007','the first round passed to the appointed scorer when the player who held it deleted their account');
+SELECT pg_temp.assert((SELECT count(*) FROM public.score_events WHERE contest_id='82000000-0000-0000-0000-000000000001')>0,'and its scores are still there');
+
 SELECT 'PASS: web review findings' AS result;
 ROLLBACK;

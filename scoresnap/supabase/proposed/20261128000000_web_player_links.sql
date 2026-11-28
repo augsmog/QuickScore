@@ -502,13 +502,15 @@ $b$) THEN
   RAISE EXCEPTION 'purge_account: the successor rule was not found exactly once'; END IF;
  EXECUTE replace(replace(def,$a$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
 $a$,$c$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
-        AND m.status = 'approved' AND m.role IN ('host', 'player')
+        AND m.status = 'approved'
         AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = m.user_id AND u.is_anonymous)
+        AND NOT EXISTS (SELECT 1 FROM public.player_link_members j WHERE j.contest_id = cid AND j.user_id = m.user_id)
+        AND NOT EXISTS (SELECT 1 FROM public.watch_code_members w WHERE w.contest_id = cid AND w.user_id = m.user_id)
 $c$),$b$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
 $b$,$d$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
         AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.user_id AND u.is_anonymous)
 $d$);
- IF (SELECT md5(p.prosrc) FROM pg_proc p WHERE p.oid=o) IS DISTINCT FROM '81bc3452d2897823c4c87b14f7f69474' THEN RAISE EXCEPTION 'purge_account did not end as the reviewed body'; END IF;
+ IF (SELECT md5(p.prosrc) FROM pg_proc p WHERE p.oid=o) IS DISTINCT FROM '18eef4c9c7711e683ea8783e74dac3fc' THEN RAISE EXCEPTION 'purge_account did not end as the reviewed body'; END IF;
 END $purge$;
 NOTIFY pgrst, 'reload schema';
 COMMIT;
