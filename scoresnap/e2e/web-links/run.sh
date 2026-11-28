@@ -1,35 +1,50 @@
 #!/usr/bin/env bash
 # One command: throwaway local Postgres with the repo's schema plus the two PROPOSED web
 # files, a local stand-in for the hosted backend, the site build, and the three-browser journey.
-# Touches nothing outside this machine. Needs: Node, Playwright's Chromium, PostgreSQL 16 or 17.
+# Touches nothing outside this machine. Needs: Node, Playwright's Chromium, and either
+# PostgreSQL 16 or 17 installed, or Docker (then nothing else: it runs postgres:17 in a container).
 #
 #   e2e/web-links/run.sh            # builds the site first (about 3 minutes)
 #   DIST=dist-site e2e/web-links/run.sh   # reuse a site already built with EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54399
 #   OUT_DIR=/some/folder            # where the screenshots go (default: the system temp folder)
+#   WEB_LINKS_DOCKER=1              # use Docker even when PostgreSQL is installed
 set -euo pipefail
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd); app=$(cd -- "$here/../.." && pwd)
 bin=${PGBIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)}; [ -n "$bin" ] && export PATH="$bin:$PATH"
-command -v initdb >/dev/null || { echo "web-links: PostgreSQL (initdb) not found; set PGBIN"; exit 2; }
+docker=${WEB_LINKS_DOCKER:-}; command -v initdb >/dev/null || docker=1
+if [ -n "$docker" ]; then command -v docker >/dev/null || { echo "web-links: neither PostgreSQL (initdb; set PGBIN) nor Docker found"; exit 2; }; fi
 work=$(mktemp -d "${TMPDIR:-/tmp}/web-links-XXXXXX"); port=54777; url="postgresql://postgres@127.0.0.1:$port/postgres"
 as_pg() { if [ "$(id -u)" = 0 ]; then runuser -u postgres -- "$@"; else "$@"; fi; }
-cleanup() { [ -n "${bridge:-}" ] && kill "$bridge" 2>/dev/null || true; as_pg pg_ctl -D "$work/db" -m immediate -w stop >/dev/null 2>&1 || true; rm -rf "$work"; }
+box="web-links-$$"
+cleanup() { [ -n "${bridge:-}" ] && kill "$bridge" 2>/dev/null || true
+  if [ -n "$docker" ]; then docker rm -f "$box" >/dev/null 2>&1 || true; else as_pg pg_ctl -D "$work/db" -m immediate -w stop >/dev/null 2>&1 || true; fi; rm -rf "$work"; }
 trap cleanup EXIT
 mkdir -p "$work/sql" && cp -R "$app/supabase/migrations" "$app/supabase/proposed" "$app/supabase/schema-drift/offline-bootstrap.sql" "$here/stubs.sql" "$here/seed.sql" "$work/sql/"
 # PostgreSQL 16 has no MAINTAIN privilege (17 does). Drop the word from the throwaway copy only.
-if [ "$(initdb --version | grep -oE '[0-9]+' | head -1)" -lt 17 ]; then sed -i.bak -E 's/, MAINTAIN//g; s/MAINTAIN, //g' "$work"/sql/migrations/*.sql "$work"/sql/proposed/*.sql; fi
-[ "$(id -u)" = 0 ] && chown -R postgres "$work" && chmod 755 "$work"
-as_pg initdb -D "$work/db" -U postgres -A trust >/dev/null
-as_pg pg_ctl -D "$work/db" -l "$work/server.log" -o "-k $work -h 127.0.0.1 -p $port" -w start >/dev/null
-q() { psql "$url" -X -q -v ON_ERROR_STOP=1 "$@"; }
-q -f "$work/sql/offline-bootstrap.sql" >"$work/apply.log" 2>&1
-q -f "$work/sql/stubs.sql" >>"$work/apply.log" 2>&1
-for m in "$work"/sql/migrations/*.sql; do q -f "$m" >>"$work/apply.log" 2>&1 || { echo "FAILED $m"; tail -5 "$work/apply.log"; exit 1; }; done
+if [ -z "$docker" ] && [ "$(initdb --version | grep -oE '[0-9]+' | head -1)" -lt 17 ]; then sed -i.bak -E 's/, MAINTAIN//g; s/MAINTAIN, //g' "$work"/sql/migrations/*.sql "$work"/sql/proposed/*.sql; fi
+if [ -n "$docker" ]; then
+  # Reachable from this machine only; trust auth is for the throwaway container, never a real database.
+  docker run -d --rm --name "$box" -e POSTGRES_HOST_AUTH_METHOD=trust -p "127.0.0.1:$port:5432" postgres:17 >/dev/null
+  for _ in $(seq 60); do docker exec "$box" psql -U postgres -h 127.0.0.1 -Atc 'select 1' >/dev/null 2>&1 && break; sleep 1; done
+  docker exec "$box" psql -U postgres -h 127.0.0.1 -Atc 'select 1' >/dev/null || { echo "web-links: the postgres:17 container did not start"; exit 2; }
+  q() { docker exec -i "$box" psql -U postgres -X -q -v ON_ERROR_STOP=1 "$@"; }
+else
+  [ "$(id -u)" = 0 ] && chown -R postgres "$work" && chmod 755 "$work"
+  as_pg initdb -D "$work/db" -U postgres -A trust >/dev/null
+  as_pg pg_ctl -D "$work/db" -l "$work/server.log" -o "-k $work -h 127.0.0.1 -p $port" -w start >/dev/null
+  q() { psql "$url" -X -q -v ON_ERROR_STOP=1 "$@"; }
+fi
+# Files go in on standard input, so the same lines work inside the container.
+qf() { local file=$1; shift; q "$@" <"$file"; }
+qf "$work/sql/offline-bootstrap.sql" >"$work/apply.log" 2>&1
+qf "$work/sql/stubs.sql" >>"$work/apply.log" 2>&1
+for m in "$work"/sql/migrations/*.sql; do qf "$m" >>"$work/apply.log" 2>&1 || { echo "FAILED $m"; tail -5 "$work/apply.log"; exit 1; }; done
 # Proposals already live in production, then the two under test.
 for p in 20261031230000_restore_game_settings 20261101020000_owner_discovery 20261101190000_owner_invite_snapshot 20261128000000_web_player_links 20261128010000_web_score_rules; do
-  q -f "$work/sql/proposed/$p.sql" >>"$work/apply.log" 2>&1 || { echo "FAILED $p"; tail -5 "$work/apply.log"; exit 1; }; done
-q -f "$app/supabase/tests/web-player-links.sql" | grep -q 'PASS: web player links' && echo "PASS  server test (supabase/tests/web-player-links.sql)"
-q -f "$app/supabase/tests/web-score-rules.sql" | grep -q 'PASS: web score rules' && echo "PASS  server test (supabase/tests/web-score-rules.sql)"
-token=$(q -At -f "$work/sql/seed.sql" | tail -1)
+  qf "$work/sql/proposed/$p.sql" >>"$work/apply.log" 2>&1 || { echo "FAILED $p"; tail -5 "$work/apply.log"; exit 1; }; done
+qf "$app/supabase/tests/web-player-links.sql" | grep -q 'PASS: web player links' && echo "PASS  server test (supabase/tests/web-player-links.sql)"
+qf "$app/supabase/tests/web-score-rules.sql" | grep -q 'PASS: web score rules' && echo "PASS  server test (supabase/tests/web-score-rules.sql)"
+token=$(qf "$work/sql/seed.sql" -At | tail -1)
 dist=${DIST:-}
 if [ -z "$dist" ]; then
   (cd "$app" && EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54399 EXPO_PUBLIC_SUPABASE_ANON_KEY=local-stand-in EXPO_PUBLIC_FEATURE_COURSE_SEARCH=true EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING=true \

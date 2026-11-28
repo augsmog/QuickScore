@@ -11,6 +11,11 @@ Options: `DIST=dist-site` reuses a site already built against `http://127.0.0.1:
 `OUT_DIR=<folder>` chooses where screenshots go; `PW_CHROMIUM=<path>` names a Chromium binary
 when the project's Playwright has none downloaded; `PGBIN=<folder>` names the PostgreSQL tools.
 
+No PostgreSQL installed? With Docker running, the script starts `postgres:17` in a throwaway
+container by itself (bound to this machine only, removed at the end). `WEB_LINKS_DOCKER=1` forces
+that path. **The Docker path was written without a Docker daemon to try it on; its first run is
+on the Mac.**
+
 What it does:
 
 1. Starts a throwaway PostgreSQL with this checkout's schema and the two **proposed** files
