@@ -5,9 +5,11 @@ const http = require('http');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const DB = process.env.WEB_LINKS_DB || 'postgresql://postgres@127.0.0.1:54777/postgres';
+// How to run psql: set by run.sh (a local psql, or one inside a container when this machine has none).
+const PSQL = process.env.WEB_LINKS_PSQL ? JSON.parse(process.env.WEB_LINKS_PSQL) : ['psql', DB];
 // Loopback only: this stand-in must never be pointed at a hosted database.
 if (!/^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/postgres$/.test(DB)) { console.error('bridge: only a local throwaway database is allowed'); process.exit(2); }
-const psql = (sql, vars = {}) => execFileSync('psql', [DB, '-X', '-q', '-At', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', ...Object.entries(vars).flatMap(([k, v]) => ['-v', `${k}=${v}`])], { input: sql, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+const psql = (sql, vars = {}) => execFileSync(PSQL[0], [...PSQL.slice(1), '-X', '-q', '-At', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', ...Object.entries(vars).flatMap(([k, v]) => ['-v', `${k}=${v}`])], { input: sql, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
 const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
 const calls = [];
 const signatures = new Map();

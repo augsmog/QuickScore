@@ -16,6 +16,11 @@ container by itself (bound to this machine only, removed at the end). `WEB_LINKS
 that path. **The Docker path was written without a Docker daemon to try it on; its first run is
 on the Mac.**
 
+Already have an empty PostgreSQL running (for example your own container)? `PGURL=<its address>`
+uses it and starts nothing. If this machine has no `psql`, also give
+`PSQL="docker exec -i <container> psql -U postgres"`. The script refuses a database that already
+has SnapScore tables. **The `PSQL=` form has not been run here either.**
+
 What it does:
 
 1. Starts a throwaway PostgreSQL with this checkout's schema and the two **proposed** files

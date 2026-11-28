@@ -8,7 +8,9 @@ const DIST = process.argv[2], TOKEN = (process.env.PLAYER_TOKEN || '').trim();
 const OUT = process.env.OUT_DIR || require('os').tmpdir();
 if (!DIST || !/^[a-f0-9]{64}$/.test(TOKEN)) { console.error('usage: PLAYER_TOKEN=<64 hex> node journey.cjs <dist-site folder>'); process.exit(2); }
 const DB = process.env.WEB_LINKS_DB || 'postgresql://postgres@127.0.0.1:54777/postgres';
-const asHost = sql => execFileSync('psql', [DB, '-X', '-q', '-At', '-v', 'ON_ERROR_STOP=1'], { encoding: 'utf8', input: `begin; set local role authenticated; set local request.jwt.claims='{"sub":"71000000-0000-4000-8000-000000000001","is_anonymous":false,"role":"authenticated"}'; ${sql}; commit;` }).trim();
+// How to run psql: set by run.sh (a local psql, or one inside a container when this machine has none).
+const PSQL = process.env.WEB_LINKS_PSQL ? JSON.parse(process.env.WEB_LINKS_PSQL) : ['psql', DB];
+const asHost = sql => execFileSync(PSQL[0], [...PSQL.slice(1), '-X', '-q', '-At', '-v', 'ON_ERROR_STOP=1'], { encoding: 'utf8', input: `begin; set local role authenticated; set local request.jwt.claims='{"sub":"71000000-0000-4000-8000-000000000001","is_anonymous":false,"role":"authenticated"}'; ${sql}; commit;` }).trim();
 const rules = fs.readFileSync(path.join(DIST, '_redirects'), 'utf8').trim().split('\n').map(l => l.split(/\s+/));
 const file = p => fs.existsSync(p) && fs.statSync(p).isFile() ? p : null;
 function resolve(url) {
@@ -21,7 +23,7 @@ function resolve(url) {
 const web = http.createServer((q, s) => { const f = resolve(q.url); if (!f) { s.statusCode = 404; return s.end('not found'); } s.setHeader('content-type', ({ '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css' })[path.extname(f)] || 'application/octet-stream'); fs.createReadStream(f).pipe(s); }).listen(54400);
 const steps = [];
 const step = (name, ok, detail = '') => { steps.push(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); if (!ok) throw Error(name + ' ' + detail); };
-const asAdmin = sql => execFileSync('psql', [DB, '-X', '-q', '-At', '-v', 'ON_ERROR_STOP=1'], { encoding: 'utf8', input: sql }).trim();
+const asAdmin = sql => execFileSync(PSQL[0], [...PSQL.slice(1), '-X', '-q', '-At', '-v', 'ON_ERROR_STOP=1'], { encoding: 'utf8', input: sql }).trim();
 const hole1 = () => JSON.parse(asHost(`select public.fetch_snapshot('72000000-0000-4000-8000-000000000001')`)).rounds[0].players.map(p => `${p.displayName}:${p.cells[0].strokes ?? '-'}`).join(' ');
 const holeOf = (name, n) => JSON.parse(asHost(`select public.fetch_snapshot('72000000-0000-4000-8000-000000000001')`)).rounds[0].players.find(p => p.displayName === name).cells[n - 1].strokes;
 // Reopen the page and move to a hole; the card opens on the first unfinished hole.
