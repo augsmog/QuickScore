@@ -69,6 +69,15 @@ export function playerLinkApi(rpc: Rpc) {
     /** After the organizer finalizes: one hour in which a scorer may reopen to fix a score. */
     reopen: (contestId: string): Promise<{ status: 'reopened'; until: string }> => call('reopen_card', { contest_id: contestId }),
     /**
+     * When the round was finalized, on the server's clock, and whether this person has reopened.
+     * Null when the server cannot say (the read is not there yet): Reopen is then offered and
+     * the server decides when it is tapped.
+     */
+    async window(contestId: string): Promise<{ finalized_at: string | null; now: string; reopened_until: string | null } | null> {
+      const { data, error } = await rpc('finalize_window', { contest_id: contestId });
+      return error || !data?.now ? null : data;
+    },
+    /**
      * A fix on a reopened, finalized card. Sent directly: the offline queue is closed for a
      * finished round, so this needs a connection and says so if it fails.
      */

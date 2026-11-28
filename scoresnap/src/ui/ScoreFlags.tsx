@@ -97,5 +97,5 @@ const styles = StyleSheet.create({
   dim: { opacity: 0.5 },
   message: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.text },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: COLORS.warnContainer, borderWidth: 1, borderColor: COLORS.warn },
-  badgeText: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.warn },
+  badgeText: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.warn },
 });

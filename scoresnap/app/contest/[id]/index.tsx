@@ -51,6 +51,7 @@ import { posthog } from "../../../src/config/posthog";
 import { useFlagStore } from "../../../src/stores/flag-store";
 import { flaggedOnHole } from "../../../src/services/score-flags";
 import { FlagBadge } from "../../../src/ui/ScoreFlags";
+import { ReopenBanner, useReopen } from "../../../src/ui/ReopenBanner";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -91,6 +92,12 @@ export default function ScorecardScreen() {
   const par = holeData?.par || 4;
   const hcp = holeData?.hcp || 0;
   const isCompleted = contest.status === "completed";
+  // A finalized, shared round can be reopened for one hour to fix a score. Fixes go straight
+  // to the server; the local card stays locked and shows what the server holds.
+  const reopen = useReopen(contest.id, isCompleted);
+  const reopened = reopen.state === "reopened";
+  const locked = isCompleted && !reopened;
+  const fixRound = contest.isTournament ? contest.currentRound ?? 1 : 1;
   const compactViewport = isCompactViewport(Dimensions.get("window"));
   const tightSpacing = Dimensions.get("window").height < 950;
   // iPhone SE-class heights (<700) need a few more px reclaimed above and within the
@@ -185,7 +192,7 @@ export default function ScorecardScreen() {
   // ── Score adjustment via +/- buttons ──
   const adjustScore = useCallback(
     (playerId: string, delta: number) => {
-      if (isCompleted) return;
+      if (locked) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       const player = displayPlayers.find((p) => p.id === playerId);
@@ -195,31 +202,34 @@ export default function ScorecardScreen() {
       // If no score entered yet, start from par
       const baseScore = currentScore > 0 ? currentScore : par;
       const newScore = Math.max(1, Math.min(15, baseScore + delta));
+      if (isCompleted) { void reopen.fix(fixRound, playerId, currentHole, newScore); return; }
 
       if(contest.gameConfig?.bisqueHandicap && !auxiliary.bisque?.[currentHole]) {setDeclaration("bisque");return;}
       if(contest.gameConfig?.jokerEnabled && !auxiliary.jokerDeclarations?.[0]) {setDeclaration("jokerDeclarations");return;}
       if(contest.gameConfig?.rulesVersion===1 && contest.games.includes("wolf") && !auxiliary.wolf?.[currentHole]) {setDeclaration("wolf");return;}
       updateScore(contest.id, group.id, playerId, currentHole, newScore);
     },
-    [contest, auxiliary, group, displayPlayers, currentHole, par, updateScore, isCompleted]
+    [contest, auxiliary, group, displayPlayers, currentHole, par, updateScore, isCompleted, locked, reopen, fixRound]
   );
 
   // Set a player to exactly par (tap the score display)
   const setToPar = useCallback(
     (playerId: string) => {
-      if (isCompleted) return;
+      if (locked) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (isCompleted) { void reopen.fix(fixRound, playerId, currentHole, par); return; }
       if(contest.gameConfig?.bisqueHandicap && !auxiliary.bisque?.[currentHole]) {setDeclaration("bisque");return;}
       if(contest.gameConfig?.jokerEnabled && !auxiliary.jokerDeclarations?.[0]) {setDeclaration("jokerDeclarations");return;}
       if(contest.gameConfig?.rulesVersion===1 && contest.games.includes("wolf") && !auxiliary.wolf?.[currentHole]) {setDeclaration("wolf");return;}
       updateScore(contest.id, group.id, playerId, currentHole, par);
     },
-    [contest, auxiliary, group.id, currentHole, par, updateScore, isCompleted]
+    [contest, auxiliary, group.id, currentHole, par, updateScore, isCompleted, locked, reopen, fixRound]
   );
 
   // Clear a player's score (long press the score)
   const clearScore = useCallback(
     (playerId: string) => {
+      // A finalized card has no empty holes: a reopened fix changes a score, it does not clear one.
       if (isCompleted) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       updateScore(contest.id, group.id, playerId, currentHole, 0);
@@ -383,8 +393,10 @@ export default function ScorecardScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <SafeScreen edges={[]} style={{ flex: 1 }}>
+        {/* A shared round: final, reopened for a fix, or locked after the hour. */}
+        <ReopenBanner reopen={reopen} />
         {/* Completed Banner */}
-        {isCompleted && (
+        {isCompleted && !reopen.state && (
           <View
             style={{
               backgroundColor: COLORS.primary + "15",
@@ -617,7 +629,7 @@ export default function ScorecardScreen() {
                   padding: veryCompact ? 2 : compactViewport ? 4 : tightSpacing ? 10 : 14,
                   borderLeftWidth: 3,
                   borderLeftColor: hasScore ? color : COLORS.surfaceHighest,
-                  opacity: isCompleted ? 0.7 : 1,
+                  opacity: locked ? 0.7 : 1,
                 }}
               >
                 {/* Player info row */}
@@ -696,7 +708,7 @@ export default function ScorecardScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Decrease ${player.name} score`}
                     onPress={() => adjustScore(player.id, -1)}
-                    disabled={isCompleted || displayScore <= 1}
+                    disabled={locked || reopen.busy || displayScore <= 1}
                     style={({ pressed }) => ({
                       width: compactViewport ? 44 : SCORE_STEPPER_TARGET,
                       height: compactViewport ? 44 : SCORE_STEPPER_TARGET,
@@ -705,7 +717,7 @@ export default function ScorecardScreen() {
                       alignItems: "center",
                       justifyContent: "center",
                       opacity:
-                        isCompleted || displayScore <= 1 ? 0.3 : pressed ? 0.7 : 1,
+                        locked || displayScore <= 1 ? 0.3 : pressed ? 0.7 : 1,
                       transform: [{ scale: pressed ? 0.92 : 1 }],
                     })}
                   >
@@ -717,12 +729,12 @@ export default function ScorecardScreen() {
                     testID={`score-par-${player.name}`}
                     accessibilityRole="button"
                     accessibilityLabel={`Set ${player.name} score to par`}
-                    accessibilityState={{ disabled: isCompleted }}
+                    accessibilityState={{ disabled: locked }}
                     onPress={() => {
                       if (!hasScore) setToPar(player.id);
                     }}
                     onLongPress={() => clearScore(player.id)}
-                    disabled={isCompleted}
+                    disabled={locked || reopen.busy}
                     style={{
                       alignItems: "center",
                       justifyContent: "center",
@@ -767,7 +779,7 @@ export default function ScorecardScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Increase ${player.name} score`}
                     onPress={() => adjustScore(player.id, 1)}
-                    disabled={isCompleted || displayScore >= 15}
+                    disabled={locked || reopen.busy || displayScore >= 15}
                     style={({ pressed }) => ({
                       width: compactViewport ? 44 : SCORE_STEPPER_TARGET,
                       height: compactViewport ? 44 : SCORE_STEPPER_TARGET,
@@ -776,7 +788,7 @@ export default function ScorecardScreen() {
                       alignItems: "center",
                       justifyContent: "center",
                       opacity:
-                        isCompleted || displayScore >= 15
+                        locked || displayScore >= 15
                           ? 0.3
                           : pressed
                           ? 0.7
