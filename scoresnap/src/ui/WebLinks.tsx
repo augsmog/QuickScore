@@ -2,8 +2,8 @@ import { showAlert } from '@/services/platform-alert';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, Share, Text, View } from 'react-native';
 import { supabase } from '../db/supabase';
-import { client, onlineEnabled } from '../services/cross-device';
-import { flagLabel, linkUrl, memberLabel, playerLinkApi, webOrigin, type LinkMember, type ScoreFlag } from '../services/player-link';
+import { onlineEnabled } from '../services/cross-device';
+import { linkUrl, memberLabel, playerLinkApi, webOrigin, type LinkMember } from '../services/player-link';
 import { useOnlineStore } from '../stores/online-store';
 import type { Contest } from '../stores/contest-store';
 import { COLORS, FONTS } from './theme';
@@ -20,15 +20,13 @@ const made = new Map<string, string>();
 export function WebLinks({ contest }: { contest: Contest }) {
   const event = useOnlineStore(s => s.events[contest.id]);
   const [members, setMembers] = useState<LinkMember[]>([]);
-  // Score changes waiting for a decision. The organizer can settle any of them.
-  const [flags, setFlags] = useState<ScoreFlag[]>([]);
   const [moving, setMoving] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const host = onlineEnabled && event?.membership.role === 'host' && event.snapshot.protocol === 1;
 
   async function refresh() {
-    try { setMembers(await api.members(contest.id)); setFlags(await api.flags(contest.id)); } catch (e) { setMessage((e as Error).message); }
+    try { setMembers(await api.members(contest.id)); } catch (e) { setMessage((e as Error).message); }
   }
   useEffect(() => { if (host) void refresh(); }, [host, contest.id, event?.snapshot.revision]);
   if (!host) return null;
@@ -73,15 +71,6 @@ export function WebLinks({ contest }: { contest: Contest }) {
     {button('Share player link', () => void share('player'), 'web-share-player')}
     {button('Share spectator link', () => void share('spectator'), 'web-share-spectator')}
     {!!message && <Text accessibilityLiveRegion="polite" style={{ fontFamily: FONTS.regular, color: COLORS.textDim }}>{message}</Text>}
-    {flags.length > 0 && <Text accessibilityRole="header" style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text, marginTop: 8 }}>Score changes to settle</Text>}
-    {flags.map(flag => <View key={flag.id} testID={`web-flag-${flag.player_name}-${flag.hole}`} style={{ paddingVertical: 4 }}>
-      <Text style={{ fontFamily: FONTS.regular, fontSize: 15, color: COLORS.text }}>{flagLabel(flag)}</Text>
-      <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textDim }}>The first score counts until this is settled.</Text>
-      <View style={{ flexDirection: 'row', gap: 24 }}>
-        {button(`Use ${flag.proposed_strokes ?? 'no score'}`, () => void run(async () => { await api.resolveFlag(flag.id, true); await client.discover(); await refresh(); return 'Score changed.'; }), `web-flag-accept-${flag.player_name}-${flag.hole}`)}
-        {button(`Keep ${flag.current_strokes ?? 'it empty'}`, () => void run(async () => { await api.resolveFlag(flag.id, false); await refresh(); return 'Score kept.'; }), `web-flag-deny-${flag.player_name}-${flag.hole}`)}
-      </View>
-    </View>)}
     {members.length > 0 && <Text accessibilityRole="header" style={{ fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.text, marginTop: 8 }}>Scoring on the web</Text>}
     {members.map(member => <View key={member.member_id} testID={`web-member-${member.player_name}`} style={{ paddingVertical: 4 }}>
       <Text style={{ fontFamily: FONTS.regular, fontSize: 15, color: COLORS.text }}>{memberLabel(member)}</Text>

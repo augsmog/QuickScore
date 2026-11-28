@@ -48,6 +48,9 @@ import { calcNassauPress } from "../../../src/engine/calculators/nassau-press";
 import { calcStrokePlay } from "../../../src/engine/calculators/stroke-play";
 import { HOLE_NAV_TARGET, SCORE_STEPPER_TARGET } from "../../../src/ui/score-entry-metrics";
 import { posthog } from "../../../src/config/posthog";
+import { useFlagStore } from "../../../src/stores/flag-store";
+import { flaggedOnHole } from "../../../src/services/score-flags";
+import { FlagBadge } from "../../../src/ui/ScoreFlags";
 
 export default function ScorecardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -64,6 +67,8 @@ export default function ScorecardScreen() {
   const updateAuxiliaryData = useContestStore((s) => s.updateAuxiliaryData);
 
   const [currentHole, setCurrentHole] = useState(1);
+  const flags = useFlagStore(s => s.flags[id]);
+  const flagged = useMemo(() => flaggedOnHole(flags ?? [], currentHole), [flags, currentHole]);
   const [selectedGroup, setSelectedGroup] = useState(0);
   const [showAuxPrompt, setShowAuxPrompt] = useState(false);
   const [declaration,setDeclaration]=useState<"wolf"|"bisque"|"jokerDeclarations"|null>(null);
@@ -648,6 +653,7 @@ export default function ScorecardScreen() {
                       >
                         {player.name}
                       </Text>
+                      {flagged.has(player.id) && <FlagBadge />}
                       {holesPlayed > 0 && (
                         <Text
                           style={{

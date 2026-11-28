@@ -14,6 +14,7 @@ function render(pathname, router={back:jest.fn(),replace:jest.fn(),push:jest.fn(
   './index':{default:'leaderboard'},'./scorecard':{default:'scorecard'},'./games':{default:'games'},'./settlement':{default:'settlement'},
   '../../../src/ui/OnlineSyncPanel':{OnlineSyncPanel:'OnlineSyncPanel'},
   '../../../src/ui/ContestJoinCode':{ContestJoinCode:'ContestJoinCode'},
+  '../../../src/ui/ScoreFlags':{ScoreFlags:'ScoreFlags'},
   '../../../src/ui/RoundStatusSheet':{RoundStatusSheet:'RoundStatusSheet'},
   '../../../src/ui/compact-viewport':{isCompactViewport:()=>true},
   '../../../src/ui/LiveShare':{LiveShare:'LiveShare',useLiveSharePublisher:()=>{}},

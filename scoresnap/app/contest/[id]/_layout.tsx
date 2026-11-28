@@ -1,6 +1,7 @@
 import { SafeScreen } from "../../../src/ui/SafeScreen";
 import { RoundStatusSheet } from "../../../src/ui/RoundStatusSheet";
 import { ContestJoinCode } from "../../../src/ui/ContestJoinCode";
+import { ScoreFlags } from "../../../src/ui/ScoreFlags";
 import { isCompactViewport } from "../../../src/ui/compact-viewport";
 import { useState, useCallback } from "react";
 import { Dimensions, View, Text, Pressable } from "react-native";
@@ -284,6 +285,8 @@ export default function ContestLayout() {
 
       {/* Keep the organizer invite visible on the round; sync controls stay in the sheet. */}
       {isTabRoute ? <ContestJoinCode contest={contest} /> : null}
+      {/* Score changes waiting for a decision show on every round tab until settled. */}
+      {isTabRoute ? <ScoreFlags contest={contest} /> : null}
 
       <Slot />
       {isTabRoute ? <RoundStatusSheet contest={contest} visible={statusOpen} onClose={closeStatus} /> : null}
