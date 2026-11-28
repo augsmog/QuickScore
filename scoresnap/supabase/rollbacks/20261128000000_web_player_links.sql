@@ -48,5 +48,33 @@ DROP TABLE public.score_flags;
 DROP TABLE public.group_card_hosts;
 DROP TABLE public.player_link_members;
 DROP TABLE public.player_links;
+-- Put public.purge_account's successor rule back exactly as it was.
+DO $purge$
+DECLARE def text; body text; o oid := 'public.purge_account(uuid)'::regprocedure;
+BEGIN
+ SELECT p.prosrc, pg_get_functiondef(p.oid) INTO body, def FROM pg_proc p WHERE p.oid=o;
+ IF md5(body) IS DISTINCT FROM '81bc3452d2897823c4c87b14f7f69474' THEN RAISE EXCEPTION 'purge_account is not the expected version (rollback)'; END IF;
+ IF (length(def)-length(replace(def,$a$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
+        AND m.status = 'approved' AND m.role IN ('host', 'player')
+        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = m.user_id AND u.is_anonymous)
+$a$,'')))<>length($a$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
+        AND m.status = 'approved' AND m.role IN ('host', 'player')
+        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = m.user_id AND u.is_anonymous)
+$a$) OR (length(def)-length(replace(def,$b$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
+        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.user_id AND u.is_anonymous)
+$b$,'')))<>length($b$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
+        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.user_id AND u.is_anonymous)
+$b$) THEN
+  RAISE EXCEPTION 'purge_account: the successor rule was not found exactly once'; END IF;
+ EXECUTE replace(replace(def,$a$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
+        AND m.status = 'approved' AND m.role IN ('host', 'player')
+        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = m.user_id AND u.is_anonymous)
+$a$,$c$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
+$c$),$b$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
+        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.user_id AND u.is_anonymous)
+$b$,$d$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
+$d$);
+ IF (SELECT md5(p.prosrc) FROM pg_proc p WHERE p.oid=o) IS DISTINCT FROM '16712b9d8713a846eb83585b4e6ad714' THEN RAISE EXCEPTION 'purge_account did not end as the reviewed body'; END IF;
+END $purge$;
 NOTIFY pgrst, 'reload schema';
 COMMIT;

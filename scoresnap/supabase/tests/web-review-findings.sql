@@ -127,5 +127,21 @@ SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000007","is_anonymous":true,"role":"authenticated"}';
 SELECT pg_temp.assert(public.watch_code('RULES1')->>'status'='unknown','over the per-round limit: same answer as a wrong code');
 RESET ROLE;
+
+-- Package review, B (ownership). When the organizer deletes their account, the round must not
+-- pass to a watcher, a web guest, a removed member or someone whose request is still waiting.
+-- Here: users 2 and 3 are web guests (3 was removed), 5 is a watcher, 6 has a request waiting;
+-- user 4 (Dave) is the one approved player with the app.
+SELECT public.purge_account('81000000-0000-0000-0000-000000000001');
+SELECT pg_temp.assert((SELECT owner_id FROM public.contests WHERE id='82000000-0000-0000-0000-000000000001')='81000000-0000-0000-0000-000000000004','the round passes to the approved player, not to a watcher or web guest');
+-- With nobody eligible left, the round is removed with its organizer, as it already is today when nobody else is in it.
+INSERT INTO public.contests(id,owner_id,name,course,protocol,sync_enabled,invite_code,bet_unit)
+VALUES('82000000-0000-0000-0000-000000000002','81000000-0000-0000-0000-000000000004','Watchers only','{"name":"Course","holes":[{"num":1,"par":4,"hcp":1,"yards":400}]}',1,true,'RULES2',5);
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000005","is_anonymous":true,"role":"authenticated"}';
+SELECT pg_temp.assert(public.watch_code('RULES2')->>'status'='watching','a watcher joins the second round');
+RESET ROLE;
+SELECT public.purge_account('81000000-0000-0000-0000-000000000004');
+SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM public.contests WHERE id='82000000-0000-0000-0000-000000000002'),'a round with only a watcher left does not pass to the watcher');
 SELECT 'PASS: web review findings' AS result;
 ROLLBACK;

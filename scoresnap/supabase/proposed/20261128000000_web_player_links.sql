@@ -474,5 +474,37 @@ GRANT EXECUTE ON FUNCTION public.create_player_link(uuid),public.create_spectato
 -- The spectator board is the one function a visitor with no session may call.
 GRANT EXECUTE ON FUNCTION public.spectator_board(text) TO anon,authenticated,service_role;
 
+-- THE ONE CHANGE TO AN EXISTING FUNCTION IN THIS FILE. (Package review, B.)
+-- When an organizer deletes their account, public.purge_account hands their rounds to
+-- "any membership", whatever its role or status. This file adds two new kinds of membership
+-- that anyone with a code or link can get (watchers, web guests), so that rule would let a
+-- stranger inherit a round. The successor must now be an approved host or player, or a
+-- bound player, with a real (not guest) account. With nobody eligible the round is removed
+-- with its organizer, exactly as it already is when nobody else is in it.
+-- This also stops what could already happen before this file: a round passing to someone
+-- whose join request was still waiting, who had been removed, or who is a guest account.
+-- Only those two WHERE clauses change; owner, grants and settings are kept. It refuses to
+-- run unless the function is exactly production's, and checks the result.
+DO $purge$
+DECLARE def text; body text; o oid := 'public.purge_account(uuid)'::regprocedure;
+BEGIN
+ SELECT p.prosrc, pg_get_functiondef(p.oid) INTO body, def FROM pg_proc p WHERE p.oid=o;
+ IF md5(body) IS DISTINCT FROM '16712b9d8713a846eb83585b4e6ad714' THEN RAISE EXCEPTION 'purge_account is not the expected version (before)'; END IF;
+ IF (length(def)-length(replace(def,$a$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
+$a$,'')))<>length($a$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
+$a$) OR (length(def)-length(replace(def,$b$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
+$b$,'')))<>length($b$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
+$b$) THEN
+  RAISE EXCEPTION 'purge_account: the successor rule was not found exactly once'; END IF;
+ EXECUTE replace(replace(def,$a$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
+$a$,$c$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
+        AND m.status = 'approved' AND m.role IN ('host', 'player')
+        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = m.user_id AND u.is_anonymous)
+$c$),$b$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
+$b$,$d$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
+        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.user_id AND u.is_anonymous)
+$d$);
+ IF (SELECT md5(p.prosrc) FROM pg_proc p WHERE p.oid=o) IS DISTINCT FROM '81bc3452d2897823c4c87b14f7f69474' THEN RAISE EXCEPTION 'purge_account did not end as the reviewed body'; END IF;
+END $purge$;
 NOTIFY pgrst, 'reload schema';
 COMMIT;
