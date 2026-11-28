@@ -53,33 +53,20 @@ DO $purge$
 DECLARE def text; body text; o oid := 'public.purge_account(uuid)'::regprocedure;
 BEGIN
  SELECT p.prosrc, pg_get_functiondef(p.oid) INTO body, def FROM pg_proc p WHERE p.oid=o;
- IF md5(body) IS DISTINCT FROM '18eef4c9c7711e683ea8783e74dac3fc' THEN RAISE EXCEPTION 'purge_account is not the expected version (rollback)'; END IF;
+ IF md5(body) IS DISTINCT FROM '4aaec7c8c23f967e07efad265980665f' THEN RAISE EXCEPTION 'purge_account is not the expected version (rollback)'; END IF;
  IF (length(def)-length(replace(def,$a$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
-        AND m.status = 'approved'
-        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = m.user_id AND u.is_anonymous)
         AND NOT EXISTS (SELECT 1 FROM public.player_link_members j WHERE j.contest_id = cid AND j.user_id = m.user_id)
         AND NOT EXISTS (SELECT 1 FROM public.watch_code_members w WHERE w.contest_id = cid AND w.user_id = m.user_id)
 $a$,'')))<>length($a$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
-        AND m.status = 'approved'
-        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = m.user_id AND u.is_anonymous)
         AND NOT EXISTS (SELECT 1 FROM public.player_link_members j WHERE j.contest_id = cid AND j.user_id = m.user_id)
         AND NOT EXISTS (SELECT 1 FROM public.watch_code_members w WHERE w.contest_id = cid AND w.user_id = m.user_id)
-$a$) OR (length(def)-length(replace(def,$b$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
-        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.user_id AND u.is_anonymous)
-$b$,'')))<>length($b$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
-        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.user_id AND u.is_anonymous)
-$b$) THEN
+$a$) THEN
   RAISE EXCEPTION 'purge_account: the successor rule was not found exactly once'; END IF;
- EXECUTE replace(replace(def,$a$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
-        AND m.status = 'approved'
-        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = m.user_id AND u.is_anonymous)
+ EXECUTE replace(def,$a$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
         AND NOT EXISTS (SELECT 1 FROM public.player_link_members j WHERE j.contest_id = cid AND j.user_id = m.user_id)
         AND NOT EXISTS (SELECT 1 FROM public.watch_code_members w WHERE w.contest_id = cid AND w.user_id = m.user_id)
 $a$,$c$      WHERE m.contest_id = cid AND m.user_id <> p_user_id
-$c$),$b$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
-        AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.user_id AND u.is_anonymous)
-$b$,$d$      WHERE p.contest_id = cid AND p.user_id IS NOT NULL AND p.user_id <> p_user_id
-$d$);
+$c$);
  IF (SELECT md5(p.prosrc) FROM pg_proc p WHERE p.oid=o) IS DISTINCT FROM '16712b9d8713a846eb83585b4e6ad714' THEN RAISE EXCEPTION 'purge_account did not end as the reviewed body'; END IF;
 END $purge$;
 NOTIFY pgrst, 'reload schema';

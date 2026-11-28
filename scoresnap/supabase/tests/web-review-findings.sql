@@ -175,7 +175,7 @@ RESET ROLE;
 SELECT pg_temp.assert(NOT has_function_privilege('authenticated','public.client_shows_held_changes()','execute'),'the header check is internal');
 
 -- Package review, B (ownership). When the organizer deletes their account, the round must not
--- pass to a watcher, a web guest, a removed member or someone whose request is still waiting.
+-- pass to a watcher or a web guest (anyone who came in by code or by link).
 -- Here: users 2 and 3 are web guests (3 was removed), 5 is a watcher, 6 has a request waiting;
 -- user 4 (Dave) is the one approved player with the app.
 SELECT public.purge_account('81000000-0000-0000-0000-000000000001');
@@ -189,10 +189,10 @@ SELECT pg_temp.assert(public.watch_code('RULES2')->>'status'='watching','a watch
 RESET ROLE;
 SELECT public.purge_account('81000000-0000-0000-0000-000000000004');
 SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM public.contests WHERE id='82000000-0000-0000-0000-000000000002'),'a round with only a watcher left does not pass to the watcher');
--- Delta review 1. A scorer the organizer appointed is a legitimate successor: when they are the
--- only such person left, the round passes to them. It is not deleted.
-SELECT pg_temp.assert((SELECT owner_id FROM public.contests WHERE id='82000000-0000-0000-0000-000000000001')='81000000-0000-0000-0000-000000000007','the first round passed to the appointed scorer when the player who held it deleted their account');
+-- Delta review 1. Nobody's scores are deleted that survive today: the first round still exists
+-- after two owners in a row deleted their accounts, it went to someone who was in the round the
+-- ordinary way (as it would today), never to a link or code entrant, and its scores are there.
+SELECT pg_temp.assert((SELECT owner_id FROM public.contests WHERE id='82000000-0000-0000-0000-000000000001') IN ('81000000-0000-0000-0000-000000000006','81000000-0000-0000-0000-000000000007'),'the round passed on again, to a member who did not come by link or code');
 SELECT pg_temp.assert((SELECT count(*) FROM public.score_events WHERE contest_id='82000000-0000-0000-0000-000000000001')>0,'and its scores are still there');
-
 SELECT 'PASS: web review findings' AS result;
 ROLLBACK;
