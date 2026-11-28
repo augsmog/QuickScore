@@ -199,7 +199,7 @@ export function GuestGroupCard({ contestId, playerId, onGone }: { contestId: str
 const styles = StyleSheet.create({
   final: { backgroundColor: COLORS.surfaceHighest, borderRadius: 16, padding: 14, gap: 4 },
   flag: { backgroundColor: COLORS.warnContainer, borderRadius: 16, padding: 14, gap: 4 },
-  textButton: { minHeight: 44, justifyContent: 'center' },
+  textButton: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
   link: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.primary },
   tabs: { flexDirection: 'row', backgroundColor: COLORS.surfaceHigh, borderRadius: RADII.xl, padding: 4 },
   tab: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: RADII.xl },

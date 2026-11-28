@@ -21,6 +21,11 @@ uses it and starts nothing. If this machine has no `psql`, also give
 `PSQL="docker exec -i <container> psql -U postgres"`. The script refuses a database that already
 has SnapScore tables. **The `PSQL=` form has not been run here either.**
 
+Screen sizes and browsers: `WIDTH=320 HEIGHT=568` (or any size) sets the screen; `BROWSER=webkit`
+or `BROWSER=firefox` uses that Playwright browser when it is installed (Safari's engine is
+`webkit`). Every run fails if a guest page is wider than the screen or has a button under 44
+across. Run here at 320x568, 360x800 and 390x844 in Chromium only.
+
 What it does:
 
 1. Starts a throwaway PostgreSQL with this checkout's schema and the two **proposed** files

@@ -3,7 +3,18 @@
 // files are served file-first, then by the site's _redirects rules, with no catch-all.
 const http = require('http'), fs = require('fs'), path = require('path');
 const { execFileSync } = require('child_process');
-const { chromium } = require('playwright');
+const playwright = require('playwright');
+// Browser matrix (AUG-1720 W13): WIDTH and HEIGHT set the screen; BROWSER picks chromium (default), webkit or firefox.
+const WIDTH = Number(process.env.WIDTH || 390), HEIGHT = Number(process.env.HEIGHT || 844);
+const VIEW = { viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 2 };
+const engine = playwright[process.env.BROWSER || 'chromium'];
+if (!engine) { console.error('BROWSER must be chromium, webkit or firefox'); process.exit(2); }
+// Sideways overflow: the page is wider than the screen, so something is cut off or needs a sideways scroll.
+const overflow = page => page.evaluate(() => { const e = document.scrollingElement; return Math.max(0, e.scrollWidth - window.innerWidth); });
+// The smallest tappable control on the page, in CSS pixels (buttons and links a finger must hit).
+const smallestTarget = page => page.evaluate(() => { let min = null; for (const el of document.querySelectorAll('[role="button"],button,a[href],input')) { const r = el.getBoundingClientRect(); if (r.width < 1 || r.height < 1) continue; const d = Math.min(r.width, r.height); if (min === null || d < min.size) min = { size: Math.round(d * 10) / 10, what: (el.getAttribute('aria-label') || el.textContent || el.tagName).trim().slice(0, 30) }; } return min; });
+const fits = [];
+async function checkFit(page, name) { const over = await overflow(page), small = await smallestTarget(page); fits.push({ name, over, small }); }
 const DIST = process.argv[2], TOKEN = (process.env.PLAYER_TOKEN || '').trim();
 const OUT = process.env.OUT_DIR || require('os').tmpdir();
 if (!DIST || !/^[a-f0-9]{64}$/.test(TOKEN)) { console.error('usage: PLAYER_TOKEN=<64 hex> node journey.cjs <dist-site folder>'); process.exit(2); }
@@ -39,12 +50,12 @@ async function onHole(page, n) {
 const text = async (page, id) => (await page.getByTestId(id).first().innerText()).replace(/\s+/g, ' ').trim();
 (async () => {
   // PW_CHROMIUM: path to a Chromium binary, for machines where the project's Playwright has no browser downloaded.
-  const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
+  const browser = await engine.launch(process.env.PW_CHROMIUM && !process.env.BROWSER ? { executablePath: process.env.PW_CHROMIUM } : {});
   // Every request any guest page makes, to anywhere but this site and its backend (AUG-1777).
   const outside = new Set(); const newContext = browser.newContext.bind(browser);
   browser.newContext = async options => { const context = await newContext(options); context.on('request', r => { const u = new URL(r.url()); if (/^https?:$/.test(u.protocol) && u.hostname !== '127.0.0.1') outside.add(u.host + u.pathname.slice(0, 40)); }); return context; };
   const open = async label => {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+    const context = await browser.newContext(VIEW);
     const page = await context.newPage(); const errors = [];
     page.on('pageerror', e => errors.push(String(e).slice(0, 160)));
     await page.goto(`http://127.0.0.1:54400/p/${TOKEN}`);
@@ -55,10 +66,12 @@ const text = async (page, id) => (await page.getByTestId(id).first().innerText()
     await A.page.getByText('Who are you?').waitFor({ timeout: 20000 });
     step('browser A, no account: link opens the roster', true, (await A.page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 110));
     await A.page.screenshot({ path: path.join(OUT, 'web-links-1-pick.png') });
+    await checkFit(A.page, 'who are you');
     await A.page.getByTestId('guest-pick-Matt').click();
     await A.page.getByTestId('guest-hole').waitFor({ timeout: 20000 });
     step('A picks Matt and is in with no approval', (await text(A.page, 'guest-identity')) === 'Scoring as Matt', await text(A.page, 'guest-hole'));
     step('A sees the whole of Group A and nobody from Group B', await A.page.getByTestId('guest-plus-Augie').count() === 1 && await A.page.getByTestId('guest-plus-Chris').count() === 0);
+    await checkFit(A.page, 'scorecard');
     await A.page.getByTestId('guest-plus-Matt').click();
     await A.page.waitForFunction(() => document.querySelector('[data-testid="guest-score-Matt"]')?.textContent === '4');
     await A.page.getByTestId('guest-minus-Matt').click();
@@ -86,11 +99,12 @@ const text = async (page, id) => (await page.getByTestId(id).first().innerText()
     const net = await text(B.page, 'guest-net-Matt');
     step('B sees the money: Matt is up, Dave is down (amounts come from the app\'s own settlement engine)', /\+\$\d/.test(net) && (await text(B.page, 'guest-net-Dave')).includes('−$'), `${net} | ${await text(B.page, 'guest-net-Dave')}`);
     await B.page.screenshot({ path: path.join(OUT, 'web-links-3-board.png'), fullPage: true });
+    await checkFit(B.page, 'leaderboard and money');
 
     // A spectator: a third browser with the spectator link. No sign-in, no way to score.
     const before = (await (await fetch('http://127.0.0.1:54399/__calls')).json()).filter(c => c === 'guest sign-in').length;
     const watch = asHost(`select public.create_spectator_link('72000000-0000-4000-8000-000000000001')`);
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+    const context = await browser.newContext(VIEW);
     const C = await context.newPage(); const cErrors = []; C.on('pageerror', e => cErrors.push(String(e).slice(0, 160)));
     await C.goto(`http://127.0.0.1:54400/r/${watch}`);
     await C.getByTestId('spectator-title').waitFor({ timeout: 20000 });
@@ -114,6 +128,7 @@ const text = async (page, id) => (await page.getByTestId(id).first().innerText()
     await D.page.screenshot({ path: path.join(OUT, 'web-links-6-flag-waiting.png') });
     await onHole(A.page, 1);
     await A.page.getByTestId('guest-flag-Matt-1').waitFor({ timeout: 20000 });
+    await checkFit(A.page, 'scorecard with a change to decide');
     step('A, the group scorekeeper, sees the flag', true, await text(A.page, 'guest-flag-Matt-1'));
     await A.page.screenshot({ path: path.join(OUT, 'web-links-7-flag-decide.png') });
     await A.page.getByTestId('guest-flag-deny-Matt-1').click();
@@ -145,7 +160,7 @@ const text = async (page, id) => (await page.getByTestId(id).first().innerText()
       `pending flags ${pendingBefore} -> ${asAdmin(`select count(*) from public.score_flags where status='pending'`)}; statuses: ${asAdmin(`select string_agg(status, ',' order by created_at) from public.score_flags`)}`);
 
     // The 6-letter code on the website: watch only. First through the home page's box.
-    const eContext = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+    const eContext = await browser.newContext(VIEW);
     const E = await eContext.newPage(); const eErrors = []; E.on('pageerror', e => eErrors.push(String(e).slice(0, 160)));
     await E.goto('http://127.0.0.1:54400/');
     await E.screenshot({ path: path.join(OUT, 'web-links-8-home-join-box.png') });
@@ -206,6 +221,8 @@ const text = async (page, id) => (await page.getByTestId(id).first().innerText()
     step('after the organizer ends the links, B is told so', true, await text(B.page, 'guest-error'));
     await B.page.screenshot({ path: path.join(OUT, 'web-links-4-ended.png') });
     step('scores entered on the web stay after access ends', cells().includes('Chris:4 Dave:5'), cells());
+    step(`at ${WIDTH}x${HEIGHT} nothing is cut off sideways on any guest page`, fits.every(f => f.over === 0), fits.map(f => `${f.name}: ${f.over}px over`).join(' | '));
+    step(`at ${WIDTH}x${HEIGHT} every button is at least 44 across`, fits.every(f => !f.small || f.small.size >= 44), fits.map(f => `${f.name}: smallest ${f.small ? f.small.size + ' ("' + f.small.what + '")' : 'none'}`).join(' | '));
     step('guest pages load nothing from outside: no payment scripts, no analytics', outside.size === 0, [...outside].join(' | '));
     step('no page errors in the player browsers', A.errors.length + B.errors.length + D.errors.length === 0, [...A.errors, ...B.errors, ...D.errors].join(' | '));
   } catch (e) { steps.push('STOPPED: ' + String(e.message).slice(0, 300)); process.exitCode = 1; }
