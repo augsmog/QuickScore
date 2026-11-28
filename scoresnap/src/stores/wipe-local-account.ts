@@ -6,6 +6,7 @@ import { resetTournamentOutbox } from "../services/tournament-sync";
 import { resetChatSessionCache } from "../services/live-chat";
 import { useAuthStore } from "./auth-store";
 import { useContestStore } from "./contest-store";
+import { clearContestDraft } from "./contest-draft";
 import { useGuestStore } from "./guest-store";
 import { useOnboardingStore } from "./onboarding-store";
 import { PERSISTED_ACCOUNT_KEYS, persistGate, runSuppressed } from "./persisted-keys";
@@ -21,6 +22,7 @@ import { useSettingsStore } from "./settings-store";
 export async function wipeLocalAccount(): Promise<void> {
   persistGate.suppressSignedOutPersist = true;
   resetChatSessionCache();
+  clearContestDraft();
   await require("../services/purchases").logOutPurchases();
   await runSuppressed(async () => {
     settlementMarks.getState().reset();

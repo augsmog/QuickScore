@@ -4,6 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { COURSE_SEARCH_ENABLED } from "../../src/config/features";
 import { REAL_AUTH_CONFIGURED } from "../../src/config/auth";
 import { useState, useMemo } from "react";
+import { clearContestDraft, useDraftField } from "../../src/stores/contest-draft";
 import {
   View,
   Text,
@@ -108,19 +109,19 @@ export default function NewContestScreen() {
   const userFirstName = user?.firstName || user?.name?.split(" ")[0] || "";
 
   // Players & Course precedes the two setup steps.
-  const [contestName, setContestName] = useState("");
-  const [courseName, setCourseName] = useState("");
-  const [isTournament, setIsTournament] = useState(false);
-  const [numRounds, setNumRounds] = useState(2);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [selectedTeeBox, setSelectedTeeBox] = useState<TeeBox | null>(null);
-  const [numGroups, setNumGroups] = useState(1);
-  const [players, setPlayers] = useState<PlayerInput[]>([
+  const [contestName, setContestName] = useDraftField("contestName", "");
+  const [courseName, setCourseName] = useDraftField("courseName", "");
+  const [isTournament, setIsTournament] = useDraftField("isTournament", false);
+  const [numRounds, setNumRounds] = useDraftField("numRounds", 2);
+  const [selectedCourse, setSelectedCourse] = useDraftField<Course | null>("selectedCourse", null);
+  const [selectedTeeBox, setSelectedTeeBox] = useDraftField<TeeBox | null>("selectedTeeBox", null);
+  const [numGroups, setNumGroups] = useDraftField("numGroups", 1);
+  const [players, setPlayers] = useDraftField<PlayerInput[]>("players", [
     { id: generateId(), name: userFirstName, handicap: "0", team: null, groupIndex: 0, host: true },
     { id: generateId(), name: "", handicap: "0", team: null, groupIndex: 0 },
   ]);
-  const [hasTeams, setHasTeams] = useState(false);
-  const [teams, setTeams] = useState<TeamInput[]>([
+  const [hasTeams, setHasTeams] = useDraftField("hasTeams", false);
+  const [teams, setTeams] = useDraftField<TeamInput[]>("teams", [
     { id: "A", name: "Eagles" },
     { id: "B", name: "Birdies" },
   ]);
@@ -147,11 +148,11 @@ export default function NewContestScreen() {
   const teamBName = teams[1]?.name || "Birdies";
 
   // Step 1: Games
-  const [selectedGames, setSelectedGames] = useState<GameType[]>(["stroke_play"]);
-  const [betUnit, setBetUnit] = useState("5");
+  const [selectedGames, setSelectedGames] = useDraftField<GameType[]>("selectedGames", ["stroke_play"]);
+  const [betUnit, setBetUnit] = useDraftField("betUnit", "5");
 
   // Shared round settings and inline game variations
-  const [gameConfig, setGameConfig] = useState<GameConfig>({ rulesVersion: 1, inputRulesVersion: 1, bbbAmountPerOpponent: true, rabbitHolderPays: true, skinsMode: "net", skinsScope: "field" });
+  const [gameConfig, setGameConfig] = useDraftField<GameConfig>("gameConfig", { rulesVersion: 1, inputRulesVersion: 1, bbbAmountPerOpponent: true, rabbitHolderPays: true, skinsMode: "net", skinsScope: "field" });
   const [expandedTooltip, setExpandedTooltip] = useState<string | null>(null);
 
   // Filter variations to only show ones relevant to selected games
@@ -364,6 +365,8 @@ export default function NewContestScreen() {
     // actually persists.
     try {
       addContest(contest);
+      // Created: the next New Contest starts empty.
+      clearContestDraft();
     } catch (error) {
       showAlert("Review contest setup", String(error));
       return;

@@ -39,7 +39,7 @@ test.each(['loaded', 'read', 'write', 'rpc'])('wipe clears tournament disk/memor
     '@react-native-async-storage/async-storage': { getAllKeys: async () => [...disk.keys()], multiRemove: async list => list.forEach(k => disk.delete(k)) },
     '../config/auth': { REAL_AUTH_CONFIGURED: false }, '../db/supabase': {},
     '../services/live-chat': { resetChatSessionCache() {} }, '../services/tournament-sync': sync,
-    './persisted-keys': keys,
+    './persisted-keys': keys, './contest-draft': { clearContestDraft() {} },
     ...Object.fromEntries(['auth', 'contest', 'guest', 'onboarding', 'scan', 'settings'].map(name => [`./${name}-store`, { [`use${name[0].toUpperCase() + name.slice(1)}Store`]: { setState() {}, getState: () => ({ resetAll() {}, resetToDefaults() {} }) } }])),
   }).wipeLocalAccount;
   const tick = () => new Promise(resolve => setImmediate(resolve));
