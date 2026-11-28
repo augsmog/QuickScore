@@ -23,15 +23,26 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
+import { GOOGLE_DISCOVERY, GoogleSignInError, signInWithGoogleFlow, type GoogleDeps } from "../../src/services/google-sign-in";
+
+// The return address Google sends the user back to uses the app's bundle id (app.json).
+const GOOGLE_BUNDLE_ID = "com.scoresnap.app";
 import { COLORS, FONTS, RADII } from "../../src/ui/theme";
 import { useAuthStore } from "../../src/stores/auth-store";
 import { AnimatedPressable } from "../../src/ui/AnimatedPressable";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const googleDiscovery = {
-  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-  tokenEndpoint: "https://oauth2.googleapis.com/token",
+// What the Google flow needs from the device. The flow itself is src/services/google-sign-in.ts.
+const googleDeps: GoogleDeps = {
+  randomNonce: () => Crypto.randomUUID(),
+  sha256: (text) => Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, text),
+  request: ({ clientId, scopes, redirectUri, nonce }) => {
+    const request = new AuthSession.AuthRequest({ clientId, scopes, redirectUri, usePKCE: true, responseType: AuthSession.ResponseType.Code, extraParams: { nonce } });
+    return { prompt: () => request.promptAsync(GOOGLE_DISCOVERY), codeVerifier: () => request.codeVerifier };
+  },
+  exchange: ({ clientId, code, redirectUri, codeVerifier }) =>
+    AuthSession.exchangeCodeAsync({ clientId, code, redirectUri, extraParams: { code_verifier: codeVerifier } }, GOOGLE_DISCOVERY),
 };
 
 type AuthMode = "options" | "signup" | "signin";
@@ -111,28 +122,14 @@ export default function SignInScreen() {
         return;
       }
 
-      const redirectUri = AuthSession.makeRedirectUri({ scheme: "com.scoresnap.app" });
-
-      const authRequest = new AuthSession.AuthRequest({
-        clientId: GOOGLE_CLIENT_ID,
-        scopes: ["openid", "profile", "email"],
-        redirectUri,
-      });
-
-      const result = await authRequest.promptAsync(googleDiscovery);
-
-      if (result.type === "success" && result.authentication?.accessToken) {
-        await signInWithGoogle(
-          result.authentication.idToken || "",
-          result.authentication.accessToken
-        );
-        router.replace("/(tabs)");
-      } else if (result.type !== "dismiss") {
-        setError("Google Sign-In was cancelled.");
-      }
+      const result = await signInWithGoogleFlow(GOOGLE_CLIENT_ID, GOOGLE_BUNDLE_ID, googleDeps);
+      // Closing Google's sheet is a choice: stay on this screen and say nothing.
+      if (result.status === "cancelled") return;
+      await signInWithGoogle(result.idToken, result.accessToken, result.nonce);
+      router.replace("/(tabs)");
     } catch (e: any) {
-      setError("Google Sign-In failed. Please try again.");
-      console.error("Google sign-in error:", e);
+      setError(e instanceof GoogleSignInError ? e.message : "Google could not sign you in. Try again, or use Apple or email.");
+      console.warn("Google sign-in error:", e instanceof GoogleSignInError ? e.reason : e);
     }
   };
 

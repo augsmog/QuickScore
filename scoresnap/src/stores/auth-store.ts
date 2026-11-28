@@ -34,7 +34,7 @@ interface AuthState {
 
   initialize: () => Promise<void>;
   signInWithApple: (idToken: string, nonce: string) => Promise<void>;
-  signInWithGoogle: (idToken: string, accessToken?: string) => Promise<void>;
+  signInWithGoogle: (idToken: string, accessToken?: string, nonce?: string) => Promise<void>;
   signUpWithEmail: (
     email: string,
     password: string,
@@ -140,13 +140,13 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signInWithGoogle: async (idToken: string, accessToken?: string) => {
+      signInWithGoogle: async (idToken: string, accessToken?: string, nonce?: string) => {
         persistGate.suppressSignedOutPersist = false;
         set({ isLoading: true });
         try {
           if (REAL_AUTH_CONFIGURED) {
             if (ACCOUNT_HANDOFF_ENABLED) await require('../services/account-handoff').prepareAccountHandoff();
-            const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, access_token: accessToken });
+            const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, access_token: accessToken, ...(nonce ? { nonce } : {}) });
             if (error) throw error;
             if (!data.session) throw new Error("Check your email to confirm your account, then sign in.");
             const user: UserProfile = CROSS_DEVICE_SHARING_ENABLED ? deriveSession(data.session).user! : { id: data.session.user.id, email: data.session.user.email, provider: "email" };
