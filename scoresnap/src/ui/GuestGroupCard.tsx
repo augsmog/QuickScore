@@ -41,7 +41,7 @@ export function GuestGroupCard({ contestId, playerId, onGone }: { contestId: str
     const refresh = async () => { await refreshOnline(); return useOnlineStore.getState().events[contestId]?.snapshot ?? null; };
     const change = (state: string) => {
       stop?.(); stop = undefined;
-      if (state === 'active') stop = watchOnline(contestId, refresh, () => { if (!useOnlineStore.getState().events[contestId]?.snapshot.completed) setStatus('Reconnecting. Your scores are kept on this device.'); });
+      if (state === 'active') stop = watchOnline(contestId, refresh, () => { if (!useOnlineStore.getState().events[contestId]?.snapshot.completed) setStatus(now => now.startsWith('Not sent yet') ? now : 'Reconnecting. Your scores are kept on this device.'); });
     };
     change(AppState.currentState ?? 'active');
     const sub = AppState.addEventListener('change', change);

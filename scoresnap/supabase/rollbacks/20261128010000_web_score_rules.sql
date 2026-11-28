@@ -59,5 +59,6 @@ DO $guard$ BEGIN
   RAISE EXCEPTION 'submit_score did not return to the original body';
  END IF;
 END $guard$;
+DROP FUNCTION IF EXISTS public.finalize_window(uuid);
 NOTIFY pgrst, 'reload schema';
 COMMIT;

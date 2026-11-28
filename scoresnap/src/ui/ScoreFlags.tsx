@@ -61,7 +61,8 @@ export function ScoreFlags({ contest }: { contest: Contest }) {
       const working = busy === flag.id;
       return <View key={flag.id} testID={`score-flag-${id}`} style={styles.row}>
         <Text style={styles.line}>{flagLine(flag)}</Text>
-        {flagRole(flag) === 'decide' && <View style={styles.actions}>
+        {flagRole(flag) === 'decide' && working && <Text style={styles.saving}>Saving…</Text>}
+        {flagRole(flag) === 'decide' && !working && <View style={styles.actions}>
           <Pressable testID={`score-flag-accept-${id}`} accessibilityRole="button" accessibilityState={{ disabled: !!busy, busy: working }}
             accessibilityLabel={`Use ${flag.proposed_strokes ?? 'no score'} for ${flag.player_name} on hole ${flag.hole}`}
             disabled={!!busy} onPress={() => void decide(flag, true)} style={({ pressed }) => [styles.button, (pressed || !!busy) && styles.dim]}>
@@ -95,6 +96,7 @@ const styles = StyleSheet.create({
   button: { minHeight: 44, minWidth: 88, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: COLORS.warn },
   buttonText: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.warn },
   dim: { opacity: 0.5 },
+  saving: { minHeight: 44, textAlignVertical: 'center', paddingVertical: 11, fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.warn },
   message: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.text },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: COLORS.warnContainer, borderWidth: 1, borderColor: COLORS.warn },
   badgeText: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.warn },

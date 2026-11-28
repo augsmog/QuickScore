@@ -157,6 +157,19 @@ UPDATE public.contests SET status='completed' WHERE id='82000000-0000-0000-0000-
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.denied($q$SELECT pg_temp.w('1',5,4)$q$,'55000');
 SELECT pg_temp.assert(public.reopen_card('82000000-0000-0000-0000-000000000001')->>'status'='reopened' AND pg_temp.w('1',5,4)->>'status'='accepted','a new finalize needs a new reopen');
+-- 11. The finalize time is readable on the server's clock by people in the round, and nobody else.
+SELECT pg_temp.assert((public.finalize_window('82000000-0000-0000-0000-000000000001')->>'finalized_at') IS NOT NULL
+ AND (public.finalize_window('82000000-0000-0000-0000-000000000001')->>'reopened_until')::timestamptz=(public.finalize_window('82000000-0000-0000-0000-000000000001')->>'finalized_at')::timestamptz+interval '1 hour'
+ AND (public.finalize_window('82000000-0000-0000-0000-000000000001')->>'now')::timestamptz=now(),'a scorer who reopened reads the finalize time, the server time and their window');
+SET LOCAL request.jwt.claims='{"sub":"8f000000-0000-0000-0000-00000000000f","is_anonymous":true,"role":"authenticated"}';
+SELECT pg_temp.denied($q$SELECT public.finalize_window('82000000-0000-0000-0000-000000000001')$q$,'42501');
+SELECT pg_temp.denied($q$SELECT public.finalize_window('8f000000-0000-0000-0000-0000000000ff')$q$,'42501');
+RESET ROLE;
+SELECT pg_temp.assert(NOT has_function_privilege('anon','public.finalize_window(uuid)','execute') AND has_function_privilege('authenticated','public.finalize_window(uuid)','execute'),'no session, no read');
+UPDATE public.contests SET status='active' WHERE id='82000000-0000-0000-0000-000000000001';
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000003","is_anonymous":true,"role":"authenticated"}';
+SELECT pg_temp.assert((public.finalize_window('82000000-0000-0000-0000-000000000001')->>'finalized_at') IS NULL AND (public.finalize_window('82000000-0000-0000-0000-000000000001')->>'reopened_until') IS NULL,'a round in play has no finalize time');
 RESET ROLE;
 SELECT 'PASS: web score rules' AS result;
 ROLLBACK;

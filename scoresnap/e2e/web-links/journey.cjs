@@ -164,7 +164,7 @@ const text = async (page, id) => (await page.getByTestId(id).first().innerText()
     await B.page.getByTestId('guest-plus-Chris').click();
     await B.page.waitForTimeout(3000);
     const offShown = await text(B.page, 'guest-score-Chris'), offSaid = (await B.page.getByTestId('guest-status').count()) ? await text(B.page, 'guest-status') : '(no message)';
-    step('signal cut: the score stays on the page and the card says it is not sent yet', offShown === '4' && /not sent|will send|not saved/i.test(offSaid) && holeOf('Chris', 2) == null, `shown ${offShown} | "${offSaid}" | server ${holeOf('Chris', 2)}`);
+    step('signal cut: the score stays on the page and the card says it is not sent yet', offShown === '4' && /not sent/i.test(offSaid) && (await text(B.page, 'guest-row-note-Chris')) === 'Not sent yet' && holeOf('Chris', 2) == null, `shown ${offShown} | "${offSaid}" | row "${await text(B.page, 'guest-row-note-Chris')}" | server ${holeOf('Chris', 2)}`);
     await B.page.screenshot({ path: path.join(OUT, 'web-links-3b-offline.png') });
     await B.page.context().setOffline(false);
     let sent = null; for (let i = 0; i < 40 && sent !== 4; i++) { await B.page.waitForTimeout(1000); sent = holeOf('Chris', 2); }

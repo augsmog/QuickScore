@@ -115,5 +115,26 @@ DO $guard$ BEGIN
   RAISE EXCEPTION 'submit_score did not end as the reviewed body';
  END IF;
 END $guard$;
+-- WEB RULE 5 (read only, new): when the round was finalized, on the server's clock, and whether
+-- the caller has reopened their card. The app and the website use it to show "Reopen" for the
+-- hour and "locked" after it without trusting the phone's clock. It changes nothing.
+-- SECURITY DEFINER because contest_finalizations and card_reopens are closed to every client
+-- role; the body checks the caller is the organizer or an approved member of THIS contest.
+-- It is in the public schema because the app can only call functions there; execute is
+-- taken from PUBLIC and anon and given to signed-in sessions only.
+CREATE FUNCTION public.finalize_window(contest_id uuid) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE c public.contests; uid uuid:=auth.uid(); f timestamptz; r timestamptz;
+BEGIN
+ SELECT * INTO c FROM public.contests WHERE id=$1;
+ IF uid IS NULL OR c.id IS NULL OR NOT ((c.owner_id=uid AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false))
+   OR EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=uid AND m.status='approved'))
+  THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;
+ IF c.status='completed' THEN SELECT x.finalized_at INTO f FROM public.contest_finalizations x WHERE x.contest_id=$1; END IF;
+ IF f IS NOT NULL THEN SELECT o.reopened_at INTO r FROM public.card_reopens o WHERE o.contest_id=$1 AND o.user_id=uid AND o.reopened_at>=f; END IF;
+ RETURN jsonb_build_object('finalized_at',f,'now',now(),'reopened_until',CASE WHEN r IS NOT NULL THEN f+interval '1 hour' END);
+END $$;
+REVOKE ALL ON FUNCTION public.finalize_window(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.finalize_window(uuid) TO authenticated, service_role;
 NOTIFY pgrst, 'reload schema';
 COMMIT;

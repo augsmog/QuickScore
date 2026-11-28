@@ -96,3 +96,14 @@ test('nothing is shown, and the server is not asked, for a round that is not sha
   }
   expect((await mount({ list: [] })).root.toJSON()).toBeNull();
 });
+
+test('while a decision is being saved the buttons give way to "Saving…", so it cannot be sent twice', async () => {
+  const h = await mount();
+  let release; const held = new Promise(r => { release = r; });
+  h.rpc.mockImplementationOnce(async () => { await held; return { data: { status: 'accepted' }, error: null }; });
+  let pressed;
+  await act(async () => { pressed = h.root.root.findByProps({ testID: 'score-flag-accept-Matt-4' }).props.onPress(); await Promise.resolve(); });
+  expect(h.text()).toContain('Saving…');
+  expect(h.root.root.findAllByProps({ accessibilityRole: 'button' })).toHaveLength(0);
+  await act(async () => { release(); await pressed; });
+});

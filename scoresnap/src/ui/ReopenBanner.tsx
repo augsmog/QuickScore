@@ -98,7 +98,8 @@ export function ReopenBanner({ reopen }: { reopen: Reopen }) {
 const styles = StyleSheet.create({
   box: { marginHorizontal: 20, marginTop: 8, padding: 12, borderRadius: 16, backgroundColor: COLORS.surfaceHigh, gap: 4 },
   open: { backgroundColor: COLORS.warnContainer },
-  line: { fontFamily: FONTS.regular, fontSize: 15, lineHeight: 21, color: COLORS.text },
+  // Tabular figures: the minute count changes without the line shifting.
+  line: { fontFamily: FONTS.regular, fontSize: 15, lineHeight: 21, color: COLORS.text, fontVariant: ['tabular-nums'] },
   button: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   buttonText: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.primary },
   dim: { opacity: 0.5 },
