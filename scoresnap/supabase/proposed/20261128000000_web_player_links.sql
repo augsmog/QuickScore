@@ -7,6 +7,15 @@
 --    player's whole group. No account and no host approval.
 --  * spectator link: sees everything a player sees, money included. Cannot score.
 --  * the host sees who is keeping which card and can remove or reassign them.
+--  * the 6-letter code on the website lets someone watch, never score.
+--  * group host = whoever took a group's card first. A later scorer's change to an
+--    existing score is flagged for the group host (or the organizer) to accept or deny.
+--  * after the organizer finalizes, a scorer may "reopen" for one hour to fix a score.
+--
+-- This file only ADDS tables, functions and one trigger. The two rules that need the
+-- existing score-writing function to change (flagging, reopen) are switched on by the
+-- separate file 20261128010000_web_score_rules.sql; until that is applied the objects
+-- here for flags and reopen exist but nothing calls them from a score write.
 --
 -- Additive only. No existing table, function, policy or grant is changed. A guest
 -- joined this way is an ordinary approved 'scorer' with round_scorer_scopes rows, so
@@ -36,13 +45,95 @@ CREATE TABLE public.player_link_members (
   FOREIGN KEY (player_id, contest_id) REFERENCES public.contest_players(id, contest_id) ON DELETE CASCADE
 );
 
+-- Group host: whoever took a group's card first, on the web or in the app.
+CREATE TABLE public.group_card_hosts (
+  contest_id uuid NOT NULL, round_id uuid NOT NULL, group_id uuid NOT NULL,
+  user_id uuid NOT NULL REFERENCES auth.users(id),
+  claimed_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (contest_id, round_id, group_id),
+  FOREIGN KEY (group_id, contest_id, round_id) REFERENCES public.contest_groups(id, contest_id, round_id) ON DELETE CASCADE
+);
+
+-- A change a later scorer asked for on a score someone else entered. The entered score
+-- keeps counting until the group host or the organizer accepts or denies the change.
+CREATE TABLE public.score_flags (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  contest_id uuid NOT NULL REFERENCES public.contests(id) ON DELETE CASCADE,
+  round_id uuid NOT NULL, group_id uuid NOT NULL, player_id uuid NOT NULL,
+  hole integer NOT NULL CHECK (hole BETWEEN 1 AND 18),
+  proposed_action text NOT NULL CHECK (proposed_action IN ('set','clear')),
+  proposed_strokes integer CHECK ((proposed_action='set' AND proposed_strokes BETWEEN 1 AND 15) OR (proposed_action='clear' AND proposed_strokes IS NULL)),
+  proposed_by uuid NOT NULL REFERENCES auth.users(id),
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','denied','reconciled')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  resolved_by uuid, resolved_at timestamptz,
+  FOREIGN KEY (player_id, contest_id) REFERENCES public.contest_players(id, contest_id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX score_flags_one_pending ON public.score_flags(contest_id, round_id, player_id, hole, proposed_by) WHERE status='pending';
+CREATE INDEX score_flags_contest_pending ON public.score_flags(contest_id) WHERE status='pending';
+
+-- When the organizer finalized, and who has reopened their card since.
+CREATE TABLE public.contest_finalizations (
+  contest_id uuid PRIMARY KEY REFERENCES public.contests(id) ON DELETE CASCADE,
+  finalized_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE public.card_reopens (
+  contest_id uuid NOT NULL REFERENCES public.contests(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES auth.users(id),
+  reopened_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (contest_id, user_id)
+);
+
 ALTER TABLE public.player_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.player_links FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.player_link_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.player_link_members FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.group_card_hosts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.group_card_hosts FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.score_flags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.score_flags FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.contest_finalizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contest_finalizations FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.card_reopens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.card_reopens FORCE ROW LEVEL SECURITY;
 -- No policies: clients reach these tables only through the functions below.
-REVOKE ALL ON public.player_links, public.player_link_members FROM PUBLIC, anon, authenticated;
-GRANT ALL ON public.player_links, public.player_link_members TO service_role;
+REVOKE ALL ON public.player_links, public.player_link_members, public.group_card_hosts, public.score_flags,
+ public.contest_finalizations, public.card_reopens FROM PUBLIC, anon, authenticated;
+GRANT ALL ON public.player_links, public.player_link_members, public.group_card_hosts, public.score_flags,
+ public.contest_finalizations, public.card_reopens TO service_role;
+
+-- Records the moment a round is finalized; clears it if the round is ever made active again.
+CREATE FUNCTION public.note_contest_finalized() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+BEGIN
+ IF NEW.status='completed' AND OLD.status IS DISTINCT FROM 'completed' THEN
+  INSERT INTO public.contest_finalizations(contest_id,finalized_at) VALUES(NEW.id,now())
+   ON CONFLICT (contest_id) DO UPDATE SET finalized_at=excluded.finalized_at;
+  DELETE FROM public.card_reopens o WHERE o.contest_id=NEW.id;
+ ELSIF NEW.status<>'completed' AND OLD.status='completed' THEN
+  DELETE FROM public.contest_finalizations f WHERE f.contest_id=NEW.id;
+  DELETE FROM public.card_reopens o WHERE o.contest_id=NEW.id;
+ END IF;
+ RETURN NULL;
+END $$;
+REVOKE ALL ON FUNCTION public.note_contest_finalized() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER web_links_finalized AFTER UPDATE OF status ON public.contests FOR EACH ROW EXECUTE FUNCTION public.note_contest_finalized();
+
+-- Internal: the group's host if that person may still score the round, else NULL.
+CREATE FUNCTION public.group_card_host(p_contest uuid, p_round uuid, p_group uuid) RETURNS uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+ SELECT h.user_id FROM public.group_card_hosts h JOIN public.contests c ON c.id=h.contest_id
+ WHERE h.contest_id=$1 AND h.round_id=$2 AND h.group_id=$3
+ AND (h.user_id=c.owner_id OR EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=h.contest_id AND m.user_id=h.user_id AND m.status='approved' AND m.role IN ('player','scorer')));
+$$;
+-- Internal: make the caller host of every group in p_scopes that has no usable host.
+CREATE FUNCTION public.claim_group_cards(p_contest uuid, p_user uuid) RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog AS $$
+ INSERT INTO public.group_card_hosts(contest_id,round_id,group_id,user_id)
+ SELECT s.contest_id,s.round_id,s.group_id,$2 FROM public.round_scorer_scopes s
+ WHERE s.contest_id=$1 AND s.user_id=$2 AND s.status='approved' AND public.group_card_host(s.contest_id,s.round_id,s.group_id) IS NULL
+ ON CONFLICT (contest_id,round_id,group_id) DO UPDATE SET user_id=excluded.user_id,claimed_at=now();
+$$;
 
 -- Internal: the contest a live token belongs to, or NULL. Never granted to clients.
 CREATE FUNCTION public.round_link_contest(p_token text, p_kind text) RETURNS uuid
@@ -146,6 +237,8 @@ BEGIN
  GET DIAGNOSTICS n = ROW_COUNT;
  INSERT INTO public.player_link_members(contest_id,user_id,token_hash,player_id) VALUES(cid,uid,hash,$2)
   ON CONFLICT (contest_id,user_id) DO UPDATE SET token_hash=excluded.token_hash,player_id=excluded.player_id,joined_at=now();
+ -- First to take a group's card is its host.
+ PERFORM public.claim_group_cards(cid,uid);
  UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=cid;
  RETURN jsonb_build_object('status','joined','contest_id',cid,'player_id',$2,'groups',n);
 END $$;
@@ -228,17 +321,118 @@ BEGIN
   ON CONFLICT (contest_id,round_id,group_id,user_id) DO UPDATE SET status='approved';
  GET DIAGNOSTICS n = ROW_COUNT;
  UPDATE public.player_link_members j SET player_id=$3 WHERE j.contest_id=$1 AND j.user_id=$2;
+ PERFORM public.claim_group_cards($1,$2);
  UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=$1;
  RETURN jsonb_build_object('status','assigned','player_id',$3,'groups',n);
+END $$;
+
+-- The 6-letter code on the website: watch only. Same attempt budget as request_join, and
+-- the same generic answer for a wrong code, so codes cannot be probed.
+CREATE FUNCTION public.watch_code(code text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE cid uuid; owner uuid; uid uuid:=auth.uid(); n integer; bucket timestamptz:=date_trunc('minute',clock_timestamp()); k text; existing public.contest_memberships;
+BEGIN
+ IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;
+ IF code IS NULL OR length(code)>32 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;
+ FOREACH k IN ARRAY ARRAY['global','actor:'||uid::text] LOOP
+  INSERT INTO public.sync_join_budgets AS b VALUES(k,bucket,1) ON CONFLICT(scope) DO UPDATE SET
+   attempts=CASE WHEN b.window_start=bucket THEN least(b.attempts+1,301) ELSE 1 END,window_start=bucket RETURNING attempts INTO n;
+  IF n>(CASE WHEN k='global' THEN 300 ELSE 5 END) THEN RETURN '{"status":"unknown"}'::jsonb; END IF;
+ END LOOP;
+ SELECT c.id,c.owner_id INTO cid,owner FROM public.contests c WHERE c.invite_code=upper(btrim(code)) AND c.protocol=1 AND c.sync_enabled FOR UPDATE;
+ IF cid IS NULL THEN RETURN '{"status":"unknown"}'::jsonb; END IF;
+ IF uid=owner THEN RETURN jsonb_build_object('status','watching','contest_id',cid); END IF;
+ SELECT * INTO existing FROM public.contest_memberships m WHERE m.contest_id=cid AND m.user_id=uid;
+ IF existing.status='approved' THEN RETURN jsonb_build_object('status','watching','contest_id',cid); END IF;
+ -- Someone the organizer removed does not come back by the code; nor past the cap.
+ IF existing.status='revoked' OR (SELECT count(*) FROM public.contest_memberships m WHERE m.contest_id=cid AND m.role='viewer' AND m.status='approved')>=500 THEN
+  RETURN '{"status":"unknown"}'::jsonb; END IF;
+ INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status) VALUES(cid,uid,'viewer',NULL,'approved')
+  ON CONFLICT (contest_id,user_id) DO UPDATE SET role='viewer',player_id=NULL,status='approved',updated_at=now();
+ RETURN jsonb_build_object('status','watching','contest_id',cid);
+END $$;
+
+-- After the organizer finalizes, anyone who could score the round may reopen their card
+-- for one hour from the moment of finalizing. Takes effect only once
+-- 20261128010000_web_score_rules.sql is applied.
+CREATE FUNCTION public.reopen_card(contest_id uuid) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE c public.contests; uid uuid:=auth.uid(); f timestamptz;
+BEGIN
+ SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;
+ IF uid IS NULL OR c.id IS NULL OR NOT ((c.owner_id=uid AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false))
+   OR EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=uid AND m.status='approved' AND m.role IN ('player','scorer')))
+  THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;
+ SELECT x.finalized_at INTO f FROM public.contest_finalizations x WHERE x.contest_id=$1;
+ IF NOT c.sync_enabled OR c.protocol<>1 OR c.status<>'completed' OR f IS NULL OR f<=now()-interval '1 hour' THEN
+  RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='REOPEN_CLOSED'; END IF;
+ INSERT INTO public.card_reopens AS o(contest_id,user_id) VALUES($1,uid) ON CONFLICT ON CONSTRAINT card_reopens_pkey DO UPDATE SET reopened_at=now();
+ RETURN jsonb_build_object('status','reopened','until',f+interval '1 hour');
+END $$;
+
+-- Pending flagged changes the caller may see: the organizer sees all, a group host sees
+-- their groups, and everyone sees what they proposed themselves.
+CREATE FUNCTION public.list_score_flags(contest_id uuid) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE c public.contests; uid uuid:=auth.uid(); org boolean;
+BEGIN
+ SELECT * INTO c FROM public.contests WHERE id=$1 FOR SHARE;
+ org := c.owner_id=uid AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false);
+ IF uid IS NULL OR c.id IS NULL OR NOT (org OR EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=$1 AND m.user_id=uid AND m.status='approved'))
+  THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;
+ RETURN (SELECT coalesce(jsonb_agg(jsonb_build_object('id',f.id,'round_id',f.round_id,'group_id',f.group_id,'player_id',f.player_id,'player_name',p.name,'hole',f.hole,
+   'current_strokes',(SELECT e.strokes FROM public.score_events e WHERE e.contest_id=f.contest_id AND e.round_id=f.round_id AND e.player_id=f.player_id AND e.hole=f.hole AND e.cell_version IS NOT NULL ORDER BY e.cell_version DESC LIMIT 1),
+   'proposed_strokes',f.proposed_strokes,'mine',f.proposed_by=uid,
+   'can_resolve',org OR public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid,'created_at',f.created_at) ORDER BY f.created_at,f.id),'[]'::jsonb)
+  FROM public.score_flags f JOIN public.contest_players p ON p.id=f.player_id
+  WHERE f.contest_id=$1 AND f.status='pending' AND (org OR f.proposed_by=uid OR public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid));
+END $$;
+
+-- The group host or the organizer accepts (the proposed score replaces the entered one)
+-- or denies (the entered score stands). Either way the flag is closed.
+CREATE FUNCTION public.resolve_score_flag(flag_id uuid, accept boolean) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE f public.score_flags; c public.contests; uid uuid:=auth.uid(); org boolean; version bigint; open_now boolean;
+BEGIN
+ SELECT x.contest_id INTO f.contest_id FROM public.score_flags x WHERE x.id=$1;
+ SELECT * INTO c FROM public.contests WHERE id=f.contest_id FOR UPDATE;
+ SELECT * INTO f FROM public.score_flags x WHERE x.id=$1 FOR UPDATE;
+ org := c.owner_id=uid AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false);
+ IF uid IS NULL OR c.id IS NULL OR f.id IS NULL OR NOT (org OR public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid)
+  THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;
+ IF f.status<>'pending' OR accept IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;
+ open_now := c.status='active' OR (c.status='completed' AND EXISTS(SELECT 1 FROM public.contest_finalizations z WHERE z.contest_id=c.id AND z.finalized_at>now()-interval '1 hour'));
+ IF NOT c.sync_enabled OR c.protocol<>1 OR NOT open_now THEN RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='SYNC_PAUSED'; END IF;
+ IF accept THEN
+  SELECT coalesce(max(e.cell_version),0) INTO version FROM public.score_events e
+   WHERE e.contest_id=f.contest_id AND e.round_id=f.round_id AND e.player_id=f.player_id AND e.hole=f.hole AND e.cell_version IS NOT NULL;
+  UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=c.id RETURNING * INTO c;
+  INSERT INTO public.score_events(contest_id,round_id,player_id,hole,action,strokes,entered_by,actor,cell_version,contest_revision,op_id,request_hash)
+   VALUES(f.contest_id,f.round_id,f.player_id,f.hole,f.proposed_action,f.proposed_strokes,uid,uid,version+1,c.sync_revision,gen_random_uuid(),'flag:'||f.id::text);
+  IF c.status='active' THEN
+   DELETE FROM public.group_submissions s WHERE s.contest_id=f.contest_id AND s.round_id=f.round_id AND s.group_id=f.group_id;
+  END IF;
+  -- Other people who asked for the same value are settled by this too.
+  UPDATE public.score_flags x SET status='reconciled',resolved_by=uid,resolved_at=now()
+   WHERE x.contest_id=f.contest_id AND x.round_id=f.round_id AND x.player_id=f.player_id AND x.hole=f.hole AND x.status='pending' AND x.id<>f.id
+   AND x.proposed_action=f.proposed_action AND x.proposed_strokes IS NOT DISTINCT FROM f.proposed_strokes;
+ ELSE
+  UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=c.id RETURNING * INTO c;
+ END IF;
+ UPDATE public.score_flags x SET status=CASE WHEN accept THEN 'accepted' ELSE 'denied' END,resolved_by=uid,resolved_at=now() WHERE x.id=f.id;
+ RETURN jsonb_build_object('status',CASE WHEN accept THEN 'accepted' ELSE 'denied' END,'revision',c.sync_revision);
 END $$;
 
 REVOKE ALL ON FUNCTION public.round_link_contest(text,text),public.new_round_link(uuid,text),
  public.create_player_link(uuid),public.create_spectator_link(uuid),public.revoke_player_links(uuid),public.revoke_spectator_links(uuid),
  public.player_link_roster(text),public.join_player_link(text,uuid),public.spectator_board(text),
- public.list_player_link_members(uuid),public.assign_player_link_member(uuid,uuid,uuid) FROM PUBLIC,anon,authenticated;
+ public.list_player_link_members(uuid),public.assign_player_link_member(uuid,uuid,uuid),
+ public.group_card_host(uuid,uuid,uuid),public.claim_group_cards(uuid,uuid),public.watch_code(text),public.reopen_card(uuid),
+ public.list_score_flags(uuid),public.resolve_score_flag(uuid,boolean) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.create_player_link(uuid),public.create_spectator_link(uuid),public.revoke_player_links(uuid),public.revoke_spectator_links(uuid),
  public.player_link_roster(text),public.join_player_link(text,uuid),
- public.list_player_link_members(uuid),public.assign_player_link_member(uuid,uuid,uuid) TO authenticated,service_role;
+ public.list_player_link_members(uuid),public.assign_player_link_member(uuid,uuid,uuid),
+ public.watch_code(text),public.reopen_card(uuid),public.list_score_flags(uuid),public.resolve_score_flag(uuid,boolean) TO authenticated,service_role;
 -- The spectator board is the one function a visitor with no session may call.
 GRANT EXECUTE ON FUNCTION public.spectator_board(text) TO anon,authenticated,service_role;
 
