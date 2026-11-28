@@ -1,0 +1,18 @@
+ALTER TABLE auth.users ADD COLUMN raw_app_meta_data jsonb, ADD COLUMN created_at timestamptz, ADD COLUMN last_sign_in_at timestamptz, ADD COLUMN is_anonymous boolean;
+CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $$;
+CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT (auth.jwt()->>'sub')::uuid $$;
+CREATE OR REPLACE FUNCTION auth.role() RETURNS text LANGUAGE sql AS $$ SELECT auth.jwt()->>'role' $$;
+GRANT USAGE ON SCHEMA auth TO anon,authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth TO anon,authenticated;
+CREATE SCHEMA net;
+CREATE FUNCTION net.http_post(url text, headers jsonb, body jsonb) RETURNS bigint LANGUAGE sql AS $$ SELECT 1::bigint $$;
+CREATE SCHEMA vault;
+CREATE TABLE vault.decrypted_secrets(name text, decrypted_secret text);
+CREATE SCHEMA realtime;
+CREATE TABLE realtime.messages(payload jsonb,event text,topic text,private boolean,extension text DEFAULT 'broadcast');
+ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON SCHEMA realtime TO authenticated;
+GRANT SELECT,INSERT ON realtime.messages TO authenticated;
+CREATE FUNCTION realtime.topic() RETURNS text LANGUAGE sql AS $$ SELECT current_setting('realtime.topic',true) $$;
+CREATE FUNCTION realtime.send(payload jsonb,event text,topic text,private boolean) RETURNS void LANGUAGE sql AS $$ INSERT INTO realtime.messages(payload,event,topic,private) VALUES($1,$2,$3,$4) $$;
+GRANT EXECUTE ON FUNCTION realtime.topic() TO authenticated;
