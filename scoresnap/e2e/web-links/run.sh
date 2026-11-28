@@ -58,6 +58,7 @@ for p in 20261031230000_restore_game_settings 20261101020000_owner_discovery 202
   qf "$work/sql/proposed/$p.sql" >>"$work/apply.log" 2>&1 || { echo "FAILED $p"; tail -5 "$work/apply.log"; exit 1; }; done
 qf "$app/supabase/tests/web-player-links.sql" | grep -q 'PASS: web player links' && echo "PASS  server test (supabase/tests/web-player-links.sql)"
 qf "$app/supabase/tests/web-score-rules.sql" | grep -q 'PASS: web score rules' && echo "PASS  server test (supabase/tests/web-score-rules.sql)"
+qf "$app/supabase/tests/web-review-findings.sql" | grep -q 'PASS: web review findings' && echo "PASS  server test (supabase/tests/web-review-findings.sql)"
 token=$(qf "$work/sql/seed.sql" -At | tail -1)
 dist=${DIST:-}
 if [ -z "$dist" ]; then

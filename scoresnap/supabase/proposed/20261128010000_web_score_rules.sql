@@ -27,7 +27,7 @@ CREATE OR REPLACE FUNCTION public.submit_score(contest_id uuid, round_id uuid, p
  expected_version bigint, op_id uuid, request_hash text, expected_revision bigint) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE c public.contests; uid uuid := auth.uid(); prior public.operation_receipts; cell public.score_events;
  version bigint; fingerprint text; answer jsonb; resolved uuid; allowed boolean;
- reopened boolean; gid uuid; host_uid uuid; is_org boolean;
+ reopened boolean; gid uuid; host_uid uuid; is_org boolean; keeper uuid;
 BEGIN
  SELECT * INTO c FROM public.contests WHERE id=$1 FOR UPDATE;
  IF uid IS NULL OR c.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;
@@ -92,9 +92,15 @@ BEGIN
   UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=$1 RETURNING * INTO c;
   answer := jsonb_build_object('status','conflict','flagged',true,'version',version,'strokes',cell.strokes,'revision',c.sync_revision);
  ELSE
+  -- Re-entering the number that is already there does not make the score the caller's: the
+  -- person who entered it stays on record, so a later change by this caller is still held.
+  -- (Review finding 4.) "actor" still records who sent this write.
+  keeper := uid;
+  IF gid IS NOT NULL AND NOT is_org AND host_uid<>uid AND cell.strokes IS NOT NULL AND cell.entered_by IS NOT NULL
+    AND cell.entered_by<>uid AND $5='set' AND $6=cell.strokes THEN keeper := cell.entered_by; END IF;
   UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=$1 RETURNING * INTO c;
   INSERT INTO public.score_events(contest_id,round_id,player_id,hole,action,strokes,entered_by,actor,cell_version,contest_revision,op_id,request_hash)
-   VALUES($1,resolved,$3,$4,$5,$6,uid,uid,version+1,c.sync_revision,$8,fingerprint);
+   VALUES($1,resolved,$3,$4,$5,$6,keeper,uid,version+1,c.sync_revision,$8,fingerprint);
   -- A correction after finalizing does not withdraw the group's submitted card.
   IF NOT reopened THEN
   DELETE FROM public.group_submissions s USING public.round_player_assignments a
@@ -111,7 +117,7 @@ BEGIN
 END $$;
 -- The result must be exactly the body reviewed in this file.
 DO $guard$ BEGIN
- IF (SELECT md5(p.prosrc) FROM pg_proc p WHERE p.oid='public.submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)'::regprocedure) IS DISTINCT FROM 'bf5629a5461a38fb117c4282ca39c3e1' THEN
+ IF (SELECT md5(p.prosrc) FROM pg_proc p WHERE p.oid='public.submit_score(uuid,uuid,uuid,integer,text,integer,bigint,uuid,text,bigint)'::regprocedure) IS DISTINCT FROM '1054b4ee23632b725e868908ec2c1fd7' THEN
   RAISE EXCEPTION 'submit_score did not end as the reviewed body';
  END IF;
 END $guard$;

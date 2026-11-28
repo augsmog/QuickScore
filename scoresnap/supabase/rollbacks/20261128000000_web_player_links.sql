@@ -17,7 +17,10 @@ DO $$ BEGIN
  END IF;
 END $$;
 -- Code spectators lose access with the feature.
-UPDATE public.contest_memberships m SET status='revoked',updated_at=now() WHERE m.role='viewer' AND m.status='approved';
+-- Only the watchers a code created. A viewer who was there before is not touched.
+UPDATE public.contest_memberships m SET status='revoked',updated_at=now() WHERE m.role='viewer' AND m.status='approved'
+ AND EXISTS(SELECT 1 FROM public.watch_code_members w WHERE w.contest_id=m.contest_id AND w.user_id=m.user_id);
+DELETE FROM public.sync_join_budgets b WHERE b.scope LIKE 'watch:%';
 DROP TRIGGER web_links_finalized ON public.contests;
 DROP FUNCTION public.note_contest_finalized();
 DROP FUNCTION public.resolve_score_flag(uuid,boolean);
@@ -37,6 +40,7 @@ DROP FUNCTION public.new_round_link(uuid,text);
 DROP FUNCTION public.round_link_contest(text,text);
 DROP FUNCTION public.claim_group_cards(uuid,uuid);
 DROP FUNCTION public.group_card_host(uuid,uuid,uuid);
+DROP TABLE public.watch_code_members;
 DROP TABLE public.card_reopens;
 DROP TABLE public.contest_finalizations;
 DROP TABLE public.score_flags;

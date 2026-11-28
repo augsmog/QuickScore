@@ -27,7 +27,7 @@ CREATE TABLE public.player_links (
   token_hash text PRIMARY KEY,
   kind text NOT NULL DEFAULT 'player' CHECK (kind IN ('player','spectator')),
   contest_id uuid NOT NULL REFERENCES public.contests(id) ON DELETE CASCADE,
-  created_by uuid NOT NULL REFERENCES auth.users(id),
+  created_by uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at timestamptz NOT NULL DEFAULT now(),
   revoked_at timestamptz
 );
@@ -37,7 +37,7 @@ CREATE INDEX player_links_contest ON public.player_links(contest_id);
 -- player is a label for the host, not an exclusive claim: two people may keep a card.
 CREATE TABLE public.player_link_members (
   contest_id uuid NOT NULL REFERENCES public.contests(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES auth.users(id),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   token_hash text NOT NULL REFERENCES public.player_links(token_hash) ON DELETE CASCADE,
   player_id uuid NOT NULL,
   joined_at timestamptz NOT NULL DEFAULT now(),
@@ -48,7 +48,7 @@ CREATE TABLE public.player_link_members (
 -- Group host: whoever took a group's card first, on the web or in the app.
 CREATE TABLE public.group_card_hosts (
   contest_id uuid NOT NULL, round_id uuid NOT NULL, group_id uuid NOT NULL,
-  user_id uuid NOT NULL REFERENCES auth.users(id),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   claimed_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (contest_id, round_id, group_id),
   FOREIGN KEY (group_id, contest_id, round_id) REFERENCES public.contest_groups(id, contest_id, round_id) ON DELETE CASCADE
@@ -63,7 +63,7 @@ CREATE TABLE public.score_flags (
   hole integer NOT NULL CHECK (hole BETWEEN 1 AND 18),
   proposed_action text NOT NULL CHECK (proposed_action IN ('set','clear')),
   proposed_strokes integer CHECK ((proposed_action='set' AND proposed_strokes BETWEEN 1 AND 15) OR (proposed_action='clear' AND proposed_strokes IS NULL)),
-  proposed_by uuid NOT NULL REFERENCES auth.users(id),
+  proposed_by uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','denied','reconciled')),
   created_at timestamptz NOT NULL DEFAULT now(),
   resolved_by uuid, resolved_at timestamptz,
@@ -77,9 +77,16 @@ CREATE TABLE public.contest_finalizations (
   contest_id uuid PRIMARY KEY REFERENCES public.contests(id) ON DELETE CASCADE,
   finalized_at timestamptz NOT NULL DEFAULT now()
 );
+-- Watchers a code created. A rollback removes these and nobody else. (Review finding 6.)
+CREATE TABLE public.watch_code_members (
+  contest_id uuid NOT NULL REFERENCES public.contests(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (contest_id, user_id)
+);
 CREATE TABLE public.card_reopens (
   contest_id uuid NOT NULL REFERENCES public.contests(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES auth.users(id),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   reopened_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (contest_id, user_id)
 );
@@ -94,13 +101,15 @@ ALTER TABLE public.score_flags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.score_flags FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.contest_finalizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contest_finalizations FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.watch_code_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.watch_code_members FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.card_reopens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.card_reopens FORCE ROW LEVEL SECURITY;
 -- No policies: clients reach these tables only through the functions below.
 REVOKE ALL ON public.player_links, public.player_link_members, public.group_card_hosts, public.score_flags,
- public.contest_finalizations, public.card_reopens FROM PUBLIC, anon, authenticated;
+ public.contest_finalizations, public.card_reopens, public.watch_code_members FROM PUBLIC, anon, authenticated;
 GRANT ALL ON public.player_links, public.player_link_members, public.group_card_hosts, public.score_flags,
- public.contest_finalizations, public.card_reopens TO service_role;
+ public.contest_finalizations, public.card_reopens, public.watch_code_members TO service_role;
 
 -- Records the moment a round is finalized; clears it if the round is ever made active again.
 CREATE FUNCTION public.note_contest_finalized() RETURNS trigger
@@ -119,14 +128,17 @@ END $$;
 REVOKE ALL ON FUNCTION public.note_contest_finalized() FROM PUBLIC,anon,authenticated;
 CREATE TRIGGER web_links_finalized AFTER UPDATE OF status ON public.contests FOR EACH ROW EXECUTE FUNCTION public.note_contest_finalized();
 
--- Internal: the group's host if that person may still score the round, else NULL.
+-- Internal: the group's host if that person may still score THAT GROUP, else NULL. A host who
+-- was moved to another card, removed, or whose scope was revoked stops being the host at
+-- once; the next person to take the card becomes it. (Review finding 2.)
 CREATE FUNCTION public.group_card_host(p_contest uuid, p_round uuid, p_group uuid) RETURNS uuid
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
  SELECT h.user_id FROM public.group_card_hosts h JOIN public.contests c ON c.id=h.contest_id
  WHERE h.contest_id=$1 AND h.round_id=$2 AND h.group_id=$3
- AND (h.user_id=c.owner_id OR EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=h.contest_id AND m.user_id=h.user_id AND m.status='approved' AND m.role IN ('player','scorer')));
+ AND (h.user_id=c.owner_id OR EXISTS(SELECT 1 FROM public.contest_memberships m WHERE m.contest_id=h.contest_id AND m.user_id=h.user_id AND m.status='approved'
+  AND ((m.role='scorer' AND EXISTS(SELECT 1 FROM public.round_scorer_scopes s WHERE s.contest_id=h.contest_id AND s.round_id=h.round_id AND s.group_id=h.group_id AND s.user_id=h.user_id AND s.status='approved'))
+    OR (m.role='player' AND EXISTS(SELECT 1 FROM public.round_player_assignments a WHERE a.contest_id=h.contest_id AND a.round_id=h.round_id AND a.group_id=h.group_id AND a.player_id=m.player_id)))));
 $$;
--- Internal: make the caller host of every group in p_scopes that has no usable host.
 CREATE FUNCTION public.claim_group_cards(p_contest uuid, p_user uuid) RETURNS void
 LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog AS $$
  INSERT INTO public.group_card_hosts(contest_id,round_id,group_id,user_id)
@@ -223,7 +235,11 @@ BEGIN
   RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_PLAYER'; END IF;
  SELECT * INTO existing FROM public.contest_memberships m WHERE m.contest_id=cid AND m.user_id=uid;
  -- A host-approved player keeps that binding; a link never rewrites it.
- IF existing.status='approved' AND existing.role<>'scorer' THEN RAISE EXCEPTION USING ERRCODE='23505', MESSAGE='ALREADY_APPROVED'; END IF;
+ -- Nor any other membership a link did not create: a scorer the organizer appointed, or a
+ -- join request still waiting, stays exactly as it is. (Review finding 6.)
+ IF existing.user_id IS NOT NULL AND existing.status<>'revoked'
+   AND NOT EXISTS(SELECT 1 FROM public.player_link_members j WHERE j.contest_id=cid AND j.user_id=uid) THEN
+  RAISE EXCEPTION USING ERRCODE='23505', MESSAGE='ALREADY_APPROVED'; END IF;
  -- A member the host removed does not come back through the same link.
  IF existing.status='revoked' THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;
  IF existing.user_id IS NULL AND (SELECT count(*) FROM public.player_link_members j WHERE j.contest_id=cid)>=200 THEN
@@ -326,29 +342,36 @@ BEGIN
  RETURN jsonb_build_object('status','assigned','player_id',$3,'groups',n);
 END $$;
 
--- The 6-letter code on the website: watch only. Same attempt budget as request_join, and
--- the same generic answer for a wrong code, so codes cannot be probed.
+-- The 6-letter code on the website: watch only.
+-- Its own attempt budget ("watch:" scopes), so a flood of guesses here cannot use up the
+-- app's join budget; 5 a minute per session, 300 a minute overall, and at most 60 new
+-- watchers a minute per round. Every refusal gives the same answer as a wrong code. A right
+-- code necessarily shows the round, so guessing is slowed, not hidden. (Review finding 7.)
+-- It only ever creates a watcher for someone with no membership at all: a join request
+-- still waiting, or a removed member, is left exactly as it is. (Review finding 6.)
 CREATE FUNCTION public.watch_code(code text) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE cid uuid; owner uuid; uid uuid:=auth.uid(); n integer; bucket timestamptz:=date_trunc('minute',clock_timestamp()); k text; existing public.contest_memberships;
 BEGIN
  IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;
  IF code IS NULL OR length(code)>32 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;
- FOREACH k IN ARRAY ARRAY['global','actor:'||uid::text] LOOP
+ FOREACH k IN ARRAY ARRAY['watch:global','watch:actor:'||uid::text] LOOP
   INSERT INTO public.sync_join_budgets AS b VALUES(k,bucket,1) ON CONFLICT(scope) DO UPDATE SET
    attempts=CASE WHEN b.window_start=bucket THEN least(b.attempts+1,301) ELSE 1 END,window_start=bucket RETURNING attempts INTO n;
-  IF n>(CASE WHEN k='global' THEN 300 ELSE 5 END) THEN RETURN '{"status":"unknown"}'::jsonb; END IF;
+  IF n>(CASE WHEN k='watch:global' THEN 300 ELSE 5 END) THEN RETURN '{"status":"unknown"}'::jsonb; END IF;
  END LOOP;
  SELECT c.id,c.owner_id INTO cid,owner FROM public.contests c WHERE c.invite_code=upper(btrim(code)) AND c.protocol=1 AND c.sync_enabled FOR UPDATE;
  IF cid IS NULL THEN RETURN '{"status":"unknown"}'::jsonb; END IF;
  IF uid=owner THEN RETURN jsonb_build_object('status','watching','contest_id',cid); END IF;
  SELECT * INTO existing FROM public.contest_memberships m WHERE m.contest_id=cid AND m.user_id=uid;
  IF existing.status='approved' THEN RETURN jsonb_build_object('status','watching','contest_id',cid); END IF;
- -- Someone the organizer removed does not come back by the code; nor past the cap.
- IF existing.status='revoked' OR (SELECT count(*) FROM public.contest_memberships m WHERE m.contest_id=cid AND m.role='viewer' AND m.status='approved')>=500 THEN
+ IF existing.user_id IS NOT NULL OR (SELECT count(*) FROM public.contest_memberships m WHERE m.contest_id=cid AND m.role='viewer' AND m.status='approved')>=500 THEN
   RETURN '{"status":"unknown"}'::jsonb; END IF;
- INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status) VALUES(cid,uid,'viewer',NULL,'approved')
-  ON CONFLICT (contest_id,user_id) DO UPDATE SET role='viewer',player_id=NULL,status='approved',updated_at=now();
+ INSERT INTO public.sync_join_budgets AS b VALUES('watch:contest:'||cid::text,bucket,1) ON CONFLICT(scope) DO UPDATE SET
+  attempts=CASE WHEN b.window_start=bucket THEN least(b.attempts+1,301) ELSE 1 END,window_start=bucket RETURNING attempts INTO n;
+ IF n>60 THEN RETURN '{"status":"unknown"}'::jsonb; END IF;
+ INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status) VALUES(cid,uid,'viewer',NULL,'approved');
+ INSERT INTO public.watch_code_members(contest_id,user_id) VALUES(cid,uid);
  RETURN jsonb_build_object('status','watching','contest_id',cid);
 END $$;
 
@@ -383,9 +406,9 @@ BEGIN
  RETURN (SELECT coalesce(jsonb_agg(jsonb_build_object('id',f.id,'round_id',f.round_id,'group_id',f.group_id,'player_id',f.player_id,'player_name',p.name,'hole',f.hole,
    'current_strokes',(SELECT e.strokes FROM public.score_events e WHERE e.contest_id=f.contest_id AND e.round_id=f.round_id AND e.player_id=f.player_id AND e.hole=f.hole AND e.cell_version IS NOT NULL ORDER BY e.cell_version DESC LIMIT 1),
    'proposed_strokes',f.proposed_strokes,'mine',f.proposed_by=uid,
-   'can_resolve',org OR public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid,'created_at',f.created_at) ORDER BY f.created_at,f.id),'[]'::jsonb)
+   'can_resolve',org OR coalesce(public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid,false),'created_at',f.created_at) ORDER BY f.created_at,f.id),'[]'::jsonb)
   FROM public.score_flags f JOIN public.contest_players p ON p.id=f.player_id
-  WHERE f.contest_id=$1 AND f.status='pending' AND (org OR f.proposed_by=uid OR public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid));
+  WHERE f.contest_id=$1 AND f.status='pending' AND (org OR f.proposed_by=uid OR coalesce(public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid,false)));
 END $$;
 
 -- The group host or the organizer accepts (the proposed score replaces the entered one)
@@ -398,7 +421,9 @@ BEGIN
  SELECT * INTO c FROM public.contests WHERE id=f.contest_id FOR UPDATE;
  SELECT * INTO f FROM public.score_flags x WHERE x.id=$1 FOR UPDATE;
  org := c.owner_id=uid AND NOT coalesce((auth.jwt()->>'is_anonymous')::boolean,false);
- IF uid IS NULL OR c.id IS NULL OR f.id IS NULL OR NOT (org OR public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid)
+ -- Fails closed (review finding 1): with no valid host the lookup is NULL, and NULL must refuse.
+ IF uid IS NULL OR c.id IS NULL OR f.id IS NULL OR org IS NULL
+   OR NOT (org OR coalesce(public.group_card_host(f.contest_id,f.round_id,f.group_id)=uid,false))
   THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;
  IF f.status<>'pending' OR accept IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;
  open_now := c.status='active' OR (c.status='completed' AND EXISTS(SELECT 1 FROM public.contest_finalizations z WHERE z.contest_id=c.id AND z.finalized_at>now()-interval '1 hour'));
