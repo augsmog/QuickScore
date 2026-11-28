@@ -63,17 +63,18 @@ test("simulator-offline is a local-only E2E fixture build, never production env"
 // profile contract pinned; native association readiness has its own guard.
 // 1.0.1: Leagues and native links are pinned off in both shipping profiles (Join by code only).
 // Account handoff is pinned off too: its database objects are not in production (build 33).
+// Web address for player and spectator links: snapscore.autumn8.me (owner decision, AUG-1601, 2026-11-27).
 test("production and TestFlight retain the approved release profile contract", () => {
   expect(eas.build.production).toEqual({
     autoIncrement: true, channel: "production", environment: "production",
     env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: "true", EXPO_PUBLIC_FEATURE_ACCOUNT_HANDOFF: "false", EXPO_PUBLIC_PRO_ENABLED: "false",
-      EXPO_PUBLIC_FEATURE_LEAGUES: "false", EXPO_PUBLIC_FEATURE_NATIVE_LINKS: "false" },
+      EXPO_PUBLIC_FEATURE_LEAGUES: "false", EXPO_PUBLIC_FEATURE_NATIVE_LINKS: "false", EXPO_PUBLIC_WEB_URL: "https://snapscore.autumn8.me" },
   });
   expect(eas.build.testflight).toEqual({
     distribution: "store", ios: { buildConfiguration: "Release" }, autoIncrement: true,
     channel: "testflight", environment: "production",
     env: { EXPO_PUBLIC_FEATURE_COURSE_SEARCH: "true", EXPO_PUBLIC_FEATURE_CROSS_DEVICE_SHARING: "true", EXPO_PUBLIC_FEATURE_ACCOUNT_HANDOFF: "false", EXPO_PUBLIC_PRO_ENABLED: "false",
-      EXPO_PUBLIC_FEATURE_LEAGUES: "false", EXPO_PUBLIC_FEATURE_NATIVE_LINKS: "false" },
+      EXPO_PUBLIC_FEATURE_LEAGUES: "false", EXPO_PUBLIC_FEATURE_NATIVE_LINKS: "false", EXPO_PUBLIC_WEB_URL: "https://snapscore.autumn8.me" },
   });
 });
 

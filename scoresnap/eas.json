@@ -57,7 +57,8 @@
         "EXPO_PUBLIC_FEATURE_ACCOUNT_HANDOFF": "false",
         "EXPO_PUBLIC_PRO_ENABLED": "false",
         "EXPO_PUBLIC_FEATURE_LEAGUES": "false",
-        "EXPO_PUBLIC_FEATURE_NATIVE_LINKS": "false"
+        "EXPO_PUBLIC_FEATURE_NATIVE_LINKS": "false",
+        "EXPO_PUBLIC_WEB_URL": "https://snapscore.autumn8.me"
       }
     },
     "production": {
@@ -70,7 +71,8 @@
         "EXPO_PUBLIC_FEATURE_ACCOUNT_HANDOFF": "false",
         "EXPO_PUBLIC_PRO_ENABLED": "false",
         "EXPO_PUBLIC_FEATURE_LEAGUES": "false",
-        "EXPO_PUBLIC_FEATURE_NATIVE_LINKS": "false"
+        "EXPO_PUBLIC_FEATURE_NATIVE_LINKS": "false",
+        "EXPO_PUBLIC_WEB_URL": "https://snapscore.autumn8.me"
       }
     }
   },
