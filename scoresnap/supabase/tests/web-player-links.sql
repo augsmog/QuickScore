@@ -55,6 +55,7 @@ SELECT pg_temp.denied($q$SELECT public.player_link_roster(repeat('0',64))$q$,'22
 SELECT pg_temp.denied($q$SELECT public.player_link_roster('not-a-token')$q$,'22023');
 SELECT pg_temp.denied($q$SELECT public.fetch_snapshot('52000000-0000-0000-0000-000000000001')$q$,'42501');
 INSERT INTO t SELECT 'roster', public.player_link_roster(v)::text FROM t WHERE k='token';
+SELECT pg_temp.assert((SELECT v::jsonb->'me'='null'::jsonb FROM t WHERE k='roster'),'a guest who has not joined has no player yet');
 SELECT pg_temp.assert((SELECT v::jsonb->>'name'='Saturday foursome' AND v::jsonb->>'open'='true'
   AND jsonb_array_length(v::jsonb->'rounds'->0->'groups')=2
   AND v::jsonb->'rounds'->0->'groups'->0->'players'->0->>'displayName'='Matt'
@@ -62,6 +63,7 @@ SELECT pg_temp.assert((SELECT v::jsonb->>'name'='Saturday foursome' AND v::jsonb
 SELECT pg_temp.assert((SELECT v NOT LIKE '%handicap%' AND v NOT LIKE '%WEBLNK%' AND v NOT LIKE '%bet%' FROM t WHERE k='roster'),'roster has no handicap, invite code or money');
 SELECT pg_temp.denied(format($q$SELECT public.join_player_link(%L,'53000000-0000-0000-0000-0000000000ff')$q$,(SELECT v FROM t WHERE k='token')),'22023');
 SELECT pg_temp.assert((SELECT public.join_player_link(v,'53000000-0000-0000-0000-000000000001')->>'status' FROM t WHERE k='token')='joined','guest A joins as Matt');
+SELECT pg_temp.assert((SELECT public.player_link_roster(v)->>'me' FROM t WHERE k='token')='53000000-0000-0000-0000-000000000001','returning guest is told which player they picked');
 SELECT pg_temp.assert(public.my_sync_status()->'memberships'->0->>'role'='scorer' AND public.my_sync_status()->'memberships'->0->>'status'='approved','guest A is an approved scorer');
 SELECT pg_temp.assert(public.fetch_snapshot('52000000-0000-0000-0000-000000000001')->>'name'='Saturday foursome','guest A can read the round');
 SELECT pg_temp.assert(NOT (public.fetch_snapshot('52000000-0000-0000-0000-000000000001') ? 'invite_code'),'guest never receives the invite code');

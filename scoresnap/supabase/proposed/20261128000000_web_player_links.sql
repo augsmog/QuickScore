@@ -91,7 +91,9 @@ BEGIN
  cid := public.player_link_contest($1);
  IF cid IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_LINK'; END IF;
  SELECT * INTO c FROM public.contests WHERE id=cid FOR SHARE;
+ -- 'me' lets a returning guest land back on the card they were keeping.
  RETURN jsonb_build_object('contest_id',c.id,'name',c.name,'open',c.sync_enabled AND c.protocol=1 AND c.status='active',
+  'me',(SELECT j.player_id FROM public.player_link_members j JOIN public.contest_memberships m ON m.contest_id=j.contest_id AND m.user_id=j.user_id AND m.status='approved' AND m.role='scorer' WHERE j.contest_id=c.id AND j.user_id=auth.uid()),
   'rounds',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',r.id,'number',r.round_number,'name',r.name,
    'groups',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',g.id,'name',g.name,
      'players',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',p.id,'displayName',p.name) ORDER BY p.sort_order,p.id),'[]'::jsonb)

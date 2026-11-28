@@ -28,9 +28,10 @@ test('SSR and incomplete locations are safe', () => {
   expect(load('web', undefined)).toBe(false);
   expect(load('web', { location: {} })).toBe(false);
 });
-test('only web /r/ pages disable Sentry', () => {
+test('only web /r/ and /p/ link pages disable Sentry', () => {
   expect(load('web', { location: { pathname: '/r/token' } })).toBe(true);
-  for (const pathname of ['/', '/join/code', '/r', '/round']) {
+  expect(load('web', { location: { pathname: '/p/token' } })).toBe(true);
+  for (const pathname of ['/', '/join/code', '/r', '/round', '/p', '/paywall', '/players/x']) {
     expect(load('web', { location: { pathname } })).toBe(false);
   }
   expect(load('android', { location: { pathname: '/r/token' } })).toBe(false);

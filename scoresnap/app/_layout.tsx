@@ -122,7 +122,7 @@ function useProtectedRoute() {
     }
 
     // GS-5: browser guests join without onboarding or an account.
-    if (segments[0] === "join" || segments[0] === "r") return;
+    if (segments[0] === "join" || segments[0] === "r" || segments[0] === "p") return;
 
     const inOnboarding = segments[0] === "onboarding";
     const inAuth = segments[0] === "auth";

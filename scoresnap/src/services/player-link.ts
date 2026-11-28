@@ -1,0 +1,102 @@
+import type { SyncSnapshotV1 } from '../../../docs/xdevice/sync-contract-v1';
+import { calculateContestSettlement } from '../engine/contest-results';
+import { restoreOwnerContest } from './restore-owner-contest';
+
+/** A player link lets a guest with no account keep one group's card on the web. */
+export const validPlayerToken = (token: unknown): token is string => typeof token === 'string' && /^[a-f0-9]{64}$/.test(token);
+
+export interface LinkRoster {
+  contest_id: string; name: string; open: boolean; me: string | null;
+  rounds: { id: string; number: number; name: string; groups: { id: string; name: string; players: { id: string; displayName: string }[] }[] }[];
+}
+type Rpc = (name: string, args: Record<string, unknown>) => Promise<{ data: any; error: any }>;
+
+/** Server refusals in words a golfer can act on. Unknown failures stay retryable. */
+export function playerLinkMessage(error: { code?: string; message?: string } | null | undefined): string {
+  const reason = error?.message ?? '';
+  if (reason.includes('INVALID_LINK')) return 'This link is no longer active. Ask the organizer for a new one.';
+  if (reason.includes('SYNC_PAUSED')) return 'This round is finished or paused, so scores can no longer be entered.';
+  if (reason.includes('HOST_SLOT')) return 'You are the organizer of this round. Keep score in the app.';
+  if (reason.includes('ALREADY_APPROVED')) return 'You already have a spot in this round. Keep score from where you joined.';
+  if (reason.includes('MEMBER_LIMIT')) return 'This round has reached its limit for web scorers. Ask the organizer.';
+  if (reason.includes('INVALID_PLAYER')) return 'That player is not in a group yet. Ask the organizer.';
+  if (error?.code === '42501') return 'The organizer removed web access for this round.';
+  return 'Could not reach the round. Check your connection and try again.';
+}
+
+export function playerLinkApi(rpc: Rpc) {
+  async function call(name: string, args: Record<string, unknown>) {
+    const { data, error } = await rpc(name, args);
+    if (error) throw Object.assign(Error(playerLinkMessage(error)), { code: error.code });
+    return data;
+  }
+  return {
+    async roster(token: string): Promise<LinkRoster> {
+      if (!validPlayerToken(token)) throw Error(playerLinkMessage({ message: 'INVALID_LINK' }));
+      return call('player_link_roster', { p_token: token });
+    },
+    async join(token: string, playerId: string): Promise<{ contest_id: string; player_id: string }> {
+      if (!validPlayerToken(token)) throw Error(playerLinkMessage({ message: 'INVALID_LINK' }));
+      return call('join_player_link', { p_token: token, p_player_id: playerId });
+    },
+    create: (contestId: string): Promise<string> => call('create_player_link', { contest_id: contestId }),
+    revoke: (contestId: string) => call('revoke_player_links', { contest_id: contestId }),
+  };
+}
+
+type Round = SyncSnapshotV1['rounds'][number];
+/** The card this guest keeps: the chosen player's group in the first round that still has an empty cell. */
+export function groupCard(snapshot: SyncSnapshotV1, playerId: string): { round: Round; groupName: string; players: Round['players'] } | null {
+  const mine = snapshot.rounds.filter(round => round.players.some(p => p.id === playerId && p.group_id));
+  if (!mine.length) return null;
+  const holes = (round: Round) => round.course.holes.length || 18;
+  const group = (round: Round) => round.players.filter(p => p.group_id === round.players.find(q => q.id === playerId)!.group_id);
+  const open = mine.find(round => group(round).some(p => p.cells.some(c => c.hole <= holes(round) && c.strokes === null)));
+  const round = open ?? mine[mine.length - 1];
+  const groupId = round.players.find(p => p.id === playerId)!.group_id;
+  return { round, groupName: round.groups.find(g => g.id === groupId)?.name ?? 'Your group', players: group(round) };
+}
+
+/** First hole of the card nobody in the group has a score for; the last hole when the card is full. */
+export function nextHole(card: { round: Round; players: Round['players'] }): number {
+  const holes = card.round.course.holes.length || 18;
+  for (let hole = 1; hole <= holes; hole++) if (card.players.some(p => (p.cells.find(c => c.hole === hole)?.strokes ?? null) === null)) return hole;
+  return holes;
+}
+
+export interface BoardRow { id: string; name: string; strokes: number; toPar: number; thru: number }
+/** Everyone in the round, best score to par first; players with no score yet go last. */
+export function leaderboard(snapshot: SyncSnapshotV1): BoardRow[] {
+  const rows = new Map<string, BoardRow>();
+  for (const round of snapshot.rounds) for (const player of round.players) {
+    const row = rows.get(player.id) ?? { id: player.id, name: player.displayName, strokes: 0, toPar: 0, thru: 0 };
+    for (const cell of player.cells) if (cell.strokes) {
+      row.strokes += cell.strokes; row.thru += 1;
+      row.toPar += cell.strokes - (round.course.holes.find(h => h.num === cell.hole)?.par ?? 4);
+    }
+    rows.set(player.id, row);
+  }
+  return [...rows.values()].sort((a, b) => Number(b.thru > 0) - Number(a.thru > 0) || a.toPar - b.toPar || a.name.localeCompare(b.name));
+}
+
+export interface Money { pending: boolean; net: { name: string; amount: number }[]; payments: { from: string; to: string; amount: number }[] }
+/** Standings and who owes whom, from the same engine the app settles with. One line per pair of players. */
+export function money(snapshot: SyncSnapshotV1): Money {
+  if (!snapshot.games?.length) return { pending: false, net: [], payments: [] };
+  const result = calculateContestSettlement(restoreOwnerContest(snapshot));
+  const net = Object.entries(result.netByPlayer).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
+  if (result.pending) return { pending: true, net: [], payments: [] };
+  const pairs = new Map<string, number>();
+  for (const t of result.transactions) {
+    const forward = t.from < t.to;
+    const key = forward ? `${t.from}\u0000${t.to}` : `${t.to}\u0000${t.from}`;
+    pairs.set(key, (pairs.get(key) ?? 0) + (forward ? t.amount : -t.amount));
+  }
+  const payments = [...pairs.entries()].map(([key, amount]) => {
+    const [a, b] = key.split('\u0000');
+    return amount >= 0 ? { from: a, to: b, amount } : { from: b, to: a, amount: -amount };
+  }).map(p => ({ ...p, amount: Math.round(p.amount * 100) / 100 })).filter(p => p.amount > 0).sort((a, b) => b.amount - a.amount);
+  return { pending: false, net, payments };
+}
+
+export const formatDollars = (amount: number) => `${amount < 0 ? '−' : ''}$${Math.abs(amount).toFixed(2)}`;
