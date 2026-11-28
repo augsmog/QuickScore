@@ -33,7 +33,8 @@ END $guard$;
 CREATE FUNCTION public.client_shows_held_changes() RETURNS boolean
 LANGUAGE plpgsql STABLE SET search_path=pg_catalog AS $$
 BEGIN
- RETURN coalesce(position('snapscore-holds-1' in (current_setting('request.headers',true)::jsonb->>'x-client-info'))>0,false);
+ -- The mark must be a whole word of the client name, separated by spaces: "snapscore-holds-10" or a mark buried in other text is not it.
+ RETURN coalesce('snapscore-holds-1' = ANY(string_to_array(current_setting('request.headers',true)::jsonb->>'x-client-info',' ')),false);
 EXCEPTION WHEN OTHERS THEN RETURN false;
 END $$;
 REVOKE ALL ON FUNCTION public.client_shows_held_changes() FROM PUBLIC, anon, authenticated;

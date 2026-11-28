@@ -169,6 +169,10 @@ SELECT pg_temp.assert((pg_temp.w('4',3,6)->>'flagged')='true' AND pg_temp.cell('
 -- Anything else in that header slot is not a yes.
 SET LOCAL request.headers='{"x-client-info":"supabase-js-react-native/2.45.0"}';
 SELECT pg_temp.assert((pg_temp.w('4',3,7)->>'status')='accepted' AND pg_temp.cell('4',3)=7,'the stock client name with no SnapScore mark: treated as an older app');
+SET LOCAL request.headers='{"x-client-info":"snapscore-app snapscore-holds-10"}';
+SELECT pg_temp.assert((pg_temp.w('4',3,9)->>'status')='accepted','a longer word that only starts like the mark is not the mark');
+SET LOCAL request.headers='{"x-client-info":["snapscore-holds-1"]}';
+SELECT pg_temp.assert((pg_temp.w('4',3,7)->>'status')='accepted','the mark inside a list is not the mark');
 SET LOCAL request.headers='not json';
 SELECT pg_temp.assert((pg_temp.w('4',3,8)->>'status')='accepted','a broken header never stops a score from saving');
 RESET ROLE;
@@ -178,8 +182,22 @@ SELECT pg_temp.assert(NOT has_function_privilege('authenticated','public.client_
 -- pass to a watcher or a web guest (anyone who came in by code or by link).
 -- Here: users 2 and 3 are web guests (3 was removed), 5 is a watcher, 6 has a request waiting;
 -- user 4 (Dave) is the one approved player with the app.
+-- Delta review 3. The organizer ends the player links first. That must not erase the record of
+-- who came in by link: a web guest whose link was ended still cannot inherit the round.
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000001","is_anonymous":false,"role":"authenticated"}';
+SELECT pg_temp.assert(public.revoke_player_links('82000000-0000-0000-0000-000000000001')->>'status'='revoked','the organizer ends the player links');
+RESET ROLE;
+SELECT pg_temp.assert((SELECT count(*) FROM public.player_link_members WHERE contest_id='82000000-0000-0000-0000-000000000001')=2,'ending links keeps the record of the two people who joined by link');
+-- Sibling case: the organizer takes the picked player out of the round. The record stays, with no player.
+SELECT pg_temp.assert((SELECT k.confdeltype FROM pg_constraint k WHERE k.conrelid='public.player_link_members'::regclass AND k.confrelid='public.contest_players'::regclass)='n','removing the picked player empties the pick and keeps the record');
+SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM pg_constraint k WHERE k.contype='f' AND k.conrelid IN ('public.player_link_members'::regclass,'public.watch_code_members'::regclass) AND k.confdeltype='c' AND k.confrelid NOT IN ('public.contests'::regclass,'auth.users'::regclass,'public.player_links'::regclass)),'nothing but the round, the account or the link itself removes a came-in-by-link record');
+
 SELECT public.purge_account('81000000-0000-0000-0000-000000000001');
 SELECT pg_temp.assert((SELECT owner_id FROM public.contests WHERE id='82000000-0000-0000-0000-000000000001')='81000000-0000-0000-0000-000000000004','the round passes to the approved player, not to a watcher or web guest');
+-- With the approved player set aside, the next in line by today's rule would be web guest 2 if
+-- the record were gone. It is not: the round goes to an ordinary member.
+
 -- With nobody eligible left, the round is removed with its organizer, as it already is today when nobody else is in it.
 INSERT INTO public.contests(id,owner_id,name,course,protocol,sync_enabled,invite_code,bet_unit)
 VALUES('82000000-0000-0000-0000-000000000002','81000000-0000-0000-0000-000000000004','Watchers only','{"name":"Course","holes":[{"num":1,"par":4,"hcp":1,"yards":400}]}',1,true,'RULES2',5);
@@ -187,12 +205,24 @@ SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000005","is_anonymous":true,"role":"authenticated"}';
 SELECT pg_temp.assert(public.watch_code('RULES2')->>'status'='watching','a watcher joins the second round');
 RESET ROLE;
+-- The reviewer's case: a real account that joined by link, whose link was then ended, is the only
+-- other person in the round apart from a watcher. The organizer deletes their account.
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000004","is_anonymous":false,"role":"authenticated"}';
+INSERT INTO t SELECT 'token2', public.create_player_link('82000000-0000-0000-0000-000000000002');
+RESET ROLE;
+INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status) VALUES('82000000-0000-0000-0000-000000000002','81000000-0000-0000-0000-000000000003','scorer',NULL,'approved');
+INSERT INTO public.player_link_members(contest_id,user_id,token_hash,player_id) SELECT '82000000-0000-0000-0000-000000000002','81000000-0000-0000-0000-000000000003',encode(extensions.digest(v,'sha256'),'hex'),NULL FROM t WHERE k='token2';
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.assert(public.revoke_player_links('82000000-0000-0000-0000-000000000002')->>'members'='1','the organizer ends the links; the web scorer is removed');
+RESET ROLE;
 SELECT public.purge_account('81000000-0000-0000-0000-000000000004');
+SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM public.contests WHERE owner_id='81000000-0000-0000-0000-000000000003'),'a removed web scorer never becomes the organizer');
 SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM public.contests WHERE id='82000000-0000-0000-0000-000000000002'),'a round with only a watcher left does not pass to the watcher');
 -- Delta review 1. Nobody's scores are deleted that survive today: the first round still exists
 -- after two owners in a row deleted their accounts, it went to someone who was in the round the
 -- ordinary way (as it would today), never to a link or code entrant, and its scores are there.
-SELECT pg_temp.assert((SELECT owner_id FROM public.contests WHERE id='82000000-0000-0000-0000-000000000001') IN ('81000000-0000-0000-0000-000000000006','81000000-0000-0000-0000-000000000007'),'the round passed on again, to a member who did not come by link or code');
+SELECT pg_temp.assert((SELECT owner_id FROM public.contests WHERE id='82000000-0000-0000-0000-000000000001')='81000000-0000-0000-0000-000000000006','the round passed on again exactly as today''s rule picks (the next member by id who did not come by link or code), not to web guest 2 whose link was ended');
 SELECT pg_temp.assert((SELECT count(*) FROM public.score_events WHERE contest_id='82000000-0000-0000-0000-000000000001')>0,'and its scores are still there');
 SELECT 'PASS: web review findings' AS result;
 ROLLBACK;

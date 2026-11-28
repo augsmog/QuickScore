@@ -6,7 +6,9 @@ const server = fs.readFileSync('supabase/proposed/20261128010000_web_score_rules
 
 test('the app and the server agree on the header name and value', () => {
   expect(client).toContain('export const HELD_CHANGES_HEADER = { "X-Client-Info": "snapscore-app snapscore-holds-1" } as const;');
-  expect(server).toContain("position('snapscore-holds-1' in (current_setting('request.headers',true)::jsonb->>'x-client-info'))>0");
+  expect(server).toContain("'snapscore-holds-1' = ANY(string_to_array(current_setting('request.headers',true)::jsonb->>'x-client-info',' '))");
+  // The app's value is the mark as a whole space-separated word.
+  expect('snapscore-app snapscore-holds-1'.split(' ')).toContain('snapscore-holds-1');
 });
 
 test('the app and the website both send it on every request', () => {

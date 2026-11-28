@@ -41,10 +41,12 @@ CREATE TABLE public.player_link_members (
   contest_id uuid NOT NULL REFERENCES public.contests(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   token_hash text NOT NULL REFERENCES public.player_links(token_hash) ON DELETE CASCADE,
-  player_id uuid NOT NULL,
+  -- Emptied, not deleted, if the organizer takes that player out of the round: the record that
+  -- this person came in by link must outlive the player they picked. (Delta review 3, sibling case.)
+  player_id uuid,
   joined_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (contest_id, user_id),
-  FOREIGN KEY (player_id, contest_id) REFERENCES public.contest_players(id, contest_id) ON DELETE CASCADE
+  FOREIGN KEY (player_id, contest_id) REFERENCES public.contest_players(id, contest_id) ON DELETE SET NULL (player_id)
 );
 
 -- Group host: whoever took a group's card first, on the web or in the app.
@@ -200,7 +202,9 @@ BEGIN
  UPDATE public.contest_memberships m SET status='revoked',updated_at=now() WHERE m.contest_id=$1 AND m.role='scorer' AND m.status='approved'
   AND m.user_id IN (SELECT j.user_id FROM public.player_link_members j WHERE j.contest_id=$1);
  GET DIAGNOSTICS n = ROW_COUNT;
- DELETE FROM public.player_link_members j WHERE j.contest_id=$1;
+ -- The record of who came in by link is KEPT. It is what stops a web guest, removed or not, from
+ -- inheriting the round if the organizer later deletes their account, and what a rollback
+ -- uses to find them. (Delta review 3.)
  UPDATE public.contests SET sync_revision=sync_revision+1 WHERE id=$1;
  RETURN jsonb_build_object('status','revoked','members',n);
 END $$;
@@ -254,7 +258,8 @@ BEGIN
   RAISE EXCEPTION USING ERRCODE='23505', MESSAGE='ALREADY_APPROVED'; END IF;
  -- A member the host removed does not come back through the same link.
  IF existing.status='revoked' THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='FORBIDDEN'; END IF;
- IF existing.user_id IS NULL AND (SELECT count(*) FROM public.player_link_members j WHERE j.contest_id=cid)>=200 THEN
+ -- Counts web scorers who are in the round now; people whose links were ended stay on record but do not use up the limit.
+ IF existing.user_id IS NULL AND (SELECT count(*) FROM public.player_link_members j JOIN public.contest_memberships m ON m.contest_id=j.contest_id AND m.user_id=j.user_id AND m.status='approved' WHERE j.contest_id=cid)>=200 THEN
   RAISE EXCEPTION USING ERRCODE='54000', MESSAGE='MEMBER_LIMIT'; END IF;
  INSERT INTO public.contest_memberships(contest_id,user_id,role,player_id,status) VALUES(cid,uid,'scorer',NULL,'approved')
   ON CONFLICT (contest_id,user_id) DO UPDATE SET role='scorer',player_id=NULL,status='approved',updated_at=now();
