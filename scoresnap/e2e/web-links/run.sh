@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# One command: throwaway local Postgres with the repo's schema plus the PROPOSED web-links
-# file, a local stand-in for the hosted backend, the site build, and the three-browser journey.
+# One command: throwaway local Postgres with the repo's schema plus the two PROPOSED web
+# files, a local stand-in for the hosted backend, the site build, and the three-browser journey.
 # Touches nothing outside this machine. Needs: Node, Playwright's Chromium, PostgreSQL 16 or 17.
 #
 #   e2e/web-links/run.sh            # builds the site first (about 3 minutes)
@@ -24,10 +24,11 @@ q() { psql "$url" -X -q -v ON_ERROR_STOP=1 "$@"; }
 q -f "$work/sql/offline-bootstrap.sql" >"$work/apply.log" 2>&1
 q -f "$work/sql/stubs.sql" >>"$work/apply.log" 2>&1
 for m in "$work"/sql/migrations/*.sql; do q -f "$m" >>"$work/apply.log" 2>&1 || { echo "FAILED $m"; tail -5 "$work/apply.log"; exit 1; }; done
-# Proposals already live in production, then the one under test.
-for p in 20261031230000_restore_game_settings 20261101020000_owner_discovery 20261101190000_owner_invite_snapshot 20261128000000_web_player_links; do
+# Proposals already live in production, then the two under test.
+for p in 20261031230000_restore_game_settings 20261101020000_owner_discovery 20261101190000_owner_invite_snapshot 20261128000000_web_player_links 20261128010000_web_score_rules; do
   q -f "$work/sql/proposed/$p.sql" >>"$work/apply.log" 2>&1 || { echo "FAILED $p"; tail -5 "$work/apply.log"; exit 1; }; done
 q -f "$app/supabase/tests/web-player-links.sql" | grep -q 'PASS: web player links' && echo "PASS  server test (supabase/tests/web-player-links.sql)"
+q -f "$app/supabase/tests/web-score-rules.sql" | grep -q 'PASS: web score rules' && echo "PASS  server test (supabase/tests/web-score-rules.sql)"
 token=$(q -At -f "$work/sql/seed.sql" | tail -1)
 dist=${DIST:-}
 if [ -z "$dist" ]; then
