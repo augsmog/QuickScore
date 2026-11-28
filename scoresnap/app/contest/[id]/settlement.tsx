@@ -19,6 +19,9 @@ import { type Contest, useContestStore } from "../../../src/stores/contest-store
 import { canSeeSettlement, proEnabled } from "../../../src/services/entitlements";
 import { RecapCard } from "../../../src/ui/recap/RecapCard";
 import { buildRecapModel } from "../../../src/ui/recap/model";
+import { TicketShareSource } from "../../../src/ui/share/PayUpTicket";
+import { buildTicketModel } from "../../../src/ui/share/pay-up-ticket-model";
+import { sharePayUpTicket } from "../../../src/services/share-pay-up-ticket";
 import { liveShareScope, useLiveShareUrl } from "../../../src/services/live-share-url-state";
 import { webAnalytics } from "../../../src/services/analytics";
 import { settlementLeader } from "../../../src/ui/copy";
@@ -123,6 +126,8 @@ export default function SettlementScreen() {
 
 function SettlementScreenContent() {
   const pdfExportPending = useRef(false);
+  // The Pay-up ticket is drawn off-screen and captured as the share image.
+  const ticketRef = useRef<View>(null);
   const { id } = useLocalSearchParams<{ id: string }>();
   const contest = useContestStore(s => s.contests.find(c => c.id === id));
   const accountId = useAuthStore(s => s.user?.id ?? s.remoteUserId ?? null);
@@ -173,6 +178,7 @@ function SettlementScreenContent() {
   const sortedNet = Object.entries(settlement.netByPlayer).sort(([, a], [, b]) => b - a);
   const sessionTotal = sortedNet.filter(([, net]) => net > 0).reduce((sum, [, net]) => sum + Math.round(net * 100), 0) / 100;
   const topWinner = sortedNet[0];
+  const ticket = buildTicketModel(settlement, { title: contest.name, course: contest.course.name, playedAt: contest.createdAt, games: contest.games, betUnit: contest.betUnit });
 
   const generateShareText = (): string => {
     const lines = [contest.name, contest.course.name, `${contest.games.length} game${contest.games.length !== 1 ? "s" : ""} at $${contest.betUnit}/unit`, ""];
@@ -192,6 +198,8 @@ function SettlementScreenContent() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     void webAnalytics.capture("share_tapped");
     try {
+      // The picture first; the plain text result if the picture cannot be made or shared.
+      if (await sharePayUpTicket(ticketRef.current, `${contest.name} — Settle up`)) return;
       await Share.share({ message: generateShareText(), title: `${contest.name} — Settle up` });
     } catch (error) {
       console.error("Share error:", error);
@@ -306,6 +314,8 @@ function SettlementScreenContent() {
         })} />
         <Text style={{ color: COLORS.textDim, fontSize: 12 }}>Screenshot this card to share your round.</Text>
       </View>
+
+      <TicketShareSource ref={ticketRef} model={ticket} />
 
       <View style={{ gap: 12 }}>
         <Pressable accessibilityRole="button" onPress={handleShare} style={primaryButton}>

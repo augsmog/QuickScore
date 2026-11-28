@@ -1,6 +1,7 @@
 import type { SyncSnapshotV1 } from '../../../docs/xdevice/sync-contract-v1';
 import { calculateContestSettlement } from '../engine/contest-results';
 import { restoreOwnerContest } from './restore-owner-contest';
+import { netPayments } from './net-payments';
 
 /** A player link lets a guest with no account keep one group's card on the web. */
 export const validPlayerToken = (token: unknown): token is string => typeof token === 'string' && /^[a-f0-9]{64}$/.test(token);
@@ -103,16 +104,7 @@ export function money(snapshot: SyncSnapshotV1): Money {
   const result = calculateContestSettlement(restoreOwnerContest(snapshot));
   const net = Object.entries(result.netByPlayer).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
   if (result.pending) return { pending: true, net: [], payments: [] };
-  const pairs = new Map<string, number>();
-  for (const t of result.transactions) {
-    const forward = t.from < t.to;
-    const key = forward ? `${t.from}\u0000${t.to}` : `${t.to}\u0000${t.from}`;
-    pairs.set(key, (pairs.get(key) ?? 0) + (forward ? t.amount : -t.amount));
-  }
-  const payments = [...pairs.entries()].map(([key, amount]) => {
-    const [a, b] = key.split('\u0000');
-    return amount >= 0 ? { from: a, to: b, amount } : { from: b, to: a, amount: -amount };
-  }).map(p => ({ ...p, amount: Math.round(p.amount * 100) / 100 })).filter(p => p.amount > 0).sort((a, b) => b.amount - a.amount);
+  const payments = netPayments(result.transactions);
   return { pending: false, net, payments };
 }
 
