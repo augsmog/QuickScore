@@ -5,7 +5,9 @@ import PostHog, { PostHogProvider } from "posthog-react-native";
 const projectToken = process.env.EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN;
 const host = process.env.EXPO_PUBLIC_POSTHOG_HOST;
 
-export const isPostHogConfigured = Boolean(projectToken && host);
+// Never on the guest-only website: web guests are not tracked (AUG-1777).
+const guestWebsite = Platform.OS === "web" && process.env.EXPO_PUBLIC_WEB_GUEST_ONLY === "true";
+export const isPostHogConfigured = Boolean(projectToken && host) && !guestWebsite;
 
 if (!isPostHogConfigured && __DEV__) {
   if (!projectToken) {

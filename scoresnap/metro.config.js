@@ -24,4 +24,7 @@ if (process.env.SNAPSCORE_NIGHTLY_NODE_MODULES) {
   };
 }
 
+// Guest-only website build: no payment code in the bundle (AUG-1777).
+require("./scripts/guest-web-resolver.cjs").withGuestWebStubs(config);
+
 module.exports = withNativeWind(config, { input: "./global.css" });

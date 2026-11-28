@@ -38,6 +38,9 @@ const text = async (page, id) => (await page.getByTestId(id).first().innerText()
 (async () => {
   // PW_CHROMIUM: path to a Chromium binary, for machines where the project's Playwright has no browser downloaded.
   const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
+  // Every request any guest page makes, to anywhere but this site and its backend (AUG-1777).
+  const outside = new Set(); const newContext = browser.newContext.bind(browser);
+  browser.newContext = async options => { const context = await newContext(options); context.on('request', r => { const u = new URL(r.url()); if (/^https?:$/.test(u.protocol) && u.hostname !== '127.0.0.1') outside.add(u.host + u.pathname.slice(0, 40)); }); return context; };
   const open = async label => {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
     const page = await context.newPage(); const errors = [];
@@ -189,6 +192,7 @@ const text = async (page, id) => (await page.getByTestId(id).first().innerText()
     step('after the organizer ends the links, B is told so', true, await text(B.page, 'guest-error'));
     await B.page.screenshot({ path: path.join(OUT, 'web-links-4-ended.png') });
     step('scores entered on the web stay after access ends', cells().includes('Chris:4 Dave:5'), cells());
+    step('guest pages load nothing from outside: no payment scripts, no analytics', outside.size === 0, [...outside].join(' | '));
     step('no page errors in the player browsers', A.errors.length + B.errors.length + D.errors.length === 0, [...A.errors, ...B.errors, ...D.errors].join(' | '));
   } catch (e) { steps.push('STOPPED: ' + String(e.message).slice(0, 300)); process.exitCode = 1; }
   console.log(steps.join('\n'));

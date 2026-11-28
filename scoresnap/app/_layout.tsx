@@ -213,7 +213,8 @@ export default Sentry.wrap(function RootLayout() {
   useEffect(() => {
     initialize().catch((e) => Sentry.captureException(e, { tags: { init: "auth" } }));
     flushQuickSettleCompletionOutbox().catch((e) => Sentry.captureException(e, { tags: { init: "quick-settle-outbox" } }));
-    initPurchases().catch((e) => Sentry.captureException(e, { tags: { init: "purchases" } }));
+    // The guest-only website has no purchases; buying stays in the app.
+    if (!(Platform.OS === "web" && WEB_GUEST_ONLY)) initPurchases().catch((e) => Sentry.captureException(e, { tags: { init: "purchases" } }));
     const t = setTimeout(() => setHydrated(true), 100);
     return () => clearTimeout(t);
   }, []);
