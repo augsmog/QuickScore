@@ -121,3 +121,11 @@ test('remove-player button meets the platform tap target', () => {
   assert.match(block, /minHeight: SETUP_MIN_TARGET,/);
   assert.doesNotMatch(block, /padding: 4,/);
 });
+
+// AUG-1208: the same button had a name but no role, so a screen reader did not call it a button.
+test('remove-player button is announced as a button with the player\'s name', () => {
+  const end = src.indexOf('onPress={() => removePlayer(player.id)}');
+  const block = src.slice(src.lastIndexOf('<AnimatedPressable', end), end);
+  assert.match(block, /accessibilityRole="button"/);
+  assert.match(block, /accessibilityLabel=\{`Remove \$\{player\.name \|\| "player"\}`\}/);
+});

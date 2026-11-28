@@ -795,6 +795,7 @@ export default function NewContestScreen() {
                   {players.length > 2 && (
                     <AnimatedPressable
                       testID={Platform.OS === "ios" && idx > 0 ? `wizard-remove-player-${idx + 1}` : `remove-player-${player.name}`}
+                      accessibilityRole="button"
                       accessibilityLabel={`Remove ${player.name || "player"}`}
                       onPress={() => removePlayer(player.id)}
                       style={{ minWidth: SETUP_MIN_TARGET, minHeight: SETUP_MIN_TARGET, alignItems: "center", justifyContent: "center" }}
