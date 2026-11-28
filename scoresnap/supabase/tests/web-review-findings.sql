@@ -118,6 +118,14 @@ RESET ROLE;
 SELECT pg_temp.assert((SELECT status FROM public.contest_memberships WHERE contest_id='82000000-0000-0000-0000-000000000001' AND user_id='81000000-0000-0000-0000-000000000006')='pending','the join request is untouched');
 SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM public.sync_join_budgets WHERE scope='global' OR scope LIKE 'actor:%'),'the app''s join budget is not spent by watching');
 SELECT pg_temp.assert(EXISTS(SELECT 1 FROM public.sync_join_budgets WHERE scope='watch:global') AND EXISTS(SELECT 1 FROM public.sync_join_budgets WHERE scope='watch:contest:82000000-0000-0000-0000-000000000001'),'watching has its own budget, overall and per round');
+-- Package review A7: a session past its own limit does not spend the overall budget.
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claims='{"sub":"81000000-0000-0000-0000-000000000006","is_anonymous":true,"role":"authenticated"}';
+SELECT public.watch_code('NOSUCH') FROM generate_series(1,12);
+RESET ROLE;
+SELECT pg_temp.assert((SELECT attempts FROM public.sync_join_budgets WHERE scope='watch:global')<=7,'twelve tries from one session cost the overall budget no more than its own five (plus the two earlier visitors)');
+-- Package review D: a link outlives its creator's account, so who joined by it stays on record.
+SELECT pg_temp.assert((SELECT confdeltype FROM pg_constraint WHERE conrelid='public.player_links'::regclass AND confrelid='auth.users'::regclass)='n','deleting the creator keeps the link row and its member records');
 -- Finding 6 (first half). Only memberships a code or a link created are recorded as such.
 SELECT pg_temp.assert((SELECT count(*) FROM public.watch_code_members WHERE contest_id='82000000-0000-0000-0000-000000000001')=1,'the watcher the code created is recorded; nobody else');
 -- Per-round cap: the 61st new watcher in a minute gets the same answer as a wrong code.

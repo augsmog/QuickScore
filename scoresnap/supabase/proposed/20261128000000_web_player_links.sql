@@ -27,7 +27,9 @@ CREATE TABLE public.player_links (
   token_hash text PRIMARY KEY,
   kind text NOT NULL DEFAULT 'player' CHECK (kind IN ('player','spectator')),
   contest_id uuid NOT NULL REFERENCES public.contests(id) ON DELETE CASCADE,
-  created_by uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  -- Kept when the creator's account is deleted: removing the link here would also remove the
+  -- record of who joined by it, and a rollback could then no longer find them. (Package review, D.)
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   revoked_at timestamptz
 );
@@ -365,7 +367,9 @@ DECLARE cid uuid; owner uuid; uid uuid:=auth.uid(); n integer; bucket timestampt
 BEGIN
  IF uid IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='AUTH_REQUIRED'; END IF;
  IF code IS NULL OR length(code)>32 THEN RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='INVALID_REQUEST'; END IF;
- FOREACH k IN ARRAY ARRAY['watch:global','watch:actor:'||uid::text] LOOP
+ -- The session's own limit is checked first, so one session hammering past its limit does not
+ -- also use up the overall budget for everyone else. (Package review, A7.)
+ FOREACH k IN ARRAY ARRAY['watch:actor:'||uid::text,'watch:global'] LOOP
   INSERT INTO public.sync_join_budgets AS b VALUES(k,bucket,1) ON CONFLICT(scope) DO UPDATE SET
    attempts=CASE WHEN b.window_start=bucket THEN least(b.attempts+1,301) ELSE 1 END,window_start=bucket RETURNING attempts INTO n;
   IF n>(CASE WHEN k='watch:global' THEN 300 ELSE 5 END) THEN RETURN '{"status":"unknown"}'::jsonb; END IF;

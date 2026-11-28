@@ -57,3 +57,11 @@ test('analytics are off on the guest-only website even when a build supplies the
     expect(phone.isPostHogConfigured).toBe(true);
   } finally { process.env = env; }
 });
+
+test('any other build gets its bundler config back untouched', () => {
+  for (const env of [{}, { EXPO_PUBLIC_WEB_GUEST_ONLY: 'false' }, { EXPO_PUBLIC_WEB_GUEST_ONLY: 'TRUE' }]) {
+    const resolver = { resolveRequest: () => 'theirs' }, config = { resolver };
+    expect(withGuestWebStubs(config, env)).toBe(config);
+    expect(config.resolver).toBe(resolver);
+  }
+});

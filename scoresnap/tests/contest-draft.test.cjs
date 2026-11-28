@@ -51,4 +51,7 @@ test('the wizard keeps every setup field in the draft, clears it on create, and 
     expect(wizard).toMatch(new RegExp(`useDraftField(<[^(]*>)?\\("${field}",`));
   expect(wizard.indexOf('clearContestDraft();')).toBeGreaterThan(wizard.indexOf('addContest(contest);'));
   expect(fs.readFileSync('src/stores/wipe-local-account.ts', 'utf8')).toContain('clearContestDraft();');
+  // Signing out clears it too, so the next person to sign in on this phone does not see it.
+  const auth = fs.readFileSync('src/stores/auth-store.ts', 'utf8');
+  expect(auth.slice(auth.indexOf('signOut: () => {'), auth.indexOf('signOut: () => {') + 300)).toContain('require("./contest-draft").clearContestDraft();');
 });

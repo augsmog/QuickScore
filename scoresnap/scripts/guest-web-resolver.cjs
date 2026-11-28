@@ -12,6 +12,8 @@ function guestStubFor(moduleName, platform, env = process.env) {
 
 /** Adds the rule in front of whatever resolver the config already has. */
 function withGuestWebStubs(config, env = process.env) {
+  // Every build but the guest-only website gets its config back untouched: nothing is installed.
+  if (env.EXPO_PUBLIC_WEB_GUEST_ONLY !== 'true') return config;
   const previous = config.resolver && config.resolver.resolveRequest;
   config.resolver = { ...config.resolver, resolveRequest(context, moduleName, platform) {
     const stub = guestStubFor(moduleName, platform, env);

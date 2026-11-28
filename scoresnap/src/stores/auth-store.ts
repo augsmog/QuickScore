@@ -264,6 +264,8 @@ export const useAuthStore = create<AuthState>()(
 
       signOut: () => {
         purchaseActor = null;
+        // A half-made round belongs to the person who typed it, not the next one to sign in.
+        require("./contest-draft").clearContestDraft();
         void require("../services/purchases").logOutPurchases();
         persistGate.suppressSignedOutPersist = false;
         if (REAL_AUTH_CONFIGURED) void supabase.auth.signOut();
